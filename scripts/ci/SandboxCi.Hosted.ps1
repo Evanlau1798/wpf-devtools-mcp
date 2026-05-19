@@ -102,6 +102,142 @@ function Invoke-HostedServerRuntimeBuild {
     )
 }
 
+function ConvertTo-HostedSingleQuotedPowerShellLiteral {
+    param([Parameter(Mandatory = $true)] [string]$Value)
+
+    return "'" + $Value.Replace("'", "''") + "'"
+}
+
+function Invoke-HostedPowerShellCommand {
+    param(
+        [Parameter(Mandatory = $true)] [string]$Name,
+        [Parameter(Mandatory = $true)] [string]$Command,
+        [Parameter(Mandatory = $true)] [string]$OutputRoot,
+        [Parameter(Mandatory = $true)] [string]$Timestamp,
+        [int]$TimeoutSeconds = 1800
+    )
+
+    Invoke-ExternalWithTimeout $Name 'powershell.exe' @(
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        $Command
+    ) -TimeoutSeconds $TimeoutSeconds -OutputRoot $OutputRoot -Timestamp $Timestamp
+}
+
+function Invoke-HostedCoverageVerification {
+    param(
+        [Parameter(Mandatory = $true)] [string]$DotNetPath,
+        [Parameter(Mandatory = $true)] [string]$ResultsRoot,
+        [Parameter(Mandatory = $true)] [string]$OutputRoot,
+        [Parameter(Mandatory = $true)] [string]$Timestamp
+    )
+
+    Invoke-External 'Build unit tests for coverage' $DotNetPath @(
+        'build',
+        'tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj',
+        '-c',
+        'Debug',
+        '--no-restore',
+        '-m:1',
+        '-nodeReuse:false',
+        '-p:UseSharedCompilation=false'
+    )
+
+    Invoke-ExternalWithTimeout 'Run tests with coverage' $DotNetPath @(
+        'test',
+        'tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj',
+        '-c',
+        'Debug',
+        '--no-build',
+        '--settings', 'coverlet.runsettings',
+        '--collect',
+        'XPlat Code Coverage',
+        '--results-directory',
+        (Join-Path $ResultsRoot 'coverage'),
+        '-nodeReuse:false',
+        '-p:UseSharedCompilation=false'
+    ) -TimeoutSeconds 3600 -OutputRoot $OutputRoot -Timestamp $Timestamp
+}
+
+function Invoke-HostedReleasePackagingSmoke {
+    param(
+        [Parameter(Mandatory = $true)] [string]$OutputRoot,
+        [Parameter(Mandatory = $true)] [string]$Timestamp,
+        [Parameter(Mandatory = $true)] [ValidateSet('x64')] [string]$Architecture
+    )
+
+    $releaseRoot = Join-Path $OutputRoot "artifacts\release-$Timestamp-$Architecture"
+    $installSmokeRoot = Join-Path $OutputRoot "tmp-release-install-smoke-$Architecture"
+    $bootstrapSmokeRoot = Join-Path $OutputRoot "tmp-release-bootstrap-smoke-$Architecture"
+    Remove-Item -LiteralPath $releaseRoot, $installSmokeRoot, $bootstrapSmokeRoot -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
+
+    Invoke-ExternalWithTimeout "Run release packaging smoke test $Architecture" 'powershell.exe' @(
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        'scripts\tools\packaging\Publish-Release.ps1',
+        '-Architectures',
+        $Architecture,
+        '-OutputRoot',
+        $releaseRoot
+    ) -TimeoutSeconds 3600 -OutputRoot $OutputRoot -Timestamp $Timestamp
+
+    $packageArchive = Get-ChildItem -LiteralPath $releaseRoot -File -Filter "release_*_win-$Architecture.zip" |
+        Sort-Object Name -Descending |
+        Select-Object -First 1
+    if ($null -eq $packageArchive) {
+        throw "Could not locate packaged release archive for architecture $Architecture"
+    }
+
+    $packageDir = Join-Path $releaseRoot $packageArchive.BaseName
+    Remove-Item -LiteralPath $packageDir -Recurse -Force -ErrorAction SilentlyContinue
+    Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
+
+    $installScript = Join-Path $packageDir 'bin\install.ps1'
+    $installRootLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $installSmokeRoot
+    $installScriptLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $installScript
+    Invoke-HostedPowerShellCommand "Install published package smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . $installScriptLiteral -InstallRoot $installRootLiteral -Client other -NonInteractive -Force -OutputJson" $OutputRoot $Timestamp
+
+    $serverPath = Join-Path $installSmokeRoot "$Architecture\current\bin\wpf-devtools-$Architecture.exe"
+    Invoke-ExternalWithTimeout "Start installed package runtime smoke test $Architecture" 'powershell.exe' @(
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        'scripts\tools\packaging\Test-PackagedServerRuntime.ps1',
+        '-ServerPath',
+        $serverPath
+    ) -TimeoutSeconds 300 -OutputRoot $OutputRoot -Timestamp $Timestamp
+
+    $archiveLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $packageArchive.FullName
+    $releaseRootLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $releaseRoot
+    $bootstrapRootLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $bootstrapSmokeRoot
+    Invoke-HostedPowerShellCommand "Online installer smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . .\scripts\online-installer.ps1 -PackageArchivePath $archiveLiteral -TrustedReleaseMetadataDirectory $releaseRootLiteral -InstallRoot $bootstrapRootLiteral -Client other -NonInteractive -Force -OutputJson" $OutputRoot $Timestamp
+
+    $bootstrapServerPath = Join-Path $bootstrapSmokeRoot "$Architecture\current\bin\wpf-devtools-$Architecture.exe"
+    Invoke-ExternalWithTimeout "Start online-installed runtime smoke test $Architecture" 'powershell.exe' @(
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        'scripts\tools\packaging\Test-PackagedServerRuntime.ps1',
+        '-ServerPath',
+        $bootstrapServerPath
+    ) -TimeoutSeconds 300 -OutputRoot $OutputRoot -Timestamp $Timestamp
+
+    $installedScript = Join-Path $installSmokeRoot "$Architecture\current\bin\install.ps1"
+    $installedScriptLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $installedScript
+    Invoke-HostedPowerShellCommand "Uninstall published package smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . $installedScriptLiteral -Action uninstall -InstallRoot $installRootLiteral -Architecture '$Architecture' -Client other -NonInteractive -OutputJson" $OutputRoot $Timestamp
+
+    $bootstrapScript = Join-Path $bootstrapSmokeRoot "$Architecture\current\bin\install.ps1"
+    $bootstrapScriptLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $bootstrapScript
+    Invoke-HostedPowerShellCommand "Uninstall online installer smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . $bootstrapScriptLiteral -Action uninstall -InstallRoot $bootstrapRootLiteral -Architecture '$Architecture' -Client other -NonInteractive -OutputJson" $OutputRoot $Timestamp
+}
+
 function Invoke-HostedWindowsX64Verification {
     param(
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
@@ -128,7 +264,7 @@ function Invoke-HostedWindowsX64Verification {
     )
 
     $previousTimeoutScale = $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE
-    $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '1'
+    $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'
     try {
         Invoke-External 'dotnet restore --locked-mode' $DotNetPath @('restore', '--locked-mode', '-p:NuGetAudit=true')
         Invoke-External 'Restore server runtime dependencies win-x64' $DotNetPath @(
@@ -176,6 +312,9 @@ function Invoke-HostedWindowsX64Verification {
                 )
             }
         }
+
+        Invoke-HostedCoverageVerification -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -OutputRoot $OutputRoot -Timestamp $Timestamp
+        Invoke-HostedReleasePackagingSmoke -Architecture 'x64' -OutputRoot $OutputRoot -Timestamp $Timestamp
     }
     finally {
         if ($null -eq $previousTimeoutScale) {

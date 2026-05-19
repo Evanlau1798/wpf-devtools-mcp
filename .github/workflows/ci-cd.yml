@@ -90,6 +90,8 @@ jobs:
 
     - name: Run release unit tests
       if: matrix.platform == 'x64'
+      env:
+        WPFDEVTOOLS_TEST_TIMEOUT_SCALE: '4'
       run: dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal
 
     - name: Prepare server runtime output

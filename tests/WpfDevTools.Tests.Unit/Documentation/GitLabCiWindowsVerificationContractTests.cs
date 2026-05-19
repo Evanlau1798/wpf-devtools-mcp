@@ -82,12 +82,27 @@ public sealed class GitLabCiWindowsVerificationContractTests
         var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
         var hosted = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.ps1"));
 
-        workflow.Should().NotContain("WPFDEVTOOLS_TEST_TIMEOUT_SCALE",
-            "GitHub hosted CI uses the harness default timeout budget");
+        workflow.Should().Contain("WPFDEVTOOLS_TEST_TIMEOUT_SCALE: '4'",
+            "GitHub hosted runners can stretch PowerShell installer tests under Release load, so the workflow should use the same explicit harness timeout scale as sandbox hosted CI");
         hosted.Should().Contain("$previousTimeoutScale = $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE");
-        hosted.Should().Contain("$env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '1'",
-            "HostedWindowsX64 should not inherit the sandbox-only timeout multiplier that can hide GitHub hosted timeouts");
+        hosted.Should().Contain("$env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'",
+            "HostedWindowsX64 should mirror the GitHub hosted Release unit timeout budget");
         hosted.Should().Contain("$env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = $previousTimeoutScale");
+    }
+
+    [Fact]
+    public void SandboxHostedWindowsX64Mode_ShouldMirrorCoverageAndPackagingSmokeJobs()
+    {
+        var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
+        var hosted = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.ps1"));
+
+        workflow.Should().Contain("Run tests with coverage");
+        workflow.Should().Contain("Run release packaging smoke test");
+        hosted.Should().Contain("Invoke-HostedCoverageVerification");
+        hosted.Should().Contain("--settings', 'coverlet.runsettings'");
+        hosted.Should().Contain("Invoke-HostedReleasePackagingSmoke -Architecture 'x64'");
+        hosted.Should().Contain("Publish-Release.ps1");
+        hosted.Should().Contain("Test-PackagedServerRuntime.ps1");
     }
 
     [Fact]

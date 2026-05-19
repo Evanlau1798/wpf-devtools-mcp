@@ -155,7 +155,8 @@ function New-ProcessSnapshotFromProcess {
     try {
         $cutoffTicks = [DateTime]::UtcNow.Ticks
         if ($Process.HasExited) {
-            $cutoffTicks = $Process.ExitTime.ToUniversalTime().Ticks
+            $exitTicks = $Process.ExitTime.ToUniversalTime().Ticks
+            if ($exitTicks -gt $cutoffTicks) { $cutoffTicks = $exitTicks }
         }
 
         return [pscustomobject]@{
@@ -342,7 +343,7 @@ function Update-ProcessSnapshotCutoffFromProcess {
 
     try {
         if ($Process.HasExited) {
-            $Snapshot.DescendantCutoffUtcTicks = $Process.ExitTime.ToUniversalTime().Ticks
+            $Snapshot.DescendantCutoffUtcTicks = [Math]::Max([long]$Snapshot.DescendantCutoffUtcTicks, [Math]::Max($Process.ExitTime.ToUniversalTime().Ticks, [DateTime]::UtcNow.Ticks))
             return $true
         }
     }

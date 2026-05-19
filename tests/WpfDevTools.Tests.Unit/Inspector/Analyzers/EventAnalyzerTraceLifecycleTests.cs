@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Windows;
@@ -183,6 +184,7 @@ public partial class EventAnalyzerTests
 
         var disposeTask = Task.Run(() => analyzer.Dispose());
         disposeTask.Wait(TimeSpan.FromMilliseconds(200)).Should().BeFalse();
+        WaitForStartCancellationRequest(analyzer, TimeSpan.FromSeconds(5)).Should().BeTrue();
         allowRegistrationToFinish.Set();
 
         WaitForTaskCompletion(disposeTask, button.Dispatcher, TimeSpan.FromSeconds(15)).Should().BeTrue();
@@ -365,6 +367,31 @@ public partial class EventAnalyzerTests
 
             return false;
         });
+    }
+
+    private static bool WaitForStartCancellationRequest(EventAnalyzer analyzer, TimeSpan timeout)
+    {
+        var transitionField = typeof(EventAnalyzer).GetField(
+            "_traceTransitions",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        transitionField.Should().NotBeNull();
+        var transitions = transitionField!.GetValue(analyzer);
+        transitions.Should().NotBeNull();
+        var cancellationProperty = transitions!.GetType().GetProperty("CancelStartTransitionRequested");
+        cancellationProperty.Should().NotBeNull();
+
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            if ((bool)cancellationProperty!.GetValue(transitions)!)
+            {
+                return true;
+            }
+
+            Thread.Sleep(10);
+        }
+
+        return false;
     }
 
     private static bool WaitForTaskCompletion(Task task, Dispatcher dispatcher, TimeSpan timeout)

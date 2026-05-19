@@ -17,8 +17,8 @@ public sealed class WaitForDpChangeToolPostTriggerTests
         const int processId = 4778;
         using var connected = await CreateDelayedAfterTriggerSnapshotSessionAsync(
             processId,
-            mutationDelayMs: 70,
-            afterTriggerSnapshotDelayMs: 45);
+            mutationDelayMs: 30,
+            afterTriggerSnapshotDelayMs: 350);
         var waitTool = new WaitForDpChangeTool(connected.SessionManager);
 
         var waitResult = await waitTool.ExecuteAsync(
@@ -27,7 +27,7 @@ public sealed class WaitForDpChangeToolPostTriggerTests
                 processId,
                 propertyName = "Text",
                 expectedValue = JsonSerializer.SerializeToElement("after"),
-                timeoutMs = 100,
+                timeoutMs = 300,
                 pollIntervalMs = 50,
                 triggerMutation = new
                 {

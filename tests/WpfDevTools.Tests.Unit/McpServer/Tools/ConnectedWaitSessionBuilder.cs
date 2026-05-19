@@ -90,6 +90,9 @@ internal static class ConnectedWaitSessionBuilder
             catch (ObjectDisposedException)
             {
             }
+            catch (IOException)
+            {
+            }
 
             throw;
         }
@@ -127,6 +130,9 @@ internal sealed class ConnectedWaitSession(
             {
             }
             catch (ObjectDisposedException)
+            {
+            }
+            catch (IOException)
             {
             }
         }

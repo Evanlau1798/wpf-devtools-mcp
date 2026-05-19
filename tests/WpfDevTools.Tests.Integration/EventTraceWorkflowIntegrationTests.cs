@@ -200,9 +200,14 @@ public class EventTraceWorkflowIntegrationTests
             tracePayload =>
                 tracePayload.TryGetProperty("diagnostics", out var diagnostics)
                 && diagnostics.TryGetProperty("reasonCode", out var reasonCode)
-                && string.Equals(reasonCode.GetString(), "eventNotRaised", StringComparison.Ordinal),
+                && string.Equals(reasonCode.GetString(), "eventNotRaised", StringComparison.Ordinal)
+                && diagnostics.TryGetProperty("windowExpiredBeforeGet", out var windowExpiredBeforeGet)
+                && windowExpiredBeforeGet.ValueKind == JsonValueKind.True
+                && diagnostics.TryGetProperty("expiredByMs", out var expiredByProperty)
+                && expiredByProperty.TryGetInt32(out var expiredByMs)
+                && expiredByMs > 0,
             TimeSpan.FromSeconds(2),
-            "Timed out waiting for trace_routed_events(mode='get') to report the expired no-interaction diagnostics.");
+            "Timed out waiting for trace_routed_events(mode='get') to report stable expired no-interaction diagnostics.");
 
         payload.GetProperty("success").GetBoolean().Should().BeTrue(payload.GetRawText());
         payload.GetProperty("eventCount").GetInt32().Should().Be(0);

@@ -35,14 +35,14 @@ $script:PackageArchivePathWasSpecified = $PSBoundParameters.ContainsKey('Package
 $script:TrustedReleaseMetadataDirectoryWasSpecified = $PSBoundParameters.ContainsKey('TrustedReleaseMetadataDirectory')
 $script:InstallerTestResponses = New-Object System.Collections.Generic.Queue[string]
 
-if ($script:TrustedReleaseMetadataDirectoryWasSpecified) {
+if ($Action -ne 'plan' -and $script:TrustedReleaseMetadataDirectoryWasSpecified) {
     if ([string]::IsNullOrWhiteSpace($TrustedReleaseMetadataDirectory)) {
         throw 'TrustedReleaseMetadataDirectory must not be empty when specified.'
     }
 
     $env:WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY = [string]$TrustedReleaseMetadataDirectory
 }
-else {
+elseif ($Action -ne 'plan') {
     Remove-Item Env:WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY -ErrorAction SilentlyContinue
 }
 
@@ -3250,9 +3250,9 @@ function Get-DefaultClient {
     if ($null -ne (Get-Command 'claude' -ErrorAction SilentlyContinue)) { return 'claude-code' }
     if ($null -ne (Get-Command 'codex' -ErrorAction SilentlyContinue)) { return 'codex' }
     if ($null -ne (Get-Command 'cursor-agent' -ErrorAction SilentlyContinue)) { return 'cursor' }
-    if (Test-Path (Join-Path $env:USERPROFILE '.cursor')) { return 'cursor' }
-    if (Test-Path (Join-Path $env:APPDATA 'Code\User')) { return 'vscode' }
-    if (Test-Path (Join-Path $env:USERPROFILE '.mcp.json')) { return 'visual-studio' }
+    if (Test-InstallerPathExists -Root $env:USERPROFILE -ChildPath '.cursor') { return 'cursor' }
+    if (Test-InstallerPathExists -Root $env:APPDATA -ChildPath 'Code\User') { return 'vscode' }
+    if (Test-InstallerPathExists -Root $env:USERPROFILE -ChildPath '.mcp.json') { return 'visual-studio' }
     return 'other'
 }
 function Test-InstallerPathExists {
@@ -3326,10 +3326,238 @@ function Get-DetectedInstallerClients {
 
     return @($detectedClients)
 }
+function Import-InstallerPlanReadOnlyHelpers {
+    try {
+        foreach ($helperRoot in @(Get-LocalInstallerHelperRoots)) {
+            $helperPaths = @()
+            $allPresent = $true
+            foreach ($helperFile in $script:InstallerSharedHelperLeafNames) {
+                $helperPath = Join-Path $helperRoot $helperFile
+                if (-not (Test-Path -LiteralPath $helperPath)) {
+                    $allPresent = $false
+                    break
+                }
+
+                $helperPaths += $helperPath
+            }
+
+            if ($allPresent) {
+                foreach ($helperPath in @($helperPaths)) {
+                    . $helperPath
+                }
+
+                return $true
+            }
+        }
+
+        foreach ($helperPath in @(Get-InstallerSharedModulePaths -AllowMissing)) {
+            . $helperPath
+        }
+
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+function Get-InstallerPlanFallbackRoot {
+    param([bool]$HelpersLoaded)
+
+    if ($HelpersLoaded -and (Get-Command 'Get-DefaultInstallRootPath' -ErrorAction SilentlyContinue)) {
+        try {
+            $defaultRoot = Get-DefaultInstallRootPath
+            if (-not [string]::IsNullOrWhiteSpace($defaultRoot)) {
+                return [string]$defaultRoot
+            }
+        }
+        catch {
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($InstallRoot)) {
+        return [string]$InstallRoot
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:APPDATA)) {
+        return (Join-Path $env:APPDATA 'WpfDevToolsMcp')
+    }
+
+    return (Join-Path ([System.IO.Path]::GetTempPath()) 'WpfDevToolsMcp')
+}
+function Get-InstallerPlanStateSnapshot {
+    if ([string]::IsNullOrWhiteSpace($env:APPDATA)) {
+        return [ordered]@{
+            LastInstallRoot = $null
+            ArchitectureRecords = @()
+            RegistrationRecords = @()
+        }
+    }
+
+    $statePath = Join-Path (Join-Path $env:APPDATA 'WpfDevToolsMcp') 'installer-state.json'
+    if (-not (Test-Path -LiteralPath $statePath)) {
+        return [ordered]@{
+            LastInstallRoot = $null
+            ArchitectureRecords = @()
+            RegistrationRecords = @()
+        }
+    }
+
+    try {
+        $parsed = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    }
+    catch {
+        return [ordered]@{
+            LastInstallRoot = $null
+            ArchitectureRecords = @()
+            RegistrationRecords = @()
+        }
+    }
+
+    $architectureRecords = @()
+    if ($null -ne $parsed.architectures) {
+        foreach ($property in $parsed.architectures.PSObject.Properties) {
+            $architectureRecords += $property.Value
+        }
+    }
+
+    $registrationRecords = @()
+    if ($null -ne $parsed.registrations) {
+        foreach ($property in $parsed.registrations.PSObject.Properties) {
+            $registrationRecords += $property.Value
+        }
+    }
+
+    return [ordered]@{
+        LastInstallRoot = [string]$parsed.lastInstallRoot
+        ArchitectureRecords = @($architectureRecords)
+        RegistrationRecords = @($registrationRecords)
+    }
+}
+function Test-InstallerPlanPathEquals {
+    param(
+        [string]$Left,
+        [string]$Right
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Left) -or [string]::IsNullOrWhiteSpace($Right)) {
+        return $false
+    }
+
+    if (Get-Command 'Test-InstallerPathEqualsCore' -ErrorAction SilentlyContinue) {
+        return (Test-InstallerPathEqualsCore -Left $Left -Right $Right)
+    }
+
+    return [string]::Equals(
+        [System.IO.Path]::GetFullPath($Left).TrimEnd('\'),
+        [System.IO.Path]::GetFullPath($Right).TrimEnd('\'),
+        [System.StringComparison]::OrdinalIgnoreCase)
+}
+function Test-InstallerPlanStateRecordEvidence {
+    param(
+        [object[]]$Records,
+        [string]$ExpectedInstallRoot
+    )
+
+    if (-not (Get-Command 'Test-StateRecordHasLiveInstallEvidence' -ErrorAction SilentlyContinue)) {
+        return $false
+    }
+
+    foreach ($record in @($Records)) {
+        if (Test-StateRecordHasLiveInstallEvidence -Record $record -ExpectedInstallRoot $ExpectedInstallRoot) {
+            return $true
+        }
+    }
+
+    return $false
+}
+function Test-InstallerPlanLiveManifestEvidence {
+    param([string]$InstallRoot)
+
+    if ([string]::IsNullOrWhiteSpace($InstallRoot)) {
+        return $false
+    }
+
+    foreach ($architecture in @('x64', 'x86', 'arm64')) {
+        $manifestPath = Join-Path (Join-Path $InstallRoot $architecture) 'install-manifest.json'
+        if (-not (Test-Path -LiteralPath $manifestPath)) {
+            continue
+        }
+
+        try {
+            $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+            $manifestInstallRoot = [string]$manifest.installRoot
+            if (-not [string]::IsNullOrWhiteSpace($manifestInstallRoot) -and
+                -not (Test-InstallerPlanPathEquals -Left $manifestInstallRoot -Right $InstallRoot)) {
+                continue
+            }
+
+            $installedExecutable = [string]$manifest.executable
+            if ([string]::IsNullOrWhiteSpace($installedExecutable)) {
+                $installedExecutable = Join-Path (Join-Path $InstallRoot $architecture) "current\bin\wpf-devtools-$architecture.exe"
+            }
+
+            if (Test-Path -LiteralPath $installedExecutable -PathType Leaf) {
+                return $true
+            }
+        }
+        catch {
+        }
+    }
+
+    return $false
+}
+function Resolve-InstallerPlanInstallRoot {
+    $helpersLoaded = Import-InstallerPlanReadOnlyHelpers
+    $fallbackInstallRoot = Get-InstallerPlanFallbackRoot -HelpersLoaded $helpersLoaded
+
+    if ($script:InstallRootWasSpecified) {
+        return [ordered]@{
+            InstallRootDefault = [string]$InstallRoot
+            PreferredInstallRoot = [string]$InstallRoot
+            FallbackInstallRoot = [string]$fallbackInstallRoot
+            InstallRootSource = 'explicit'
+        }
+    }
+
+    $state = Get-InstallerPlanStateSnapshot
+    $lastInstallRoot = [string]$state.LastInstallRoot
+    if (-not [string]::IsNullOrWhiteSpace($lastInstallRoot)) {
+        if (Test-InstallerPlanPathEquals -Left $lastInstallRoot -Right $fallbackInstallRoot) {
+            return [ordered]@{
+                InstallRootDefault = [string]$fallbackInstallRoot
+                PreferredInstallRoot = [string]$fallbackInstallRoot
+                FallbackInstallRoot = [string]$fallbackInstallRoot
+                InstallRootSource = 'default'
+            }
+        }
+
+        $hasStateEvidence =
+            (Test-InstallerPlanStateRecordEvidence -Records @($state.ArchitectureRecords) -ExpectedInstallRoot $lastInstallRoot) -or
+            (Test-InstallerPlanStateRecordEvidence -Records @($state.RegistrationRecords) -ExpectedInstallRoot $lastInstallRoot)
+        $hasFilesystemEvidence = Test-InstallerPlanLiveManifestEvidence -InstallRoot $lastInstallRoot
+
+        if ($hasStateEvidence -or $hasFilesystemEvidence) {
+            return [ordered]@{
+                InstallRootDefault = [string]$fallbackInstallRoot
+                PreferredInstallRoot = [string]$lastInstallRoot
+                FallbackInstallRoot = [string]$fallbackInstallRoot
+                InstallRootSource = 'previous-live-install'
+            }
+        }
+    }
+
+    return [ordered]@{
+        InstallRootDefault = [string]$fallbackInstallRoot
+        PreferredInstallRoot = [string]$fallbackInstallRoot
+        FallbackInstallRoot = [string]$fallbackInstallRoot
+        InstallRootSource = 'default'
+    }
+}
 function Get-InstallerPlan {
     $resolvedArchitecture = if ([string]::IsNullOrWhiteSpace($Architecture)) { Get-SystemDefaultArchitecture } else { $Architecture }
     $resolvedClient = if ([string]::IsNullOrWhiteSpace($Client)) { Get-DefaultClient } else { $Client }
     $supportedClientIds = @(Get-SupportedClients | ForEach-Object { [string]$_.Id })
+    $installRootPlan = Resolve-InstallerPlanInstallRoot
 
     return [ordered]@{
         action = 'plan'
@@ -3337,7 +3565,10 @@ function Get-InstallerPlan {
         version = [string]$Version
         architecture = [string]$resolvedArchitecture
         client = [string]$resolvedClient
-        installRootDefault = [string]$InstallRoot
+        installRootDefault = [string]$installRootPlan.InstallRootDefault
+        preferredInstallRoot = [string]$installRootPlan.PreferredInstallRoot
+        fallbackInstallRoot = [string]$installRootPlan.FallbackInstallRoot
+        installRootSource = [string]$installRootPlan.InstallRootSource
         supportedClients = @($supportedClientIds)
         detectedClients = @(Get-DetectedInstallerClients)
         requiresUserConfirmationBeforeMutation = $true
@@ -4532,16 +4763,7 @@ if ($selectionContext.HandledInWindow) {
 }
 if ($selectionContext.Contains('IsPlan') -and [bool]$selectionContext['IsPlan']) {
     $plan = $selectionContext['Selection']
-    if ($OutputJson) {
-        $plan | ConvertTo-Json -Depth 10
-    }
-    else {
-        Write-InstallerMessage 'Installer plan generated. Re-run with -OutputJson for the machine-readable contract.'
-        Write-InstallerMessage "Architecture: $($plan.architecture)"
-        Write-InstallerMessage "Default client: $($plan.client)"
-        Write-InstallerMessage "Install root: $($plan.installRootDefault)"
-    }
-
+    $plan | ConvertTo-Json -Depth 10
     return
 }
 

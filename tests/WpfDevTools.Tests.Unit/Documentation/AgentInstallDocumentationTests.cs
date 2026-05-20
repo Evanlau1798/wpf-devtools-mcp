@@ -115,6 +115,9 @@ public sealed class AgentInstallDocumentationTests
             content.Should().Contain("\"architecture\"");
             content.Should().Contain("\"client\"");
             content.Should().Contain("\"installRootDefault\"");
+            content.Should().Contain("\"preferredInstallRoot\"");
+            content.Should().Contain("\"fallbackInstallRoot\"");
+            content.Should().Contain("\"installRootSource\"");
             content.Should().Contain("\"supportedClients\"");
             content.Should().Contain("\"detectedClients\"");
             content.Should().Contain("\"registrationStyle\"");

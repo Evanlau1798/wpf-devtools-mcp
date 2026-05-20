@@ -60,6 +60,9 @@ Example plan output:
   "architecture": "x64",
   "client": "codex",
   "installRootDefault": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
+  "preferredInstallRoot": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
+  "fallbackInstallRoot": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
+  "installRootSource": "default",
   "supportedClients": ["claude-code", "codex", "cursor", "vscode", "visual-studio", "claude-desktop", "other"],
   "detectedClients": [
     {
@@ -83,7 +86,7 @@ Example plan output:
 }
 ```
 
-Treat the plan as evidence, not permission. The agent should summarize the selected `version`, `architecture`, `client`, `installRootDefault`, detected client evidence, and the read-only flags before asking for approval.
+Treat the plan as evidence, not permission. The agent should summarize the selected `version`, `architecture`, `client`, `preferredInstallRoot`, detected client evidence, and the read-only flags before asking for approval. `installRootSource` explains whether the preferred root came from an explicit argument, the default root, or a previous live install.
 
 ## Release acquisition
 

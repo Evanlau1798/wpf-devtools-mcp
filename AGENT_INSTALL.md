@@ -35,6 +35,9 @@ Supported client ids must stay synchronized with the installer:
      "architecture": "x64",
      "client": "codex",
      "installRootDefault": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
+     "preferredInstallRoot": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
+     "fallbackInstallRoot": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
+     "installRootSource": "default",
      "supportedClients": ["claude-code", "codex", "cursor", "vscode", "visual-studio", "claude-desktop", "other"],
      "detectedClients": [
        {

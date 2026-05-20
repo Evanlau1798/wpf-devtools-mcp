@@ -60,6 +60,9 @@ Plan output 範例：
   "architecture": "x64",
   "client": "codex",
   "installRootDefault": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
+  "preferredInstallRoot": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
+  "fallbackInstallRoot": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
+  "installRootSource": "default",
   "supportedClients": ["claude-code", "codex", "cursor", "vscode", "visual-studio", "claude-desktop", "other"],
   "detectedClients": [
     {
@@ -83,7 +86,7 @@ Plan output 範例：
 }
 ```
 
-請把 plan 當成 evidence，而不是 permission。Agent 應先摘要選定的 `version`、`architecture`、`client`、`installRootDefault`、detected client evidence，以及 read-only flags，再詢問使用者是否核准。
+請把 plan 當成 evidence，而不是 permission。Agent 應先摘要選定的 `version`、`architecture`、`client`、`preferredInstallRoot`、detected client evidence，以及 read-only flags，再詢問使用者是否核准。`installRootSource` 會說明 preferred root 來自 explicit argument、default root，或 previous live install。
 
 ## Release 取得
 

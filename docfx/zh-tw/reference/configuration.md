@@ -23,7 +23,7 @@ internal per-process rate limiter cache 上限為 1000 筆；滿額時會淘汰 
 | --- | --- | --- |
 | `WPFDEVTOOLS_SKIP_ELEVATION` | 讓 `run.bat` 與 installer registration 留在目前 shell | CLI registration 必須保持 unelevated 時設為 `1` |
 | `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` | 用 certificate thumbprint pin 預期 release signer | verified release sidecars 不在相鄰位置時供 package-local install 使用 |
-| `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` | 用 certificate subject pin 預期 release signer | package-local install 可用來取代 thumbprint pin |
+| `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` | 加上預期 release signer certificate subject 檢查 | 只能作為 additional constraint；package-local install 仍需要 thumbprint trust root |
 | `WPFDEVTOOLS_CLAUDE_COMMAND_PATH` | 提供可信任的 Claude CLI 絕對路徑 | 只在可信任的 unelevated shell 中使用；elevated installer 會拒絕環境變數提供的 CLI command path |
 | `WPFDEVTOOLS_CODEX_COMMAND_PATH` | 提供可信任的 Codex CLI 絕對路徑 | 只在可信任的 unelevated shell 中使用；elevated installer 會拒絕環境變數提供的 CLI command path |
 

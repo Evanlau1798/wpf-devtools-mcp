@@ -224,7 +224,7 @@ public class ReadmeDocumentationTests
     }
 
     [Fact]
-    public void LandingPages_ShouldDescribeSignerFallbackAsEitherPinnedSignerValue()
+    public void LandingPages_ShouldDescribeThumbprintAsRequiredSignerTrustRoot()
     {
         var englishLandingPages = new[]
         {
@@ -236,12 +236,16 @@ public class ReadmeDocumentationTests
         {
             var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
-            content.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
-            content.Should().NotContain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` and `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
+            content.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`");
+            content.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
+            content.Should().Contain("additional constraint");
+            content.Should().NotContain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
         }
 
         var traditionalChinese = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/index.md"));
-        traditionalChinese.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 或 `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
-        traditionalChinese.Should().NotContain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 與 `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
+        traditionalChinese.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`");
+        traditionalChinese.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
+        traditionalChinese.Should().Contain("additional constraint");
+        traditionalChinese.Should().NotContain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 或 `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
     }
 }

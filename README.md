@@ -50,7 +50,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Package
 
 The reviewed installer validates archive integrity before extraction and installs the extracted packaged payload through the reviewed installer/helper flow; omit `-Architecture` unless you intentionally need a different package because the installer detects the system architecture.
 
-Manual package fallback requires `SHA256SUMS.txt` and `release-assets.json` verification before extraction. If those verified sidecars are no longer adjacent when running `run.bat`, provide `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`.
+Manual package fallback requires `SHA256SUMS.txt` and `release-assets.json` verification before extraction. If those verified sidecars are no longer adjacent when running `run.bat`, provide `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required thumbprint trust root; `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only an additional constraint after the thumbprint is pinned.
 
 `run.bat` requests elevation when the current shell is not already elevated. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when CLI registration must stay unelevated; for `claude-code` and `codex`, register manually after install if elevated CLI discovery is blocked. The installed server process architecture must match the target process.
 
@@ -58,7 +58,7 @@ Manual package fallback requires `SHA256SUMS.txt` and `release-assets.json` veri
 
 When you own the target application, prefer SDK-hosted Inspector reuse with `InspectorSdk.Initialize()`. When you need zero-instrumentation diagnostics, raw injection remains the fallback path.
 
-`connect()` first tries to reuse a compatible SDK-hosted Inspector, then falls back to the raw injection path only when policy allows it. SDK reuse requires both `WPFDEVTOOLS_AUTH_SECRET` and absolute `WPFDEVTOOLS_CERT_DIR` values on both sides; the default-hardened MCP server will not reuse a plaintext SDK host.
+`connect()` first tries to reuse a compatible SDK-hosted Inspector, then falls back to the raw injection path only when policy allows it. SDK reuse requires both `WPFDEVTOOLS_AUTH_SECRET` and the same local absolute directory in `WPFDEVTOOLS_CERT_DIR` on both sides; the default-hardened MCP server will not reuse a plaintext SDK host.
 
 For local development, use a Debug build and build native bootstrapper binaries for the same architecture as the target process. Debug builds can skip local DLL signature verification only under the trusted-root policy; production Release payloads require signing and signer validation.
 

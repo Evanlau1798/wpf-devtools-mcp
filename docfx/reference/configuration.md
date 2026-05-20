@@ -23,7 +23,7 @@ The internal per-process rate limiter cache is capped at 1000 entries and evicts
 | --- | --- | --- |
 | `WPFDEVTOOLS_SKIP_ELEVATION` | Keeps `run.bat` and installer registration in the current shell | Set to `1` when CLI registration must remain unelevated |
 | `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` | Pins the expected release signer by certificate thumbprint | Used by package-local installs when verified release sidecars are not adjacent |
-| `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` | Pins the expected release signer by certificate subject | Alternative to thumbprint pinning for package-local installs |
+| `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` | Adds an expected release signer certificate subject check | additional constraint only; package-local installs still require a thumbprint trust root |
 | `WPFDEVTOOLS_CLAUDE_COMMAND_PATH` | Supplies a trusted absolute Claude CLI path | Use only from a trusted unelevated shell; elevated installer runs reject environment-provided CLI command paths |
 | `WPFDEVTOOLS_CODEX_COMMAND_PATH` | Supplies a trusted absolute Codex CLI path | Use only from a trusted unelevated shell; elevated installer runs reject environment-provided CLI command paths |
 

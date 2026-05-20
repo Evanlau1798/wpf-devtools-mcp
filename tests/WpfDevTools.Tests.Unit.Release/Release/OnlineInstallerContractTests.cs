@@ -21,6 +21,8 @@ public sealed class OnlineInstallerContractTests
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
+        content.Should().Contain("'plan'");
+        content.Should().Contain("Get-InstallerPlan");
         content.Should().Contain("Start-TuiInstaller");
         content.Should().Contain("[switch]$NonInteractive");
         content.Should().Contain("[switch]$OutputJson");

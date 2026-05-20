@@ -19,15 +19,21 @@ Supported client ids must stay synchronized with the installer:
 ## Required Flow
 
 1. Confirm the host is Windows and detect `x64`, `x86`, or `arm64`.
-2. Detect available MCP clients without writing files.
-3. Ask the user to confirm version, architecture, install root, and client registration target.
-4. Acquire the versioned release archive and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, and `release-assets.json`.
-5. Verify the archive hash against `SHA256SUMS.txt`.
-6. Verify canonical metadata from `release-assets.json`.
-7. Enforce signer pin policy with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`; report the signer pin that was checked.
-8. Only after confirmation, call the reviewed local `scripts/online-installer.ps1` or package-local `run.bat`.
-9. Inspect generated `client-registration` artifacts and verify the installed executable path.
-10. Report changed files or registrations without printing secrets.
+2. Run the read-only installer discovery plan without writing files:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson
+   ```
+
+3. Detect available MCP clients without writing files.
+4. Ask the user to confirm version, architecture, install root, and client registration target.
+5. Acquire the versioned release archive and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, and `release-assets.json`.
+6. Verify the archive hash against `SHA256SUMS.txt`.
+7. Verify canonical metadata from `release-assets.json`.
+8. Enforce signer pin policy with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`; report the signer pin that was checked.
+9. Only after confirmation, call the reviewed local `scripts/online-installer.ps1` or package-local `run.bat`.
+10. Inspect generated `client-registration` artifacts and verify the installed executable path.
+11. Report changed files or registrations without printing secrets.
 
 ## Prohibited
 

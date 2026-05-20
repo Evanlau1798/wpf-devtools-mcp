@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('install', 'uninstall', 'full-uninstall')]
+    [ValidateSet('install', 'uninstall', 'full-uninstall', 'plan')]
     [string]$Action = 'install',
 
     [string]$Version = 'latest',
@@ -3255,6 +3255,98 @@ function Get-DefaultClient {
     if (Test-Path (Join-Path $env:USERPROFILE '.mcp.json')) { return 'visual-studio' }
     return 'other'
 }
+function Test-InstallerPathExists {
+    param(
+        [string]$Root,
+        [Parameter(Mandatory)] [string]$ChildPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Root)) {
+        return $false
+    }
+
+    return (Test-Path -LiteralPath (Join-Path $Root $ChildPath))
+}
+function Get-DetectedInstallerClients {
+    $detectedClients = @()
+
+    foreach ($client in @(Get-SupportedClients)) {
+        $clientId = [string]$client.Id
+        $available = $false
+        $evidence = @()
+
+        switch ($clientId) {
+            'claude-code' {
+                $available = $null -ne (Get-Command 'claude' -ErrorAction SilentlyContinue)
+                if ($available) { $evidence += 'claude command' }
+                break
+            }
+            'codex' {
+                $available = $null -ne (Get-Command 'codex' -ErrorAction SilentlyContinue)
+                if ($available) { $evidence += 'codex command' }
+                break
+            }
+            'cursor' {
+                $hasCommand = $null -ne (Get-Command 'cursor-agent' -ErrorAction SilentlyContinue)
+                $hasConfigRoot = Test-InstallerPathExists -Root $env:USERPROFILE -ChildPath '.cursor'
+                $available = $hasCommand -or $hasConfigRoot
+                if ($hasCommand) { $evidence += 'cursor-agent command' }
+                if ($hasConfigRoot) { $evidence += '%USERPROFILE%\.cursor' }
+                break
+            }
+            'vscode' {
+                $available = Test-InstallerPathExists -Root $env:APPDATA -ChildPath 'Code\User'
+                if ($available) { $evidence += '%APPDATA%\Code\User' }
+                break
+            }
+            'visual-studio' {
+                $available = Test-InstallerPathExists -Root $env:USERPROFILE -ChildPath '.mcp.json'
+                if ($available) { $evidence += '%USERPROFILE%\.mcp.json' }
+                break
+            }
+            'claude-desktop' {
+                $available = Test-InstallerPathExists -Root $env:APPDATA -ChildPath 'Claude\claude_desktop_config.json'
+                if ($available) { $evidence += '%APPDATA%\Claude\claude_desktop_config.json' }
+                break
+            }
+            'other' {
+                $available = $true
+                $evidence += 'artifact-only fallback'
+                break
+            }
+        }
+
+        $detectedClients += [ordered]@{
+            client = $clientId
+            available = [bool]$available
+            registrationStyle = [string]$client.ConfigType
+            evidence = @($evidence)
+        }
+    }
+
+    return @($detectedClients)
+}
+function Get-InstallerPlan {
+    $resolvedArchitecture = if ([string]::IsNullOrWhiteSpace($Architecture)) { Get-SystemDefaultArchitecture } else { $Architecture }
+    $resolvedClient = if ([string]::IsNullOrWhiteSpace($Client)) { Get-DefaultClient } else { $Client }
+    $supportedClientIds = @(Get-SupportedClients | ForEach-Object { [string]$_.Id })
+
+    return [ordered]@{
+        action = 'plan'
+        platform = 'windows'
+        version = [string]$Version
+        architecture = [string]$resolvedArchitecture
+        client = [string]$resolvedClient
+        installRootDefault = [string]$InstallRoot
+        supportedClients = @($supportedClientIds)
+        detectedClients = @(Get-DetectedInstallerClients)
+        requiresUserConfirmationBeforeMutation = $true
+        mutatesFileSystem = $false
+        downloadsReleaseAssets = $false
+        runsClientRegistration = $false
+        mutationBoundary = 'read-only discovery only; no download, install, registration, or filesystem mutation before user confirmation'
+    }
+}
 function Get-ReleaseAssetName {
     param(
         [Parameter(Mandatory)] [string]$ResolvedVersion,
@@ -4362,6 +4454,16 @@ function Start-TuiInstaller {
     }
 }
 function Resolve-Selection {
+    if ($Action -eq 'plan') {
+        return [ordered]@{
+            Cancelled = $false
+            Selection = (Get-InstallerPlan)
+            VersionHint = $null
+            HandledInWindow = $false
+            IsPlan = $true
+        }
+    }
+
     $defaultArchitecture = if ([string]::IsNullOrWhiteSpace($Architecture)) { Get-SystemDefaultArchitecture } else { $Architecture }
     $defaultClient = if ([string]::IsNullOrWhiteSpace($Client)) { Get-DefaultClient } else { $Client }
 
@@ -4426,6 +4528,20 @@ if ($selectionContext.Cancelled) {
     return
 }
 if ($selectionContext.HandledInWindow) {
+    return
+}
+if ($selectionContext.Contains('IsPlan') -and [bool]$selectionContext['IsPlan']) {
+    $plan = $selectionContext['Selection']
+    if ($OutputJson) {
+        $plan | ConvertTo-Json -Depth 10
+    }
+    else {
+        Write-InstallerMessage 'Installer plan generated. Re-run with -OutputJson for the machine-readable contract.'
+        Write-InstallerMessage "Architecture: $($plan.architecture)"
+        Write-InstallerMessage "Default client: $($plan.client)"
+        Write-InstallerMessage "Install root: $($plan.installRootDefault)"
+    }
+
     return
 }
 

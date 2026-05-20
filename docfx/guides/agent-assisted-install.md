@@ -37,10 +37,18 @@ Ask the user to confirm all of the following before running an installer or writ
 Discovery is read-only:
 
 1. Confirm the OS is Windows.
-2. Detect system architecture and whether the target WPF process requires a different architecture.
-3. Detect available CLIs or config roots for supported clients.
-4. Check whether a previous install root has live evidence.
-5. Report findings and wait for confirmation.
+2. Run the read-only plan command:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson
+   ```
+
+3. Detect system architecture and whether the target WPF process requires a different architecture.
+4. Detect available CLIs or config roots for supported clients.
+5. Check whether a previous install root has live evidence.
+6. Report findings and wait for confirmation.
+
+`-Action plan` reports supported clients, detected clients, architecture, the default install root, and the mutation boundary. It does not download, install, register clients, or write installer state.
 
 ## Release acquisition
 
@@ -105,5 +113,5 @@ Release signing helper path:
 ## Copyable agent prompt
 
 ```text
-Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Detect Windows platform, architecture, available MCP clients, and any existing install root without changing files. Present a plan that includes version, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, and signer pin policy. Ask for confirmation before mutation. After approval, run only the reviewed local installer or package-local run.bat, inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
+Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Run powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, then present a plan that includes version, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, and signer pin policy. Ask for confirmation before mutation. After approval, run only the reviewed local installer or package-local run.bat, inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
 ```

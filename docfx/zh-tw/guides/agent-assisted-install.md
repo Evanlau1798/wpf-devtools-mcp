@@ -37,10 +37,18 @@
 偵測階段必須是 read-only：
 
 1. 確認 OS 是 Windows。
-2. 偵測 system architecture，並判斷 target WPF process 是否需要不同 architecture。
-3. 偵測支援 client 的 CLI 或 config root。
-4. 檢查是否有可沿用的既有 install root。
-5. 回報結果並等待使用者確認。
+2. 執行 read-only plan command：
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson
+   ```
+
+3. 偵測 system architecture，並判斷 target WPF process 是否需要不同 architecture。
+4. 偵測支援 client 的 CLI 或 config root。
+5. 檢查是否有可沿用的既有 install root。
+6. 回報結果並等待使用者確認。
+
+`-Action plan` 會回報 supported clients、detected clients、architecture、default install root 與 mutation boundary。它不會下載、安裝、註冊 client，也不會寫入 installer state。
 
 ## Release 取得
 
@@ -105,5 +113,5 @@ Release signing helper path：
 ## 可複製 Agent prompt
 
 ```text
-Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Detect Windows platform, architecture, available MCP clients, and any existing install root without changing files. Present a plan that includes version, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, and signer pin policy. Ask for confirmation before mutation. After approval, run only the reviewed local installer or package-local run.bat, inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
+Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Run powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, then present a plan that includes version, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, and signer pin policy. Ask for confirmation before mutation. After approval, run only the reviewed local installer or package-local run.bat, inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
 ```

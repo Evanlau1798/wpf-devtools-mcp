@@ -57,6 +57,7 @@ public sealed class AgentInstallDocumentationTests
         english.Should().Contain("## Agent contract");
         english.Should().Contain("## Required user confirmations");
         english.Should().Contain("## Discovery steps");
+        english.Should().Contain("powershell -ExecutionPolicy Bypass -File .\\scripts\\online-installer.ps1 -Action plan -OutputJson");
         english.Should().Contain("## Release acquisition");
         english.Should().Contain("## Provenance verification");
         english.Should().Contain("## Client registration");
@@ -73,6 +74,7 @@ public sealed class AgentInstallDocumentationTests
         traditionalChinese.Should().Contain("## Agent 契約");
         traditionalChinese.Should().Contain("## 必要使用者確認");
         traditionalChinese.Should().Contain("## 偵測步驟");
+        traditionalChinese.Should().Contain("powershell -ExecutionPolicy Bypass -File .\\scripts\\online-installer.ps1 -Action plan -OutputJson");
         traditionalChinese.Should().Contain("## Release 取得");
         traditionalChinese.Should().Contain("## 來源驗證");
         traditionalChinese.Should().Contain("## Client registration");
@@ -97,6 +99,8 @@ public sealed class AgentInstallDocumentationTests
             content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
             content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT");
             content.Should().Contain("signer pin");
+            content.Should().Contain("-Action plan");
+            content.Should().Contain("-OutputJson");
         }
     }
 

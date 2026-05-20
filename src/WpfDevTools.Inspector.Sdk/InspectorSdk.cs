@@ -53,7 +53,7 @@ public static partial class InspectorSdk
     /// Initialize the inspector SDK using explicit target-side options.
     /// </summary>
     /// <param name="options">Initialization options. Transport options override environment variables only when both are provided.</param>
-    public static void Initialize(InspectorSdkOptions options)
+    public static void InitializeWithOptions(InspectorSdkOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         InitializeCore(options);

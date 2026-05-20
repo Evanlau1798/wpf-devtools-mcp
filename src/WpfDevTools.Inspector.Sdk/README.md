@@ -58,7 +58,7 @@ Use `InspectorSdkOptions` when you want target-side configuration in code instea
 string authSecretBase64 = "...base64-encoded-32-byte-secret...";
 string certificateDirectory = @"C:\absolute\wpf-devtools-certs";
 
-InspectorSdk.Initialize(new InspectorSdkOptions
+InspectorSdk.InitializeWithOptions(new InspectorSdkOptions
 {
     ProcessId = Environment.ProcessId,
     AuthenticationSecretBase64 = authSecretBase64,

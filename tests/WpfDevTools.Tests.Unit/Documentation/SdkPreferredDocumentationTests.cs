@@ -72,7 +72,7 @@ public sealed class SdkPreferredDocumentationTests
         foreach (var file in SdkUsageFiles)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().Contain("InspectorSdk.Initialize(new InspectorSdkOptions");
+            content.Should().Contain("InspectorSdk.InitializeWithOptions(new InspectorSdkOptions");
             content.Should().Contain("ProcessId = Environment.ProcessId");
             content.Should().Contain("AuthenticationSecretBase64 = authSecretBase64");
             content.Should().Contain("CertificateDirectory = certificateDirectory");

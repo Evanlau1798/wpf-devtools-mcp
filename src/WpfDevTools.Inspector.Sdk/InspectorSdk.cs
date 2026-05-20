@@ -47,10 +47,23 @@ public static partial class InspectorSdk
     /// </summary>
     /// <param name="processId">Process ID (defaults to current process)</param>
     public static void Initialize(int? processId = null)
+        => InitializeCore(new InspectorSdkOptions { ProcessId = processId });
+
+    /// <summary>
+    /// Initialize the inspector SDK using explicit target-side options.
+    /// </summary>
+    /// <param name="options">Initialization options. Transport options override environment variables only when both are provided.</param>
+    public static void Initialize(InspectorSdkOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        InitializeCore(options);
+    }
+
+    private static void InitializeCore(InspectorSdkOptions options)
     {
         LastInitializationError = null;
         LastShutdownError = null;
-        var pid = processId ?? Environment.ProcessId;
+        var pid = options.ProcessId ?? Environment.ProcessId;
         LastInitializationStatus = CreateInitializingStatus(pid);
 
         if (_isInitialized)
@@ -77,11 +90,11 @@ public static partial class InspectorSdk
             var dispatcher = DispatcherResolver();
             if (dispatcher != null && !dispatcher.CheckAccess())
             {
-                InvokeInitializeOnDispatcher(dispatcher, pid);
+                InvokeInitializeOnDispatcher(dispatcher, pid, options);
                 return;
             }
 
-            InitializeCore(pid);
+            InitializeHostCore(pid, options);
         }
         catch (Exception ex)
         {
@@ -97,7 +110,10 @@ public static partial class InspectorSdk
         }
     }
 
-    private static void InitializeCore(int pid, InitializationDeadline? deadline = null)
+    private static void InitializeHostCore(
+        int pid,
+        InspectorSdkOptions options,
+        InitializationDeadline? deadline = null)
     {
         AuthenticationManager? authenticationManager = null;
         CertificateManager? certificateManager = null;
@@ -108,8 +124,8 @@ public static partial class InspectorSdk
             deadline?.ThrowIfExpired();
 
             var transportSecurity = InspectorSdkTransportSecurityConfiguration.Create(
-                Environment.GetEnvironmentVariable("WPFDEVTOOLS_AUTH_SECRET"),
-                Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR"));
+                ResolveAuthenticationSecret(options),
+                ResolveCertificateDirectory(options));
             authenticationManager = transportSecurity.AuthenticationManager;
             certificateManager = transportSecurity.CertificateManager;
 
@@ -240,6 +256,17 @@ public static partial class InspectorSdk
         Dispatcher dispatcher,
         int processId,
         TimeSpan? timeout = null)
+        => InvokeInitializeOnDispatcher(
+            dispatcher,
+            processId,
+            new InspectorSdkOptions { ProcessId = processId },
+            timeout);
+
+    private static void InvokeInitializeOnDispatcher(
+        Dispatcher dispatcher,
+        int processId,
+        InspectorSdkOptions options,
+        TimeSpan? timeout = null)
     {
         ArgumentNullException.ThrowIfNull(dispatcher);
 
@@ -255,7 +282,7 @@ public static partial class InspectorSdk
             () =>
             {
                 initializationStarted.TrySetResult(null);
-                InitializeCore(processId, deadline);
+                InitializeHostCore(processId, options, deadline);
             },
             DispatcherPriority.Normal,
             CancellationToken.None);

@@ -44,6 +44,16 @@ public partial class App : Application
 }
 ```
 
+如果你偏好明確的 process-local configuration，而不是 environment variables，可以傳入 `InspectorSdkOptions`。`AuthenticationSecretBase64` 與 `CertificateDirectory` 必須一起提供，且 `CertificateDirectory` 必須是 absolute path：
+
+```csharp
+InspectorSdk.Initialize(new InspectorSdkOptions
+{
+    AuthenticationSecretBase64 = "...base64-encoded-32-byte-secret...",
+    CertificateDirectory = @"C:\absolute\wpf-devtools-certs"
+});
+```
+
 App 執行後，從 MCP client 呼叫 `connect()`。Server 會先探測 compatible SDK-hosted Inspector，並在 security settings 相符時重用它。
 
 ## 何時 prefer SDK-hosted mode

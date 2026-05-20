@@ -35,6 +35,9 @@ public sealed class SdkPreferredDocumentationTests
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
             content.Should().Contain("WpfDevTools.Inspector.Sdk");
+            content.Should().Contain("InspectorSdkOptions");
+            content.Should().Contain("AuthenticationSecretBase64");
+            content.Should().Contain("CertificateDirectory");
             content.Should().Contain("InspectorSdk.Initialize()");
             content.Should().Contain("InspectorSdk.Shutdown()");
             content.Should().Contain("WPFDEVTOOLS_AUTH_SECRET");
@@ -86,6 +89,19 @@ public sealed class SdkPreferredDocumentationTests
             content.Should().Contain("raw injection");
             content.Should().Contain("fallback");
         }
+    }
+
+    [Fact]
+    public void SdkProject_ShouldStayNet8WindowsOnlyUntilTargetExpansionIsImplemented()
+    {
+        var project = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj"));
+        project.Should().Contain("<TargetFramework>net8.0-windows</TargetFramework>");
+        project.Should().NotContain("<TargetFrameworks>");
+
+        File.ReadAllText(GetRepoFilePath("docfx/quickstart/sdk-hosted-inspector.md"))
+            .Should().Contain(".NET Framework WPF apps should keep using the raw injection path");
+        File.ReadAllText(GetRepoFilePath("docfx/zh-tw/quickstart/sdk-hosted-inspector.md"))
+            .Should().Contain(".NET Framework WPF app 應維持使用 raw injection path");
     }
 
     private static string GetRepoFilePath(string relativePath)

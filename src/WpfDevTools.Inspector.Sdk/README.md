@@ -50,6 +50,18 @@ public partial class App : Application
 }
 ```
 
+### Explicit Options
+
+Use `InspectorSdkOptions` when you want target-side configuration in code instead of relying only on process environment variables. `AuthenticationSecretBase64` and `CertificateDirectory` must be supplied together; partial explicit configuration is rejected and is not mixed with environment variables.
+
+```csharp
+InspectorSdk.Initialize(new InspectorSdkOptions
+{
+    AuthenticationSecretBase64 = "...base64-encoded-32-byte-secret...",
+    CertificateDirectory = @"C:\absolute\wpf-devtools-certs"
+});
+```
+
 ### Custom Process ID
 
 If you need to specify a custom process ID:

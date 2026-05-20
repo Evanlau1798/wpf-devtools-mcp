@@ -30,6 +30,7 @@ Supported client ids must stay synchronized with the installer:
    ```json
    {
      "action": "plan",
+     "contractVersion": 1,
      "platform": "windows",
      "version": "latest",
      "architecture": "x64",
@@ -66,7 +67,7 @@ Supported client ids must stay synchronized with the installer:
 5. Acquire the versioned release archive and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, and `release-assets.json`.
 6. Verify the archive hash against `SHA256SUMS.txt`.
 7. Verify canonical metadata from `release-assets.json`.
-8. Enforce signer pin policy with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`; report the signer pin that was checked.
+8. Enforce signer pin policy with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required thumbprint trust root. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only a certificate subject additional constraint after the thumbprint is pinned. Report the signer pin that was checked.
 9. Only after confirmation, call the reviewed local `scripts/online-installer.ps1` or package-local `run.bat`.
 
    Reviewed local command shape after confirmation:

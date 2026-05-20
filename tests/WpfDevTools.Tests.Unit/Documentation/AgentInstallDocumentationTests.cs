@@ -99,6 +99,11 @@ public sealed class AgentInstallDocumentationTests
             content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
             content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT");
             content.Should().Contain("signer pin");
+            content.Should().Contain("thumbprint");
+            content.Should().Contain("subject");
+            content.Should().Contain("additional constraint");
+            content.Should().NotContain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT");
+            content.Should().NotContain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 或 `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT");
             content.Should().Contain("-Action plan");
             content.Should().Contain("-OutputJson");
         }
@@ -111,6 +116,7 @@ public sealed class AgentInstallDocumentationTests
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
             content.Should().Contain("\"action\": \"plan\"");
+            content.Should().Contain("\"contractVersion\": 1");
             content.Should().Contain("\"platform\": \"windows\"");
             content.Should().Contain("\"architecture\"");
             content.Should().Contain("\"client\"");

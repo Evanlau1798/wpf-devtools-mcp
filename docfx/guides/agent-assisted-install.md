@@ -55,6 +55,7 @@ Example plan output:
 ```json
 {
   "action": "plan",
+  "contractVersion": 1,
   "platform": "windows",
   "version": "latest",
   "architecture": "x64",
@@ -110,8 +111,8 @@ Before extraction or install:
 1. Verify the archive hash with `SHA256SUMS.txt`.
 2. Verify canonical asset metadata with `release-assets.json`.
 3. Verify the signed payload against a signer pin.
-4. Use `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` for an exact certificate thumbprint pin when the verified sidecars are no longer adjacent.
-5. Use `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` only when subject-based policy is explicitly accepted.
+4. Use `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required exact certificate thumbprint trust root when the verified sidecars are no longer adjacent.
+5. Use `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` only as a certificate subject additional constraint after the thumbprint is pinned.
 
 The agent should report the signer pin policy and verification result, not certificate secrets.
 

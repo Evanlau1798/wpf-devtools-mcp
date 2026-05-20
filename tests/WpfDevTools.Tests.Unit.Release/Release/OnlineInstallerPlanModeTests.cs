@@ -40,10 +40,14 @@ public sealed class OnlineInstallerPlanModeTests
             using var json = JsonDocument.Parse(result.Stdout);
             var root = json.RootElement;
 
+            AssertPlanContract(root);
             root.GetProperty("action").GetString().Should().Be("plan");
             root.GetProperty("platform").GetString().Should().Be("windows");
             root.GetProperty("architecture").GetString().Should().Be("x86");
             root.GetProperty("installRootDefault").GetString().Should().Be(installRoot);
+            root.GetProperty("preferredInstallRoot").GetString().Should().Be(installRoot);
+            root.GetProperty("fallbackInstallRoot").GetString().Should().Be(installRoot);
+            root.GetProperty("installRootSource").GetString().Should().Be("explicit");
             root.GetProperty("requiresUserConfirmationBeforeMutation").GetBoolean().Should().BeTrue();
             root.GetProperty("mutatesFileSystem").GetBoolean().Should().BeFalse();
             root.GetProperty("downloadsReleaseAssets").GetBoolean().Should().BeFalse();
@@ -65,6 +69,30 @@ public sealed class OnlineInstallerPlanModeTests
         {
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
+    }
+
+    [Fact]
+    public void OnlineInstaller_PlanMode_ShouldSurviveMissingProfileEnvironmentWithoutExplicitInstallRoot()
+    {
+        var command = string.Join("; ",
+            "$ErrorActionPreference = 'Stop'",
+            "Remove-Item Env:APPDATA -ErrorAction SilentlyContinue",
+            "Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue",
+            "Remove-Item Env:USERPROFILE -ErrorAction SilentlyContinue",
+            "$env:PATH = ''",
+            "& .\\scripts\\online-installer.ps1 -Action plan -Architecture x64 -OutputJson -NonInteractive");
+
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+        result.ExitCode.Should().Be(0, result.Stderr);
+        using var json = JsonDocument.Parse(result.Stdout);
+        var root = json.RootElement;
+        AssertPlanContract(root);
+        root.GetProperty("client").GetString().Should().Be("other");
+        root.GetProperty("installRootSource").GetString().Should().Be("default");
+        root.GetProperty("installRootDefault").GetString().Should().EndWith("WpfDevToolsMcp");
+        root.GetProperty("preferredInstallRoot").GetString().Should().Be(root.GetProperty("installRootDefault").GetString());
+        root.GetProperty("fallbackInstallRoot").GetString().Should().Be(root.GetProperty("installRootDefault").GetString());
     }
 
     [Fact]
@@ -90,6 +118,74 @@ public sealed class OnlineInstallerPlanModeTests
             using var json = JsonDocument.Parse(result.Stdout);
             json.RootElement.GetProperty("client").GetString().Should().Be("other");
             json.RootElement.GetProperty("installRootDefault").GetString().Should().Be(installRoot);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstaller_PlanMode_WithoutAdjacentHelpers_ShouldNotBootstrapOrMutateWorkingRoot()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var scriptCopy = Path.Combine(tempRoot, "online-installer.ps1");
+            var workingRoot = Path.Combine(tempRoot, "working-root");
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"), scriptCopy);
+
+            var command = string.Join("; ",
+                "$ErrorActionPreference = 'Stop'",
+                "function Invoke-WebRequest { throw 'plan attempted web request' }",
+                "& " + QuotePowerShellString(scriptCopy) + " -Action plan -Version 0.1.0 -Architecture x64 -InstallRoot " + QuotePowerShellString(installRoot) + " -WorkingRoot " + QuotePowerShellString(workingRoot) + " -OutputJson -NonInteractive");
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var json = JsonDocument.Parse(result.Stdout);
+            AssertPlanContract(json.RootElement);
+            Directory.Exists(workingRoot).Should().BeFalse("plan mode must not bootstrap helper assets before user confirmation");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstaller_PlanMode_WithAdjacentHelperFiles_ShouldNotDotSourceHelpers()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var scriptCopy = Path.Combine(tempRoot, "online-installer.ps1");
+            var helperRoot = Path.Combine(tempRoot, "installer");
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            Directory.CreateDirectory(helperRoot);
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"), scriptCopy);
+            foreach (var helperLeafName in SharedInstallerHelperLeafNames)
+            {
+                File.WriteAllText(
+                    Path.Combine(helperRoot, helperLeafName),
+                    "throw 'plan dot-sourced helper before confirmation'");
+            }
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                scriptCopy,
+                [
+                    "-Action", "plan",
+                    "-Version", "0.1.0",
+                    "-Architecture", "x64",
+                    "-InstallRoot", installRoot,
+                    "-OutputJson",
+                    "-NonInteractive"
+                ]);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var json = JsonDocument.Parse(result.Stdout);
+            AssertPlanContract(json.RootElement);
         }
         finally
         {
@@ -192,6 +288,73 @@ public sealed class OnlineInstallerPlanModeTests
     }
 
     [Fact]
+    public void OnlineInstaller_PlanMode_ShouldRejectForgedPreviousInstallManifestEvidence()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
+            var userProfile = Path.Combine(tempRoot, "UserProfile");
+            var previousInstallRoot = Path.Combine(tempRoot, "previous-install");
+            var defaultInstallRoot = Path.Combine(appData, "WpfDevToolsMcp");
+            var stateRoot = Path.Combine(appData, "WpfDevToolsMcp");
+            var statePath = Path.Combine(stateRoot, "installer-state.json");
+            var installBase = Path.Combine(previousInstallRoot, "x64");
+            var forgedExecutable = Path.Combine(tempRoot, "not-owned", "wpf-devtools-x64.exe");
+            var manifestPath = Path.Combine(installBase, "install-manifest.json");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(forgedExecutable)!);
+            Directory.CreateDirectory(installBase);
+            Directory.CreateDirectory(stateRoot);
+            File.WriteAllText(forgedExecutable, string.Empty);
+            File.WriteAllText(manifestPath, $$"""
+            {
+              "installRoot": "{{JsonEscape(previousInstallRoot)}}",
+              "architecture": "x64",
+              "version": "0.1.0",
+              "executable": "{{JsonEscape(forgedExecutable)}}"
+            }
+            """);
+            File.WriteAllText(statePath, $$"""
+            {
+              "lastInstallRoot": "{{JsonEscape(previousInstallRoot)}}",
+              "architectures": {},
+              "registrations": {}
+            }
+            """);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                [
+                    "-Action", "plan",
+                    "-Architecture", "x64",
+                    "-OutputJson",
+                    "-NonInteractive"
+                ],
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = appData,
+                    ["LOCALAPPDATA"] = localAppData,
+                    ["USERPROFILE"] = userProfile,
+                    ["PATH"] = string.Empty
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var json = JsonDocument.Parse(result.Stdout);
+            var root = json.RootElement;
+            root.GetProperty("installRootDefault").GetString().Should().Be(defaultInstallRoot);
+            root.GetProperty("preferredInstallRoot").GetString().Should().Be(defaultInstallRoot);
+            root.GetProperty("fallbackInstallRoot").GetString().Should().Be(defaultInstallRoot);
+            root.GetProperty("installRootSource").GetString().Should().Be("default");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstaller_PlanMode_ShouldEmitJsonEvenWithoutOutputJsonSwitch()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -226,4 +389,40 @@ public sealed class OnlineInstallerPlanModeTests
 
     private static string JsonEscape(string value)
         => value.Replace(@"\", @"\\", StringComparison.Ordinal);
+
+    private static void AssertPlanContract(JsonElement root)
+    {
+        root.GetProperty("contractVersion").GetInt32().Should().Be(1);
+        root.GetProperty("mutationBoundary").GetString().Should().NotBeNullOrWhiteSpace();
+        foreach (var detectedClient in root.GetProperty("detectedClients").EnumerateArray())
+        {
+            detectedClient.GetProperty("client").GetString().Should().NotBeNullOrWhiteSpace();
+            detectedClient.GetProperty("available").ValueKind.Should().BeOneOf(JsonValueKind.True, JsonValueKind.False);
+            detectedClient.GetProperty("registrationStyle").GetString().Should().NotBeNullOrWhiteSpace();
+            detectedClient.GetProperty("evidence").ValueKind.Should().Be(JsonValueKind.Array);
+        }
+    }
+
+    private static readonly string[] SharedInstallerHelperLeafNames =
+    [
+        "Installer.Discovery.ps1",
+        "Installer.Discovery.Detection.ps1",
+        "Installer.Uninstall.Standalone.ps1",
+        "Installer.Uninstall.ps1",
+        "Installer.Release.ps1",
+        "Installer.PackageIntegrity.ps1",
+        "Installer.Encoding.ps1",
+        "Installer.State.ps1",
+        "Installer.State.Installation.ps1",
+        "Installer.Registration.Paths.ps1",
+        "Installer.Registration.Json.ps1",
+        "Installer.Registration.TrustedTargets.ps1",
+        "Installer.Registration.Cursor.ps1",
+        "Installer.Registration.Commands.ps1",
+        "Installer.Registration.Clients.ps1",
+        "Installer.Registration.ps1",
+        "Installer.Verification.Commands.ps1",
+        "Installer.Verification.ps1",
+        "Installer.Actions.ps1"
+    ];
 }

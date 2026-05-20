@@ -10,7 +10,7 @@ param(
     [ValidateSet('claude-code', 'codex', 'cursor', 'vscode', 'visual-studio', 'claude-desktop', 'other')]
     [string]$Client,
 
-    [string]$InstallRoot = (Join-Path $env:APPDATA 'WpfDevToolsMcp'),
+    [string]$InstallRoot,
     [string]$WorkingRoot = (Join-Path ([System.IO.Path]::GetTempPath()) 'wpf-devtools-online-installer'),
     [string]$PackageArchivePath,
     [string]$TrustedReleaseMetadataDirectory,
@@ -3326,54 +3326,7 @@ function Get-DetectedInstallerClients {
 
     return @($detectedClients)
 }
-function Import-InstallerPlanReadOnlyHelpers {
-    try {
-        foreach ($helperRoot in @(Get-LocalInstallerHelperRoots)) {
-            $helperPaths = @()
-            $allPresent = $true
-            foreach ($helperFile in $script:InstallerSharedHelperLeafNames) {
-                $helperPath = Join-Path $helperRoot $helperFile
-                if (-not (Test-Path -LiteralPath $helperPath)) {
-                    $allPresent = $false
-                    break
-                }
-
-                $helperPaths += $helperPath
-            }
-
-            if ($allPresent) {
-                foreach ($helperPath in @($helperPaths)) {
-                    . $helperPath
-                }
-
-                return $true
-            }
-        }
-
-        foreach ($helperPath in @(Get-InstallerSharedModulePaths -AllowMissing)) {
-            . $helperPath
-        }
-
-        return $true
-    }
-    catch {
-        return $false
-    }
-}
 function Get-InstallerPlanFallbackRoot {
-    param([bool]$HelpersLoaded)
-
-    if ($HelpersLoaded -and (Get-Command 'Get-DefaultInstallRootPath' -ErrorAction SilentlyContinue)) {
-        try {
-            $defaultRoot = Get-DefaultInstallRootPath
-            if (-not [string]::IsNullOrWhiteSpace($defaultRoot)) {
-                return [string]$defaultRoot
-            }
-        }
-        catch {
-        }
-    }
-
     if (-not [string]::IsNullOrWhiteSpace($InstallRoot)) {
         return [string]$InstallRoot
     }
@@ -3443,8 +3396,8 @@ function Test-InstallerPlanPathEquals {
         return $false
     }
 
-    if (Get-Command 'Test-InstallerPathEqualsCore' -ErrorAction SilentlyContinue) {
-        return (Test-InstallerPathEqualsCore -Left $Left -Right $Right)
+    if (Get-Command 'Test-StandaloneInstallerPathEquals' -ErrorAction SilentlyContinue) {
+        return (Test-StandaloneInstallerPathEquals -Left $Left -Right $Right)
     }
 
     return [string]::Equals(
@@ -3458,12 +3411,19 @@ function Test-InstallerPlanStateRecordEvidence {
         [string]$ExpectedInstallRoot
     )
 
-    if (-not (Get-Command 'Test-StateRecordHasLiveInstallEvidence' -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Command 'Resolve-StandaloneInstallerOwnershipFromExecutable' -ErrorAction SilentlyContinue)) {
         return $false
     }
 
     foreach ($record in @($Records)) {
-        if (Test-StateRecordHasLiveInstallEvidence -Record $record -ExpectedInstallRoot $ExpectedInstallRoot) {
+        $installedExecutable = Get-StandaloneRecordStringValue -Record $record -PropertyNames @('installedExecutable', 'InstalledExecutable')
+        if ([string]::IsNullOrWhiteSpace($installedExecutable)) {
+            continue
+        }
+
+        $ownership = Resolve-StandaloneInstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
+        if ([bool]$ownership.InstallerOwned -and
+            (Test-InstallerPlanPathEquals -Left ([string]$ownership.InstallRoot) -Right $ExpectedInstallRoot)) {
             return $true
         }
     }
@@ -3478,39 +3438,17 @@ function Test-InstallerPlanLiveManifestEvidence {
     }
 
     foreach ($architecture in @('x64', 'x86', 'arm64')) {
-        $manifestPath = Join-Path (Join-Path $InstallRoot $architecture) 'install-manifest.json'
-        if (-not (Test-Path -LiteralPath $manifestPath)) {
-            continue
-        }
-
-        try {
-            $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-            $manifestInstallRoot = [string]$manifest.installRoot
-            if (-not [string]::IsNullOrWhiteSpace($manifestInstallRoot) -and
-                -not (Test-InstallerPlanPathEquals -Left $manifestInstallRoot -Right $InstallRoot)) {
-                continue
-            }
-
-            $installedExecutable = [string]$manifest.executable
-            if ([string]::IsNullOrWhiteSpace($installedExecutable)) {
-                $installedExecutable = Join-Path (Join-Path $InstallRoot $architecture) "current\bin\wpf-devtools-$architecture.exe"
-            }
-
-            if (Test-Path -LiteralPath $installedExecutable -PathType Leaf) {
-                return $true
-            }
-        }
-        catch {
+        if ($null -ne (Get-StandaloneLiveInstallerManifestEvidence -InstallRoot $InstallRoot -Architecture $architecture)) {
+            return $true
         }
     }
 
     return $false
 }
 function Resolve-InstallerPlanInstallRoot {
-    $helpersLoaded = Import-InstallerPlanReadOnlyHelpers
-    $fallbackInstallRoot = Get-InstallerPlanFallbackRoot -HelpersLoaded $helpersLoaded
+    $fallbackInstallRoot = Get-InstallerPlanFallbackRoot
 
-    if ($script:InstallRootWasSpecified) {
+    if ($script:InstallRootWasSpecified -and -not [string]::IsNullOrWhiteSpace($InstallRoot)) {
         return [ordered]@{
             InstallRootDefault = [string]$InstallRoot
             PreferredInstallRoot = [string]$InstallRoot
@@ -3561,6 +3499,7 @@ function Get-InstallerPlan {
 
     return [ordered]@{
         action = 'plan'
+        contractVersion = 1
         platform = 'windows'
         version = [string]$Version
         architecture = [string]$resolvedArchitecture

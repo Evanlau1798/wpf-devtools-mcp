@@ -75,11 +75,11 @@ Key capabilities worth learning early:
 
 ## Response shape notes
 
-- Structured clients should read `StructuredContent` / `structuredContent` as the canonical payload.
+- Structured clients should read `result.structuredContent` as the canonical wire payload.
 - High-value tool descriptions in `tools/list` are intentionally brief discovery hints; use `wpf://contracts/response` for stable field-level contracts instead of relying on long inline prose.
 - `tools/list` advertises an `outputSchema` for the common `result.structuredContent` payload fields, including `success`, `navigation`, and common identifiers such as `processId`. Claude-compatible client smoke tests should validate discovery against this structured-output metadata shape.
 - Need a machine-readable contract? Read MCP resource `wpf://contracts/response`. It publishes the stable detailed WPF payload contract for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, and the `get_binding_errors` `navigation=false` opt-out beyond the common `tools/list` schema.
-- `content[0].text` is a compact JSON fallback that preserves high-signal top-level scalar fields and collection counts, not a duplicate transport of the full JSON object. Set `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` only for legacy text-only MCP clients that require the full JSON payload in `content[0].text`; error results include `Annotations`.
+- `result.content[0].text` is a compact JSON fallback that preserves high-signal top-level scalar fields and collection counts, not a duplicate transport of the full JSON object. Set `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` only for legacy text-only MCP clients that require the full JSON payload in `result.content[0].text`; error results include `result.content[0].annotations`.
 - Diagnostic tools may also piggyback `pendingEvents` when the session has buffered runtime events. Use `drain_events` when you need an explicit deterministic read of the shared event buffer.
 
 Use the category pages for the most important tools, semantics, and gotchas.

@@ -23,7 +23,7 @@ dotnet add <your-wpf-app.csproj> package WpfDevTools.Inspector.Sdk
 
 ## Usage
 
-Before using the sample below, set matching `WPFDEVTOOLS_AUTH_SECRET` and the same absolute `WPFDEVTOOLS_CERT_DIR` in both the MCP server process and the target application environment. `InspectorSdk.Initialize()` fails closed if either value is missing or if both are left unset.
+Before using the sample below, set matching `WPFDEVTOOLS_AUTH_SECRET` and the same local absolute directory in `WPFDEVTOOLS_CERT_DIR` in both the MCP server process and the target application environment. `InspectorSdk.Initialize()` fails closed if either value is missing or if both are left unset.
 
 ### Basic Usage
 
@@ -66,7 +66,7 @@ InspectorSdk.InitializeWithOptions(new InspectorSdkOptions
 });
 ```
 
-Partial explicit SDK transport configuration is rejected and not mixed with environment variables. `AuthenticationSecretBase64` and `CertificateDirectory` must be supplied together. The MCP server must use the same secret and certificate directory, so do not generate a fresh target-only secret during app startup.
+Partial explicit SDK transport configuration is rejected and not mixed with environment variables. `AuthenticationSecretBase64` and `CertificateDirectory` must be supplied together, and `CertificateDirectory` must be a local absolute directory. The MCP server must use the same secret and certificate directory, so do not generate a fresh target-only secret during app startup.
 
 ### Custom Process ID
 
@@ -103,13 +103,13 @@ The SDK starts the Inspector host during application startup and exposes the sam
 
 The MCP server now hardens the standard injection-based transport by default. SDK mode does not receive that generated handoff automatically.
 
-If you need SDK mode, set matching values for `WPFDEVTOOLS_AUTH_SECRET` and the same absolute `WPFDEVTOOLS_CERT_DIR` in both the MCP server process and the target application before calling `InspectorSdk.Initialize()`. Relative certificate paths are rejected.
+If you need SDK mode, set matching values for `WPFDEVTOOLS_AUTH_SECRET` and the same local absolute directory in `WPFDEVTOOLS_CERT_DIR` in both the MCP server process and the target application before calling `InspectorSdk.Initialize()`. Relative certificate paths are rejected, and the MCP server rejects network/UNC certificate directories.
 
 If you set either `WPFDEVTOOLS_AUTH_SECRET` or `WPFDEVTOOLS_CERT_DIR` for SDK mode, you must set both. Partial SDK transport configuration is rejected during `InspectorSdk.Initialize()`.
 
 If you leave both unset, `InspectorSdk.Initialize()` now fails closed instead of starting a plaintext SDK host. The default-hardened MCP server will not reuse a plaintext SDK host left behind by older versions.
 
-Current requirement: `connect()` can reuse an already running SDK-hosted pipe, but only when the MCP server and target app share matching transport settings, including the same absolute `WPFDEVTOOLS_CERT_DIR` value when TLS is enabled. If the existing host responds with an incompatible authenticated or TLS handshake, `connect()` returns a security error instead of silently reusing the host; legacy plaintext or otherwise unresponsive existing hosts can still time out.
+Current requirement: `connect()` can reuse an already running SDK-hosted pipe, but only when the MCP server and target app share matching transport settings, including the same local absolute directory in `WPFDEVTOOLS_CERT_DIR` when TLS is enabled. If the existing host responds with an incompatible authenticated or TLS handshake, `connect()` returns a security error instead of silently reusing the host; legacy plaintext or otherwise unresponsive existing hosts can still time out.
 
 If initialization fails because the security environment variables are malformed, inspect `InspectorSdk.LastInitializationError` to retrieve the exception.
 

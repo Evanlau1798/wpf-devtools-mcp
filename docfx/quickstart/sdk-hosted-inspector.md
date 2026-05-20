@@ -20,7 +20,7 @@ Set both values in the MCP server process and the target WPF application before 
 - `WPFDEVTOOLS_AUTH_SECRET`
 - `WPFDEVTOOLS_CERT_DIR`
 
-`WPFDEVTOOLS_CERT_DIR` must be an absolute path and must match on both sides. SDK plaintext mode is not supported by default.
+`WPFDEVTOOLS_CERT_DIR` must be a local absolute directory and must match on both sides. SDK plaintext mode is not supported by default.
 
 ## Application integration
 
@@ -58,7 +58,7 @@ InspectorSdk.InitializeWithOptions(new InspectorSdkOptions
 });
 ```
 
-Partial explicit SDK transport configuration is rejected and not mixed with environment variables. `AuthenticationSecretBase64` and `CertificateDirectory` must be provided together, and `CertificateDirectory` must be absolute. The MCP server must use the same secret and certificate directory; do not generate a new secret independently inside the target app.
+Partial explicit SDK transport configuration is rejected and not mixed with environment variables. `AuthenticationSecretBase64` and `CertificateDirectory` must be provided together, and `CertificateDirectory` must be a local absolute directory. The MCP server must use the same secret and certificate directory; do not generate a new secret independently inside the target app.
 
 After the app is running, call `connect()` from the MCP client. The server probes for a compatible SDK-hosted Inspector first and reuses it when the security settings match.
 
@@ -79,5 +79,5 @@ After the app is running, call `connect()` from the MCP client. The server probe
 ## Failure checks
 
 - If `InspectorSdk.Initialize()` fails, inspect `InspectorSdk.LastInitializationStatus`.
-- If `connect()` does not reuse the SDK host, confirm both processes share the same `WPFDEVTOOLS_AUTH_SECRET` and absolute `WPFDEVTOOLS_CERT_DIR`.
+- If `connect()` does not reuse the SDK host, confirm both processes share the same `WPFDEVTOOLS_AUTH_SECRET` and local absolute directory in `WPFDEVTOOLS_CERT_DIR`.
 - If packaging is single-file, Native AOT, or trimmed, prefer SDK-hosted mode and treat raw injection as fallback only.

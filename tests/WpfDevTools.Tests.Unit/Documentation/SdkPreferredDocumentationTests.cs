@@ -50,6 +50,7 @@ public sealed class SdkPreferredDocumentationTests
             content.Should().Contain("WPFDEVTOOLS_AUTH_SECRET");
             content.Should().Contain("WPFDEVTOOLS_CERT_DIR");
             content.Should().Contain("absolute");
+            content.Should().Contain("local absolute directory");
             content.Should().Contain("connect()");
             content.Should().Contain("SDK-hosted");
             content.Should().Contain("raw injection");
@@ -79,6 +80,7 @@ public sealed class SdkPreferredDocumentationTests
             content.Should().Contain("Partial explicit SDK transport configuration is rejected");
             content.Should().Contain("not mixed with environment variables");
             content.Should().Contain("The MCP server must use the same secret and certificate directory");
+            content.Should().Contain("local absolute directory");
         }
     }
 

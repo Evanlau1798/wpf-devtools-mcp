@@ -20,7 +20,7 @@ dotnet add <your-wpf-app.csproj> package WpfDevTools.Inspector.Sdk --source .\nu
 - `WPFDEVTOOLS_AUTH_SECRET`
 - `WPFDEVTOOLS_CERT_DIR`
 
-`WPFDEVTOOLS_CERT_DIR` 必須是 absolute path，且兩邊必須相同。SDK plaintext mode 預設不支援。
+`WPFDEVTOOLS_CERT_DIR` 必須是 local absolute directory，且兩邊必須相同。SDK plaintext mode 預設不支援。
 
 ## Application integration
 
@@ -58,7 +58,7 @@ InspectorSdk.InitializeWithOptions(new InspectorSdkOptions
 });
 ```
 
-Partial explicit SDK transport configuration is rejected and not mixed with environment variables。`AuthenticationSecretBase64` 與 `CertificateDirectory` 必須一起提供，且 `CertificateDirectory` 必須是 absolute path。The MCP server must use the same secret and certificate directory；不要在 target app 內獨立產生另一組 secret。
+Partial explicit SDK transport configuration is rejected and not mixed with environment variables。`AuthenticationSecretBase64` 與 `CertificateDirectory` 必須一起提供，且 `CertificateDirectory` 必須是 local absolute directory。The MCP server must use the same secret and certificate directory；不要在 target app 內獨立產生另一組 secret。
 
 App 執行後，從 MCP client 呼叫 `connect()`。Server 會先探測 compatible SDK-hosted Inspector，並在 security settings 相符時重用它。
 
@@ -79,5 +79,5 @@ App 執行後，從 MCP client 呼叫 `connect()`。Server 會先探測 compatib
 ## 失敗檢查
 
 - 如果 `InspectorSdk.Initialize()` 失敗，檢查 `InspectorSdk.LastInitializationStatus`。
-- 如果 `connect()` 沒有重用 SDK host，確認兩個 process 使用相同的 `WPFDEVTOOLS_AUTH_SECRET` 與 absolute `WPFDEVTOOLS_CERT_DIR`。
+- 如果 `connect()` 沒有重用 SDK host，確認兩個 process 使用相同的 `WPFDEVTOOLS_AUTH_SECRET` 與 `WPFDEVTOOLS_CERT_DIR` local absolute directory。
 - 如果 packaging 是 single-file、Native AOT 或 trimmed，優先使用 SDK-hosted mode，並只把 raw injection 當成 fallback。

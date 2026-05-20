@@ -68,10 +68,12 @@ public sealed class ReadmeContractConsistencyTests
         textFallbackHelper.Should().Contain("Annotations = isError ? ErrorAnnotations : null");
         textFallbackHelper.Should().Contain("hasStructuredContent");
         readme.Should().Contain("structuredContent");
-        toolReference.Should().Contain("StructuredContent");
+        toolReference.Should().Contain("result.structuredContent");
         toolReference.Should().Contain("compact JSON fallback");
         toolReference.Should().Contain("WPFDEVTOOLS_TEXT_FALLBACK_MODE=full");
-        toolReference.Should().Contain("error results include `Annotations`");
+        toolReference.Should().Contain("result.content[0].annotations");
+        toolReference.Should().NotContain("StructuredContent / structuredContent");
+        toolReference.Should().NotContain("error results include `Annotations`");
         readme.Should().NotContain("Structured content: `StructuredContent` and `Annotations` populated on all tool results");
     }
 

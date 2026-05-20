@@ -17,7 +17,7 @@ public sealed partial class ConnectTool
             InjectionError.AccessDenied => $"Access denied to process {processId}. Try running as administrator.",
             InjectionError.ArchitectureMismatch => $"Architecture mismatch for process {processId}. Ensure the MCP server architecture matches the target process (both x64 or both x86).",
             InjectionError.SingleFileApplication =>
-                $"Process {processId} appears to use packaging that does not support injection. Start the target-side SDK host with matching WPFDEVTOOLS_AUTH_SECRET and absolute WPFDEVTOOLS_CERT_DIR values, then retry connect().",
+                $"Process {processId} appears to use packaging that does not support injection. Start the target-side SDK host with matching WPFDEVTOOLS_AUTH_SECRET and local absolute WPFDEVTOOLS_CERT_DIR values, then retry connect(). Network paths are not allowed.",
             _ => $"Validation failed: {error}"
         };
     }

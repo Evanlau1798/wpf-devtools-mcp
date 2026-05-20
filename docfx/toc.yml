@@ -8,6 +8,8 @@
       href: quickstart/index.md
     - name: AI Agent Clients
       href: quickstart/ai-agent-clients.md
+    - name: SDK-Hosted Inspector
+      href: quickstart/sdk-hosted-inspector.md
     - name: Claude Code
       href: quickstart/claude-code.md
     - name: OpenAI Codex and Codex CLI
@@ -20,6 +22,8 @@
   items:
     - name: AI Agent Guide
       href: guides/ai-agent-guide.md
+    - name: Agent-Assisted Install
+      href: guides/agent-assisted-install.md
     - name: Common Workflows
       href: guides/common-workflows.md
     - name: Troubleshooting

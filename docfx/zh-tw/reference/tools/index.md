@@ -4,17 +4,17 @@
 
 ## 類別
 
-1. Process management
-2. Tree and XAML
-3. Binding diagnostics
-4. Dependency properties
-5. Style and template
-6. Routed events
+1. Process Management
+2. Tree & XAML
+3. Binding Diagnostics
+4. DependencyProperty
+5. Style/Template
+6. RoutedEvent
 7. Interaction
 8. Layout
 9. MVVM
 10. Performance
-11. Scene diagnostics
+11. State & Scene Diagnostics
 
 ## 建議使用順序
 
@@ -42,17 +42,17 @@
 
 | 類別 | 常見第一個呼叫 | 用途 |
 | --- | --- | --- |
-| Process management | `connect()` | 快速自動探索並連線到最相關的已 allowlist WPF target |
-| Tree and XAML | `find_elements` | 先做緊湊查找，再決定是否展開完整 tree |
-| Binding diagnostics | `get_binding_errors` | 先找最有行動價值的 binding 問題 |
-| Dependency properties | `get_dp_value_source` | 理解 precedence 與 effective value |
-| Style and template | `get_applied_styles` | 說明 inherited 或 implicit 的外觀來源 |
-| Routed events | `get_event_handlers` | 在 trace 或 fire 之前先追查 event route 與 handler |
+| Process Management | `connect()` | 快速自動探索並連線到最相關的已 allowlist WPF target |
+| Tree & XAML | `find_elements` | 先做緊湊查找，再決定是否展開完整 tree |
+| Binding Diagnostics | `get_binding_errors` | 先找最有行動價值的 binding 問題 |
+| DependencyProperty | `get_dp_value_source` | 理解 precedence 與 effective value |
+| Style/Template | `get_applied_styles` | 說明 inherited 或 implicit 的外觀來源 |
+| RoutedEvent | `get_event_handlers` | 在 trace 或 fire 之前先追查 event route 與 handler |
 | Interaction | `click_element` | 在定位並驗證正確 element 後觸發行為 |
 | Layout | `get_layout_info` | 檢查 bounds、desired size 與 layout state |
 | MVVM | `get_viewmodel` | 檢查 view 背後的資料與 commands |
 | Performance | `get_render_stats` | 作為效能初步診斷入口 |
-| Scene diagnostics | `get_ui_summary` | 在使用 tree-heavy inspection 前先取得語意化上下文 |
+| State & Scene Diagnostics | `get_ui_summary` | 在使用 tree-heavy inspection 前先取得語意化上下文 |
 
 建議優先熟悉的重點功能：
 
@@ -75,10 +75,10 @@
 
 ## 回應形狀補充
 
-- 支援 structured content 的 client 應以 `structuredContent` 作為正式 payload。
+- 支援 structured content 的 client 應以 `StructuredContent` / `structuredContent` 作為正式 payload。
 - `tools/list` 會公告共用 `result.structuredContent` payload 欄位的 `outputSchema`，包含 `success`、`navigation`，以及 `processId` 這類常見識別欄位。Claude-compatible client smoke test 應針對這個 structured-output metadata shape 驗證 discovery。
 - 如果 client 需要 machine-readable contract，請直接讀取 MCP resource `wpf://contracts/response`。它會提供比共用 `tools/list` schema 更完整的 WPF payload contract，涵蓋 `structuredContent`、`navigation`、`nextSteps`、`contextRefs`，以及 `get_binding_errors` `navigation=false` opt-out。
-- `content[0].text` 是精簡的 JSON fallback，會保留高訊號的 top-level scalar 欄位與集合計數摘要，而不是完整 JSON 的重複傳輸。只有 legacy text-only MCP client 需要在 `content[0].text` 取得完整 JSON 時，才設定 `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full`。
+- `content[0].text` 是精簡的 JSON fallback，會保留高訊號的 top-level scalar 欄位與集合計數摘要，而不是完整 JSON 的重複傳輸。只有 legacy text-only MCP client 需要在 `content[0].text` 取得完整 JSON 時，才設定 `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full`；error results include `Annotations`。
 - 若 session 內已存在 buffered runtime event，部分 diagnostic 工具也可能在回應中 piggyback `pendingEvents`。若你需要明確且 deterministic 的 event read step，請改用 `drain_events`。
 
 需要更深入的語意與使用注意事項時，請再查看各分類頁面。

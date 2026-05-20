@@ -2,6 +2,8 @@
 
 `WpfDevTools.Inspector.Sdk` is the Opt-in SDK for the WPF DevTools MCP Server. It enables inspection without DLL injection.
 
+When you own the target application, prefer SDK-hosted reuse; raw injection remains the fallback path for zero-instrumentation diagnostics and targets that cannot be modified.
+
 Single-file and Native AOT packaging constraints affect raw injection, not the overall WPF DevTools support posture. When the target app starts `InspectorSdk.Initialize()` with matching transport settings, `connect()` can reuse the SDK-hosted Inspector instead of injecting a DLL. Trimmed apps are still risky because required inspector types may be removed, so SDK-host reuse is the preferred fallback rather than a guarantee.
 
 ## Installation

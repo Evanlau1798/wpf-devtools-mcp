@@ -327,38 +327,51 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
-    public void Readme_ShouldDescribeCursorUsingDedicatedCursorSchema()
+    public void ClientConfigDocs_ShouldDescribeCursorUsingDedicatedCursorSchema()
     {
-        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+        var content = File.ReadAllText(GetRepoFilePath("docfx/quickstart/cursor-vscode.md"));
+        var readme = File.ReadAllText(GetRepoFilePath("README.md"));
 
-        content.Should().Contain("### Cursor");
+        content.Should().Contain("## Cursor");
         content.Should().Contain("client-registration\\cursor.global.json");
         content.Should().Contain("%USERPROFILE%\\.cursor\\mcp.json");
         content.Should().Contain("\"mcpServers\"");
-        content.Should().Contain("### VS Code");
+        content.Should().Contain("## VS Code");
         content.Should().Contain("client-registration\\vscode.json");
         content.Should().Contain("%APPDATA%\\Code\\User\\mcp.json");
         content.Should().Contain("\"servers\"");
         content.Should().NotContain("### VS Code / Cursor");
+        readme.Should().NotContain("### Cursor");
+        readme.Should().NotContain("\"mcpServers\"");
     }
 
     [Fact]
     public void ClientConfigDocs_ShouldShowCanonicalStdioTypeInPublishedJsonExamples()
     {
-        var readme = File.ReadAllText(GetRepoFilePath("README.md"));
+        File.ReadAllText(GetRepoFilePath("README.md"))
+            .Should().NotContain("\"type\": \"stdio\"",
+                "README should link to DocFX client setup pages instead of carrying full JSON examples");
 
-        readme.Should().Contain("\"type\": \"stdio\"");
-        readme.Should().Contain("### Claude Desktop");
-        readme.Should().Contain("### VS Code");
-        readme.Should().Contain("### Cursor");
+        var claudeDesktopFiles = new[]
+        {
+            "docfx/quickstart/claude-desktop.md",
+            "docfx/zh-tw/quickstart/claude-desktop.md",
+        };
 
-        var quickstartFiles = new[]
+        foreach (var file in claudeDesktopFiles)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("\"type\": \"stdio\"");
+            content.Should().Contain("mcpServers");
+        }
+
+        var cursorVsCodeFiles = new[]
         {
             "docfx/quickstart/cursor-vscode.md",
             "docfx/zh-tw/quickstart/cursor-vscode.md"
         };
 
-        foreach (var file in quickstartFiles)
+        foreach (var file in cursorVsCodeFiles)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
             content.Should().Contain("\"type\": \"stdio\"");

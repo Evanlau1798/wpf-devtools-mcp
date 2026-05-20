@@ -4,17 +4,17 @@ The server currently exposes 64 tools across eleven categories.
 
 ## Categories
 
-1. Process management
-2. Tree and XAML
-3. Binding diagnostics
-4. Dependency properties
-5. Style and template
-6. Routed events
+1. Process Management
+2. Tree & XAML
+3. Binding Diagnostics
+4. DependencyProperty
+5. Style/Template
+6. RoutedEvent
 7. Interaction
 8. Layout
 9. MVVM
 10. Performance
-11. Scene diagnostics
+11. State & Scene Diagnostics
 
 ## Recommended order of use
 
@@ -42,17 +42,17 @@ If you only need broader auto-discovery, prefer `connect(windowFilter='all')` an
 
 | Category | Typical first call | Why |
 | --- | --- | --- |
-| Process management | `connect()` | Auto-discover and connect to the most relevant allowlisted WPF target quickly |
-| Tree and XAML | `find_elements` | Perform a compact lookup before expanding a full tree |
-| Binding diagnostics | `get_binding_errors` | Find the most actionable binding failures quickly |
-| Dependency properties | `get_dp_value_source` | Understand precedence and effective values |
-| Style and template | `get_applied_styles` | Explain inherited or implicit visual behavior |
-| Routed events | `get_event_handlers` | Investigate event routes and handlers before tracing or firing |
+| Process Management | `connect()` | Auto-discover and connect to the most relevant allowlisted WPF target quickly |
+| Tree & XAML | `find_elements` | Perform a compact lookup before expanding a full tree |
+| Binding Diagnostics | `get_binding_errors` | Find the most actionable binding failures quickly |
+| DependencyProperty | `get_dp_value_source` | Understand precedence and effective values |
+| Style/Template | `get_applied_styles` | Explain inherited or implicit visual behavior |
+| RoutedEvent | `get_event_handlers` | Investigate event routes and handlers before tracing or firing |
 | Interaction | `click_element` | Trigger behavior after locating and validating the correct element |
 | Layout | `get_layout_info` | Inspect bounds, desired size, and layout state |
 | MVVM | `get_viewmodel` | Inspect data and commands behind a view |
 | Performance | `get_render_stats` | Start performance triage |
-| Scene diagnostics | `get_ui_summary` | Start with semantic context before using tree-heavy inspection |
+| State & Scene Diagnostics | `get_ui_summary` | Start with semantic context before using tree-heavy inspection |
 
 Key capabilities worth learning early:
 
@@ -75,11 +75,11 @@ Key capabilities worth learning early:
 
 ## Response shape notes
 
-- Structured clients should read `structuredContent` as the canonical payload.
+- Structured clients should read `StructuredContent` / `structuredContent` as the canonical payload.
 - High-value tool descriptions in `tools/list` are intentionally brief discovery hints; use `wpf://contracts/response` for stable field-level contracts instead of relying on long inline prose.
 - `tools/list` advertises an `outputSchema` for the common `result.structuredContent` payload fields, including `success`, `navigation`, and common identifiers such as `processId`. Claude-compatible client smoke tests should validate discovery against this structured-output metadata shape.
 - Need a machine-readable contract? Read MCP resource `wpf://contracts/response`. It publishes the stable detailed WPF payload contract for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, and the `get_binding_errors` `navigation=false` opt-out beyond the common `tools/list` schema.
-- `content[0].text` is a compact JSON fallback that preserves high-signal top-level scalar fields and collection counts, not a duplicate transport of the full JSON object. Set `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` only for legacy text-only MCP clients that require the full JSON payload in `content[0].text`.
+- `content[0].text` is a compact JSON fallback that preserves high-signal top-level scalar fields and collection counts, not a duplicate transport of the full JSON object. Set `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` only for legacy text-only MCP clients that require the full JSON payload in `content[0].text`; error results include `Annotations`.
 - Diagnostic tools may also piggyback `pendingEvents` when the session has buffered runtime events. Use `drain_events` when you need an explicit deterministic read of the shared event buffer.
 
 Use the category pages for the most important tools, semantics, and gotchas.

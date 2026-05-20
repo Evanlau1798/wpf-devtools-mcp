@@ -4,6 +4,8 @@
 
 This page describes the native bootstrapper and raw injection path only.
 
+When you own the target application, prefer SDK-hosted reuse; raw injection remains the fallback path for zero-instrumentation diagnostics.
+
 If the target app already starts the inspector through `InspectorSdk.Initialize()`, or packaging and publish mode block raw injection, start with [Compatibility Matrix](compatibility-matrix.md) and [Security Model](security.md) first.
 
 `connect()` always tries to reuse a compatible SDK-hosted Inspector before it falls back to bootstrapper-based injection.

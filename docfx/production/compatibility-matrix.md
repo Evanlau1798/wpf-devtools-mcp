@@ -28,5 +28,6 @@
 
 - Use `get_processes` as the runtime architecture truth source.
 - Treat x86 and x64 as separate deployment targets.
+- When you own the target app, prefer SDK-hosted reuse; raw injection remains the fallback path for zero-instrumentation diagnostics.
 - If packaging or publish mode blocks raw injection, start the target-side SDK host with `InspectorSdk.Initialize()` and matching transport settings so `connect()` can reuse it.
 - Validate bootstrapper and inspector selection before calling `connect` in automation.

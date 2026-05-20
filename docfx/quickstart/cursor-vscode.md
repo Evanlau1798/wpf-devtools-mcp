@@ -38,7 +38,9 @@ C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<a
 
 The installer writes editor-ready JSON files under `client-registration\`.
 
-### Cursor global profile
+## Cursor
+
+### Global profile
 
 Use `client-registration\cursor.global.json` when you want a user-level Cursor registration. Copy the `mcpServers.wpf-devtools` node into:
 
@@ -70,7 +72,9 @@ Use `client-registration\cursor.project.json` when you want a repo-local Cursor 
 
 Cursor editor workflows and Cursor CLI MCP workflows both read the same `.cursor\mcp.json` / `%USERPROFILE%\.cursor\mcp.json` configuration shape. Treat the generated `client-registration` artifact as the source of truth for the resolved executable path instead of the sample path above.
 
-### VS Code / Visual Studio
+## VS Code
+
+Visual Studio uses the same generated `servers` JSON shape.
 
 Use `client-registration\vscode.json` or `client-registration\visual-studio.json`. Their structure is:
 

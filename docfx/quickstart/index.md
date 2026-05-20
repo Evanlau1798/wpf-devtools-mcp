@@ -77,6 +77,8 @@ If you register manually, always point your client at the installed `wpf-devtool
 
 The server only inspects live WPF processes. Start the app first, then launch the MCP client.
 
+If you own the target app source code, prefer the [SDK-hosted Inspector quickstart](sdk-hosted-inspector.md) before relying on raw injection; raw injection remains the fallback path for zero-instrumentation diagnostics.
+
 ## Step 5: Verify the first session
 
 Use this sequence in your MCP client:
@@ -104,5 +106,6 @@ After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact absol
 ## Need deeper installation details?
 
 - [AI Agent Clients](ai-agent-clients.md)
+- [SDK-Hosted Inspector](sdk-hosted-inspector.md)
 - [Deployment Guide](../production/deployment.md)
 - [Release Layout](../production/release-layout.md)

@@ -4,6 +4,8 @@
 
 這個 server 通常會以本機 Windows companion process 的形式部署，並與目標 WPF 應用程式並存。
 
+若由 AI agent 協助安裝，請依照 [Agent 輔助安裝](../guides/agent-assisted-install.md)，讓 discovery、confirmation、provenance verification 與 client registration 維持分離。
+
 ## 正式腳本來源
 
 installer 與 packaging 行為定義在 `scripts/`，而不是文件站台本身：

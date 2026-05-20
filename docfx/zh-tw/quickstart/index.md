@@ -77,6 +77,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Package
 
 server 只能檢查 live WPF process。先啟動目標應用程式，再啟動 MCP client。
 
+如果你擁有 target app source code，請先參考 [SDK-hosted Inspector quickstart](sdk-hosted-inspector.md)，再考慮 raw injection。raw injection remains the fallback path for zero-instrumentation diagnostics。
+
 ## Step 5：驗證第一個 session
 
 在 MCP client 中使用以下順序：
@@ -106,5 +108,6 @@ After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact absol
 ## 想看更深入的安裝說明？
 
 - [AI Agent Client 快速開始](ai-agent-clients.md)
+- [SDK-Hosted Inspector](sdk-hosted-inspector.md)
 - [部署指南](../production/deployment.md)
 - [Release Layout](../production/release-layout.md)

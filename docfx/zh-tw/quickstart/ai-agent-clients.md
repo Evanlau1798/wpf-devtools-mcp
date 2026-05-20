@@ -2,6 +2,8 @@
 
 先安裝 WPF DevTools，再把安裝後的執行檔註冊到你偏好的 client。
 
+如果由 AI agent 協助安裝，請先使用 side-effect-safe 的 [Agent 輔助安裝](../guides/agent-assisted-install.md) 契約，再執行 installer。
+
 ## 安裝真源
 
 - Canonical source repository：目前這份 checkout

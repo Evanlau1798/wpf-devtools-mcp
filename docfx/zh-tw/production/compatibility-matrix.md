@@ -28,5 +28,6 @@
 
 - 以 `get_processes` 回傳的 architecture 當作唯一真相來源。
 - 把 x86 與 x64 視為兩個不同部署目標，不要混用。
+- 當你擁有 target app 時，prefer SDK-hosted reuse；raw injection remains the fallback path for zero-instrumentation diagnostics。
 - 若 package 形式或 publish 模式會阻擋 raw injection，請在 target-side 先呼叫 `InspectorSdk.Initialize()`，並維持相符的 transport 設定，讓 `connect()` 可以重用該 SDK host。
 - 在自動化中呼叫 `connect` 前，先驗證 bootstrapper 與 inspector 選擇是否正確。

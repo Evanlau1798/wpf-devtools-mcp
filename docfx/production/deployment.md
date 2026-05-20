@@ -4,6 +4,8 @@
 
 This server is usually deployed as a local Windows companion process next to the target WPF application.
 
+When an AI agent assists the install, follow [Agent-Assisted Install](../guides/agent-assisted-install.md) so discovery, confirmation, provenance verification, and client registration stay separated.
+
 ## Canonical script sources
 
 Installer and packaging behavior are defined in `scripts/`, not in the documentation site:

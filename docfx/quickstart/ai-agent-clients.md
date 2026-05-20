@@ -2,6 +2,8 @@
 
 Install WPF DevTools first, then register the installed executable with your preferred client.
 
+If an AI agent is helping with installation, use the side-effect-safe [Agent-Assisted Install](../guides/agent-assisted-install.md) contract before running an installer.
+
 ## Install source of truth
 
 - Canonical source repository: this checkout

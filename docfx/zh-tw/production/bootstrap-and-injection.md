@@ -1,5 +1,15 @@
 # Bootstrap 與 Injection
 
+## Scope: raw injection path only
+
+這頁只描述 native bootstrapper 與 raw injection path。
+
+當你擁有 target application 時，prefer SDK-hosted reuse。raw injection remains the fallback path for zero-instrumentation diagnostics。
+
+如果 target app 已透過 `InspectorSdk.Initialize()` 啟動 inspector，或 packaging 與 publish mode 阻擋 raw injection，請先看[相容性矩陣](compatibility-matrix.md)與[安全模型](security.md)。
+
+`connect()` 一定會先嘗試重用 compatible SDK-hosted Inspector，才 fallback 到 bootstrapper-based injection。
+
 ## 為什麼需要 bootstrapper
 
 server 不會直接把 inspector 載入目標行程，而是先注入 native bootstrapper，再由 bootstrapper 針對目標 runtime 啟動正確的 managed entrypoint。
@@ -9,13 +19,14 @@ server 不會直接把 inspector 載入目標行程，而是先注入 native boo
 ## `connect` 的高階流程
 
 1. MCP client 在一般情況下呼叫 `connect()`；若目標已明確選定，則呼叫 `connect(processId)`。
-2. server 驗證目標行程與候選 DLL 路徑。
-3. injector 驗證架構相容性。
-4. 將 native bootstrapper 載入目標行程。
-5. bootstrapper 依目標 runtime 選擇正確的 managed bridge。
-6. 啟動 inspector。
-7. server 等待目標 named pipe 變成 ready。
-8. 只有在 ready 確認後才建立 session。
+2. server 先嘗試重用 compatible SDK-hosted Inspector。
+3. 如果 SDK-host reuse 不可用，server 驗證目標行程與候選 DLL 路徑。
+4. injector 驗證架構相容性。
+5. 將 native bootstrapper 載入目標行程。
+6. bootstrapper 依目標 runtime 選擇正確的 managed bridge。
+7. 啟動 inspector。
+8. server 等待目標 named pipe 變成 ready。
+9. 只有在 ready 確認後才建立 session。
 
 ## Success contract
 

@@ -264,6 +264,41 @@ public class SecurityDocumentationTests
             $"{relativePath} should tie the absolute-path requirement to the supported TLS certificate directory setting");
     }
 
+    [Theory]
+    [InlineData("SECURITY.md", "local absolute", "Network paths are not allowed")]
+    [InlineData("docfx/production/security.md", "local absolute", "Network paths are not allowed")]
+    [InlineData("docfx/zh-tw/production/security.md", "local absolute", "Network paths are not allowed")]
+    [InlineData("docfx/guides/troubleshooting.md", "local absolute", "Network paths are not allowed")]
+    [InlineData("docfx/zh-tw/guides/troubleshooting.md", "local absolute", "Network paths are not allowed")]
+    [InlineData("src/WpfDevTools.Inspector.Sdk/InspectorSdkOptions.cs", "local absolute", "Network paths are not allowed")]
+    [InlineData("src/WpfDevTools.Mcp.Server/McpResources/CapabilityResources.cs", "local absolute", "Network paths are not allowed")]
+    public void Documentation_ShouldDescribeLocalCertificateDirectoryRequirement(
+        string relativePath,
+        string localRequirement,
+        string networkPathWarning)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(localRequirement,
+            $"{relativePath} should explain that WPFDEVTOOLS_CERT_DIR must be a local absolute directory");
+        content.Should().Contain(networkPathWarning,
+            $"{relativePath} should explain that network or UNC certificate directories are rejected");
+    }
+
+    [Theory]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    public void Documentation_ShouldDescribeTlsThumbprintPinAsRequiredWhenSubjectIsValidated(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("pins the expected thumbprint",
+            $"{relativePath} should describe thumbprint pinning as part of TLS certificate validation");
+        content.Should().NotContain("can pin",
+            $"{relativePath} should not imply subject-only TLS certificate validation is acceptable");
+    }
+
     private static string ReadDocumentation()
     {
         var readme = File.ReadAllText(GetRepoFilePath("README.md"));

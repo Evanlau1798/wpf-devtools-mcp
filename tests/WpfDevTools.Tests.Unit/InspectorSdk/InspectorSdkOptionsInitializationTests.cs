@@ -97,4 +97,43 @@ public sealed class InspectorSdkOptionsInitializationTests
         SdkInspector.LastInitializationStatus.ProcessId.Should().Be(12347);
         InspectorSdkTestContext.GetInspectorSdkHost().Should().BeNull();
     }
+
+    [Fact]
+    public void Initialize_WithNetworkCertificateDirectoryEnvironment_ShouldReportCertificateDirectoryInvalid()
+    {
+        using var testContext = new InspectorSdkTestContext();
+        testContext.SetTransport(
+            InspectorSdkTestContext.CreateAuthSecret(),
+            @"\\server\share\wpfdevtools-certs");
+
+        SdkInspector.Initialize(processId: 12348);
+
+        SdkInspector.IsInitialized.Should().BeFalse();
+        SdkInspector.LastInitializationError.Should().BeAssignableTo<ArgumentException>();
+        SdkInspector.LastInitializationStatus.ProcessId.Should().Be(12348);
+        SdkInspector.LastInitializationStatus.ErrorCode.Should().Be("SdkCertificateDirectoryInvalid");
+        SdkInspector.LastInitializationStatus.Hint.Should().Contain("local absolute");
+        InspectorSdkTestContext.GetInspectorSdkHost().Should().BeNull();
+    }
+
+    [Fact]
+    public void InitializeWithOptions_WithNetworkCertificateDirectory_ShouldReportCertificateDirectoryInvalid()
+    {
+        using var testContext = new InspectorSdkTestContext();
+        testContext.SetTransport(authSecret: null, certDirectory: null);
+
+        SdkInspector.InitializeWithOptions(new InspectorSdkOptions
+        {
+            ProcessId = 12349,
+            AuthenticationSecretBase64 = InspectorSdkTestContext.CreateAuthSecret(),
+            CertificateDirectory = @"\\server\share\wpfdevtools-certs"
+        });
+
+        SdkInspector.IsInitialized.Should().BeFalse();
+        SdkInspector.LastInitializationError.Should().BeAssignableTo<ArgumentException>();
+        SdkInspector.LastInitializationStatus.ProcessId.Should().Be(12349);
+        SdkInspector.LastInitializationStatus.ErrorCode.Should().Be("SdkCertificateDirectoryInvalid");
+        SdkInspector.LastInitializationStatus.Hint.Should().Contain("local absolute");
+        InspectorSdkTestContext.GetInspectorSdkHost().Should().BeNull();
+    }
 }

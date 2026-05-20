@@ -17,7 +17,7 @@ public sealed record InspectorSdkOptions
     public string? AuthenticationSecretBase64 { get; init; }
 
     /// <summary>
-    /// Absolute directory used for SDK-host transport certificates.
+    /// A local absolute directory used for SDK-host transport certificates. Network paths are not allowed.
     /// Must be set together with <see cref="AuthenticationSecretBase64" /> when explicit transport options are used.
     /// </summary>
     public string? CertificateDirectory { get; init; }

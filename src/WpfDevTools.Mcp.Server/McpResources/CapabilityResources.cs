@@ -154,7 +154,7 @@ public static partial class CapabilityResources
 
         - Prefer matching architecture builds.
         - Run the MCP host as administrator for elevated targets.
-        - Use SDK mode by starting the target-side host with InspectorSdk.Initialize() and matching transport settings, including the same absolute WPFDEVTOOLS_CERT_DIR value when TLS is enabled. Set WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR together on both sides before initialization; if either value is missing, SDK startup now fails closed. This keeps the overall WPF DevTools workflow available for single-file and Native AOT packaging; for trimmed apps it remains the preferred fallback, not a guarantee, and the default-hardened MCP server will not reuse a plaintext SDK host.
+        - Use SDK mode by starting the target-side host with InspectorSdk.Initialize() and matching transport settings, including the same local absolute WPFDEVTOOLS_CERT_DIR value when TLS is enabled. Network paths are not allowed. Set WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR together on both sides before initialization; if either value is missing, SDK startup now fails closed. This keeps the overall WPF DevTools workflow available for single-file and Native AOT packaging; for trimmed apps it remains the preferred fallback, not a guarantee, and the default-hardened MCP server will not reuse a plaintext SDK host.
         """;
 
 

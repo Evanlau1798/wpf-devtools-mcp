@@ -34,7 +34,7 @@
 
 - 以系統管理員權限重新啟動 Claude Code、Codex 或 MCP host，讓 server 與 target 位於相同完整性等級
 - 改用非 elevated 的 target process 重新驗證
-- 如果目標 packaging 或部署型態不適合一般 injection 路徑，請先在 target app 內呼叫 `InspectorSdk.Initialize()` 再呼叫 `connect()`；若啟用 TLS，也要使用相同的 transport config 與 absolute `WPFDEVTOOLS_CERT_DIR`
+- 如果目標 packaging 或部署型態不適合一般 injection 路徑，請先在 target app 內呼叫 `InspectorSdk.Initialize()` 再呼叫 `connect()`；若啟用 TLS，也要使用相同的 transport config 與 local absolute `WPFDEVTOOLS_CERT_DIR`。Network paths are not allowed
 - 如果 `connect()` 回傳 `CompatibilityError`，請重新啟動 target process，讓 MCP server 能重新 inject 或重用與目前 repo revision / compatibility contract 相符的 Inspector host
 - 若既有的 SDK host 仍是 legacy plaintext，或本身沒有正常回應，MCP server 仍可能先得到 Timeout，而不是先證明 transport mismatch
 

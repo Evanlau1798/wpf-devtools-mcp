@@ -106,11 +106,10 @@ public sealed partial class SandboxCiScriptContractTests
         runner.Should().Contain("Get-MatchingProcessFromSnapshot");
         runner.Should().Contain("StartTime.ToUniversalTime().Ticks");
         runner.Should().Contain("[TimeSpan]::FromMilliseconds(1).Ticks");
-        runner.Should().Contain("$process.Kill()");
+        runner.Should().Contain("Get-MatchingProcessFromSnapshot -Snapshot $snapshot").And.Contain("$process.Kill()");
         runner.Should().Contain("Set-SmokeTargetRootSnapshot");
         runner.Should().Contain("Get-SmokeTargetRootSnapshot");
-        runner.Should().Contain("Remove-SmokeTargetRootSnapshot");
-        runner.Should().NotContain("Stop-Process -Id $snapshot.ProcessId");
+        runner.Should().Contain("Remove-SmokeTargetRootSnapshot").And.NotContain("Stop-Process -Id $snapshot.ProcessId");
         runner.Should().NotContain("if ($null -ne $rootSnapshot) {\r\n                $rootSnapshot.DescendantCutoffUtcTicks = [DateTime]::UtcNow.Ticks");
         preflight.Should().Contain("try { Stop-SmokeTarget -Process $smokeProcess } finally { $smokeProcess = $null }");
         preflight.Should().Contain("if ($null -ne $smokeProcess) {");

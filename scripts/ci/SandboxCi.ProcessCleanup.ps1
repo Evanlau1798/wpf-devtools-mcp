@@ -282,8 +282,7 @@ function Get-MatchingProcessFromSnapshot {
     $process = $null
     try {
         $process = [System.Diagnostics.Process]::GetProcessById([int]$Snapshot.ProcessId)
-        $startDeltaTicks = [Math]::Abs($process.StartTime.ToUniversalTime().Ticks - [long]$Snapshot.CreationDateUtcTicks)
-        if ($process.HasExited -or $startDeltaTicks -gt [TimeSpan]::FromMilliseconds(1).Ticks) {
+        if ($process.HasExited -or -not (Test-ProcessSnapshotExists -Snapshot $Snapshot)) {
             $process.Dispose()
             return $null
         }
@@ -336,7 +335,7 @@ function Update-ProcessSnapshotCutoffIfAlive {
 }
 
 function Update-ProcessSnapshotCutoffFromProcess {
-    param([object]$Snapshot, [System.Diagnostics.Process]$Process)
+    param([object]$Snapshot, [object]$Process)
     if ($null -eq $Snapshot -or $null -eq $Process) {
         return $false
     }
@@ -377,37 +376,32 @@ function Stop-ExistingProcessSnapshots {
             continue
         }
 
-        try {
-            if (-not $process.HasExited) {
-                $process.Kill()
-            }
-        }
-        catch {
-        }
-        finally {
-            $process.Dispose()
-        }
+        try { if (-not $process.HasExited) { Update-ProcessSnapshotCutoffIfAlive -Snapshot $snapshot | Out-Null; $process.Kill(); $process.WaitForExit(1000) | Out-Null; if (Test-ProcessSnapshotExists -Snapshot $snapshot) { $process.Kill(); $process.WaitForExit(1000) | Out-Null } } }
+        catch { $script:LastProcessSnapshotStopFailure = $_.Exception.Message }
+        finally { if (-not (Update-ProcessSnapshotCutoffFromProcess -Snapshot $snapshot -Process $process)) { Update-ProcessSnapshotCutoffIfAlive -Snapshot $snapshot | Out-Null }; $process.Dispose() }
     }
 }
 
 function Stop-ProcessSnapshots {
     param([object[]]$Snapshots, [object[]]$ScanRoots = @())
-
-    $Snapshots = @(Expand-ProcessSnapshots -Snapshots $Snapshots -ScanRoots $ScanRoots)
-    Stop-ExistingProcessSnapshots -Snapshots $Snapshots
-    $deadline = [DateTime]::UtcNow.AddSeconds(5)
+    $script:LastProcessSnapshotStopFailure = ''; $deadline = [DateTime]::UtcNow.AddSeconds(15); $settleSinceUtc = $null; $lastLiveKey = ''
     do {
         $Snapshots = @(Expand-ProcessSnapshots -Snapshots $Snapshots -ScanRoots $ScanRoots)
         Stop-ExistingProcessSnapshots -Snapshots $Snapshots
-        $remaining = @($Snapshots | Where-Object { Test-ProcessSnapshotExists -Snapshot $_ } | ForEach-Object { $_.ProcessId })
-        if ($remaining.Count -eq 0) {
-            return
+        $Snapshots = @(Expand-ProcessSnapshots -Snapshots $Snapshots -ScanRoots $ScanRoots)
+        $liveSnapshots = @($Snapshots | Where-Object { Test-ProcessSnapshotExists -Snapshot $_ }); $liveKey = (($liveSnapshots | Sort-Object ProcessId, CreationDateUtcTicks | ForEach-Object { Get-ProcessSnapshotKey -Snapshot $_ }) -join '|')
+        if ($liveSnapshots.Count -eq 0 -and @($ScanRoots).Count -eq 0) { return }
+        if ($liveSnapshots.Count -eq 0) {
+            if ($null -eq $settleSinceUtc) { $settleSinceUtc = [DateTime]::UtcNow } elseif ([DateTime]::UtcNow -ge $settleSinceUtc.AddMilliseconds(500)) { return }
         }
-
+        else { $settleSinceUtc = $null; $lastLiveKey = $liveKey }
         Start-Sleep -Milliseconds 100
     } while ([DateTime]::UtcNow -lt $deadline)
 
-    throw "Timed out waiting for process tree cleanup. Remaining PID(s): $($remaining -join ', ')"
+    $remaining = @($Snapshots | Where-Object { Test-ProcessSnapshotExists -Snapshot $_ } | ForEach-Object { $_.ProcessId })
+    $scanRootKeys = ((@($ScanRoots) | ForEach-Object { Get-ProcessSnapshotKey -Snapshot $_ }) -join ', ')
+    if ($remaining.Count -eq 0) { return }
+    throw "Timed out waiting for process tree cleanup. Remaining PID(s): $($remaining -join ', ') Scan root key(s): $scanRootKeys Current live key: $liveKey Last stop failure: $script:LastProcessSnapshotStopFailure"
 }
 
 function Stop-SmokeTarget {

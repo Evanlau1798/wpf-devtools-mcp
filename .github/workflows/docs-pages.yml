@@ -16,8 +16,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: github-pages
@@ -26,6 +24,11 @@ concurrency:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: read
+      pages: read
+    outputs:
+      pages_enabled: ${{ steps.pages-check.outputs.enabled }}
 
     steps:
       - name: Checkout
@@ -36,7 +39,36 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Check GitHub Pages availability
+        id: pages-check
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_API_URL: ${{ github.api_url }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          try {
+            Invoke-RestMethod -Uri "$env:GITHUB_API_URL/repos/${{ github.repository }}/pages" -Headers $headers | Out-Null
+            "enabled=true" >> $env:GITHUB_OUTPUT
+          }
+          catch {
+            $statusCode = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 }
+            if ($statusCode -eq 404) {
+              "enabled=false" >> $env:GITHUB_OUTPUT
+              Write-Host 'GitHub Pages is not enabled; building docs without deploy.'
+              exit 0
+            }
+
+            throw
+          }
+
       - name: Configure GitHub Pages
+        if: steps.pages-check.outputs.enabled == 'true'
         id: pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
 
@@ -56,11 +88,16 @@ jobs:
         run: dotnet tool run docfx docfx/docfx.json
 
       - name: Upload Pages artifact
+        if: steps.pages-check.outputs.enabled == 'true'
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
           path: docfx/_site
 
   deploy:
+    if: needs.build.outputs.pages_enabled == 'true'
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

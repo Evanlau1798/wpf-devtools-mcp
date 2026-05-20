@@ -330,7 +330,7 @@ public sealed class WaitForDpChangeToolConcurrencyTests
     }
 
     [Fact]
-    public async Task Execute_WithSlowTriggerMutation_ShouldTimeOutWithinBudget()
+    public async Task Execute_WithSlowTriggerMutation_ShouldReturnTimeoutWithoutConsumingDelayedResponse()
     {
         const int processId = 4768;
         using var connected = await CreateDelayedTriggerSessionAsync(processId, mutationDelayMs: 250);
@@ -363,7 +363,8 @@ public sealed class WaitForDpChangeToolConcurrencyTests
         waitJson.GetProperty("completionReason").GetString().Should().Be("TriggerMutationTimedOut");
         waitJson.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
         waitJson.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
-        waitJson.GetProperty("elapsedMs").GetInt64().Should().BeLessThan(250);
+        waitJson.GetProperty("currentValue").GetString().Should().Be("before",
+            "a trigger timeout must not consume the delayed mutation success response");
         connected.SessionManager.GetPipeClient(processId)!.IsConnected.Should().BeFalse(
             "timing out an in-flight trigger mutation should reset the pipe connection instead of leaving a stale response queued");
     }

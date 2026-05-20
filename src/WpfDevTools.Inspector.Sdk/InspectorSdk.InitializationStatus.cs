@@ -51,7 +51,7 @@ public static partial class InspectorSdk
             return "SdkAuthenticationSecretInvalid";
         }
 
-        if (exception is IOException)
+        if (IsCertificateDirectoryException(exception))
         {
             return "SdkCertificateDirectoryInvalid";
         }
@@ -89,9 +89,9 @@ public static partial class InspectorSdk
             return "Provide WPFDEVTOOLS_AUTH_SECRET as a base64-encoded 32-byte shared secret.";
         }
 
-        if (exception is IOException)
+        if (IsCertificateDirectoryException(exception))
         {
-            return "Provide WPFDEVTOOLS_CERT_DIR as a writable absolute directory shared with the MCP server.";
+            return "Provide WPFDEVTOOLS_CERT_DIR as a writable local absolute directory shared with the MCP server. Network paths are not allowed.";
         }
 
         if (exception is TimeoutException)
@@ -104,4 +104,9 @@ public static partial class InspectorSdk
 
     private static bool ContainsOrdinal(string value, string expected)
         => value.Contains(expected, StringComparison.Ordinal);
+
+    private static bool IsCertificateDirectoryException(Exception exception)
+        => exception is IOException
+            || (exception is ArgumentException && ContainsOrdinal(exception.Message, "Certificate directory"))
+            || (exception is InvalidOperationException && ContainsOrdinal(exception.Message, "WPFDEVTOOLS_CERT_DIR must"));
 }

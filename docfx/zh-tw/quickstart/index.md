@@ -45,7 +45,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Package
 4. 解壓縮。
 5. 在解壓後的資料夾執行 `run.bat`。
 
-在信任解壓後的套件前，請保留與該 archive 相鄰且已驗證的 release sidecar：`SHA256SUMS.txt` 用於 checksum 驗證，`release-assets.json` 用於 canonical release metadata。如果解壓後的套件旁已沒有原始且已驗證的 archive 與 sidecar，請在執行 `run.bat` 前設定 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`（或 `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`），讓本機安裝流程仍會強制要求明確的 signer pin。
+在信任解壓後的套件前，請保留與該 archive 相鄰且已驗證的 release sidecar：`SHA256SUMS.txt` 用於 checksum 驗證，`release-assets.json` 用於 canonical release metadata。如果解壓後的套件旁已沒有原始且已驗證的 archive 與 sidecar，請在執行 `run.bat` 前設定 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 作為必要的 thumbprint trust root；`WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` 只能在 thumbprint 已 pin 之後作為 additional constraint。
 
 `run.bat` 會在目前 shell 尚未提升權限時要求 elevation，然後啟動 packaged `bin/install.ps1`。如果你需要把安裝留在目前未提升權限的 shell 中，請設定 `WPFDEVTOOLS_SKIP_ELEVATION=1`。
 
@@ -77,6 +77,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Package
 
 server 只能檢查 live WPF process。先啟動目標應用程式，再啟動 MCP client。
 
+如果你擁有 target app source code，請先參考 [SDK-hosted Inspector quickstart](sdk-hosted-inspector.md)，再考慮 raw injection。raw injection remains the fallback path for zero-instrumentation diagnostics。
+
 ## Step 5：驗證第一個 session
 
 在 MCP client 中使用以下順序：
@@ -106,5 +108,6 @@ After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact absol
 ## 想看更深入的安裝說明？
 
 - [AI Agent Client 快速開始](ai-agent-clients.md)
+- [SDK-Hosted Inspector](sdk-hosted-inspector.md)
 - [部署指南](../production/deployment.md)
 - [Release Layout](../production/release-layout.md)

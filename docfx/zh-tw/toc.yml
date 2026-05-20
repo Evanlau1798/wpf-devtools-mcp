@@ -6,6 +6,8 @@
       href: quickstart/index.md
     - name: AI Agent Client 總覽
       href: quickstart/ai-agent-clients.md
+    - name: SDK-Hosted Inspector 快速開始
+      href: quickstart/sdk-hosted-inspector.md
     - name: Claude Code 快速開始
       href: quickstart/claude-code.md
     - name: OpenAI Codex 與 Codex CLI 快速開始
@@ -18,6 +20,8 @@
   items:
     - name: AI Agent 使用指南
       href: guides/ai-agent-guide.md
+    - name: Agent 輔助安裝
+      href: guides/agent-assisted-install.md
     - name: 常見工作流程
       href: guides/common-workflows.md
     - name: 疑難排解

@@ -29,9 +29,10 @@ public sealed class ReadmeContractConsistencyTests
         };
 
     [Fact]
-    public void Readme_ToolCategorySummary_ShouldMatchCurrentMcpSurface()
+    public void DocfxToolCategorySummary_ShouldMatchCurrentMcpSurface()
     {
         var readme = File.ReadAllText(GetRepoFilePath("README.md"));
+        var toolReference = File.ReadAllText(GetRepoFilePath("docfx/reference/tools/index.md"));
         var toolCounts = GetToolCategories()
             .GroupBy(entry => entry.Category)
             .Select(group => new
@@ -43,19 +44,22 @@ public sealed class ReadmeContractConsistencyTests
             .ToArray();
         var totalCount = toolCounts.Sum(entry => entry.Count);
 
-        readme.Should().Contain($"The server ships {totalCount} MCP tools across {toolCounts.Length} categories.");
+        readme.Should().Contain($"The server ships {totalCount} MCP tools");
+        readme.Should().NotContain("| Process Management | 5 |");
+        toolReference.Should().Contain($"The server currently exposes {totalCount} tools across eleven categories.");
 
         foreach (var category in toolCounts)
         {
-            readme.Should().Contain($"| {category.Key} | {category.Count} |",
-                $"README should stay synchronized with {category.Key} tool count");
+            toolReference.Should().Contain(category.Key,
+                $"DocFX should stay synchronized with the {category.Key} tool category");
         }
     }
 
     [Fact]
-    public void Readme_StructuredContentSummary_ShouldMatchCurrentWrapperBehavior()
+    public void DocfxStructuredContentSummary_ShouldMatchCurrentWrapperBehavior()
     {
         var readme = File.ReadAllText(GetRepoFilePath("README.md"));
+        var toolReference = File.ReadAllText(GetRepoFilePath("docfx/reference/tools/index.md"));
         var helper = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools/ToolCallHelper.cs"));
         var textFallbackHelper = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools/ToolCallHelper.TextFallback.cs"));
 
@@ -63,7 +67,13 @@ public sealed class ReadmeContractConsistencyTests
         textFallbackHelper.Should().Contain("AppendHighSignalFallbackFields");
         textFallbackHelper.Should().Contain("Annotations = isError ? ErrorAnnotations : null");
         textFallbackHelper.Should().Contain("hasStructuredContent");
-        readme.Should().Contain("Structured content: `StructuredContent` is populated on all tool results; object/array `Content.Text` preserves high-signal top-level scalar fields and collection counts as a compact fallback summary when structured payload is present. Set `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` only for legacy text-only MCP clients that require the full JSON payload in `content[0].text`; error results include `Annotations`.");
+        readme.Should().Contain("structuredContent");
+        toolReference.Should().Contain("result.structuredContent");
+        toolReference.Should().Contain("compact JSON fallback");
+        toolReference.Should().Contain("WPFDEVTOOLS_TEXT_FALLBACK_MODE=full");
+        toolReference.Should().Contain("result.content[0].annotations");
+        toolReference.Should().NotContain("StructuredContent / structuredContent");
+        toolReference.Should().NotContain("error results include `Annotations`");
         readme.Should().NotContain("Structured content: `StructuredContent` and `Annotations` populated on all tool results");
     }
 

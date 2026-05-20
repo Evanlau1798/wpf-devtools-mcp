@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using Xunit;
 
@@ -20,6 +21,8 @@ public sealed class OnlineInstallerContractTests
         var content = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
 
+        content.Should().Contain("'plan'");
+        content.Should().Contain("Get-InstallerPlan");
         content.Should().Contain("Start-TuiInstaller");
         content.Should().Contain("[switch]$NonInteractive");
         content.Should().Contain("[switch]$OutputJson");
@@ -145,5 +148,46 @@ public sealed class OnlineInstallerContractTests
             "PowerShell Compress-Archive on Windows stores release entries with backslash separators");
         content.Should().Contain("\"installer\\$LeafName\"",
             "offline package helper lookup should accept both archive layouts supported by packaged releases");
+    }
+
+    [Fact]
+    public void OnlineInstallerSupportedClients_ShouldMatchAgentInstallDocumentation()
+    {
+        var script = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var functionStart = script.IndexOf("function Get-SupportedClients", StringComparison.Ordinal);
+        var functionEnd = script.IndexOf("function Resolve-ClientBaseId", StringComparison.Ordinal);
+        functionStart.Should().BeGreaterThanOrEqualTo(0);
+        functionEnd.Should().BeGreaterThan(functionStart);
+
+        var functionBody = script[functionStart..functionEnd];
+        var supportedClients = Regex.Matches(functionBody, @"Id\s*=\s*'([^']+)'")
+            .Select(match => match.Groups[1].Value)
+            .ToArray();
+
+        supportedClients.Should().Equal(
+            "claude-code",
+            "codex",
+            "cursor",
+            "vscode",
+            "visual-studio",
+            "claude-desktop",
+            "other");
+
+        foreach (var file in new[]
+                 {
+                     "AGENT_INSTALL.md",
+                     "docfx/guides/agent-assisted-install.md",
+                     "docfx/zh-tw/guides/agent-assisted-install.md"
+                 })
+        {
+            var content = File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath(file));
+
+            foreach (var clientId in supportedClients)
+            {
+                content.Should().Contain($"`{clientId}`",
+                    $"{file} should stay synchronized with the installer supported client list");
+            }
+        }
     }
 }

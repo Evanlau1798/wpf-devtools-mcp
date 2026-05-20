@@ -24,7 +24,7 @@ Package-local fallback:
 3. Extract the package.
 4. Run `run.bat`.
 
-Before trusting the extracted package, keep the verified release sidecars beside the archive: `SHA256SUMS.txt` for the checksum and `release-assets.json` for the canonical release metadata. If the verified archive and those sidecars are no longer adjacent to the extracted package, set `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` (or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`) before launching `run.bat` so the local install still enforces an explicit signer pin.
+Before trusting the extracted package, keep the verified release sidecars beside the archive: `SHA256SUMS.txt` for the checksum and `release-assets.json` for the canonical release metadata. If the verified archive and those sidecars are no longer adjacent to the extracted package, set `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required thumbprint trust root before launching `run.bat`; `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only an additional constraint after the thumbprint is pinned.
 
 `run.bat` requests elevation when the current shell is not already elevated and then launches the packaged `bin/install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
 
@@ -38,7 +38,9 @@ C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<a
 
 The installer writes editor-ready JSON files under `client-registration\`.
 
-### Cursor global profile
+## Cursor
+
+### Global profile
 
 Use `client-registration\cursor.global.json` when you want a user-level Cursor registration. Copy the `mcpServers.wpf-devtools` node into:
 
@@ -70,7 +72,9 @@ Use `client-registration\cursor.project.json` when you want a repo-local Cursor 
 
 Cursor editor workflows and Cursor CLI MCP workflows both read the same `.cursor\mcp.json` / `%USERPROFILE%\.cursor\mcp.json` configuration shape. Treat the generated `client-registration` artifact as the source of truth for the resolved executable path instead of the sample path above.
 
-### VS Code / Visual Studio
+## VS Code
+
+Visual Studio uses the same generated `servers` JSON shape.
 
 Use `client-registration\vscode.json` or `client-registration\visual-studio.json`. Their structure is:
 

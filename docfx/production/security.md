@@ -58,10 +58,10 @@ Injection-based `connect` sessions use TLS for the inspector connection by defau
 - The secure named-pipe transport currently pins TLS 1.2 for compatibility across .NET 8 and .NET Framework 4.8 runtime paths.
 - The server creates or reuses a certificate in that directory.
 - If `WPFDEVTOOLS_CERT_DIR` is not set, the server uses the default certificate directory under `%APPDATA%\WpfDevTools\certs`.
-- If you set `WPFDEVTOOLS_CERT_DIR`, it must be an absolute path.
-- The client validates the subject and can pin the expected thumbprint.
+- If you set `WPFDEVTOOLS_CERT_DIR`, it must be a local absolute directory. Network paths are not allowed; UNC paths and mapped network drives are rejected.
+- The client validates the subject and pins the expected thumbprint.
 - `WPFDEVTOOLS_CERT_THUMBPRINT` can override the expected thumbprint.
-- `connect()` can reuse an existing SDK-hosted Inspector only when the target app calls `InspectorSdk.Initialize()` with matching `WPFDEVTOOLS_AUTH_SECRET` values and the same absolute `WPFDEVTOOLS_CERT_DIR` value.
+- `connect()` can reuse an existing SDK-hosted Inspector only when the target app calls `InspectorSdk.Initialize()` with matching `WPFDEVTOOLS_AUTH_SECRET` values and the same local absolute `WPFDEVTOOLS_CERT_DIR` value.
 - Even outside SDK-host reuse, any default-pipe `connect()` attempt validates that the named-pipe server is owned by the requested target process and reports a compatible protocol/build fingerprint before the client accepts the connection.
 - Before reusing an existing host, the client verifies that the named-pipe server is owned by the requested target process and that the host reports a compatible protocol/build fingerprint.
 
@@ -78,7 +78,7 @@ Injection-based `connect` sessions use TLS for the inspector connection by defau
 2. Authenticode-sign the inspector DLL.
 3. Keep the default injection-based transport hardening enabled.
 4. Set `WPFDEVTOOLS_AUTH_SECRET` when you need deterministic secret rotation or SDK-mode coordination.
-5. Set `WPFDEVTOOLS_CERT_DIR` to the same absolute directory in both processes when certificate storage must be deterministic or shared with SDK mode.
+5. Set `WPFDEVTOOLS_CERT_DIR` to the same local absolute directory in both processes when certificate storage must be deterministic or shared with SDK mode.
 6. Optionally set `WPFDEVTOOLS_CERT_THUMBPRINT`.
 7. Keep raw injection disabled by default; use `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` only for explicitly reviewed executable paths.
 8. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed executable paths the server may connect to.
@@ -88,5 +88,5 @@ Injection-based `connect` sessions use TLS for the inspector connection by defau
 ## Important limitations
 
 - TLS uses locally managed certificates, not an enterprise PKI by default.
-- SDK-hosted inspectors require matching transport configuration before `connect()` can reuse the existing host, including the same absolute `WPFDEVTOOLS_CERT_DIR` value when TLS is enabled.
+- SDK-hosted inspectors require matching transport configuration before `connect()` can reuse the existing host, including the same local absolute `WPFDEVTOOLS_CERT_DIR` value when TLS is enabled. Network paths are not allowed.
 - The current shipping transport is STDIO + named-pipe inspector communication; HTTP transport is not part of the current binary.

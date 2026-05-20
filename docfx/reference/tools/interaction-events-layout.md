@@ -12,6 +12,8 @@
 
 `get_focus_state` and `focus_element` matter whenever keyboard input, default buttons, tab navigation, or multiple windows are involved.
 
+`element_screenshot` defaults to `outputMode: "metadata"` and also supports `"file"` or `"base64"`. Metadata responses include dimensions, `format`, `rendered: false`, and `byteLength: 0` without rendering PNG bytes. File and base64 responses render pixels, include `rendered: true`, dimensions, `format`, and `byteLength`; file mode returns `screenshotId`, `resourceUri`, `fileName`, `localPathRedacted: true`, and `sha256`, while base64 mode returns `base64Image`.
+
 ## State snapshot and sequential mutations
 
 - `capture_state_snapshot`

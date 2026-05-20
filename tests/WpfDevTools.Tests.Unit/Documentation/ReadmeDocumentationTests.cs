@@ -9,11 +9,32 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public class ReadmeDocumentationTests
 {
     [Fact]
-    public void Readme_ShouldStayUnderFiveHundredLines()
+    public void Readme_ShouldStayConcisePublicEntrypoint()
     {
         var lines = File.ReadAllLines(GetRepoFilePath("README.md"));
 
-        lines.Length.Should().BeLessThanOrEqualTo(500);
+        lines.Length.Should().BeInRange(90, 140);
+    }
+
+    [Fact]
+    public void Readme_ShouldDelegateDetailedContractsToDocfx()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain("docfx/index.md");
+        content.Should().Contain("docfx/quickstart/index.md");
+        content.Should().Contain("docfx/quickstart/ai-agent-clients.md");
+        content.Should().Contain("docfx/production/deployment.md");
+        content.Should().Contain("docfx/production/security.md");
+        content.Should().Contain("docfx/production/compatibility-matrix.md");
+        content.Should().Contain("docfx/reference/tools/index.md");
+
+        content.Should().NotContain("## MCP Client Configuration");
+        content.Should().NotContain("## Tool Categories");
+        content.Should().NotContain("## Architecture");
+        content.Should().NotContain("## Repository Layout");
+        content.Should().NotContain("```json");
+        content.Should().NotContain("<details>");
     }
 
     [Fact]
@@ -38,11 +59,11 @@ public class ReadmeDocumentationTests
     [Fact]
     public async Task Readme_ShouldMatchInspectorNamedPipeFramingContract()
     {
-        var content = File.ReadAllText(GetRepoFilePath("README.md"));
-        var architectureSection = content.Split("## Architecture", 2)[1].Split("## Repository Layout", 2)[0];
+        var content = File.ReadAllText(GetRepoFilePath("docfx/architecture/overview.md"));
+        var architectureSection = content.Split("## Data flow", 2)[1].Split("## Main components", 2)[0];
         var inspectorIpcSentence = architectureSection
             .Split('\n')
-            .Single(line => line.Contains("Once injected") && line.Contains("Named Pipes"));
+            .Single(line => line.Contains("Named Pipes") && line.Contains("length-prefixed"));
         var requestSource = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Shared/Messages/InspectorRequest.cs"));
         var responseSource = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Shared/Messages/InspectorResponse.cs"));
         const string jsonPayload = "{\"id\":\"readme-contract\",\"method\":\"ping\",\"params\":{}}";
@@ -85,9 +106,9 @@ public class ReadmeDocumentationTests
     }
 
     [Fact]
-    public void Readme_ShouldListBootstrapperAndInspectorSdkProjectsInRepositoryLayout()
+    public void DocfxArchitecture_ShouldListBootstrapperAndInspectorSdkProjects()
     {
-        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+        var content = File.ReadAllText(GetRepoFilePath("docfx/architecture/overview.md"));
 
         content.Should().Contain("WpfDevTools.Bootstrapper/");
         content.Should().Contain("WpfDevTools.Inspector.Sdk/");
@@ -102,9 +123,9 @@ public class ReadmeDocumentationTests
     }
 
     [Fact]
-    public void Readme_ShouldDocumentElementScreenshotOutputModes()
+    public void DocfxToolReference_ShouldDocumentElementScreenshotOutputModes()
     {
-        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+        var content = File.ReadAllText(GetRepoFilePath("docfx/reference/tools/interaction-events-layout.md"));
 
         content.Should().Contain("element_screenshot");
         content.Should().Contain("outputMode");
@@ -176,8 +197,9 @@ public class ReadmeDocumentationTests
             "README should include machine-readable installer output in automation-oriented examples");
         content.Should().NotContain("%APPDATA%\\\\WpfDevToolsMcp\\\\x64\\\\current\\\\bin\\\\wpf-devtools-x64.exe",
             "published JSON examples should use literal absolute paths rather than default-root placeholders");
-        content.Should().Contain("C:\\\\Users\\\\<you>\\\\AppData\\\\Roaming\\\\WpfDevToolsMcp\\\\<arch>\\\\current\\\\bin\\\\wpf-devtools-<arch>.exe",
-            "README should demonstrate the reviewed JSON shape with a literal absolute path template");
+        File.ReadAllText(GetRepoFilePath("docfx/quickstart/cursor-vscode.md"))
+            .Should().Contain("C:\\\\Users\\\\<you>\\\\AppData\\\\Roaming\\\\WpfDevToolsMcp\\\\<arch>\\\\current\\\\bin\\\\wpf-devtools-<arch>.exe",
+                "DocFX client quickstarts should demonstrate the reviewed JSON shape with a literal absolute path template");
     }
 
     [Fact]
@@ -202,7 +224,7 @@ public class ReadmeDocumentationTests
     }
 
     [Fact]
-    public void LandingPages_ShouldDescribeSignerFallbackAsEitherPinnedSignerValue()
+    public void LandingPages_ShouldDescribeThumbprintAsRequiredSignerTrustRoot()
     {
         var englishLandingPages = new[]
         {
@@ -214,12 +236,16 @@ public class ReadmeDocumentationTests
         {
             var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
-            content.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
-            content.Should().NotContain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` and `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
+            content.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`");
+            content.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
+            content.Should().Contain("additional constraint");
+            content.Should().NotContain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
         }
 
         var traditionalChinese = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/index.md"));
-        traditionalChinese.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 或 `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
-        traditionalChinese.Should().NotContain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 與 `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
+        traditionalChinese.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`");
+        traditionalChinese.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
+        traditionalChinese.Should().Contain("additional constraint");
+        traditionalChinese.Should().NotContain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 或 `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
     }
 }

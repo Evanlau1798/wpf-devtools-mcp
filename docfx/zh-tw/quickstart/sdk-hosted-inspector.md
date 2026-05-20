@@ -44,15 +44,21 @@ public partial class App : Application
 }
 ```
 
-如果你偏好明確的 process-local configuration，而不是 environment variables，可以傳入 `InspectorSdkOptions`。`AuthenticationSecretBase64` 與 `CertificateDirectory` 必須一起提供，且 `CertificateDirectory` 必須是 absolute path：
+如果 target process 不想直接依賴 `WPFDEVTOOLS_*` environment variables，而是已經有自己的 diagnostics config source，可以傳入 `InspectorSdkOptions`：
 
 ```csharp
+string authSecretBase64 = "...base64-encoded-32-byte-secret...";
+string certificateDirectory = @"C:\absolute\wpf-devtools-certs";
+
 InspectorSdk.Initialize(new InspectorSdkOptions
 {
-    AuthenticationSecretBase64 = "...base64-encoded-32-byte-secret...",
-    CertificateDirectory = @"C:\absolute\wpf-devtools-certs"
+    ProcessId = Environment.ProcessId,
+    AuthenticationSecretBase64 = authSecretBase64,
+    CertificateDirectory = certificateDirectory
 });
 ```
+
+Partial explicit SDK transport configuration is rejected and not mixed with environment variables。`AuthenticationSecretBase64` 與 `CertificateDirectory` 必須一起提供，且 `CertificateDirectory` 必須是 absolute path。The MCP server must use the same secret and certificate directory；不要在 target app 內獨立產生另一組 secret。
 
 App 執行後，從 MCP client 呼叫 `connect()`。Server 會先探測 compatible SDK-hosted Inspector，並在 security settings 相符時重用它。
 

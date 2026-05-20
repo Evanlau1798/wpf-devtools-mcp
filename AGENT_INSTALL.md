@@ -25,6 +25,39 @@ Supported client ids must stay synchronized with the installer:
    powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson
    ```
 
+   Expected JSON shape:
+
+   ```json
+   {
+     "action": "plan",
+     "platform": "windows",
+     "version": "latest",
+     "architecture": "x64",
+     "client": "codex",
+     "installRootDefault": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
+     "supportedClients": ["claude-code", "codex", "cursor", "vscode", "visual-studio", "claude-desktop", "other"],
+     "detectedClients": [
+       {
+         "client": "codex",
+         "available": true,
+         "registrationStyle": "cli",
+         "evidence": ["codex command"]
+       },
+       {
+         "client": "other",
+         "available": true,
+         "registrationStyle": "artifact-only",
+         "evidence": ["artifact-only fallback"]
+       }
+     ],
+     "requiresUserConfirmationBeforeMutation": true,
+     "mutatesFileSystem": false,
+     "downloadsReleaseAssets": false,
+     "runsClientRegistration": false,
+     "mutationBoundary": "read-only discovery only; no download, install, registration, or filesystem mutation before user confirmation"
+   }
+   ```
+
 3. Detect available MCP clients without writing files.
 4. Ask the user to confirm version, architecture, install root, and client registration target.
 5. Acquire the versioned release archive and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, and `release-assets.json`.
@@ -32,6 +65,19 @@ Supported client ids must stay synchronized with the installer:
 7. Verify canonical metadata from `release-assets.json`.
 8. Enforce signer pin policy with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`; report the signer pin that was checked.
 9. Only after confirmation, call the reviewed local `scripts/online-installer.ps1` or package-local `run.bat`.
+
+   Reviewed local command shape after confirmation:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 `
+     -PackageArchivePath .\release\release_<version>_win-<arch>.zip `
+     -TrustedReleaseMetadataDirectory .\release `
+     -Architecture <arch> `
+     -Client <client-id> `
+     -InstallRoot "<confirmed-install-root>" `
+     -NonInteractive -Force -OutputJson
+   ```
+
 10. Inspect generated `client-registration` artifacts and verify the installed executable path.
 11. Report changed files or registrations without printing secrets.
 

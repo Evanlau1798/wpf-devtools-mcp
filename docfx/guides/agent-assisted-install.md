@@ -50,6 +50,41 @@ Discovery is read-only:
 
 `-Action plan` reports supported clients, detected clients, architecture, the default install root, and the mutation boundary. It does not download, install, register clients, or write installer state.
 
+Example plan output:
+
+```json
+{
+  "action": "plan",
+  "platform": "windows",
+  "version": "latest",
+  "architecture": "x64",
+  "client": "codex",
+  "installRootDefault": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
+  "supportedClients": ["claude-code", "codex", "cursor", "vscode", "visual-studio", "claude-desktop", "other"],
+  "detectedClients": [
+    {
+      "client": "codex",
+      "available": true,
+      "registrationStyle": "cli",
+      "evidence": ["codex command"]
+    },
+    {
+      "client": "other",
+      "available": true,
+      "registrationStyle": "artifact-only",
+      "evidence": ["artifact-only fallback"]
+    }
+  ],
+  "requiresUserConfirmationBeforeMutation": true,
+  "mutatesFileSystem": false,
+  "downloadsReleaseAssets": false,
+  "runsClientRegistration": false,
+  "mutationBoundary": "read-only discovery only; no download, install, registration, or filesystem mutation before user confirmation"
+}
+```
+
+Treat the plan as evidence, not permission. The agent should summarize the selected `version`, `architecture`, `client`, `installRootDefault`, detected client evidence, and the read-only flags before asking for approval.
+
 ## Release acquisition
 
 Resolve the versioned release archive name:
@@ -76,6 +111,22 @@ Before extraction or install:
 5. Use `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` only when subject-based policy is explicitly accepted.
 
 The agent should report the signer pin policy and verification result, not certificate secrets.
+
+## Post-confirmation install command
+
+After the user confirms the plan and provenance checks, use a reviewed local command shape like this:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 `
+  -PackageArchivePath .\release\release_<version>_win-<arch>.zip `
+  -TrustedReleaseMetadataDirectory .\release `
+  -Architecture <arch> `
+  -Client <client-id> `
+  -InstallRoot "<confirmed-install-root>" `
+  -NonInteractive -Force -OutputJson
+```
+
+Use concrete values from the approved plan. Keep `-Force` only when the user approved replacing or updating existing registration artifacts.
 
 ## Client registration
 

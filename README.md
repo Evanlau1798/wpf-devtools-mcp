@@ -42,6 +42,8 @@ Planned public releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releas
 
 For first-time setup, prefer a published release or a locally generated package over source-tree startup. Review `scripts/online-installer.ps1`, then install a verified local package archive with machine-readable output:
 
+When an AI agent is driving setup, start with the read-only plan flow in [AGENT_INSTALL.md](AGENT_INSTALL.md) or [docfx/guides/agent-assisted-install.md](docfx/guides/agent-assisted-install.md). The agent should run `-Action plan -OutputJson`, summarize the plan JSON, and wait for user confirmation before any filesystem mutation.
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -NonInteractive -Force -OutputJson
 ```

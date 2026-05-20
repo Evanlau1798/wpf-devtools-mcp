@@ -105,6 +105,44 @@ public sealed class AgentInstallDocumentationTests
     }
 
     [Fact]
+    public void AgentInstallDocs_ShouldShowPlanJsonShapeAndReadOnlyFlags()
+    {
+        foreach (var file in AgentInstallFiles)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("\"action\": \"plan\"");
+            content.Should().Contain("\"platform\": \"windows\"");
+            content.Should().Contain("\"architecture\"");
+            content.Should().Contain("\"client\"");
+            content.Should().Contain("\"installRootDefault\"");
+            content.Should().Contain("\"supportedClients\"");
+            content.Should().Contain("\"detectedClients\"");
+            content.Should().Contain("\"registrationStyle\"");
+            content.Should().Contain("\"artifact-only\"");
+            content.Should().Contain("\"requiresUserConfirmationBeforeMutation\": true");
+            content.Should().Contain("\"mutatesFileSystem\": false");
+            content.Should().Contain("\"downloadsReleaseAssets\": false");
+            content.Should().Contain("\"runsClientRegistration\": false");
+            content.Should().Contain("\"mutationBoundary\"");
+        }
+    }
+
+    [Fact]
+    public void AgentInstallDocs_ShouldShowPostConfirmationInstallCommand()
+    {
+        foreach (var file in AgentInstallFiles)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("-PackageArchivePath .\\release\\release_<version>_win-<arch>.zip");
+            content.Should().Contain("-TrustedReleaseMetadataDirectory .\\release");
+            content.Should().Contain("-Client <client-id>");
+            content.Should().Contain("-NonInteractive");
+            content.Should().Contain("-Force");
+            content.Should().Contain("-OutputJson");
+        }
+    }
+
+    [Fact]
     public void AgentInstallDocs_ShouldListTheInstallerSupportedClients()
     {
         foreach (var file in AgentInstallFiles)

@@ -44,15 +44,21 @@ public partial class App : Application
 }
 ```
 
-If you prefer explicit process-local configuration instead of environment variables, pass `InspectorSdkOptions`. `AuthenticationSecretBase64` and `CertificateDirectory` must be provided together, and `CertificateDirectory` must be absolute:
+If you prefer explicit process-local configuration instead of `WPFDEVTOOLS_*` environment variables in the target process, pass `InspectorSdkOptions`. Use this when the target app already reads diagnostic settings from its own config source:
 
 ```csharp
+string authSecretBase64 = "...base64-encoded-32-byte-secret...";
+string certificateDirectory = @"C:\absolute\wpf-devtools-certs";
+
 InspectorSdk.Initialize(new InspectorSdkOptions
 {
-    AuthenticationSecretBase64 = "...base64-encoded-32-byte-secret...",
-    CertificateDirectory = @"C:\absolute\wpf-devtools-certs"
+    ProcessId = Environment.ProcessId,
+    AuthenticationSecretBase64 = authSecretBase64,
+    CertificateDirectory = certificateDirectory
 });
 ```
+
+Partial explicit SDK transport configuration is rejected and not mixed with environment variables. `AuthenticationSecretBase64` and `CertificateDirectory` must be provided together, and `CertificateDirectory` must be absolute. The MCP server must use the same secret and certificate directory; do not generate a new secret independently inside the target app.
 
 After the app is running, call `connect()` from the MCP client. The server probes for a compatible SDK-hosted Inspector first and reuses it when the security settings match.
 

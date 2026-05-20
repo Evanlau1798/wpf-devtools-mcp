@@ -6,6 +6,13 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 
 public sealed class SdkPreferredDocumentationTests
 {
+    private static readonly string[] SdkUsageFiles =
+    [
+        "docfx/quickstart/sdk-hosted-inspector.md",
+        "docfx/zh-tw/quickstart/sdk-hosted-inspector.md",
+        "src/WpfDevTools.Inspector.Sdk/README.md"
+    ];
+
     [Fact]
     public void SdkHostedQuickstart_ShouldExistAndBeLinkedFromPublicEntrypoints()
     {
@@ -56,6 +63,22 @@ public sealed class SdkPreferredDocumentationTests
             content.Should().Contain("net8.0-windows");
             content.Should().Contain("NuGet package is not yet publicly published");
             content.Should().Contain("local pack");
+        }
+    }
+
+    [Fact]
+    public void SdkUsageDocs_ShouldShowExplicitOptionsExampleAndBoundaries()
+    {
+        foreach (var file in SdkUsageFiles)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            content.Should().Contain("InspectorSdk.Initialize(new InspectorSdkOptions");
+            content.Should().Contain("ProcessId = Environment.ProcessId");
+            content.Should().Contain("AuthenticationSecretBase64 = authSecretBase64");
+            content.Should().Contain("CertificateDirectory = certificateDirectory");
+            content.Should().Contain("Partial explicit SDK transport configuration is rejected");
+            content.Should().Contain("not mixed with environment variables");
+            content.Should().Contain("The MCP server must use the same secret and certificate directory");
         }
     }
 

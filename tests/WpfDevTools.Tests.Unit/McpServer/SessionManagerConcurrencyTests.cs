@@ -89,6 +89,34 @@ public class SessionManagerConcurrencyTests
     }
 
     [Fact]
+    public void CleanupDeadSessions_ShouldNotRemoveReplacementSessionForSamePid()
+    {
+        var processId = 123458;
+        SessionManager.ProcessIdentity? currentIdentity = new(
+            processId,
+            StartTimeUtcTicks: 100);
+        using var manager = CreateManagerWithProcessIdentityProvider(_ => currentIdentity);
+
+        manager.AddSession(processId);
+        currentIdentity = null;
+
+        manager.CleanupDeadSessions(beforeDeadSessionRemoval: () =>
+        {
+            currentIdentity = new SessionManager.ProcessIdentity(
+                processId,
+                StartTimeUtcTicks: 200);
+            manager.RemoveSession(processId);
+            manager.AddSession(processId);
+        });
+
+        manager.HasSession(processId).Should().BeTrue(
+            "cleanup must not remove a newer session that replaced the dead session after collection");
+        manager.CleanupDeadSessions();
+        manager.HasSession(processId).Should().BeTrue(
+            "the replacement session identity still matches the current process identity");
+    }
+
+    [Fact]
     public void AddSession_WithMaxSessionsReached_ShouldThrowException()
     {
         // Arrange

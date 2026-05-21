@@ -58,27 +58,30 @@ public sealed partial class SessionManager
     /// Clean up sessions for processes that no longer exist.
     /// Prevents memory leak from dead sessions.
     /// </summary>
-    internal void CleanupDeadSessions()
+    internal void CleanupDeadSessions(Action? beforeDeadSessionRemoval = null)
     {
-        List<int> deadProcessIds;
+        List<(int ProcessId, long SessionGeneration)> deadSessions;
 
         lock (_lock)
         {
-            deadProcessIds = new List<int>();
+            deadSessions = new List<(int ProcessId, long SessionGeneration)>();
 
             foreach (var (processId, session) in _sessions)
             {
-                if (!IsSessionProcessCurrent(session))
+                if (!IsSessionProcessCurrent(session)
+                    && _sessionGenerations.TryGetValue(processId, out var sessionGeneration))
                 {
-                    deadProcessIds.Add(processId);
+                    deadSessions.Add((processId, sessionGeneration));
                 }
             }
         }
 
+        beforeDeadSessionRemoval?.Invoke();
+
         // Remove dead sessions outside the lock to avoid holding lock during disposal
-        foreach (var processId in deadProcessIds)
+        foreach (var (processId, sessionGeneration) in deadSessions)
         {
-            RemoveSession(processId);
+            RemoveSessionIfGenerationMatches(processId, sessionGeneration);
         }
     }
 

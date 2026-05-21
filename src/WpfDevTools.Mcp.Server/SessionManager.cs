@@ -201,11 +201,26 @@ public sealed partial class SessionManager : IDisposable
     /// <param name="processId">Process ID of session to remove</param>
     public void RemoveSession(int processId)
     {
+        RemoveSessionCore(processId, expectedSessionGeneration: null);
+    }
+
+    private bool RemoveSessionIfGenerationMatches(int processId, long expectedSessionGeneration) =>
+        RemoveSessionCore(processId, expectedSessionGeneration);
+
+    private bool RemoveSessionCore(int processId, long? expectedSessionGeneration)
+    {
         ThrowIfDisposed();
         NamedPipeClient? clientToDispose = null;
 
         lock (_lock)
         {
+            if (expectedSessionGeneration.HasValue &&
+                (!_sessionGenerations.TryGetValue(processId, out var currentSessionGeneration) ||
+                 currentSessionGeneration != expectedSessionGeneration.Value))
+            {
+                return false;
+            }
+
             _sessions.Remove(processId);
             if (_pipeClients.TryGetValue(processId, out var client))
             {
@@ -230,6 +245,7 @@ public sealed partial class SessionManager : IDisposable
         }
 
         clientToDispose?.Dispose();
+        return true;
     }
 
     private void InitializeSessionState(int processId, NamedPipeClient pipeClient)

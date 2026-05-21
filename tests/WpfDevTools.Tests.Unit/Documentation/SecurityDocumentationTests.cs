@@ -235,6 +235,23 @@ public class SecurityDocumentationTests
     }
 
     [Theory]
+    [InlineData("SECURITY.md", "DPAPI-protected", "same Windows user")]
+    [InlineData("docfx/production/security.md", "DPAPI-protected", "same Windows user")]
+    [InlineData("docfx/zh-tw/production/security.md", "DPAPI-protected", "同一 Windows 使用者")]
+    public void Documentation_ShouldDescribeBootstrapSecretHandoffBoundary(
+        string relativePath,
+        string protectionPhrase,
+        string boundaryPhrase)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(protectionPhrase,
+            $"{relativePath} should describe that injection bootstrap auth-secret handoff files are locally protected");
+        content.Should().Contain(boundaryPhrase,
+            $"{relativePath} should state that same-user local code is still inside the trust boundary");
+    }
+
+    [Theory]
     [InlineData("SECURITY.md", "CompatibilityError", "before the raw-injection policy denial")]
     [InlineData("docfx/production/security.md", "CompatibilityError", "before the raw-injection policy denial")]
     [InlineData("docfx/zh-tw/production/security.md", "CompatibilityError", "先回傳")]

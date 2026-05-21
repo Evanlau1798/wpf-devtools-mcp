@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <wincrypt.h>
 #include <algorithm>
 #include <string>
 #include <fstream>
@@ -175,34 +176,6 @@ static bool ParseParams(const wchar_t* params, BootstrapConfig& config)
     return ParseKeyValueParams(input, config);
 }
 
-static void TrimWhitespaceInPlace(std::wstring& value)
-{
-    const wchar_t* whitespace = L" \t\r\n";
-    auto start = value.find_first_not_of(whitespace);
-    if (start == std::wstring::npos)
-    {
-        SecureWipeString(value);
-        return;
-    }
-
-    auto end = value.find_last_not_of(whitespace);
-    if (end + 1 < value.size())
-    {
-        SecureWipeBuffer(
-            value.data() + end + 1,
-            (value.size() - end - 1) * sizeof(wchar_t));
-        value.erase(end + 1);
-    }
-
-    if (start > 0)
-    {
-        size_t newSize = value.size() - start;
-        std::move(value.begin() + start, value.end(), value.begin());
-        SecureWipeBuffer(value.data() + newSize, start * sizeof(wchar_t));
-        value.resize(newSize);
-    }
-}
-
 static bool TryUtf8ToWide(const std::string& value, std::wstring& output)
 {
     output.clear();
@@ -222,7 +195,7 @@ static bool TryUtf8ToWide(const std::string& value, std::wstring& output)
     return false;
 }
 
-static bool ReadUtf8File(const std::wstring& path, std::wstring& value)
+static bool ReadProtectedAuthSecretFile(const std::wstring& path, std::wstring& value)
 {
     SecureWipeString(value);
 
@@ -261,19 +234,39 @@ static bool ReadUtf8File(const std::wstring& path, std::wstring& value)
     }
 
     content.resize(bytesRead);
-    std::wstring decoded;
-    bool success = TryUtf8ToWide(content, decoded);
-    if (success)
+    const std::string currentUserHeader = "WPFDEVTOOLS-DPAPI:CurrentUser\n";
+    const std::string localMachineHeader = "WPFDEVTOOLS-DPAPI:LocalMachine\n";
+    size_t payloadOffset = 0;
+    if (content.rfind(currentUserHeader, 0) == 0)
+        payloadOffset = currentUserHeader.size();
+    else if (content.rfind(localMachineHeader, 0) == 0)
+        payloadOffset = localMachineHeader.size();
+
+    if (payloadOffset >= content.size())
     {
-        TrimWhitespaceInPlace(decoded);
-        success = !decoded.empty();
-        if (success)
-        {
-            value.swap(decoded);
-        }
+        SecureWipeString(content);
+        return false;
     }
 
-    SecureWipeString(decoded);
+    DATA_BLOB input = {
+        static_cast<DWORD>(content.size() - payloadOffset),
+        reinterpret_cast<BYTE*>(content.data() + payloadOffset)
+    };
+    DATA_BLOB output = {};
+    if (!CryptUnprotectData(&input, nullptr, nullptr, nullptr, nullptr, 0, &output))
+    {
+        SecureWipeString(content);
+        return false;
+    }
+
+    std::string plaintext(reinterpret_cast<char*>(output.pbData), output.cbData);
+    SecureWipeBuffer(output.pbData, output.cbData);
+    LocalFree(output.pbData);
+    bool success = TryUtf8ToWide(plaintext, value) && !value.empty();
+    if (!success)
+        SecureWipeString(value);
+
+    SecureWipeString(plaintext);
     SecureWipeString(content);
     return success;
 }
@@ -397,7 +390,7 @@ static bool LoadAuthSecretFromFile(BootstrapConfig& config)
         return true;
 
     std::wstring secret;
-    bool loaded = ReadUtf8File(config.AuthSecretFile, secret);
+    bool loaded = ReadProtectedAuthSecretFile(config.AuthSecretFile, secret);
     SecureDeleteAuthSecretFile(config.AuthSecretFile);
 
     if (!loaded)

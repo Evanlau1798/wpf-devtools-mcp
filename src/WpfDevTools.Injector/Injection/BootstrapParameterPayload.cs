@@ -3,6 +3,7 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
 using System.Runtime.InteropServices;
+using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Injector.Injection;
 
@@ -79,13 +80,22 @@ internal sealed class BootstrapParameterPayload : IDisposable
                 RestrictSecretFileAcl(path);
                 onSecretFileCreated?.Invoke(path);
                 var bytes = Encoding.UTF8.GetBytes(secretBase64);
+                byte[] protectedBytes = [];
                 try
                 {
-                    stream.Write(bytes, 0, bytes.Length);
+#if !NET48
+                    if (!OperatingSystem.IsWindows())
+                    {
+                        throw new PlatformNotSupportedException("Bootstrap authentication secret handoff requires Windows DPAPI.");
+                    }
+#endif
+                    protectedBytes = LocalSecretProtector.Protect(bytes);
+                    stream.Write(protectedBytes, 0, protectedBytes.Length);
                 }
                 finally
                 {
                     Array.Clear(bytes, 0, bytes.Length);
+                    Array.Clear(protectedBytes, 0, protectedBytes.Length);
                 }
             }
 

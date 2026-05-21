@@ -36,11 +36,19 @@ public class BootstrapperSecureTransportContractTests
     {
         var content = File.ReadAllText(GetRepoFilePath(
             "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
+        var projectContent = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj"));
 
         content.Should().Contain("if (!LoadAuthSecretFromFile(config))",
             "auth secret file load failures should have a dedicated bootstrap branch");
         content.Should().Contain("return ExitCodes::AuthSecretLoadFailed;",
             "auth secret file read failures should not be misclassified as inspector path failures");
+        content.Should().Contain("CryptUnprotectData",
+            "auth secret handoff files should carry a DPAPI-protected payload instead of plaintext");
+        content.Should().Contain("WPFDEVTOOLS-DPAPI:CurrentUser",
+            "the native bootstrapper must recognize the protected payload format written by the injector");
+        projectContent.Should().Contain("Crypt32.lib",
+            "the bootstrapper must link the Windows DPAPI library used to decrypt the handoff secret");
     }
 
     [Fact]

@@ -3,8 +3,10 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using System.Text;
 using FluentAssertions;
 using WpfDevTools.Injector.Injection;
+using WpfDevTools.Shared.Security;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Injector;
@@ -147,7 +149,9 @@ public class InjectionRequestTests
         parameters.Should().NotContain("authSecretBase64=");
         payload.AuthenticationSecretFilePath.Should().NotBeNull();
         File.Exists(payload.AuthenticationSecretFilePath!).Should().BeTrue();
-        File.ReadAllText(payload.AuthenticationSecretFilePath!).Should().Be("YWJjZA==");
+        var protectedSecret = File.ReadAllBytes(payload.AuthenticationSecretFilePath!);
+        Encoding.UTF8.GetString(protectedSecret).Should().NotBe("YWJjZA==");
+        Encoding.UTF8.GetString(LocalSecretProtector.Unprotect(protectedSecret)).Should().Be("YWJjZA==");
         parameters.Should().Contain("encryption=enabled");
         parameters.Should().Contain("certDirectory=C:\\secure certs");
     }

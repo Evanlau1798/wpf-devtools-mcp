@@ -85,7 +85,7 @@
       <ProgramDatabaseFile Condition="'$(BootstrapperGenerateDebugInformation)' == 'false'"></ProgramDatabaseFile>
       <ModuleDefinitionFile>exports.def</ModuleDefinitionFile>
       <AdditionalLibraryDirectories>$(NetHostAssetsDir);$(NetFxSdkLibraryDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libnethost.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libnethost.lib;Crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ResourceCompile>

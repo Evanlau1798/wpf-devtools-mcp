@@ -299,6 +299,50 @@ internal static class ResponseContractToolEntries
             },
             new
             {
+                tool = "capture_state_snapshot",
+                contractName = "state-snapshot-capture",
+                canonicalPayloadField = "result.structuredContent",
+                textFallbackField = "result.content[0].text",
+                contractResource = resourceUri,
+                topLevelFields = new[] { "success", "snapshotId", "snapshotSummary" },
+                nestedResponsePaths = new[] { "snapshotSummary.dependencyPropertyCount", "snapshotSummary.viewModelPropertyCount", "snapshotSummary.capturedFocus" },
+                requestParameters = new[] { "elementId", "propertyNames", "viewModelPropertyNames", "includeFocus", "snapshotName" }
+            },
+            new
+            {
+                tool = "get_state_diff",
+                contractName = "state-diff",
+                canonicalPayloadField = "result.structuredContent",
+                textFallbackField = "result.content[0].text",
+                contractResource = resourceUri,
+                topLevelFields = new[] { "success", "snapshotId", "trigger", "durationMs", "propertyChanges", "viewModelChanges", "newBindingErrors", "resolvedBindingErrors", "validationChanges", "focusChange" },
+                nestedResponsePaths = new[] { "propertyChanges[].propertyName", "viewModelChanges[].propertyName", "focusChange.changed" },
+                requestParameters = new[] { "snapshotId", "trigger" }
+            },
+            new
+            {
+                tool = "restore_state_snapshot",
+                contractName = "state-snapshot-restore",
+                canonicalPayloadField = "result.structuredContent",
+                textFallbackField = "result.content[0].text",
+                contractResource = resourceUri,
+                topLevelFields = new[] { "success", "restoredDependencyPropertyCount", "restoredDependencyProperties", "skippedDependencyPropertyCount", "skippedDependencyProperties", "restoredViewModelPropertyCount", "restoredViewModelProperties", "skippedViewModelPropertyCount", "skippedViewModelProperties", "restoredFocus", "warnings" },
+                nestedResponsePaths = new[] { "restoredDependencyProperties[].propertyName", "skippedDependencyProperties[].reason", "restoredViewModelProperties[].verified" },
+                requestParameters = new[] { "snapshotId", "removeAfterRestore" }
+            },
+            new
+            {
+                tool = "batch_mutate",
+                contractName = "batch-mutation",
+                canonicalPayloadField = "result.structuredContent",
+                textFallbackField = "result.content[0].text",
+                contractResource = resourceUri,
+                topLevelFields = new[] { "success", "snapshotId", "mutationCount", "executedMutationCount", "successfulMutationCount", "failedMutationCount", "skippedMutationCount", "mutations", "stateDiff", "rollback", "recovery" },
+                nestedResponsePaths = new[] { "mutations[].tool", "mutations[].success", "stateDiff.snapshotId", "rollback.params.snapshotId", "recovery.tool" },
+                requestParameters = new[] { "captureSnapshot", "includeDiff", "mutations", "trigger" }
+            },
+            new
+            {
                 tool = "element_screenshot",
                 contractName = "element-screenshot",
                 canonicalPayloadField = "result.structuredContent",

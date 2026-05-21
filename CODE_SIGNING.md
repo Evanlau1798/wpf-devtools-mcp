@@ -67,12 +67,16 @@ Choose a signing path that matches your distribution model:
 
 ### Certificate Types
 
-**Azure Artifact Signing / OV Code Signing**:
-- Certificate stored as file (.pfx)
-- Azure Artifact Signing is Microsoft-managed and CI/CD friendly
-- Traditional OV certificates may require a hardware token or HSM-backed key storage depending on CA/browser requirements
-- SmartScreen reputation builds over time for new apps and new files
-- Signed files show a verified publisher when the chain is trusted
+**Azure Artifact Signing**:
+- Microsoft-managed signing service for supported artifact types.
+- CI/CD friendly when a dedicated Azure signing workflow or script integration is added.
+- Azure Artifact Signing is not invoked by the current GitHub Actions snippet in this repository.
+- SmartScreen reputation builds over time for new apps and new files.
+
+**OV Code Signing**:
+- Current repository signing scripts support PFX files and Windows certificate-store thumbprints.
+- Traditional OV certificates may require a hardware token or HSM-backed key storage depending on CA/browser requirements.
+- Signed files show a verified publisher when the chain is trusted.
 
 **EV (Extended Validation) Code Signing**:
 - Certificate stored on hardware token (USB)
@@ -141,6 +145,8 @@ Path                   : ...
 ### GitHub Actions
 
 The production GitHub Release workflow should materialize the certificate from a base64 secret and let `Publish-Release.ps1` sign the packaged payloads directly:
+
+This example documents the current repository workflow. It uses a PFX file or a Windows certificate-store thumbprint through the repository scripts. Azure Artifact Signing requires a separate workflow or script integration before it can replace this PFX/thumbprint path.
 
 ```yaml
 - name: Materialize signing certificate

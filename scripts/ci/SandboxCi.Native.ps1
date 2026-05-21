@@ -304,6 +304,7 @@ function Invoke-NativeBootstrapperBuild {
         "/LIBPATH:$netHostAssets",
         "/LIBPATH:$netFxSdkLibraryDirectory",
         'libnethost.lib',
+        'Crypt32.lib',
         'kernel32.lib',
         'user32.lib',
         'gdi32.lib',

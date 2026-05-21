@@ -18,6 +18,16 @@ public sealed class CodeSigningDocumentationTests
         content.Should().Contain("reputation builds over time");
     }
 
+    [Fact]
+    public void CodeSigningGuide_ShouldSeparateManagedSigningFromCurrentPfxWorkflow()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("CODE_SIGNING.md"));
+
+        content.Should().Contain("Current repository signing scripts support PFX files and Windows certificate-store thumbprints");
+        content.Should().Contain("Azure Artifact Signing is not invoked by the current GitHub Actions snippet");
+        content.Should().Contain("requires a separate workflow or script integration");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }

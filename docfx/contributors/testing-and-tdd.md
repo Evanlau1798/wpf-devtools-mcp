@@ -64,7 +64,7 @@ The unit and integration suites enable collection-level parallelization with CPU
 
 Use the Windows Sandbox harness before spending hosted CI minutes on release or native verification changes. This is a local preflight, not a GitHub Actions parity guarantee. The sandbox runner maps the repository read-only, writes disposable state under `tmp/sandbox-ci`, and runs CI-shaped PowerShell entrypoints that mirror the important command groups while the hosted workflow remains the final source of truth.
 
-Recommended push gate that closely matches the hosted Windows x64 managed lane:
+Recommended push gate for the hosted Windows CI/CD shape:
 
 ```powershell
 .\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode HostedWindowsX64 -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
@@ -98,8 +98,8 @@ The artifact preflight provisions .NET runtime channel `8.0` inside the Sandbox 
 
 Operational notes:
 
-- `HostedWindowsX64` mirrors the GitLab Windows x64 fallback lane and the GitHub hosted x64 managed test scope where Windows Sandbox can do so reliably: sandbox-safe native compiler/resource/archive smoke, solution build for Debug/Release, unit shards for both configurations, and release-unit shards for both configurations. It does not cover x86, ARM64, release packaging smoke, coverage, or NuGet pack lanes.
-- Windows Sandbox is not reliable for the native DLL link step because Visual C++ linker/resource conversion paths can fail inside the sandbox. Validate the exact `.vcxproj` native DLL link and live integration tests in the normal desktop build environment before pushing native bootstrapper changes.
+- `HostedWindowsX64` mirrors the GitLab Windows x64 fallback lane and the GitHub hosted Windows CI/CD scope where Windows Sandbox can do so reliably: exact x64 native bootstrapper build, Debug/Release x64 solution builds, unit shards, release-unit shards, and Debug integration tests. It covers coverage, x64/x86 release packaging smoke, and NuGet pack. It does not cover the hosted x86 solution build/test matrix, ARM64 cross-build, or self-hosted ARM64 runtime smoke lanes. It also does not model Pages deployment or signed public release publication.
+- The x86 packaging smoke follows GitHub's hosted x64 behavior: package-local and online installer install/uninstall layout checks run, but packaged x86 server runtime launch is skipped because the hosted x64 lane does not execute that runtime smoke.
 - `NativeSmoke` validates native compile/resource/archive coverage, then runs managed debug and release unit shards. It intentionally skips the sandbox-specific native DLL link path that is less reliable under Windows Sandbox.
 - The optional `-SmokeTargetPath` artifact preflight path currently covers packaged `connect` and scene summary startup smoke only. Use the normal integration/E2E suites for snapshot, mutation, diff, restore, and cleanup workflow coverage.
 - The launcher applies host-side scheduling tuning to Windows Sandbox processes by default: `AboveNormal` priority plus disabled execution-speed power throttling. On Intel hybrid CPU systems this helps keep sandbox CI work from being treated as low-QoS E-core-only work. Use `-SkipSandboxHostScheduling` to disable this behavior, or `-SandboxHostProcessorAffinityHex 0x...` only when you intentionally want a machine-specific affinity mask.

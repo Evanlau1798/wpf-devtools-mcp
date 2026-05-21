@@ -239,7 +239,8 @@ public sealed partial class SandboxCiScriptContractTests
         english.Should().Contain("Invoke-WindowsSandboxArtifactPreflight.ps1");
         english.Should().Contain("Windows Sandbox local preflight");
         english.Should().Contain("not a GitHub Actions parity guarantee");
-        english.Should().Contain("does not cover x86, ARM64, release packaging smoke, coverage, or NuGet pack lanes");
+        english.Should().Contain("covers coverage, x64/x86 release packaging smoke, and NuGet pack");
+        english.Should().Contain("does not cover the hosted x86 solution build/test matrix, ARM64 cross-build, or self-hosted ARM64 runtime smoke lanes");
         english.Should().Contain("unsigned local package smoke");
         english.Should().Contain("registration metadata checks remain covered by the installer/client registration tests");
         english.Should().Contain("Publish-Release.ps1");
@@ -256,7 +257,8 @@ public sealed partial class SandboxCiScriptContractTests
         zhTw.Should().Contain("Invoke-WindowsSandboxArtifactPreflight.ps1");
         zhTw.Should().Contain("Windows Sandbox 本機 preflight");
         zhTw.Should().Contain("不等同 GitHub Actions parity 保證");
-        zhTw.Should().Contain("不涵蓋 x86、ARM64、release packaging smoke、coverage 或 NuGet pack lanes");
+        zhTw.Should().Contain("涵蓋 coverage、x64/x86 release packaging smoke，以及 NuGet pack");
+        zhTw.Should().Contain("不涵蓋 hosted x86 solution build/test matrix、ARM64 cross-build，或 self-hosted ARM64 runtime smoke lanes");
         zhTw.Should().Contain("unsigned local package smoke");
         zhTw.Should().Contain("registration metadata 仍由 installer/client registration 測試覆蓋");
         zhTw.Should().Contain("Publish-Release.ps1");

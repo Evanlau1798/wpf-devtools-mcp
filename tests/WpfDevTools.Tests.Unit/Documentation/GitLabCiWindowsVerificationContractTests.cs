@@ -91,18 +91,26 @@ public sealed class GitLabCiWindowsVerificationContractTests
     }
 
     [Fact]
-    public void SandboxHostedWindowsX64Mode_ShouldMirrorCoverageAndPackagingSmokeJobs()
+    public void SandboxHostedWindowsX64Mode_ShouldMirrorCoveragePackagingSmokeAndNuGetJobs()
     {
         var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
         var hosted = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.ps1"));
 
         workflow.Should().Contain("Run tests with coverage");
         workflow.Should().Contain("Run release packaging smoke test");
+        workflow.Should().Contain("architecture: [x64, x86]");
+        workflow.Should().Contain("Build SDK package");
         hosted.Should().Contain("Invoke-HostedCoverageVerification");
         hosted.Should().Contain("--settings', 'coverlet.runsettings'");
         hosted.Should().Contain("Invoke-HostedReleasePackagingSmoke -Architecture 'x64'");
+        hosted.Should().Contain("Invoke-HostedReleasePackagingSmoke -Architecture 'x86'");
+        hosted.Should().Contain("[ValidateSet('x64', 'x86')]");
         hosted.Should().Contain("Publish-Release.ps1");
         hosted.Should().Contain("Test-PackagedServerRuntime.ps1");
+        hosted.Should().Contain("Invoke-HostedNuGetPack");
+        hosted.Should().Contain("dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj");
+        hosted.Should().Contain("Skipping packaged server runtime smoke test for x86",
+            "the GitHub x86 package lane validates install/uninstall layout but skips runtime launch on hosted x64");
     }
 
     [Fact]

@@ -165,7 +165,7 @@ function Invoke-HostedReleasePackagingSmoke {
     param(
         [Parameter(Mandatory = $true)] [string]$OutputRoot,
         [Parameter(Mandatory = $true)] [string]$Timestamp,
-        [Parameter(Mandatory = $true)] [ValidateSet('x64')] [string]$Architecture
+        [Parameter(Mandatory = $true)] [ValidateSet('x64', 'x86')] [string]$Architecture
     )
 
     $releaseRoot = Join-Path $OutputRoot "artifacts\release-$Timestamp-$Architecture"
@@ -202,32 +202,42 @@ function Invoke-HostedReleasePackagingSmoke {
     $installScriptLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $installScript
     Invoke-HostedPowerShellCommand "Install published package smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . $installScriptLiteral -InstallRoot $installRootLiteral -Client other -NonInteractive -Force -OutputJson" $OutputRoot $Timestamp
 
-    $serverPath = Join-Path $installSmokeRoot "$Architecture\current\bin\wpf-devtools-$Architecture.exe"
-    Invoke-ExternalWithTimeout "Start installed package runtime smoke test $Architecture" 'powershell.exe' @(
-        '-NoProfile',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-File',
-        'scripts\tools\packaging\Test-PackagedServerRuntime.ps1',
-        '-ServerPath',
-        $serverPath
-    ) -TimeoutSeconds 300 -OutputRoot $OutputRoot -Timestamp $Timestamp
+    if ($Architecture -eq 'x64') {
+        $serverPath = Join-Path $installSmokeRoot "$Architecture\current\bin\wpf-devtools-$Architecture.exe"
+        Invoke-ExternalWithTimeout "Start installed package runtime smoke test $Architecture" 'powershell.exe' @(
+            '-NoProfile',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-File',
+            'scripts\tools\packaging\Test-PackagedServerRuntime.ps1',
+            '-ServerPath',
+            $serverPath
+        ) -TimeoutSeconds 300 -OutputRoot $OutputRoot -Timestamp $Timestamp
+    }
+    else {
+        Write-Host "Skipping packaged server runtime smoke test for x86; GitHub's hosted x64 lane only install/uninstall smokes the x86 package layout."
+    }
 
     $archiveLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $packageArchive.FullName
     $releaseRootLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $releaseRoot
     $bootstrapRootLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $bootstrapSmokeRoot
     Invoke-HostedPowerShellCommand "Online installer smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . .\scripts\online-installer.ps1 -PackageArchivePath $archiveLiteral -TrustedReleaseMetadataDirectory $releaseRootLiteral -InstallRoot $bootstrapRootLiteral -Client other -NonInteractive -Force -OutputJson" $OutputRoot $Timestamp
 
-    $bootstrapServerPath = Join-Path $bootstrapSmokeRoot "$Architecture\current\bin\wpf-devtools-$Architecture.exe"
-    Invoke-ExternalWithTimeout "Start online-installed runtime smoke test $Architecture" 'powershell.exe' @(
-        '-NoProfile',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-File',
-        'scripts\tools\packaging\Test-PackagedServerRuntime.ps1',
-        '-ServerPath',
-        $bootstrapServerPath
-    ) -TimeoutSeconds 300 -OutputRoot $OutputRoot -Timestamp $Timestamp
+    if ($Architecture -eq 'x64') {
+        $bootstrapServerPath = Join-Path $bootstrapSmokeRoot "$Architecture\current\bin\wpf-devtools-$Architecture.exe"
+        Invoke-ExternalWithTimeout "Start online-installed runtime smoke test $Architecture" 'powershell.exe' @(
+            '-NoProfile',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-File',
+            'scripts\tools\packaging\Test-PackagedServerRuntime.ps1',
+            '-ServerPath',
+            $bootstrapServerPath
+        ) -TimeoutSeconds 300 -OutputRoot $OutputRoot -Timestamp $Timestamp
+    }
+    else {
+        Write-Host "Skipping online-installed runtime smoke test for x86; GitHub's hosted x64 lane only install/uninstall smokes the x86 package layout."
+    }
 
     $installedScript = Join-Path $installSmokeRoot "$Architecture\current\bin\install.ps1"
     $installedScriptLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $installedScript
@@ -236,6 +246,34 @@ function Invoke-HostedReleasePackagingSmoke {
     $bootstrapScript = Join-Path $bootstrapSmokeRoot "$Architecture\current\bin\install.ps1"
     $bootstrapScriptLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $bootstrapScript
     Invoke-HostedPowerShellCommand "Uninstall online installer smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . $bootstrapScriptLiteral -Action uninstall -InstallRoot $bootstrapRootLiteral -Architecture '$Architecture' -Client other -NonInteractive -OutputJson" $OutputRoot $Timestamp
+}
+
+function Invoke-HostedNuGetPack {
+    param(
+        [Parameter(Mandatory = $true)] [string]$DotNetPath,
+        [Parameter(Mandatory = $true)] [string]$OutputRoot,
+        [Parameter(Mandatory = $true)] [string]$Timestamp
+    )
+
+    $packageRoot = Join-Path $OutputRoot "nupkg-$Timestamp"
+    Remove-Item -LiteralPath $packageRoot -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force -Path $packageRoot | Out-Null
+
+    Invoke-External 'dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj' $DotNetPath @(
+        'pack',
+        'src\WpfDevTools.Inspector.Sdk\WpfDevTools.Inspector.Sdk.csproj',
+        '--configuration',
+        'Release',
+        '--output',
+        $packageRoot,
+        '-p:GeneratePackageOnBuild=false'
+    )
+
+    $package = Get-ChildItem -LiteralPath $packageRoot -File -Filter '*.nupkg' |
+        Select-Object -First 1
+    if ($null -eq $package) {
+        throw "NuGet package was not produced under $packageRoot."
+    }
 }
 
 function Invoke-HostedWindowsX64Verification {
@@ -315,6 +353,8 @@ function Invoke-HostedWindowsX64Verification {
 
         Invoke-HostedCoverageVerification -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -OutputRoot $OutputRoot -Timestamp $Timestamp
         Invoke-HostedReleasePackagingSmoke -Architecture 'x64' -OutputRoot $OutputRoot -Timestamp $Timestamp
+        Invoke-HostedReleasePackagingSmoke -Architecture 'x86' -OutputRoot $OutputRoot -Timestamp $Timestamp
+        Invoke-HostedNuGetPack -DotNetPath $DotNetPath -OutputRoot $OutputRoot -Timestamp $Timestamp
     }
     finally {
         if ($null -eq $previousTimeoutScale) {

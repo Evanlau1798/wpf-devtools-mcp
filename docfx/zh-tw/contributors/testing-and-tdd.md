@@ -64,7 +64,7 @@ Unit 與 integration suites 會啟用 collection-level parallelization，並用 
 
 在 release 或 native verification 相關變更消耗 hosted CI 時數前，優先使用 Windows Sandbox harness 進行本機驗證。這是 local preflight，不等同 GitHub Actions parity 保證。Sandbox runner 會以唯讀方式映射 repository，把一次性狀態寫到 `tmp/sandbox-ci`，並執行接近 CI command groups 的 PowerShell 入口；hosted workflow 仍是最後 truth。
 
-建議的推送前 gate，範圍貼近 hosted Windows x64 managed lane：
+建議的推送前 gate，範圍貼近 hosted Windows CI/CD 形狀：
 
 ```powershell
 .\scripts\ci\Invoke-WindowsSandboxCi.ps1 -Mode HostedWindowsX64 -ReleaseUnitShardCount 8 -UnitDebugShardCount 4 -MaxParallelLanes 4
@@ -98,8 +98,8 @@ artifact preflight 會在 Sandbox 內依需要 provision .NET runtime channel `8
 
 操作注意事項：
 
-- `HostedWindowsX64` 會在 Windows Sandbox 可可靠執行的範圍內貼近 GitLab Windows x64 fallback lane 與 GitHub hosted x64 managed test 範圍：sandbox-safe native compiler/resource/archive smoke、Debug/Release solution build、兩種 configuration 的 unit shards，以及兩種 configuration 的 release-unit shards。它不涵蓋 x86、ARM64、release packaging smoke、coverage 或 NuGet pack lanes。
-- Windows Sandbox 對 native DLL link step 不可靠，Visual C++ linker/resource conversion path 可能在 sandbox 內失敗。若變更 native bootstrapper，推送前請在一般桌面建置環境驗證精確的 `.vcxproj` native DLL link 與 live integration tests。
+- `HostedWindowsX64` 會在 Windows Sandbox 可可靠執行的範圍內貼近 GitLab Windows x64 fallback lane 與 GitHub hosted Windows CI/CD 範圍：精確的 x64 native bootstrapper build、Debug/Release x64 solution builds、unit shards、release-unit shards，以及 Debug integration tests。它涵蓋 coverage、x64/x86 release packaging smoke，以及 NuGet pack。它不涵蓋 hosted x86 solution build/test matrix、ARM64 cross-build，或 self-hosted ARM64 runtime smoke lanes；也不模擬 Pages deployment 或已簽章 public release publication。
+- x86 packaging smoke 會遵循 GitHub hosted x64 行為：執行 package-local 與 online installer 的 install/uninstall layout checks，但不啟動 packaged x86 server runtime，因為 hosted x64 lane 本身也不執行該 runtime smoke。
 - `NativeSmoke` 會驗證 native compile/resource/archive 覆蓋，接著執行 managed debug 與 release unit shards。它刻意略過在 Windows Sandbox 內較不穩定的 native DLL link 路徑。
 - Artifact preflight 的 optional `-SmokeTargetPath` 目前只涵蓋 packaged `connect` 與 scene summary 啟動 smoke。snapshot、mutation、diff、restore 與 cleanup workflow 覆蓋仍需使用一般 integration/E2E suites。
 - Launcher 預設會對 Windows Sandbox host processes 套用 host-side scheduling tuning：`AboveNormal` priority，加上關閉 execution-speed power throttling。這可降低 Intel hybrid CPU 系統把 sandbox CI 視為低 QoS、集中排到 E-core 的機率。若需要停用可加 `-SkipSandboxHostScheduling`；只有在明確知道本機核心 mask 時才使用 `-SandboxHostProcessorAffinityHex 0x...` 指定 affinity。

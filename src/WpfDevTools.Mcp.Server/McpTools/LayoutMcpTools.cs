@@ -165,6 +165,8 @@ public static class LayoutMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<InvalidateLayoutTool>(sessionManager, "InvalidateLayoutTool", () => new InvalidateLayoutTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
+            toolName: "invalidate_layout");
     }
 }

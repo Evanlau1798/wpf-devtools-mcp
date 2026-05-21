@@ -184,6 +184,8 @@ public static class StyleMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<OverrideStyleSetterTool>(sessionManager, "OverrideStyleSetterTool", () => new OverrideStyleSetterTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
+            toolName: "override_style_setter");
     }
 }

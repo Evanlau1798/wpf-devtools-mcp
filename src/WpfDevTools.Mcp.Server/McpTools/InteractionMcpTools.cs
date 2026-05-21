@@ -137,7 +137,9 @@ public static class InteractionMcpTools
                 () => new GenericPipeTool(sessionManager, "focus_element")
             ).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
+            toolName: "focus_element");
     }
 
     [McpServerTool(Name = "drag_and_drop", Title = "Simulate WPF Drag And Drop", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
@@ -188,7 +190,9 @@ public static class InteractionMcpTools
                 () => new GenericPipeTool(sessionManager, "drag_and_drop", GenericPipeTool.ExtractDragAndDropParams)
             ).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
+            toolName: "drag_and_drop");
     }
 
     [McpServerTool(Name = "scroll_to_element", Title = "Scroll WPF Element Into View", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
@@ -222,7 +226,9 @@ public static class InteractionMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<ScrollToElementTool>(sessionManager, "ScrollToElementTool", () => new ScrollToElementTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
+            toolName: "scroll_to_element");
     }
 
     [McpServerTool(Name = "simulate_keyboard", Title = "Simulate WPF Keyboard Input", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
@@ -274,7 +280,9 @@ public static class InteractionMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<SimulateKeyboardTool>(sessionManager, "SimulateKeyboardTool", () => new SimulateKeyboardTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
+            toolName: "simulate_keyboard");
     }
 
     [McpServerTool(Name = "element_screenshot", Title = "Capture WPF Element Screenshot", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]

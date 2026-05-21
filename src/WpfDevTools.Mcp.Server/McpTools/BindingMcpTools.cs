@@ -323,7 +323,9 @@ public static class BindingMcpTools
                 () => new GenericPipeTool(sessionManager, "force_binding_update", GenericPipeTool.ExtractElementAndPropertyParams)
             ).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
+            toolName: "force_binding_update");
     }
 }
 

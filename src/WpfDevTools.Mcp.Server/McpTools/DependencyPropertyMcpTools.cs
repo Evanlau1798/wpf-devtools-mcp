@@ -197,7 +197,9 @@ public static class DependencyPropertyMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<ClearDpValueTool>(sessionManager, "ClearDpValueTool", () => new ClearDpValueTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
+            toolName: "clear_dp_value");
     }
 
     [McpServerTool(Name = "watch_dp_changes", Title = "Watch WPF DependencyProperty Changes", OpenWorld = false, ReadOnly = false, Destructive = false, UseStructuredContent = true)]
@@ -360,6 +362,8 @@ public static class DependencyPropertyMcpTools
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<WaitForDpChangeTool>(sessionManager, "WaitForDpChangeTool", () => new WaitForDpChangeTool(sessionManager)).ExecuteAsync(a, ct),
             args,
-            cancellationToken);
+            cancellationToken,
+            navigationState: ToolCallHelper.ResolveNavigationState(sessionManager, args),
+            toolName: "wait_for_dp_change_after_mutation");
     }
 }

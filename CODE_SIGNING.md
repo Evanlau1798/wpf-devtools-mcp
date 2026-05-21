@@ -1,13 +1,13 @@
 # Code Signing Guide
 
-This guide explains how to sign WPF DevTools binaries to avoid antivirus false positives and Windows SmartScreen warnings.
+This guide explains how to sign WPF DevTools binaries to reduce antivirus false positives, preserve file integrity, and show a verified publisher. For non-Store downloads, Windows SmartScreen reputation still builds over time even when files are signed.
 
 ## Why Code Signing?
 
 Code signing provides several benefits:
 1. **Antivirus Trust**: Signed binaries are less likely to be flagged by antivirus software
 2. **User Trust**: Users can verify the publisher and integrity of the software
-3. **Windows SmartScreen**: Reduces or eliminates SmartScreen warnings
+3. **Windows SmartScreen**: Shows a verified publisher and allows reputation to build across signed releases
 4. **DLL Injection**: Some antivirus software blocks unsigned DLL injection
 
 ## Option 1: Self-Signed Certificate (Free, Development Only)
@@ -50,37 +50,36 @@ $env:WPFDEVTOOLS_PFX_PASSWORD = "<YOUR_STRONG_PASSWORD>"
 - Antivirus software may still flag binaries
 - Only suitable for development and testing
 
-## Option 2: Commercial Certificate (Recommended for Production)
+## Option 2: Production Signing
 
-### Purchase Certificate
+### Choose a signing path
 
-Purchase a code signing certificate from a trusted Certificate Authority (CA):
+Choose a signing path that matches your distribution model:
 
-| Provider | Type | Cost (Annual) | Notes |
-|----------|------|---------------|-------|
-| **DigiCert** | EV Code Signing | $400-500 | Best reputation, fastest validation |
-| **Sectigo** | Standard Code Signing | $100-200 | Good value, slower validation |
-| **GlobalSign** | EV Code Signing | $300-400 | Good reputation |
+| Option | Type | Cost | Notes |
+|--------|------|------|-------|
+| **Microsoft Store** | Store signing | Free after Store enrollment | Most reliable way to avoid SmartScreen download prompts for Store-installed apps |
+| **Azure Artifact Signing** | Microsoft-managed signing | About $10/month | Recommended by Microsoft for non-Store distribution where available; reputation builds over time |
+| **OV certificate** | Traditional CA code signing | Often $150-300/year | Valid option when Azure Artifact Signing is unavailable or a specific CA is required |
+| **EV certificate** | Extended Validation code signing | Often $400+/year | Still valid for signing, but no longer provides SmartScreen first-download bypass |
 
-**Recommendation**: DigiCert EV Code Signing Certificate
-- Immediate SmartScreen reputation
-- No warnings on first download
-- Best for open-source projects
+**Recommendation**: Use Microsoft Store distribution when feasible. For non-Store releases, prefer Azure Artifact Signing where available, or an OV certificate from a CA that meets your release and procurement needs. For qualifying open-source projects, also evaluate SignPath Foundation.
 
 ### Certificate Types
 
-**Standard Code Signing**:
+**Azure Artifact Signing / OV Code Signing**:
 - Certificate stored as file (.pfx)
-- Can be copied and shared
-- Requires building SmartScreen reputation over time
-- Cheaper ($100-200/year)
+- Azure Artifact Signing is Microsoft-managed and CI/CD friendly
+- Traditional OV certificates may require a hardware token or HSM-backed key storage depending on CA/browser requirements
+- SmartScreen reputation builds over time for new apps and new files
+- Signed files show a verified publisher when the chain is trusted
 
 **EV (Extended Validation) Code Signing**:
 - Certificate stored on hardware token (USB)
 - Cannot be copied
-- Immediate SmartScreen reputation
-- More expensive ($300-500/year)
-- **Recommended for production**
+- More expensive than OV
+- EV certificates no longer bypass SmartScreen on first download
+- Use EV only when enterprise procurement or organizational policy specifically requires it
 
 ### Validation Process
 
@@ -228,19 +227,20 @@ For commercial certificates:
 | Approach | Initial Cost | Annual Cost | SmartScreen Trust | Antivirus Trust |
 |----------|--------------|-------------|-------------------|-----------------|
 | Self-Signed | Free | Free | ❌ No | ⚠️ Limited |
-| Standard Code Signing | $100-200 | $100-200 | ⚠️ After reputation | ✅ Yes |
-| EV Code Signing | $300-500 | $300-500 | ✅ Immediate | ✅ Yes |
+| Azure Artifact Signing | About $10/month | About $10/month | ⚠️ After reputation | ✅ Yes |
+| OV Code Signing | $150-300 | $150-300 | ⚠️ After reputation | ✅ Yes |
+| EV Code Signing | $400+ | $400+ | ⚠️ After reputation | ✅ Yes |
 
 ## Recommendation
 
 - **Development/Testing**: Use self-signed certificate
-- **Open Source Release**: Use EV Code Signing certificate
-- **Commercial Product**: Use EV Code Signing certificate
+- **Open Source Release**: Evaluate SignPath Foundation, Azure Artifact Signing where available, or an OV certificate
+- **Commercial Product**: Prefer Microsoft Store distribution where feasible; otherwise use Azure Artifact Signing or OV signing
 
 For WPF DevTools (open source), we recommend:
 1. Start with self-signed for development
-2. Upgrade to DigiCert EV Code Signing when ready for public release
-3. Budget: ~$400/year for certificate
+2. Evaluate SignPath Foundation or Azure Artifact Signing for public release
+3. Use an OV certificate when managed signing is unavailable or a traditional CA is required
 
 ## Resources
 

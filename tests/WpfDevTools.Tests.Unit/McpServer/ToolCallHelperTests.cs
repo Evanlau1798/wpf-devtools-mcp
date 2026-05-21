@@ -247,6 +247,29 @@ public partial class ToolCallHelperTests
     }
 
     [Fact]
+    public async Task ExecuteAndWrapAsync_WhenPublicConnectTimesOut_ShouldNotRequireReconnect()
+    {
+        Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (_, ct) =>
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return new { success = true };
+        };
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            slowTool,
+            ToolCallHelper.BuildJsonArgs(("processId", 12345)),
+            CancellationToken.None,
+            timeoutSeconds: 1,
+            toolName: "connect");
+
+        result.IsError.Should().BeTrue();
+        var payload = result.StructuredContent!.Value;
+        payload.TryGetProperty("requiresReconnect", out _).Should().BeFalse();
+        payload.TryGetProperty("stateAfterTimeoutUnknown", out _).Should().BeFalse();
+        payload.TryGetProperty("processId", out _).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task ExecuteAndWrapAsync_WhenExternalCancellation_ShouldPropagateCorrectly()
     {
         // Arrange: Create a tool that respects cancellation

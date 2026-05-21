@@ -6,12 +6,14 @@ This quickstart is optimized for the pre-publication distribution model: use a l
 
 - Windows 10 or later
 - A live WPF application running under the same user account as the MCP server
-- An architecture choice that matches the target process: `x64`, `x86`, or `arm64`
+- An architecture choice for the package you want to install: `x64`, `x86`, or `arm64`
 - The exact absolute executable path of the WPF target reviewed and listed in `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`; unset or malformed allowlist values fail closed before `connect()` attaches
 
 ## Architecture rule first
 
-`connect` succeeds only when the server process architecture and bootstrapper architecture both match the target process architecture.
+Architecture matching is mandatory for raw injection/bootstrapper fallback. Install the package that matches the target process when you need zero-instrumentation attach.
+
+SDK-hosted reuse communicates over named pipes and does not require matching process bitness once the target-side host is already running.
 
 - `x64` target -> install and run the `x64` package
 - `x86` target -> install and run the `x86` package
@@ -93,7 +95,7 @@ Use this sequence in your MCP client:
 
 Healthy first-run signs:
 
-- `connect()` succeeds when the target is allowlisted, architecture-compatible, and there is only one visible WPF target
+- `connect()` succeeds when the target is allowlisted, either injection-compatible or already exposing an SDK-hosted Inspector, and there is only one visible WPF target
 - if multiple targets exist, `get_processes(windowFilter)` returns the correct candidate list
 - `get_ui_summary` returns a stable semantic summary of the root scene
 

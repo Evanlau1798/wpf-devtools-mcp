@@ -106,6 +106,27 @@ public sealed class ToolErrorPayload
     public int? TimeoutSeconds { get; init; }
 
     /// <summary>
+    /// Numeric backoff window before retrying.
+    /// </summary>
+    [JsonPropertyName("retryAfterSeconds")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? RetryAfterSeconds { get; init; }
+
+    /// <summary>
+    /// Human-readable backoff guidance.
+    /// </summary>
+    [JsonPropertyName("retryAfter")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RetryAfter { get; init; }
+
+    /// <summary>
+    /// Remaining tokens for throttled operations when available.
+    /// </summary>
+    [JsonPropertyName("availableTokens")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? AvailableTokens { get; init; }
+
+    /// <summary>
     /// Backward-compatible top-level projection used by event analyzer callers.
     /// </summary>
     [JsonPropertyName("availableEvents")]

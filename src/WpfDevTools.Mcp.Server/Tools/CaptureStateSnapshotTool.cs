@@ -158,15 +158,25 @@ public sealed partial class CaptureStateSnapshotTool(SessionManager sessionManag
                 GetOptionalString(response, "focusedElementId"));
         }
 
-        var (bindingErrors, hasBindingErrorBaseline) = await TryCaptureBindingErrorBaselineAsync(
+        var (bindingErrors, hasBindingErrorBaseline, bindingBaselineError) = await TryCaptureBindingErrorBaselineAsync(
             processId,
             sessionGeneration,
             cancellationToken).ConfigureAwait(false);
-        var (validationErrors, hasValidationBaseline) = await TryCaptureValidationBaselineAsync(
+        if (bindingBaselineError != null)
+        {
+            return bindingBaselineError;
+        }
+
+        var (validationErrors, hasValidationBaseline, validationBaselineError) = await TryCaptureValidationBaselineAsync(
             processId,
             sessionGeneration,
             elementId,
             cancellationToken).ConfigureAwait(false);
+        if (validationBaselineError != null)
+        {
+            return validationBaselineError;
+        }
+
         var warnings = new List<string>();
         if (!hasBindingErrorBaseline)
         {

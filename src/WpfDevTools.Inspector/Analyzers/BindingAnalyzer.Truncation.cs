@@ -39,6 +39,8 @@ public sealed partial class BindingAnalyzer
 
         public bool Truncated => _reasons.Count > 0;
 
+        public bool ResultLimitReached => ReturnedResultCount >= MaxResults;
+
         public IReadOnlyList<string> Reasons => _reasons.ToArray();
 
         public bool TryTakeTraversalNode()
@@ -65,6 +67,10 @@ public sealed partial class BindingAnalyzer
             ReturnedResultCount++;
             return true;
         }
+
+        public void MarkTraversalTruncated() => _reasons.Add(_traversalLimitReason);
+
+        public void MarkResultTruncated() => _reasons.Add(_resultLimitReason);
 
         public object ToContract(int returnedResultCount) => new
         {

@@ -26,6 +26,7 @@ public sealed class ConnectToolActiveProcessTests : IDisposable
         using var sessionManager = new SessionManager();
         sessionManager.AddSession(existingProcessId);
         using var injector = new BootstrapStartsPipeInjector();
+        using var plaintextPolicy = InspectorHost.BeginUnsafePlaintextPolicyTestScope(static () => true);
 
         var tool = new ConnectTool(
             sessionManager,
@@ -41,7 +42,7 @@ public sealed class ConnectToolActiveProcessTests : IDisposable
             CancellationToken.None);
 
         var json = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("success").GetBoolean().Should().BeTrue("connect response was {0}", json.GetRawText());
         sessionManager.TryGetActiveProcessId(out var activeProcessId).Should().BeTrue();
         activeProcessId.Should().Be(connectedProcessId);
     }

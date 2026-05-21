@@ -4,7 +4,9 @@
 
 When you own the target application, prefer SDK-hosted reuse; raw injection remains the fallback path for zero-instrumentation diagnostics and targets that cannot be modified.
 
-Single-file and Native AOT packaging constraints affect raw injection, not the overall WPF DevTools support posture. When the target app starts `InspectorSdk.Initialize()` with matching transport settings, `connect()` can reuse the SDK-hosted Inspector instead of injecting a DLL. Trimmed apps are still risky because required inspector types may be removed, so SDK-host reuse is the preferred fallback rather than a guarantee.
+Single-file packaging constraints affect raw injection, not the single-file WPF app support posture. When the target app starts `InspectorSdk.Initialize()` with matching transport settings, `connect()` can reuse the SDK-hosted Inspector instead of injecting a DLL.
+
+Native AOT targets are not supported today; SDK-hosted reuse is not a Native AOT workaround. Trimmed apps are still risky because required inspector types may be removed, so SDK-host reuse is the preferred fallback rather than a guarantee.
 
 ## Installation
 
@@ -32,6 +34,7 @@ Before using the sample below, set matching `WPFDEVTOOLS_AUTH_SECRET` and the sa
 Add the following code to your WPF application's `App.xaml.cs`:
 
 ```csharp
+using System.Windows;
 using WpfDevTools.Inspector.Sdk;
 
 public partial class App : Application
@@ -92,10 +95,11 @@ if (InspectorSdk.IsInitialized)
 Use the Opt-in SDK when:
 
 - Your application is a self-contained single-file app.
-- Your application uses Native AOT compilation.
 - Your application is trimmed.
 - Antivirus software blocks DLL injection.
 - You want direct integration instead of external injection.
+
+Native AOT targets are not supported today. SDK-hosted reuse is not a Native AOT workaround.
 
 ## How It Works
 

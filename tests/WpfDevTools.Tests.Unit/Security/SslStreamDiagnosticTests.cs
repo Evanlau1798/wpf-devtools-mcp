@@ -5,6 +5,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using FluentAssertions;
 using WpfDevTools.Shared.Security;
+using WpfDevTools.Tests.Unit.Inspector;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -31,6 +32,7 @@ public class SslStreamDiagnosticTests
         {
             var certManager = new WpfDevTools.Shared.Security.CertificateManager(tempDir);
             using var host = new WpfDevTools.Inspector.Host.InspectorHost(pid, null, certManager);
+            using var plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
             host.Start();
             _output.WriteLine("Host started");
 

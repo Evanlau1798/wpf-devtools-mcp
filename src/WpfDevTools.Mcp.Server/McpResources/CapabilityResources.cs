@@ -144,17 +144,18 @@ public static partial class CapabilityResources
 
         Common high-signal failure classes:
 
-        - `architecture mismatch`: MCP server / injector and target process bitness do not match.
+        - `architecture mismatch`: Architecture matching is mandatory for raw injection/bootstrapper fallback. SDK-hosted reuse communicates over named pipes and does not require matching process bitness once the target-side host is already running.
         - `access denied`: target privilege is higher than the MCP host process.
         - `timeout`: target process is hung, blocked, or the inspector pipe never became available.
-        - `injection-constrained packaging`: single-file and Native AOT targets cannot use raw injection. Trimmed targets remain risky because publish trimming may remove required types needed by either raw injection or SDK-host startup.
+        - `injection-constrained packaging`: single-file targets cannot use raw injection. Native AOT is unsupported; SDK-hosted reuse is not a Native AOT workaround. Trimmed targets remain risky because publish trimming may remove required types needed by either raw injection or SDK-host startup.
         - `security software interference`: AV / endpoint controls may block DLL injection or named pipes.
 
         Current mitigation guidance:
 
         - Prefer matching architecture builds.
         - Run the MCP host as administrator for elevated targets.
-        - Use SDK mode by starting the target-side host with InspectorSdk.Initialize() and matching transport settings, including the same local absolute WPFDEVTOOLS_CERT_DIR value when TLS is enabled. Network paths are not allowed. Set WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR together on both sides before initialization; if either value is missing, SDK startup now fails closed. This keeps the overall WPF DevTools workflow available for single-file and Native AOT packaging; for trimmed apps it remains the preferred fallback, not a guarantee, and the default-hardened MCP server will not reuse a plaintext SDK host.
+        - Use SDK mode by starting the target-side host with InspectorSdk.Initialize() and matching transport settings, including the same local absolute WPFDEVTOOLS_CERT_DIR value when TLS is enabled. Network paths are not allowed. Set WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR together on both sides before initialization; if either value is missing, SDK startup now fails closed.
+        - SDK mode keeps the single-file WPF workflow available. Native AOT remains unsupported. For trimmed apps it remains the preferred fallback, not a guarantee, and the default-hardened MCP server will not reuse a plaintext SDK host.
         """;
 
 

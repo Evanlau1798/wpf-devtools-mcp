@@ -25,7 +25,8 @@ public sealed class ConnectToolActiveProcessIntegrationTests : IDisposable
 
         _testApp = StartTestApp();
 
-        using var sessionManager = new SessionManager();
+        using var liveSession = SecureLiveSession.Create("WpfDevTools_ActiveProcess");
+        var sessionManager = liveSession.SessionManager;
         sessionManager.AddSession(54321);
 
         var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector(),
@@ -45,12 +46,8 @@ public sealed class ConnectToolActiveProcessIntegrationTests : IDisposable
 
     public void Dispose()
     {
-        if (_testApp != null && !_testApp.HasExited)
-        {
-            _testApp.Kill();
-            _testApp.WaitForExit(5000);
-            _testApp.Dispose();
-        }
+        LiveTestProcessCleanup.StopAndDispose(_testApp);
+        _testApp = null;
     }
 
     private static Process StartTestApp()

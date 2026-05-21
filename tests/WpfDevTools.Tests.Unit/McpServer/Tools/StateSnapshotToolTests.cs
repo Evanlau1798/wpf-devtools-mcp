@@ -87,6 +87,42 @@ public sealed class StateSnapshotToolTests : IDisposable
     }
 
     [Fact]
+    public async Task CaptureStateSnapshot_WhenStepReturnsTimeoutPayload_ShouldLiftRecoveryMetadata()
+    {
+        const int processId = 51024;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            new[]
+            {
+                JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    error = "Inspector request timed out.",
+                    errorCode = "Timeout",
+                    stateAfterTimeoutUnknown = true,
+                    requiresReconnect = true,
+                    processId,
+                    timeoutSeconds = 3
+                })
+            });
+
+        var result = JsonSerializer.SerializeToElement(await new CaptureStateSnapshotTool(connected.SessionManager)
+            .ExecuteAsync(ToJsonElement(new
+            {
+                processId,
+                elementId = "Button_1",
+                propertyNames = new[] { "Width" }
+            }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("Timeout");
+        result.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
+        result.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
+        result.GetProperty("processId").GetInt32().Should().Be(processId);
+        result.GetProperty("timeoutSeconds").GetInt32().Should().Be(3);
+    }
+
+    [Fact]
     public async Task RestoreStateSnapshot_ShouldReplayStoredOperations()
     {
         const int processId = 51002;

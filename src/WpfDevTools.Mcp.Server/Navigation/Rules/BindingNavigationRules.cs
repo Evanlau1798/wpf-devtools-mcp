@@ -25,7 +25,7 @@ internal static class BindingNavigationRules
         ToolNavigationReference? contextRef = null;
         foreach (var error in errors.EnumerateArray())
         {
-            if (!TryGetString(error, "elementId", out var elementId))
+            if (!TryGetDiagnosticElementId(error, out var elementId))
             {
                 continue;
             }
@@ -202,6 +202,23 @@ internal static class BindingNavigationRules
 
         elementId = string.Empty;
         return false;
+    }
+
+    private static bool TryGetDiagnosticElementId(JsonElement error, out string elementId)
+    {
+        if (TryGetString(error, "elementId", out elementId))
+        {
+            return true;
+        }
+
+        if (!TryGetString(error, "suggestedElementId", out elementId)
+            || !TryGetString(error, "matchConfidence", out var confidence))
+        {
+            return false;
+        }
+
+        return string.Equals(confidence, "high", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(confidence, "exact", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool HasPositiveCount(JsonElement element, string propertyName) =>

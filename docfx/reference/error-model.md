@@ -43,7 +43,7 @@ Important injection-stage outcomes include:
 
 ### Interpretation guidance
 
-- **Architecture mismatch**: use a server/bootstrapper build that matches the target process bitness.
+- **Architecture mismatch**: `ArchitectureMismatch` is an injection/bootstrapper error. Use a server/bootstrapper build that matches the target process bitness when raw injection is required. SDK-hosted reuse communicates over named pipes and does not require matching process bitness once the target-side host is already running.
 - **Bootstrap failed**: the bootstrapper ran but failed before the inspector was fully ready.
 - **Pipe ready timeout**: the managed bridge may have been invoked, but the named pipe never became ready in time.
 

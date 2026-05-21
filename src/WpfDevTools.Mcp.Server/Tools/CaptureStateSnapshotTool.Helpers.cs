@@ -214,30 +214,16 @@ public sealed partial class CaptureStateSnapshotTool
             ? $"Failed during {method}."
             : $"Failed during {method} for '{propertyName}'.";
 
-        var originalError = response.TryGetProperty("error", out var errorProperty)
-            ? errorProperty.GetString()
-            : null;
-        var errorCode = response.TryGetProperty("errorCode", out var errorCodeProperty)
-            ? errorCodeProperty.GetString()
-            : null;
-        var hint = response.TryGetProperty("hint", out var hintProperty)
-            ? hintProperty.GetString()
-            : null;
-
-        return new ToolErrorPayload
-        {
-            Error = originalError is { Length: > 0 }
-                ? $"{contextMessage} {originalError}"
-                : contextMessage,
-            ErrorCode = string.IsNullOrWhiteSpace(errorCode)
-                ? ToolErrorCode.OperationFailed.ToString()
-                : errorCode!,
-            Hint = hint ?? $"Inspect the failing {method} step and re-query the current runtime state before retrying capture_state_snapshot.",
-            ErrorData = response.Clone()
-        };
+        return ToolRecoveryPayload.CreateStepFailure(
+            contextMessage,
+            $"Inspect the failing {method} step and re-query the current runtime state before retrying capture_state_snapshot.",
+            response);
     }
 
-    private async Task<(IReadOnlyList<StoredBindingErrorSnapshot> bindingErrors, bool success)> TryCaptureBindingErrorBaselineAsync(
+    private async Task<(
+        IReadOnlyList<StoredBindingErrorSnapshot> bindingErrors,
+        bool success,
+        ToolErrorPayload? error)> TryCaptureBindingErrorBaselineAsync(
         int processId,
         long sessionGeneration,
         CancellationToken cancellationToken)
@@ -252,7 +238,11 @@ public sealed partial class CaptureStateSnapshotTool
 
         if (!IsSuccess(response) || !response.TryGetProperty("errors", out var errors) || errors.ValueKind != JsonValueKind.Array)
         {
-            return (Array.Empty<StoredBindingErrorSnapshot>(), false);
+            var recoveryError = ToolRecoveryPayload.IsTimeoutOrTransportRecovery(response)
+                || ToolRecoveryPayload.HasRecoveryGuidance(response)
+                ? CreateStepFailure("get_binding_errors", null, response)
+                : null;
+            return (Array.Empty<StoredBindingErrorSnapshot>(), false, recoveryError);
         }
 
         var snapshots = errors.EnumerateArray()
@@ -265,10 +255,13 @@ public sealed partial class CaptureStateSnapshotTool
                 GetOptionalString(error, "message")))
             .ToArray();
 
-        return (snapshots, true);
+        return (snapshots, true, null);
     }
 
-    private async Task<(IReadOnlyList<StoredValidationErrorSnapshot> validationErrors, bool success)> TryCaptureValidationBaselineAsync(
+    private async Task<(
+        IReadOnlyList<StoredValidationErrorSnapshot> validationErrors,
+        bool success,
+        ToolErrorPayload? error)> TryCaptureValidationBaselineAsync(
         int processId,
         long sessionGeneration,
         string? elementId,
@@ -284,7 +277,11 @@ public sealed partial class CaptureStateSnapshotTool
 
         if (!IsSuccess(response) || !response.TryGetProperty("errors", out var errors) || errors.ValueKind != JsonValueKind.Array)
         {
-            return (Array.Empty<StoredValidationErrorSnapshot>(), false);
+            var recoveryError = ToolRecoveryPayload.IsTimeoutOrTransportRecovery(response)
+                || ToolRecoveryPayload.HasRecoveryGuidance(response)
+                ? CreateStepFailure("get_validation_errors", null, response)
+                : null;
+            return (Array.Empty<StoredValidationErrorSnapshot>(), false, recoveryError);
         }
 
         var snapshots = errors.EnumerateArray()
@@ -296,6 +293,6 @@ public sealed partial class CaptureStateSnapshotTool
                 GetOptionalString(error, "ruleType")))
             .ToArray();
 
-        return (snapshots, true);
+        return (snapshots, true, null);
     }
 }

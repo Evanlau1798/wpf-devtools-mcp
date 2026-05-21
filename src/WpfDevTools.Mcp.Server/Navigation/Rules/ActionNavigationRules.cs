@@ -185,25 +185,7 @@ internal static class ActionNavigationRules
             return BuildUiSummaryVerification(context, "Inspect the updated UI state after the batch mutations.");
         }
 
-        var recommended = new List<ToolNextStep>
-        {
-            new(
-                "restore_state_snapshot",
-                NavigationParamBuilders.Create(
-                    ("processId", TryGetInt(context.Arguments, "processId")),
-                    ("snapshotId", snapshotId)),
-                "Restore the captured snapshot when the batch mutations should be rolled back.",
-                ToolNextStepKind.Action,
-                1),
-            new(
-                "get_ui_summary",
-                NavigationParamBuilders.Create(
-                    ("processId", TryGetInt(context.Arguments, "processId")),
-                    ("elementId", TryGetOptionalString(context.Arguments, "elementId"))),
-                "Inspect the updated UI state after the batch mutations.",
-                ToolNextStepKind.Verification,
-                2)
-        };
+        var recommended = new List<ToolNextStep>();
 
         if (!context.Payload.TryGetProperty("stateDiff", out _))
         {
@@ -212,12 +194,29 @@ internal static class ActionNavigationRules
                 NavigationParamBuilders.Create(
                     ("processId", TryGetInt(context.Arguments, "processId")),
                     ("snapshotId", snapshotId)),
-                "Compare the batch snapshot against current runtime state after the mutations.",
+                "Compare the batch snapshot against current runtime state before deciding whether to roll back.",
                 ToolNextStepKind.Verification,
-                3,
+                1,
                 "Returns semantic runtime changes caused by the batch mutations.",
                 "restore_state_snapshot"));
         }
+
+        recommended.Add(new(
+            "restore_state_snapshot",
+            NavigationParamBuilders.Create(
+                ("processId", TryGetInt(context.Arguments, "processId")),
+                ("snapshotId", snapshotId)),
+            "Restore the captured snapshot after verifying the batch mutations should be rolled back.",
+            ToolNextStepKind.Action,
+            recommended.Count == 0 ? 1 : 2));
+        recommended.Add(new(
+            "get_ui_summary",
+            NavigationParamBuilders.Create(
+                ("processId", TryGetInt(context.Arguments, "processId")),
+                ("elementId", TryGetOptionalString(context.Arguments, "elementId"))),
+            "Inspect the updated UI state after the batch mutations.",
+            ToolNextStepKind.Verification,
+            recommended.Count + 1));
 
         return ToolNavigationEnvelope.FromRecommended(
             recommended,

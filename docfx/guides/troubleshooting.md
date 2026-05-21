@@ -5,18 +5,18 @@
 Check these first:
 
 - the target process is a running WPF application
-- the server process architecture matches the target process architecture
-- the matching native bootstrapper exists in the installed release layout
+- for raw injection/bootstrapper fallback, the server package matches the target process architecture
+- for SDK-hosted reuse, the target-side Inspector host is already running with matching transport settings
 
 ## architecture mismatch
 
-The most common fix is to switch to a package whose server and bootstrapper bitness match the target process.
+Architecture matching is mandatory for raw injection/bootstrapper fallback. The most common raw-injection fix is to switch to a package whose server and bootstrapper bitness match the target process.
 
 - x64 target -> x64 package
 - x86 target -> x86 package
 - arm64 target -> arm64 package
 
-The installed server, bootstrapper, and inspector sidecar still need to come from the package/build that matches the target bitness.
+SDK-hosted reuse communicates over named pipes and does not require matching process bitness once the target-side host is already running. The installed server, bootstrapper, and inspector sidecar still need to come from the matching package/build when the server must inject the host itself.
 
 ## missing runtime
 
@@ -48,7 +48,9 @@ If Claude Code cannot rediscover the server reliably, prefer the generated `clie
 
 ## unsupported packaging or injection limits
 
-If the target uses unsupported packaging, such as trimmed deployment, self-contained single-file distribution, or native AOT, the standard injector path may not be available. In those cases, prefer a supported desktop packaging model, or start the SDK host inside the target app with `InspectorSdk.Initialize()` before calling `connect()`. `connect()` always attempts to reuse an already running SDK host, and sidecar-free executable layouts receive the longest reuse wait.
+If the target uses self-contained single-file packaging, the standard injector path is not available. Prefer a supported desktop packaging model, or start the SDK host inside the target app with `InspectorSdk.Initialize()` before calling `connect()`. `connect()` always attempts to reuse an already running SDK host, and sidecar-free executable layouts receive the longest reuse wait.
+
+Trimmed deployments remain risky because publishing can remove required WPF or Inspector types; SDK-host reuse is the preferred fallback, not a guarantee. Native AOT targets are not supported, and SDK-hosted reuse is not a Native AOT workaround.
 
 ## Where to look next
 

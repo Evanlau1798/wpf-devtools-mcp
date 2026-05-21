@@ -69,7 +69,10 @@ App 執行後，從 MCP client 呼叫 `connect()`。Server 會先探測 compatib
 - 你擁有 target app source code。
 - 你需要 production diagnostics，而且不想擴大 raw injection policy。
 - deployment policy 或 AV 工具阻擋 DLL injection。
-- app 使用 single-file、Native AOT 或 trimmed publish mode，讓 raw injection 不可靠。
+- app 使用 single-file publish mode，導致 raw injection 不可用。
+- app 使用 trimmed publish mode，且你接受 SDK-host startup 是 preferred fallback rather than a guarantee。
+
+Native AOT targets are not supported today. SDK-hosted reuse is not a Native AOT workaround.
 
 ## 何時保留 raw injection fallback
 
@@ -82,4 +85,6 @@ App 執行後，從 MCP client 呼叫 `connect()`。Server 會先探測 compatib
 
 - 如果 `InspectorSdk.Initialize()` 失敗，檢查 `InspectorSdk.LastInitializationStatus`。
 - 如果 `connect()` 沒有重用 SDK host，確認兩個 process 使用相同的 `WPFDEVTOOLS_AUTH_SECRET` 與 `WPFDEVTOOLS_CERT_DIR` local absolute directory。
-- 如果 packaging 是 single-file、Native AOT 或 trimmed，優先使用 SDK-hosted mode，並只把 raw injection 當成 fallback。
+- 如果 packaging 是 single-file，優先使用 SDK-hosted mode，並只把 raw injection 當成 fallback。
+- 如果 packaging 是 trimmed，優先使用 SDK-hosted mode，但需要驗證 startup，因為 trimming 可能移除必要 inspector types。
+- Native AOT targets are not supported today；SDK-hosted reuse is not a Native AOT workaround。

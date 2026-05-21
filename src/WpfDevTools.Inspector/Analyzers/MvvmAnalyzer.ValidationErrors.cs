@@ -7,22 +7,29 @@ namespace WpfDevTools.Inspector.Analyzers;
 public sealed partial class MvvmAnalyzer
 {
     private const int MaxValidationErrors = 200;
+    private const int MaxValidationTraversalNodes = 512;
 
-    private void CollectValidationErrors(
+    private (int TraversalNodeCount, bool TraversalTruncated, bool ValidationErrorsTruncated) CollectValidationErrors(
         DependencyObject element, List<object> errors, int maxDepth)
     {
-        foreach (var current in DependencyObjectTraversal.EnumerateDescendantsAndSelf(element, maxDepth))
+        var traversal = DependencyObjectTraversal.EnumerateDescendantsAndSelfWithMetadata(
+            element,
+            maxDepth,
+            MaxValidationTraversalNodes);
+        var traversalNodeCount = 0;
+        foreach (var current in traversal)
         {
+            traversalNodeCount++;
             if (errors.Count >= MaxValidationErrors)
             {
-                return;
+                return (traversalNodeCount, false, true);
             }
 
             foreach (var error in Validation.GetErrors(current))
             {
                 if (errors.Count >= MaxValidationErrors)
                 {
-                    return;
+                    return (traversalNodeCount, false, true);
                 }
 
                 var elementName = (current as FrameworkElement)?.Name;
@@ -40,5 +47,7 @@ public sealed partial class MvvmAnalyzer
                 });
             }
         }
+
+        return (traversalNodeCount, traversal.Truncated, false);
     }
 }

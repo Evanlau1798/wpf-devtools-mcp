@@ -26,9 +26,11 @@ public class InspectorHostTests : IDisposable
     //  our random int range 100_000-999_999 is far from any fixture's real PID)
     private readonly int _testProcessId;
     private readonly InspectorHost _host;
+    private readonly IDisposable _plaintextPolicy;
 
     public InspectorHostTests()
     {
+        _plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
         _testProcessId = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         _host = new InspectorHost(_testProcessId);
     }
@@ -36,6 +38,7 @@ public class InspectorHostTests : IDisposable
     public void Dispose()
     {
         _host.Dispose();
+        _plaintextPolicy.Dispose();
     }
 
     // ── Lifecycle: initial state ──────────────────────────────────────────────

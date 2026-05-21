@@ -345,8 +345,8 @@ internal static class ResponseContractToolEntries
                 canonicalPayloadField = "result.structuredContent",
                 textFallbackField = "result.content[0].text",
                 contractResource = resourceUri,
-                topLevelFields = new[] { "success", "snapshotId", "mutationCount", "executedMutationCount", "successfulMutationCount", "failedMutationCount", "skippedMutationCount", "mutations", "stateDiff", "rollback", "recovery" },
-                nestedResponsePaths = new[] { "mutations[].tool", "mutations[].success", "stateDiff.snapshotId", "rollback.params.snapshotId", "recovery.tool" },
+                topLevelFields = new[] { "success", "snapshotId", "mutationCount", "executedMutationCount", "successfulMutationCount", "failedMutationCount", "skippedMutationCount", "stateAfterTimeoutUnknown", "requiresReconnect", "retryAfterSeconds", "retryAfter", "availableTokens", "mutations", "stateDiff", "rollback", "recovery" },
+                nestedResponsePaths = new[] { "mutations[].tool", "mutations[].success", "mutations[].stateAfterTimeoutUnknown", "stateDiff.snapshotId", "rollback.params.snapshotId", "recovery.tool", "recovery.retryAfterSeconds" },
                 requestParameters = new[] { "captureSnapshot", "includeDiff", "mutations", "trigger" }
             },
             new

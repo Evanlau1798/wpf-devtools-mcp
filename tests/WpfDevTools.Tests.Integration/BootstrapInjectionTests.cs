@@ -1,5 +1,4 @@
 ﻿using System.IO;
-using System.Security.Cryptography;
 using FluentAssertions;
 using System.Text.Json;
 using WpfDevTools.Inspector;
@@ -9,7 +8,6 @@ using WpfDevTools.Injector.Injection;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Enums;
-using WpfDevTools.Shared.Security;
 using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
 using Xunit.Abstractions;
@@ -57,7 +55,8 @@ public class BootstrapInjectionTests : IDisposable
         using var smokeTimeoutCts = new CancellationTokenSource(LiveSmokeTimeout);
         _testApp = StartTestApp();
 
-        using var sessionManager = new SessionManager();
+        using var liveSession = SecureLiveSession.Create("WpfDevTools_BootstrapSmoke");
+        var sessionManager = liveSession.SessionManager;
         var injector = new ProcessInjector();
         var detector = new WpfProcessDetector();
         var connectTool = new ConnectTool(sessionManager, injector, detector,
@@ -106,56 +105,35 @@ public class BootstrapInjectionTests : IDisposable
         using var smokeTimeoutCts = new CancellationTokenSource(LiveSmokeTimeout);
         _testApp = StartTestApp();
 
-        var secretBytes = new byte[32];
-        RandomNumberGenerator.Fill(secretBytes);
-        var authSecret = Convert.ToBase64String(secretBytes);
-        var certDirectory = Path.Combine(Path.GetTempPath(), $"WpfDevTools_SecureConnect_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(certDirectory);
+        using var liveSession = SecureLiveSession.Create("WpfDevTools_SecureConnect");
+        var sessionManager = liveSession.SessionManager;
+        var injector = new ProcessInjector();
+        var detector = new WpfProcessDetector();
+        var connectTool = new ConnectTool(sessionManager, injector, detector,
+            dllPathValidator: TrustedLocalReleaseSignatureSkip.ValidateDllPath,
+            isRawInjectionTargetAllowed: _ => true,
+            targetPolicy: _ => new McpTargetAuthorization(true, null, null));
+        var pingTool = new PingTool(sessionManager);
 
-        try
-        {
-            using var sessionManager = new SessionManager(
-                authManager: new AuthenticationManager(() => authSecret),
-                certManager: new CertificateManager(certDirectory));
-            var injector = new ProcessInjector();
-            var detector = new WpfProcessDetector();
-            var connectTool = new ConnectTool(sessionManager, injector, detector,
-                dllPathValidator: TrustedLocalReleaseSignatureSkip.ValidateDllPath,
-                isRawInjectionTargetAllowed: _ => true,
-                targetPolicy: _ => new McpTargetAuthorization(true, null, null));
-            var pingTool = new PingTool(sessionManager);
+        var connectArgs = JsonSerializer.Deserialize<JsonElement>(
+            JsonSerializer.Serialize(new { processId = _testApp.Id }));
 
-            var connectArgs = JsonSerializer.Deserialize<JsonElement>(
-                JsonSerializer.Serialize(new { processId = _testApp.Id }));
+        var connectResult = await connectTool.ExecuteAsync(connectArgs, smokeTimeoutCts.Token);
+        var connectJson = JsonSerializer.Deserialize<JsonElement>(
+            JsonSerializer.Serialize(connectResult));
+        var connectError = connectJson.TryGetProperty("error", out var errorProp)
+            ? errorProp.GetString()
+            : null;
+        connectJson.GetProperty("success").GetBoolean().Should().BeTrue(
+            $"secure connect should succeed with auth+TLS enabled. Error={connectError ?? "<none>"}");
 
-            var connectResult = await connectTool.ExecuteAsync(connectArgs, smokeTimeoutCts.Token);
-            var connectJson = JsonSerializer.Deserialize<JsonElement>(
-                JsonSerializer.Serialize(connectResult));
-            var connectError = connectJson.TryGetProperty("error", out var errorProp)
-                ? errorProp.GetString()
-                : null;
-            connectJson.GetProperty("success").GetBoolean().Should().BeTrue(
-                $"secure connect should succeed with auth+TLS enabled. Error={connectError ?? "<none>"}");
-
-            var pingArgs = JsonSerializer.Deserialize<JsonElement>(
-                JsonSerializer.Serialize(new { processId = _testApp.Id }));
-            var pingResult = await pingTool.ExecuteAsync(pingArgs, smokeTimeoutCts.Token);
-            var pingJson = JsonSerializer.Deserialize<JsonElement>(
-                JsonSerializer.Serialize(pingResult));
-            pingJson.GetProperty("success").GetBoolean().Should().BeTrue(
-                "ping should succeed after secure connect");
-        }
-        finally
-        {
-            try
-            {
-                Directory.Delete(certDirectory, recursive: true);
-            }
-            catch
-            {
-                // Best-effort cleanup for integration temp assets.
-            }
-        }
+        var pingArgs = JsonSerializer.Deserialize<JsonElement>(
+            JsonSerializer.Serialize(new { processId = _testApp.Id }));
+        var pingResult = await pingTool.ExecuteAsync(pingArgs, smokeTimeoutCts.Token);
+        var pingJson = JsonSerializer.Deserialize<JsonElement>(
+            JsonSerializer.Serialize(pingResult));
+        pingJson.GetProperty("success").GetBoolean().Should().BeTrue(
+            "ping should succeed after secure connect");
     }
 
 
@@ -177,7 +155,8 @@ public class BootstrapInjectionTests : IDisposable
                 [IntegrationTestDelayHooks.DelayBeforeHostStartEnvVar] = "2500"
             });
 
-        using var sessionManager = new SessionManager();
+        using var liveSession = SecureLiveSession.Create("WpfDevTools_BootstrapTimeout");
+        var sessionManager = liveSession.SessionManager;
         var connectTool = CreateLiveConnectTool(sessionManager, TimeSpan.FromMilliseconds(1800));
 
         var connectResult = await connectTool.ExecuteAsync(
@@ -209,7 +188,8 @@ public class BootstrapInjectionTests : IDisposable
                 [IntegrationTestDelayHooks.DelayAfterPipeConnectEnvVar] = "3000"
             });
 
-        using var sessionManager = new SessionManager();
+        using var liveSession = SecureLiveSession.Create("WpfDevTools_FinalAttachTimeout");
+        var sessionManager = liveSession.SessionManager;
         var connectTool = CreateLiveConnectTool(sessionManager, TimeSpan.FromMilliseconds(2200));
 
         var connectResult = await connectTool.ExecuteAsync(
@@ -260,10 +240,7 @@ public class BootstrapInjectionTests : IDisposable
     [Trait("Category", "Integration")]
     public void DummyBootstrapperArtifact_WhenFileAlreadyExists_ShouldPreserveItOnDispose()
     {
-        var temporaryRoot = Path.Combine(
-            Path.GetTempPath(),
-            $"WpfDevTools_BootstrapArtifact_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(temporaryRoot);
+        var temporaryRoot = ReleasePackagingTestHarness.CreateTempDirectory();
         var bootstrapperPath = Path.Combine(temporaryRoot, "WpfDevTools.Bootstrapper.x64.dll");
         var originalBytes = new byte[] { 1, 2, 3, 4 };
         File.WriteAllBytes(bootstrapperPath, originalBytes);
@@ -278,7 +255,7 @@ public class BootstrapInjectionTests : IDisposable
         }
         finally
         {
-            Directory.Delete(temporaryRoot, recursive: true);
+            ReleasePackagingTestHarness.DeleteDirectory(temporaryRoot);
         }
     }
 
@@ -382,12 +359,8 @@ public class BootstrapInjectionTests : IDisposable
 
     public void Dispose()
     {
-        if (_testApp != null && !_testApp.HasExited)
-        {
-            _testApp.Kill();
-            _testApp.WaitForExit(5000);
-            _testApp.Dispose();
-        }
+        LiveTestProcessCleanup.StopAndDispose(_testApp);
+        _testApp = null;
 
         _dummyBootstrapperArtifact?.Dispose();
     }

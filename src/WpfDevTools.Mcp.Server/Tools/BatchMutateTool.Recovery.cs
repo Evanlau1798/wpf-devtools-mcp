@@ -31,21 +31,41 @@ public sealed partial class BatchMutateTool
         };
     }
 
-    private object? BuildRecovery(int processId, string? capturedSnapshotId)
+    private object? BuildRecovery(
+        int processId,
+        string? capturedSnapshotId,
+        ToolRecoveryProjection? projection)
     {
         if (!TryGetRetainedRollbackSnapshotId(processId, capturedSnapshotId, out var snapshotId, out var reason))
         {
             return new
             {
-                suggestedAction = "Inspect the failed batch_mutate response and manually reverse any completed mutations.",
-                hint = reason
+                suggestedAction = projection?.SuggestedAction
+                    ?? "Inspect the failed batch_mutate response and manually reverse any completed mutations.",
+                hint = projection?.Hint ?? reason,
+                requiresReconnect = projection?.RequiresReconnect,
+                stateAfterTimeoutUnknown = projection?.StateAfterTimeoutUnknown,
+                processId = projection?.ProcessId,
+                timeoutSeconds = projection?.TimeoutSeconds,
+                retryAfterSeconds = projection?.RetryAfterSeconds,
+                retryAfter = projection?.RetryAfter,
+                availableTokens = projection?.AvailableTokens,
+                availableEvents = projection?.AvailableEvents
             };
         }
 
         return new
         {
             suggestedAction = $"Call restore_state_snapshot with snapshotId '{snapshotId}' before retrying batch_mutate.",
-            hint = "The batch may have left runtime state partially changed.",
+            hint = projection?.Hint ?? "The batch may have left runtime state partially changed.",
+            requiresReconnect = projection?.RequiresReconnect,
+            stateAfterTimeoutUnknown = projection?.StateAfterTimeoutUnknown,
+            processId = projection?.ProcessId,
+            timeoutSeconds = projection?.TimeoutSeconds,
+            retryAfterSeconds = projection?.RetryAfterSeconds,
+            retryAfter = projection?.RetryAfter,
+            availableTokens = projection?.AvailableTokens,
+            availableEvents = projection?.AvailableEvents,
             tool = "restore_state_snapshot",
             @params = new
             {
@@ -59,8 +79,9 @@ public sealed partial class BatchMutateTool
         int processId,
         string? snapshotId,
         string errorCode,
-        string error) =>
-        new(error, errorCode, BuildRecovery(processId, snapshotId));
+        string error,
+        ToolRecoveryProjection? projection) =>
+        new(error, errorCode, BuildRecovery(processId, snapshotId, projection), projection);
 
     private bool TryGetRetainedRollbackSnapshotId(
         int processId,
@@ -92,5 +113,9 @@ public sealed partial class BatchMutateTool
         return false;
     }
 
-    private sealed record BatchMutationFailure(string Error, string ErrorCode, object? Recovery);
+    private sealed record BatchMutationFailure(
+        string Error,
+        string ErrorCode,
+        object? Recovery,
+        ToolRecoveryProjection? Projection);
 }

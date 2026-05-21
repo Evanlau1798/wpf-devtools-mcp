@@ -13,11 +13,13 @@ namespace WpfDevTools.Tests.Unit.Inspector;
 [Collection("BootstrapState")]
 public sealed class BootstrapInitializationRollbackTests : IDisposable
 {
+    private readonly IDisposable _unsafePlaintextScope;
     private InspectorHost? _startedHost;
     private AuthenticationManager? _authenticationManager;
 
     public BootstrapInitializationRollbackTests()
     {
+        _unsafePlaintextScope = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
         Bootstrap.ResetForTesting();
         Bootstrap.HostStartedCallback = host => _startedHost = host;
         Bootstrap.AuthenticationManagerCreatedCallback = manager => _authenticationManager = manager;
@@ -34,6 +36,8 @@ public sealed class BootstrapInitializationRollbackTests : IDisposable
         catch
         {
         }
+
+        _unsafePlaintextScope.Dispose();
     }
 
     [Fact]

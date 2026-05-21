@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using System.Text.Json;
 using WpfDevTools.Tests.Integration.E2E;
+using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
@@ -99,6 +100,7 @@ public sealed class IntegrationParallelizationCollectionContractTests
     }
 
     [Theory]
+    [InlineData(typeof(ActiveProcessWorkflowE2eTests))]
     [InlineData(typeof(McpToolSearchMetadataE2eTests))]
     [InlineData(typeof(ToolErrorContractE2eTests))]
     public void StdioServerOwningE2eTests_ShouldUseMcpE2ECollection(Type testClass)
@@ -108,12 +110,70 @@ public sealed class IntegrationParallelizationCollectionContractTests
     }
 
     [Theory]
+    [InlineData("tests/WpfDevTools.Tests.Integration/BootstrapInjectionTests.cs")]
+    [InlineData("tests/WpfDevTools.Tests.Integration/BootstrapEventTraceIntegrationTests.cs")]
+    [InlineData("tests/WpfDevTools.Tests.Integration/ConnectToolActiveProcessIntegrationTests.cs")]
+    public void LiveBootstrapCleanup_ShouldDisposeProcessHandlesEvenAfterEarlyExit(string relativePath)
+    {
+        var content = File.ReadAllText(ReleasePackagingTestHarness.GetRepoFilePath(relativePath));
+
+        content.Should().Contain("LiveTestProcessCleanup.StopAndDispose");
+        content.Should().NotContain("_testApp != null && !_testApp.HasExited");
+    }
+
+    [Theory]
+    [InlineData(
+        "tests/WpfDevTools.Tests.Integration/BootstrapInjectionTests.cs",
+        "SecureLiveSession.Create(")]
+    [InlineData(
+        "tests/WpfDevTools.Tests.Integration/E2E/NestedExecuteCommandPolicyE2eTests.cs",
+        "ReleasePackagingTestHarness.GetRepoFilePath(\"tmp\")")]
+    [InlineData(
+        "tests/WpfDevTools.Tests.Integration/TestSupport/SecureLiveSession.cs",
+        "ReleasePackagingTestHarness.GetRepoFilePath(\"tmp\")")]
+    public void LiveSecurityTempRoots_ShouldUseRepoTmpAndRobustCleanup(
+        string relativePath,
+        string expectedTempRootMarker)
+    {
+        var content = File.ReadAllText(ReleasePackagingTestHarness.GetRepoFilePath(relativePath));
+
+        content.Should().Contain(expectedTempRootMarker);
+        content.Should().Contain("ReleasePackagingTestHarness.DeleteDirectory");
+        content.Should().NotContain("Path.GetTempPath()");
+        content.Should().NotContain("Directory.Delete(");
+    }
+
+    [Fact]
+    public void LiveTestProcessCleanup_ShouldHandleExpectedKillRaceExceptionsAndStillDispose()
+    {
+        var content = File.ReadAllText(ReleasePackagingTestHarness.GetRepoFilePath(
+            "tests/WpfDevTools.Tests.Integration/TestSupport/LiveTestProcessCleanup.cs"));
+
+        content.Should().Contain("catch (InvalidOperationException)");
+        content.Should().Contain("catch (System.ComponentModel.Win32Exception)");
+        content.Should().Contain("process.Dispose();");
+    }
+
+    [Theory]
     [InlineData(typeof(BootstrapInjectionTests))]
     [InlineData(typeof(ConnectToolActiveProcessIntegrationTests))]
     [InlineData(typeof(BootstrapEventTraceIntegrationTests))]
     public void LiveBootstrapTests_ShouldUseWpfAndBootstrapIntegrationCollection(Type testClass)
     {
         GetCollectionName(testClass).Should().Be("WpfAndBootstrapIntegration");
+    }
+
+    [Theory]
+    [InlineData("tests/WpfDevTools.Tests.Integration/BootstrapInjectionTests.cs")]
+    [InlineData("tests/WpfDevTools.Tests.Integration/BootstrapEventTraceIntegrationTests.cs")]
+    [InlineData("tests/WpfDevTools.Tests.Integration/ConnectAutoDiscoveryIntegrationTests.cs")]
+    [InlineData("tests/WpfDevTools.Tests.Integration/ConnectToolActiveProcessIntegrationTests.cs")]
+    public void LiveBootstrapConnectTests_ShouldUseSecureLiveSession(string relativePath)
+    {
+        var content = File.ReadAllText(ReleasePackagingTestHarness.GetRepoFilePath(relativePath));
+
+        content.Should().Contain("SecureLiveSession.Create(",
+            "live injected inspectors fail closed unless the test session passes authentication and TLS artifacts through bootstrap");
     }
 
     [Fact]

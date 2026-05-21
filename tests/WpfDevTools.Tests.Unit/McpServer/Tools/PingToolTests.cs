@@ -4,13 +4,21 @@ using System.Text.Json;
 using WpfDevTools.Inspector.Host;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Tests.Unit.Inspector;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
 [Collection("TimingSensitive")]
-public class PingToolTests
+public class PingToolTests : IDisposable
 {
+    private readonly IDisposable _plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
+
+    public void Dispose()
+    {
+        _plaintextPolicy.Dispose();
+    }
+
     [Fact]
     public async Task Execute_WithoutConnection_ShouldReturnError()
     {

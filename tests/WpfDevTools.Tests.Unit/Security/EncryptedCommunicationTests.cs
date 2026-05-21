@@ -8,6 +8,7 @@ using WpfDevTools.Mcp.Server;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Security;
 using WpfDevTools.Shared.Serialization;
+using WpfDevTools.Tests.Unit.Inspector;
 using Xunit;
 using Xunit.Abstractions;
 using static WpfDevTools.Tests.Unit.TestHelpers;
@@ -20,9 +21,11 @@ public class EncryptedCommunicationTests : IDisposable
     private readonly string _tempCertDir;
     private readonly string _otherTempCertDir;
     private readonly ITestOutputHelper _output;
+    private readonly IDisposable _plaintextPolicy;
 
     public EncryptedCommunicationTests(ITestOutputHelper output)
     {
+        _plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
         _output = output;
         _tempCertDir = Path.Combine(Path.GetTempPath(), "WpfDevTools_Test_" + Guid.NewGuid());
         _otherTempCertDir = Path.Combine(Path.GetTempPath(), "WpfDevTools_Test_" + Guid.NewGuid());
@@ -32,6 +35,7 @@ public class EncryptedCommunicationTests : IDisposable
 
     public void Dispose()
     {
+        _plaintextPolicy.Dispose();
         try
         {
             if (Directory.Exists(_tempCertDir))

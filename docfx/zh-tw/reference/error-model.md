@@ -43,7 +43,7 @@
 
 ### 解讀方式
 
-- **Architecture mismatch**：改用與目標行程 bitness 一致的 server/bootstrapper build。
+- **Architecture mismatch**：`ArchitectureMismatch` 是 injection/bootstrapper error。raw injection 需要與目標行程 bitness 一致的 server/bootstrapper build；SDK-hosted reuse 透過 named pipes 通訊，target-side host 已啟動後不要求 server process 與 target process bitness 相同。
 - **Bootstrap failed**：bootstrapper 已啟動，但在 inspector 完全 ready 之前就失敗。
 - **Pipe ready timeout**：managed bridge 可能已被呼叫，但 named pipe 沒有在時限內 ready。
 

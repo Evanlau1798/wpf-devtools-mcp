@@ -22,44 +22,71 @@ public sealed partial class BindingAnalyzer
                 return ToolErrorFactory.ElementNotFound(elementId);
             }
 
+            BindingScanBudget? budget = null;
             var mismatches = recursive
-                ? CollectBindingMismatchesRecursive(element, includeFramework)
+                ? CollectBindingMismatchesRecursive(element, includeFramework, out budget)
                 : GetBindingMismatchesForElement(element, includeFramework);
 
             return new
             {
                 success = true,
                 mismatchCount = mismatches.Count,
-                mismatches
+                mismatches,
+                truncated = budget?.Truncated ?? false,
+                scanBudget = budget?.ToContract(mismatches.Count)
             };
         });
     }
 
-    private List<object> CollectBindingMismatchesRecursive(DependencyObject root, bool includeFramework)
+    private List<object> CollectBindingMismatchesRecursive(
+        DependencyObject root,
+        bool includeFramework,
+        out BindingScanBudget budget)
     {
         var mismatches = new List<object>();
-        var visited = new HashSet<DependencyObject>();
-        CollectBindingMismatchesRecursiveCore(root, visited, mismatches, includeFramework);
+        budget = new BindingScanBudget(
+            DefaultBindingTraversalNodeLimit,
+            DefaultBindingResultLimit,
+            "traversal-node-limit",
+            "result-limit");
+        var traversal = DependencyObjectTraversal.EnumerateDescendantsAndSelfWithMetadata(
+            root,
+            maxDepth: 50,
+            maxNodes: budget.MaxTraversalNodes);
+        foreach (var element in traversal)
+        {
+            if (!budget.TryTakeTraversalNode())
+            {
+                break;
+            }
+
+            var stopDueToResultLimit = false;
+            foreach (var mismatch in GetBindingMismatchesForElement(element, includeFramework))
+            {
+                if (budget.TryTakeResult())
+                {
+                    mismatches.Add(mismatch);
+                    if (budget.ResultLimitReached)
+                    {
+                        stopDueToResultLimit = true;
+                        break;
+                    }
+                }
+            }
+
+            if (stopDueToResultLimit)
+            {
+                budget.MarkResultTruncated();
+                break;
+            }
+        }
+
+        if (traversal.Truncated)
+        {
+            budget.MarkTraversalTruncated();
+        }
+
         return mismatches;
-    }
-
-    private void CollectBindingMismatchesRecursiveCore(
-        DependencyObject element,
-        HashSet<DependencyObject> visited,
-        List<object> mismatches,
-        bool includeFramework)
-    {
-        if (!visited.Add(element))
-        {
-            return;
-        }
-
-        mismatches.AddRange(GetBindingMismatchesForElement(element, includeFramework));
-
-        foreach (var child in DependencyObjectTraversal.EnumerateChildren(element))
-        {
-            CollectBindingMismatchesRecursiveCore(child, visited, mismatches, includeFramework);
-        }
     }
 
     private List<object> GetBindingMismatchesForElement(DependencyObject element, bool includeFramework)

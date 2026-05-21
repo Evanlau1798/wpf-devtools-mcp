@@ -227,7 +227,7 @@ public static class ServerInstructions
         - "Access denied" (errorCode: AccessDenied) -> restart MCP server as administrator
         - elevated target processes may be discoverable but still require the MCP server itself to run as administrator before connect/click/mutation tools can succeed
         - "Not a WPF application" -> use get_processes to find correct processId
-        - "Architecture mismatch" -> MCP server and target process must have matching architectures (both x64 or both x86). Use a package/build whose server, bootstrapper, and Inspector sidecar all match the target bitness
+        - "Architecture mismatch" -> Architecture matching is mandatory for raw injection/bootstrapper fallback. Use a package/build whose server, bootstrapper, and Inspector sidecar all match the target bitness. SDK-hosted reuse communicates over named pipes and does not require matching process bitness once the target-side host is already running
         - "signature verification failed" (errorCode: SecurityError) -> use a Debug build for local development (auto-skips verification for local DLLs), or sign the Inspector DLL with Authenticode for production
         - "timeout" -> process may be frozen; try ping() to verify connection
         - existing SDK host security mismatch that completes an incompatible authenticated/TLS handshake (errorCode: SecurityError) -> verify WPFDEVTOOLS_AUTH_SECRET matches and WPFDEVTOOLS_CERT_DIR is the same local absolute path in both the MCP server and target app. Network paths are not allowed. For connect() reuse, hardened SDK mode requires setting both values together before calling InspectorSdk.Initialize()
@@ -259,7 +259,8 @@ public static class ServerInstructions
 
         === LIMITATIONS ===
         - STDIO transport: Cannot push live watcher/event streams; use request-response diagnostics and polling workflows
-        - Self-contained single-file apps and Native AOT apps: raw injection is unavailable, but the overall WPF DevTools workflow remains available through the target-side SDK host; start InspectorSdk.Initialize() with matching transport settings so connect() can reuse the existing pipe-backed InspectorHost
+        - Self-contained single-file WPF apps: raw injection is unavailable, but the single-file WPF workflow remains available through the target-side SDK host; start InspectorSdk.Initialize() with matching transport settings so connect() can reuse the existing pipe-backed InspectorHost
+        - Native AOT apps: not supported; SDK-hosted reuse is not a Native AOT workaround because the Inspector SDK requires managed WPF runtime and assembly access
         - some trimmed apps: publish trimming may remove required types, making raw injection or SDK-host startup unreliable; prefer SDK-host reuse as the fallback, but do not assume it restores full compatibility
         - elevated targets: a non-administrator MCP server cannot inject into or control an administrator-launched WPF process
         - Changes are NOT persisted to XAML files

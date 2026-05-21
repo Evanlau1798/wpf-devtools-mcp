@@ -5,18 +5,18 @@
 請先檢查：
 
 - 目標 process 是正在執行的 WPF 應用程式
-- server process architecture 與 target process architecture 相同
-- 安裝後的版面中存在對應的 native bootstrapper
+- raw injection/bootstrapper fallback 使用與 target process 相同架構的 server package
+- SDK-hosted reuse 的 target-side Inspector host 已啟動，且 transport 設定相符
 
 ## 架構不相符
 
-最常見的修正方式，是切換成與目標 process bitness 一致的安裝包。
+Raw injection/bootstrapper fallback 必須符合架構。最常見的 raw-injection 修正方式，是切換成與目標 process bitness 一致的安裝包。
 
 - x64 target -> x64 package
 - x86 target -> x86 package
 - arm64 target -> arm64 package
 
-也請確認目前使用的 server、bootstrapper 與 inspector sidecar 都來自同一組相符 bitness 的 package/build。
+SDK-hosted reuse 透過 named pipes 通訊；target-side host 已啟動後，不要求 server process 與 target process bitness 相同。只有在 server 必須自行 injection 時，才需要確認 server、bootstrapper 與 inspector sidecar 都來自同一組相符 bitness 的 package/build。
 
 ## 缺少執行時
 
@@ -48,4 +48,6 @@
 
 ## 不支援的封裝型態與 injection 限制
 
-若目標使用 trimmed deployment、self-contained single-file、native AOT 等不支援的封裝型態，標準 injection 路徑可能無法使用。這時請優先考慮受支援的桌面封裝方式；若要用 SDK mode，請先在 target app 內呼叫 `InspectorSdk.Initialize()` 再呼叫 `connect()`。`connect()` 一定會先嘗試重用既有 SDK host，而 sidecar-free 的 executable layout 會得到最長的 reuse wait。
+若目標使用 self-contained single-file packaging，標準 injection 路徑無法使用。這時請優先考慮受支援的桌面封裝方式；若要用 SDK mode，請先在 target app 內呼叫 `InspectorSdk.Initialize()` 再呼叫 `connect()`。`connect()` 一定會先嘗試重用既有 SDK host，而 sidecar-free 的 executable layout 會得到最長的 reuse wait。
+
+Trimmed deployment 仍有風險，因為 publish trimming 可能移除必要的 WPF 或 Inspector 型別；SDK-host reuse 是 preferred fallback，不是保證。Native AOT target 不支援，SDK-hosted reuse 不是 Native AOT workaround。

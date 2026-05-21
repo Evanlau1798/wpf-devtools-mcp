@@ -85,6 +85,81 @@ public sealed class StateSnapshotRestoreTimeoutTests
         }
     }
 
+    [Fact]
+    public async Task RestoreStateSnapshot_WhenRestoreStepReturnsTimeoutPayload_ShouldLiftRecoveryAndStop()
+    {
+        var processId = NextSyntheticProcessId();
+        const string snapshotId = "snapshot_restore_payload_timeout";
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request => request.Method switch
+            {
+                "set_dp_value" => new
+                {
+                    success = false,
+                    error = "Inspector request timed out.",
+                    errorCode = "Timeout",
+                    stateAfterTimeoutUnknown = true,
+                    requiresReconnect = true,
+                    processId,
+                    timeoutSeconds = 5
+                },
+                _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
+            });
+        connected.SessionManager.SaveStateSnapshot(processId, CreateSnapshot(snapshotId));
+        connected.SessionManager.SetActiveSnapshotId(processId, snapshotId);
+
+        var result = JsonSerializer.SerializeToElement(await new RestoreStateSnapshotTool(connected.SessionManager)
+            .ExecuteAsync(ToJsonElement(new { processId, snapshotId }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("Timeout");
+        result.GetProperty("restoreIncomplete").GetBoolean().Should().BeTrue();
+        result.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
+        result.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
+        result.GetProperty("processId").GetInt32().Should().Be(processId);
+        result.GetProperty("timeoutSeconds").GetInt32().Should().Be(5);
+        connected.RequestMethods.Should().Equal("set_dp_value");
+        connected.SessionManager.TryGetStateSnapshot(processId, snapshotId, out _).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RestoreStateSnapshot_WhenRestoreStepReturnsRateLimitPayload_ShouldLiftBackoffRecoveryAndStop()
+    {
+        var processId = NextSyntheticProcessId();
+        const string snapshotId = "snapshot_restore_payload_rate_limit";
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request => request.Method switch
+            {
+                "set_dp_value" => new
+                {
+                    success = false,
+                    error = "Rate limit exceeded while restoring DependencyProperty.",
+                    errorCode = "RateLimitExceeded",
+                    availableTokens = 0,
+                    retryAfterSeconds = 13,
+                    retryAfter = "Wait 13 seconds before retrying restore_state_snapshot."
+                },
+                _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
+            });
+        connected.SessionManager.SaveStateSnapshot(processId, CreateSnapshot(snapshotId));
+        connected.SessionManager.SetActiveSnapshotId(processId, snapshotId);
+
+        var result = JsonSerializer.SerializeToElement(await new RestoreStateSnapshotTool(connected.SessionManager)
+            .ExecuteAsync(ToJsonElement(new { processId, snapshotId }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("RateLimitExceeded");
+        result.GetProperty("restoreIncomplete").GetBoolean().Should().BeTrue();
+        result.GetProperty("availableTokens").GetInt32().Should().Be(0);
+        result.GetProperty("retryAfterSeconds").GetInt32().Should().Be(13);
+        result.GetProperty("recovery").GetProperty("retryAfterSeconds").GetInt32().Should().Be(13);
+        result.GetProperty("recovery").GetProperty("availableTokens").GetInt32().Should().Be(0);
+        connected.RequestMethods.Should().Equal("set_dp_value");
+        connected.SessionManager.TryGetStateSnapshot(processId, snapshotId, out _).Should().BeTrue();
+    }
+
     private static object BlockFocusRestore(
         ManualResetEventSlim focusRequestObserved,
         ManualResetEventSlim releaseFocusResponse)

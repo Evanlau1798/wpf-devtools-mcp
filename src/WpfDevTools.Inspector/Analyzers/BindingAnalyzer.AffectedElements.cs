@@ -64,16 +64,21 @@ public sealed partial class BindingAnalyzer
 
             var matches = new List<AffectedElementMatch>();
             var unsupportedElements = new List<object>();
+            BindingScanBudget? budget = null;
             if (recursive)
             {
-                var visited = new HashSet<DependencyObject>();
+                budget = new BindingScanBudget(
+                    DefaultBindingTraversalNodeLimit,
+                    DefaultBindingResultLimit,
+                    "traversal-node-limit",
+                    "result-limit");
                 CollectAffectedElementsRecursive(
                     element,
                     propertyName.Trim(),
                     viewModelType,
-                    visited,
                     matches,
-                    unsupportedElements);
+                    unsupportedElements,
+                    budget);
             }
             else
             {
@@ -97,7 +102,9 @@ public sealed partial class BindingAnalyzer
                 affectedCount = matches.Count,
                 unsupportedCount = unsupportedElements.Count,
                 affectedElements = matches.Select(match => match.Payload).ToList(),
-                unsupportedElements
+                unsupportedElements,
+                truncated = budget?.Truncated ?? false,
+                scanBudget = budget?.ToContract(matches.Count + unsupportedElements.Count)
             };
         });
     }
@@ -106,28 +113,62 @@ public sealed partial class BindingAnalyzer
         DependencyObject element,
         string propertyName,
         string? viewModelType,
-        HashSet<DependencyObject> visited,
         List<AffectedElementMatch> affectedElements,
-        List<object> unsupportedElements)
+        List<object> unsupportedElements,
+        BindingScanBudget budget)
     {
-        if (!visited.Add(element))
+        var traversal = DependencyObjectTraversal.EnumerateDescendantsAndSelfWithMetadata(
+            element,
+            maxDepth: 50,
+            maxNodes: budget.MaxTraversalNodes);
+        foreach (var current in traversal)
         {
-            return;
+            if (!budget.TryTakeTraversalNode())
+            {
+                break;
+            }
+
+            var stopDueToResultLimit = false;
+            var scanResult = GetAffectedElementsForSingleElement(current, propertyName, viewModelType);
+            foreach (var match in scanResult.Matches)
+            {
+                if (budget.TryTakeResult())
+                {
+                    affectedElements.Add(match);
+                    if (budget.ResultLimitReached)
+                    {
+                        stopDueToResultLimit = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!stopDueToResultLimit)
+            {
+                foreach (var unsupported in scanResult.UnsupportedElements)
+                {
+                    if (budget.TryTakeResult())
+                    {
+                        unsupportedElements.Add(unsupported);
+                        if (budget.ResultLimitReached)
+                        {
+                            stopDueToResultLimit = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (stopDueToResultLimit)
+            {
+                budget.MarkResultTruncated();
+                break;
+            }
         }
 
-        var scanResult = GetAffectedElementsForSingleElement(element, propertyName, viewModelType);
-        affectedElements.AddRange(scanResult.Matches);
-        unsupportedElements.AddRange(scanResult.UnsupportedElements);
-
-        foreach (var child in DependencyObjectTraversal.EnumerateChildren(element))
+        if (traversal.Truncated)
         {
-            CollectAffectedElementsRecursive(
-                child,
-                propertyName,
-                viewModelType,
-                visited,
-                affectedElements,
-                unsupportedElements);
+            budget.MarkTraversalTruncated();
         }
     }
 

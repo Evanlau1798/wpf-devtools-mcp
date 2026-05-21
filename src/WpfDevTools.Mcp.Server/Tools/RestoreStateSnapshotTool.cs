@@ -55,6 +55,11 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                 progress.Warnings,
                 cancellationToken).ConfigureAwait(false);
         }
+        catch (StructuredRestoreFailureException ex)
+        {
+            progress.Warnings.Add("Restore received a timeout or transport recovery payload before all snapshot state could be verified.");
+            return CreateInterruptedRestoreResult(processId, snapshotId, progress, ex.Response);
+        }
         catch (Exception ex) when (IsRestoreInterrupted(ex))
         {
             progress.Warnings.Add("Restore was interrupted before all snapshot state could be verified; reconnect and re-read state before retrying.");
@@ -117,6 +122,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                     continue;
                 }
 
+                ThrowIfStructuredRestoreFailure(restoreResponse);
                 progress.Warnings.Add($"DependencyProperty restore failed for '{snapshot.PropertyName}'.");
                 continue;
             }
@@ -176,6 +182,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                 continue;
             }
 
+            ThrowIfStructuredRestoreFailure(response);
             progress.Warnings.Add($"DependencyProperty restore failed for '{snapshot.PropertyName}'.");
         }
     }
@@ -248,6 +255,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
                 continue;
             }
 
+            ThrowIfStructuredRestoreFailure(response);
             progress.Warnings.Add($"ViewModel restore failed for '{snapshot.PropertyName}'.");
         }
     }
@@ -268,6 +276,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
 
         if (!IsSuccess(response))
         {
+            ThrowIfStructuredRestoreFailure(response);
             return (false, null, "get_viewmodel read-back failed.");
         }
 
@@ -312,6 +321,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
             return true;
         }
 
+        ThrowIfStructuredRestoreFailure(response);
         warnings.Add("Focus restore failed.");
         return false;
     }
@@ -332,6 +342,7 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
 
         if (!IsSuccess(response))
         {
+            ThrowIfStructuredRestoreFailure(response);
             return (false, null, null, null, "get_dp_value_source read-back failed.");
         }
 
@@ -394,6 +405,15 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
     private static bool IsRestoreInterrupted(Exception exception) =>
         exception is OperationCanceledException or TimeoutException;
 
+    private static void ThrowIfStructuredRestoreFailure(JsonElement response)
+    {
+        if (ToolRecoveryPayload.IsTimeoutOrTransportRecovery(response)
+            || ToolRecoveryPayload.HasRecoveryGuidance(response))
+        {
+            throw new StructuredRestoreFailureException(response.Clone());
+        }
+    }
+
     private static object CreateRestoreResult(RestoreProgress progress) => new
     {
         success = progress.Warnings.Count == 0,
@@ -412,29 +432,54 @@ public sealed class RestoreStateSnapshotTool(SessionManager sessionManager) : Pi
     private static object CreateInterruptedRestoreResult(
         int processId,
         string snapshotId,
-        RestoreProgress progress) => new
+        RestoreProgress progress,
+        JsonElement? recoveryResponse = null)
     {
-        success = false,
-        error = "Restore state snapshot was interrupted before all restore steps completed.",
-        errorCode = "Timeout",
-        restoreIncomplete = true,
-        stateAfterTimeoutUnknown = true,
-        requiresReconnect = true,
-        hint = "Restore was interrupted after one or more live operations may have already reached the target process.",
-        suggestedAction = "Reconnect, re-read runtime state, then retry restore_state_snapshot with the same snapshotId if restoration is still needed.",
-        processId,
-        snapshotId,
-        restoredDependencyPropertyCount = progress.RestoredDependencyPropertyCount,
-        restoredDependencyProperties = progress.RestoredDependencyProperties,
-        skippedDependencyPropertyCount = progress.SkippedDependencyProperties.Count,
-        skippedDependencyProperties = progress.SkippedDependencyProperties,
-        restoredViewModelPropertyCount = progress.RestoredViewModelPropertyCount,
-        restoredViewModelProperties = progress.RestoredViewModelProperties,
-        skippedViewModelPropertyCount = progress.SkippedViewModelProperties.Count,
-        skippedViewModelProperties = progress.SkippedViewModelProperties,
-        restoredFocus = progress.RestoredFocus,
-        warnings = progress.Warnings
-    };
+        var recovery = recoveryResponse.HasValue
+            ? ToolRecoveryPayload.Extract(recoveryResponse.Value)
+            : new ToolRecoveryProjection(null, null, null, null, true, true, processId, null, null, null, null, null);
+        var timeoutOrTransportRecovery = !recoveryResponse.HasValue
+            || ToolRecoveryPayload.IsTimeoutOrTransportRecovery(recoveryResponse.Value);
+        var defaultStateAfterTimeoutUnknown = timeoutOrTransportRecovery ? true : (bool?)null;
+        var defaultRequiresReconnect = timeoutOrTransportRecovery ? true : (bool?)null;
+
+        return new
+        {
+            success = false,
+            error = recovery.Error ?? "Restore state snapshot was interrupted before all restore steps completed.",
+            errorCode = recovery.ErrorCode ?? "Timeout",
+            restoreIncomplete = true,
+            stateAfterTimeoutUnknown = recovery.StateAfterTimeoutUnknown ?? defaultStateAfterTimeoutUnknown,
+            requiresReconnect = recovery.RequiresReconnect ?? defaultRequiresReconnect,
+            hint = recovery.Hint ?? "Restore was interrupted before all snapshot state could be verified.",
+            suggestedAction = recovery.SuggestedAction
+                ?? recovery.RetryAfter
+                ?? "Reconnect, re-read runtime state, then retry restore_state_snapshot with the same snapshotId if restoration is still needed.",
+            processId = recovery.ProcessId ?? processId,
+            timeoutSeconds = recovery.TimeoutSeconds,
+            retryAfterSeconds = recovery.RetryAfterSeconds,
+            retryAfter = recovery.RetryAfter,
+            availableTokens = recovery.AvailableTokens,
+            availableEvents = recovery.AvailableEvents,
+            recovery = recovery.ToRecovery(),
+            snapshotId,
+            restoredDependencyPropertyCount = progress.RestoredDependencyPropertyCount,
+            restoredDependencyProperties = progress.RestoredDependencyProperties,
+            skippedDependencyPropertyCount = progress.SkippedDependencyProperties.Count,
+            skippedDependencyProperties = progress.SkippedDependencyProperties,
+            restoredViewModelPropertyCount = progress.RestoredViewModelPropertyCount,
+            restoredViewModelProperties = progress.RestoredViewModelProperties,
+            skippedViewModelPropertyCount = progress.SkippedViewModelProperties.Count,
+            skippedViewModelProperties = progress.SkippedViewModelProperties,
+            restoredFocus = progress.RestoredFocus,
+            warnings = progress.Warnings
+        };
+    }
+
+    private sealed class StructuredRestoreFailureException(JsonElement response) : Exception
+    {
+        public JsonElement Response { get; } = response;
+    }
 
     private sealed class RestoreProgress
     {

@@ -69,7 +69,10 @@ After the app is running, call `connect()` from the MCP client. The server probe
 - You own the target app source code.
 - You need production diagnostics without broadening raw injection policy.
 - The deployment policy or AV tooling blocks DLL injection.
-- The app uses single-file, Native AOT, or trimmed publish modes that make raw injection unreliable.
+- The app uses single-file publish mode that makes raw injection unavailable.
+- The app uses trimmed publish mode and you accept that SDK-host startup is a preferred fallback rather than a guarantee.
+
+Native AOT targets are not supported today. SDK-hosted reuse is not a Native AOT workaround.
 
 ## Keep raw injection fallback when
 
@@ -82,4 +85,6 @@ After the app is running, call `connect()` from the MCP client. The server probe
 
 - If `InspectorSdk.Initialize()` fails, inspect `InspectorSdk.LastInitializationStatus`.
 - If `connect()` does not reuse the SDK host, confirm both processes share the same `WPFDEVTOOLS_AUTH_SECRET` and local absolute directory in `WPFDEVTOOLS_CERT_DIR`.
-- If packaging is single-file, Native AOT, or trimmed, prefer SDK-hosted mode and treat raw injection as fallback only.
+- If packaging is single-file, prefer SDK-hosted mode and treat raw injection as fallback only.
+- If packaging is trimmed, prefer SDK-hosted mode but verify startup because trimming can remove required inspector types.
+- Native AOT targets are not supported today; SDK-hosted reuse is not a Native AOT workaround.

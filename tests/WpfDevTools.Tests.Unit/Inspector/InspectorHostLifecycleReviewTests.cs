@@ -11,9 +11,11 @@ public sealed class InspectorHostLifecycleReviewTests : IDisposable
     private readonly Action _originalResetMonitoringAction;
     private readonly Action _originalStopAllWatchersAction;
     private readonly Action _originalUninstallBindingTraceListenerAction;
+    private readonly IDisposable _plaintextPolicy;
 
     public InspectorHostLifecycleReviewTests()
     {
+        _plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
         _originalResetMonitoringAction = InspectorHost.ResetMonitoringAction;
         _originalStopAllWatchersAction = InspectorHost.StopAllWatchersAction;
         _originalUninstallBindingTraceListenerAction = InspectorHost.UninstallBindingTraceListenerAction;
@@ -27,6 +29,7 @@ public sealed class InspectorHostLifecycleReviewTests : IDisposable
         InspectorHost.ResetMonitoringAction = _originalResetMonitoringAction;
         InspectorHost.StopAllWatchersAction = _originalStopAllWatchersAction;
         InspectorHost.UninstallBindingTraceListenerAction = _originalUninstallBindingTraceListenerAction;
+        _plaintextPolicy.Dispose();
     }
 
     [Fact]

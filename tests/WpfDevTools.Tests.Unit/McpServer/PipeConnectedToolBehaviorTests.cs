@@ -3,6 +3,7 @@ using FluentAssertions;
 using WpfDevTools.Inspector.Host;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Tests.Unit.Inspector;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
@@ -11,9 +12,11 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public class PipeConnectedToolBehaviorTests : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
+    private readonly IDisposable _plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
 
     public void Dispose()
     {
+        _plaintextPolicy.Dispose();
         _sessionManager.Dispose();
     }
 

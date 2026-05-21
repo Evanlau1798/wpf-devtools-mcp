@@ -12,8 +12,15 @@ using WpfDevTools.Tests.Unit.Execution;
 namespace WpfDevTools.Tests.Unit.Inspector;
 
 [Collection("TimingSensitive")]
-public class InspectorHostAuthTests
+public class InspectorHostAuthTests : IDisposable
 {
+    private readonly IDisposable _plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
+
+    public void Dispose()
+    {
+        _plaintextPolicy.Dispose();
+    }
+
     [Fact]
     public async Task AuthEnabled_ValidClient_ShouldAllowCommunication()
     {

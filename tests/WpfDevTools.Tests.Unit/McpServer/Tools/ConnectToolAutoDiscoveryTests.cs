@@ -8,6 +8,7 @@ using WpfDevTools.Inspector.Host;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Tests.Unit.Inspector;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
@@ -344,6 +345,7 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
         public override InjectionResult InjectWithBootstrap(InjectionRequest request, CancellationToken cancellationToken = default)
         {
             var host = new InspectorHost(request.ProcessId, request.ExpectedPipeName);
+            using var plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
             host.Start();
             _hosts.Add(host);
 

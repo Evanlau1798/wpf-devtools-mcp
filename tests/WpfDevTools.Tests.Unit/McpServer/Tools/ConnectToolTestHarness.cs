@@ -13,6 +13,7 @@ using WpfDevTools.Shared.Enums;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Security;
+using WpfDevTools.Tests.Unit.Inspector;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
@@ -209,6 +210,7 @@ public partial class ConnectToolTests
         private InjectionResult StartPipeServer(InjectionRequest request, CancellationToken cancellationToken)
         {
             _host = new InspectorHost(request.ProcessId, request.ExpectedPipeName);
+            using var plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
             _host.Start();
 
             return InjectionResult.CreateSuccess(

@@ -7,13 +7,21 @@ using WpfDevTools.Mcp.Server;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Security;
 using WpfDevTools.Shared.Serialization;
+using WpfDevTools.Tests.Unit.Inspector;
 using Xunit;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
-public class NamedPipeClientAuthTests
+public class NamedPipeClientAuthTests : IDisposable
 {
+    private readonly IDisposable _plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
+
+    public void Dispose()
+    {
+        _plaintextPolicy.Dispose();
+    }
+
     [Fact]
     public async Task ConnectAsync_WithMatchingSecret_ShouldSucceed()
     {

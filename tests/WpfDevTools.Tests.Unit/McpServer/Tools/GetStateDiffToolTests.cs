@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Mcp.Server.State;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Serialization;
@@ -150,6 +151,129 @@ public sealed class GetStateDiffToolTests : IDisposable
         result.GetProperty("resolvedBindingErrors").GetArrayLength().Should().Be(1);
         result.GetProperty("validationChanges").GetArrayLength().Should().Be(2);
         result.GetProperty("focusChange").GetProperty("changed").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenSnapshotHasPartialBaselines_ShouldSkipOmittedDiagnostics()
+    {
+        const int processId = 51022;
+        const string snapshotId = "snapshot_partial_baseline";
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            new[]
+            {
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    propertyName = "Text",
+                    currentValue = "Bob",
+                    baseValueSource = "LocalValue"
+                }),
+                JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    properties = new[] { new { name = "Name", value = "Bob" } }
+                }),
+                JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    error = "Diagnostics should be skipped for omitted baselines.",
+                    errorCode = "UnexpectedDiagnosticCall"
+                })
+            });
+        connected.SessionManager.SaveStateSnapshot(processId, new StoredStateSnapshot(
+            snapshotId,
+            SnapshotName: null,
+            ElementId: "NameTextBox",
+            DependencyProperties:
+            [
+                new StoredDependencyPropertySnapshot(
+                    "NameTextBox",
+                    "Text",
+                    HadLocalValue: true,
+                    LocalValue: "Alice",
+                    CurrentValue: "Alice",
+                    BaseValueSource: "LocalValue")
+            ],
+            ViewModelProperties:
+            [
+                new StoredViewModelPropertySnapshot(
+                    "NameTextBox",
+                    "Name",
+                    "String",
+                    "Alice",
+                    CanRestore: true,
+                    SkipReason: null)
+            ],
+            Focus: null,
+            BindingErrors: [],
+            HasBindingErrorBaseline: false,
+            ValidationErrors: [],
+            HasValidationBaseline: false,
+            CapturedAtUtc: DateTimeOffset.UtcNow));
+
+        var result = JsonSerializer.SerializeToElement(await new GetStateDiffTool(connected.SessionManager)
+            .ExecuteAsync(ToJsonElement(new { processId, snapshotId }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("propertyChanges").GetArrayLength().Should().Be(1);
+        result.GetProperty("viewModelChanges").GetArrayLength().Should().Be(1);
+        result.GetProperty("newBindingErrors").GetArrayLength().Should().Be(0);
+        result.GetProperty("resolvedBindingErrors").GetArrayLength().Should().Be(0);
+        result.GetProperty("validationChanges").GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenStepReturnsTimeoutPayload_ShouldLiftRecoveryMetadata()
+    {
+        const int processId = 51023;
+        const string snapshotId = "snapshot_diff_timeout";
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            new[]
+            {
+                JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    error = "Inspector request timed out.",
+                    errorCode = "Timeout",
+                    stateAfterTimeoutUnknown = true,
+                    requiresReconnect = true,
+                    processId,
+                    timeoutSeconds = 4
+                })
+            });
+        connected.SessionManager.SaveStateSnapshot(processId, new StoredStateSnapshot(
+            snapshotId,
+            SnapshotName: null,
+            ElementId: "NameTextBox",
+            DependencyProperties:
+            [
+                new StoredDependencyPropertySnapshot(
+                    "NameTextBox",
+                    "Text",
+                    HadLocalValue: true,
+                    LocalValue: "Alice",
+                    CurrentValue: "Alice",
+                    BaseValueSource: "LocalValue")
+            ],
+            ViewModelProperties: [],
+            Focus: null,
+            BindingErrors: [],
+            HasBindingErrorBaseline: false,
+            ValidationErrors: [],
+            HasValidationBaseline: false,
+            CapturedAtUtc: DateTimeOffset.UtcNow));
+
+        var result = JsonSerializer.SerializeToElement(await new GetStateDiffTool(connected.SessionManager)
+            .ExecuteAsync(ToJsonElement(new { processId, snapshotId }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("Timeout");
+        result.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
+        result.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
+        result.GetProperty("processId").GetInt32().Should().Be(processId);
+        result.GetProperty("timeoutSeconds").GetInt32().Should().Be(4);
     }
 
     [Fact]

@@ -11,8 +11,15 @@ using WpfDevTools.Tests.Unit.Execution;
 namespace WpfDevTools.Tests.Unit.Inspector;
 
 [Collection("TimingSensitive")]
-public sealed class InspectorHostSessionTimeoutTests
+public sealed class InspectorHostSessionTimeoutTests : IDisposable
 {
+    private readonly IDisposable _plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
+
+    public void Dispose()
+    {
+        _plaintextPolicy.Dispose();
+    }
+
     [Fact]
     public async Task IdleConnection_ShouldBeReapedAfterSessionReadTimeout_AndAllowNextClient()
     {

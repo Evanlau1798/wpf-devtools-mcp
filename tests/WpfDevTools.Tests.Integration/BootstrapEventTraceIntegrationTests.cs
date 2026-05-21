@@ -35,7 +35,8 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
         using var testTimeoutCts = new CancellationTokenSource(LiveTraceTimeout);
 
         _testApp = StartTestApp();
-        using var sessionManager = new SessionManager();
+        using var liveSession = SecureLiveSession.Create("WpfDevTools_EventTraceCheckBox");
+        var sessionManager = liveSession.SessionManager;
         var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector(),
             dllPathValidator: TrustedLocalReleaseSignatureSkip.ValidateDllPath,
             isRawInjectionTargetAllowed: _ => true,
@@ -113,7 +114,8 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
         using var testTimeoutCts = new CancellationTokenSource(LiveTraceTimeout);
 
         _testApp = StartTestApp();
-        using var sessionManager = new SessionManager();
+        using var liveSession = SecureLiveSession.Create("WpfDevTools_EventTraceLab");
+        var sessionManager = liveSession.SessionManager;
         var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector(),
             dllPathValidator: TrustedLocalReleaseSignatureSkip.ValidateDllPath,
             isRawInjectionTargetAllowed: _ => true,
@@ -327,11 +329,7 @@ public sealed class BootstrapEventTraceIntegrationTests : IDisposable
 
     public void Dispose()
     {
-        if (_testApp != null && !_testApp.HasExited)
-        {
-            _testApp.Kill();
-            _testApp.WaitForExit(5000);
-            _testApp.Dispose();
-        }
+        LiveTestProcessCleanup.StopAndDispose(_testApp);
+        _testApp = null;
     }
 }

@@ -210,6 +210,58 @@ public sealed class BindingMismatchAnalyzerTests
                 item.GetProperty("origin").GetString() == "UserCode");
     }
 
+    [StaFact]
+    public void GetBindingMismatches_WithLargeRecursiveTree_ShouldReturnTruncationMetadata()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var root = new StackPanel();
+
+        for (var index = 0; index < 600; index++)
+        {
+            var button = new Button();
+            button.SetBinding(Control.BackgroundProperty, new Binding(nameof(BindingMismatchSource.IsEnabled))
+            {
+                Source = new BindingMismatchSource { IsEnabled = true }
+            });
+            root.Children.Add(button);
+        }
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetBindingMismatches(finder.GenerateElementId(root), recursive: true));
+
+        result.GetProperty("truncated").GetBoolean().Should().BeTrue();
+        result.GetProperty("mismatchCount").GetInt32().Should().BeLessOrEqualTo(200);
+        result.GetProperty("scanBudget").GetProperty("traversalNodeCount").GetInt32().Should().BeLessOrEqualTo(512);
+    }
+
+    [StaFact]
+    public void GetBindingMismatches_WhenResultLimitIsHit_ShouldStopRecursiveElementAnalysis()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var root = new StackPanel();
+
+        for (var index = 0; index < 600; index++)
+        {
+            var button = new Button();
+            button.SetBinding(Control.BackgroundProperty, new Binding(nameof(BindingMismatchSource.IsEnabled))
+            {
+                Source = new BindingMismatchSource { IsEnabled = true }
+            });
+            root.Children.Add(button);
+        }
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetBindingMismatches(finder.GenerateElementId(root), recursive: true));
+        var budget = result.GetProperty("scanBudget");
+
+        result.GetProperty("mismatchCount").GetInt32().Should().Be(200);
+        budget.GetProperty("returnedResultCount").GetInt32().Should().Be(200);
+        budget.GetProperty("totalResultCount").GetInt32().Should().Be(200);
+        budget.GetProperty("traversalNodeCount").GetInt32().Should().BeLessOrEqualTo(201);
+    }
+
     private static ControlTemplate BuildTemplateWithUnnamedFrameworkHost()
     {
         var template = new ControlTemplate(typeof(Button));

@@ -264,6 +264,52 @@ public sealed class BindingAnalyzerAffectedElementsTests
         result.GetProperty("affectedCount").GetInt32().Should().Be(0);
     }
 
+    [StaFact]
+    public void GetAffectedElements_WithLargeRecursiveTree_ShouldReturnTruncationMetadata()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var root = new StackPanel();
+
+        for (var index = 0; index < 600; index++)
+        {
+            var textBox = new TextBox { DataContext = new MatchingViewModel() };
+            textBox.SetBinding(TextBox.TextProperty, new Binding("Name"));
+            root.Children.Add(textBox);
+        }
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetAffectedElements("Name", null, finder.GenerateElementId(root), recursive: true));
+
+        result.GetProperty("truncated").GetBoolean().Should().BeTrue();
+        result.GetProperty("affectedCount").GetInt32().Should().BeLessOrEqualTo(200);
+        result.GetProperty("scanBudget").GetProperty("traversalNodeCount").GetInt32().Should().BeLessOrEqualTo(512);
+    }
+
+    [StaFact]
+    public void GetAffectedElements_WhenResultLimitIsHit_ShouldStopRecursiveElementAnalysis()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var root = new StackPanel();
+
+        for (var index = 0; index < 600; index++)
+        {
+            var textBox = new TextBox { DataContext = new MatchingViewModel() };
+            textBox.SetBinding(TextBox.TextProperty, new Binding("Name"));
+            root.Children.Add(textBox);
+        }
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetAffectedElements("Name", null, finder.GenerateElementId(root), recursive: true));
+        var budget = result.GetProperty("scanBudget");
+
+        result.GetProperty("affectedCount").GetInt32().Should().Be(200);
+        budget.GetProperty("returnedResultCount").GetInt32().Should().Be(200);
+        budget.GetProperty("totalResultCount").GetInt32().Should().Be(200);
+        budget.GetProperty("traversalNodeCount").GetInt32().Should().BeLessOrEqualTo(201);
+    }
+
     private sealed class MatchingViewModel
     {
         public string Name { get; set; } = "Alice";

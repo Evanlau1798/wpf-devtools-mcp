@@ -296,7 +296,8 @@ public sealed class ConnectAutoDiscoveryLiveIntegrationTests : IDisposable
         EnsureLiveBootstrapReady();
 
         var testApp = StartTestApp();
-        using var sessionManager = new SessionManager();
+        using var liveSession = SecureLiveSession.Create("WpfDevTools_AutoDiscoveryCandidates");
+        var sessionManager = liveSession.SessionManager;
         var detector = new FilteringProcessDetector(testApp.Id);
         var connectTool = CreateLiveTool(sessionManager, detector);
         var pingTool = new PingTool(sessionManager);
@@ -323,7 +324,8 @@ public sealed class ConnectAutoDiscoveryLiveIntegrationTests : IDisposable
     {
         var firstTestApp = StartTestApp();
         var secondTestApp = StartTestApp();
-        using var sessionManager = new SessionManager();
+        using var liveSession = SecureLiveSession.Create("WpfDevTools_AutoDiscoveryVisible");
+        var sessionManager = liveSession.SessionManager;
         var detector = new FilteringProcessDetector(firstTestApp.Id, secondTestApp.Id);
         var connectTool = CreateLiveTool(sessionManager, detector);
 
@@ -355,7 +357,8 @@ public sealed class ConnectAutoDiscoveryLiveIntegrationTests : IDisposable
 
         var visibleTestApp = StartTestApp();
         var hiddenTestApp = StartTestApp();
-        using var sessionManager = new SessionManager();
+        using var liveSession = SecureLiveSession.Create("WpfDevTools_AutoDiscoveryVisible");
+        var sessionManager = liveSession.SessionManager;
         var detector = new FilteringProcessDetector(visibleTestApp.Id, hiddenTestApp.Id);
         var connectTool = CreateLiveTool(sessionManager, detector);
         var pingTool = new PingTool(sessionManager);
@@ -382,21 +385,7 @@ public sealed class ConnectAutoDiscoveryLiveIntegrationTests : IDisposable
     {
         foreach (var testApp in _testApps)
         {
-            try
-            {
-                if (!testApp.HasExited)
-                {
-                    testApp.Kill();
-                    testApp.WaitForExit(5000);
-                }
-            }
-            catch
-            {
-            }
-            finally
-            {
-                testApp.Dispose();
-            }
+            LiveTestProcessCleanup.StopAndDispose(testApp);
         }
 
         _testApps.Clear();

@@ -22,6 +22,7 @@ namespace WpfDevTools.Inspector.Host;
 /// </summary>
 public sealed partial class InspectorHost : IDisposable
 {
+    private const string AllowUnsafePlaintextEnvVar = "WPFDEVTOOLS_ALLOW_UNSAFE_PLAINTEXT_INSPECTORHOST";
     private const int LifecycleStopped = 0;
     private const int LifecycleStarting = 1;
     private const int LifecycleRunning = 2;
@@ -50,6 +51,7 @@ public sealed partial class InspectorHost : IDisposable
     private long _nextStopOperationId;
     private int _disposeState;
     private readonly object _lock = new object();
+    private static readonly AsyncLocal<Func<bool>?> UnsafePlaintextPolicyOverride = new();
 
     internal static Action ResetMonitoringAction { get; set; } = static () => PerformanceAnalyzer.ResetMonitoring();
     internal static Action StopAllWatchersAction { get; set; } = static () => DependencyPropertyAnalyzer.StopAllWatchers();
@@ -172,6 +174,8 @@ public sealed partial class InspectorHost : IDisposable
     /// </remarks>
     public void Start()
     {
+        ThrowIfUnsafePlaintextNotAllowed();
+
         while (true)
         {
             Task startupTask;
@@ -297,7 +301,44 @@ public sealed partial class InspectorHost : IDisposable
 
     internal bool IsDisposed => System.Threading.Volatile.Read(ref _disposeState) == 2;
 
+    internal static IDisposable BeginUnsafePlaintextPolicyTestScope(Func<bool> policy)
+    {
+        var previous = UnsafePlaintextPolicyOverride.Value;
+        UnsafePlaintextPolicyOverride.Value = policy;
+        return new TestPolicyScope(() => UnsafePlaintextPolicyOverride.Value = previous);
+    }
 
+    private void ThrowIfUnsafePlaintextNotAllowed()
+    {
+        var hasAuthentication = _authManager?.IsAuthenticationEnabled == true;
+        var hasTls = _certManager != null;
+        if ((hasAuthentication && hasTls) || IsUnsafePlaintextAllowed())
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            "Starting an unsafe plaintext or partially secured InspectorHost requires explicit opt-in. " +
+            $"Set {AllowUnsafePlaintextEnvVar}=1 only for local tests or use InspectorSdk.Initialize with authentication and TLS.");
+    }
+
+    private static bool IsUnsafePlaintextAllowed()
+    {
+        if (UnsafePlaintextPolicyOverride.Value is { } overridePolicy)
+        {
+            return overridePolicy();
+        }
+
+        var value = Environment.GetEnvironmentVariable(AllowUnsafePlaintextEnvVar);
+        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed class TestPolicyScope(Action restore) : IDisposable
+    {
+        public void Dispose() => restore();
+    }
 
 }
 

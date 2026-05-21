@@ -275,12 +275,26 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
                 return ToolErrorFactory.ElementNotFound(elementId);
 
             var errors = new List<object>();
+            var traversal = (
+                TraversalNodeCount: 0,
+                TraversalTruncated: false,
+                ValidationErrorsTruncated: false);
             if (element is DependencyObject depObj)
             {
-                CollectValidationErrors(depObj, errors, maxDepth: 50);
+                traversal = CollectValidationErrors(depObj, errors, maxDepth: 50);
             }
 
-            return new { success = true, errorCount = errors.Count, errors };
+            return new
+            {
+                success = true,
+                errorCount = errors.Count,
+                errors,
+                traversalNodeCount = traversal.TraversalNodeCount,
+                traversalTruncated = traversal.TraversalTruncated,
+                maxTraversalNodes = MaxValidationTraversalNodes,
+                validationErrorsTruncated = traversal.ValidationErrorsTruncated,
+                maxValidationErrors = MaxValidationErrors
+            };
         });
     }
 

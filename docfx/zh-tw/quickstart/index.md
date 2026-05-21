@@ -6,12 +6,14 @@
 
 - Windows 10 以上
 - 與 MCP server 使用同一個使用者帳號執行的 WPF 應用程式
-- 已確認 target process 架構為 `x64`、`x86` 或 `arm64`
+- 已確認要安裝的 package 架構為 `x64`、`x86` 或 `arm64`
 - 已審查 WPF target 的 exact absolute executable path，並將它加入 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`；未設定或 malformed allowlist 會在 `connect()` attach 前 fail closed
 
 ## 先確認架構規則
 
-`connect` 只有在 server process 架構與 bootstrapper 架構都和 target process 相符時才會成功。
+Raw injection/bootstrapper fallback 必須符合架構。需要 zero-instrumentation attach 時，請安裝與 target process 相同 bitness 的 package。
+
+SDK-hosted reuse 透過 named pipes 通訊；target-side host 已啟動後，不要求 server process 與 target process bitness 相同。
 
 - `x64` target -> 安裝並執行 `x64` 套件
 - `x86` target -> 安裝並執行 `x86` 套件
@@ -93,7 +95,7 @@ server 只能檢查 live WPF process。先啟動目標應用程式，再啟動 M
 
 健康的首次執行徵象：
 
-- `connect()` 在 target 已 allowlist、架構相容，且只有一個可見 WPF target 時成功
+- `connect()` 在 target 已 allowlist、可使用 injection 或已暴露 SDK-hosted Inspector，且只有一個可見 WPF target 時成功
 - 若存在多個 target，`get_processes(windowFilter)` 能回傳正確候選清單
 - `get_ui_summary` 能穩定回傳 root scene 的語意摘要
 

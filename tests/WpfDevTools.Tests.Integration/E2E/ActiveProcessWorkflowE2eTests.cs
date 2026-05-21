@@ -3,6 +3,7 @@ using FluentAssertions;
 
 namespace WpfDevTools.Tests.Integration.E2E;
 
+[Collection("McpE2E")]
 public class ActiveProcessWorkflowE2eTests : IDisposable
 {
     private readonly McpStdioClient _client = new();

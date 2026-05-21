@@ -47,8 +47,27 @@ public class BootstrapperSecureTransportContractTests
             "auth secret handoff files should carry a DPAPI-protected payload instead of plaintext");
         content.Should().Contain("WPFDEVTOOLS-DPAPI:CurrentUser",
             "the native bootstrapper must recognize the protected payload format written by the injector");
+        content.Should().Contain("IsLocalMachineDpapiFallbackAllowed",
+            "the native bootstrapper should reject LocalMachine DPAPI handoff payloads unless migration is explicitly enabled");
+        content.Should().Contain("WPFDEVTOOLS_ALLOW_LOCALMACHINE_DPAPI_FALLBACK",
+            "native and managed DPAPI fallback policy should use the same explicit opt-in variable");
         projectContent.Should().Contain("Crypt32.lib",
             "the bootstrapper must link the Windows DPAPI library used to decrypt the handoff secret");
+    }
+
+    [Fact]
+    public void BootstrapEntry_ShouldRejectUnmarkedDpapiPayloadsBeforeDecrypting()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
+        var method = GetMethodBody(content, "static bool ReadProtectedAuthSecretFile");
+
+        method.Should().Contain("size_t payloadOffset = std::string::npos;",
+            "the native bootstrapper cannot infer whether an unmarked DPAPI blob was protected for CurrentUser or LocalMachine");
+        method.Should().Contain("if (payloadOffset == std::string::npos)",
+            "unmarked protected handoff payloads should fail closed before CryptUnprotectData can decrypt a LocalMachine blob");
+        method.IndexOf("if (payloadOffset == std::string::npos)", StringComparison.Ordinal)
+            .Should().BeLessThan(method.IndexOf("CryptUnprotectData", StringComparison.Ordinal));
     }
 
     [Fact]

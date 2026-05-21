@@ -39,7 +39,7 @@ public static partial class ToolCallHelper
     {
         "get_binding_errors"
     };
-    private static readonly HashSet<string> TimeoutReconnectOptOutTools = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> TimeoutReconnectOptOutTools = new(StringComparer.OrdinalIgnoreCase)
     {
         "Connect",
         "GetProcesses",

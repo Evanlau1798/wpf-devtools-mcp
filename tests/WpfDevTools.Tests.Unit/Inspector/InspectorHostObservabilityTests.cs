@@ -13,6 +13,7 @@ namespace WpfDevTools.Tests.Unit.Inspector;
 public class InspectorHostObservabilityTests : IDisposable
 {
     private readonly List<string> _logFilesToDelete = new();
+    private readonly IDisposable _plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
 
     [Fact]
     public async Task InspectorHost_WhenHandlingRequest_WithRequestLoggingEnabled_ShouldReturnAndLogCorrelationId()
@@ -71,6 +72,7 @@ public class InspectorHostObservabilityTests : IDisposable
 
     public void Dispose()
     {
+        _plaintextPolicy.Dispose();
         foreach (var logFile in _logFilesToDelete)
         {
             TryDelete(logFile);

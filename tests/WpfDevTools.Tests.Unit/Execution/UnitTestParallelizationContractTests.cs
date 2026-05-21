@@ -45,6 +45,27 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
+    public void UnitTests_ShouldNotGloballyEnableUnsafePlaintextInspectorHost()
+    {
+        var testRoot = GetRepoFilePath("tests/WpfDevTools.Tests.Unit");
+        var offenders = Directory.EnumerateFiles(testRoot, "*.cs", SearchOption.AllDirectories)
+            .Select(path => new
+            {
+                Path = Path.GetRelativePath(GetRepoFilePath("."), path).Replace('\\', '/'),
+                Content = File.ReadAllText(path)
+            })
+            .Where(file => file.Path != "tests/WpfDevTools.Tests.Unit/Execution/UnitTestParallelizationContractTests.cs")
+            .Where(file =>
+                file.Content.Contains("ModuleInitializer", StringComparison.Ordinal) &&
+                file.Content.Contains("WPFDEVTOOLS_ALLOW_UNSAFE_PLAINTEXT_INSPECTORHOST", StringComparison.Ordinal))
+            .Select(file => file.Path)
+            .ToArray();
+
+        offenders.Should().BeEmpty(
+            "legacy plaintext InspectorHost tests must opt in with BeginUnsafePlaintextPolicyTestScope per test instead of changing the whole unit-test process");
+    }
+
+    [Fact]
     public void ReleaseUnitXunitRunnerConfig_ShouldLimitPowerShellProcessFanOut()
     {
         using var document = JsonDocument.Parse(
@@ -373,6 +394,18 @@ public sealed class UnitTestParallelizationContractTests
     public void ToolCallHelperStateCollection_ShouldDisableParallelization()
     {
         AssertCollectionIsNonParallel("WpfDevTools.Tests.Unit.Execution.ToolCallHelperStateCollection");
+    }
+
+    [Fact]
+    public void SecurityStateTests_ShouldUseSecurityStateCollection()
+    {
+        GetCollectionName(typeof(LocalSecretProtectorTests)).Should().Be("SecurityState");
+    }
+
+    [Fact]
+    public void SecurityStateCollection_ShouldDisableParallelization()
+    {
+        AssertCollectionIsNonParallel("WpfDevTools.Tests.Unit.Execution.SecurityStateCollection");
     }
 
     [Fact]

@@ -304,7 +304,9 @@ public sealed class NestedExecuteCommandPolicyE2eTests : IAsyncLifetime, IDispos
         => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
     private static string CreateCertificateDirectoryPath()
-        => Path.Combine(Path.GetTempPath(), "WpfDevTools.NestedPolicyE2e." + Guid.NewGuid().ToString("N"));
+        => Path.Combine(
+            ReleasePackagingTestHarness.GetRepoFilePath("tmp"),
+            "WpfDevTools.NestedPolicyE2e." + Guid.NewGuid().ToString("N"));
 
     private static void DeleteDirectoryBestEffort(string? path)
     {
@@ -317,7 +319,7 @@ public sealed class NestedExecuteCommandPolicyE2eTests : IAsyncLifetime, IDispos
         {
             if (Directory.Exists(path))
             {
-                Directory.Delete(path, recursive: true);
+                ReleasePackagingTestHarness.DeleteDirectory(path);
             }
         }
         catch

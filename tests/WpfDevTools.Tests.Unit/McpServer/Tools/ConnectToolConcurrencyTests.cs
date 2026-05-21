@@ -8,6 +8,7 @@ using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Tests.Unit.Inspector;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
@@ -413,6 +414,7 @@ public sealed partial class ConnectToolConcurrencyTests : IDisposable
 
             _release.Wait(SignalWaitTimeout, cancellationToken);
             _host = new InspectorHost(request.ProcessId, request.ExpectedPipeName);
+            using var plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
             _host.Start();
 
             return InjectionResult.CreateSuccess(

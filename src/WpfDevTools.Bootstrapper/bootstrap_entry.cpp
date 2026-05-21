@@ -93,6 +93,21 @@ static std::wstring BuildManagedParams(const BootstrapConfig& config)
     return result;
 }
 
+static bool IsLocalMachineDpapiFallbackAllowed()
+{
+    wchar_t value[16] = {};
+    DWORD length = GetEnvironmentVariableW(
+        L"WPFDEVTOOLS_ALLOW_LOCALMACHINE_DPAPI_FALLBACK",
+        value,
+        static_cast<DWORD>(sizeof(value) / sizeof(value[0])));
+    if (length == 0 || length >= (sizeof(value) / sizeof(value[0])))
+        return false;
+
+    return _wcsicmp(value, L"1") == 0
+        || _wcsicmp(value, L"true") == 0
+        || _wcsicmp(value, L"yes") == 0;
+}
+
 static bool ParseLegacyParams(const std::wstring& input, BootstrapConfig& config)
 {
     auto sepPos = input.find(L';');
@@ -236,11 +251,25 @@ static bool ReadProtectedAuthSecretFile(const std::wstring& path, std::wstring& 
     content.resize(bytesRead);
     const std::string currentUserHeader = "WPFDEVTOOLS-DPAPI:CurrentUser\n";
     const std::string localMachineHeader = "WPFDEVTOOLS-DPAPI:LocalMachine\n";
-    size_t payloadOffset = 0;
+    size_t payloadOffset = std::string::npos;
     if (content.rfind(currentUserHeader, 0) == 0)
         payloadOffset = currentUserHeader.size();
     else if (content.rfind(localMachineHeader, 0) == 0)
+    {
+        if (!IsLocalMachineDpapiFallbackAllowed())
+        {
+            SecureWipeString(content);
+            return false;
+        }
+
         payloadOffset = localMachineHeader.size();
+    }
+
+    if (payloadOffset == std::string::npos)
+    {
+        SecureWipeString(content);
+        return false;
+    }
 
     if (payloadOffset >= content.size())
     {

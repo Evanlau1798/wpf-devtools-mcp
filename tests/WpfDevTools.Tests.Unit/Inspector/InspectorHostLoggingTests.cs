@@ -9,15 +9,18 @@ namespace WpfDevTools.Tests.Unit.Inspector;
 public class InspectorHostLoggingTests : IDisposable
 {
     private readonly string _tempLogDir;
+    private readonly IDisposable _plaintextPolicy;
 
     public InspectorHostLoggingTests()
     {
+        _plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
         _tempLogDir = Path.Combine(Path.GetTempPath(), $"WpfDevTools_LogTest_{Guid.NewGuid()}");
         Directory.CreateDirectory(_tempLogDir);
     }
 
     public void Dispose()
     {
+        _plaintextPolicy.Dispose();
         try
         {
             if (Directory.Exists(_tempLogDir))

@@ -8,13 +8,21 @@ using WpfDevTools.Mcp.Server;
 using WpfDevTools.Shared.Security;
 using WpfDevTools.Shared.Serialization;
 using WpfDevTools.Tests.Unit.Execution;
+using WpfDevTools.Tests.Unit.Inspector;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
 [Collection("TimingSensitive")]
-public class NamedPipeClientTimeoutBudgetTests
+public class NamedPipeClientTimeoutBudgetTests : IDisposable
 {
+    private readonly IDisposable _plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
+
+    public void Dispose()
+    {
+        _plaintextPolicy.Dispose();
+    }
+
     [Fact]
     public async Task ConnectAsync_WithRetries_ShouldRespectTotalTimeoutBudget()
     {

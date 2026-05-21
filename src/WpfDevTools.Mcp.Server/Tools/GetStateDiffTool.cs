@@ -62,16 +62,20 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
             return viewModelProperties.error;
         }
 
-        var bindingErrors = await GetCurrentBindingErrorsAsync(processId, sessionGeneration, cancellationToken).ConfigureAwait(false);
-        if (bindingErrors.error != null)
+        var bindingErrors = snapshot.HasBindingErrorBaseline
+            ? await GetCurrentBindingErrorsAsync(processId, sessionGeneration, cancellationToken).ConfigureAwait(false)
+            : (Array.Empty<StoredBindingErrorSnapshot>(), null);
+        if (bindingErrors.Item2 != null)
         {
-            return bindingErrors.error;
+            return bindingErrors.Item2;
         }
 
-        var validationErrors = await GetCurrentValidationErrorsAsync(processId, sessionGeneration, snapshot.ElementId, cancellationToken).ConfigureAwait(false);
-        if (validationErrors.error != null)
+        var validationErrors = snapshot.HasValidationBaseline
+            ? await GetCurrentValidationErrorsAsync(processId, sessionGeneration, snapshot.ElementId, cancellationToken).ConfigureAwait(false)
+            : (Array.Empty<StoredValidationErrorSnapshot>(), null);
+        if (validationErrors.Item2 != null)
         {
-            return validationErrors.error;
+            return validationErrors.Item2;
         }
 
         var focusState = await GetCurrentFocusStateAsync(processId, sessionGeneration, snapshot, cancellationToken).ConfigureAwait(false);
@@ -86,8 +90,8 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
                 dependencyProperties.states!,
                 viewModelProperties.states!,
                 focusState.state,
-                bindingErrors.errors!,
-                validationErrors.errors!),
+                bindingErrors.Item1!,
+                validationErrors.Item1!),
             trigger,
             DateTimeOffset.UtcNow);
 
@@ -335,18 +339,9 @@ public sealed class GetStateDiffTool(SessionManager sessionManager) : PipeConnec
             ? $"Failed during {method} while computing state diff."
             : $"Failed during {method} for '{subject}' while computing state diff.";
 
-        return new ToolErrorPayload
-        {
-            Error = response.TryGetProperty("error", out var errorProperty)
-                ? $"{context} {errorProperty.GetString()}".Trim()
-                : context,
-            ErrorCode = response.TryGetProperty("errorCode", out var errorCodeProperty)
-                ? errorCodeProperty.GetString() ?? ToolErrorCode.OperationFailed.ToString()
-                : ToolErrorCode.OperationFailed.ToString(),
-            Hint = response.TryGetProperty("hint", out var hintProperty)
-                ? hintProperty.GetString()
-                : $"Inspect the failing {method} step and retry get_state_diff after refreshing the runtime state.",
-            ErrorData = response.Clone()
-        };
+        return ToolRecoveryPayload.CreateStepFailure(
+            context,
+            $"Inspect the failing {method} step and retry get_state_diff after refreshing the runtime state.",
+            response);
     }
 }

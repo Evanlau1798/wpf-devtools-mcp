@@ -61,6 +61,7 @@ public sealed class InspectorHostRequestParsingTests
     private static async Task<InspectorResponse> SendRawRequestAsync(string requestJson)
     {
         var pid = TestHelpers.NextSyntheticProcessId();
+        using var plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
         using var host = new InspectorHost(pid);
         host.Start();
 

@@ -85,6 +85,16 @@ public sealed class SdkPreferredDocumentationTests
     }
 
     [Fact]
+    public void SdkReadmeBasicUsage_ShouldIncludeWpfApplicationNamespace()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Inspector.Sdk/README.md"));
+
+        content.Should().Contain("using System.Windows;");
+        content.Should().Contain("public partial class App : Application");
+        content.Should().Contain("protected override void OnStartup(StartupEventArgs e)");
+    }
+
+    [Fact]
     public void SdkPreferredPositioning_ShouldStayConsistentAcrossPublicDocs()
     {
         foreach (var file in new[]

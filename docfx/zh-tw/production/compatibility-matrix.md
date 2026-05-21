@@ -15,12 +15,14 @@
 | x64 | x64 | 大多數現代 WPF 應用的預設選擇 |
 | ARM64 | ARM64 | 僅用於原生 ARM64 目標 |
 
+Architecture matching is mandatory for raw injection/bootstrapper fallback。SDK-hosted reuse 透過 named pipes 通訊；當 target-side host 已經啟動後，不要求 server process 與 target process bitness 相同。
+
 ## 已知不支援或受限的情境
 
 | 情境 | Raw injection 路徑 | 整體支援姿態 | 說明 |
 | --- | --- | --- | --- |
 | Self-contained single-file WPF app | 不支援 | 可透過 SDK-host reuse 支援 | Native injection 路徑無法依賴預期的組件配置。請在 target app 中呼叫 `InspectorSdk.Initialize()`，並讓 transport 設定一致，讓 `connect()` 可以重用既有 host。 |
-| Native AOT | 不支援 | 可透過 SDK-host reuse 支援 | Raw injection 所依賴的 managed runtime hosting 前提不成立。請改用 target-side SDK host。 |
+| Native AOT | 不支援 | 不支援 | WPF DevTools 目前不支援 Native AOT targets。SDK-hosted reuse 不是 Native AOT workaround，因為 Inspector SDK 仍需要 managed WPF runtime 與 assembly access。 |
 | Trimmed app | 風險較高 / 部分支援 | 優先使用 SDK-host reuse | 必要型別可能被裁掉，導致 raw injection 或 inspector 啟動不穩定。 |
 | 非 WPF 桌面 UI 技術 | 不支援 | 不支援 | 本 server 明確只針對 WPF。 |
 
@@ -29,5 +31,6 @@
 - 以 `get_processes` 回傳的 architecture 當作唯一真相來源。
 - 把 x86 與 x64 視為兩個不同部署目標，不要混用。
 - 當你擁有 target app 時，prefer SDK-hosted reuse；raw injection remains the fallback path for zero-instrumentation diagnostics。
-- 若 package 形式或 publish 模式會阻擋 raw injection，請在 target-side 先呼叫 `InspectorSdk.Initialize()`，並維持相符的 transport 設定，讓 `connect()` 可以重用該 SDK host。
+- 若 single-file packaging 會阻擋 raw injection，請在 target-side 先呼叫 `InspectorSdk.Initialize()`，並維持相符的 transport 設定，讓 `connect()` 可以重用該 SDK host。
+- Native AOT 仍不支援；SDK-hosted reuse 不是 Native AOT workaround。
 - 在自動化中呼叫 `connect` 前，先驗證 bootstrapper 與 inspector 選擇是否正確。

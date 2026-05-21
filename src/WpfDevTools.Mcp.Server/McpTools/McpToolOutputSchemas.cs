@@ -21,9 +21,19 @@ internal static class McpToolOutputSchemas
             ["windowTitle"] = new { type = "string", description = "Target WPF window title when available." },
             ["summaryText"] = new { type = "string", description = "Compact tool-specific summary text." },
             ["status"] = new { type = "string", description = "Tool-specific status string." },
-            ["navigation"] = new { type = "object", description = "Recommended next-step envelope." },
+            ["navigation"] = new
+            {
+                type = "object",
+                description = "Recommended next-step envelope.",
+                properties = new Dictionary<string, object>
+                {
+                    ["recommended"] = new { type = "array", items = new { type = "object" }, description = "Primary next-step recommendations." },
+                    ["alternatives"] = new { type = "array", items = new { type = "object" }, description = "Alternative follow-up actions." },
+                    ["prefetchTools"] = new { type = "array", items = new { type = "string" }, description = "Useful tools to inspect before choosing a follow-up." },
+                    ["contextRefs"] = new { type = "array", items = new { type = "object" }, description = "Structured references for follow-up tool calls." }
+                }
+            },
             ["nextSteps"] = new { type = "array", items = new { type = "object" }, description = "Compatibility next-step list." },
-            ["contextRefs"] = new { type = "array", items = new { type = "object" }, description = "Structured references for follow-up tool calls." },
             ["pendingEvents"] = new { type = "array", items = new { type = "object" }, description = "Piggybacked runtime events when present." },
             ["pendingEventCount"] = new { type = "integer", description = "Number of piggybacked pending events." },
             ["droppedEventCount"] = new { type = "integer", description = "Number of dropped pending events when bounded buffers overflow." },

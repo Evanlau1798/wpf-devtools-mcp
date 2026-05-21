@@ -1,3 +1,5 @@
+. (Join-Path $PSScriptRoot 'SandboxCi.Hosted.Extras.ps1')
+
 function Resolve-DotNetNativeHostDirectory {
     param([Parameter(Mandatory = $true)] [string]$RuntimeId)
 
@@ -204,30 +206,6 @@ function Invoke-HostedServerRuntimeBuild {
     )
 }
 
-function ConvertTo-HostedSingleQuotedPowerShellLiteral {
-    param([Parameter(Mandatory = $true)] [string]$Value)
-
-    return "'" + $Value.Replace("'", "''") + "'"
-}
-
-function Invoke-HostedPowerShellCommand {
-    param(
-        [Parameter(Mandatory = $true)] [string]$Name,
-        [Parameter(Mandatory = $true)] [string]$Command,
-        [Parameter(Mandatory = $true)] [string]$OutputRoot,
-        [Parameter(Mandatory = $true)] [string]$Timestamp,
-        [int]$TimeoutSeconds = 1800
-    )
-
-    Invoke-ExternalWithTimeout $Name 'powershell.exe' @(
-        '-NoProfile',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-Command',
-        $Command
-    ) -TimeoutSeconds $TimeoutSeconds -OutputRoot $OutputRoot -Timestamp $Timestamp
-}
-
 function Invoke-HostedCoverageVerification {
     param(
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
@@ -267,13 +245,15 @@ function Invoke-HostedReleasePackagingSmoke {
     param(
         [Parameter(Mandatory = $true)] [string]$OutputRoot,
         [Parameter(Mandatory = $true)] [string]$Timestamp,
-        [Parameter(Mandatory = $true)] [ValidateSet('x64', 'x86')] [string]$Architecture
+        [Parameter(Mandatory = $true)] [ValidateSet('x64', 'x86', 'arm64')] [string]$Architecture
     )
 
     $releaseRoot = Join-Path $OutputRoot "artifacts\release-$Timestamp-$Architecture"
     $installSmokeRoot = Join-Path $OutputRoot "tmp-release-install-smoke-$Architecture"
     $bootstrapSmokeRoot = Join-Path $OutputRoot "tmp-release-bootstrap-smoke-$Architecture"
-    Remove-Item -LiteralPath $releaseRoot, $installSmokeRoot, $bootstrapSmokeRoot -Recurse -Force -ErrorAction SilentlyContinue
+    $installUserRoot = Join-Path $OutputRoot "tmp-release-user-smoke-$Architecture\install"
+    $bootstrapUserRoot = Join-Path $OutputRoot "tmp-release-user-smoke-$Architecture\bootstrap"
+    Remove-Item -LiteralPath $releaseRoot, $installSmokeRoot, $bootstrapSmokeRoot, $installUserRoot, $bootstrapUserRoot -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
 
     Invoke-ExternalWithTimeout "Run release packaging smoke test $Architecture" 'powershell.exe' @(
@@ -302,7 +282,11 @@ function Invoke-HostedReleasePackagingSmoke {
     $installScript = Join-Path $packageDir 'bin\install.ps1'
     $installRootLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $installSmokeRoot
     $installScriptLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $installScript
-    Invoke-HostedPowerShellCommand "Install published package smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . $installScriptLiteral -InstallRoot $installRootLiteral -Client other -NonInteractive -Force -OutputJson" $OutputRoot $Timestamp
+    $installEnvironment = @{
+        APPDATA = Join-Path $installUserRoot 'AppData\Roaming'
+        LOCALAPPDATA = Join-Path $installUserRoot 'AppData\Local'
+    }
+    Invoke-HostedPowerShellCommand "Install published package smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . $installScriptLiteral -InstallRoot $installRootLiteral -Client other -NonInteractive -Force -OutputJson" $OutputRoot $Timestamp -Environment $installEnvironment
 
     if ($Architecture -eq 'x64') {
         $serverPath = Join-Path $installSmokeRoot "$Architecture\current\bin\wpf-devtools-$Architecture.exe"
@@ -317,13 +301,17 @@ function Invoke-HostedReleasePackagingSmoke {
         ) -TimeoutSeconds 300 -OutputRoot $OutputRoot -Timestamp $Timestamp
     }
     else {
-        Write-Host "Skipping packaged server runtime smoke test for x86; GitHub's hosted x64 lane only install/uninstall smokes the x86 package layout."
+        Write-Host "Skipping packaged server runtime smoke test for $Architecture; GitHub's hosted x64 lane only install/uninstall smokes non-x64 package layouts."
     }
 
     $archiveLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $packageArchive.FullName
     $releaseRootLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $releaseRoot
     $bootstrapRootLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $bootstrapSmokeRoot
-    Invoke-HostedPowerShellCommand "Online installer smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . .\scripts\online-installer.ps1 -PackageArchivePath $archiveLiteral -TrustedReleaseMetadataDirectory $releaseRootLiteral -InstallRoot $bootstrapRootLiteral -Client other -NonInteractive -Force -OutputJson" $OutputRoot $Timestamp
+    $bootstrapEnvironment = @{
+        APPDATA = Join-Path $bootstrapUserRoot 'AppData\Roaming'
+        LOCALAPPDATA = Join-Path $bootstrapUserRoot 'AppData\Local'
+    }
+    Invoke-HostedPowerShellCommand "Online installer smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . .\scripts\online-installer.ps1 -PackageArchivePath $archiveLiteral -TrustedReleaseMetadataDirectory $releaseRootLiteral -InstallRoot $bootstrapRootLiteral -Client other -NonInteractive -Force -OutputJson" $OutputRoot $Timestamp -Environment $bootstrapEnvironment
 
     if ($Architecture -eq 'x64') {
         $bootstrapServerPath = Join-Path $bootstrapSmokeRoot "$Architecture\current\bin\wpf-devtools-$Architecture.exe"
@@ -338,16 +326,16 @@ function Invoke-HostedReleasePackagingSmoke {
         ) -TimeoutSeconds 300 -OutputRoot $OutputRoot -Timestamp $Timestamp
     }
     else {
-        Write-Host "Skipping online-installed runtime smoke test for x86; GitHub's hosted x64 lane only install/uninstall smokes the x86 package layout."
+        Write-Host "Skipping online-installed runtime smoke test for $Architecture; GitHub's hosted x64 lane only install/uninstall smokes non-x64 package layouts."
     }
 
     $installedScript = Join-Path $installSmokeRoot "$Architecture\current\bin\install.ps1"
     $installedScriptLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $installedScript
-    Invoke-HostedPowerShellCommand "Uninstall published package smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . $installedScriptLiteral -Action uninstall -InstallRoot $installRootLiteral -Architecture '$Architecture' -Client other -NonInteractive -OutputJson" $OutputRoot $Timestamp
+    Invoke-HostedPowerShellCommand "Uninstall published package smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . $installedScriptLiteral -Action uninstall -InstallRoot $installRootLiteral -Architecture '$Architecture' -Client other -NonInteractive -OutputJson" $OutputRoot $Timestamp -Environment $installEnvironment
 
     $bootstrapScript = Join-Path $bootstrapSmokeRoot "$Architecture\current\bin\install.ps1"
     $bootstrapScriptLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $bootstrapScript
-    Invoke-HostedPowerShellCommand "Uninstall online installer smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . $bootstrapScriptLiteral -Action uninstall -InstallRoot $bootstrapRootLiteral -Architecture '$Architecture' -Client other -NonInteractive -OutputJson" $OutputRoot $Timestamp
+    Invoke-HostedPowerShellCommand "Uninstall online installer smoke test $Architecture" "`$script:WpfDevToolsInstallerTestModeHarnessEnabled = `$true; `$script:WpfDevToolsInstallerTestModeEnabled = `$true; . $bootstrapScriptLiteral -Action uninstall -InstallRoot $bootstrapRootLiteral -Architecture '$Architecture' -Client other -NonInteractive -OutputJson" $OutputRoot $Timestamp -Environment $bootstrapEnvironment
 }
 
 function Invoke-HostedNuGetPack {
@@ -376,6 +364,13 @@ function Invoke-HostedNuGetPack {
     if ($null -eq $package) {
         throw "NuGet package was not produced under $packageRoot."
     }
+
+    Invoke-HostedSdkPackageSmoke `
+        -DotNetPath $DotNetPath `
+        -PackagePath $package.FullName `
+        -PackageRoot $packageRoot `
+        -OutputRoot $OutputRoot `
+        -Timestamp $Timestamp
 }
 
 function Invoke-HostedWindowsX64Verification {
@@ -463,7 +458,10 @@ function Invoke-HostedWindowsX64Verification {
         Invoke-HostedCoverageVerification -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -OutputRoot $OutputRoot -Timestamp $Timestamp
         Invoke-HostedReleasePackagingSmoke -Architecture 'x64' -OutputRoot $OutputRoot -Timestamp $Timestamp
         Invoke-HostedReleasePackagingSmoke -Architecture 'x86' -OutputRoot $OutputRoot -Timestamp $Timestamp
+        Invoke-HostedReleasePackagingSmoke -Architecture 'arm64' -OutputRoot $OutputRoot -Timestamp $Timestamp
         Invoke-HostedNuGetPack -DotNetPath $DotNetPath -OutputRoot $OutputRoot -Timestamp $Timestamp
+        Invoke-HostedArm64Build -DotNetPath $DotNetPath
+        Invoke-HostedDocsPagesBuild -DotNetPath $DotNetPath
     }
     finally {
         if ($null -eq $previousTimeoutScale) {

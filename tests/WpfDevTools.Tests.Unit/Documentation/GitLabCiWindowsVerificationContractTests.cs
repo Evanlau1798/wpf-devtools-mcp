@@ -46,7 +46,7 @@ public sealed class GitLabCiWindowsVerificationContractTests
     public void SandboxHostedWindowsX64Mode_ShouldMirrorHostedCiManagedBuildAndTestLanes()
     {
         var runner = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "Start-SandboxCi.ps1"));
-        var hosted = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.ps1"));
+        var hosted = ReadHostedSandboxCiScripts();
 
         runner.Should().Contain("HostedWindowsX64");
         runner.Should().Contain("SandboxCi.Hosted.ps1");
@@ -88,7 +88,7 @@ public sealed class GitLabCiWindowsVerificationContractTests
     public void SandboxHostedWindowsX64Mode_ShouldUseGitHubTimeoutScale()
     {
         var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
-        var hosted = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.ps1"));
+        var hosted = ReadHostedSandboxCiScripts();
 
         workflow.Should().Contain("WPFDEVTOOLS_TEST_TIMEOUT_SCALE: '4'",
             "GitHub hosted runners can stretch PowerShell installer tests under Release load, so the workflow should use the same explicit harness timeout scale as sandbox hosted CI");
@@ -102,23 +102,70 @@ public sealed class GitLabCiWindowsVerificationContractTests
     public void SandboxHostedWindowsX64Mode_ShouldMirrorCoveragePackagingSmokeAndNuGetJobs()
     {
         var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
-        var hosted = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.ps1"));
+        var releaseWorkflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "release.yml"));
+        var hosted = ReadHostedSandboxCiScripts();
 
         workflow.Should().Contain("Run tests with coverage");
         workflow.Should().Contain("Run release packaging smoke test");
         workflow.Should().Contain("architecture: [x64, x86]");
+        releaseWorkflow.Should().Contain("@('x64', 'x86', 'arm64')");
         workflow.Should().Contain("Build SDK package");
         hosted.Should().Contain("Invoke-HostedCoverageVerification");
         hosted.Should().Contain("--settings', 'coverlet.runsettings'");
         hosted.Should().Contain("Invoke-HostedReleasePackagingSmoke -Architecture 'x64'");
         hosted.Should().Contain("Invoke-HostedReleasePackagingSmoke -Architecture 'x86'");
-        hosted.Should().Contain("[ValidateSet('x64', 'x86')]");
+        hosted.Should().Contain("Invoke-HostedReleasePackagingSmoke -Architecture 'arm64'");
+        hosted.Should().Contain("[ValidateSet('x64', 'x86', 'arm64')]");
         hosted.Should().Contain("Publish-Release.ps1");
         hosted.Should().Contain("Test-PackagedServerRuntime.ps1");
         hosted.Should().Contain("Invoke-HostedNuGetPack");
         hosted.Should().Contain("dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj");
-        hosted.Should().Contain("Skipping packaged server runtime smoke test for x86",
-            "the GitHub x86 package lane validates install/uninstall layout but skips runtime launch on hosted x64");
+        hosted.Should().Contain("Invoke-HostedSdkPackageSmoke");
+        hosted.Should().Contain("Inspect SDK package contents");
+        hosted.Should().Contain("lib/net8.0-windows7.0/WpfDevTools.Inspector.dll");
+        hosted.Should().Contain("lib/net8.0-windows7.0/WpfDevTools.Shared.dll");
+        hosted.Should().Contain("Create SDK package consumer smoke app");
+        hosted.Should().Contain("'new', 'wpf'");
+        hosted.Should().Contain("Install SDK package into clean consumer");
+        hosted.Should().Contain("Build SDK package clean consumer");
+        hosted.Should().Contain("wpf-devtools-sdk-consumer");
+        hosted.Should().Contain("Remove-Item -LiteralPath $consumerRoot");
+        hosted.Should().Contain("tmp-release-user-smoke-$Architecture",
+            "each package install/uninstall pair should use isolated installer state");
+        hosted.Should().Contain("APPDATA = Join-Path $installUserRoot",
+            "package-local and online installer smoke checks should not share global installer-state.json");
+        hosted.Should().Contain("LOCALAPPDATA = Join-Path $installUserRoot");
+        hosted.Should().Contain("APPDATA = Join-Path $bootstrapUserRoot");
+        hosted.Should().Contain("LOCALAPPDATA = Join-Path $bootstrapUserRoot");
+        hosted.Should().Contain("Skipping packaged server runtime smoke test for $Architecture",
+            "the hosted x64 lane validates non-x64 package install/uninstall layout but skips runtime launch");
+    }
+
+    [Fact]
+    public void SandboxHostedWindowsX64Mode_ShouldMirrorArm64CrossCompileJob()
+    {
+        var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
+        var hosted = ReadHostedSandboxCiScripts();
+
+        workflow.Should().Contain("Build ARM64 (cross-compile, no test - no ARM64 runner available)");
+        hosted.Should().Contain("Invoke-HostedArm64Build");
+        hosted.Should().Contain("Build ARM64 Release cross-compile");
+        hosted.Should().Contain("'-p:Platform=ARM64'");
+    }
+
+    [Fact]
+    public void SandboxHostedWindowsX64Mode_ShouldMirrorDocsPagesLocalBuild()
+    {
+        var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "docs-pages.yml"));
+        var hosted = ReadHostedSandboxCiScripts();
+
+        workflow.Should().Contain("Build DocFX site");
+        hosted.Should().Contain("Invoke-HostedDocsPagesBuild");
+        hosted.Should().Contain("'tool', 'restore'");
+        hosted.Should().Contain("'restore', 'WpfDevTools.sln', '--locked-mode'");
+        hosted.Should().Contain("src\\WpfDevTools.Shared\\WpfDevTools.Shared.csproj");
+        hosted.Should().Contain("src\\WpfDevTools.Inspector.Sdk\\WpfDevTools.Inspector.Sdk.csproj");
+        hosted.Should().Contain("'tool', 'run', 'docfx', 'docfx/docfx.json'");
     }
 
     [Fact]
@@ -199,5 +246,12 @@ public sealed class GitLabCiWindowsVerificationContractTests
         }
 
         throw new InvalidOperationException("Could not locate repository root.");
+    }
+
+    private static string ReadHostedSandboxCiScripts()
+    {
+        var hosted = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.ps1"));
+        var extras = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.Extras.ps1"));
+        return hosted + Environment.NewLine + extras;
     }
 }

@@ -98,7 +98,7 @@ artifact preflight 會在 Sandbox 內依需要 provision .NET runtime channel `8
 
 操作注意事項：
 
-- `HostedWindowsX64` 會在 Windows Sandbox 可可靠執行的範圍內貼近 GitLab Windows x64 fallback lane 與 GitHub hosted Windows CI/CD 範圍：精確的 x64 native bootstrapper build、Debug/Release x64 solution builds、unit shards、release-unit shards，以及 Debug integration tests。它涵蓋 coverage、x64/x86 release packaging smoke，以及 NuGet pack。它不涵蓋 hosted x86 solution build/test matrix、ARM64 cross-build，或 self-hosted ARM64 runtime smoke lanes；也不模擬 Pages deployment 或已簽章 public release publication。
+- `HostedWindowsX64` 會在 Windows Sandbox 可可靠執行的範圍內貼近 GitLab Windows x64 fallback lane 與 GitHub hosted Windows CI/CD 範圍：精確的 x64 與 x86 native bootstrapper builds、Debug/Release x64 與 x86 solution builds、x64 unit shards、x64 release-unit shards，以及 x64 Debug integration tests。它涵蓋 coverage、x64/x86 release packaging smoke，以及 NuGet pack。它不涵蓋 x86 test execution、ARM64 cross-build，或 self-hosted ARM64 runtime smoke lanes；也不模擬 Pages deployment 或已簽章 public release publication。
 - x86 packaging smoke 會遵循 GitHub hosted x64 行為：執行 package-local 與 online installer 的 install/uninstall layout checks，但不啟動 packaged x86 server runtime，因為 hosted x64 lane 本身也不執行該 runtime smoke。
 - `NativeSmoke` 會驗證 native compile/resource/archive 覆蓋，接著執行 managed debug 與 release unit shards。它刻意略過在 Windows Sandbox 內較不穩定的 native DLL link 路徑。
 - Artifact preflight 的 optional `-SmokeTargetPath` 目前只涵蓋 packaged `connect` 與 scene summary 啟動 smoke。snapshot、mutation、diff、restore 與 cleanup workflow 覆蓋仍需使用一般 integration/E2E suites。

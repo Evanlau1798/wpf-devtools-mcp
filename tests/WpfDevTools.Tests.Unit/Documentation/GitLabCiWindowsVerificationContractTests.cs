@@ -52,8 +52,11 @@ public sealed class GitLabCiWindowsVerificationContractTests
         runner.Should().Contain("SandboxCi.Hosted.ps1");
         runner.Should().Contain("Invoke-HostedWindowsX64Verification");
         hosted.Should().Contain("foreach ($configuration in @('Debug', 'Release'))");
-        hosted.Should().Contain("Resolve-DotNetNativeHostDirectory -RuntimeId 'win-x64'");
-        hosted.Should().Contain("Invoke-HostedNativeBootstrapperBuild -Configuration $configuration -Platform 'x64'");
+        hosted.Should().Contain("foreach ($platform in @('x64', 'x86'))");
+        hosted.Should().Contain("$runtimeId = if ($Platform -eq 'Win32') { 'win-x86' } else { 'win-x64' }");
+        hosted.Should().Contain("$nativePlatform = if ($platform -eq 'x86') { 'Win32' } else { 'x64' }");
+        hosted.Should().Contain("Resolve-DotNetNativeHostDirectory -RuntimeId $runtimeId");
+        hosted.Should().Contain("Invoke-HostedNativeBootstrapperBuild -Configuration $configuration -Platform $nativePlatform");
         hosted.Should().Contain("src\\WpfDevTools.Bootstrapper\\WpfDevTools.Bootstrapper.vcxproj");
         hosted.Should().Contain("$windowsSdkDirectory = $env:WindowsSDKDir.TrimEnd('\\')");
         hosted.Should().Contain("ConvertTo-MSBuildPropertyValue");
@@ -64,7 +67,8 @@ public sealed class GitLabCiWindowsVerificationContractTests
         hosted.Should().Contain("/p:ExecutablePath=$executablePath");
         hosted.Should().NotContain("Invoke-NativeFullVerification -DotNetPath $DotNetPath -OutputRoot $OutputRoot -Timestamp $Timestamp -SkipDllLink",
             "HostedWindowsX64 is meant to mimic the GitHub x64 matrix job, so it must exercise the native DLL link path instead of only the sandbox-safe native smoke archive");
-        hosted.Should().Contain("Build solution $configuration x64");
+        hosted.Should().Contain("Build solution $configuration $platform");
+        hosted.Should().Contain("if ($platform -ne 'x64') {");
         hosted.Should().Contain("-nodeReuse:false");
         hosted.Should().Contain("-p:UseSharedCompilation=false");
         hosted.Should().Contain("Invoke-UnitDebugTests");

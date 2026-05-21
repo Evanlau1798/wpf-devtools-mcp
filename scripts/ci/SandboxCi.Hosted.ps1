@@ -44,10 +44,11 @@ function ConvertTo-MSBuildPropertyValue {
 function Invoke-HostedNativeBootstrapperBuild {
     param(
         [Parameter(Mandatory = $true)] [ValidateSet('Debug', 'Release')] [string]$Configuration,
-        [Parameter(Mandatory = $true)] [ValidateSet('x64')] [string]$Platform
+        [Parameter(Mandatory = $true)] [ValidateSet('x64', 'Win32')] [string]$Platform
     )
 
-    $nativeHostDirectory = Resolve-DotNetNativeHostDirectory -RuntimeId 'win-x64'
+    $runtimeId = if ($Platform -eq 'Win32') { 'win-x86' } else { 'win-x64' }
+    $nativeHostDirectory = Resolve-DotNetNativeHostDirectory -RuntimeId $runtimeId
     $msbuildPath = Resolve-MSBuildPath
     $windowsSdkVersion = ''
     $windowsSdkDirectory = ''
@@ -315,39 +316,46 @@ function Invoke-HostedWindowsX64Verification {
         )
 
         foreach ($configuration in @('Debug', 'Release')) {
-            Invoke-HostedNativeBootstrapperBuild -Configuration $configuration -Platform 'x64'
+            foreach ($platform in @('x64', 'x86')) {
+                $nativePlatform = if ($platform -eq 'x86') { 'Win32' } else { 'x64' }
+                Invoke-HostedNativeBootstrapperBuild -Configuration $configuration -Platform $nativePlatform
 
-            Invoke-External "Build solution $configuration x64" $DotNetPath @(
-                'build',
-                '--configuration', $configuration,
-                '--no-restore',
-                '-m:1',
-                '-p:Platform=x64',
-                '-nodeReuse:false',
-                '-p:UseSharedCompilation=false'
-            )
-
-            try {
-                Invoke-UnitDebugTests -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $configuration -MaxParallelLanes 1 -UnitDebugShardCount $UnitDebugShardCount
-                Invoke-ManagedTestLanes -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $configuration -MaxParallelLanes $MaxParallelLanes -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeReleaseUnit
-            }
-            catch {
-                throw "Managed test lanes $configuration failed: $($_.Exception.Message)"
-            }
-
-            if ($configuration -eq 'Debug') {
-                Invoke-HostedServerRuntimeBuild -DotNetPath $DotNetPath -Configuration $configuration
-
-                Invoke-External 'Run integration tests Debug' $DotNetPath @(
-                    'test',
-                    'tests\WpfDevTools.Tests.Integration\WpfDevTools.Tests.Integration.csproj',
+                Invoke-External "Build solution $configuration $platform" $DotNetPath @(
+                    'build',
                     '--configuration', $configuration,
-                    '--no-build',
-                    '--verbosity', 'normal',
-                    '--blame-hang-timeout', '10m',
-                    '--logger', 'trx;LogFileName=integration-debug.trx',
-                    '--results-directory', (Join-Path $ResultsRoot 'Debug\integration')
+                    '--no-restore',
+                    '-m:1',
+                    "-p:Platform=$platform",
+                    '-nodeReuse:false',
+                    '-p:UseSharedCompilation=false'
                 )
+
+                if ($platform -ne 'x64') {
+                    continue
+                }
+
+                try {
+                    Invoke-UnitDebugTests -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $configuration -MaxParallelLanes 1 -UnitDebugShardCount $UnitDebugShardCount
+                    Invoke-ManagedTestLanes -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $configuration -MaxParallelLanes $MaxParallelLanes -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeReleaseUnit
+                }
+                catch {
+                    throw "Managed test lanes $configuration failed: $($_.Exception.Message)"
+                }
+
+                if ($configuration -eq 'Debug') {
+                    Invoke-HostedServerRuntimeBuild -DotNetPath $DotNetPath -Configuration $configuration
+
+                    Invoke-External 'Run integration tests Debug' $DotNetPath @(
+                        'test',
+                        'tests\WpfDevTools.Tests.Integration\WpfDevTools.Tests.Integration.csproj',
+                        '--configuration', $configuration,
+                        '--no-build',
+                        '--verbosity', 'normal',
+                        '--blame-hang-timeout', '10m',
+                        '--logger', 'trx;LogFileName=integration-debug.trx',
+                        '--results-directory', (Join-Path $ResultsRoot 'Debug\integration')
+                    )
+                }
             }
         }
 

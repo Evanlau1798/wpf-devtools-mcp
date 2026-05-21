@@ -38,9 +38,10 @@ public sealed partial class SandboxCiScriptContractTests
         runner.Should().Contain("-Architecture");
         runner.Should().Contain("$dotNetRuntimeArchitecture");
         runner.Should().Contain("--list-runtimes");
-        runner.Should().Contain(".stdout.log");
-        runner.Should().Contain(".stderr.log");
-        runner.Should().Contain("$ErrorActionPreference = 'Continue'");
+        runner.Should().Contain("Invoke-ExternalWithTimeout");
+        runner.Should().Contain(@"logs\process\$timestamp-$safeName");
+        runner.Should().Contain("Process logs:");
+        runner.Should().Contain("-TimeoutSeconds 900");
         runner.Should().Contain("preflight-summary.json");
         runner.Should().Contain("WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA");
         runner.Should().Contain("$script:WpfDevToolsInstallerTestModeHarnessEnabled = $true");

@@ -304,8 +304,16 @@ internal static class ResponseContractToolEntries
                 canonicalPayloadField = "result.structuredContent",
                 textFallbackField = "result.content[0].text",
                 contractResource = resourceUri,
-                topLevelFields = new[] { "success", "snapshotId", "snapshotSummary" },
-                nestedResponsePaths = new[] { "snapshotSummary.dependencyPropertyCount", "snapshotSummary.viewModelPropertyCount", "snapshotSummary.capturedFocus" },
+                topLevelFields = new[] { "success", "snapshotId", "snapshotName", "snapshotSummary", "snapshotCompleteness", "warnings" },
+                nestedResponsePaths = new[]
+                {
+                    "snapshotSummary.dependencyPropertyCount",
+                    "snapshotSummary.viewModelPropertyCount",
+                    "snapshotSummary.capturedFocus",
+                    "snapshotCompleteness.bindingErrorBaselineCaptured",
+                    "snapshotCompleteness.validationBaselineCaptured",
+                    "warnings[]"
+                },
                 requestParameters = new[] { "elementId", "propertyNames", "viewModelPropertyNames", "includeFocus", "snapshotName" }
             },
             new

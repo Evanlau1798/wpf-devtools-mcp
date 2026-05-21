@@ -16,9 +16,16 @@ public sealed partial class ResponseContractResourceTests
             highValueTools,
             "capture_state_snapshot",
             "state-snapshot-capture",
-            topLevelFields: ["snapshotId", "snapshotSummary"],
+            topLevelFields: ["snapshotId", "snapshotName", "snapshotSummary", "snapshotCompleteness", "warnings"],
             requestParameters: ["elementId", "propertyNames", "viewModelPropertyNames", "includeFocus", "snapshotName"],
-            nestedResponsePaths: ["snapshotSummary.dependencyPropertyCount", "snapshotSummary.viewModelPropertyCount", "snapshotSummary.capturedFocus"]);
+            nestedResponsePaths: [
+                "snapshotSummary.dependencyPropertyCount",
+                "snapshotSummary.viewModelPropertyCount",
+                "snapshotSummary.capturedFocus",
+                "snapshotCompleteness.bindingErrorBaselineCaptured",
+                "snapshotCompleteness.validationBaselineCaptured",
+                "warnings[]"
+            ]);
 
         AssertHighValueToolContract(
             highValueTools,

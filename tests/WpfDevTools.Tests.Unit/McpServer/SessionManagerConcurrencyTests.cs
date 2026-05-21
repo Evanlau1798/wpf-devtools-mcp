@@ -117,6 +117,39 @@ public class SessionManagerConcurrencyTests
     }
 
     [Fact]
+    public void CleanupIdleSessions_ShouldNotRemoveReplacementSessionForSamePid()
+    {
+        var processId = 123459;
+        var now = new DateTimeOffset(2026, 5, 21, 0, 0, 0, TimeSpan.Zero);
+        SessionManager.ProcessIdentity? currentIdentity = new(
+            processId,
+            StartTimeUtcTicks: 100);
+        using var manager = new SessionManager(
+            McpServerConfiguration.RateLimitRequestsPerMinute,
+            authManager: null,
+            certManager: null,
+            utcNowProvider: () => now,
+            processIdentityProvider: _ => currentIdentity);
+
+        manager.AddSession(processId);
+        now += McpServerConfiguration.SessionIdleTimeout + TimeSpan.FromSeconds(1);
+
+        manager.CleanupIdleSessions(
+            McpServerConfiguration.SessionIdleTimeout,
+            beforeIdleSessionRemoval: () =>
+            {
+                currentIdentity = new SessionManager.ProcessIdentity(
+                    processId,
+                    StartTimeUtcTicks: 200);
+                manager.RemoveSession(processId);
+                manager.AddSession(processId);
+            });
+
+        manager.HasSession(processId).Should().BeTrue(
+            "idle cleanup must not remove a newer session that replaced an idle session after collection");
+    }
+
+    [Fact]
     public void AddSession_WithMaxSessionsReached_ShouldThrowException()
     {
         // Arrange

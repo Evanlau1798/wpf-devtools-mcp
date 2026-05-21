@@ -231,10 +231,15 @@ public sealed partial class ConnectTool
             {
                 return targetValidationFailure;
             }
+            var targetContextValue = targetContext!;
+            if (!TryRefreshConnectTargetBeforeExistingHostProbe(processId, ref targetContextValue, out var targetRefreshFailure))
+            {
+                return targetRefreshFailure!;
+            }
 
             var existingHostResult = await ProbeExistingInspectorHostAsync(
                 processId,
-                targetContext!,
+                targetContextValue,
                 connectStopwatch.Elapsed,
                 cancellationToken).ConfigureAwait(false);
             if (existingHostResult != null)
@@ -242,14 +247,19 @@ public sealed partial class ConnectTool
                 return existingHostResult;
             }
 
-            if (!targetContext!.IsRawInjectionTargetAllowed)
+            if (!targetContextValue.IsRawInjectionTargetAllowed)
             {
-                return CreateRawInjectionDeniedFailure(processId, targetContext.ProcessInfo);
+                return CreateRawInjectionDeniedFailure(processId, targetContextValue.ProcessInfo);
+            }
+
+            if (!TryRefreshRawInjectionTargetBeforeInjection(processId, ref targetContextValue, out targetRefreshFailure))
+            {
+                return targetRefreshFailure!;
             }
 
             var injectionPlanFailure = TryCreateInjectionRequest(
                 processId,
-                targetContext,
+                targetContextValue,
                 connectStopwatch.Elapsed,
                 out var injectionRequest);
             if (injectionPlanFailure != null)
@@ -259,7 +269,7 @@ public sealed partial class ConnectTool
 
             var injectionFailure = ExecuteBootstrapInjection(
                 processId,
-                targetContext,
+                targetContextValue,
                 injectionRequest!,
                 cancellationToken,
                 out var injectedPipeName);

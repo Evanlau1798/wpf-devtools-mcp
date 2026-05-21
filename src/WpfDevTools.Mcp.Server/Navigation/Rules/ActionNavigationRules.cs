@@ -48,6 +48,11 @@ internal static class ActionNavigationRules
 
     private static ToolNavigationEnvelope BuildFireRoutedEvent(ToolNavigationContext context)
     {
+        if (IsUnsuccessfulOrUnknownMutation(context.Payload))
+        {
+            return ToolNavigationEnvelope.Empty;
+        }
+
         var recommended = new List<ToolNextStep>();
         ToolNavigationReference? mutationContext = null;
 
@@ -88,6 +93,11 @@ internal static class ActionNavigationRules
 
     private static ToolNavigationEnvelope BuildModifyViewModel(ToolNavigationContext context)
     {
+        if (IsUnsuccessfulOrUnknownMutation(context.Payload))
+        {
+            return ToolNavigationEnvelope.Empty;
+        }
+
         if (TryBuildStateDiffStep(
                 context,
                 1,
@@ -123,6 +133,11 @@ internal static class ActionNavigationRules
 
     private static ToolNavigationEnvelope BuildSetDpValue(ToolNavigationContext context)
     {
+        if (IsUnsuccessfulOrUnknownMutation(context.Payload))
+        {
+            return ToolNavigationEnvelope.Empty;
+        }
+
         if (!TryGetString(context.Arguments, "propertyName", out var propertyName))
         {
             return ToolNavigationEnvelope.Empty;
@@ -228,6 +243,11 @@ internal static class ActionNavigationRules
         string fallbackReason,
         string expectedOutcome)
     {
+        if (IsUnsuccessfulOrUnknownMutation(context.Payload))
+        {
+            return ToolNavigationEnvelope.Empty;
+        }
+
         if (TryBuildStateDiffStep(
                 context,
                 1,
@@ -242,6 +262,11 @@ internal static class ActionNavigationRules
 
         return BuildUiSummaryVerification(context, fallbackReason);
     }
+
+    private static bool IsUnsuccessfulOrUnknownMutation(JsonElement? payload) =>
+        (TryGetBool(payload, "success", out var success) && !success)
+        || (TryGetBool(payload, "requiresReconnect", out var requiresReconnect) && requiresReconnect)
+        || (TryGetBool(payload, "stateAfterTimeoutUnknown", out var stateAfterTimeoutUnknown) && stateAfterTimeoutUnknown);
 
     private static bool TryBuildStateDiffStep(
         ToolNavigationContext context,

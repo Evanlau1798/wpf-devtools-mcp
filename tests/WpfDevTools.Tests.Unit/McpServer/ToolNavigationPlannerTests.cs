@@ -278,6 +278,52 @@ public sealed class ToolNavigationPlannerTests : IDisposable
         navigation.GetProperty("prefetchTools").EnumerateArray().Select(item => item.GetString()).Should().Contain("restore_state_snapshot");
     }
 
+    [Theory]
+    [InlineData("modify_viewmodel")]
+    [InlineData("set_dp_value")]
+    [InlineData("fire_routed_event")]
+    public async Task ExecuteAndWrapAsync_WhenPrimaryMutationFails_ShouldNotRecommendMutationFollowups(string toolName)
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = false, error = "Mutation failed." }),
+            ToolCallHelper.BuildJsonArgs(
+                ("processId", 12345),
+                ("elementId", "Target_1"),
+                ("propertyName", "Text"),
+                ("eventName", "Click")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState("snapshot_123", null),
+            toolName: toolName);
+
+        var navigation = result.StructuredContent!.Value.GetProperty("navigation");
+        navigation.GetProperty("recommended").GetArrayLength().Should().Be(0);
+        navigation.GetProperty("contextRefs").GetArrayLength().Should().Be(0);
+        navigation.GetProperty("prefetchTools").GetArrayLength().Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("modify_viewmodel")]
+    [InlineData("set_dp_value")]
+    [InlineData("fire_routed_event")]
+    public async Task ExecuteAndWrapAsync_WhenPrimaryMutationStateIsUnknown_ShouldNotRecommendStateDiff(string toolName)
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true, stateAfterTimeoutUnknown = true }),
+            ToolCallHelper.BuildJsonArgs(
+                ("processId", 12345),
+                ("elementId", "Target_1"),
+                ("propertyName", "Text"),
+                ("eventName", "Click")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState("snapshot_123", null),
+            toolName: toolName);
+
+        var navigation = result.StructuredContent!.Value.GetProperty("navigation");
+        navigation.GetProperty("recommended").GetArrayLength().Should().Be(0);
+        navigation.GetProperty("contextRefs").GetArrayLength().Should().Be(0);
+        navigation.GetProperty("prefetchTools").GetArrayLength().Should().Be(0);
+    }
+
     [Fact]
     public async Task ExecuteAndWrapAsync_WithSuccessfulBatchMutationSnapshot_ShouldRecommendRollbackAndVerification()
     {

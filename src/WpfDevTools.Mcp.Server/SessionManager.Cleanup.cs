@@ -15,12 +15,7 @@ public sealed partial class SessionManager
         try
         {
             CleanupDeadSessions();
-
-            var idleSessions = GetIdleSessions(McpServerConfiguration.SessionIdleTimeout);
-            foreach (var processId in idleSessions)
-            {
-                RemoveSession(processId);
-            }
+            CleanupIdleSessions(McpServerConfiguration.SessionIdleTimeout);
         }
         catch (ObjectDisposedException)
         {
@@ -80,6 +75,35 @@ public sealed partial class SessionManager
 
         // Remove dead sessions outside the lock to avoid holding lock during disposal
         foreach (var (processId, sessionGeneration) in deadSessions)
+        {
+            RemoveSessionIfGenerationMatches(processId, sessionGeneration);
+        }
+    }
+
+    internal void CleanupIdleSessions(
+        TimeSpan idleTimeout,
+        Action? beforeIdleSessionRemoval = null)
+    {
+        List<(int ProcessId, long SessionGeneration)> idleSessions;
+
+        lock (_lock)
+        {
+            var now = _utcNowProvider();
+            idleSessions = new List<(int ProcessId, long SessionGeneration)>();
+
+            foreach (var (processId, session) in _sessions)
+            {
+                if (now - session.LastActivity > idleTimeout
+                    && _sessionGenerations.TryGetValue(processId, out var sessionGeneration))
+                {
+                    idleSessions.Add((processId, sessionGeneration));
+                }
+            }
+        }
+
+        beforeIdleSessionRemoval?.Invoke();
+
+        foreach (var (processId, sessionGeneration) in idleSessions)
         {
             RemoveSessionIfGenerationMatches(processId, sessionGeneration);
         }

@@ -52,7 +52,7 @@ public sealed class McpToolsMutationNavigationWrapperTests : IDisposable
 
     [Theory]
     [MemberData(nameof(SnapshotAwareMutationWrappers))]
-    public async Task SnapshotAwareMutationWrappers_WithActiveSnapshot_ShouldRecommendStateDiff(
+    public async Task SnapshotAwareMutationWrappers_WhenMutationFails_ShouldNotRecommendStateDiff(
         string toolName,
         Func<SessionManager, Task<CallToolResult>> invoke)
     {
@@ -61,13 +61,15 @@ public sealed class McpToolsMutationNavigationWrapperTests : IDisposable
         var result = await invoke(_sessionManager);
 
         var structured = result.StructuredContent!.Value;
+        structured.GetProperty("success").GetBoolean().Should().BeFalse(
+            "these real wrapper calls have no connected inspector pipe in this test");
         var navigation = structured.GetProperty("navigation");
         navigation.GetProperty("recommended")
             .EnumerateArray()
             .Select(step => step.GetProperty("tool").GetString())
             .Should()
-            .Contain("get_state_diff", $"{toolName} should use the real wrapper path to preserve snapshot-safe follow-up navigation");
-        navigation.GetProperty("contextRefs")[0].GetProperty("snapshotId").GetString().Should().Be(SnapshotId);
+            .NotContain("get_state_diff", $"{toolName} did not mutate state successfully");
+        navigation.GetProperty("contextRefs").GetArrayLength().Should().Be(0);
     }
 
     private void AddActiveSnapshot()

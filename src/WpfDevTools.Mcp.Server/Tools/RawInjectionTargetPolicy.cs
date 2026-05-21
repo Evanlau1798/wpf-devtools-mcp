@@ -154,6 +154,25 @@ internal static class RawInjectionTargetPolicy
         }
     }
 
+    internal static bool AreSameExecutablePath(string? firstPath, string? secondPath)
+        => TryCompareExecutablePath(firstPath, secondPath, out var areSame) && areSame;
+
+    internal static bool TryCompareExecutablePath(
+        string? firstPath,
+        string? secondPath,
+        out bool areSame)
+    {
+        areSame = false;
+        if (!TryNormalizeAbsolutePath(firstPath, TryResolvePhysicalPath, out var normalizedFirstPath)
+            || !TryNormalizeAbsolutePath(secondPath, TryResolvePhysicalPath, out var normalizedSecondPath))
+        {
+            return false;
+        }
+
+        areSame = PathComparer.Equals(normalizedFirstPath, normalizedSecondPath);
+        return true;
+    }
+
     private static string? TryNormalizeAbsolutePath(
         string? path,
         Func<string, string?> tryResolvePhysicalPath)

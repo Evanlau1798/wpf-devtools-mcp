@@ -247,6 +247,37 @@ public sealed class ToolNavigationPlannerTests : IDisposable
         navigation.GetProperty("prefetchTools").EnumerateArray().Select(item => item.GetString()).Should().Contain("restore_state_snapshot");
     }
 
+    [Theory]
+    [InlineData("clear_dp_value")]
+    [InlineData("wait_for_dp_change_after_mutation")]
+    [InlineData("force_binding_update")]
+    [InlineData("focus_element")]
+    [InlineData("drag_and_drop")]
+    [InlineData("scroll_to_element")]
+    [InlineData("simulate_keyboard")]
+    [InlineData("override_style_setter")]
+    [InlineData("invalidate_layout")]
+    public async Task ExecuteAndWrapAsync_WithSnapshotAwareMutationTool_ShouldRecommendStateDiff(string toolName)
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "Target_1"), ("propertyName", "Text")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState("snapshot_123", null),
+            toolName: toolName);
+
+        var navigation = result.StructuredContent!.Value.GetProperty("navigation");
+        var recommendedTools = navigation
+            .GetProperty("recommended")
+            .EnumerateArray()
+            .Select(step => step.GetProperty("tool").GetString())
+            .ToArray();
+
+        recommendedTools.Should().Contain("get_state_diff");
+        navigation.GetProperty("contextRefs")[0].GetProperty("snapshotId").GetString().Should().Be("snapshot_123");
+        navigation.GetProperty("prefetchTools").EnumerateArray().Select(item => item.GetString()).Should().Contain("restore_state_snapshot");
+    }
+
     [Fact]
     public async Task ExecuteAndWrapAsync_WithSuccessfulBatchMutationSnapshot_ShouldRecommendRollbackAndVerification()
     {

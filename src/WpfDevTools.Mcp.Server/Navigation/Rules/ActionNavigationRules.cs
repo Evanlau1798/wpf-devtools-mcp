@@ -14,7 +14,23 @@ internal static class ActionNavigationRules
         registry.Register("set_dp_value", BuildSetDpValue);
         registry.Register("fire_routed_event", BuildFireRoutedEvent);
         registry.Register("batch_mutate", BuildBatchMutate);
+        RegisterSnapshotAwareMutation(registry, "clear_dp_value");
+        RegisterSnapshotAwareMutation(registry, "wait_for_dp_change_after_mutation");
+        RegisterSnapshotAwareMutation(registry, "force_binding_update");
+        RegisterSnapshotAwareMutation(registry, "focus_element");
+        RegisterSnapshotAwareMutation(registry, "drag_and_drop");
+        RegisterSnapshotAwareMutation(registry, "scroll_to_element");
+        RegisterSnapshotAwareMutation(registry, "simulate_keyboard");
+        RegisterSnapshotAwareMutation(registry, "override_style_setter");
+        RegisterSnapshotAwareMutation(registry, "invalidate_layout");
     }
+
+    private static void RegisterSnapshotAwareMutation(ToolNavigationRegistry registry, string toolName) =>
+        registry.Register(toolName, context => BuildSnapshotAwareUiVerification(
+            context,
+            toolName,
+            $"Inspect the updated UI state after {toolName}.",
+            $"Returns semantic runtime changes caused by {toolName}."));
 
     private static ToolNavigationEnvelope BuildClickElement(ToolNavigationContext context) =>
         BuildSnapshotAwareUiVerification(

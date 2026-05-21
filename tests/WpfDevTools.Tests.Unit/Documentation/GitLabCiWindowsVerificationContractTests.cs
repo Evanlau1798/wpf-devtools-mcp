@@ -60,8 +60,12 @@ public sealed class GitLabCiWindowsVerificationContractTests
         hosted.Should().Contain("src\\WpfDevTools.Bootstrapper\\WpfDevTools.Bootstrapper.vcxproj");
         hosted.Should().Contain("$windowsSdkDirectory = $env:WindowsSDKDir.TrimEnd('\\')");
         hosted.Should().Contain("ConvertTo-MSBuildPropertyValue");
-        hosted.Should().Contain("/p:WindowsSDKDir=$windowsSdkDirectory");
-        hosted.Should().Contain("/p:WindowsTargetPlatformVersion=$windowsSdkVersion");
+        hosted.Should().Contain("Get-HostedNativeBuildProperties");
+        hosted.Should().Contain("Resolve-HostedNetFxSdkLibraryDirectory -Platform $Platform");
+        hosted.Should().Contain("if ($Platform -ne 'Win32')");
+        hosted.Should().Contain("/p:NetFxSdkLibraryDir=$netFxSdkLibraryDirectory");
+        hosted.Should().Contain("/p:WindowsSDKDir=$WindowsSdkDirectory");
+        hosted.Should().Contain("/p:WindowsTargetPlatformVersion=$WindowsSdkVersion");
         hosted.Should().Contain("/p:IncludePath=$includePath");
         hosted.Should().Contain("/p:LibraryPath=$libraryPath");
         hosted.Should().Contain("/p:ExecutablePath=$executablePath");

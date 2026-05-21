@@ -41,6 +41,112 @@ function ConvertTo-MSBuildPropertyValue {
     return $Value.TrimEnd(';') -replace ';', '%3B'
 }
 
+function Resolve-HostedNetFxSdkLibraryDirectory {
+    param([Parameter(Mandatory = $true)] [ValidateSet('x64', 'Win32')] [string]$Platform)
+
+    $architecture = if ($Platform -eq 'Win32') { 'x86' } else { 'x64' }
+    $candidates = @(
+        $(if (-not [string]::IsNullOrWhiteSpace($env:NETFXKitsDir)) {
+            Join-Path $env:NETFXKitsDir "Lib\um\$architecture"
+        }),
+        $(if ($Platform -eq 'x64' -and -not [string]::IsNullOrWhiteSpace($env:NetFxSdkLibraryDir)) {
+            $env:NetFxSdkLibraryDir
+        })
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate) {
+            return [string]$candidate
+        }
+    }
+
+    return ''
+}
+
+function Resolve-HostedVCToolsDirectory {
+    $vcToolsVariable = Get-Variable -Scope Script -Name SandboxCiVCToolsDirectory -ErrorAction SilentlyContinue
+    if ($null -ne $vcToolsVariable -and
+        -not [string]::IsNullOrWhiteSpace([string]$vcToolsVariable.Value) -and
+        (Test-Path -LiteralPath ([string]$vcToolsVariable.Value))) {
+        return [string]$vcToolsVariable.Value
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:VCToolsInstallDir) -and
+        (Test-Path -LiteralPath $env:VCToolsInstallDir)) {
+        return $env:VCToolsInstallDir.TrimEnd('\')
+    }
+
+    return ''
+}
+
+function Get-HostedNativeBuildProperties {
+    param(
+        [Parameter(Mandatory = $true)] [ValidateSet('x64', 'Win32')] [string]$Platform,
+        [Parameter(Mandatory = $true)] [string]$WindowsSdkDirectory,
+        [Parameter(Mandatory = $true)] [string]$WindowsSdkVersion,
+        [Parameter(Mandatory = $true)] [string]$NativeHostDirectory
+    )
+
+    $arguments = @(
+        '/p:LinkIncremental=false',
+        "/p:WindowsSDKDir=$WindowsSdkDirectory",
+        "/p:WindowsTargetPlatformVersion=$WindowsSdkVersion",
+        "/p:NetHostIncludeDir=$NativeHostDirectory",
+        "/p:NetHostLibDir=$NativeHostDirectory"
+    )
+
+    $netFxSdkLibraryDirectory = Resolve-HostedNetFxSdkLibraryDirectory -Platform $Platform
+    if (-not [string]::IsNullOrWhiteSpace($netFxSdkLibraryDirectory)) {
+        $arguments += "/p:NetFxSdkLibraryDir=$netFxSdkLibraryDirectory"
+    }
+
+    $includePath = ConvertTo-MSBuildPropertyValue -Value $env:INCLUDE
+    $arguments += "/p:IncludePath=$includePath"
+
+    if ($Platform -ne 'Win32') {
+        $libraryPath = ConvertTo-MSBuildPropertyValue -Value $env:LIB
+        $executablePath = ConvertTo-MSBuildPropertyValue -Value $env:PATH
+    }
+    else {
+        $vcToolsDirectory = Resolve-HostedVCToolsDirectory
+        $libraryEntries = @(
+            $(if (-not [string]::IsNullOrWhiteSpace($vcToolsDirectory)) {
+                Join-Path $vcToolsDirectory 'lib\x86'
+            }),
+            (Join-Path $WindowsSdkDirectory "Lib\$WindowsSdkVersion\um\x86"),
+            (Join-Path $WindowsSdkDirectory "Lib\$WindowsSdkVersion\ucrt\x86"),
+            $netFxSdkLibraryDirectory
+        ) | Where-Object {
+            -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path -LiteralPath $_)
+        } | Select-Object -Unique
+
+        $executableEntries = @(
+            $(if (-not [string]::IsNullOrWhiteSpace($vcToolsDirectory)) {
+                Join-Path $vcToolsDirectory 'bin\HostX64\x86'
+            }),
+            $(if (-not [string]::IsNullOrWhiteSpace($vcToolsDirectory)) {
+                Join-Path $vcToolsDirectory 'bin\HostX86\x86'
+            }),
+            (Join-Path $WindowsSdkDirectory "bin\$WindowsSdkVersion\x64"),
+            (Join-Path $WindowsSdkDirectory "bin\$WindowsSdkVersion\x86"),
+            (Join-Path $WindowsSdkDirectory 'bin\x64'),
+            (Join-Path $WindowsSdkDirectory 'bin\x86')
+        ) | Where-Object {
+            -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path -LiteralPath $_)
+        } | Select-Object -Unique
+
+        $libraryPath = ConvertTo-MSBuildPropertyValue -Value ($libraryEntries -join ';')
+        $executablePath = ConvertTo-MSBuildPropertyValue -Value (($executableEntries + @($env:PATH)) -join ';')
+    }
+
+    $arguments += @(
+        "/p:LibraryPath=$libraryPath",
+        "/p:ExecutablePath=$executablePath"
+    )
+
+    return $arguments
+}
+
 function Invoke-HostedNativeBootstrapperBuild {
     param(
         [Parameter(Mandatory = $true)] [ValidateSet('Debug', 'Release')] [string]$Configuration,
@@ -64,25 +170,20 @@ function Invoke-HostedNativeBootstrapperBuild {
         throw 'Windows SDK version was not found. HostedWindowsX64 requires Windows SDK headers for native bootstrapper MSBuild.'
     }
 
-    $includePath = ConvertTo-MSBuildPropertyValue -Value $env:INCLUDE
-    $libraryPath = ConvertTo-MSBuildPropertyValue -Value $env:LIB
-    $executablePath = ConvertTo-MSBuildPropertyValue -Value $env:PATH
-
-    Invoke-External "Build native bootstrapper $Configuration $Platform" $msbuildPath @(
+    $arguments = @(
         'src\WpfDevTools.Bootstrapper\WpfDevTools.Bootstrapper.vcxproj',
         '/m',
         '/nologo',
         "/p:Configuration=$Configuration",
-        "/p:Platform=$Platform",
-        '/p:LinkIncremental=false',
-        "/p:WindowsSDKDir=$windowsSdkDirectory",
-        "/p:WindowsTargetPlatformVersion=$windowsSdkVersion",
-        "/p:IncludePath=$includePath",
-        "/p:LibraryPath=$libraryPath",
-        "/p:ExecutablePath=$executablePath",
-        "/p:NetHostIncludeDir=$nativeHostDirectory",
-        "/p:NetHostLibDir=$nativeHostDirectory"
+        "/p:Platform=$Platform"
     )
+    $arguments += Get-HostedNativeBuildProperties `
+        -Platform $Platform `
+        -WindowsSdkDirectory $windowsSdkDirectory `
+        -WindowsSdkVersion $windowsSdkVersion `
+        -NativeHostDirectory $nativeHostDirectory
+
+    Invoke-External "Build native bootstrapper $Configuration $Platform" $msbuildPath $arguments
 }
 
 function Invoke-HostedServerRuntimeBuild {

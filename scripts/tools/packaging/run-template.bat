@@ -83,7 +83,11 @@ if /I not "%WPFDEVTOOLS_POWERSHELL_EXE:~-4%"==".exe" (
     echo WPFDEVTOOLS_POWERSHELL_EXE must point to a .exe host.
     exit /b 1
 )
-if not "%WPFDEVTOOLS_POWERSHELL_EXE:~1,2%"==":\" if not "%WPFDEVTOOLS_POWERSHELL_EXE:~0,2%"=="\\" (
+if "%WPFDEVTOOLS_POWERSHELL_EXE:~0,2%"=="\\" (
+    echo WPFDEVTOOLS_POWERSHELL_EXE must be a local drive path.
+    exit /b 1
+)
+if not "%WPFDEVTOOLS_POWERSHELL_EXE:~1,2%"==":\" (
     echo WPFDEVTOOLS_POWERSHELL_EXE must be an absolute path.
     exit /b 1
 )
@@ -94,6 +98,12 @@ if /I not "%POWERSHELL_EXE_NAME%"=="powershell.exe" if /I not "%POWERSHELL_EXE_N
 )
 if not exist "%WPFDEVTOOLS_POWERSHELL_EXE%" (
     echo WPFDEVTOOLS_POWERSHELL_EXE was not found: %WPFDEVTOOLS_POWERSHELL_EXE%
+    exit /b 1
+)
+set "POWERSHELL_PATH_KIND_OK="
+for /f "usebackq delims=" %%I in (`%ENCODER_POWERSHELL_EXE% -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$item = Get-Item -LiteralPath $env:WPFDEVTOOLS_POWERSHELL_EXE -ErrorAction Stop; if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0) { 'OK' }"`) do set "POWERSHELL_PATH_KIND_OK=%%I"
+if /I not "%POWERSHELL_PATH_KIND_OK%"=="OK" (
+    echo WPFDEVTOOLS_POWERSHELL_EXE must not resolve through a reparse point.
     exit /b 1
 )
 set "POWERSHELL_SIGNER_OK="

@@ -14,8 +14,11 @@ public sealed class RunTemplatePowerShellOverrideTests
         content.Should().Contain("WPFDEVTOOLS_POWERSHELL_EXE cannot contain quote characters.");
         content.Should().Contain("WPFDEVTOOLS_POWERSHELL_EXE must point to a .exe host.");
         content.Should().Contain("WPFDEVTOOLS_POWERSHELL_EXE must be an absolute path.");
+        content.Should().Contain("WPFDEVTOOLS_POWERSHELL_EXE must be a local drive path.");
         content.Should().Contain("WPFDEVTOOLS_POWERSHELL_EXE must point to powershell.exe or pwsh.exe.");
         content.Should().Contain("if not exist \"%WPFDEVTOOLS_POWERSHELL_EXE%\"");
+        content.Should().Contain("Get-Item -LiteralPath $env:WPFDEVTOOLS_POWERSHELL_EXE");
+        content.Should().Contain("ReparsePoint");
 
         var validationIndex = content.IndexOf("call :validate_powershell_override", StringComparison.Ordinal);
         var launchIndex = content.IndexOf(":launch_install", StringComparison.Ordinal);

@@ -66,9 +66,9 @@ public sealed partial class SessionManager
         {
             deadProcessIds = new List<int>();
 
-            foreach (var processId in _sessions.Keys)
+            foreach (var (processId, session) in _sessions)
             {
-                if (!IsProcessAlive(processId))
+                if (!IsSessionProcessCurrent(session))
                 {
                     deadProcessIds.Add(processId);
                 }
@@ -85,22 +85,61 @@ public sealed partial class SessionManager
     /// <summary>
     /// Check if a process is still running
     /// </summary>
-    private static bool IsProcessAlive(int processId)
+    private bool IsSessionProcessCurrent(SessionInfo session)
+    {
+        var currentIdentity = _processIdentityProvider(session.ProcessId);
+        if (currentIdentity == null)
+        {
+            return false;
+        }
+
+        if (session.ProcessIdentity == null
+            || session.ProcessIdentity.Value.StartTimeUtcTicks == null
+            || currentIdentity.Value.StartTimeUtcTicks == null)
+        {
+            return currentIdentity.Value.ProcessId == session.ProcessId;
+        }
+
+        return currentIdentity.Value.Equals(session.ProcessIdentity.Value);
+    }
+
+    private static ProcessIdentity? GetCurrentProcessIdentity(int processId)
     {
         try
         {
             using var process = System.Diagnostics.Process.GetProcessById(processId);
-            return !process.HasExited;
+            if (process.HasExited)
+            {
+                return null;
+            }
+
+            long? startTimeUtcTicks = null;
+            try
+            {
+                startTimeUtcTicks = process.StartTime.ToUniversalTime().Ticks;
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+            }
+            catch (InvalidOperationException)
+            {
+            }
+            catch (NotSupportedException)
+            {
+            }
+
+            return new ProcessIdentity(processId, startTimeUtcTicks);
         }
         catch (ArgumentException)
         {
             // Process doesn't exist
-            return false;
+            return null;
         }
         catch (InvalidOperationException)
         {
             // Process has exited
-            return false;
+            return null;
         }
     }
+
 }

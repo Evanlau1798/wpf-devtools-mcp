@@ -53,6 +53,42 @@ public class SessionManagerConcurrencyTests
     }
 
     [Fact]
+    public void CleanupDeadSessions_ShouldRemoveSessionWhenProcessIdentityChangesForSamePid()
+    {
+        var processId = 123456;
+        var currentIdentity = new SessionManager.ProcessIdentity(
+            processId,
+            StartTimeUtcTicks: 100);
+        using var manager = CreateManagerWithProcessIdentityProvider(_ => currentIdentity);
+
+        manager.AddSession(processId);
+        currentIdentity = new SessionManager.ProcessIdentity(
+            processId,
+            StartTimeUtcTicks: 200);
+
+        manager.CleanupDeadSessions();
+
+        manager.HasSession(processId).Should().BeFalse(
+            "a reused PID with a different process start time is not the same inspector target");
+    }
+
+    [Fact]
+    public void CleanupDeadSessions_ShouldKeepSessionWhenProcessIdentityMatches()
+    {
+        var processId = 123457;
+        var currentIdentity = new SessionManager.ProcessIdentity(
+            processId,
+            StartTimeUtcTicks: 100);
+        using var manager = CreateManagerWithProcessIdentityProvider(_ => currentIdentity);
+
+        manager.AddSession(processId);
+        manager.CleanupDeadSessions();
+
+        manager.HasSession(processId).Should().BeTrue(
+            "a live process with the same captured identity should retain its session");
+    }
+
+    [Fact]
     public void AddSession_WithMaxSessionsReached_ShouldThrowException()
     {
         // Arrange
@@ -69,4 +105,13 @@ public class SessionManagerConcurrencyTests
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*Maximum session limit*");
     }
+
+    private static SessionManager CreateManagerWithProcessIdentityProvider(
+        Func<int, SessionManager.ProcessIdentity?> processIdentityProvider)
+        => new(
+            McpServerConfiguration.RateLimitRequestsPerMinute,
+            authManager: null,
+            certManager: null,
+            utcNowProvider: null,
+            processIdentityProvider: processIdentityProvider);
 }

@@ -281,7 +281,8 @@ public sealed partial class SessionManager
                 _sessions[processId] = new SessionInfo
                 {
                     ProcessId = session.ProcessId,
-                    LastActivity = _utcNowProvider()
+                    LastActivity = _utcNowProvider(),
+                    ProcessIdentity = session.ProcessIdentity
                 };
             }
         }

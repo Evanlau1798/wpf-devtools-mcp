@@ -24,6 +24,7 @@ public sealed partial class SessionManager : IDisposable
     private readonly AuthenticationManager? _authManager;
     private readonly ProcessAuthenticationSecretProvider _processAuthenticationSecrets;
     private readonly CertificateManager? _certManager;
+    private readonly Func<int, ProcessIdentity?> _processIdentityProvider;
     private readonly ILogger? _logger;
     private readonly object _lock = new();
     private readonly object _shutdownGuard = new();
@@ -54,12 +55,14 @@ public sealed partial class SessionManager : IDisposable
     /// <param name="certManager">Certificate manager for encryption (null to disable encryption)</param>
     /// <param name="logger">Logger for cleanup diagnostics (null to fall back to Debug.WriteLine)</param>
     /// <param name="utcNowProvider">Optional UTC clock provider for deterministic tests</param>
+    /// <param name="processIdentityProvider">Optional process identity provider for deterministic cleanup tests</param>
     internal SessionManager(
         IRateLimiterManager rateLimiter,
         AuthenticationManager? authManager,
         CertificateManager? certManager,
         ILogger<SessionManager>? logger,
-        Func<DateTimeOffset>? utcNowProvider)
+        Func<DateTimeOffset>? utcNowProvider,
+        Func<int, ProcessIdentity?>? processIdentityProvider = null)
     {
         _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
         _authManager = authManager;
@@ -67,6 +70,7 @@ public sealed partial class SessionManager : IDisposable
         _certManager = certManager;
         _logger = logger;
         _utcNowProvider = utcNowProvider ?? (() => DateTimeOffset.UtcNow);
+        _processIdentityProvider = processIdentityProvider ?? GetCurrentProcessIdentity;
 
         // CRITICAL FIX: Periodic cleanup of dead and idle sessions
         // Uses one-shot timer (Infinite period) to prevent overlapping callbacks.
@@ -101,12 +105,20 @@ public sealed partial class SessionManager : IDisposable
     /// <param name="authManager">Authentication manager (null to disable authentication)</param>
     /// <param name="certManager">Certificate manager for encryption (null to disable encryption)</param>
     /// <param name="utcNowProvider">Optional UTC clock provider for deterministic tests</param>
+    /// <param name="processIdentityProvider">Optional process identity provider for deterministic cleanup tests</param>
     internal SessionManager(
         int maxRequestsPerMinute,
         AuthenticationManager? authManager,
         CertificateManager? certManager,
-        Func<DateTimeOffset>? utcNowProvider)
-        : this(new RateLimiterManager(maxRequestsPerMinute), authManager, certManager, logger: null, utcNowProvider: utcNowProvider)
+        Func<DateTimeOffset>? utcNowProvider,
+        Func<int, ProcessIdentity?>? processIdentityProvider = null)
+        : this(
+            new RateLimiterManager(maxRequestsPerMinute),
+            authManager,
+            certManager,
+            logger: null,
+            utcNowProvider: utcNowProvider,
+            processIdentityProvider: processIdentityProvider)
     {
     }
 
@@ -225,7 +237,8 @@ public sealed partial class SessionManager : IDisposable
         _sessions[processId] = new SessionInfo
         {
             ProcessId = processId,
-            LastActivity = _utcNowProvider()
+            LastActivity = _utcNowProvider(),
+            ProcessIdentity = _processIdentityProvider(processId)
         };
         _sessionGenerations[processId] = ++_nextSessionGeneration;
 
@@ -288,7 +301,12 @@ public sealed partial class SessionManager : IDisposable
     {
         public required int ProcessId { get; init; }
         public required DateTimeOffset LastActivity { get; init; }
+        public required ProcessIdentity? ProcessIdentity { get; init; }
     }
+
+    internal readonly record struct ProcessIdentity(
+        int ProcessId,
+        long? StartTimeUtcTicks);
 
     private void ThrowIfDisposed()
     {

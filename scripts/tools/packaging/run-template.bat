@@ -101,7 +101,7 @@ if not exist "%WPFDEVTOOLS_POWERSHELL_EXE%" (
     exit /b 1
 )
 set "POWERSHELL_PATH_KIND_OK="
-for /f "usebackq delims=" %%I in (`%ENCODER_POWERSHELL_EXE% -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$item = Get-Item -LiteralPath $env:WPFDEVTOOLS_POWERSHELL_EXE -ErrorAction Stop; if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0) { 'OK' }"`) do set "POWERSHELL_PATH_KIND_OK=%%I"
+for /f "usebackq delims=" %%I in (`%ENCODER_POWERSHELL_EXE% -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$path = [System.IO.Path]::GetFullPath($env:WPFDEVTOOLS_POWERSHELL_EXE); $root = [System.IO.Path]::GetPathRoot($path); if ([string]::IsNullOrWhiteSpace($root)) { exit 1 }; $drive = [System.IO.DriveInfo]::new($root); if ($drive.DriveType -ne [System.IO.DriveType]::Fixed) { exit 1 }; $current = $path; while ($true) { $item = Get-Item -LiteralPath $current -ErrorAction Stop; if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { exit 1 }; $parent = [System.IO.Directory]::GetParent($current); if ($null -eq $parent) { break }; $parentPath = $parent.FullName; if ([string]::Equals($parentPath, $current, [System.StringComparison]::OrdinalIgnoreCase)) { break }; $current = $parentPath }; 'OK'"`) do set "POWERSHELL_PATH_KIND_OK=%%I"
 if /I not "%POWERSHELL_PATH_KIND_OK%"=="OK" (
     echo WPFDEVTOOLS_POWERSHELL_EXE must not resolve through a reparse point.
     exit /b 1

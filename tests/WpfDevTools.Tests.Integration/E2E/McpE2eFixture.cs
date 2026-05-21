@@ -277,21 +277,14 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
     }
 
     private static string CreateCertificateDirectoryPath() =>
-        Path.Combine(Path.GetTempPath(), "WpfDevTools.McpE2eCerts." + Guid.NewGuid().ToString("N"));
+        Path.Combine(
+            ReleasePackagingTestHarness.GetRepoFilePath("tmp"),
+            "mcp-e2e-certs",
+            Guid.NewGuid().ToString("N"));
 
     private void DeleteCertificateDirectory()
     {
-        try
-        {
-            if (Directory.Exists(_certDirectory))
-            {
-                Directory.Delete(_certDirectory, recursive: true);
-            }
-        }
-        catch
-        {
-            // Best-effort cleanup; a child process may still be releasing certificate files.
-        }
+        ReleasePackagingTestHarness.DeleteDirectory(_certDirectory);
     }
 
     private static string? FindExecutable(

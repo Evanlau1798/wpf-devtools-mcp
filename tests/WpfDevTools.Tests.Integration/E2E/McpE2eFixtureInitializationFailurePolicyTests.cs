@@ -43,6 +43,16 @@ public sealed class McpE2eFixtureInitializationFailurePolicyTests
     }
 
     [Fact]
+    public void CertificateDirectoryForTesting_ShouldStayUnderRepoTmp()
+    {
+        using var fixture = new McpE2eFixture();
+        var repoTmpRoot = WpfDevTools.Tests.Integration.TestSupport.ReleasePackagingTestHarness.GetRepoFilePath("tmp");
+
+        fixture.CertificateDirectoryForTesting.Should().StartWith(repoTmpRoot,
+            "fixture-owned temp files should remain under repo tmp so cleanup failures cannot leave untracked system-temp artifacts");
+    }
+
+    [Fact]
     public void RecordInitializationFailureForTesting_ShouldCleanFixtureTempRootBeforePublishingSkipReason()
     {
         var fixture = new McpE2eFixture();

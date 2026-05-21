@@ -15,6 +15,8 @@ dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --con
 dotnet add <your-wpf-app.csproj> package WpfDevTools.Inspector.Sdk --source ./nupkg
 ```
 
+The local SDK package includes the repository-internal `WpfDevTools.Inspector` and `WpfDevTools.Shared` assemblies, so consumers do not need unpublished sibling packages.
+
 After public NuGet publication, consumers can install from the configured NuGet.org source:
 
 ```bash

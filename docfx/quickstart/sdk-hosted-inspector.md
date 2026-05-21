@@ -11,6 +11,8 @@ dotnet pack src\WpfDevTools.Inspector.Sdk\WpfDevTools.Inspector.Sdk.csproj -c Re
 dotnet add <your-wpf-app.csproj> package WpfDevTools.Inspector.Sdk --source .\nupkg
 ```
 
+The local SDK package includes the repository-internal `WpfDevTools.Inspector` and `WpfDevTools.Shared` assemblies, so consumers do not need unpublished sibling packages.
+
 Current target framework: `net8.0-windows`. .NET Framework WPF apps should keep using the raw injection path unless and until SDK target expansion is implemented.
 
 ## Required transport settings

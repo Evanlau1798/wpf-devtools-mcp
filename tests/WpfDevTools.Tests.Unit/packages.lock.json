@@ -458,11 +458,7 @@
         }
       },
       "wpfdevtools.inspector.sdk": {
-        "type": "Project",
-        "dependencies": {
-          "WpfDevTools.Inspector": "[1.0.0, )",
-          "WpfDevTools.Shared": "[1.0.0, )"
-        }
+        "type": "Project"
       },
       "wpfdevtools.mcp.server": {
         "type": "Project",

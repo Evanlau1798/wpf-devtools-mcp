@@ -14,15 +14,24 @@
     <PackageTags>wpf;devtools;mcp;debugging;inspection</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeProjectReferencesInPackage</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj" />
-    <ProjectReference Include="..\WpfDevTools.Shared\WpfDevTools.Shared.csproj" />
+    <ProjectReference Include="..\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\WpfDevTools.Shared\WpfDevTools.Shared.csproj" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
+
+  <Target Name="IncludeProjectReferencesInPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage
+        Include="@(ReferenceCopyLocalPaths)"
+        Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference'" />
+    </ItemGroup>
+  </Target>
 
 </Project>

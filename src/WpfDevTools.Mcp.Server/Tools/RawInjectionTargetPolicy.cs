@@ -47,7 +47,11 @@ internal static class RawInjectionTargetPolicy
                 Hint: $"Set {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths when raw injection into a specific target executable is explicitly intended.");
         }
 
-        var configuredTargets = GetConfiguredAllowedTargets(configuredAllowedTargets, tryResolvePhysicalPath);
+        if (!TryGetConfiguredAllowedTargets(configuredAllowedTargets, tryResolvePhysicalPath, out var configuredTargets))
+        {
+            return CreateInvalidConfigurationAuthorization();
+        }
+
         if (configuredTargets.Contains(normalizedTargetPath, PathComparer))
         {
             return new RawInjectionAuthorization(
@@ -70,21 +74,54 @@ internal static class RawInjectionTargetPolicy
     internal static IReadOnlyCollection<string> GetConfiguredAllowedTargets(
         string? configuredValue,
         Func<string, string?> tryResolvePhysicalPath)
+        => TryGetConfiguredAllowedTargets(configuredValue, tryResolvePhysicalPath, out var configuredTargets)
+            ? configuredTargets
+            : Array.Empty<string>();
+
+    private static bool TryGetConfiguredAllowedTargets(
+        string? configuredValue,
+        Func<string, string?> tryResolvePhysicalPath,
+        out IReadOnlyCollection<string> configuredTargets)
     {
+        configuredTargets = Array.Empty<string>();
         if (string.IsNullOrWhiteSpace(configuredValue))
         {
-            return Array.Empty<string>();
+            return true;
         }
 
-        var normalizedPaths = configuredValue
-            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(path => TryNormalizeAbsolutePath(path, tryResolvePhysicalPath))
-            .Where(path => path != null)
-            .Distinct(PathComparer)
-            .ToArray();
+        var configuredTargetEntries = configuredValue.Split(
+            ';',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        return new ReadOnlyCollection<string>(normalizedPaths!);
+        if (configuredTargetEntries.Length == 0)
+        {
+            return false;
+        }
+
+        var normalizedPaths = new HashSet<string>(PathComparer);
+        foreach (var configuredTargetEntry in configuredTargetEntries)
+        {
+            if (!TryNormalizeAbsolutePath(
+                    configuredTargetEntry,
+                    tryResolvePhysicalPath,
+                    out var normalizedConfiguredTarget))
+            {
+                configuredTargets = Array.Empty<string>();
+                return false;
+            }
+
+            normalizedPaths.Add(normalizedConfiguredTarget);
+        }
+
+        configuredTargets = new ReadOnlyCollection<string>(normalizedPaths.ToArray());
+        return true;
     }
+
+    private static RawInjectionAuthorization CreateInvalidConfigurationAuthorization()
+        => new(
+            IsAllowed: false,
+            Error: "Invalid raw injection allowlist configuration. Every configured entry must be an exact absolute executable path.",
+            Hint: $"Fix {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths, then restart the MCP server.");
 
     internal static bool TryNormalizeAbsolutePath(
         string? path,

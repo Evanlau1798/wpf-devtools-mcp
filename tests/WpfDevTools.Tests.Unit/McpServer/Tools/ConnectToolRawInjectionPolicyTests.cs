@@ -303,14 +303,30 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
     }
 
     [Fact]
-    public void GetConfiguredAllowedTargets_ShouldIgnoreRelativeEntries()
+    public void Authorize_WhenAllowlistContainsMalformedEntry_ShouldFailClosed()
+    {
+        const string targetPath = @"C:\Explicit\AllowedApp.exe";
+        var processInfo = CreateProcessInfo(targetPath);
+
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            processInfo,
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: $@"relative\app.exe;{targetPath}",
+            path => Path.GetFullPath(path));
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("Invalid raw injection allowlist configuration");
+        authorization.Hint.Should().Contain(McpServerConfiguration.RawInjectionAllowedTargetsEnvVar);
+    }
+
+    [Fact]
+    public void GetConfiguredAllowedTargets_WithMalformedEntry_ShouldFailClosed()
     {
         var configuredTargets = RawInjectionTargetPolicy.GetConfiguredAllowedTargets(
             @"relative\app.exe;C:drive-relative\app.exe;C:\Explicit\AllowedApp.exe",
             path => Path.GetFullPath(path));
 
-        configuredTargets.Should().ContainSingle();
-        configuredTargets.Single().Should().Be(@"C:\Explicit\AllowedApp.exe");
+        configuredTargets.Should().BeEmpty();
     }
 
     public void Dispose()

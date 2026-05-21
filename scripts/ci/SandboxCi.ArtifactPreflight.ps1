@@ -26,6 +26,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'SandboxCi.Process.ps1')
 . (Join-Path $PSScriptRoot 'SandboxCi.ProcessCleanup.ps1')
 
 function Write-PreflightResult {
@@ -188,7 +189,7 @@ function Ensure-DotNetRuntime {
         '-InstallDir',
         $dotNetRoot,
         '-NoPath'
-    )
+    ) -TimeoutSeconds 900
 
     Use-DotNetRoot -DotNetRoot $dotNetRoot
     if (-not (Test-DotNetRuntimeAvailable)) {
@@ -199,7 +200,9 @@ function Ensure-DotNetRuntime {
 function Invoke-PowerShellStep {
     param(
         [Parameter(Mandatory = $true)] [string]$Name,
-        [Parameter(Mandatory = $true)] [string[]]$Arguments
+        [Parameter(Mandatory = $true)] [string[]]$Arguments,
+        [ValidateRange(1, 86400)]
+        [int]$TimeoutSeconds = 900
     )
 
     Write-Host ">>> $Name"
@@ -208,23 +211,18 @@ function Invoke-PowerShellStep {
         $safeName = 'step'
     }
 
-    $stdoutPath = Join-Path $logRoot "$timestamp-$safeName.stdout.log"
-    $stderrPath = Join-Path $logRoot "$timestamp-$safeName.stderr.log"
-    $stepErrorActionPreference = $ErrorActionPreference
-    $exitCode = 0
     try {
-        $ErrorActionPreference = 'Continue'
-        & powershell.exe @Arguments 1> $stdoutPath 2> $stderrPath
-        $exitCode = $LASTEXITCODE
+        Invoke-ExternalWithTimeout `
+            -Name $Name `
+            -FilePath 'powershell.exe' `
+            -Arguments $Arguments `
+            -TimeoutSeconds $TimeoutSeconds `
+            -OutputRoot $outputRootFullPath `
+            -Timestamp "$timestamp-$safeName"
     }
-    finally {
-        $ErrorActionPreference = $stepErrorActionPreference
-    }
-
-    if ($exitCode -ne 0) {
-        $stdoutTail = Get-PreflightLogTail -Path $stdoutPath
-        $stderrTail = Get-PreflightLogTail -Path $stderrPath
-        throw "$Name failed with exit code $exitCode. Stdout log: $stdoutPath. Stderr log: $stderrPath. Stdout tail: $stdoutTail. Stderr tail: $stderrTail"
+    catch {
+        $processLogRoot = Join-Path $outputRootFullPath "logs\process\$timestamp-$safeName"
+        throw "$($_.Exception.Message) Process logs: $processLogRoot"
     }
 }
 
@@ -352,7 +350,8 @@ try {
         )
     }
 
-    Invoke-PowerShellStep -Name 'Run packaged server runtime smoke' -Arguments $runtimeSmokeArguments
+    $runtimeSmokeTimeoutSeconds = [Math]::Max(300, $SmokeTargetStartupTimeoutSeconds + 120)
+    Invoke-PowerShellStep -Name 'Run packaged server runtime smoke' -Arguments $runtimeSmokeArguments -TimeoutSeconds $runtimeSmokeTimeoutSeconds
 
     $installedScript = Join-Path $installRoot "$Architecture\current\bin\install.ps1"
     Assert-RequiredPath -Path $installedScript -Description 'installed package-local installer'

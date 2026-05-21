@@ -110,6 +110,29 @@ foreach ($script in Get-ChildItem -LiteralPath $scriptRoot -Filter '*.ps1') {
     }
 
     [Fact]
+    public void SandboxArtifactPreflight_ShouldRunNestedPowerShellStepsWithTimeoutCleanup()
+    {
+        var scriptRoot = Path.Combine(RepoRoot, "scripts", "ci");
+        var launcher = ReadScript(scriptRoot, "Invoke-WindowsSandboxArtifactPreflight.ps1");
+        var preflight = ReadScript(scriptRoot, "SandboxCi.ArtifactPreflight.ps1");
+
+        launcher.Should().Contain("SandboxCi.Process.ps1");
+        preflight.Should().Contain(". (Join-Path $PSScriptRoot 'SandboxCi.Process.ps1')");
+
+        var stepStart = preflight.IndexOf("function Invoke-PowerShellStep", StringComparison.Ordinal);
+        var stepEnd = preflight.IndexOf("function Enable-InstallerTestHarness", StringComparison.Ordinal);
+        var stepBlock = preflight.Substring(stepStart, stepEnd - stepStart);
+
+        stepBlock.Should().Contain("[int]$TimeoutSeconds");
+        stepBlock.Should().Contain("Invoke-ExternalWithTimeout");
+        stepBlock.Should().Contain("-TimeoutSeconds $TimeoutSeconds");
+        stepBlock.Should().Contain("Process logs:");
+        preflight.Should().Contain("Invoke-PowerShellStep -Name 'Install .NET runtime'").And.Contain("-TimeoutSeconds 900");
+        preflight.Should().Contain("$runtimeSmokeTimeoutSeconds");
+        preflight.Should().Contain("Invoke-PowerShellStep -Name 'Run packaged server runtime smoke'");
+    }
+
+    [Fact]
     public void InvokeWindowsSandboxCi_GenerateOnly_ShouldWriteValidSandboxConfigToWorkRoot()
     {
         var tempRoot = CreateTempRoot();

@@ -104,6 +104,7 @@ function Copy-PreflightBootstrapFiles {
 
     New-Item -ItemType Directory -Force -Path $Destination | Out-Null
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'SandboxCi.ArtifactPreflight.ps1') -Destination (Join-Path $Destination 'SandboxCi.ArtifactPreflight.ps1') -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'SandboxCi.Process.ps1') -Destination (Join-Path $Destination 'SandboxCi.Process.ps1') -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'SandboxCi.ProcessCleanup.ps1') -Destination (Join-Path $Destination 'SandboxCi.ProcessCleanup.ps1') -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\tools\packaging\Test-PackagedServerRuntime.ps1') -Destination (Join-Path $Destination 'Test-PackagedServerRuntime.ps1') -Force
 }

@@ -48,7 +48,7 @@ public sealed class ConnectToolRawInjectionIdentityTests
         var serializedPayload = payload.GetRawText();
         serializedPayload.Should().NotContain("ReplacementSecretApp");
         serializedPayload.Should().NotContain("Replacement Secret Window");
-        serializedPayload.Should().NotContain(replacementPath);
+        AssertNoJsonStringContains(payload, replacementPath);
         injector.InjectWithBootstrapCallCount.Should().Be(0);
         processDetector.GetProcessInfoCallCount.Should().BeGreaterThanOrEqualTo(2);
     }
@@ -98,7 +98,7 @@ public sealed class ConnectToolRawInjectionIdentityTests
             var serializedPayload = payload.GetRawText();
             serializedPayload.Should().NotContain("ReplacementSecretApp");
             serializedPayload.Should().NotContain("Replacement Secret Window");
-            serializedPayload.Should().NotContain(replacementPath);
+            AssertNoJsonStringContains(payload, replacementPath);
             injector.InjectWithBootstrapCallCount.Should().Be(0);
             processDetector.GetProcessInfoCallCount.Should().BeGreaterThanOrEqualTo(2);
         }
@@ -116,6 +116,30 @@ public sealed class ConnectToolRawInjectionIdentityTests
             () => DateTime.UtcNow,
             _ => { },
             () => [pipeName]);
+
+    private static void AssertNoJsonStringContains(JsonElement element, string unexpected)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    AssertNoJsonStringContains(property.Value, unexpected);
+                }
+
+                break;
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    AssertNoJsonStringContains(item, unexpected);
+                }
+
+                break;
+            case JsonValueKind.String:
+                element.GetString().Should().NotContain(unexpected);
+                break;
+        }
+    }
 
     private sealed class ChangingProcessDetector(
         int expectedProcessId,

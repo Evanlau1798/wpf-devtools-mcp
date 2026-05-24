@@ -243,6 +243,59 @@ public sealed class ConnectToolSecurityErrorTests
     }
 
     [Fact]
+    public async Task Execute_WhenRawInjectionPolicyDeniesProcess_ShouldNotReturnTargetMetadata()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var executablePath = Path.Combine(tempDirectory.FullName, "PrivateRawApp.exe");
+            File.WriteAllText(executablePath, "placeholder");
+            using var sessionManager = new SessionManager();
+            var injector = new RecordingProcessInjector();
+            var tool = new ConnectTool(
+                sessionManager,
+                injector,
+                processDetector: new FixedProcessDetector(new WpfProcessInfo
+                {
+                    ProcessId = 4242,
+                    ProcessName = "PrivateRawApp",
+                    WindowTitle = "PrivateRawApp Window",
+                    Architecture = ProcessArchitecture.X64,
+                    Runtime = TargetRuntime.NetCore,
+                    IsWpfApplication = true,
+                    IsElevated = false,
+                    ExecutablePath = executablePath
+                }),
+                dllPathValidator: _ => { },
+                isCurrentProcessElevated: () => false,
+                workingSetResolver: null,
+                inspectorCandidateResolver: null,
+                bootstrapperCandidateResolver: null,
+                pipeReadyProbe: null,
+                isRawInjectionTargetAllowed: _ => false,
+                targetPolicy: ConnectToolTestPolicies.AllowAllTargets,
+                connectInjectedSessionAsync: null,
+                connectTimeout: null);
+
+            var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 4242 }), CancellationToken.None);
+            var jsonText = JsonSerializer.Serialize(result);
+            var json = JsonSerializer.Deserialize<JsonElement>(jsonText);
+
+            json.GetProperty("success").GetBoolean().Should().BeFalse();
+            json.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+            jsonText.Should().NotContain(executablePath.Replace("\\", "\\\\"));
+            jsonText.Should().NotContain("PrivateRawApp");
+            json.TryGetProperty("targetExecutablePath", out _).Should().BeFalse();
+            json.TryGetProperty("targetProcessName", out _).Should().BeFalse();
+            injector.InjectWithBootstrapCallCount.Should().Be(0);
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Execute_WhenSharedBudgetFailureHasSensitiveDetail_ShouldSanitizeResponse()
     {
         var tempDirectory = Directory.CreateTempSubdirectory();

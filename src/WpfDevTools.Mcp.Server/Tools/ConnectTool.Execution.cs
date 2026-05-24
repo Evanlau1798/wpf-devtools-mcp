@@ -191,8 +191,7 @@ public sealed partial class ConnectTool
             errorCode = "SecurityError",
             hint = authorization.Hint,
             requiresExplicitTargetOptIn = true,
-            allowlistEnvVar = McpServerConfiguration.RawInjectionAllowedTargetsEnvVar,
-            targetProcessName = processInfo.ProcessName
+            allowlistEnvVar = McpServerConfiguration.RawInjectionAllowedTargetsEnvVar
         };
     }
 

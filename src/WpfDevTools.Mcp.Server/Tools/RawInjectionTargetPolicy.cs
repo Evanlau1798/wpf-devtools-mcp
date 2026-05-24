@@ -120,8 +120,8 @@ internal static class RawInjectionTargetPolicy
     private static RawInjectionAuthorization CreateInvalidConfigurationAuthorization()
         => new(
             IsAllowed: false,
-            Error: "Invalid raw injection allowlist configuration. Every configured entry must be an exact absolute executable path.",
-            Hint: $"Fix {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths, then restart the MCP server.");
+            Error: "Invalid raw injection allowlist configuration. Every configured entry must be an exact local absolute executable path.",
+            Hint: $"Fix {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact local absolute executable paths, then restart the MCP server.");
 
     internal static bool TryNormalizeAbsolutePath(
         string? path,
@@ -141,19 +141,19 @@ internal static class RawInjectionTargetPolicy
                 return false;
             }
 
-            if (IsNetworkPath(path) || IsMappedNetworkDrive(path))
+            if (IsNetworkPath(path) || IsRejectedDriveRoot(path))
             {
                 return false;
             }
 
             var fullPath = Path.GetFullPath(path);
-            if (IsNetworkPath(fullPath) || IsMappedNetworkDrive(fullPath))
+            if (IsNetworkPath(fullPath) || IsRejectedDriveRoot(fullPath))
             {
                 return false;
             }
 
             var resolvedPath = tryResolvePhysicalPath(fullPath) ?? fullPath;
-            if (IsNetworkPath(resolvedPath) || IsMappedNetworkDrive(resolvedPath))
+            if (IsNetworkPath(resolvedPath) || IsRejectedDriveRoot(resolvedPath))
             {
                 return false;
             }
@@ -200,7 +200,7 @@ internal static class RawInjectionTargetPolicy
            || (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase)
                && !path.StartsWith(@"\\?\", StringComparison.OrdinalIgnoreCase));
 
-    private static bool IsMappedNetworkDrive(string path)
+    private static bool IsRejectedDriveRoot(string path)
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -215,13 +215,14 @@ internal static class RawInjectionTargetPolicy
 
         try
         {
-            return new DriveInfo(root).DriveType == DriveType.Network;
+            var driveType = new DriveInfo(root).DriveType;
+            return driveType is DriveType.Network or DriveType.NoRootDirectory or DriveType.Unknown;
         }
         catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
         {
             Trace.TraceWarning(
-                $"RawInjectionTargetPolicy drive type detection failed: {ex.Message}");
-            return false;
+                $"RawInjectionTargetPolicy drive type detection failed: {ex.GetType().Name}");
+            return true;
         }
     }
 

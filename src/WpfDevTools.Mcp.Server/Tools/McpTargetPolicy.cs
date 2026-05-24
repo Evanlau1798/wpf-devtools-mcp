@@ -76,6 +76,6 @@ internal static class McpTargetPolicy
     private static McpTargetAuthorization CreateInvalidConfigurationAuthorization()
         => new(
             IsAllowed: false,
-            Error: "Invalid MCP target allowlist configuration. Every configured entry must be an exact absolute executable path.",
-            Hint: $"Fix {McpServerConfiguration.AllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths, then restart the MCP server.");
+            Error: "Invalid MCP target allowlist configuration. Every configured entry must be an exact local absolute executable path.",
+            Hint: $"Fix {McpServerConfiguration.AllowedTargetsEnvVar} to a semicolon-separated list of exact local absolute executable paths, then restart the MCP server.");
 }

@@ -35,6 +35,35 @@ public sealed class RawInjectionTargetPolicyTests
 
         authorization.IsAllowed.Should().BeFalse();
         authorization.Error.Should().Contain("Invalid raw injection allowlist configuration");
+        authorization.Error.Should().Contain("exact local absolute executable path");
+    }
+
+    [Fact]
+    public void Authorize_WhenRawInjectionTargetUsesUnclassifiedDrive_ShouldFailClosed()
+    {
+        var targetPath = Path.Combine(GetUnusedDriveRoot(), "Target.exe");
+
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            CreateProcessInfo(targetPath),
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: targetPath,
+            tryResolvePhysicalPath: path => path);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("local absolute path");
+    }
+
+    [Fact]
+    public void Authorize_WhenResolvedTargetPathIsNetworkPath_ShouldFailClosed()
+    {
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            CreateProcessInfo(@"C:\Allowed\Target.exe"),
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: @"C:\Allowed\Target.exe",
+            tryResolvePhysicalPath: _ => @"\\server\share\Target.exe");
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("local absolute path");
     }
 
     private static WpfProcessInfo CreateProcessInfo(string executablePath)
@@ -49,5 +78,28 @@ public sealed class RawInjectionTargetPolicyTests
             IsWpfApplication = true,
             ExecutablePath = executablePath
         };
+    }
+
+    private static string GetUnusedDriveRoot()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return Path.GetPathRoot(Path.GetFullPath("Target.exe")) ?? "/";
+        }
+
+        var usedRoots = DriveInfo.GetDrives()
+            .Select(drive => drive.Name[..2])
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        for (var driveLetter = 'Z'; driveLetter >= 'D'; driveLetter--)
+        {
+            var root = driveLetter + @":\";
+            if (!usedRoots.Contains(root[..2]))
+            {
+                return root;
+            }
+        }
+
+        return @"A:\";
     }
 }

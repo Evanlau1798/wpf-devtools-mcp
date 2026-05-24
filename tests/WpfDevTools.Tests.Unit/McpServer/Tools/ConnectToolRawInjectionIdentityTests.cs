@@ -95,6 +95,10 @@ public sealed class ConnectToolRawInjectionIdentityTests
             payload.GetProperty("success").GetBoolean().Should().BeFalse();
             payload.GetProperty("errorCode").GetString().Should().Be("SecurityError");
             payload.TryGetProperty("reusedExistingHost", out _).Should().BeFalse();
+            var serializedPayload = payload.GetRawText();
+            serializedPayload.Should().NotContain("ReplacementSecretApp");
+            serializedPayload.Should().NotContain("Replacement Secret Window");
+            serializedPayload.Should().NotContain(replacementPath);
             injector.InjectWithBootstrapCallCount.Should().Be(0);
             processDetector.GetProcessInfoCallCount.Should().BeGreaterThanOrEqualTo(2);
         }

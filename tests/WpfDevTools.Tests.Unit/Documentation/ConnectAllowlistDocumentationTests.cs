@@ -57,6 +57,21 @@ public sealed class ConnectAllowlistDocumentationTests
             $"{relativePath} should pair first-run connect success with the required MCP target allowlist");
     }
 
+    [Theory]
+    [InlineData("docfx/reference/tools/process-and-connection.md")]
+    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md")]
+    public void ProcessToolReference_ShouldDescribeAllowlistScopedDiscoveryAndRedaction(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("allowlisted targets",
+            $"{relativePath} should not imply get_processes is unrestricted process metadata discovery");
+        content.Should().Contain("redactedTargetCount",
+            $"{relativePath} should document aggregate redaction for targets blocked by policy");
+        content.Should().Contain("denied target",
+            $"{relativePath} should make blocked-target metadata handling explicit");
+    }
+
     [Fact]
     public void ServerInstructions_ShouldStateMcpTargetAllowlistInsideMandatoryWorkflowBeforeConnect()
     {

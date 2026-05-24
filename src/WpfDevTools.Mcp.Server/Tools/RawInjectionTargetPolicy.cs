@@ -141,19 +141,19 @@ internal static class RawInjectionTargetPolicy
                 return false;
             }
 
-            if (IsNetworkPath(path) || IsRejectedDriveRoot(path))
+            if (IsRejectedTargetPath(path))
             {
                 return false;
             }
 
             var fullPath = Path.GetFullPath(path);
-            if (IsNetworkPath(fullPath) || IsRejectedDriveRoot(fullPath))
+            if (IsRejectedTargetPath(fullPath))
             {
                 return false;
             }
 
             var resolvedPath = tryResolvePhysicalPath(fullPath) ?? fullPath;
-            if (IsNetworkPath(resolvedPath) || IsRejectedDriveRoot(resolvedPath))
+            if (IsRejectedTargetPath(resolvedPath))
             {
                 return false;
             }
@@ -200,15 +200,52 @@ internal static class RawInjectionTargetPolicy
            || (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase)
                && !path.StartsWith(@"\\?\", StringComparison.OrdinalIgnoreCase));
 
-    private static bool IsRejectedDriveRoot(string path)
+    private static bool IsRejectedTargetPath(string path)
     {
+        if (IsNetworkPath(path))
+        {
+            return true;
+        }
+
         if (!OperatingSystem.IsWindows())
         {
             return false;
         }
 
-        var root = Path.GetPathRoot(path);
-        if (string.IsNullOrWhiteSpace(root) || root.Length < 2 || root[1] != ':')
+        return !TryGetWindowsLocalDriveRoot(path, out var driveRoot)
+            || IsRejectedDriveRoot(driveRoot);
+    }
+
+    private static bool TryGetWindowsLocalDriveRoot(string path, out string driveRoot)
+    {
+        driveRoot = string.Empty;
+
+        const string extendedDrivePrefix = @"\\?\";
+        var candidate = path.StartsWith(extendedDrivePrefix, StringComparison.OrdinalIgnoreCase)
+            ? path[extendedDrivePrefix.Length..]
+            : path;
+
+        if (candidate.Length < 3
+            || candidate[1] != ':'
+            || !IsDirectorySeparator(candidate[2])
+            || !IsAsciiDriveLetter(candidate[0]))
+        {
+            return false;
+        }
+
+        driveRoot = char.ToUpperInvariant(candidate[0]) + @":\";
+        return true;
+    }
+
+    private static bool IsDirectorySeparator(char value)
+        => value is '\\' or '/';
+
+    private static bool IsAsciiDriveLetter(char value)
+        => value is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
+
+    private static bool IsRejectedDriveRoot(string root)
+    {
+        if (!OperatingSystem.IsWindows())
         {
             return false;
         }

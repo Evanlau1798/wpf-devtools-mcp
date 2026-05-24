@@ -78,6 +78,8 @@ public sealed class McpTargetPolicyTests
     [Theory]
     [InlineData(@"\\server\share\Target.exe")]
     [InlineData(@"\\?\UNC\server\share\Target.exe")]
+    [InlineData(@"\\?\GLOBALROOT\Device\Mup\server\share\Target.exe")]
+    [InlineData(@"\\.\GLOBALROOT\Device\Mup\server\share\Target.exe")]
     public void Authorize_WhenTargetAllowlistContainsNetworkPath_ShouldFailClosed(string configuredAllowedTargets)
     {
         var authorization = McpTargetPolicy.Authorize(

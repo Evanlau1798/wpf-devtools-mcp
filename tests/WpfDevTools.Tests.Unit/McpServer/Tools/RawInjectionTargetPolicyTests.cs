@@ -10,6 +10,8 @@ public sealed class RawInjectionTargetPolicyTests
     [Theory]
     [InlineData(@"\\server\share\Target.exe")]
     [InlineData(@"\\?\UNC\server\share\Target.exe")]
+    [InlineData(@"\\?\GLOBALROOT\Device\Mup\server\share\Target.exe")]
+    [InlineData(@"\\.\GLOBALROOT\Device\Mup\server\share\Target.exe")]
     public void Authorize_WhenRawInjectionTargetPathIsNetworkPath_ShouldFailClosed(string targetPath)
     {
         var authorization = RawInjectionTargetPolicy.Authorize(
@@ -25,6 +27,8 @@ public sealed class RawInjectionTargetPolicyTests
     [Theory]
     [InlineData(@"\\server\share\Target.exe")]
     [InlineData(@"\\?\UNC\server\share\Target.exe")]
+    [InlineData(@"\\?\GLOBALROOT\Device\Mup\server\share\Target.exe")]
+    [InlineData(@"\\.\GLOBALROOT\Device\Mup\server\share\Target.exe")]
     public void Authorize_WhenRawInjectionAllowlistContainsNetworkPath_ShouldFailClosed(string configuredAllowedTarget)
     {
         var authorization = RawInjectionTargetPolicy.Authorize(

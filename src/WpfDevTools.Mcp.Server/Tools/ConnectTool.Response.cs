@@ -65,6 +65,7 @@ public sealed partial class ConnectTool
                     ? ProcessDiscoverySelectionStrategies.ToContractValue(selectionStrategy)
                     : null,
                 candidateCount = autoDiscoveryResolution.CandidateCount,
+                redactedCandidateCount = autoDiscoveryResolution.RedactedCandidateCount,
                 processes = autoDiscoveryResolution.Candidates.Select(ToContractCandidate).ToArray()
             };
         }
@@ -106,6 +107,7 @@ public sealed partial class ConnectTool
                         ? ProcessDiscoverySelectionStrategies.ToContractValue(selectionStrategy)
                         : null,
                     candidateCount = autoDiscoveryResolution.CandidateCount,
+                    redactedCandidateCount = autoDiscoveryResolution.RedactedCandidateCount,
                     processes = autoDiscoveryResolution.Candidates.Select(ToContractCandidate).ToArray(),
                     reusedExistingHost = true
                 };
@@ -124,6 +126,7 @@ public sealed partial class ConnectTool
                     ? ProcessDiscoverySelectionStrategies.ToContractValue(selectionStrategy)
                     : null,
                 candidateCount = autoDiscoveryResolution.CandidateCount,
+                redactedCandidateCount = autoDiscoveryResolution.RedactedCandidateCount,
                 processes = autoDiscoveryResolution.Candidates.Select(ToContractCandidate).ToArray()
             };
         }

@@ -76,6 +76,60 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     }
 
     [Fact]
+    public async Task Execute_WithoutProcessId_ShouldSelectFromAllowedCandidatesOnly()
+    {
+        EnsureDummyBootstrapperExists();
+        using var sessionManager = new SessionManager();
+        var deniedProcessId = NextSyntheticProcessId();
+        var allowedProcessId = Environment.ProcessId;
+        using var injector = new BootstrapStartsPipeInjector();
+        var tool = CreateTool(
+            sessionManager,
+            detector: new FakeAutoDiscoveryProcessDetector(
+                CreateProcessInfo(deniedProcessId, "DeniedApp"),
+                CreateProcessInfo(allowedProcessId, "AllowedApp")),
+            injector: injector,
+            targetPolicy: process => process.ProcessId == allowedProcessId
+                ? new McpTargetAuthorization(IsAllowed: true, Error: null, Hint: null)
+                : new McpTargetAuthorization(IsAllowed: false, Error: "blocked", Hint: "denied"));
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
+
+        var jsonText = JsonSerializer.Serialize(result);
+        jsonText.Should().NotContain("DeniedApp");
+        jsonText.Should().NotContain("DeniedApp Window");
+
+        var json = JsonSerializer.Deserialize<JsonElement>(jsonText);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("processId").GetInt32().Should().Be(allowedProcessId);
+        json.GetProperty("processName").GetString().Should().Be("AllowedApp");
+        json.GetProperty("candidateCount").GetInt32().Should().Be(1);
+        json.GetProperty("redactedCandidateCount").GetInt32().Should().Be(1);
+        json.GetProperty("processes").GetArrayLength().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Execute_WithoutProcessId_AndOnlyDeniedCandidates_ShouldFailClosedWithoutMetadata()
+    {
+        var deniedProcessId = NextSyntheticProcessId();
+        var tool = CreateTool(
+            detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(deniedProcessId, "DeniedApp")),
+            targetPolicy: _ => new McpTargetAuthorization(IsAllowed: false, Error: "blocked", Hint: "denied"));
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
+
+        var jsonText = JsonSerializer.Serialize(result);
+        jsonText.Should().NotContain("DeniedApp");
+        jsonText.Should().NotContain("DeniedApp Window");
+
+        var json = JsonSerializer.Deserialize<JsonElement>(jsonText);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+        json.GetProperty("redactedCandidateCount").GetInt32().Should().Be(1);
+        json.TryGetProperty("processes", out _).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Execute_WithoutProcessId_AndLargestWorkingSetStrategy_ShouldAutoSelectLargestCandidate()
     {
         EnsureDummyBootstrapperExists();
@@ -247,7 +301,8 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
         SessionManager? sessionManager = null,
         WpfProcessDetector? detector = null,
         FakeProcessInjector? injector = null,
-        Func<int, long>? workingSetResolver = null)
+        Func<int, long>? workingSetResolver = null,
+        Func<WpfProcessInfo, McpTargetAuthorization>? targetPolicy = null)
     {
         return new ConnectTool(
             sessionManager ?? TrackSessionManager(new SessionManager()),
@@ -258,7 +313,7 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
                 workingSetResolver,
             pipeReadyProbe: new PipeReadyProbe((_, _) => false, () => DateTime.UtcNow, _ => { }),
                 isRawInjectionTargetAllowed: _ => true,
-            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
+            targetPolicy: targetPolicy ?? ConnectToolTestPolicies.AllowAllTargets);
     }
 
     private SessionManager TrackSessionManager(SessionManager sessionManager)

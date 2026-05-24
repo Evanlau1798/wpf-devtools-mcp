@@ -231,8 +231,9 @@ public sealed class ConnectToolSecurityErrorTests
             json.GetProperty("success").GetBoolean().Should().BeFalse();
             json.GetProperty("errorCode").GetString().Should().Be("SecurityError");
             json.GetRawText().Should().NotContain(executablePath.Replace("\\", "\\\\"));
+            json.GetRawText().Should().NotContain("PrivateApp");
             json.TryGetProperty("targetExecutablePath", out _).Should().BeFalse();
-            json.GetProperty("targetProcessName").GetString().Should().Be("PrivateApp");
+            json.TryGetProperty("targetProcessName", out _).Should().BeFalse();
             injector.InjectWithBootstrapCallCount.Should().Be(0);
         }
         finally

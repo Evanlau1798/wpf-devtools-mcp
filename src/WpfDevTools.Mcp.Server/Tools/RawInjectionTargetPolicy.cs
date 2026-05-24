@@ -43,7 +43,7 @@ internal static class RawInjectionTargetPolicy
         {
             return new RawInjectionAuthorization(
                 IsAllowed: false,
-                Error: "Raw injection is blocked because the target executable path is missing or not an absolute path. Start the target-side SDK host with InspectorSdk.Initialize() or allowlist the exact executable path before retrying connect().",
+                Error: "Raw injection is blocked because the target executable path is missing or not a local absolute path. Start the target-side SDK host with InspectorSdk.Initialize() or allowlist the exact local executable path before retrying connect().",
                 Hint: $"Set {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths when raw injection into a specific target executable is explicitly intended.");
         }
 
@@ -141,9 +141,24 @@ internal static class RawInjectionTargetPolicy
                 return false;
             }
 
-            var fullPath = Path.GetFullPath(path);
+            if (IsNetworkPath(path) || IsMappedNetworkDrive(path))
+            {
+                return false;
+            }
 
-            normalizedPath = NormalizePath(tryResolvePhysicalPath(fullPath) ?? fullPath);
+            var fullPath = Path.GetFullPath(path);
+            if (IsNetworkPath(fullPath) || IsMappedNetworkDrive(fullPath))
+            {
+                return false;
+            }
+
+            var resolvedPath = tryResolvePhysicalPath(fullPath) ?? fullPath;
+            if (IsNetworkPath(resolvedPath) || IsMappedNetworkDrive(resolvedPath))
+            {
+                return false;
+            }
+
+            normalizedPath = NormalizePath(resolvedPath);
             return true;
         }
         catch (Exception ex)
@@ -179,6 +194,36 @@ internal static class RawInjectionTargetPolicy
         => TryNormalizeAbsolutePath(path, tryResolvePhysicalPath, out var normalizedPath)
             ? normalizedPath
             : null;
+
+    private static bool IsNetworkPath(string path)
+        => path.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)
+           || (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase)
+               && !path.StartsWith(@"\\?\", StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsMappedNetworkDrive(string path)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
+        var root = Path.GetPathRoot(path);
+        if (string.IsNullOrWhiteSpace(root) || root.Length < 2 || root[1] != ':')
+        {
+            return false;
+        }
+
+        try
+        {
+            return new DriveInfo(root).DriveType == DriveType.Network;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            Trace.TraceWarning(
+                $"RawInjectionTargetPolicy drive type detection failed: {ex.Message}");
+            return false;
+        }
+    }
 
     internal static string? TryResolvePhysicalPath(string path)
     {

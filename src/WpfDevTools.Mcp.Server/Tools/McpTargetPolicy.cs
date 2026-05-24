@@ -58,7 +58,7 @@ internal static class McpTargetPolicy
         {
             return new McpTargetAuthorization(
                 IsAllowed: false,
-                Error: "MCP target allowlisting is enabled, but the target executable path is missing or not an absolute path.",
+                Error: "MCP target allowlisting is enabled, but the target executable path is missing or not a local absolute path.",
                 Hint: $"Set {McpServerConfiguration.AllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths, then retry connect(processId).");
         }
 

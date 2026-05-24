@@ -75,6 +75,21 @@ public sealed class McpTargetPolicyTests
         authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
     }
 
+    [Theory]
+    [InlineData(@"\\server\share\Target.exe")]
+    [InlineData(@"\\?\UNC\server\share\Target.exe")]
+    public void Authorize_WhenTargetAllowlistContainsNetworkPath_ShouldFailClosed(string configuredAllowedTargets)
+    {
+        var authorization = McpTargetPolicy.Authorize(
+            CreateProcessInfo(configuredAllowedTargets),
+            configuredAllowedTargets,
+            path => path);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("Invalid MCP target allowlist configuration");
+        authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
+    }
+
     private static WpfProcessInfo CreateProcessInfo(string? executablePath, string processName = "TargetApp")
     {
         return new WpfProcessInfo

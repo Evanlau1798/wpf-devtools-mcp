@@ -100,6 +100,17 @@ public class ArchitectureCompatibilityTests
     }
 
     [Fact]
+    public void CheckCompatibility_ARM64Injector_X64Target_AnyCpuDll_ShouldFail()
+    {
+        var result = ProcessInjector.CheckArchitectureCompatibility(
+            processArch: ProcessArchitecture.X64,
+            dllArch: ProcessArchitecture.Unknown,
+            injectorArch: ProcessArchitecture.ARM64);
+
+        result.Should().Be(InjectionError.ArchitectureMismatch);
+    }
+
+    [Fact]
     public void ErrorMessage_ARM64ServerToX64Target_AnyCpuDll_ShouldBlameArm64Server()
     {
         var message = ProcessInjector.GetArchitectureErrorMessage(

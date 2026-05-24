@@ -129,6 +129,15 @@ public class ProcessInjector : IProcessInjector
                 $"Target validation failed: {validationError}");
         }
 
+        var archError = ValidateArchitecture(request.ProcessId, request.BootstrapperDllPath, out var bootstrapperArch);
+        if (archError != InjectionError.None)
+        {
+            return InjectionResult.CreateFailure(
+                request.ProcessId,
+                archError,
+                GetArchitectureErrorMessage(request.ProcessId, bootstrapperArch, "Bootstrapper DLL"));
+        }
+
         using var payload = request.CreateBootstrapParameterPayload();
         var parameters = payload.Parameters;
 
@@ -305,6 +314,20 @@ public class ProcessInjector : IProcessInjector
     /// <returns>InjectionError.None if compatible, ArchitectureMismatch otherwise</returns>
     public static InjectionError CheckArchitectureCompatibility(
         ProcessArchitecture processArch, ProcessArchitecture dllArch, bool isInjector64Bit)
+        => CheckArchitectureCompatibility(
+            processArch,
+            dllArch,
+            isInjector64Bit ? ProcessArchitecture.X64 : ProcessArchitecture.X86);
+
+    /// <summary>
+    /// Check architecture compatibility between injector, target process, and DLL.
+    /// </summary>
+    /// <param name="processArch">Target process architecture</param>
+    /// <param name="dllArch">DLL architecture (Unknown = neutral or undetectable)</param>
+    /// <param name="injectorArch">Current injector/server process architecture</param>
+    /// <returns>InjectionError.None if compatible, ArchitectureMismatch otherwise</returns>
+    public static InjectionError CheckArchitectureCompatibility(
+        ProcessArchitecture processArch, ProcessArchitecture dllArch, ProcessArchitecture injectorArch)
     {
         // Native DLL: check DLL vs target
         if (dllArch != ProcessArchitecture.Unknown &&
@@ -316,8 +339,9 @@ public class ProcessInjector : IProcessInjector
 
         // Always check injector vs target (CreateRemoteThread requires same bitness)
         // This guardrail must NOT be skipped even when the DLL itself is not the conflicting component
-        var injectorArch = isInjector64Bit ? ProcessArchitecture.X64 : ProcessArchitecture.X86;
-        if (processArch != ProcessArchitecture.Unknown && processArch != injectorArch)
+        if (processArch != ProcessArchitecture.Unknown &&
+            injectorArch != ProcessArchitecture.Unknown &&
+            processArch != injectorArch)
         {
             return InjectionError.ArchitectureMismatch;
         }
@@ -339,8 +363,17 @@ public class ProcessInjector : IProcessInjector
         dllArch = PeArchitectureReader.Detect(dllPath);
 
         return CheckArchitectureCompatibility(
-            processInfo.Architecture, dllArch, Environment.Is64BitProcess);
+            processInfo.Architecture, dllArch, GetCurrentInjectorArchitecture());
     }
+
+    private static ProcessArchitecture GetCurrentInjectorArchitecture()
+        => RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.X86 => ProcessArchitecture.X86,
+            Architecture.X64 => ProcessArchitecture.X64,
+            Architecture.Arm64 => ProcessArchitecture.ARM64,
+            _ => ProcessArchitecture.Unknown
+        };
 
     private string GetValidationErrorMessage(InjectionError error, int processId)
     {
@@ -364,9 +397,27 @@ public class ProcessInjector : IProcessInjector
     /// <param name="processArch">Target process architecture</param>
     /// <param name="dllArch">DLL architecture (Unknown = neutral or undetectable)</param>
     /// <param name="isInjector64Bit">Whether the injector/server process is 64-bit</param>
+    /// <param name="componentName">User-facing native component name used in remediation guidance</param>
     /// <returns>Actionable error message identifying the root cause</returns>
     public static string GetArchitectureErrorMessage(
-        ProcessArchitecture processArch, ProcessArchitecture dllArch, bool isInjector64Bit)
+        ProcessArchitecture processArch,
+        ProcessArchitecture dllArch,
+        bool isInjector64Bit,
+        string componentName = "Inspector DLL")
+        => GetArchitectureErrorMessage(
+            processArch,
+            dllArch,
+            isInjector64Bit ? ProcessArchitecture.X64 : ProcessArchitecture.X86,
+            componentName);
+
+    /// <summary>
+    /// Generate a context-aware error message for architecture mismatches.
+    /// </summary>
+    public static string GetArchitectureErrorMessage(
+        ProcessArchitecture processArch,
+        ProcessArchitecture dllArch,
+        ProcessArchitecture injectorArch,
+        string componentName = "Inspector DLL")
     {
         // Check if DLL itself is the problem (native DLL vs target mismatch)
         if (dllArch != ProcessArchitecture.Unknown &&
@@ -374,24 +425,26 @@ public class ProcessInjector : IProcessInjector
             processArch != dllArch)
         {
             return $"Architecture mismatch: process is {processArch}, " +
-                   $"but Inspector DLL is {dllArch}. " +
-                   $"Use a matching Inspector build.";
+                   $"but {componentName} is {dllArch}. " +
+                   $"Use a matching {componentName} build.";
         }
 
         // Injector/server vs target bitness mismatch
-        var injectorArch = isInjector64Bit ? ProcessArchitecture.X64 : ProcessArchitecture.X86;
         return $"Architecture mismatch: target process is {processArch}, " +
                $"but the current MCP server/injector is {injectorArch}. " +
                (dllArch == ProcessArchitecture.Unknown
-                   ? "The Inspector DLL did not report a conflicting architecture; restart the MCP server with matching bitness."
+                   ? $"The {componentName} did not report a conflicting architecture; restart the MCP server with matching bitness."
                    : "Restart the MCP server with matching bitness.");
     }
 
-    private string GetArchitectureErrorMessage(int processId, ProcessArchitecture dllArch)
+    private string GetArchitectureErrorMessage(
+        int processId,
+        ProcessArchitecture dllArch,
+        string componentName = "Inspector DLL")
     {
         var processInfo = _processDetector.GetProcessInfo(processId);
         var processArch = processInfo?.Architecture ?? ProcessArchitecture.Unknown;
 
-        return GetArchitectureErrorMessage(processArch, dllArch, Environment.Is64BitProcess);
+        return GetArchitectureErrorMessage(processArch, dllArch, GetCurrentInjectorArchitecture(), componentName);
     }
 }

@@ -45,6 +45,10 @@ public sealed class ConnectToolRawInjectionIdentityTests
         payload.GetProperty("success").GetBoolean().Should().BeFalse();
         payload.GetProperty("errorCode").GetString().Should().Be("SecurityError");
         payload.GetProperty("requiresExplicitTargetOptIn").GetBoolean().Should().BeTrue();
+        var serializedPayload = payload.GetRawText();
+        serializedPayload.Should().NotContain("ReplacementSecretApp");
+        serializedPayload.Should().NotContain("Replacement Secret Window");
+        serializedPayload.Should().NotContain(replacementPath);
         injector.InjectWithBootstrapCallCount.Should().Be(0);
         processDetector.GetProcessInfoCallCount.Should().BeGreaterThanOrEqualTo(2);
     }
@@ -123,7 +127,12 @@ public sealed class ConnectToolRawInjectionIdentityTests
             return new WpfProcessInfo
             {
                 ProcessId = processId,
-                ProcessName = "TestApp",
+                ProcessName = GetProcessInfoCallCount == 1
+                    ? "OriginalApp"
+                    : "ReplacementSecretApp",
+                WindowTitle = GetProcessInfoCallCount == 1
+                    ? "Original Window"
+                    : "Replacement Secret Window",
                 Architecture = ProcessArchitecture.X64,
                 Runtime = TargetRuntime.NetCore,
                 IsWpfApplication = true,

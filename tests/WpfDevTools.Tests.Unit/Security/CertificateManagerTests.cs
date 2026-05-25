@@ -136,6 +136,21 @@ public class CertificateManagerTests : IDisposable
     }
 
     [Fact]
+    public void GetNonExportableKeyStoragePreferences_ShouldAvoidPersistedKeyStorageUntilFallback()
+    {
+        var preferences = CertificateManager.GetNonExportableKeyStoragePreferences();
+
+#if NET48
+        preferences[0].Should().Be(X509KeyStorageFlags.UserKeySet);
+        preferences[1].Should().Be(X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet);
+#else
+        preferences[0].Should().Be(X509KeyStorageFlags.UserKeySet);
+        preferences[1].Should().Be(X509KeyStorageFlags.EphemeralKeySet);
+        preferences[2].Should().Be(X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet);
+#endif
+    }
+
+    [Fact]
     public void GetOrCreateCertificate_ShouldHaveServerAuthEku()
     {
         // Arrange

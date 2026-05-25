@@ -211,20 +211,20 @@ public sealed class CertificateManager
         throw lastException ?? new CryptographicException("Certificate could not be loaded.");
     }
 
-    private static X509KeyStorageFlags[] GetNonExportableKeyStoragePreferences()
+    internal static X509KeyStorageFlags[] GetNonExportableKeyStoragePreferences()
     {
 #if NET48
         return
         [
-            X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet,
-            X509KeyStorageFlags.UserKeySet
+            X509KeyStorageFlags.UserKeySet,
+            X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet
         ];
 #else
         return
         [
-            X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet,
             X509KeyStorageFlags.UserKeySet,
-            X509KeyStorageFlags.EphemeralKeySet
+            X509KeyStorageFlags.EphemeralKeySet,
+            X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet
         ];
 #endif
     }

@@ -32,6 +32,7 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
         var serverPathCandidates = new[]
         {
             Path.Combine("src", "WpfDevTools.Mcp.Server", "bin", configuration, "net8.0", "WpfDevTools.Mcp.Server.exe"),
+            Path.Combine("src", "WpfDevTools.Mcp.Server", "bin", configuration, "net8.0", "win-x64", "WpfDevTools.Mcp.Server.exe"),
             Path.Combine("src", "WpfDevTools.Mcp.Server", "bin", "x64", configuration, "net8.0", "WpfDevTools.Mcp.Server.exe")
         }
         .Select(ReleaseScriptTestHarness.GetRepoFilePath)

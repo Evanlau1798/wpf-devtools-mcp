@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using WpfDevTools.Shared.Serialization;
 using Xunit;
@@ -103,6 +104,33 @@ public class ReadmeDocumentationTests
 
         content.Should().Contain("errorCode");
         content.Should().Contain("errorData");
+    }
+
+    [Fact]
+    public void Readme_ShouldIncludeSecurityFirstOperatorChecklist()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain("## Operator Checklist");
+        var section = content
+            .Split("## Operator Checklist", 2, StringSplitOptions.None)[1]
+            .Split("\n## ", 2, StringSplitOptions.None)[0];
+        var numberedSteps = section
+            .Split('\n')
+            .Where(line => Regex.IsMatch(line, @"^\d+\. "))
+            .ToArray();
+        var lowerSection = section.ToLowerInvariant();
+
+        numberedSteps.Should().HaveCount(8);
+        lowerSection.Should().Contain("signed release");
+        section.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
+        section.Should().Contain("SDK-hosted");
+        lowerSection.Should().Contain("raw injection");
+        section.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS");
+        lowerSection.Should().Contain("smoke");
+        lowerSection.Should().Contain("logs");
+        lowerSection.Should().Contain("revoke");
+        lowerSection.Should().Contain("uninstall");
     }
 
     [Fact]

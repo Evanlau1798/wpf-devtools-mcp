@@ -79,6 +79,17 @@ The injection-based transport is hardened by default. Key runtime gates:
 
 Detailed environment-variable behavior lives in [SECURITY.md](SECURITY.md), [docfx/production/security.md](docfx/production/security.md), and [docfx/reference/configuration.md](docfx/reference/configuration.md).
 
+## Operator Checklist
+
+1. Install a signed release package and keep `SHA256SUMS.txt` plus release metadata adjacent during verification.
+2. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the exact local absolute target executable path before discovery or `connect()`.
+3. Choose SDK-hosted Inspector reuse for owned apps, or raw injection only when `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` explicitly allows that executable.
+4. Enable only the gates needed for the session, including `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS`, screenshots, ViewModel inspection, or destructive tools.
+5. Run a smoke workflow: `connect()`, `ping`, `get_ui_summary`, one safe read, and restore any mutation from a captured snapshot.
+6. Inspect stderr/file logs and structured `errorCode`/`errorData` before widening allowlists or gates.
+7. Revoke or rotate `WPFDEVTOOLS_AUTH_SECRET`, certificate material, and thumbprint pins after shared or temporary sessions.
+8. Uninstall/cleanup packages, temporary cert directories, and client registrations when the diagnostic window ends.
+
 ## Typical MCP workflow
 
 1. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the target WPF executable's exact local absolute executable path.

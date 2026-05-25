@@ -68,7 +68,14 @@ public sealed class ResponseCalculator : IDisposable
             throw new ArgumentNullException(nameof(response));
 
         var expected = ComputeResponse(challenge);
-        return CryptographicOperations.FixedTimeEquals(expected, response);
+        try
+        {
+            return CryptographicOperations.FixedTimeEquals(expected, response);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(expected);
+        }
     }
 
     /// <summary>
@@ -79,7 +86,7 @@ public sealed class ResponseCalculator : IDisposable
         if (Interlocked.CompareExchange(ref _disposeState, 1, 0) != 0)
             return;
 
-        Array.Clear(_sharedSecret, 0, _sharedSecret.Length);
+        CryptographicOperations.ZeroMemory(_sharedSecret);
     }
 
     private void ThrowIfDisposed()

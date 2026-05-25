@@ -2,6 +2,7 @@
 using System.IO.Pipes;
 using System.Net.Security;
 using System.Security.Authentication;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Microsoft.Win32.SafeHandles;
@@ -154,10 +155,13 @@ public sealed partial class NamedPipeClient
         CancellationToken cancellationToken,
         CancellationToken callerCancellationToken)
     {
+        byte[]? challenge = null;
+        byte[]? response = null;
+        byte[]? resultBuf = null;
         try
         {
             // 1. Read 32-byte challenge from server
-            var challenge = new byte[32];
+            challenge = new byte[32];
             var totalRead = 0;
             while (totalRead < 32)
             {
@@ -175,7 +179,6 @@ public sealed partial class NamedPipeClient
             // 2. Compute HMAC-SHA256 response
             // GetSharedSecret returns a clone; zero it after use to minimize secret exposure in memory
             var secretCopy = _authManager!.GetSharedSecret();
-            byte[] response;
             try
             {
                 using var calculator = new ResponseCalculator(secretCopy);
@@ -183,7 +186,7 @@ public sealed partial class NamedPipeClient
             }
             finally
             {
-                Array.Clear(secretCopy, 0, secretCopy.Length);
+                CryptographicOperations.ZeroMemory(secretCopy);
             }
 
             // 3. Send response
@@ -195,7 +198,7 @@ public sealed partial class NamedPipeClient
                 cancellationToken).ConfigureAwait(false);
 
             // 4. Read 1-byte result from server (1=success, 0=failure)
-            var resultBuf = new byte[1];
+            resultBuf = new byte[1];
             var resultRead = await WaitForConnectPhaseAsync(
                 pipe.ReadAsync(resultBuf, 0, 1, cancellationToken),
                 cancellationToken).ConfigureAwait(false);
@@ -226,6 +229,23 @@ public sealed partial class NamedPipeClient
         {
             SetLastConnectFailure(NamedPipeConnectFailure.AuthenticationFailed);
             return false;
+        }
+        finally
+        {
+            if (challenge != null)
+            {
+                CryptographicOperations.ZeroMemory(challenge);
+            }
+
+            if (response != null)
+            {
+                CryptographicOperations.ZeroMemory(response);
+            }
+
+            if (resultBuf != null)
+            {
+                CryptographicOperations.ZeroMemory(resultBuf);
+            }
         }
     }
 

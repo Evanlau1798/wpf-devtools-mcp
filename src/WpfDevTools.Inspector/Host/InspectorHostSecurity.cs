@@ -2,6 +2,7 @@ using System.IO;
 using System.IO.Pipes;
 using System.Net.Security;
 using System.Security.Authentication;
+using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Security.AccessControl;
 using WpfDevTools.Shared.Configuration;
@@ -69,6 +70,8 @@ public sealed partial class InspectorHost
         NamedPipeServerStream pipe,
         CancellationToken cancellationToken)
     {
+        byte[]? challenge = null;
+        byte[]? response = null;
         try
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -76,12 +79,12 @@ public sealed partial class InspectorHost
             var token = timeoutCts.Token;
 
             // 1. Generate and send 32-byte challenge
-            var challenge = _challengeGenerator.GenerateChallenge();
+            challenge = _challengeGenerator.GenerateChallenge();
             await pipe.WriteAsync(challenge, 0, challenge.Length, token).ConfigureAwait(false);
             await pipe.FlushAsync(token).ConfigureAwait(false);
 
             // 2. Read 32-byte response from client
-            var response = new byte[32];
+            response = new byte[32];
             var totalRead = 0;
             while (totalRead < 32)
             {
@@ -105,7 +108,7 @@ public sealed partial class InspectorHost
             }
             finally
             {
-                Array.Clear(secretCopy, 0, secretCopy.Length);
+                CryptographicOperations.ZeroMemory(secretCopy);
             }
 
             // 4. Send 1-byte result to client (1=success, 0=failure)
@@ -122,6 +125,18 @@ public sealed partial class InspectorHost
         {
             LogError($"Authentication I/O error: {ex.Message}");
             return false;
+        }
+        finally
+        {
+            if (challenge != null)
+            {
+                CryptographicOperations.ZeroMemory(challenge);
+            }
+
+            if (response != null)
+            {
+                CryptographicOperations.ZeroMemory(response);
+            }
         }
     }
 

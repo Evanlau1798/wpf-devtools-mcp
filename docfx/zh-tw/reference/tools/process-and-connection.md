@@ -24,6 +24,7 @@
 
 - `get_processes` 只會針對 allowlisted targets 回傳 `isElevated`、`requiresElevationToConnect` 與 `canConnectFromCurrentServer`；blocked targets 只會以 denied target aggregate count 的形式出現在 `redactedTargetCount`。
 - `connect` 會先套用 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` target allowlist，再進入 SDK-hosted reuse 或 raw injection；policy denial 會回傳帶有 `policyEnvVar` 的 `SecurityError`
+- `connect` auto-discovery 與 ambiguity responses 會用 `redactedCandidateCount` 回報被 policy 擋下的候選數；將此 count 搭配 `policyEnvVar` 使用，才能設定精確 target allowlist 且不暴露 denied candidate metadata。
 - `connect()` 預設會對單一可見 WPF 目標做 auto-discovery；若找到多個目標，會回傳候選清單而不是隨機連線
 - `connect` 會驗證目標、解析 bootstrapper 候選項，並在目前 server 權限不足時提早阻擋
 - 同一個 `SessionManager` 與 `processId` 的並行 `connect` 會共享同一個 in-flight operation，而不是重複啟動 injection。單一 caller cancellation 只會停止該 caller 等待；只要還有其他 waiter，shared operation 會繼續；如果最後一個 waiter 也取消，shared operation 會被取消。完成後的 single-flight operation 會被移除；後續呼叫若已有 connected session 會回傳 `AlreadyConnected`，否則會開始新的 connect 嘗試。

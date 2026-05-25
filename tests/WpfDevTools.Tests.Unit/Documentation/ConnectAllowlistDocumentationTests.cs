@@ -68,6 +68,10 @@ public sealed class ConnectAllowlistDocumentationTests
             $"{relativePath} should not imply get_processes is unrestricted process metadata discovery");
         content.Should().Contain("redactedTargetCount",
             $"{relativePath} should document aggregate redaction for targets blocked by policy");
+        content.Should().Contain("redactedCandidateCount",
+            $"{relativePath} should document aggregate redaction for connect auto-discovery candidates blocked by policy");
+        content.Should().Contain("policyEnvVar",
+            $"{relativePath} should tell clients which policy variable controls target redaction");
         content.Should().Contain("denied target",
             $"{relativePath} should make blocked-target metadata handling explicit");
     }

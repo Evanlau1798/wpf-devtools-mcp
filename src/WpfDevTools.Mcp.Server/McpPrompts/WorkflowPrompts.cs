@@ -6,6 +6,23 @@ namespace WpfDevTools.Mcp.Server.McpPrompts;
 [McpServerPromptType]
 public static class WorkflowPrompts
 {
+    [McpServerPrompt(Name = "start_diagnostics", Title = "Start Diagnostics")]
+    [Description("Minimum useful tool path for first diagnostics with compact progressive discovery guidance.")]
+    public static string StartDiagnostics() =>
+        """
+        Goal: use the minimum useful tool path for a WPF diagnostic session.
+
+        Recommended workflow:
+        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before connect() attaches.
+        2. Call connect().
+        3. Call get_ui_summary(depthMode='semantic', summaryOnly=true).
+        4. Follow navigation.recommended from the latest result before guessing another tool.
+        5. When a concrete elementId is known, call get_element_snapshot(elementId).
+        6. Use wpf://workflows/starter-path only when you need this path as a reusable resource.
+
+        Keep specialized tree, MVVM, style, event, layout, screenshot, and mutation tools out of the initial context until the scene summary or returned navigation narrows the task.
+        """;
+
     [McpServerPrompt(Name = "connect_and_list_windows", Title = "Connect And List Windows")]
     [Description("Workflow prompt for process discovery, connection, ping, and multi-window enumeration.")]
     public static string ConnectAndListWindows() =>

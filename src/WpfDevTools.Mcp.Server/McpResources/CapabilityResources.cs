@@ -26,7 +26,7 @@ public static partial class CapabilityResources
         - Response contract version: `{ResponseContractVersion.Current}`
         - Transport: `stdio`
         - Tool surface: WPF process discovery, connection, exact-match element search, tree inspection, binding diagnostics, DependencyProperty analysis, MVVM inspection, style/template inspection, interaction, layout, performance, and routed-event diagnostics
-        - Prompt surface: workflow entry points for connection, binding diagnosis, command/click diagnosis, elevated-target diagnosis, performance profiling, and secondary-window inspection
+        - Prompt surface: workflow entry points for start diagnostics, connection, binding diagnosis, command/click diagnosis, elevated-target diagnosis, performance profiling, and secondary-window inspection
         - Resource surface: capability summary, response contract JSON, canonical tool manifest JSON, structured tool input examples, workflow references, retained screenshot PNG resources, elevated-target limitations, injection failure notes, window/focus limitations, performance profiling notes, and runtime state safety notes
         - Feature flags: `prompts=true`, `resources=true`, `stateSnapshots=true`, `diagnosticNormalization=true`, `elevatedTargetDiagnostics=true`
 
@@ -98,9 +98,10 @@ public static partial class CapabilityResources
         1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed exact local absolute executable path and `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` is set for scene, binding, DP, and state reads.
         2. Call `connect()`.
         3. Call `get_ui_summary(depthMode="semantic", summaryOnly=true)` for first scene context.
-        4. When you have a concrete `elementId`, call `get_element_snapshot(elementId)`.
-        5. Use `get_form_summary` for form readiness or `get_bindings(elementId)` for binding-specific follow-up.
-        6. Search or load specialized tools only after the scene or binding result narrows the task.
+        4. Follow returned `navigation.recommended` before guessing the next tool.
+        5. When you have a concrete `elementId`, call `get_element_snapshot(elementId)`.
+        6. Use `get_form_summary` for form readiness or `get_bindings(elementId)` for binding-specific follow-up.
+        7. Search or load specialized tools only after the scene or binding result narrows the task.
 
         Keep `connect`, `get_ui_summary`, `get_element_snapshot`, `get_bindings`, and `get_form_summary` as the primary always-visible tools. Use `wpf://contracts/tools` for the canonical manifest, categories, capability tags, policy gates, and per-tool schemas before loading the rest of the 64-tool catalog.
         """;

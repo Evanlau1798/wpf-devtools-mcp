@@ -3,6 +3,7 @@ using System.Reflection;
 using FluentAssertions;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpPrompts;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -38,9 +39,29 @@ public sealed class McpProgressiveDiscoveryBudgetTests
             "get_element_snapshot",
             "get_bindings",
             "get_form_summary",
+            "navigation.recommended",
             "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true",
             "wpf://contracts/tools");
         ServerInstructions.Value.Should().Contain("wpf://workflows/starter-path");
+    }
+
+    [Fact]
+    public void StartDiagnosticsPrompt_ShouldExposeMinimumUsefulToolPath()
+    {
+        var method = typeof(WorkflowPrompts).GetMethod("StartDiagnostics");
+
+        method.Should().NotBeNull("MCP clients should have a portable prompt for the minimum useful diagnostic path");
+        var prompt = method!.Invoke(null, null).Should().BeOfType<string>().Subject;
+
+        prompt.Length.Should().BeLessThanOrEqualTo(1_500);
+        prompt.Should().ContainAll(
+            "minimum useful tool path",
+            "WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
+            "connect()",
+            "get_ui_summary",
+            "navigation.recommended",
+            "get_element_snapshot",
+            "wpf://workflows/starter-path");
     }
 
     [Theory]

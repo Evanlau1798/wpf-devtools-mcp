@@ -103,6 +103,7 @@ public class McpPromptAndResourceAttributeTests
     }
 
     [Theory]
+    [InlineData("start_diagnostics")]
     [InlineData("connect_and_list_windows")]
     [InlineData("debug_binding_issue")]
     [InlineData("debug_command_or_click")]

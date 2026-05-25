@@ -4,6 +4,7 @@ using System.Security.Principal;
 using System.Text;
 using System.Runtime.InteropServices;
 using WpfDevTools.Shared.Security;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Injector.Injection;
 
@@ -159,11 +160,11 @@ internal sealed class BootstrapParameterPayload : IDisposable
         }
         catch (IOException ex)
         {
-            Trace.TraceWarning($"BootstrapParameterPayload failed to wipe auth secret file '{secretPath}': {ex.Message}");
+            Trace.TraceWarning($"BootstrapParameterPayload failed to wipe auth secret file {SensitiveLogRedactor.Redact(secretPath)}: {SensitiveLogRedactor.Redact(ex.Message)}");
         }
         catch (UnauthorizedAccessException ex)
         {
-            Trace.TraceWarning($"BootstrapParameterPayload failed to wipe auth secret file '{secretPath}': {ex.Message}");
+            Trace.TraceWarning($"BootstrapParameterPayload failed to wipe auth secret file {SensitiveLogRedactor.Redact(secretPath)}: {SensitiveLogRedactor.Redact(ex.Message)}");
         }
 
         try
@@ -172,11 +173,11 @@ internal sealed class BootstrapParameterPayload : IDisposable
         }
         catch (IOException ex)
         {
-            Trace.TraceWarning($"BootstrapParameterPayload failed to delete auth secret file '{secretPath}': {ex.Message}");
+            Trace.TraceWarning($"BootstrapParameterPayload failed to delete auth secret file {SensitiveLogRedactor.Redact(secretPath)}: {SensitiveLogRedactor.Redact(ex.Message)}");
         }
         catch (UnauthorizedAccessException ex)
         {
-            Trace.TraceWarning($"BootstrapParameterPayload failed to delete auth secret file '{secretPath}': {ex.Message}");
+            Trace.TraceWarning($"BootstrapParameterPayload failed to delete auth secret file {SensitiveLogRedactor.Redact(secretPath)}: {SensitiveLogRedactor.Redact(ex.Message)}");
         }
     }
 

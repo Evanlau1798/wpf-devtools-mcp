@@ -129,8 +129,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
                 context
             };
 
-            var json = JsonSerializer.Serialize(logEntry);
-            EnqueueLogEntry(json + Environment.NewLine);
+            EnqueueLogEntry(SensitiveLogRedactor.Redact(JsonSerializer.Serialize(logEntry)) + Environment.NewLine);
         }
         catch (Exception ex)
         {
@@ -167,7 +166,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
 
         try
         {
-            var logEntry = $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message}{Environment.NewLine}";
+            var logEntry = $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} [{level}] {SensitiveLogRedactor.Redact(message)}{Environment.NewLine}";
             EnqueueLogEntry(logEntry);
         }
         catch (Exception ex)
@@ -458,7 +457,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
             return;
         }
 
-        Trace.TraceWarning($"FileLogger shutdown warning: {shutdownError.Message}");
+        Trace.TraceWarning($"FileLogger shutdown warning: {SensitiveLogRedactor.Redact(shutdownError.Message)}");
     }
 
     private bool IsLevelEnabled(string level)

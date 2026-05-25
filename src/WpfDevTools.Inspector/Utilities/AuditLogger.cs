@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Inspector.Utilities;
 
@@ -42,7 +43,7 @@ public class AuditLoggerService : IAuditLoggerService
     /// <param name="severity">Event severity level</param>
     public void LogSecurityEvent(string category, string message, AuditSeverity severity = AuditSeverity.Information)
     {
-        _logger.Log(category, message, severity);
+        _logger.Log(category, SensitiveLogRedactor.Redact(message), severity);
     }
 }
 
@@ -149,7 +150,7 @@ public class TraceAuditLogger : IAuditLogger
             _ => "INFO"
         };
 
-        Trace.WriteLine($"[AUDIT:{severityStr}] [{category}] {message}");
+        Trace.WriteLine($"[AUDIT:{severityStr}] [{category}] {SensitiveLogRedactor.Redact(message)}");
     }
 }
 
@@ -215,7 +216,7 @@ public class EventLogAuditLogger : IAuditLogger
             if (!EnsureEventSourceExists())
             {
                 // Fallback to Trace if Event Log not available
-                Trace.WriteLine($"[AUDIT] [{category}] {message}");
+                Trace.WriteLine($"[AUDIT] [{category}] {SensitiveLogRedactor.Redact(message)}");
                 return;
             }
 
@@ -226,15 +227,15 @@ public class EventLogAuditLogger : IAuditLogger
                 _ => EventLogEntryType.Information
             };
 
-            var fullMessage = $"[{category}] {message}\nUser: {Environment.UserName}\nProcess: {Process.GetCurrentProcess().ProcessName}";
+            var fullMessage = $"[{category}] {SensitiveLogRedactor.Redact(message)}\nUser: {Environment.UserName}\nProcess: {Process.GetCurrentProcess().ProcessName}";
 
             _eventLogOperations.WriteEntry(EventSource, fullMessage, eventType, 1001);
         }
         catch (Exception ex)
         {
             // Fallback to Trace on any error
-            Trace.WriteLine($"[AUDIT] Failed to write to Event Log: {ex.Message}");
-            Trace.WriteLine($"[AUDIT] [{category}] {message}");
+            Trace.WriteLine($"[AUDIT] Failed to write to Event Log: {SensitiveLogRedactor.Redact(ex.Message)}");
+            Trace.WriteLine($"[AUDIT] [{category}] {SensitiveLogRedactor.Redact(message)}");
         }
     }
 

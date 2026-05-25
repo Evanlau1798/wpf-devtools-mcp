@@ -92,6 +92,17 @@ public class RepositoryHygieneTests
     }
 
     [Fact]
+    public void LineLimitExceptions_ShouldNotPermitCSharpSourceOrTestFiles()
+    {
+        var csharpExceptions = ReadLineLimitExceptions()
+            .Where(path => path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        csharpExceptions.Should().BeEmpty(
+            "production and test C# files must stay under 500 lines instead of entering the exception manifest");
+    }
+
+    [Fact]
     public void LineLimitPolicy_ShouldCoverTestAppXamlFiles()
     {
         EnumeratePolicyFiles()

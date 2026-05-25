@@ -18,6 +18,7 @@ public static partial class E2eTestHelpers
 
     private const string BasicControlsTabName = "BasicControlsTab";
     private const string ResetCommandTargetName = "NameTextBox";
+    private const string ResetCommandReadinessTargetName = "SaveButton";
     private const string ResetStateCommandName = "ResetStateCommand";
     private const int ResetEventDrainMaxEvents = 200;
     private const int ResetEventDrainMaxPasses = 10;
@@ -271,6 +272,12 @@ public static partial class E2eTestHelpers
             throw new InvalidOperationException($"Could not find {ResetCommandTargetName} while resetting shared E2E state.");
         }
 
+        var commandReadinessTargetId = await FindElementByNameAsync(callToolAsync, processId, ResetCommandReadinessTargetName);
+        if (string.IsNullOrWhiteSpace(commandReadinessTargetId))
+        {
+            throw new InvalidOperationException($"Could not find {ResetCommandReadinessTargetName} while resetting shared E2E state.");
+        }
+
         var activateResult = await callToolAsync(
             "click_element",
             new
@@ -299,6 +306,12 @@ public static partial class E2eTestHelpers
                 processId,
                 maxEvents = ResetEventDrainMaxEvents
             }));
+
+        await VerifySharedSessionBaselineAsync(
+            callToolAsync,
+            processId,
+            resetTargetId,
+            commandReadinessTargetId);
     }
 
     public static async Task ResetSharedSessionStateAsync(McpE2eFixture fixture)

@@ -126,6 +126,8 @@ public sealed class E2eTestHelpersLifecycleTests
             {
                 "get_namescope" => NamescopeResult(),
                 "click_element" or "execute_command" => SuccessResult(),
+                "get_dp_value_source" => ResetNameTextResult(),
+                "get_interaction_readiness" => ResetSaveButtonReadinessResult(),
                 _ => throw new InvalidOperationException($"Unexpected tool call: {toolName}")
             });
         }
@@ -137,6 +139,42 @@ public sealed class E2eTestHelpersLifecycleTests
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*drain_events*cleanupIncomplete*InvalidOperationException*cleanup failed*");
         drainEventsCalls.Should().Be(1, "cleanupIncomplete should fail the reset without retrying contaminated cleanup");
+    }
+
+    [Fact]
+    public async Task ResetTestAppStateAsync_WhenBaselineTextStillDirty_ShouldFailPostcondition()
+    {
+        Task<JsonElement> CallToolAsync(string toolName, object? arguments)
+        {
+            return Task.FromResult(toolName switch
+            {
+                "get_namescope" => NamescopeResult(),
+                "click_element" or "execute_command" or "drain_events" => SuccessResult(),
+                "get_dp_value_source" => JsonSerializer.SerializeToElement(new
+                {
+                    success = true,
+                    currentValue = "dirty"
+                }),
+                "get_interaction_readiness" => JsonSerializer.SerializeToElement(new
+                {
+                    success = true,
+                    isReady = false,
+                    commandReadiness = new
+                    {
+                        hasCommand = true,
+                        canExecute = false
+                    }
+                }),
+                _ => throw new InvalidOperationException($"Unexpected tool call: {toolName}")
+            });
+        }
+
+        Func<Task> act = () => E2eTestHelpers.ResetTestAppStateAsync(
+            CallToolAsync,
+            processId: 123);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*NameTextBox*Text*dirty*");
     }
 
     [Fact]
@@ -161,6 +199,8 @@ public sealed class E2eTestHelpersLifecycleTests
                 {
                     "get_namescope" => NamescopeResult(),
                     "click_element" or "execute_command" or "drain_events" => SuccessResult(),
+                    "get_dp_value_source" => ResetNameTextResult(),
+                    "get_interaction_readiness" => ResetSaveButtonReadinessResult(),
                     _ => throw new InvalidOperationException($"Unexpected tool call: {toolName}")
                 });
             });
@@ -171,8 +211,12 @@ public sealed class E2eTestHelpersLifecycleTests
             "reconnect",
             "new:get_namescope",
             "new:get_namescope",
+            "new:get_namescope",
             "new:click_element",
             "new:execute_command",
+            "new:drain_events",
+            "new:get_dp_value_source",
+            "new:get_interaction_readiness",
             "new:drain_events");
     }
 
@@ -263,6 +307,25 @@ public sealed class E2eTestHelpersLifecycleTests
             pendingEventCount = 0
         });
 
+    private static JsonElement ResetNameTextResult()
+        => JsonSerializer.SerializeToElement(new
+        {
+            success = true,
+            currentValue = ""
+        });
+
+    private static JsonElement ResetSaveButtonReadinessResult()
+        => JsonSerializer.SerializeToElement(new
+        {
+            success = true,
+            isReady = false,
+            commandReadiness = new
+            {
+                hasCommand = true,
+                canExecute = false
+            }
+        });
+
     private static JsonElement NamescopeResult()
         => JsonSerializer.SerializeToElement(new
         {
@@ -270,7 +333,8 @@ public sealed class E2eTestHelpersLifecycleTests
             namedElements = new[]
             {
                 new { name = "BasicControlsTab", elementId = "tab-id" },
-                new { name = "NameTextBox", elementId = "name-id" }
+                new { name = "NameTextBox", elementId = "name-id" },
+                new { name = "SaveButton", elementId = "save-id" }
             }
         });
 

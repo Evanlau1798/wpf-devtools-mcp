@@ -47,6 +47,7 @@ public class SecurityDocumentationTests
     }
 
     [Theory]
+    [InlineData("README.md")]
     [InlineData("SECURITY.md")]
     [InlineData("docfx/production/security.md")]
     [InlineData("docfx/zh-tw/production/security.md")]

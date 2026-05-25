@@ -34,6 +34,7 @@ public static partial class CapabilityResources
 
         - Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before `connect()` attaches.
         - Start with `connect()` and let auto-discovery pick the single visible allowlisted WPF target when possible.
+        - Enable `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` only for sessions where target UI text, DependencyProperty or binding values, event payloads, tree/scene summaries, or state snapshots may leave the target process.
         - Call `get_processes(windowFilter)` only when `connect()` reports multiple candidates or when you explicitly need a filtered process list before connecting.
         - Prefer `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before tree-heavy inspection.
         - After each diagnostic, interaction, or mutation, prefer returned `navigation.recommended`; treat compatibility `nextSteps` as the fallback for older clients before guessing the next tool.

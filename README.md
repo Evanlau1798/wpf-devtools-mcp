@@ -74,6 +74,7 @@ The injection-based transport is hardened by default. Key runtime gates:
 - `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` explicitly allowlists raw-injection targets; malformed configured entries return `InvalidPolicyConfiguration`, while non-allowlisted targets return `SecurityError` with `requiresExplicitTargetOptIn`.
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` gates runtime mutation, interaction, render measurement, and session state-consuming tools such as `capture_state_snapshot` and `drain_events`.
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` gates `element_screenshot`.
+- `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS` gates target UI text, DependencyProperty and binding values, event payloads, tree/scene summaries, and runtime state snapshots.
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` gates ViewModel inspection tools.
 - `WPFDEVTOOLS_AUTH_SECRET`, `WPFDEVTOOLS_CERT_DIR`, and `WPFDEVTOOLS_CERT_THUMBPRINT` coordinate authenticated and encrypted named-pipe transport.
 

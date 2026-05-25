@@ -98,7 +98,110 @@ public sealed class McpToolExecutionPolicyTests
         policy.EvaluateToolCall("click_element").IsAllowed.Should().BeFalse();
         policy.EvaluateToolCall("element_screenshot").IsAllowed.Should().BeFalse();
         policy.EvaluateToolCall("get_viewmodel").IsAllowed.Should().BeFalse();
-        policy.EvaluateToolCall("get_visual_tree").IsAllowed.Should().BeTrue();
+        policy.EvaluateToolCall("get_visual_tree").IsAllowed.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("get_visual_tree")]
+    [InlineData("capture_state_snapshot")]
+    [InlineData("get_ui_summary")]
+    [InlineData("get_bindings")]
+    [InlineData("get_dp_value_source")]
+    [InlineData("wait_for_dp_change")]
+    [InlineData("get_state_diff")]
+    [InlineData("restore_state_snapshot")]
+    public void EvaluateToolCall_WhenSensitiveReadsAreDisabled_ShouldDenySensitiveReadTool(string toolName)
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "true",
+            allowScreenshots: "true",
+            allowViewModelInspection: "true");
+
+        var decision = policy.EvaluateToolCall(toolName);
+
+        decision.IsAllowed.Should().BeFalse();
+        decision.ErrorCode.Should().Be("SecurityError");
+        decision.PolicyCategory.Should().Be("sensitive-reads");
+        decision.Hint.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS");
+    }
+
+    [Theory]
+    [InlineData("connect")]
+    [InlineData("get_processes")]
+    [InlineData("get_active_process")]
+    [InlineData("ping")]
+    public void EvaluateToolCall_WhenSensitiveReadsAreDisabled_ShouldAllowProcessLifecycleTool(string toolName)
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "true",
+            allowScreenshots: "true",
+            allowViewModelInspection: "true");
+
+        policy.EvaluateToolCall(toolName).IsAllowed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void EvaluateToolCall_WhenSensitiveReadsAreEnabled_ShouldAllowSensitiveReadTool()
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "true",
+            allowScreenshots: "true",
+            allowViewModelInspection: "true",
+            allowSensitiveReads: "true");
+
+        policy.EvaluateToolCall("get_ui_summary").IsAllowed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void FromEnvironment_ShouldMapSensitiveReadAndViewModelGatesIndependently()
+    {
+        var variables = new[]
+        {
+            McpServerConfiguration.AllowDestructiveToolsEnvVar,
+            McpServerConfiguration.AllowScreenshotsEnvVar,
+            McpServerConfiguration.AllowSensitiveReadsEnvVar,
+            McpServerConfiguration.AllowViewModelInspectionEnvVar
+        };
+        var originalValues = variables.ToDictionary(
+            variable => variable,
+            Environment.GetEnvironmentVariable);
+
+        try
+        {
+            Environment.SetEnvironmentVariable(McpServerConfiguration.AllowDestructiveToolsEnvVar, "true");
+            Environment.SetEnvironmentVariable(McpServerConfiguration.AllowScreenshotsEnvVar, "true");
+            Environment.SetEnvironmentVariable(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");
+            Environment.SetEnvironmentVariable(McpServerConfiguration.AllowViewModelInspectionEnvVar, "false");
+
+            var policy = McpToolExecutionPolicy.FromEnvironment();
+
+            policy.EvaluateToolCall("get_ui_summary").IsAllowed.Should().BeTrue();
+            policy.EvaluateToolCall("get_viewmodel").PolicyCategory.Should().Be("viewmodel-inspection");
+        }
+        finally
+        {
+            foreach (var (variable, originalValue) in originalValues)
+            {
+                Environment.SetEnvironmentVariable(variable, originalValue);
+            }
+        }
+    }
+
+    [Fact]
+    public void EvaluateToolCall_WhenBatchMutateRequestsStringifiedSnapshotAndSensitiveReadsAreDisabled_ShouldDeny()
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "true",
+            allowScreenshots: "true",
+            allowViewModelInspection: "true");
+        using var document = JsonDocument.Parse("{\"captureSnapshot\":\"{\\\"propertyNames\\\":[\\\"Text\\\"]}\"}");
+        var arguments = document.RootElement.EnumerateObject()
+            .ToDictionary(property => property.Name, property => property.Value.Clone());
+
+        var decision = policy.EvaluateToolCall("batch_mutate", arguments);
+
+        decision.IsAllowed.Should().BeFalse();
+        decision.PolicyCategory.Should().Be("sensitive-reads");
     }
 
     [Fact]
@@ -189,13 +292,15 @@ public sealed class McpToolExecutionPolicyTests
 
     [Theory]
     [InlineData("screenshot", "screenshots")]
+    [InlineData("sensitive-read", "sensitive-reads")]
     [InlineData("viewmodel", "viewmodel-inspection")]
     public void PolicyGates_ShouldCoverCanonicalCapabilityTags(string capabilityTag, string expectedPolicyCategory)
     {
         var policy = McpToolExecutionPolicy.FromConfiguredValues(
             allowDestructiveTools: "true",
             allowScreenshots: "false",
-            allowViewModelInspection: "false");
+            allowViewModelInspection: "false",
+            allowSensitiveReads: "false");
         var taggedTools = GetManifestToolNamesWithTag(capabilityTag);
 
         taggedTools.Should().NotBeEmpty($"{capabilityTag} should be represented in the canonical manifest");

@@ -52,7 +52,9 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 `restore_state_snapshot`、`drain_events`、`batch_mutate` 等 mutation、
 interaction、render-measurement 與 session state-consuming tools；
 `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` 會
-gate `element_screenshot`；`WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` 會
+gate `element_screenshot`；`WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS` 會 gate
+target UI text、DependencyProperty 與 binding values、event payloads、
+tree/scene summaries 與 runtime state snapshots；`WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` 會
 gate `get_viewmodel` 與 `get_commands`。`execute_command` 必須同時啟用
 `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` 與
 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS`。

@@ -11,36 +11,45 @@ internal sealed class McpToolExecutionPolicy
     private static readonly HashSet<string> ScreenshotTools =
         McpToolCapabilityCatalog.DiscoverToolNamesWithPolicyTag(McpToolPolicyTags.Screenshots);
 
+    private static readonly HashSet<string> SensitiveReadTools =
+        McpToolCapabilityCatalog.DiscoverToolNamesWithPolicyTag(McpToolPolicyTags.SensitiveReads);
+
     private static readonly HashSet<string> ViewModelInspectionTools =
         McpToolCapabilityCatalog.DiscoverToolNamesWithPolicyTag(McpToolPolicyTags.ViewModelInspection);
 
     private readonly PolicyGate _destructiveTools;
     private readonly PolicyGate _screenshots;
+    private readonly PolicyGate _sensitiveReads;
     private readonly PolicyGate _viewModelInspection;
 
     private McpToolExecutionPolicy(
         PolicyGate destructiveTools,
         PolicyGate screenshots,
+        PolicyGate sensitiveReads,
         PolicyGate viewModelInspection)
     {
         _destructiveTools = destructiveTools;
         _screenshots = screenshots;
+        _sensitiveReads = sensitiveReads;
         _viewModelInspection = viewModelInspection;
     }
 
     internal static McpToolExecutionPolicy FromEnvironment()
         => FromConfiguredValues(
-            Environment.GetEnvironmentVariable(McpServerConfiguration.AllowDestructiveToolsEnvVar),
-            Environment.GetEnvironmentVariable(McpServerConfiguration.AllowScreenshotsEnvVar),
-            Environment.GetEnvironmentVariable(McpServerConfiguration.AllowViewModelInspectionEnvVar));
+            allowDestructiveTools: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowDestructiveToolsEnvVar),
+            allowScreenshots: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowScreenshotsEnvVar),
+            allowViewModelInspection: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowViewModelInspectionEnvVar),
+            allowSensitiveReads: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowSensitiveReadsEnvVar));
 
     internal static McpToolExecutionPolicy FromConfiguredValues(
         string? allowDestructiveTools,
         string? allowScreenshots,
-        string? allowViewModelInspection)
+        string? allowViewModelInspection,
+        string? allowSensitiveReads = null)
         => new(
             PolicyGate.Parse(McpServerConfiguration.AllowDestructiveToolsEnvVar, allowDestructiveTools),
             PolicyGate.Parse(McpServerConfiguration.AllowScreenshotsEnvVar, allowScreenshots),
+            PolicyGate.Parse(McpServerConfiguration.AllowSensitiveReadsEnvVar, allowSensitiveReads),
             PolicyGate.Parse(McpServerConfiguration.AllowViewModelInspectionEnvVar, allowViewModelInspection));
 
     internal McpToolPolicyDecision EvaluateToolCall(string? toolName)
@@ -94,7 +103,33 @@ internal sealed class McpToolExecutionPolicy
             }
         }
 
+        if (RequiresSensitiveRead(toolName, arguments))
+        {
+            var decision = EvaluateGate(
+                _sensitiveReads,
+                toolName,
+                policyCategory: McpToolPolicyTags.SensitiveReads,
+                capabilityDescription: "read target UI text, dependency property values, bindings, runtime event data, or state snapshots");
+            if (!decision.IsAllowed)
+            {
+                return decision;
+            }
+        }
+
         return McpToolPolicyDecision.Allowed;
+    }
+
+    private static bool RequiresSensitiveRead(
+        string toolName,
+        IDictionary<string, JsonElement>? arguments)
+    {
+        if (SensitiveReadTools.Contains(toolName))
+        {
+            return true;
+        }
+
+        return string.Equals(toolName, "batch_mutate", StringComparison.Ordinal)
+            && TryGetObjectArgument(arguments, "captureSnapshot", out _);
     }
 
     private static bool RequiresViewModelInspection(

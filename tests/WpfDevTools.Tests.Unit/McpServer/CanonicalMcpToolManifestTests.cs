@@ -51,6 +51,7 @@ public sealed class CanonicalMcpToolManifestTests
         AssertTags(tools, "connect", "destructive", "process-discovery", "requires-target");
         AssertMissingTags(tools, "connect", "nested-mutation-supported");
         AssertTags(tools, "element_screenshot", "read-only", "screenshot", "requires-target");
+        AssertTags(tools, "get_ui_summary", "read-only", "sensitive-read", "requires-target");
         AssertTags(tools, "get_viewmodel", "read-only", "viewmodel", "requires-target");
         AssertTags(tools, "override_style_setter", "destructive", "nested-mutation-supported", "requires-target");
         AssertTags(tools, "wait_for_dp_change_after_mutation", "destructive", "accepts-mutation-step", "requires-target");
@@ -90,6 +91,7 @@ public sealed class CanonicalMcpToolManifestTests
 
         AssertPolicyTags(tools, "modify_viewmodel", "destructive-tools", "viewmodel-inspection");
         AssertPolicyTags(tools, "element_screenshot", "screenshots");
+        AssertPolicyTags(tools, "get_ui_summary", "sensitive-reads");
         AssertPolicyTags(tools, "get_datacontext_chain", "viewmodel-inspection");
     }
 

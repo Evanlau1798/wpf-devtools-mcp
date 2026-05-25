@@ -245,6 +245,7 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
             [McpServerConfiguration.RawInjectionAllowedTargetsEnvVar] = testAppExePath,
             [McpServerConfiguration.AllowDestructiveToolsEnvVar] = "true",
             [McpServerConfiguration.AllowScreenshotsEnvVar] = "true",
+            [McpServerConfiguration.AllowSensitiveReadsEnvVar] = "true",
             [McpServerConfiguration.AllowViewModelInspectionEnvVar] = "true",
             ["WPFDEVTOOLS_AUTH_SECRET"] = authSecret,
             ["WPFDEVTOOLS_CERT_DIR"] = certDirectory,

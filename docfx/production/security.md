@@ -42,6 +42,7 @@ The server evaluates high-risk MCP `tools/call` requests before dispatching them
 - `get_processes` and `connect()` auto-discovery apply this target policy before returning process names, window titles, architecture/runtime metadata, or candidate details. Denied targets are redacted to aggregate counts.
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` opts into runtime mutation, interaction, render-measurement, and session state-consuming tools, including `set_dp_value`, `click_element`, `execute_command`, `measure_element_render_time`, `capture_state_snapshot`, `restore_state_snapshot`, `drain_events`, and `batch_mutate`.
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` opts into `element_screenshot` at the MCP boundary.
+- `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` opts into target UI text, DependencyProperty and binding values, routed-event payloads, tree/scene summaries, and runtime state snapshots. This is the per-session diagnostic profile gate for read-heavy tools such as `get_ui_summary`, `get_visual_tree`, `get_bindings`, and `get_state_diff`.
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` opts into `get_viewmodel`, `get_commands`, `modify_viewmodel`, and `execute_command`.
 - Unset, false, or invalid boolean gates fail closed for the affected category.
 
@@ -76,7 +77,7 @@ Injection-based `connect` sessions use TLS for the inspector connection by defau
 - Pipe ACLs are scoped to the current user and SYSTEM.
 - Requests are serialized and bounded by framing limits.
 - Session-level rate limiting is enforced by the server.
-- Tool policy gates can block destructive tools, screenshots, ViewModel inspection, and non-allowlisted targets before any target-process request is sent.
+- Tool policy gates can block destructive tools, screenshots, sensitive reads, ViewModel inspection, and non-allowlisted targets before any target-process request is sent.
 
 ## Recommended production posture
 
@@ -88,7 +89,7 @@ Injection-based `connect` sessions use TLS for the inspector connection by defau
 6. Optionally set `WPFDEVTOOLS_CERT_THUMBPRINT`.
 7. Keep raw injection disabled by default; use `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` only for explicitly reviewed exact local absolute executable paths.
 8. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed exact local absolute executable paths the server may connect to.
-9. Disable destructive tools, screenshots, or ViewModel inspection with the `WPFDEVTOOLS_MCP_ALLOW_*` gates when those capabilities are not needed.
+9. Disable destructive tools, screenshots, sensitive reads, or ViewModel inspection with the `WPFDEVTOOLS_MCP_ALLOW_*` gates when those capabilities are not needed.
 10. Restrict who can launch the server on the workstation or VM.
 
 ## Important limitations

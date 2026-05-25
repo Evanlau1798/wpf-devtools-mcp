@@ -13,6 +13,7 @@ public class SecurityDocumentationTests
     [InlineData("WPFDEVTOOLS_MCP_ALLOWED_TARGETS")]
     [InlineData("WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS")]
     [InlineData("WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS")]
+    [InlineData("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS")]
     [InlineData("WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION")]
     public void Documentation_ShouldMentionSupportedEnvironmentVariables(string variableName)
     {
@@ -172,6 +173,8 @@ public class SecurityDocumentationTests
             $"{relativePath} should document the destructive tool gate");
         content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS",
             $"{relativePath} should document the screenshot gate");
+        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS",
+            $"{relativePath} should document the sensitive read gate");
         content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION",
             $"{relativePath} should document the ViewModel inspection gate");
     }

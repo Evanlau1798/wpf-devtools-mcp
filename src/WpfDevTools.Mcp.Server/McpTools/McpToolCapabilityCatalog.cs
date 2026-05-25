@@ -8,6 +8,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 internal static class McpToolCapabilityTags
 {
     internal const string Destructive = "destructive";
+    internal const string SensitiveRead = "sensitive-read";
     internal const string Screenshot = "screenshot";
     internal const string ViewModel = "viewmodel";
 }
@@ -15,6 +16,7 @@ internal static class McpToolCapabilityTags
 internal static class McpToolPolicyTags
 {
     internal const string DestructiveTools = "destructive-tools";
+    internal const string SensitiveReads = "sensitive-reads";
     internal const string Screenshots = "screenshots";
     internal const string ViewModelInspection = "viewmodel-inspection";
 }
@@ -35,6 +37,49 @@ internal static class McpToolCapabilityCatalog
     private static readonly HashSet<string> ScreenshotToolNames = new(StringComparer.Ordinal)
     {
         "element_screenshot"
+    };
+
+    private static readonly HashSet<string> SensitiveReadToolNames = new(StringComparer.Ordinal)
+    {
+        "capture_state_snapshot",
+        "compare_trees",
+        "diagnose_visibility",
+        "drain_events",
+        "find_binding_leaks",
+        "find_elements",
+        "get_affected_elements",
+        "get_applied_styles",
+        "get_binding_errors",
+        "get_binding_mismatches",
+        "get_binding_value_chain",
+        "get_bindings",
+        "get_clipping_info",
+        "get_dp_metadata",
+        "get_dp_value_source",
+        "get_element_snapshot",
+        "get_event_handlers",
+        "get_focus_state",
+        "get_form_summary",
+        "get_interaction_readiness",
+        "get_layout_info",
+        "get_logical_tree",
+        "get_namescope",
+        "get_render_stats",
+        "get_resource_chain",
+        "get_state_diff",
+        "get_template_tree",
+        "get_triggers",
+        "get_ui_summary",
+        "get_validation_errors",
+        "get_visual_count",
+        "get_visual_tree",
+        "get_windows",
+        "restore_state_snapshot",
+        "serialize_to_xaml",
+        "trace_routed_events",
+        "wait_for_dp_change",
+        "wait_for_dp_change_after_mutation",
+        "watch_dp_changes"
     };
 
     private static readonly HashSet<string> ViewModelInspectionToolNames = new(StringComparer.Ordinal)
@@ -111,6 +156,11 @@ internal static class McpToolCapabilityCatalog
             policyTags.Add(McpToolPolicyTags.Screenshots);
         }
 
+        if (capabilityTags.Contains(McpToolCapabilityTags.SensitiveRead, StringComparer.Ordinal))
+        {
+            policyTags.Add(McpToolPolicyTags.SensitiveReads);
+        }
+
         if (capabilityTags.Contains(McpToolCapabilityTags.ViewModel, StringComparer.Ordinal))
         {
             policyTags.Add(McpToolPolicyTags.ViewModelInspection);
@@ -175,6 +225,11 @@ internal static class McpToolCapabilityCatalog
         if (ViewModelInspectionToolNames.Contains(toolName))
         {
             tags.Add(McpToolCapabilityTags.ViewModel);
+        }
+
+        if (SensitiveReadToolNames.Contains(toolName))
+        {
+            tags.Add(McpToolCapabilityTags.SensitiveRead);
         }
 
         if (ScreenshotToolNames.Contains(toolName))

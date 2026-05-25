@@ -52,7 +52,10 @@ exact local absolute executable path before `connect`. In addition,
 render-measurement, and session state-consuming tools such as `click_element`,
 `set_dp_value`, `capture_state_snapshot`, `restore_state_snapshot`,
 `drain_events`, and `batch_mutate`;
-`WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` gates `element_screenshot`; and
+`WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` gates `element_screenshot`;
+`WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS` gates target UI text, DependencyProperty
+and binding values, event payloads, tree/scene summaries, and runtime state
+snapshots; and
 `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` gates `get_viewmodel` and
 `get_commands`. `execute_command` requires both
 `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` and

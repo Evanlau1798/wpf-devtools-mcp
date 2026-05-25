@@ -39,6 +39,7 @@ The MCP client is untrusted by default. Tool descriptions, annotations, and prom
 - `get_processes` and `connect()` auto-discovery apply this target policy before returning process names, window titles, architecture/runtime metadata, or candidate details. Denied targets are redacted to aggregate counts.
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` opts into runtime mutation, interaction, render-measurement, and session state-consuming tools such as `set_dp_value`, `click_element`, `execute_command`, `measure_element_render_time`, `capture_state_snapshot`, `restore_state_snapshot`, `drain_events`, and `batch_mutate`.
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` opts into `element_screenshot` at the MCP boundary.
+- `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` opts into target UI text, DependencyProperty and binding values, routed-event payloads, tree/scene summaries, and runtime state snapshots. This is the per-session diagnostic profile gate for read-heavy tools such as `get_ui_summary`, `get_visual_tree`, `get_bindings`, and `get_state_diff`.
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` opts into `get_viewmodel`, `get_commands`, `modify_viewmodel`, and `execute_command`.
 - When these boolean gates are unset or false, the affected category fails closed with `errorCode: SecurityError`; malformed boolean values fail closed with `errorCode: InvalidPolicyConfiguration`.
 
@@ -83,6 +84,7 @@ The MCP client is untrusted by default. Tool descriptions, annotations, and prom
 | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | Restricts all `connect()` targets | Required semicolon-separated exact local absolute executable paths; unset or malformed configured entries fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | Enables or disables destructive MCP tools | Set `true` only for sessions where runtime mutation, interaction, render measurement, or session state-consuming tools such as `capture_state_snapshot` and `drain_events` are allowed |
 | `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | Enables or disables screenshot capture | Set `true` only when target UI pixels are allowed to leave the target process |
+| `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS` | Enables or disables sensitive runtime read tools | Set `true` only when target UI text, DependencyProperty values, binding data, event payloads, tree/scene summaries, and state snapshots may leave the target process |
 | `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | Enables or disables ViewModel inspection tools | Set `true` only when ViewModel property values may be inspected or commands executed |
 
 This table lists the security-relevant `WPFDEVTOOLS_*` environment variables for transport, certificate, and raw-injection policy.
@@ -97,7 +99,7 @@ This table lists the security-relevant `WPFDEVTOOLS_*` environment variables for
 4. Optionally set `WPFDEVTOOLS_CERT_THUMBPRINT` if certificate identity must be fixed explicitly.
 5. Keep raw injection disabled by default; use `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` only for explicitly reviewed exact local absolute executable paths.
 6. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed exact local absolute executable paths the server may connect to.
-7. Disable destructive tools, screenshots, or ViewModel inspection with the `WPFDEVTOOLS_MCP_ALLOW_*` gates when those capabilities are not needed for the session.
+7. Disable destructive tools, screenshots, sensitive reads, or ViewModel inspection with the `WPFDEVTOOLS_MCP_ALLOW_*` gates when those capabilities are not needed for the session.
 
 ### Secret handling
 

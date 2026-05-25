@@ -144,7 +144,7 @@ Output fields include execution counts, per-step results, optional `snapshotId`,
 Example:
 
 ```json
-{ "captureSnapshot": { "propertyNames": ["Text"] }, "includeDiff": true, "mutations": [{ "tool": "set_dp_value", "args": { "elementId": "NameTextBox", "propertyName": "Text", "value": "Alice" } }] }
+{ "captureSnapshot": { "elementId": "NameTextBox", "propertyNames": ["Text"] }, "includeDiff": true, "mutations": [{ "tool": "set_dp_value", "args": { "elementId": "NameTextBox", "propertyName": "Text", "value": "Alice" } }] }
 ```
 
 Recovery path: if a step fails after earlier mutations succeeded, inspect `rollback` and call `restore_state_snapshot` when a retained snapshot is available.

@@ -144,7 +144,7 @@ Policy gate：destructive。Server 必須允許 destructive tools，此工具才
 範例：
 
 ```json
-{ "captureSnapshot": { "propertyNames": ["Text"] }, "includeDiff": true, "mutations": [{ "tool": "set_dp_value", "args": { "elementId": "NameTextBox", "propertyName": "Text", "value": "Alice" } }] }
+{ "captureSnapshot": { "elementId": "NameTextBox", "propertyNames": ["Text"] }, "includeDiff": true, "mutations": [{ "tool": "set_dp_value", "args": { "elementId": "NameTextBox", "propertyName": "Text", "value": "Alice" } }] }
 ```
 
 復原路徑：如果某個 step 失敗但前面 step 已成功，檢查 `rollback`，並在 snapshot 仍保留時呼叫 `restore_state_snapshot`。

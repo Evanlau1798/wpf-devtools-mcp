@@ -97,6 +97,18 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/reference/tools/scene-and-state.md")]
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md")]
+    public void SceneAndStateReferencePages_ShouldScopeBatchMutateSnapshotExampleToMutatedElement(
+        string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var section = ExtractMarkdownSection(content, "## `batch_mutate`");
+
+        section.Should().Contain("\"captureSnapshot\": { \"elementId\": \"NameTextBox\", \"propertyNames\": [\"Text\"] }");
+    }
+
+    [Theory]
     [InlineData(
         "docfx/architecture/ipc.md",
         "event push from inspector to server",

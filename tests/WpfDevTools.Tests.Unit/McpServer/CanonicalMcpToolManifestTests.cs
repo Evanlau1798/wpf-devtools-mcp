@@ -4,6 +4,7 @@ using FluentAssertions;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.McpResources;
 using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -56,6 +57,26 @@ public sealed class CanonicalMcpToolManifestTests
         AssertMissingTags(tools, "wait_for_dp_change_after_mutation", "nested-mutation-supported");
     }
 
+    [Fact]
+    public void ToolManifestResource_ShouldKeepMutationTagsAlignedWithBatchMutationCatalog()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
+        var tools = document.RootElement.GetProperty("tools").EnumerateArray().ToArray();
+
+        foreach (var tool in tools)
+        {
+            var toolName = GetName(tool);
+            var tags = GetTags(tool);
+
+            tags.Contains("nested-mutation-supported").Should()
+                .Be(BatchMutationCatalog.SupportedTools.Contains(toolName),
+                    "nested-mutation-supported should exactly match batch_mutate nested tool support");
+            tags.Contains("accepts-mutation-step").Should()
+                .Be(string.Equals(toolName, "wait_for_dp_change_after_mutation", StringComparison.Ordinal),
+                    "only wait_for_dp_change_after_mutation accepts a single mutation step outside batch_mutate");
+        }
+    }
+
     private static (string Name, McpServerToolAttribute Attribute)[] GetRegisteredTools()
     {
         return typeof(ProcessMcpTools).Assembly.GetTypes()
@@ -93,6 +114,11 @@ public sealed class CanonicalMcpToolManifestTests
     private static string[] GetTags(JsonElement[] tools, string toolName)
     {
         var tool = tools.Single(entry => GetName(entry) == toolName);
+        return GetTags(tool);
+    }
+
+    private static string[] GetTags(JsonElement tool)
+    {
         return tool.GetProperty("capabilityTags")
             .EnumerateArray()
             .Select(entry => entry.GetString())

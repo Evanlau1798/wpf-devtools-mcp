@@ -20,7 +20,7 @@ public sealed class SwallowedExceptionLoggingTests
         {
             var result = RawInjectionTargetPolicy.TryNormalizeAbsolutePath(
                 @"C:\target\TestApp.exe",
-                _ => throw new IOException("resolver failed"),
+                (Func<string, string?>)(_ => throw new IOException("resolver failed")),
                 out _);
             Trace.Flush();
 

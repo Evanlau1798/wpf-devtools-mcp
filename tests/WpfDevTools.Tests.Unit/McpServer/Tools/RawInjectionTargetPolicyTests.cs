@@ -82,6 +82,17 @@ public sealed class RawInjectionTargetPolicyTests
         normalized.Should().BeFalse();
     }
 
+    [Fact]
+    public void TryNormalizeAbsolutePath_WhenPhysicalResolverRejectsPath_ShouldFailClosed()
+    {
+        var normalized = RawInjectionTargetPolicy.TryNormalizeAbsolutePath(
+            @"C:\Allowed\Target.exe",
+            _ => PhysicalPathResolution.Rejected(),
+            out _);
+
+        normalized.Should().BeFalse();
+    }
+
     private static WpfProcessInfo CreateProcessInfo(string executablePath)
     {
         return new WpfProcessInfo

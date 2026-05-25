@@ -12,6 +12,21 @@ internal readonly record struct RawInjectionAuthorization(
     string? Error,
     string? Hint);
 
+internal readonly record struct PhysicalPathResolution(
+    bool IsResolved,
+    bool IsRejected,
+    string? Path)
+{
+    internal static PhysicalPathResolution Resolved(string path)
+        => new(IsResolved: true, IsRejected: false, Path: path);
+
+    internal static PhysicalPathResolution Unresolved()
+        => new(IsResolved: false, IsRejected: false, Path: null);
+
+    internal static PhysicalPathResolution Rejected()
+        => new(IsResolved: false, IsRejected: true, Path: null);
+}
+
 internal static class RawInjectionTargetPolicy
 {
     internal static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
@@ -31,15 +46,26 @@ internal static class RawInjectionTargetPolicy
             processInfo,
             AppContext.BaseDirectory,
             Environment.GetEnvironmentVariable(McpServerConfiguration.RawInjectionAllowedTargetsEnvVar),
-            TryResolvePhysicalPath);
+            ResolvePhysicalPathForPolicy);
 
     internal static RawInjectionAuthorization Authorize(
         WpfProcessInfo processInfo,
         string _,
         string? configuredAllowedTargets,
         Func<string, string?> tryResolvePhysicalPath)
+        => Authorize(
+            processInfo,
+            _,
+            configuredAllowedTargets,
+            ToPhysicalPathResolver(tryResolvePhysicalPath));
+
+    private static RawInjectionAuthorization Authorize(
+        WpfProcessInfo processInfo,
+        string _,
+        string? configuredAllowedTargets,
+        Func<string, PhysicalPathResolution> resolvePhysicalPath)
     {
-        if (!TryNormalizeAbsolutePath(processInfo.ExecutablePath, tryResolvePhysicalPath, out var normalizedTargetPath))
+        if (!TryNormalizeAbsolutePath(processInfo.ExecutablePath, resolvePhysicalPath, out var normalizedTargetPath))
         {
             return new RawInjectionAuthorization(
                 IsAllowed: false,
@@ -47,7 +73,7 @@ internal static class RawInjectionTargetPolicy
                 Hint: $"Set {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths when raw injection into a specific target executable is explicitly intended.");
         }
 
-        if (!TryGetConfiguredAllowedTargets(configuredAllowedTargets, tryResolvePhysicalPath, out var configuredTargets))
+        if (!TryGetConfiguredAllowedTargets(configuredAllowedTargets, resolvePhysicalPath, out var configuredTargets))
         {
             return CreateInvalidConfigurationAuthorization();
         }
@@ -69,18 +95,34 @@ internal static class RawInjectionTargetPolicy
     internal static IReadOnlyCollection<string> GetConfiguredAllowedTargets()
         => GetConfiguredAllowedTargets(
             Environment.GetEnvironmentVariable(McpServerConfiguration.RawInjectionAllowedTargetsEnvVar),
-            TryResolvePhysicalPath);
+            ResolvePhysicalPathForPolicy);
 
     internal static IReadOnlyCollection<string> GetConfiguredAllowedTargets(
         string? configuredValue,
         Func<string, string?> tryResolvePhysicalPath)
-        => TryGetConfiguredAllowedTargets(configuredValue, tryResolvePhysicalPath, out var configuredTargets)
+        => GetConfiguredAllowedTargets(
+            configuredValue,
+            ToPhysicalPathResolver(tryResolvePhysicalPath));
+
+    private static IReadOnlyCollection<string> GetConfiguredAllowedTargets(
+        string? configuredValue,
+        Func<string, PhysicalPathResolution> resolvePhysicalPath)
+        => TryGetConfiguredAllowedTargets(configuredValue, resolvePhysicalPath, out var configuredTargets)
             ? configuredTargets
             : Array.Empty<string>();
 
     private static bool TryGetConfiguredAllowedTargets(
         string? configuredValue,
         Func<string, string?> tryResolvePhysicalPath,
+        out IReadOnlyCollection<string> configuredTargets)
+        => TryGetConfiguredAllowedTargets(
+            configuredValue,
+            ToPhysicalPathResolver(tryResolvePhysicalPath),
+            out configuredTargets);
+
+    private static bool TryGetConfiguredAllowedTargets(
+        string? configuredValue,
+        Func<string, PhysicalPathResolution> resolvePhysicalPath,
         out IReadOnlyCollection<string> configuredTargets)
     {
         configuredTargets = Array.Empty<string>();
@@ -103,7 +145,7 @@ internal static class RawInjectionTargetPolicy
         {
             if (!TryNormalizeAbsolutePath(
                     configuredTargetEntry,
-                    tryResolvePhysicalPath,
+                    resolvePhysicalPath,
                     out var normalizedConfiguredTarget))
             {
                 configuredTargets = Array.Empty<string>();
@@ -126,6 +168,15 @@ internal static class RawInjectionTargetPolicy
     internal static bool TryNormalizeAbsolutePath(
         string? path,
         Func<string, string?> tryResolvePhysicalPath,
+        out string normalizedPath)
+        => TryNormalizeAbsolutePath(
+            path,
+            ToPhysicalPathResolver(tryResolvePhysicalPath),
+            out normalizedPath);
+
+    internal static bool TryNormalizeAbsolutePath(
+        string? path,
+        Func<string, PhysicalPathResolution> resolvePhysicalPath,
         out string normalizedPath)
     {
         normalizedPath = string.Empty;
@@ -152,7 +203,20 @@ internal static class RawInjectionTargetPolicy
                 return false;
             }
 
-            var resolvedPath = tryResolvePhysicalPath(fullPath) ?? fullPath;
+            var physicalPathResolution = resolvePhysicalPath(fullPath);
+            if (physicalPathResolution.IsRejected)
+            {
+                return false;
+            }
+
+            var resolvedPath = physicalPathResolution.IsResolved
+                ? physicalPathResolution.Path
+                : fullPath;
+            if (string.IsNullOrWhiteSpace(resolvedPath))
+            {
+                return false;
+            }
+
             if (IsRejectedTargetPath(resolvedPath))
             {
                 return false;
@@ -178,8 +242,8 @@ internal static class RawInjectionTargetPolicy
         out bool areSame)
     {
         areSame = false;
-        if (!TryNormalizeAbsolutePath(firstPath, TryResolvePhysicalPath, out var normalizedFirstPath)
-            || !TryNormalizeAbsolutePath(secondPath, TryResolvePhysicalPath, out var normalizedSecondPath))
+        if (!TryNormalizeAbsolutePath(firstPath, ResolvePhysicalPathForPolicy, out var normalizedFirstPath)
+            || !TryNormalizeAbsolutePath(secondPath, ResolvePhysicalPathForPolicy, out var normalizedSecondPath))
         {
             return false;
         }
@@ -194,6 +258,16 @@ internal static class RawInjectionTargetPolicy
         => TryNormalizeAbsolutePath(path, tryResolvePhysicalPath, out var normalizedPath)
             ? normalizedPath
             : null;
+
+    private static Func<string, PhysicalPathResolution> ToPhysicalPathResolver(
+        Func<string, string?> tryResolvePhysicalPath)
+        => path =>
+        {
+            var resolvedPath = tryResolvePhysicalPath(path);
+            return resolvedPath is null
+                ? PhysicalPathResolution.Unresolved()
+                : PhysicalPathResolution.Resolved(resolvedPath);
+        };
 
     private static bool IsNetworkPath(string path)
         => path.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)
@@ -265,14 +339,20 @@ internal static class RawInjectionTargetPolicy
 
     internal static string? TryResolvePhysicalPath(string path)
     {
+        var resolution = ResolvePhysicalPathForPolicy(path);
+        return resolution.IsResolved ? resolution.Path : null;
+    }
+
+    internal static PhysicalPathResolution ResolvePhysicalPathForPolicy(string path)
+    {
         if (!File.Exists(path) && !Directory.Exists(path))
         {
-            return null;
+            return PhysicalPathResolution.Unresolved();
         }
 
         if (!OperatingSystem.IsWindows())
         {
-            return NormalizePath(Path.GetFullPath(path));
+            return PhysicalPathResolution.Resolved(NormalizePath(Path.GetFullPath(path)));
         }
 
         using var handle = CreateFile(
@@ -286,14 +366,14 @@ internal static class RawInjectionTargetPolicy
 
         if (handle.IsInvalid)
         {
-            return null;
+            return PhysicalPathResolution.Unresolved();
         }
 
         var builder = new StringBuilder(512);
         var result = GetFinalPathNameByHandle(handle, builder, builder.Capacity, 0);
         if (result == 0)
         {
-            return null;
+            return PhysicalPathResolution.Unresolved();
         }
 
         if (result >= builder.Capacity)
@@ -302,13 +382,13 @@ internal static class RawInjectionTargetPolicy
             result = GetFinalPathNameByHandle(handle, builder, builder.Capacity, 0);
             if (result == 0)
             {
-                return null;
+                return PhysicalPathResolution.Unresolved();
             }
         }
 
         return TryNormalizeFinalPathName(builder.ToString(), out var normalizedPath)
-            ? normalizedPath
-            : null;
+            ? PhysicalPathResolution.Resolved(normalizedPath)
+            : PhysicalPathResolution.Rejected();
     }
 
     internal static bool TryNormalizeFinalPathName(string path, out string normalizedPath)

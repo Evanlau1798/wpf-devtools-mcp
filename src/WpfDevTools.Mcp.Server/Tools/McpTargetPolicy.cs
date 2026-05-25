@@ -13,12 +13,27 @@ internal static class McpTargetPolicy
         => Authorize(
             processInfo,
             Environment.GetEnvironmentVariable(McpServerConfiguration.AllowedTargetsEnvVar),
-            RawInjectionTargetPolicy.TryResolvePhysicalPath);
+            RawInjectionTargetPolicy.ResolvePhysicalPathForPolicy);
 
     internal static McpTargetAuthorization Authorize(
         WpfProcessInfo processInfo,
         string? configuredAllowedTargets,
         Func<string, string?> tryResolvePhysicalPath)
+        => Authorize(
+            processInfo,
+            configuredAllowedTargets,
+            path =>
+            {
+                var resolvedPath = tryResolvePhysicalPath(path);
+                return resolvedPath is null
+                    ? PhysicalPathResolution.Unresolved()
+                    : PhysicalPathResolution.Resolved(resolvedPath);
+            });
+
+    private static McpTargetAuthorization Authorize(
+        WpfProcessInfo processInfo,
+        string? configuredAllowedTargets,
+        Func<string, PhysicalPathResolution> resolvePhysicalPath)
     {
         if (string.IsNullOrWhiteSpace(configuredAllowedTargets))
         {
@@ -42,7 +57,7 @@ internal static class McpTargetPolicy
         {
             if (!RawInjectionTargetPolicy.TryNormalizeAbsolutePath(
                     configuredTargetEntry,
-                    tryResolvePhysicalPath,
+                    resolvePhysicalPath,
                     out var normalizedConfiguredTarget))
             {
                 return CreateInvalidConfigurationAuthorization();
@@ -53,7 +68,7 @@ internal static class McpTargetPolicy
 
         if (!RawInjectionTargetPolicy.TryNormalizeAbsolutePath(
             processInfo.ExecutablePath,
-            tryResolvePhysicalPath,
+            resolvePhysicalPath,
             out var normalizedTargetPath))
         {
             return new McpTargetAuthorization(

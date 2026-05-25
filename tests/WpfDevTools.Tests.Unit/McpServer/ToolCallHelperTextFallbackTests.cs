@@ -44,6 +44,81 @@ public sealed class ToolCallHelperTextFallbackTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteAndWrapAsync_WithHighValuePayload_ShouldKeepCanonicalScalarParityInTextFallback()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                message = "Connected",
+                processId = 12345,
+                processName = "TestApp",
+                windowTitle = "Main Window",
+                autoDiscovered = true,
+                autoSelected = true,
+                selectionReason = "Single allowed target",
+                candidateCount = 1,
+                redactedCandidateCount = 2,
+                policyEnvVar = "WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
+                requiresElevationToConnect = false,
+                canConnectFromCurrentServer = true,
+                processes = new[]
+                {
+                    new { processId = 12345, processName = "TestApp" }
+                }
+            }),
+            null,
+            CancellationToken.None,
+            toolName: "connect");
+
+        var textBlock = result.Content[0].Should().BeOfType<TextContentBlock>().Subject;
+        var textPayload = JsonSerializer.Deserialize<JsonElement>(textBlock.Text);
+        var structured = result.StructuredContent!.Value;
+
+        result.IsError.Should().BeFalse();
+        AssertSameTopLevelValue(structured, textPayload, "success");
+        AssertSameTopLevelValue(structured, textPayload, "message");
+        AssertSameTopLevelValue(structured, textPayload, "processId");
+        AssertSameTopLevelValue(structured, textPayload, "processName");
+        AssertSameTopLevelValue(structured, textPayload, "windowTitle");
+        AssertSameTopLevelValue(structured, textPayload, "autoDiscovered");
+        AssertSameTopLevelValue(structured, textPayload, "autoSelected");
+        AssertSameTopLevelValue(structured, textPayload, "selectionReason");
+        AssertSameTopLevelValue(structured, textPayload, "candidateCount");
+        AssertSameTopLevelValue(structured, textPayload, "redactedCandidateCount");
+        AssertSameTopLevelValue(structured, textPayload, "policyEnvVar");
+        AssertSameTopLevelValue(structured, textPayload, "requiresElevationToConnect");
+        AssertSameTopLevelValue(structured, textPayload, "canConnectFromCurrentServer");
+        textPayload.GetProperty("processesCount").GetInt64().Should().Be(
+            structured.GetProperty("processes").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithSuccessFalse_ShouldAlignIsErrorAndTextFallbackSuccess()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = false,
+                error = "Target rejected",
+                errorCode = "SecurityError",
+                processId = 12345
+            }),
+            null,
+            CancellationToken.None);
+
+        var textBlock = result.Content[0].Should().BeOfType<TextContentBlock>().Subject;
+        var textPayload = JsonSerializer.Deserialize<JsonElement>(textBlock.Text);
+        var structured = result.StructuredContent!.Value;
+
+        result.IsError.Should().BeTrue();
+        AssertSameTopLevelValue(structured, textPayload, "success");
+        AssertSameTopLevelValue(structured, textPayload, "error");
+        AssertSameTopLevelValue(structured, textPayload, "errorCode");
+        AssertSameTopLevelValue(structured, textPayload, "processId");
+    }
+
+    [Fact]
     public async Task ExecuteAndWrapAsync_WithErrorPayload_ShouldKeepErrorSummaryInTextFallback()
     {
         var result = await ToolCallHelper.ExecuteAndWrapAsync(
@@ -269,5 +344,13 @@ public sealed class ToolCallHelperTextFallbackTests : IDisposable
         {
             Environment.SetEnvironmentVariable(_name, _previousValue);
         }
+    }
+
+    private static void AssertSameTopLevelValue(JsonElement structured, JsonElement textPayload, string propertyName)
+    {
+        structured.TryGetProperty(propertyName, out var structuredProperty).Should().BeTrue();
+        textPayload.TryGetProperty(propertyName, out var textProperty).Should().BeTrue(
+            $"text fallback should preserve the canonical '{propertyName}' field");
+        textProperty.GetRawText().Should().Be(structuredProperty.GetRawText());
     }
 }

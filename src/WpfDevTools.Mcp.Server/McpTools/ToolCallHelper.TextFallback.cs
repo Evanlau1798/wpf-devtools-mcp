@@ -7,7 +7,6 @@ public static partial class ToolCallHelper
 {
     private const int TextFallbackMaxLength = 200;
     private const int TextFallbackInlineStringMaxLength = 80;
-    private const int TextFallbackMaxSummaryFields = 6;
     private const string FullTextFallbackMode = "full";
     private const string StructuredContentFallbackMessage = "Canonical payload available in structuredContent; content[0].text is a compact fallback.";
 
@@ -200,52 +199,20 @@ public static partial class ToolCallHelper
 
     private static void AppendHighSignalFallbackFields(JsonElement payload, Dictionary<string, object?> fallback)
     {
-        var remainingFields = TextFallbackMaxSummaryFields;
-
         foreach (var property in payload.EnumerateObject())
         {
-            if (remainingFields <= 0
-                || fallback.ContainsKey(property.Name)
+            if (fallback.ContainsKey(property.Name)
                 || OmittedTextFallbackProperties.Contains(property.Name))
             {
                 continue;
             }
 
-            switch (property.Value.ValueKind)
-            {
-                case JsonValueKind.True:
-                case JsonValueKind.False:
-                    fallback[property.Name] = property.Value.GetBoolean();
-                    remainingFields--;
-                    break;
-
-                case JsonValueKind.Number:
-                    fallback[property.Name] = ReadFallbackNumber(property.Value);
-                    remainingFields--;
-                    break;
-
-                case JsonValueKind.String:
-                    var stringValue = property.Value.GetString();
-                    if (string.IsNullOrWhiteSpace(stringValue))
-                    {
-                        continue;
-                    }
-
-                    fallback[property.Name] = NormalizeFallbackString(stringValue, TextFallbackInlineStringMaxLength);
-                    remainingFields--;
-                    break;
-            }
-        }
-
-        if (remainingFields <= 0)
-        {
-            return;
+            AppendScalarFallbackField(property, fallback);
         }
 
         foreach (var property in payload.EnumerateObject())
         {
-            if (remainingFields <= 0
-                || fallback.ContainsKey(property.Name)
+            if (fallback.ContainsKey(property.Name)
                 || OmittedTextFallbackProperties.Contains(property.Name)
                 || property.Value.ValueKind != JsonValueKind.Array
                 || HasRelatedCountScalar(payload, property.Name))
@@ -254,7 +221,31 @@ public static partial class ToolCallHelper
             }
 
             fallback[$"{property.Name}Count"] = property.Value.GetArrayLength();
-            remainingFields--;
+        }
+    }
+
+    private static void AppendScalarFallbackField(
+        JsonProperty property,
+        Dictionary<string, object?> fallback)
+    {
+        switch (property.Value.ValueKind)
+        {
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+                fallback[property.Name] = property.Value.GetBoolean();
+                break;
+
+            case JsonValueKind.Number:
+                fallback[property.Name] = ReadFallbackNumber(property.Value);
+                break;
+
+            case JsonValueKind.String:
+                var stringValue = property.Value.GetString();
+                if (!string.IsNullOrWhiteSpace(stringValue))
+                {
+                    fallback[property.Name] = NormalizeFallbackString(stringValue, TextFallbackInlineStringMaxLength);
+                }
+                break;
         }
     }
 

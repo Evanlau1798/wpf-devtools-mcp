@@ -391,6 +391,25 @@ public class SecurityDocumentationTests
             $"{relativePath} should state that TLS certificate loading does not fall back to exportable key imports");
     }
 
+    [Theory]
+    [InlineData("SECURITY.md", "net8-net8", "TLS 1.3")]
+    [InlineData("docfx/production/security.md", "net8-net48", "TLS 1.3")]
+    [InlineData("docfx/zh-tw/production/security.md", "net48-net8", "TLS 1.3")]
+    public void Documentation_ShouldDescribeTls12PinVerificationAndTls13Reevaluation(
+        string relativePath,
+        string runtimePair,
+        string tls13Phrase)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("scripts/tests/Test-TlsNegotiation.ps1",
+            $"{relativePath} should point maintainers to the named-pipe TLS negotiation harness");
+        content.Should().Contain(runtimePair,
+            $"{relativePath} should document the cross-runtime pair covered before changing the TLS policy");
+        content.Should().Contain(tls13Phrase,
+            $"{relativePath} should state the TLS 1.3 reevaluation condition instead of silently pinning TLS 1.2");
+    }
+
     [Fact]
     public void CertificateManagerSource_ShouldNotDescribeTlsPrivateKeyImportAsPersistable()
     {

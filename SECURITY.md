@@ -57,6 +57,7 @@ The MCP client is untrusted by default. Tool descriptions, annotations, and prom
 
 - Injection-based `connect` sessions use TLS on the pipe connection by default.
 - The secure named-pipe transport currently pins TLS 1.2 for compatibility across .NET 8 and .NET Framework 4.8 runtime paths.
+- Named-pipe TLS negotiation is verified by `scripts/tests/Test-TlsNegotiation.ps1` for the `net8-net8`, `net8-net48`, and `net48-net8` runtime pairs. Do not enable TLS 1.3 in `SecureTransportProtocols.InspectorTransport` until the same harness proves stable negotiation for every supported pair and the release notes identify the verified Windows/.NET matrix.
 - The server creates or reuses a certificate inside that directory.
 - If `WPFDEVTOOLS_CERT_DIR` is not set, the server uses the default certificate directory under `%APPDATA%\WpfDevTools\certs`.
 - If you set `WPFDEVTOOLS_CERT_DIR`, it must be a local absolute directory. Network paths are not allowed; UNC paths and mapped network drives are rejected.

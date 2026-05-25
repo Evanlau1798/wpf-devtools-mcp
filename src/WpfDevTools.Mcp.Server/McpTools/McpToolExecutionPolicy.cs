@@ -129,7 +129,8 @@ internal sealed class McpToolExecutionPolicy
         }
 
         return string.Equals(toolName, "batch_mutate", StringComparison.Ordinal)
-            && TryGetObjectArgument(arguments, "captureSnapshot", out _);
+            && (TryGetObjectArgument(arguments, "captureSnapshot", out _)
+                || BatchMutateReturnsSensitiveRead(arguments));
     }
 
     private static bool RequiresViewModelInspection(
@@ -164,6 +165,16 @@ internal sealed class McpToolExecutionPolicy
         return mutations.EnumerateArray().Any(MutationStepUsesViewModel);
     }
 
+    private static bool BatchMutateReturnsSensitiveRead(IDictionary<string, JsonElement>? arguments)
+    {
+        if (!TryGetArrayArgument(arguments, "mutations", out var mutations))
+        {
+            return false;
+        }
+
+        return mutations.EnumerateArray().Any(MutationStepReturnsSensitiveRead);
+    }
+
     private static bool TriggerMutationUsesViewModel(IDictionary<string, JsonElement>? arguments)
         => TryGetObjectArgument(arguments, "triggerMutation", out var triggerMutation)
            && MutationStepUsesViewModel(triggerMutation);
@@ -173,6 +184,12 @@ internal sealed class McpToolExecutionPolicy
            && mutationStep.TryGetProperty("tool", out var tool)
            && tool.ValueKind == JsonValueKind.String
            && ViewModelInspectionTools.Contains(tool.GetString() ?? string.Empty);
+
+    private static bool MutationStepReturnsSensitiveRead(JsonElement mutationStep)
+        => mutationStep.ValueKind == JsonValueKind.Object
+           && mutationStep.TryGetProperty("tool", out var tool)
+           && tool.ValueKind == JsonValueKind.String
+           && SensitiveReadTools.Contains(tool.GetString() ?? string.Empty);
 
     private static bool ContainsNestedViewModelPropertyNames(
         IDictionary<string, JsonElement>? arguments,

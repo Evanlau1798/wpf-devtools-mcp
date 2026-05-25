@@ -76,7 +76,10 @@ public sealed class McpToolCapabilityCatalogTests
                 "get_windows",
                 "restore_state_snapshot",
                 "serialize_to_xaml",
+                "set_dp_value",
                 "trace_routed_events",
+                "clear_dp_value",
+                "override_style_setter",
                 "wait_for_dp_change",
                 "wait_for_dp_change_after_mutation",
                 "watch_dp_changes"

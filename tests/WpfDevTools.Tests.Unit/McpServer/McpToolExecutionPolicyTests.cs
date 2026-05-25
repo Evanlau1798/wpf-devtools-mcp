@@ -110,6 +110,9 @@ public sealed class McpToolExecutionPolicyTests
     [InlineData("wait_for_dp_change")]
     [InlineData("get_state_diff")]
     [InlineData("restore_state_snapshot")]
+    [InlineData("set_dp_value")]
+    [InlineData("clear_dp_value")]
+    [InlineData("override_style_setter")]
     public void EvaluateToolCall_WhenSensitiveReadsAreDisabled_ShouldDenySensitiveReadTool(string toolName)
     {
         var policy = McpToolExecutionPolicy.FromConfiguredValues(
@@ -201,6 +204,28 @@ public sealed class McpToolExecutionPolicyTests
         var decision = policy.EvaluateToolCall("batch_mutate", arguments);
 
         decision.IsAllowed.Should().BeFalse();
+        decision.PolicyCategory.Should().Be("sensitive-reads");
+    }
+
+    [Theory]
+    [InlineData("{\"mutations\":[{\"tool\":\"set_dp_value\",\"args\":{\"propertyName\":\"Text\",\"value\":\"redacted\"}}]}")]
+    [InlineData("{\"mutations\":[{\"tool\":\"clear_dp_value\",\"args\":{\"propertyName\":\"Text\"}}]}")]
+    [InlineData("{\"mutations\":[{\"tool\":\"override_style_setter\",\"args\":{\"propertyName\":\"Foreground\",\"value\":\"Red\"}}]}")]
+    [InlineData("{\"mutations\":\"[{\\\"tool\\\":\\\"set_dp_value\\\",\\\"args\\\":{\\\"propertyName\\\":\\\"Text\\\",\\\"value\\\":\\\"redacted\\\"}}]\"}")]
+    public void EvaluateToolCall_WhenBatchMutationCanReturnPreviousRuntimeValuesAndSensitiveReadsAreDisabled_ShouldDeny(string argumentsJson)
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "true",
+            allowScreenshots: "true",
+            allowViewModelInspection: "true");
+        using var document = JsonDocument.Parse(argumentsJson);
+        var arguments = document.RootElement.EnumerateObject()
+            .ToDictionary(property => property.Name, property => property.Value.Clone());
+
+        var decision = policy.EvaluateToolCall("batch_mutate", arguments);
+
+        decision.IsAllowed.Should().BeFalse();
+        decision.ErrorCode.Should().Be("SecurityError");
         decision.PolicyCategory.Should().Be("sensitive-reads");
     }
 

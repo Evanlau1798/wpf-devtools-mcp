@@ -43,6 +43,7 @@ internal static class McpToolCapabilityCatalog
     {
         "capture_state_snapshot",
         "compare_trees",
+        "clear_dp_value",
         "diagnose_visibility",
         "drain_events",
         "find_binding_leaks",
@@ -76,6 +77,8 @@ internal static class McpToolCapabilityCatalog
         "get_windows",
         "restore_state_snapshot",
         "serialize_to_xaml",
+        "set_dp_value",
+        "override_style_setter",
         "trace_routed_events",
         "wait_for_dp_change",
         "wait_for_dp_change_after_mutation",

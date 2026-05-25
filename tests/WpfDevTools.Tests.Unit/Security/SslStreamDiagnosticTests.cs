@@ -74,7 +74,8 @@ public class SslStreamDiagnosticTests
     [Fact]
     public async Task SslStream_OverNamedPipe_ShouldComplete()
     {
-        // Create self-signed cert - must export/re-import PFX for SslStream compatibility
+        // Test fixture only: re-import the generated PFX with a non-exportable user key,
+        // matching the production TLS storage posture without MachineKeySet.
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=WpfDevTools-Inspector",
             rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -85,7 +86,7 @@ public class SslStreamDiagnosticTests
         using var cert = new X509Certificate2(
             pfxBytes,
             "test",
-            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
+            X509KeyStorageFlags.UserKeySet);
 
         var pipeName = "ssl_diag_" + Guid.NewGuid().ToString("N")[..8];
         _output.WriteLine($"Pipe: {pipeName}");

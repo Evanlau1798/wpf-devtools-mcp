@@ -158,6 +158,113 @@ jobs:
             Remove-Item -LiteralPath $env:WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH -Force
           }
 
+  validate-x64-release-assets:
+    needs: publish-release-assets
+    runs-on: windows-2022
+    env:
+      RELEASE_STAGING_ROOT: artifacts/release/github-assets
+
+    steps:
+      - name: Checkout tagged revision
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: refs/tags/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Download staged release bundle artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: github-release-assets-${{ needs.publish-release-assets.outputs.release-tag }}
+          path: ${{ env.RELEASE_STAGING_ROOT }}/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Install staged x64 package smoke test
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
+          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x64.zip' |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+
+          if ($null -eq $packageArchive) {
+            throw 'Could not locate staged x64 release archive for runtime validation.'
+          }
+
+          $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
+          if (Test-Path $packageDir) {
+            Remove-Item -LiteralPath $packageDir -Recurse -Force
+          }
+
+          Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
+          & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+
+      - name: Start staged installed x64 runtime live smoke test
+        shell: pwsh
+        run: |
+          $serverPath = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'x64\current\bin\wpf-devtools-x64.exe'
+
+          if (-not (Test-Path $serverPath)) {
+            throw "Could not locate staged installed x64 server executable at $serverPath"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x64'
+
+      - name: x64 online installer smoke test
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
+          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x64.zip' |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+
+          if ($null -eq $packageArchive) {
+            throw 'Could not locate staged x64 release archive for online installer validation.'
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory $stagingRoot -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
+
+      - name: Start staged online-installed x64 runtime live smoke test
+        shell: pwsh
+        run: |
+          $serverPath = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'x64\current\bin\wpf-devtools-x64.exe'
+
+          if (-not (Test-Path $serverPath)) {
+            throw "Could not locate staged online-installed x64 server executable at $serverPath"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x64'
+
+      - name: Uninstall staged installed x64 package smoke test
+        shell: pwsh
+        run: |
+          $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'x64\current\bin\install.ps1'
+
+          if (-not (Test-Path $installedScript)) {
+            throw "Could not locate installed package-local installer at $installedScript"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
+
+      - name: Uninstall staged x64 online installer smoke test
+        shell: pwsh
+        run: |
+          $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'x64\current\bin\install.ps1'
+
+          if (-not (Test-Path $installedScript)) {
+            throw "Could not locate installed online-installer payload at $installedScript"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
+
   validate-arm64-release-assets:
     if: vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE == 'true'
     needs: publish-release-assets
@@ -214,7 +321,7 @@ jobs:
             throw "Could not locate staged installed ARM64 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64'
 
       - name: ARM64 online installer smoke test
         shell: pwsh
@@ -242,7 +349,7 @@ jobs:
             throw "Could not locate staged online-installed ARM64 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64'
 
       - name: Uninstall staged installed ARM64 package smoke test
         shell: pwsh
@@ -269,6 +376,7 @@ jobs:
   upload-release-assets:
     needs:
       - publish-release-assets
+      - validate-x64-release-assets
       - validate-arm64-release-assets
     permissions:
       contents: write

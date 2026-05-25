@@ -185,6 +185,32 @@ function Invoke-McpTool {
     return Get-McpToolResult -ToolCallResponse $response -ToolName $Name
 }
 
+function Resolve-SmokeElementId {
+    param(
+        [Parameter(Mandatory)] [System.Diagnostics.Process]$Process,
+        [Parameter(Mandatory)] [int]$Id,
+        [Parameter(Mandatory)] [int]$TargetProcessId,
+        [Parameter(Mandatory)] [string]$ElementName,
+        [Parameter(Mandatory)] [int]$TimeoutMilliseconds
+    )
+
+    $namescope = Invoke-McpTool -Process $Process -Id $Id -Name 'get_namescope' -TimeoutMilliseconds $TimeoutMilliseconds -Arguments @{
+        processId = $TargetProcessId
+    }
+
+    $namedElements = @(Get-JsonProperty -Object $namescope -Name 'namedElements')
+    foreach ($element in $namedElements) {
+        if ((Get-JsonProperty -Object $element -Name 'name') -eq $ElementName) {
+            $elementId = Get-JsonProperty -Object $element -Name 'elementId'
+            if (-not [string]::IsNullOrWhiteSpace([string]$elementId)) {
+                return [string]$elementId
+            }
+        }
+    }
+
+    throw "Packaged runtime smoke could not resolve TestApp element '$ElementName' from get_namescope."
+}
+
 $resolvedServerPath = (Resolve-Path -LiteralPath $ServerPath).Path
 $serverDirectory = [System.IO.Path]::GetDirectoryName($resolvedServerPath)
 
@@ -208,6 +234,7 @@ if ($TargetProcessId -gt 0) {
     $resolvedTargetProcessPath = (Resolve-Path -LiteralPath $TargetProcessPath).Path
     $startInfo.Environment['WPFDEVTOOLS_MCP_ALLOWED_TARGETS'] = $resolvedTargetProcessPath
     $startInfo.Environment['WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS'] = $resolvedTargetProcessPath
+    $startInfo.Environment['WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS'] = 'true'
 }
 
 $process = New-Object System.Diagnostics.Process
@@ -256,10 +283,74 @@ try {
             processId = $TargetProcessId
         } | Out-Null
 
-        Invoke-McpTool -Process $process -Id 6 -Name 'get_ui_summary' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+        Invoke-McpTool -Process $process -Id 6 -Name 'ping' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+            processId = $TargetProcessId
+        } | Out-Null
+
+        Invoke-McpTool -Process $process -Id 7 -Name 'get_ui_summary' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
             processId = $TargetProcessId
             depthMode = 'semantic'
         } | Out-Null
+
+        $textBoxElementId = Resolve-SmokeElementId `
+            -Process $process `
+            -Id 8 `
+            -TargetProcessId $TargetProcessId `
+            -ElementName 'NameTextBox' `
+            -TimeoutMilliseconds $RequestTimeoutMilliseconds
+
+        $beforeValueSource = Invoke-McpTool -Process $process -Id 9 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+            processId = $TargetProcessId
+            elementId = $textBoxElementId
+            propertyName = 'Text'
+        }
+        $baselineValue = Get-JsonProperty -Object $beforeValueSource -Name 'currentValue'
+
+        $snapshot = Invoke-McpTool -Process $process -Id 10 -Name 'capture_state_snapshot' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+            processId = $TargetProcessId
+            elementId = $textBoxElementId
+            propertyNames = @('Text')
+        }
+        $snapshotId = Get-JsonProperty -Object $snapshot -Name 'snapshotId'
+        if ([string]::IsNullOrWhiteSpace([string]$snapshotId)) {
+            throw "Packaged runtime smoke capture_state_snapshot did not return snapshotId: $($snapshot | ConvertTo-Json -Compress -Depth 8)"
+        }
+
+        $overrideValue = "Packaged runtime smoke $([System.Guid]::NewGuid().ToString('N'))"
+        try {
+            Invoke-McpTool -Process $process -Id 11 -Name 'set_dp_value' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+                processId = $TargetProcessId
+                elementId = $textBoxElementId
+                propertyName = 'Text'
+                value = $overrideValue
+            } | Out-Null
+
+            $mutatedValueSource = Invoke-McpTool -Process $process -Id 12 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+                processId = $TargetProcessId
+                elementId = $textBoxElementId
+                propertyName = 'Text'
+            }
+            $mutatedValue = Get-JsonProperty -Object $mutatedValueSource -Name 'currentValue'
+            if ($mutatedValue -ne $overrideValue) {
+                throw "Packaged runtime smoke set_dp_value did not update Text. Expected '$overrideValue', got '$mutatedValue'."
+            }
+        }
+        finally {
+            Invoke-McpTool -Process $process -Id 13 -Name 'restore_state_snapshot' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+                processId = $TargetProcessId
+                snapshotId = $snapshotId
+            } | Out-Null
+        }
+
+        $restoredValueSource = Invoke-McpTool -Process $process -Id 14 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+            processId = $TargetProcessId
+            elementId = $textBoxElementId
+            propertyName = 'Text'
+        }
+        $restoredValue = Get-JsonProperty -Object $restoredValueSource -Name 'currentValue'
+        if ($restoredValue -ne $baselineValue) {
+            throw "Packaged runtime smoke restore_state_snapshot did not restore Text. Expected '$baselineValue', got '$restoredValue'."
+        }
     }
 }
 finally {

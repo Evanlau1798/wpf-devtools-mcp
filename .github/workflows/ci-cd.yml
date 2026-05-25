@@ -196,7 +196,7 @@ jobs:
           throw "Could not locate installed server executable at $serverPath"
         }
 
-        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture '${{ matrix.architecture }}'
 
     - name: Online installer smoke test
       shell: pwsh
@@ -223,7 +223,7 @@ jobs:
           throw "Could not locate online-installed server executable at $serverPath"
         }
 
-        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture '${{ matrix.architecture }}'
 
     - name: Uninstall published package smoke test
       shell: pwsh
@@ -306,7 +306,7 @@ jobs:
           throw "Could not locate installed ARM64 server executable at $serverPath"
         }
 
-        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64'
 
     - name: ARM64 online installer smoke test
       shell: pwsh
@@ -332,7 +332,7 @@ jobs:
           throw "Could not locate online-installed ARM64 server executable at $serverPath"
         }
 
-        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64'
 
     - name: Uninstall published ARM64 package smoke test
       shell: pwsh

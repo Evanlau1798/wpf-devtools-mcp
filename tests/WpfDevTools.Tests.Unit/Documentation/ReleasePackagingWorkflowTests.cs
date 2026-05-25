@@ -124,12 +124,39 @@ public class ReleasePackagingWorkflowTests
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
 
-        content.Should().Contain("Test-PackagedServerRuntime.ps1",
-            "release packaging smoke should launch the packaged server entrypoint after install so runtime failures are caught before publication");
+        content.Should().Contain("Invoke-PackagedRuntimeLiveSmoke.ps1",
+            "release packaging smoke should launch the packaged server entrypoint against a live WPF target after install so runtime failures are caught before publication");
         content.Should().Contain("Start installed package runtime smoke test",
             "package-local installs should be exercised beyond install/uninstall script success");
         content.Should().Contain("Start online-installed runtime smoke test",
             "online-installer installs should also launch the packaged server entrypoint before cleanup");
+    }
+
+    [Fact]
+    public void CiWorkflow_ShouldUseTargetAwarePackagedRuntimeLiveSmokeForHostedX64Packages()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain("Invoke-PackagedRuntimeLiveSmoke.ps1",
+            "hosted package runtime smoke must launch the WPF TestApp and pass its exact process identity to the packaged server smoke");
+        content.Should().Contain("Start installed package runtime smoke test");
+        content.Should().Contain("Start online-installed runtime smoke test");
+    }
+
+    [Fact]
+    public void PackagedRuntimeLiveSmokeHelper_ShouldLaunchTestAppAndPassExactTargetToRuntimeSmoke()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1"));
+
+        content.Should().Contain("tests/WpfDevTools.Tests.TestApp/WpfDevTools.Tests.TestApp.csproj");
+        content.Should().Contain("Start-Process");
+        content.Should().Contain("MainWindowHandle",
+            "the live target must be ready before connect/get_ui_summary are attempted");
+        content.Should().Contain("Test-PackagedServerRuntime.ps1");
+        content.Should().Contain("-TargetProcessId $targetProcess.Id");
+        content.Should().Contain("-TargetProcessPath $targetProcessPath");
+        content.Should().Contain("Stop-Process",
+            "the helper must not leave a live WPF TestApp behind after package smoke validation");
     }
 
     [Fact]
@@ -226,6 +253,20 @@ public class ReleasePackagingWorkflowTests
             "packaged runtime smoke should execute at least one safe tool call");
         content.Should().Contain("get_processes",
             "get_processes is a safe process-discovery tool that does not mutate target UI state");
+        content.Should().Contain("-Name 'connect'",
+            "target-aware packaged smoke must prove the installed server can attach to a live WPF target");
+        content.Should().Contain("-Name 'ping'",
+            "target-aware packaged smoke must prove the secure pipe remains usable after connect");
+        content.Should().Contain("-Name 'get_ui_summary'",
+            "target-aware packaged smoke must prove scene-level diagnostics work against the live target");
+        content.Should().Contain("-Name 'get_dp_value_source'",
+            "target-aware packaged smoke must include a safe dependency-property read");
+        content.Should().Contain("-Name 'capture_state_snapshot'",
+            "target-aware packaged smoke must establish a rollback point before mutation");
+        content.Should().Contain("-Name 'set_dp_value'",
+            "target-aware packaged smoke must exercise one rollback-safe mutation");
+        content.Should().Contain("-Name 'restore_state_snapshot'",
+            "target-aware packaged smoke must verify mutation rollback before release");
 
         var initializeIndex = content.IndexOf("-Method 'initialize'", StringComparison.Ordinal);
         var initializedIndex = content.IndexOf("-Method 'notifications/initialized'", StringComparison.Ordinal);

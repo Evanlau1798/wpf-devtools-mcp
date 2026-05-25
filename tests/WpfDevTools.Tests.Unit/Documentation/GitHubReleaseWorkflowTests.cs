@@ -57,8 +57,8 @@ public sealed class GitHubReleaseWorkflowTests
             "release publication should have a dedicated ARM64 validation job that runs before upload");
         content.Should().Contain("[self-hosted, Windows, ARM64]",
             "ARM64 asset validation must occur on an actual ARM64 runner so the packaged executable can launch");
-        content.Should().Contain("Test-PackagedServerRuntime.ps1",
-            "the ARM64 release validation lane should start the packaged server runtime, not just install and uninstall scripts");
+        content.Should().Contain("Invoke-PackagedRuntimeLiveSmoke.ps1",
+            "the ARM64 release validation lane should start the packaged server runtime against a live WPF target, not just install and uninstall scripts");
         content.Should().Contain("-TrustedReleaseMetadataDirectory $stagingRoot",
             "the pre-upload ARM64 online-installer smoke must consume the staged release sidecars explicitly instead of falling back to GitHub metadata that does not exist yet");
         content.Should().Contain("upload-release-assets:",
@@ -67,6 +67,19 @@ public sealed class GitHubReleaseWorkflowTests
             "the upload job must depend on the package build and ARM64 runtime validation jobs");
         content.Should().Contain("- validate-arm64-release-assets",
             "the ARM64 runtime validation job should be part of the release workflow DAG before upload");
+    }
+
+    [Fact]
+    public void ReleaseWorkflow_ShouldValidateX64StagedAssetsWithTargetAwareLiveSmokeBeforeUpload()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/release.yml"));
+
+        content.Should().Contain("validate-x64-release-assets",
+            "signed x64 Release assets must be installed and live-injection tested before upload");
+        content.Should().Contain("Invoke-PackagedRuntimeLiveSmoke.ps1",
+            "signed release validation must launch TestApp and pass the exact target process to the packaged runtime smoke helper");
+        content.Should().Contain("- validate-x64-release-assets",
+            "asset upload should wait for signed x64 live-injection validation");
     }
 
     [Fact]

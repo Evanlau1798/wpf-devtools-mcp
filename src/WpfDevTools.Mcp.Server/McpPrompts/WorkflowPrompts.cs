@@ -13,7 +13,7 @@ public static class WorkflowPrompts
         Goal: connect to a WPF process and discover all open windows.
 
         Recommended workflow:
-        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before connect() attaches.
+        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before connect() attaches.
         2. Call connect() first; let the server auto-discover the allowlisted target when there is only one visible WPF app.
         3. Do not call get_processes before connect() unless auto-discovery is ambiguous or you explicitly need filtered process discovery.
         4. If connect() returns multiple candidates, call get_processes(windowFilter='visible' or 'all'), choose the target processId, and retry connect(processId).
@@ -32,7 +32,7 @@ public static class WorkflowPrompts
         Goal: diagnose why WPF data is blank, stale, or incorrect.
 
         Recommended workflow:
-        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before connect() attaches.
+        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before connect() attaches.
         2. connect()
         3. get_binding_errors()
         4. Follow navigation.recommended or nextSteps from the latest diagnostic result
@@ -52,7 +52,7 @@ public static class WorkflowPrompts
         Goal: understand why a button, menu item, or clickable control does not respond.
 
         Recommended workflow:
-        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before connect() attaches.
+        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before connect() attaches.
         2. connect()
         3. capture_state_snapshot(elementId, includeFocus=true) if you need a clean rollback point
         4. get_interaction_readiness(elementId, interactionType='Click')
@@ -74,7 +74,7 @@ public static class WorkflowPrompts
 
         Recommended workflow:
         1. get_processes and inspect isElevated / requiresElevationToConnect
-        2. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before connect(processId) attaches.
+        2. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before connect(processId) attaches.
         3. connect(processId)
         4. If connect returns AccessDenied for an elevated target, restart the MCP server with administrator rights
         5. Re-run connect and then ping
@@ -91,7 +91,7 @@ public static class WorkflowPrompts
         Goal: identify performance bottlenecks in the WPF application.
 
         Recommended workflow:
-        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before connect() attaches.
+        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before connect() attaches.
         2. connect()
         3. get_visual_count() to understand the total visual tree size
         4. get_render_stats() for frame timing and render metrics (first call may return zeros; call again after a short wait)
@@ -112,7 +112,7 @@ public static class WorkflowPrompts
         Goal: inspect a non-main WPF window without accidentally targeting the wrong root.
 
         Recommended workflow:
-        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before connect() attaches.
+        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before connect() attaches.
         2. connect()
         3. If connect() reports multiple candidates, call get_processes(windowFilter) and retry connect(processId)
         4. get_windows(processId)

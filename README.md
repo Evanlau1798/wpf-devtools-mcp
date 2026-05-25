@@ -64,7 +64,7 @@ For local development, use a Debug build and build native bootstrapper binaries 
 
 ## Security Defaults
 
-`WPFDEVTOOLS_MCP_ALLOWED_TARGETS` must contain the reviewed target's exact absolute executable path before a successful `connect()` workflow; unset, relative, or malformed values fail closed.
+`WPFDEVTOOLS_MCP_ALLOWED_TARGETS` must contain the reviewed target's exact local absolute executable path before a successful `connect()` workflow; unset, relative, or malformed values fail closed.
 
 The injection-based transport is hardened by default. Key runtime gates:
 
@@ -79,7 +79,7 @@ Detailed environment-variable behavior lives in [SECURITY.md](SECURITY.md), [doc
 
 ## Typical MCP workflow
 
-1. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the target WPF executable's exact absolute executable path.
+1. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the target WPF executable's exact local absolute executable path.
 2. Call `connect()` and let the server auto-discover when only one allowlisted visible WPF target is available.
 3. Use `get_processes(windowFilter)` only for disambiguation or metadata-first selection.
 4. Start with `get_ui_summary` or `get_form_summary`; use `get_element_snapshot(elementId)` after discovering a concrete element.

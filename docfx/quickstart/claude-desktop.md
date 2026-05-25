@@ -52,17 +52,17 @@ The installer writes `client-registration\claude-desktop.json`. Its structure is
 
 Use the generated `client-registration\claude-desktop.json` artifact as the source of truth for the resolved executable path. Only adjust the copied path in your local `claude_desktop_config.json` when you intentionally switch architectures or install roots.
 
-Before using this prompt, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the running WPF app's exact absolute executable path; unset or malformed values fail closed before `connect` attaches.
+Before using this prompt, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the running WPF app's exact local absolute executable path; unset or malformed values fail closed before `connect` attaches.
 
 ## 3. First prompt
 
 ```text
-Use the WPF DevTools MCP server after WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact absolute executable path; connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
+Use the WPF DevTools MCP server after WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact local absolute executable path; connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
 ```
 
 ## Notes
 
-- Start with `connect()` in the common case after `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact absolute executable path. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates.
+- Start with `connect()` in the common case after `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact local absolute executable path. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates.
 - Prefer scene-level verification before visual-tree expansion.
 - After each diagnostic, interaction, or mutation, follow `navigation.recommended` first and treat `nextSteps` as the compatibility field.
 - Keep mutation tools for later in the workflow.

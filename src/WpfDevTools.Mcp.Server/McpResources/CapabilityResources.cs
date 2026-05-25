@@ -32,7 +32,7 @@ public static partial class CapabilityResources
 
         ## Recommended workflow shape
 
-        - Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before `connect()` attaches.
+        - Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before `connect()` attaches.
         - Start with `connect()` and let auto-discovery pick the single visible allowlisted WPF target when possible.
         - Call `get_processes(windowFilter)` only when `connect()` reports multiple candidates or when you explicitly need a filtered process list before connecting.
         - Prefer `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before tree-heavy inspection.
@@ -94,7 +94,7 @@ public static partial class CapabilityResources
 
         Use this when UI data is blank, wrong, or stale.
 
-        1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before `connect()` attaches.
+        1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before `connect()` attaches.
         2. `connect()`
         3. If `connect()` reports multiple candidates, call `get_processes(windowFilter)` and retry `connect(processId)`
         4. `get_binding_errors`

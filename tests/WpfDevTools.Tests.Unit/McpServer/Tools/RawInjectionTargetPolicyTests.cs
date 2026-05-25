@@ -22,6 +22,7 @@ public sealed class RawInjectionTargetPolicyTests
 
         authorization.IsAllowed.Should().BeFalse();
         authorization.Error.Should().Contain("local absolute path");
+        authorization.Hint.Should().Contain("exact local absolute executable paths");
     }
 
     [Theory]
@@ -55,6 +56,21 @@ public sealed class RawInjectionTargetPolicyTests
 
         authorization.IsAllowed.Should().BeFalse();
         authorization.Error.Should().Contain("local absolute path");
+        authorization.Hint.Should().Contain("exact local absolute executable path");
+    }
+
+    [Fact]
+    public void Authorize_WhenRawInjectionTargetIsBlockedByAllowlist_ShouldRequireExactLocalPath()
+    {
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            CreateProcessInfo(@"C:\Denied\Target.exe"),
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: @"C:\Allowed\Target.exe",
+            tryResolvePhysicalPath: path => path);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("blocked by the server's target policy");
+        authorization.Hint.Should().Contain("exact local absolute executable path");
     }
 
     [Fact]

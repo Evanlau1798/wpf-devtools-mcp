@@ -35,7 +35,7 @@ public sealed class ConnectAllowlistDocumentationTests
 
         content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
             $"{relativePath} should tell first-run users that connect() requires the MCP target allowlist before it can succeed");
-        content.Should().Contain("exact absolute executable path",
+        content.Should().Contain("exact local absolute executable path",
             $"{relativePath} should require exact absolute paths instead of path fragments or relative paths");
         content.IndexOf("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal)
             .Should().BeLessThan(content.IndexOf(workflowMarker, StringComparison.Ordinal),
@@ -140,7 +140,7 @@ public sealed class ConnectAllowlistDocumentationTests
             .Description;
 
         processIdDescription.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
-        processIdDescription.Should().Contain("exact absolute executable path");
+        processIdDescription.Should().Contain("exact local absolute executable path");
         processIdDescription.Should().Contain("fail closed");
         processIdDescription.Should().Contain("allowlisted");
     }
@@ -174,7 +174,7 @@ public sealed class ConnectAllowlistDocumentationTests
     {
         content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
             $"{context} should mention the target allowlist before a successful connect step");
-        content.Should().Contain("exact absolute executable path",
+        content.Should().Contain("exact local absolute executable path",
             $"{context} should specify the exact executable path requirement");
         content.Should().Contain("fail closed",
             $"{context} should document unset or malformed allowlist behavior");

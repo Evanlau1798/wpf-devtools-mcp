@@ -70,7 +70,7 @@ internal static class RawInjectionTargetPolicy
             return new RawInjectionAuthorization(
                 IsAllowed: false,
                 Error: "Raw injection is blocked because the target executable path is missing or not a local absolute path. Start the target-side SDK host with InspectorSdk.Initialize() or allowlist the exact local executable path before retrying connect().",
-                Hint: $"Set {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths when raw injection into a specific target executable is explicitly intended.");
+                Hint: $"Set {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact local absolute executable paths when raw injection into a specific target executable is explicitly intended.");
         }
 
         if (!TryGetConfiguredAllowedTargets(configuredAllowedTargets, resolvePhysicalPath, out var configuredTargets))
@@ -89,7 +89,7 @@ internal static class RawInjectionTargetPolicy
         return new RawInjectionAuthorization(
             IsAllowed: false,
             Error: "Raw injection into the target is blocked by the server's target policy. Raw injection requires an exact allowlist entry for the target executable.",
-            Hint: $"Start the target-side SDK host with InspectorSdk.Initialize() for the safer reuse path, or add the exact absolute executable path to {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} before retrying connect(). The full denied path is written only to server diagnostics.");
+            Hint: $"Start the target-side SDK host with InspectorSdk.Initialize() for the safer reuse path, or add the exact local absolute executable path to {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} before retrying connect(). The full denied path is written only to server diagnostics.");
     }
 
     internal static IReadOnlyCollection<string> GetConfiguredAllowedTargets()

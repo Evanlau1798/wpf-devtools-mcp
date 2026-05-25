@@ -10,7 +10,7 @@
 
 ## 什麼時候用哪一個
 
-- 呼叫任何 `connect` 變體前，先將已審查 target 的 exact absolute executable path 設到 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`。未設定、relative path 或 malformed entry 會以 `SecurityError` fail closed。
+- 呼叫任何 `connect` 變體前，先將已審查 target 的 exact local absolute executable path 設到 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`。未設定、relative path 或 malformed entry 會以 `SecurityError` fail closed。
 - target 已 allowlist 後，一般情況先用 `connect()`。它會自動發現單一可見的 WPF 目標並直接建立連線。
 - 當 hidden 或 background 的 WPF 視窗也必須參與 auto-discovery，但你不想先多做一次 process listing 時，使用 `connect(windowFilter='all')`。
 - 當你預期同時有多個 WPF target，且你是有意識地要直接挑選最大 working set 候選者時，使用 `connect(selectionStrategy='largest_working_set', windowFilter='all')`，而不是先 list 再 connect。

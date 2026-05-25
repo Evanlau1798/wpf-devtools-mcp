@@ -19,6 +19,7 @@ public sealed class McpTargetPolicyTests
         authorization.IsAllowed.Should().BeFalse();
         authorization.Error.Should().Contain("target allowlist is not configured");
         authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
+        authorization.Hint.Should().Contain("exact local absolute executable paths");
     }
 
     [Fact]
@@ -45,6 +46,7 @@ public sealed class McpTargetPolicyTests
         authorization.IsAllowed.Should().BeFalse();
         authorization.Error.Should().Contain("blocked by the MCP target allowlist");
         authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
+        authorization.Hint.Should().Contain("exact local absolute executable path");
     }
 
     [Fact]
@@ -58,6 +60,7 @@ public sealed class McpTargetPolicyTests
         authorization.IsAllowed.Should().BeFalse();
         authorization.Error.Should().Contain("target executable path is missing");
         authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
+        authorization.Hint.Should().Contain("exact local absolute executable paths");
     }
 
     [Theory]

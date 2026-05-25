@@ -5,7 +5,7 @@
 ## 建議工作流程
 
 1. 先探索工具與 schema。
-2. 確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含已審查 target 的 exact absolute executable path；未設定或 malformed value 會在 `connect` attach 前 fail closed。
+2. 確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含已審查 target 的 exact local absolute executable path；未設定或 malformed value 會在 `connect` attach 前 fail closed。
 3. 先呼叫 `connect()`，若目前只有一個可見的 WPF app，讓 server 自動完成連線。
 4. 若 auto-discovery 回傳多個候選，再呼叫 `get_processes(windowFilter)`，之後用 `connect(processId)` 明確指定目標。
 5. 先用可直接執行的 scene-level 工具，例如 `get_ui_summary` 或 `get_form_summary` 建立場景理解，再決定是否需要完整 tree。
@@ -140,25 +140,25 @@ gate `get_viewmodel` 與 `get_commands`。`execute_command` 必須同時啟用
 ### 先看 scene 的提示詞
 
 ```text
-先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含 WPF 測試應用程式的 exact absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線，呼叫 `get_ui_summary(depthMode: "semantic")` 建立語義上下文，只有在摘要不足時才展開 visual tree。
+先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含 WPF 測試應用程式的 exact local absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線，呼叫 `get_ui_summary(depthMode: "semantic")` 建立語義上下文，只有在摘要不足時才展開 visual tree。
 ```
 
 ### Binding triage 提示詞
 
 ```text
-先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線，以 compact 預設檢查 binding errors，再用 `get_affected_elements` 或在已辨識具體失敗元素後呼叫 `get_element_snapshot(elementId)` 檢查失敗 path，說明哪些 bindings 失敗以及原因。除非修復流程真的需要，否則不要修改 UI。
+先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact local absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線，以 compact 預設檢查 binding errors，再用 `get_affected_elements` 或在已辨識具體失敗元素後呼叫 `get_element_snapshot(elementId)` 檢查失敗 path，說明哪些 bindings 失敗以及原因。除非修復流程真的需要，否則不要修改 UI。
 ```
 
 ### 安全互動提示詞
 
 ```text
-先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact absolute executable path，且點擊前已設定 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線，對目標表單呼叫 `get_form_summary` 或 `get_interaction_readiness`，再找到 Save 按鈕、確認 command metadata、點擊、視需要排空 buffered runtime event，最後回報 `get_state_diff` 結果。
+先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact local absolute executable path，且點擊前已設定 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線，對目標表單呼叫 `get_form_summary` 或 `get_interaction_readiness`，再找到 Save 按鈕、確認 command metadata、點擊、視需要排空 buffered runtime event，最後回報 `get_state_diff` 結果。
 ```
 
 ### 可回復 mutation 提示詞
 
 ```text
-先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact absolute executable path，且 mutation 前已設定 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線並建立 state snapshot，找到目標控制項後執行一次 UI mutation，或用 `batch_mutate` 做有順序的 mutation 序列，再用 `get_state_diff` 驗證結果，最後在結束前還原 snapshot。
+先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 WPF 應用程式的 exact local absolute executable path，且 mutation 前已設定 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`；未設定或 malformed value 會在 `connect()` attach 前 fail closed。接著用 `connect()` 連線並建立 state snapshot，找到目標控制項後執行一次 UI mutation，或用 `batch_mutate` 做有順序的 mutation 序列，再用 `get_state_diff` 驗證結果，最後在結束前還原 snapshot。
 ```
 
 ## 常見反模式
@@ -174,7 +174,7 @@ gate `get_viewmodel` 與 `get_commands`。`execute_command` 必須同時啟用
 
 若要做端到端自動化驗證，建議盡量遵守以下順序：
 
-1. 確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標的 exact absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed
+1. 確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標的 exact local absolute executable path；未設定或 malformed value 會在 `connect()` attach 前 fail closed
 2. `connect()`
 3. 若需要，再呼叫 `get_processes(windowFilter)` 並使用 `connect(processId)`
 4. `get_ui_summary` 或 `get_form_summary`

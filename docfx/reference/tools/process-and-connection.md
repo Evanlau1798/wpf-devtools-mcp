@@ -10,7 +10,7 @@
 
 ## When to use which
 
-- Before any `connect` variant, set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact absolute executable path. Unset, relative, or malformed entries fail closed with `SecurityError`.
+- Before any `connect` variant, set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact local absolute executable path. Unset, relative, or malformed entries fail closed with `SecurityError`.
 - Use `connect()` first for the common case after the target is allowlisted. It auto-discovers a single visible WPF target and connects in one step.
 - Use `connect(windowFilter='all')` when hidden or background WPF windows should participate in auto-discovery without a separate process-listing step.
 - Use `connect(selectionStrategy='largest_working_set', windowFilter='all')` when multiple WPF targets are expected and you intentionally want the largest candidate instead of a list-then-connect disambiguation round trip.

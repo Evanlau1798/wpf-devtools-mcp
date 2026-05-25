@@ -20,7 +20,7 @@
 
 大多數實際工作流程可依照下列順序進行：
 
-在第 1 步前，先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含已審查 target 的 exact absolute executable path；未設定或 malformed value 會在 `connect` attach 前 fail closed。
+在第 1 步前，先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含已審查 target 的 exact local absolute executable path；未設定或 malformed value 會在 `connect` attach 前 fail closed。
 
 1. `connect()` 使用預設 auto-discovery 路徑
 2. `get_active_process`

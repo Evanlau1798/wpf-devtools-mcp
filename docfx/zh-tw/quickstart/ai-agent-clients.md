@@ -60,7 +60,7 @@ Package-local 替代路徑：
 
 如果未指定 `-InstallRoot`，installer 會先沿用最後一個仍有 live install evidence 的 install root；只有在沒有可沿用路徑時，才會回退到 `%APPDATA%\WpfDevToolsMcp`。請把產生的 `client-registration` artifact 視為最終輸出路徑的真源。
 
-第一次連線前，請確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含已審查 target 的 exact absolute executable path；未設定或 malformed value 會在 `connect` attach 前 fail closed。
+第一次連線前，請確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含已審查 target 的 exact local absolute executable path；未設定或 malformed value 會在 `connect` attach 前 fail closed。
 
 ## 建議選擇
 
@@ -88,7 +88,7 @@ Package-local 替代路徑：
 - MCP server 必須跑在 Windows 上。
 - 請保持 `stdout` 乾淨，因為 transport 是 STDIO。
 - server 與 bootstrapper 位元數必須和 target process 一致。
-- 呼叫 `connect` 前，先用已審查 target 的 exact absolute executable path 設定 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`。
+- 呼叫 `connect` 前，先用已審查 target 的 exact local absolute executable path 設定 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`。
 - `client-registration` 產物是最可靠的 copy-paste 真源。
 - 在需要之前，先用 scene-level 工具，不要太早展開整棵 tree 或索取完整 screenshot。
 - 如果工具回應已提供 `navigation.recommended` 或 `nextSteps`，請先遵循這個執行期 guidance，再決定是否補其他工具。

@@ -20,7 +20,7 @@ The server currently exposes 64 tools across eleven categories.
 
 Most real sessions should follow this progression:
 
-Before step 1, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact absolute executable path; unset or malformed values fail closed before `connect` attaches.
+Before step 1, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact local absolute executable path; unset or malformed values fail closed before `connect` attaches.
 
 1. `connect()` for the default auto-discovery path
 2. `get_active_process`

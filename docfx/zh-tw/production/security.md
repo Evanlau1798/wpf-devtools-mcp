@@ -31,14 +31,14 @@ MCP client 預設是不可信任的（untrusted by default）。Tool description
 - 目前 shipping server 不會隱式信任目前 repository root 底下的 project-scoped target。
 - 若 target executable 沒有被明確 allowlist，而且沒有更早的 default-pipe compatibility failure 先中止連線流程，`connect()` 會直接 fail closed，回傳 `errorCode: SecurityError` 與 `requiresExplicitTargetOptIn: true`，而不是繼續注入。
 - 若預期的 pipe 名稱已經被 stale 或 incompatible 的 default-pipe host 佔用，`connect()` 可能會先回傳 `errorCode: CompatibilityError`，也就是先回傳 compatibility rejection；但 raw injection 仍然會維持 blocked。
-- 只有在你明確要對某個 app 做 raw injection 時，才設定 `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`，其值必須是以分號分隔的 exact absolute executable path 清單。
+- 只有在你明確要對某個 app 做 raw injection 時，才設定 `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`，其值必須是以分號分隔的 exact local absolute executable path 清單。
 - 若希望在 production 對外部 target 做診斷而不擴大 raw injection 範圍，應優先使用 `InspectorSdk.Initialize()` 的 SDK-hosted reuse 路徑。
 
 ### MCP tool 與 target policy gates
 
 server 會在把高風險 MCP `tools/call` 派送到 tool implementation 前先做政策檢查。
 
-- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 會把所有 `connect()` target 限制在 exact absolute executable path 清單內，且會在 SDK-hosted reuse 或 raw injection 前套用；未設定或 malformed entry 會 fail closed。
+- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 會把所有 `connect()` target 限制在 exact local absolute executable path 清單內，且會在 SDK-hosted reuse 或 raw injection 前套用；未設定或 malformed entry 會 fail closed。
 - `get_processes` 與 `connect()` auto-discovery 會先套用 target policy，再回傳 process name、window title、architecture/runtime metadata 或 candidate details。Denied targets 會 redacted，只會以 aggregate counts 呈現。
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` 會 opt in runtime mutation、interaction、render-measurement 與 session state-consuming tools，例如 `set_dp_value`、`click_element`、`execute_command`、`measure_element_render_time`、`capture_state_snapshot`、`restore_state_snapshot`、`drain_events`、`batch_mutate`。
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` 會 opt in MCP 邊界的 `element_screenshot`。

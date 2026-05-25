@@ -17,7 +17,7 @@ public static class ServerInstructions
         Use this server for runtime desktop UI diagnostics, WPF element lookup, exact-match element search, XAML structure inspection, multi-window investigation, and safe temporary automation against a connected WPF process.
 
         === MANDATORY WORKFLOW ===
-        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact absolute executable path; unset or malformed values fail closed with SecurityError before connect() attaches
+        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed with SecurityError before connect() attaches
         2. connect() -> try auto-discovery against visible allowlisted WPF apps, then reuse a compatible existing SDK host or apply the raw-injection target policy before injecting Inspector DLL
         3. If connect() reports multiple candidates, call get_processes(windowFilter) and retry connect(processId)
         4. Build initial context with get_ui_summary or get_form_summary before expanding trees; use get_element_snapshot(elementId) only after a concrete elementId is known
@@ -104,7 +104,7 @@ public static class ServerInstructions
         - Use nameFilter on get_processes to reduce response size
 
         === AI AGENT BEST PRACTICES ===
-        - Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact absolute executable path before connect(); unset or malformed values fail closed
+        - Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path before connect(); unset or malformed values fail closed
         - Start with connect() after the target is allowlisted unless you already know you need a specific processId or non-default windowFilter
         - After connect() succeeds, immediately build context with get_ui_summary or get_form_summary before tree-heavy inspection or screenshots; use get_element_snapshot(elementId) only after a concrete elementId is known
         - When connect() reports multiple candidates, use get_processes(windowFilter) to disambiguate and retry
@@ -136,7 +136,7 @@ public static class ServerInstructions
         - Remember: all destructive changes are runtime-only and NOT persisted to XAML
 
         === SERVER-SIDE POLICY GATES ===
-        - Operators must configure WPFDEVTOOLS_MCP_ALLOWED_TARGETS with a semicolon-separated exact absolute executable path allowlist before connect(); unset or malformed configured entries fail closed
+        - Operators must configure WPFDEVTOOLS_MCP_ALLOWED_TARGETS with a semicolon-separated exact local absolute executable path allowlist before connect(); unset or malformed configured entries fail closed
         - WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true opts into runtime mutation, interaction, render-measurement, and session state-consuming tools such as capture_state_snapshot and drain_events before they reach the target process
         - WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true opts into element_screenshot at the MCP boundary
         - WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true opts into get_viewmodel, get_commands, modify_viewmodel, and execute_command
@@ -158,7 +158,7 @@ public static class ServerInstructions
 
         === COMMON WORKFLOWS ===
 
-        All common workflows assume WPFDEVTOOLS_MCP_ALLOWED_TARGETS already contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before connect() attaches.
+        All common workflows assume WPFDEVTOOLS_MCP_ALLOWED_TARGETS already contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before connect() attaches.
 
         Workflow 1 - Debug Binding Error:
         connect() -> get_binding_errors -> follow navigation.recommended -> get_element_snapshot(elementId) -> get_bindings(elementId) -> get_datacontext_chain(elementId)
@@ -232,8 +232,8 @@ public static class ServerInstructions
         - "signature verification failed" (errorCode: SecurityError) -> use a Debug build for local development (auto-skips verification for local DLLs), or sign the Inspector DLL with Authenticode for production
         - "timeout" -> process may be frozen; try ping() to verify connection
         - existing SDK host security mismatch that completes an incompatible authenticated/TLS handshake (errorCode: SecurityError) -> verify WPFDEVTOOLS_AUTH_SECRET matches and WPFDEVTOOLS_CERT_DIR is the same local absolute path in both the MCP server and target app. Network paths are not allowed. For connect() reuse, hardened SDK mode requires setting both values together before calling InspectorSdk.Initialize()
-        - connect() returns SecurityError with requiresExplicitTargetOptIn=true -> raw injection requires an exact executable allowlist entry. Prefer InspectorSdk.Initialize() for target-side reuse, or explicitly allowlist the exact absolute executable path in WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS before retrying.
-        - connect() returns SecurityError with policyEnvVar=WPFDEVTOOLS_MCP_ALLOWED_TARGETS -> the target executable is outside the configured MCP target allowlist. Retry only after the exact absolute executable path is reviewed and added.
+        - connect() returns SecurityError with requiresExplicitTargetOptIn=true -> raw injection requires an exact executable allowlist entry. Prefer InspectorSdk.Initialize() for target-side reuse, or explicitly allowlist the exact local absolute executable path in WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS before retrying.
+        - connect() returns SecurityError with policyEnvVar=WPFDEVTOOLS_MCP_ALLOWED_TARGETS -> the target executable is outside the configured MCP target allowlist. Retry only after the exact local absolute executable path is reviewed and added.
         - tool call returns SecurityError from a WPFDEVTOOLS_MCP_ALLOW_* gate -> the server policy disabled that capability for this session. Use an allowed inspection workflow or ask the operator to explicitly enable the gate.
         - tool call returns InvalidPolicyConfiguration -> fix the malformed WPFDEVTOOLS_MCP_ALLOW_* value to true or false and restart the MCP server.
         - existing SDK host build/protocol mismatch (errorCode: CompatibilityError) -> restart the target process so connect() can inject or reuse an Inspector host built from the same repo revision and compatibility contract as the MCP server

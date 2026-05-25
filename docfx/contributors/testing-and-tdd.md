@@ -20,7 +20,7 @@ The current project-level verification status combines the latest completed suit
 
 ### Test discovery baseline
 
-The public README badge intentionally uses a conservative `tests-3600+` lower-bound claim. Use `dotnet test --no-build --list-tests` to discover the current exact counts from the built test assemblies instead of copying a snapshot into this page:
+README intentionally avoids exact test-count badges unless they are generated from current discovery output. Use `dotnet test --no-build --list-tests` to discover the current exact counts from the built test assemblies instead of copying a snapshot into this page:
 
 ```powershell
 dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --no-build --list-tests

@@ -20,7 +20,7 @@ dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.cs
 
 ### 測試 discovery 基準
 
-README 的公開 badge 刻意使用保守的 `tests-3600+` 下限宣告。請使用 `dotnet test --no-build --list-tests` 從已建置的測試 assembly discover 目前精確數量，不要把一次性的 snapshot 複製到此頁：
+README 刻意避免 exact test-count badges，除非它們是由目前 discovery output 生成。請使用 `dotnet test --no-build --list-tests` 從已建置的測試 assembly discover 目前精確數量，不要把一次性的 snapshot 複製到此頁：
 
 ```powershell
 dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --no-build --list-tests

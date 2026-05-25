@@ -3,7 +3,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple)](https://dotnet.microsoft.com/)
 [![MCP](https://img.shields.io/badge/MCP-SDK%20v1.0-blue)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/tests-3600%2B-brightgreen)]()
 [![Coverage](https://codecov.io/gh/Evanlau1798/wpf-devtools-mcp/branch/master/graph/badge.svg)](https://codecov.io/gh/Evanlau1798/wpf-devtools-mcp)
 
 `wpf-devtools-mcp` is a Windows-only Model Context Protocol server for inspecting and interacting with running WPF applications. It gives AI clients WPF-native visibility into visual trees, bindings, dependency properties, routed events, MVVM state, layout, screenshots, and controlled runtime mutation.
@@ -108,6 +107,7 @@ This validates the Release build, unit tests, package layout, and staged GitHub 
 ## Development
 
 - Production code and tests aim to stay below 500 lines per file.
+- The repository has a large automated test suite; use `dotnet test --no-build --list-tests` on the built unit, release-unit, and integration test projects for current counts.
 - New features and fixes should follow TDD: failing test first, minimal implementation second, refactor third.
 - Build and test separately to avoid file-lock issues.
 

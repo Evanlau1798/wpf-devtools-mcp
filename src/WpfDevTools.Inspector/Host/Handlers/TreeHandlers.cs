@@ -197,9 +197,18 @@ public class TreeHandlers : IRequestHandler
     {
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
         var depth = ParameterHelpers.GetIntParam(@params, "depth");
+        var compact = ParameterHelpers.GetBoolParam(@params, "compact");
+        var maxNodes = ParameterHelpers.GetIntParam(@params, "maxNodes");
+        var maxChildrenPerNode = ParameterHelpers.GetIntParam(@params, "maxChildrenPerNode");
+        var options = TreeTraversalOptions.Create(
+            depth,
+            compact,
+            summaryOnly: false,
+            maxNodes,
+            maxChildrenPerNode);
 
         return await Task.Run(() =>
-            _visualTreeAnalyzer.GetTemplateTree(elementId, depth), cancellationToken).ConfigureAwait(false);
+            _visualTreeAnalyzer.GetTemplateTreeWithOptions(elementId, options), cancellationToken).ConfigureAwait(false);
     }
 
     private Task<object> HandleGetWindowsAsync(CancellationToken cancellationToken)

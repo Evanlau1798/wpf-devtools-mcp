@@ -68,6 +68,13 @@ public class McpToolContractConsistencyTests
         AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetLogicalTree), "maxChildrenPerNode", typeof(int?), null);
     }
 
+    [Fact]
+    public void GetTemplateTree_ShouldExposeOptionalPayloadCaps()
+    {
+        AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetTemplateTree), "maxNodes", typeof(int?), null);
+        AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.GetTemplateTree), "maxChildrenPerNode", typeof(int?), null);
+    }
+
     [Theory]
     [InlineData(nameof(TreeMcpTools.GetVisualTree))]
     [InlineData(nameof(TreeMcpTools.GetLogicalTree))]

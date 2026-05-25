@@ -46,6 +46,8 @@ public sealed class ResponseContractSchemaMetadataTests
         AssertNumericConstraint(constraints, "get_visual_tree", "maxChildrenPerNode", TreeTraversalDefaults.DefaultMaxChildrenPerNode, 1, 1000);
         AssertNumericConstraint(constraints, "get_logical_tree", "maxNodes", TreeTraversalDefaults.DefaultMaxNodes, 1, 10000);
         AssertNumericConstraint(constraints, "get_logical_tree", "maxChildrenPerNode", TreeTraversalDefaults.DefaultMaxChildrenPerNode, 1, 1000);
+        AssertNumericConstraint(constraints, "get_template_tree", "maxNodes", TreeTraversalDefaults.DefaultMaxNodes, 1, 10000);
+        AssertNumericConstraint(constraints, "get_template_tree", "maxChildrenPerNode", TreeTraversalDefaults.DefaultMaxChildrenPerNode, 1, 1000);
         AssertNumericConstraint(constraints, "find_elements", "maxTraversalNodes", TreeTraversalDefaults.DefaultMaxNodes, 1, 10000);
         AssertNumericConstraint(constraints, "get_namescope", "maxNodes", TreeTraversalDefaults.DefaultNameScopeMaxNodes, 1, 10000);
         AssertNumericConstraint(constraints, "trace_routed_events", "maxEvents", null, 1, null);

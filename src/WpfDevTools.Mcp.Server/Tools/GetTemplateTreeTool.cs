@@ -24,17 +24,20 @@ public sealed class GetTemplateTreeTool : PipeConnectedToolBase
     {
         var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
-        var depth = ParseIntParam(arguments, "depth");
 
-        if (depth.HasValue && depth.Value > 100)
-            return new ToolErrorPayload
-            {
-                Error = "depth must be between 0 and 100. Use smaller depth values for better performance (depth=2-3 recommended for most cases).",
-                ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
-                Hint = "Provide a depth between 0 and 100. For most template inspections, start with depth=2 or depth=3."
-            };
+        if (!TreeRequestOptions.TryParse(arguments, out var options, out var optionsError))
+        {
+            return optionsError!;
+        }
 
         return await SendInspectorRequestAsync(processId, "get_template_tree",
-            new { elementId, depth }, cancellationToken);
+            new
+            {
+                elementId,
+                depth = options.Depth,
+                compact = options.Compact,
+                maxNodes = options.MaxNodes,
+                maxChildrenPerNode = options.MaxChildrenPerNode
+            }, cancellationToken);
     }
 }

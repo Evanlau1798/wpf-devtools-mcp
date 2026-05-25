@@ -23,6 +23,8 @@ internal static class ResponseContractParameterConstraints
             Integer("get_logical_tree", "depth", defaultValue: null, minimum: 0, maximum: TreeRequestOptions.MaxDepthLimit),
             Integer("get_logical_tree", "maxNodes", defaultValue: TreeTraversalDefaults.DefaultMaxNodes, minimum: 1, maximum: TreeRequestOptions.MaxNodesLimit),
             Integer("get_logical_tree", "maxChildrenPerNode", defaultValue: TreeTraversalDefaults.DefaultMaxChildrenPerNode, minimum: 1, maximum: TreeRequestOptions.MaxChildrenPerNodeLimit),
+            Integer("get_template_tree", "maxNodes", defaultValue: TreeTraversalDefaults.DefaultMaxNodes, minimum: 1, maximum: TreeRequestOptions.MaxNodesLimit),
+            Integer("get_template_tree", "maxChildrenPerNode", defaultValue: TreeTraversalDefaults.DefaultMaxChildrenPerNode, minimum: 1, maximum: TreeRequestOptions.MaxChildrenPerNodeLimit),
             Integer("find_elements", "maxTraversalNodes", defaultValue: TreeTraversalDefaults.DefaultMaxNodes, minimum: 1, maximum: TreeTraversalDefaults.MaxNodesLimit),
             Integer("get_namescope", "maxNodes", defaultValue: TreeTraversalDefaults.DefaultNameScopeMaxNodes, minimum: 1, maximum: TreeTraversalDefaults.MaxNodesLimit),
             Integer("trace_routed_events", "durationMs", defaultValue: 5000, minimum: 0, maximum: TraceRoutedEventsTool.MaxDurationMs),

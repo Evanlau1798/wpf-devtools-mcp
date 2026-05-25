@@ -26,7 +26,7 @@
 
 `get_visual_tree` 與 `get_logical_tree` 在呼叫端省略 caps 時會套用安全預設：`maxNodes` 預設為 `1000`，`maxChildrenPerNode` 預設為 `200`。只有在確定需要更大的樹，且可以處理更大的 MCP payload 時，才提高這些值。
 
-`get_template_tree` 使用同樣的預設 node 與 fan-out caps。若回傳被截斷，先檢查 `returnedNodeCount`、`omittedNodeCount`、`truncated` 以及節點上的 `omittedChildCount`，再決定要縮小範圍或提高 caps。
+`get_template_tree` 使用同樣的預設 node 與 fan-out caps；需要更小的 template payload 時，也可以傳入 `maxNodes` 與 `maxChildrenPerNode`。若回傳被截斷，先檢查 `returnedNodeCount`、`omittedNodeCount`、`truncated` 以及節點上的 `omittedChildCount`，再決定要縮小範圍或提高 caps。
 
 `find_elements` 也會在評估 match 前套用 traversal cap：`maxTraversalNodes` 預設為 `1000`，最高接受 `10000`。若搜尋回傳 `traversalTruncated=true`，先檢查 `traversalNodeCount`，並優先縮小 root 或 filters，再考慮提高 traversal cap。
 

@@ -206,7 +206,7 @@ public static class TreeMcpTools
         "Shows the internal rendering structure defined by the control's ControlTemplate.\n\n" +
         "USE WHEN: You need to inspect how a control renders internally or find template parts.\n" +
         "DO NOT USE: On non-templated elements (will return empty); check element type first.\n\n" +
-        "PERFORMANCE: Template traversal applies the same default 1000-node and 200-child fan-out caps as visual/logical tree tools.\n\n" +
+        "PERFORMANCE: Template traversal applies the same default 1000-node and 200-child fan-out caps as visual/logical tree tools; pass maxNodes or maxChildrenPerNode to narrow large template payloads.\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +
@@ -226,12 +226,18 @@ public static class TreeMcpTools
         [Description("Element ID of the templated control to inspect.")] string elementId,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional maximum traversal depth for the template visual tree.")] int? depth = null,
+        [Range(1, TreeTraversalDefaults.MaxNodesLimit)]
+        [Description("Optional hard cap for returned template tree nodes. Defaults to 1000.")] int? maxNodes = null,
+        [Range(1, TreeTraversalDefaults.MaxChildrenPerNodeLimit)]
+        [Description("Optional per-node child fan-out cap for template traversal. Defaults to 200.")] int? maxChildrenPerNode = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
-            ("depth", depth));
+            ("depth", depth),
+            ("maxNodes", maxNodes),
+            ("maxChildrenPerNode", maxChildrenPerNode));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetTemplateTreeTool>(sessionManager, "GetTemplateTreeTool", () => new GetTemplateTreeTool(sessionManager)).ExecuteAsync(a, ct),

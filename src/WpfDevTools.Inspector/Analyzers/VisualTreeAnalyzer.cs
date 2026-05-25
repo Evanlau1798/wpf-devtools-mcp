@@ -221,6 +221,16 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
     /// Gets the template visual tree for the specified templated control.
     /// </summary>
     public object GetTemplateTree(string? elementId, int? maxDepth = null)
+        => GetTemplateTreeWithOptions(
+            elementId,
+            TreeTraversalOptions.Create(
+                maxDepth,
+                compact: null,
+                summaryOnly: null,
+                maxNodes: null,
+                maxChildrenPerNode: null));
+
+    internal object GetTemplateTreeWithOptions(string? elementId, TreeTraversalOptions options)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -255,7 +265,6 @@ public sealed class VisualTreeAnalyzer : DispatcherAnalyzerBase
                     "The control template may not be applied yet. Ensure the control is loaded before calling get_template_tree.");
             }
 
-            var options = TreeTraversalOptions.Create(maxDepth, compact: null, summaryOnly: null, maxNodes: null, maxChildrenPerNode: null);
             var budget = new TreeTraversalBudget(options.MaxNodes);
             budget.TryTakeNode();
             var depthHintTracker = new TreeDepthSufficiencyTracker(options.MaxDepth);

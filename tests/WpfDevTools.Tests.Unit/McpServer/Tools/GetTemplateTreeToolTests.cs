@@ -82,6 +82,42 @@ public class GetTemplateTreeToolTests
     }
 
     [Fact]
+    public async Task Execute_WithPayloadCaps_ShouldForwardCapsToInspector()
+    {
+        const int processId = 43124;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request =>
+            {
+                request.Method.Should().Be("get_template_tree");
+                request.Params.HasValue.Should().BeTrue();
+
+                var payload = request.Params!.Value;
+                payload.GetProperty("elementId").GetString().Should().Be("myControl");
+                payload.GetProperty("depth").GetInt32().Should().Be(4);
+                payload.GetProperty("maxNodes").GetInt32().Should().Be(25);
+                payload.GetProperty("maxChildrenPerNode").GetInt32().Should().Be(5);
+
+                return new
+                {
+                    success = true,
+                    returnedNodeCount = 25,
+                    omittedNodeCount = 12,
+                    truncated = true
+                };
+            });
+
+        var tool = new GetTemplateTreeTool(connected.SessionManager);
+        var parameters = new { processId, elementId = "myControl", depth = 4, maxNodes = 25, maxChildrenPerNode = 5 };
+
+        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
+
+        var resultJson = JsonSerializer.SerializeToElement(result);
+        resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("truncated").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Execute_WithDepthAboveLimit_ShouldReturnStructuredInvalidArgumentError()
     {
         // Arrange

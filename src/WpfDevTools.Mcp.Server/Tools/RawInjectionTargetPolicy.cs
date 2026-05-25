@@ -10,7 +10,19 @@ namespace WpfDevTools.Mcp.Server.Tools;
 internal readonly record struct RawInjectionAuthorization(
     bool IsAllowed,
     string? Error,
-    string? Hint);
+    string? Hint,
+    RawInjectionAuthorizationFailureKind FailureKind = RawInjectionAuthorizationFailureKind.TargetDenied)
+{
+    public string ErrorCode => FailureKind == RawInjectionAuthorizationFailureKind.InvalidPolicyConfiguration
+        ? "InvalidPolicyConfiguration"
+        : "SecurityError";
+}
+
+internal enum RawInjectionAuthorizationFailureKind
+{
+    TargetDenied,
+    InvalidPolicyConfiguration
+}
 
 internal readonly record struct PhysicalPathResolution(
     bool IsResolved,
@@ -163,7 +175,8 @@ internal static class RawInjectionTargetPolicy
         => new(
             IsAllowed: false,
             Error: "Invalid raw injection allowlist configuration. Every configured entry must be an exact local absolute executable path.",
-            Hint: $"Fix {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact local absolute executable paths, then restart the MCP server.");
+            Hint: $"Fix {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact local absolute executable paths, then restart the MCP server.",
+            FailureKind: RawInjectionAuthorizationFailureKind.InvalidPolicyConfiguration);
 
     internal static bool TryNormalizeAbsolutePath(
         string? path,

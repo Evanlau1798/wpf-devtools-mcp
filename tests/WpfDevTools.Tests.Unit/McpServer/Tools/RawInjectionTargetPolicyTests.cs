@@ -42,6 +42,7 @@ public sealed class RawInjectionTargetPolicyTests
         authorization.IsAllowed.Should().BeFalse();
         authorization.Error.Should().Contain("Invalid raw injection allowlist configuration");
         authorization.Error.Should().Contain("exact local absolute executable path");
+        authorization.ErrorCode.Should().Be("InvalidPolicyConfiguration");
     }
 
     [Fact]

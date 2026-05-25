@@ -188,7 +188,7 @@ public sealed partial class ConnectTool
         {
             success = false,
             error = authorization.Error,
-            errorCode = "SecurityError",
+            errorCode = authorization.ErrorCode,
             hint = authorization.Hint,
             requiresExplicitTargetOptIn = true,
             allowlistEnvVar = McpServerConfiguration.RawInjectionAllowedTargetsEnvVar

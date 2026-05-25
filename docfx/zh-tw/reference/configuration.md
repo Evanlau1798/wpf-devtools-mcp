@@ -7,7 +7,7 @@
 | `WPFDEVTOOLS_AUTH_SECRET` | 覆寫 persisted/default HMAC 驗證 secret | 必須是 base64 編碼；injection session 預設會啟用驗證 |
 | `WPFDEVTOOLS_CERT_DIR` | 覆寫預設 TLS certificate directory | 請使用受保護的本機目錄；injection session 預設使用 TLS |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | pin 預期憑證的 thumbprint | 在高限制部署中很有幫助 |
-| `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | allowlist raw-injection target executable | 以分號分隔的 exact local absolute executable path；優先使用 SDK-hosted reuse |
+| `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | allowlist raw-injection target executable | 以分號分隔的 exact local absolute executable path；malformed entry 會回 `InvalidPolicyConfiguration`；優先使用 SDK-hosted reuse |
 | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | 限制所有 MCP `connect()` target | 必填，以分號分隔的 exact local absolute executable path；未設定會回 `SecurityError`，malformed entry 會回 `InvalidPolicyConfiguration` |
 | `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | 啟用或停用 destructive MCP tool call | 涵蓋 runtime mutation、interaction、render measurement 與 session state-consuming tools，例如 `capture_state_snapshot` 與 `drain_events`；接受 `true`/`false`、`1`/`0`、`yes`/`no`、`on`/`off`；未設定、無效或 false 會 fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | 啟用或停用 `element_screenshot` | boolean 值同上；未設定、無效或 false 會讓 screenshot call fail closed |

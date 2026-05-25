@@ -108,7 +108,7 @@ public static class ServerInstructions
         - Start with connect() after the target is allowlisted unless you already know you need a specific processId or non-default windowFilter
         - After connect() succeeds, immediately build context with get_ui_summary or get_form_summary before tree-heavy inspection or screenshots; use get_element_snapshot(elementId) only after a concrete elementId is known
         - When connect() reports multiple candidates, use get_processes(windowFilter) to disambiguate and retry
-        - If connect() returns SecurityError with requiresExplicitTargetOptIn=true, prefer SDK-hosted reuse first. Only use WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS for explicitly reviewed external executables.
+        - If connect() returns SecurityError with requiresExplicitTargetOptIn=true, prefer SDK-hosted reuse first. Only use WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS for explicitly reviewed external executables; malformed entries return InvalidPolicyConfiguration.
         - Do not call get_processes before connect() as a default habit; treat it as a disambiguation or filtering tool
         - When hidden or background targets matter, prefer connect(windowFilter='all') instead of listing processes first just to widen auto-discovery
         - When multiple WPF processes are expected and largest-target auto-selection is intentional, prefer connect(selectionStrategy='largest_working_set', windowFilter='all') instead of a separate get_processes round trip
@@ -233,6 +233,7 @@ public static class ServerInstructions
         - "timeout" -> process may be frozen; try ping() to verify connection
         - existing SDK host security mismatch that completes an incompatible authenticated/TLS handshake (errorCode: SecurityError) -> verify WPFDEVTOOLS_AUTH_SECRET matches and WPFDEVTOOLS_CERT_DIR is the same local absolute path in both the MCP server and target app. Network paths are not allowed. For connect() reuse, hardened SDK mode requires setting both values together before calling InspectorSdk.Initialize()
         - connect() returns SecurityError with requiresExplicitTargetOptIn=true -> raw injection requires an exact executable allowlist entry. Prefer InspectorSdk.Initialize() for target-side reuse, or explicitly allowlist the exact local absolute executable path in WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS before retrying.
+        - connect() returns InvalidPolicyConfiguration with allowlistEnvVar=WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS -> fix malformed raw injection allowlist entries to exact local absolute executable paths, restart the MCP server, then retry.
         - connect() returns SecurityError with policyEnvVar=WPFDEVTOOLS_MCP_ALLOWED_TARGETS -> the target executable is outside the configured MCP target allowlist. Retry only after the exact local absolute executable path is reviewed and added.
         - connect() or get_processes returns InvalidPolicyConfiguration with policyEnvVar=WPFDEVTOOLS_MCP_ALLOWED_TARGETS -> fix malformed MCP target allowlist entries to exact local absolute executable paths, restart the MCP server, then retry.
         - tool call returns SecurityError from a WPFDEVTOOLS_MCP_ALLOW_* gate -> the server policy disabled that capability for this session. Use an allowed inspection workflow or ask the operator to explicitly enable the gate.

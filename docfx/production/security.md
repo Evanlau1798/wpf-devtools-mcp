@@ -31,7 +31,7 @@ Raw DLL injection into arbitrary same-user WPF processes is blocked by default.
 - The shipping server does not implicitly trust project-scoped targets discovered under the current repository root.
 - When the target executable is not explicitly allowlisted, `connect()` fails closed with `errorCode: SecurityError` and `requiresExplicitTargetOptIn: true` instead of injecting if no earlier default-pipe compatibility failure has already stopped the connection attempt.
 - If a stale or incompatible default-pipe host is already advertising the expected pipe, `connect()` can return `errorCode: CompatibilityError` before the raw-injection policy denial, but raw injection still remains blocked.
-- Set `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` to a semicolon-separated list of exact local absolute executable paths only when raw injection into a specific app is an intentional production decision.
+- Set `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` to a semicolon-separated list of exact local absolute executable paths only when raw injection into a specific app is an intentional production decision; malformed configured entries fail closed with `errorCode: InvalidPolicyConfiguration`.
 - Prefer the SDK-hosted reuse path with `InspectorSdk.Initialize()` when you need production diagnostics for an external target without broadening raw injection scope.
 
 ### MCP tool and target policy gates

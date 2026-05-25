@@ -29,7 +29,7 @@ The MCP client is untrusted by default. Tool descriptions, annotations, and prom
 - The shipping server does not implicitly trust project-scoped targets discovered under the current repository root.
 - When the target executable is not explicitly allowlisted, `connect()` fails closed with `errorCode: SecurityError` and `requiresExplicitTargetOptIn: true` instead of injecting if no earlier default-pipe compatibility failure has already stopped the connection attempt.
 - If a stale or incompatible default-pipe host is already advertising the expected pipe, `connect()` can return `errorCode: CompatibilityError` before the raw-injection policy denial, but raw injection still remains blocked.
-- To allow a specific executable, set `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` to a semicolon-separated list of exact local absolute executable paths.
+- To allow a specific executable, set `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` to a semicolon-separated list of exact local absolute executable paths; malformed configured entries fail closed with `errorCode: InvalidPolicyConfiguration`.
 - Prefer the SDK-hosted path with `InspectorSdk.Initialize()` when you need production diagnostics for an external app and do not want to broaden the raw injection allowlist.
 
 ### 1.6 MCP tool and target policy gates
@@ -79,7 +79,7 @@ The MCP client is untrusted by default. Tool descriptions, annotations, and prom
 | `WPFDEVTOOLS_AUTH_SECRET` | Overrides the generated HMAC authentication secret | Set in production when you need deterministic secret rotation or SDK-mode coordination |
 | `WPFDEVTOOLS_CERT_DIR` | Overrides the default TLS certificate directory | Use a shared local absolute directory with restricted filesystem permissions when certificate storage must be pinned or shared with SDK mode; network paths are not allowed |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected certificate thumbprint | Use when you need deterministic certificate selection |
-| `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Explicitly allowlists raw-injection targets | Use a semicolon-separated list of exact local absolute executable paths only when SDK-hosted reuse is not feasible |
+| `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Explicitly allowlists raw-injection targets | Use a semicolon-separated list of exact local absolute executable paths only when SDK-hosted reuse is not feasible; malformed configured entries fail with `InvalidPolicyConfiguration` |
 | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | Restricts all `connect()` targets | Required semicolon-separated exact local absolute executable paths; unset or malformed configured entries fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | Enables or disables destructive MCP tools | Set `true` only for sessions where runtime mutation, interaction, render measurement, or session state-consuming tools such as `capture_state_snapshot` and `drain_events` are allowed |
 | `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | Enables or disables screenshot capture | Set `true` only when target UI pixels are allowed to leave the target process |

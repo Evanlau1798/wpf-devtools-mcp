@@ -7,7 +7,7 @@
 | `WPFDEVTOOLS_AUTH_SECRET` | Overrides the persisted/default HMAC authentication secret | Must be base64 encoded; injection sessions are authenticated by default |
 | `WPFDEVTOOLS_CERT_DIR` | Overrides the default TLS certificate directory | Use a protected local directory; injection sessions use TLS by default |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected certificate thumbprint | Optional but useful in locked-down deployments |
-| `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Allowlists raw-injection target executables | Semicolon-separated exact local absolute executable paths; prefer SDK-hosted reuse first |
+| `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Allowlists raw-injection target executables | Semicolon-separated exact local absolute executable paths; malformed configured entries fail with `InvalidPolicyConfiguration`; prefer SDK-hosted reuse first |
 | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | Restricts all MCP `connect()` targets | Required semicolon-separated exact local absolute executable paths; unset values fail with `SecurityError`, malformed configured entries fail with `InvalidPolicyConfiguration` |
 | `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | Enables or disables destructive MCP tool calls | Covers runtime mutation, interaction, render measurement, and session state-consuming tools such as `capture_state_snapshot` and `drain_events`; accepts `true`/`false`, `1`/`0`, `yes`/`no`, or `on`/`off`; unset, invalid, or false values fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | Enables or disables `element_screenshot` | Same boolean values as above; unset, invalid, or false values fail closed for screenshot calls |

@@ -121,6 +121,25 @@ public class SecurityDocumentationTests
     [InlineData("docfx/reference/configuration.md")]
     [InlineData("docfx/zh-tw/reference/configuration.md")]
     [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
+    public void Documentation_ShouldDescribeMalformedRawInjectionAllowlistErrorContract(string relativePath)
+    {
+        var policyLines = File.ReadLines(GetRepoFilePath(relativePath))
+            .Where(line => line.Contains("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS", StringComparison.Ordinal))
+            .ToArray();
+        var policyText = string.Join(Environment.NewLine, policyLines);
+
+        policyText.Should().Contain("InvalidPolicyConfiguration",
+            $"{relativePath} should document malformed raw injection allowlist entries as policy configuration errors");
+    }
+
+    [Theory]
+    [InlineData("README.md")]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    [InlineData("docfx/reference/configuration.md")]
+    [InlineData("docfx/zh-tw/reference/configuration.md")]
+    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
     public void Documentation_ShouldNotDescribeRepositoryTargetsAsImplicitRawInjectionTrust(string relativePath)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));

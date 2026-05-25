@@ -90,8 +90,12 @@ public class McpDiscoveryContentTests
     {
         var prompt = WorkflowPrompts.DiagnoseElevatedTarget();
 
-        prompt.IndexOf("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal)
-            .Should().BeLessThan(prompt.IndexOf("get_processes", StringComparison.Ordinal));
+        var allowlistIndex = prompt.IndexOf("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal);
+        var getProcessesIndex = prompt.IndexOf("get_processes", StringComparison.Ordinal);
+
+        allowlistIndex.Should().BeGreaterThanOrEqualTo(0);
+        getProcessesIndex.Should().BeGreaterThanOrEqualTo(0);
+        allowlistIndex.Should().BeLessThan(getProcessesIndex);
     }
 
     [Fact]

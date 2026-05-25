@@ -150,27 +150,21 @@ public class BootstrapperSecureTransportContractTests
     }
 
     [Fact]
-    public void BootstrapEntry_ShouldUseFailClosedJsonConfigParser()
+    public void BootstrapEntry_ShouldNotReadPredictableTempJsonFallback()
     {
         var entryContent = File.ReadAllText(GetRepoFilePath(
             "src/WpfDevTools.Bootstrapper/bootstrap_entry.cpp"));
-        var parserContent = File.ReadAllText(GetRepoFilePath(
-            "src/WpfDevTools.Bootstrapper/bootstrap_config_parser.cpp"));
         var projectContent = File.ReadAllText(GetRepoFilePath(
             "src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj"));
 
-        entryContent.Should().NotContain("findValue",
-            "the temp-file bootstrap fallback should not locate JSON fields with substring scanning");
-        entryContent.Should().Contain("TryParseBootstrapConfigJson",
-            "the fallback config file should be parsed as a JSON object before values are applied");
-        parserContent.Should().Contain("ParseJsonString",
-            "string values should be parsed with JSON escape and delimiter semantics");
-        parserContent.Should().Contain("MB_ERR_INVALID_CHARS",
-            "malformed UTF-8 config files should fail closed instead of being lossy-decoded");
-        parserContent.Should().Contain("case 'u'",
-            "JSON unicode escapes should be handled explicitly");
-        projectContent.Should().Contain("bootstrap_config_parser.cpp",
-            "the native parser implementation must be compiled into the bootstrapper");
+        entryContent.Should().NotContain("WpfDevTools_Bootstrap_",
+            "production bootstrapper must not read a predictable temp JSON file when injected parameters fail to parse");
+        entryContent.Should().NotContain("ReadConfigFile",
+            "invalid injected bootstrap parameters should fail closed instead of falling back to ambient temp files");
+        entryContent.Should().NotContain("TryParseBootstrapConfigJson",
+            "the JSON parser existed only for the removed predictable temp-file fallback");
+        projectContent.Should().NotContain("bootstrap_config_parser.cpp");
+        projectContent.Should().NotContain("bootstrap_config_parser.h");
     }
 
     [Fact]

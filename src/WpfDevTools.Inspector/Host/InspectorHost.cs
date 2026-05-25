@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.IO.Pipes;
+using System.ComponentModel;
 using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Principal;
@@ -58,9 +59,14 @@ public sealed partial class InspectorHost : IDisposable
     internal static Action UninstallBindingTraceListenerAction { get; set; } = static () => BindingErrorTraceListener.Uninstall();
 
     /// <summary>
-    /// Create a new InspectorHost instance without authentication or encryption (backward compatible)
+    /// Compatibility-only plaintext constructor. Creates a host without authentication or TLS.
     /// </summary>
+    /// <remarks>
+    /// Starting this host requires explicit unsafe plaintext opt-in. Production injection and
+    /// SDK-hosted paths should pass matching authentication and TLS managers.
+    /// </remarks>
     /// <param name="processId">Process ID of the target WPF application</param>
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public InspectorHost(int processId)
         : this(processId, CreatePipeName(processId), null, null, FileLogLevel.Warning)
     {
@@ -72,8 +78,13 @@ public sealed partial class InspectorHost : IDisposable
     }
 
     /// <summary>
-    /// Create a new InspectorHost instance with an explicit minimum log level.
+    /// Compatibility-only plaintext constructor with an explicit minimum log level.
     /// </summary>
+    /// <remarks>
+    /// Starting this host requires explicit unsafe plaintext opt-in. Production injection and
+    /// SDK-hosted paths should pass matching authentication and TLS managers.
+    /// </remarks>
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public InspectorHost(int processId, FileLogLevel minimumLogLevel)
         : this(processId, CreatePipeName(processId), null, null, minimumLogLevel)
     {

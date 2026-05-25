@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.ComponentModel;
 using System.IO.Pipes;
 using System.Net.Security;
 using System.Security.Authentication;
@@ -60,9 +61,14 @@ public sealed partial class NamedPipeClient : IDisposable
         InspectorCompatibilityContract.GetBuildFingerprint(typeof(NamedPipeClient));
 
     /// <summary>
-    /// Initializes a new instance of the NamedPipeClient class without authentication
+    /// Compatibility-only plaintext constructor. Initializes a new instance without authentication or TLS.
     /// </summary>
+    /// <remarks>
+    /// Production SessionManager paths must use authentication and TLS through the process-scoped
+    /// SessionManager factories. This overload exists for legacy compatibility and local tests only.
+    /// </remarks>
     /// <param name="processId">Process ID of the target WPF application</param>
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public NamedPipeClient(int processId)
         : this(processId, BuildPipeName(processId), null, null)
     {

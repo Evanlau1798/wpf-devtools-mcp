@@ -118,9 +118,15 @@ internal static class CertificateStorageSecurity
     public static void PrepareDirectory(string directoryPath)
         => PrepareDirectory(directoryPath, "certificate directory");
 
-    internal static void PrepareDirectory(string directoryPath, string description)
+    internal static void PrepareDirectory(
+        string directoryPath,
+        string description,
+        Action<string>? afterInitialValidation = null,
+        Func<string, bool>? reparsePointDetector = null)
     {
         directoryPath = ResolveAndValidateLocalPath(directoryPath, nameof(directoryPath), description);
+        afterInitialValidation?.Invoke(directoryPath);
+        EnsureNoReparsePointAfterValidation(directoryPath, description, reparsePointDetector);
 
         var currentUserSid = GetCurrentUserSid();
         var directoryInfo = new DirectoryInfo(directoryPath);
@@ -134,30 +140,61 @@ internal static class CertificateStorageSecurity
             directoryInfo.Create();
         }
 
+        EnsureNoReparsePointAfterValidation(directoryPath, description, reparsePointDetector);
         var hardenedSecurity = CreateDirectorySecurity(currentUserSid);
         directoryInfo.SetAccessControl(hardenedSecurity);
+        EnsureNoReparsePointAfterValidation(directoryPath, description, reparsePointDetector);
 
         ValidateNoBroadWriteAccess(directoryInfo.GetAccessControl(), description);
     }
 
     public static void PrepareExistingFile(string path, string description)
+        => PrepareExistingFile(path, description, afterExistsCheck: null, reparsePointDetector: null);
+
+    internal static void PrepareExistingFile(
+        string path,
+        string description,
+        Action<string>? afterExistsCheck,
+        Func<string, bool>? reparsePointDetector)
     {
+        path = ResolveAndValidateLocalPath(path, nameof(path), description);
         if (!File.Exists(path))
         {
             return;
         }
 
+        afterExistsCheck?.Invoke(path);
+        EnsureNoReparsePointAfterValidation(path, description, reparsePointDetector);
         var currentUserSid = GetCurrentUserSid();
         var fileInfo = new FileInfo(path);
         EnsureTrustedOwner(fileInfo.GetAccessControl(), currentUserSid, description);
         fileInfo.SetAccessControl(CreateFileSecurity(currentUserSid));
+        EnsureNoReparsePointAfterValidation(path, description, reparsePointDetector);
         ValidateNoBroadWriteAccess(fileInfo.GetAccessControl(), description);
     }
 
     public static void ApplyFileSecurity(string path)
     {
+        path = ResolveAndValidateLocalPath(path, nameof(path), "certificate file");
+        EnsureNoReparsePointAfterValidation(path, "certificate file");
         var fileInfo = new FileInfo(path);
         fileInfo.SetAccessControl(CreateFileSecurity(GetCurrentUserSid()));
+        EnsureNoReparsePointAfterValidation(path, "certificate file");
+    }
+
+    private static void EnsureNoReparsePointAfterValidation(
+        string fullPath,
+        string description,
+        Func<string, bool>? reparsePointDetector = null)
+    {
+        reparsePointDetector ??= static path => ContainsReparsePointInPathChain(path);
+        if (!reparsePointDetector(fullPath))
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"The {description} changed after validation and now traverses a symbolic link or reparse point.");
     }
 
     private static SecurityIdentifier GetCurrentUserSid()

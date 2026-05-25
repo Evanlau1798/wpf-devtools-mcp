@@ -67,6 +67,46 @@ public sealed class CertificateStorageSecurityTests
     }
 
     [Fact]
+    public void PrepareDirectory_WhenPathBecomesReparsePointAfterValidation_ShouldFailClosed()
+    {
+        var swappedToReparsePoint = false;
+
+        var act = () => CertificateStorageSecurity.PrepareDirectory(
+            @"C:\safe\certs",
+            "certificate directory",
+            afterInitialValidation: _ => swappedToReparsePoint = true,
+            reparsePointDetector: _ => swappedToReparsePoint);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*reparse point*");
+    }
+
+    [Fact]
+    public void PrepareExistingFile_WhenPathBecomesReparsePointAfterExistsCheck_ShouldFailClosed()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory("WpfDevTools_CertToctou_");
+        var filePath = Path.Combine(tempDirectory.FullName, "server.pfx");
+        File.WriteAllText(filePath, "test");
+        var swappedToReparsePoint = false;
+
+        try
+        {
+            var act = () => CertificateStorageSecurity.PrepareExistingFile(
+                filePath,
+                "certificate file",
+                afterExistsCheck: _ => swappedToReparsePoint = true,
+                reparsePointDetector: _ => swappedToReparsePoint);
+
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*reparse point*");
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public void IsTrustedOwner_ShouldAllowCurrentUserSystemAndAdministratorsOnly()
     {
         var currentUserSid = WindowsIdentity.GetCurrent().User;

@@ -77,12 +77,7 @@ internal static partial class DllPathValidator
         // SECURITY: Normalize path to prevent traversal attacks (..)
         var fullPath = Path.GetFullPath(dllPath);
 
-        if (CertificateStorageSecurity.ContainsReparsePointInPathChain(fullPath))
-        {
-            throw new ArgumentException(
-                "DLL path must not traverse symbolic links or reparse points.",
-                nameof(dllPath));
-        }
+        EnsureDllPathDoesNotTraverseReparsePoint(fullPath, nameof(dllPath));
 
         // SECURITY: Whitelist approach ??only allow DLLs under trusted roots
         if (!IsUnderTrustedRoot(fullPath, baseDirectory))
@@ -115,6 +110,8 @@ internal static partial class DllPathValidator
         {
             VerifyAuthenticodeSignature(fullPath, baseDirectory);
         }
+
+        EnsureDllPathDoesNotTraverseReparsePoint(fullPath, nameof(dllPath));
     }
 
     private static bool IsUnderTrustedRoot(string fullPath, string baseDirectory)

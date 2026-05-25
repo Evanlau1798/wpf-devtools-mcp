@@ -57,6 +57,18 @@ The bootstrapper and inspector sidecars are discovered relative to the server, s
 
 See [Release Layout](release-layout.md) for the exact folder contract.
 
+## Server Native AOT and trimming boundary
+
+The current packaged server is a framework-dependent, non-AOT Windows process. It is not published as a Native AOT, trimmed, or single-file server distribution.
+
+This is intentional for the current release line because `src/WpfDevTools.Mcp.Server/Program.cs` registers MCP tools, prompts, and resources through assembly-based discovery:
+
+- `WithToolsFromAssembly`
+- `WithPromptsFromAssembly`
+- `WithResourcesFromAssembly`
+
+The MCP C# SDK marks the non-generic assembly discovery APIs with `RequiresUnreferencedCode` because they use dynamic lookup of method metadata and may not work in Native AOT or aggressively trimmed deployments. If Native AOT, trimming, or single-file server distribution becomes a product goal, first replace these registrations with AOT-safe explicit/generic registrations, then add publish-time tests that prove `tools/list`, prompts, resources, and response schemas survive trimming.
+
 ## Installed executable contract
 
 The MCP client should launch the resolved installed `wpf-devtools-<arch>.exe` under the chosen install root, for example:

@@ -66,11 +66,13 @@ public sealed partial class SessionManager : IDisposable
     {
         _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
         _authManager = authManager;
-        _processAuthenticationSecrets = new ProcessAuthenticationSecretProvider(authManager);
         _certManager = certManager;
         _logger = logger;
         _utcNowProvider = utcNowProvider ?? (() => DateTimeOffset.UtcNow);
         _processIdentityProvider = processIdentityProvider ?? GetCurrentProcessIdentity;
+        _processAuthenticationSecrets = new ProcessAuthenticationSecretProvider(
+            authManager,
+            processId => ConvertProcessIdentity(_processIdentityProvider(processId)));
 
         // CRITICAL FIX: Periodic cleanup of dead and idle sessions
         // Uses one-shot timer (Infinite period) to prevent overlapping callbacks.
@@ -323,6 +325,14 @@ public sealed partial class SessionManager : IDisposable
     internal readonly record struct ProcessIdentity(
         int ProcessId,
         long? StartTimeUtcTicks);
+
+    private static ProcessAuthenticationSecretProvider.ProcessIdentity? ConvertProcessIdentity(
+        ProcessIdentity? identity)
+        => identity is null
+            ? null
+            : new ProcessAuthenticationSecretProvider.ProcessIdentity(
+                identity.Value.ProcessId,
+                identity.Value.StartTimeUtcTicks);
 
     private void ThrowIfDisposed()
     {

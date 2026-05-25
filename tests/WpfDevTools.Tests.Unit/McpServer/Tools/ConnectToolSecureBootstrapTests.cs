@@ -135,9 +135,10 @@ public partial class ConnectToolTests
             null,
             certDirectory,
             new PersistedAuthenticationSecretStore(secretFilePath));
-        var hostAuthenticationSecretBase64 = new ProcessAuthenticationSecretProvider(
-                initialTransportSecurity.AuthenticationManager)
-            .GetAuthenticationSecretBase64(processId, pipeName);
+        using var initialSessionManager = new SessionManager(
+            authManager: initialTransportSecurity.AuthenticationManager,
+            certManager: initialTransportSecurity.CertificateManager);
+        var hostAuthenticationSecretBase64 = initialSessionManager.GetAuthenticationSecretBase64(processId, pipeName);
 
         using var hostAuthenticationManager = new AuthenticationManager(() => hostAuthenticationSecretBase64);
         using var host = new InspectorHost(

@@ -48,6 +48,27 @@ public sealed class ProcessAuthenticationSecretProviderTests
     }
 
     [Fact]
+    public void GetAuthenticationSecretBase64_WithSamePidAndPipeButDifferentStartTimes_ShouldReturnDifferentSecrets()
+    {
+        using var rootAuthentication = CreateRootAuthenticationManager();
+        var startTimeTicks = 1000L;
+        var provider = new ProcessAuthenticationSecretProvider(
+            rootAuthentication,
+            processId => new ProcessAuthenticationSecretProvider.ProcessIdentity(
+                processId,
+                startTimeTicks));
+
+        var firstSecret = provider.GetAuthenticationSecretBase64(303, "WpfDevTools_303_reused");
+        startTimeTicks = 2000L;
+        var secondSecret = provider.GetAuthenticationSecretBase64(303, "WpfDevTools_303_reused");
+
+        firstSecret.Should().NotBeNullOrWhiteSpace();
+        secondSecret.Should().NotBeNullOrWhiteSpace();
+        firstSecret.Should().NotBe(secondSecret,
+            "PID reuse should not let an old process-scoped authentication secret authenticate a new process instance");
+    }
+
+    [Fact]
     public void GetAuthenticationSecretBase64_WithDifferentProcesses_ShouldPreventCrossTargetResponses()
     {
         using var rootAuthentication = CreateRootAuthenticationManager();

@@ -77,17 +77,17 @@ internal static class RawInjectionTargetPolicy
         string? configuredAllowedTargets,
         Func<string, PhysicalPathResolution> resolvePhysicalPath)
     {
+        if (!TryGetConfiguredAllowedTargets(configuredAllowedTargets, resolvePhysicalPath, out var configuredTargets))
+        {
+            return CreateInvalidConfigurationAuthorization();
+        }
+
         if (!TryNormalizeAbsolutePath(processInfo.ExecutablePath, resolvePhysicalPath, out var normalizedTargetPath))
         {
             return new RawInjectionAuthorization(
                 IsAllowed: false,
                 Error: "Raw injection is blocked because the target executable path is missing or not a local absolute path. Start the target-side SDK host with InspectorSdk.Initialize() or allowlist the exact local absolute executable path before retrying connect().",
                 Hint: $"Set {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact local absolute executable paths when raw injection into a specific target executable is explicitly intended.");
-        }
-
-        if (!TryGetConfiguredAllowedTargets(configuredAllowedTargets, resolvePhysicalPath, out var configuredTargets))
-        {
-            return CreateInvalidConfigurationAuthorization();
         }
 
         if (configuredTargets.Contains(normalizedTargetPath, PathComparer))

@@ -46,6 +46,20 @@ public sealed class RawInjectionTargetPolicyTests
     }
 
     [Fact]
+    public void Authorize_WhenRawInjectionAllowlistIsMalformedAndTargetPathIsMissing_ShouldReportInvalidConfiguration()
+    {
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            CreateProcessInfo(string.Empty),
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: @"relative\Target.exe",
+            tryResolvePhysicalPath: path => path);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("Invalid raw injection allowlist configuration");
+        authorization.ErrorCode.Should().Be("InvalidPolicyConfiguration");
+    }
+
+    [Fact]
     public void Authorize_WhenRawInjectionTargetUsesUnclassifiedDrive_ShouldFailClosed()
     {
         var targetPath = Path.Combine(GetUnusedDriveRoot(), "Target.exe");
@@ -53,7 +67,7 @@ public sealed class RawInjectionTargetPolicyTests
         var authorization = RawInjectionTargetPolicy.Authorize(
             CreateProcessInfo(targetPath),
             AppContext.BaseDirectory,
-            configuredAllowedTargets: targetPath,
+            configuredAllowedTargets: null,
             tryResolvePhysicalPath: path => path);
 
         authorization.IsAllowed.Should().BeFalse();
@@ -81,7 +95,7 @@ public sealed class RawInjectionTargetPolicyTests
         var authorization = RawInjectionTargetPolicy.Authorize(
             CreateProcessInfo(@"C:\Allowed\Target.exe"),
             AppContext.BaseDirectory,
-            configuredAllowedTargets: @"C:\Allowed\Target.exe",
+            configuredAllowedTargets: null,
             tryResolvePhysicalPath: _ => @"\\server\share\Target.exe");
 
         authorization.IsAllowed.Should().BeFalse();
@@ -143,7 +157,7 @@ public sealed class RawInjectionTargetPolicyTests
         var authorization = RawInjectionTargetPolicy.Authorize(
             CreateProcessInfo(targetPath),
             AppContext.BaseDirectory,
-            configuredAllowedTargets: targetPath,
+            configuredAllowedTargets: null,
             tryResolvePhysicalPath: _ => null);
 
         authorization.IsAllowed.Should().BeFalse();

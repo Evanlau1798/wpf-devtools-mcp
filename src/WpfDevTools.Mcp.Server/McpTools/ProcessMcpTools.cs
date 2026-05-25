@@ -108,7 +108,7 @@ public static class ProcessMcpTools
         "AUTO-DISCOVERY: Omit processId to auto-connect when exactly one allowlisted WPF process is available. Omit windowFilter for the visible-only default. Use connect(windowFilter='all') when hidden/background targets must participate in auto-discovery without a separate process listing step. Use selectionStrategy='largest_working_set' only when you intentionally want the largest allowlisted candidate, including connect(selectionStrategy='largest_working_set', windowFilter='all') for broad multi-process auto-selection.\n" +
         "TIMEOUT: Connection attempt times out after 30 seconds.\n" +
         ToolDescriptionFragments.ContractGuidance +
-        "RESPONSE FIELDS: processId, processName, windowTitle, autoDiscovered, autoSelected, selectionReason, candidateCount, candidate processes when ambiguity remains, requiresElevationToConnect, canConnectFromCurrentServer, and suggestedAction.\n" +
+        "RESPONSE FIELDS: processId, processName, windowTitle, autoDiscovered, autoSelected, selectionReason, candidateCount, redactedCandidateCount, policyEnvVar, candidate processes when ambiguity remains, requiresElevationToConnect, canConnectFromCurrentServer, and suggestedAction.\n" +
         "REQUEST OPTIONS: processId selects an explicit target; selectionStrategy controls auto-selection behavior including largest_working_set; windowFilter widens or narrows auto-discovery scope.\n\n" +
         "EXAMPLES:\n" +
         "- { }\n" +

@@ -100,7 +100,9 @@ public sealed partial class ResponseContractResourceTests
                 "processId",
                 "autoDiscovered",
                 "requiresElevationToConnect",
-                "suggestedAction"
+                "suggestedAction",
+                "redactedCandidateCount",
+                "policyEnvVar"
             ],
             requestParameters: [
                 "processId",
@@ -120,7 +122,9 @@ public sealed partial class ResponseContractResourceTests
             "process-list",
             topLevelFields: [
                 "processes",
-                "message"
+                "message",
+                "redactedTargetCount",
+                "policyEnvVar"
             ],
             requestParameters: [
                 "nameFilter",

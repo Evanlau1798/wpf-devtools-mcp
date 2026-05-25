@@ -66,6 +66,7 @@ public sealed class McpToolContractDescriptionTests
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "suggestedAction")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "requiresElevationToConnect")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "autoDiscovered")]
+    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "redactedCandidateCount")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "selectionStrategy")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "largest_working_set")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "windowFilter")]

@@ -403,12 +403,14 @@ public sealed class DocfxCapabilityDocumentationTests
     [Theory]
     [InlineData("docfx/reference/tools/index.md")]
     [InlineData("docfx/zh-tw/reference/tools/index.md")]
-    public void ToolOverviewPages_ShouldPointToMachineReadableResponseContractResource(string relativePath)
+    public void ToolOverviewPages_ShouldPointToMachineReadableContractResources(string relativePath)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
         content.Should().Contain("wpf://contracts/response",
             "tool overview pages should point clients at the machine-readable response contract resource for stable payload details beyond SDK outputSchema");
+        content.Should().Contain("wpf://contracts/tools",
+            "tool overview pages should point clients at the canonical tool manifest for machine-readable tool surface details");
         content.Should().Contain("JSON",
             "tool overview pages should clarify that the fallback contract surface is machine-readable JSON rather than prose alone");
     }

@@ -78,6 +78,7 @@
 - 支援 structured content 的 client 應以 `result.structuredContent` 作為正式 wire payload。
 - `tools/list` 會公告共用 `result.structuredContent` payload 欄位的 `outputSchema`，包含 `success`、`navigation`，以及 `processId` 這類常見識別欄位。Claude-compatible client smoke test 應針對這個 structured-output metadata shape 驗證 discovery。
 - 如果 client 需要 machine-readable contract，請直接讀取 MCP resource `wpf://contracts/response`。它會提供比共用 `tools/list` schema 更完整的 WPF payload contract，涵蓋 `structuredContent`、`navigation`、`nextSteps`、`contextRefs`，以及 `get_binding_errors` `navigation=false` opt-out。
+- 如果需要 canonical tool metadata，請讀取 MCP resource `wpf://contracts/tools`。它會提供 tool name、category、safety flag 與 discovery alias 的 machine-readable JSON manifest。
 - `result.content[0].text` 是精簡的 JSON fallback，會保留高訊號的 top-level scalar 欄位與集合計數摘要，而不是完整 JSON 的重複傳輸。只有 legacy text-only MCP client 需要在 `result.content[0].text` 取得完整 JSON 時，才設定 `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full`；error results include `result.content[0].annotations`。
 - 若 session 內已存在 buffered runtime event，部分 diagnostic 工具也可能在回應中 piggyback `pendingEvents`。若你需要明確且 deterministic 的 event read step，請改用 `drain_events`。
 

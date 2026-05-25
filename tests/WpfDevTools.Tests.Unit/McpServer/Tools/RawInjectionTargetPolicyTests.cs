@@ -121,6 +121,21 @@ public sealed class RawInjectionTargetPolicyTests
         normalized.Should().BeFalse();
     }
 
+    [Fact]
+    public void Authorize_WhenPhysicalResolverCannotResolveTargetPath_ShouldFailClosed()
+    {
+        const string targetPath = @"C:\Allowed\Target.exe";
+
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            CreateProcessInfo(targetPath),
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: targetPath,
+            tryResolvePhysicalPath: _ => null);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("local absolute path");
+    }
+
     private static WpfProcessInfo CreateProcessInfo(string executablePath)
     {
         return new WpfProcessInfo

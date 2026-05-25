@@ -195,31 +195,42 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
         EnsureDummyBootstrapperExists();
 
         var processId = NextSyntheticProcessId();
-        const string executablePath = @"C:\ExternalApps\ThirdParty\AllowedApp.exe";
-        using var allowlistScope = new EnvironmentVariableScope(
-            McpServerConfiguration.RawInjectionAllowedTargetsEnvVar,
-            executablePath);
-        var injector = new FakeProcessInjector
+        var targetDirectory = Directory.CreateTempSubdirectory("wpf-devtools-allowed-target-");
+        var executablePath = Path.Combine(targetDirectory.FullName, "AllowedApp.exe");
+        File.WriteAllBytes(executablePath, []);
+        File.WriteAllText(Path.Combine(targetDirectory.FullName, "AllowedApp.runtimeconfig.json"), "{}");
+
+        try
         {
-            ShouldFailInjection = true,
-            InjectionErrorMessage = "Expected downstream injection failure",
-            FailedError = InjectionError.BootstrapFailed
-        };
-        var tool = new ConnectTool(
-            new SessionManager(),
-            injector,
-            new FakeProcessDetector(executablePath: executablePath),
-            _ => { },
-            () => false,
-            targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
+            using var allowlistScope = new EnvironmentVariableScope(
+                McpServerConfiguration.RawInjectionAllowedTargetsEnvVar,
+                executablePath);
+            var injector = new FakeProcessInjector
+            {
+                ShouldFailInjection = true,
+                InjectionErrorMessage = "Expected downstream injection failure",
+                FailedError = InjectionError.BootstrapFailed
+            };
+            var tool = new ConnectTool(
+                new SessionManager(),
+                injector,
+                new FakeProcessDetector(executablePath: executablePath),
+                _ => { },
+                () => false,
+                targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 
-        var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
+            var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
 
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("errorCode").GetString().Should().Be("BootstrapFailed");
-        resultJson.GetProperty("error").GetString().Should().Contain("Bootstrap failed");
-        injector.InjectWithBootstrapCallCount.Should().Be(1);
+            var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+            resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+            resultJson.GetProperty("errorCode").GetString().Should().Be("BootstrapFailed");
+            resultJson.GetProperty("error").GetString().Should().Contain("Bootstrap failed");
+            injector.InjectWithBootstrapCallCount.Should().Be(1);
+        }
+        finally
+        {
+            targetDirectory.Delete(recursive: true);
+        }
     }
 
     [Fact]

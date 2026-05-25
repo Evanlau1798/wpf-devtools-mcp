@@ -204,14 +204,12 @@ internal static class RawInjectionTargetPolicy
             }
 
             var physicalPathResolution = resolvePhysicalPath(fullPath);
-            if (physicalPathResolution.IsRejected)
+            if (physicalPathResolution.IsRejected || !physicalPathResolution.IsResolved)
             {
                 return false;
             }
 
-            var resolvedPath = physicalPathResolution.IsResolved
-                ? physicalPathResolution.Path
-                : fullPath;
+            var resolvedPath = physicalPathResolution.Path;
             if (string.IsNullOrWhiteSpace(resolvedPath))
             {
                 return false;

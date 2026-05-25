@@ -411,6 +411,12 @@ public sealed class DocfxCapabilityDocumentationTests
             "tool overview pages should point clients at the machine-readable response contract resource for stable payload details beyond SDK outputSchema");
         content.Should().Contain("wpf://contracts/tools",
             "tool overview pages should point clients at the canonical tool manifest for machine-readable tool surface details");
+        content.Should().Contain("capability tag",
+            "tool overview pages should describe a field that the canonical tool manifest actually publishes");
+        content.Should().Contain("parameter metadata",
+            "tool overview pages should describe a field that the canonical tool manifest actually publishes");
+        content.Should().NotContain("discovery alias",
+            "tool overview pages should not promise alias metadata that the canonical manifest does not publish");
         content.Should().Contain("JSON",
             "tool overview pages should clarify that the fallback contract surface is machine-readable JSON rather than prose alone");
     }

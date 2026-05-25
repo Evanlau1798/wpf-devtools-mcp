@@ -107,6 +107,8 @@ Recovery path: if `isReady` is false, address the listed blockers first. Common 
 
 Purpose: capture restorable runtime state before destructive testing or multi-step debugging.
 
+Policy gate: destructive. Set `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=1` before using this tool.
+
 Parameters:
 
 - `processId` optional after an active process is selected.
@@ -170,6 +172,8 @@ Recovery path: if the diff shows unintended changes, call `restore_state_snapsho
 ## `restore_state_snapshot`
 
 Purpose: restore a retained state snapshot after temporary runtime changes.
+
+Policy gate: destructive. Set `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=1` before using this tool.
 
 Parameters:
 

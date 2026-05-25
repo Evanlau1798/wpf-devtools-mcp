@@ -81,6 +81,22 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/reference/tools/scene-and-state.md", "capture_state_snapshot")]
+    [InlineData("docfx/reference/tools/scene-and-state.md", "restore_state_snapshot")]
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md", "capture_state_snapshot")]
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md", "restore_state_snapshot")]
+    public void SceneAndStateReferencePages_ShouldDocumentDestructiveGateForSnapshotTools(
+        string relativePath,
+        string toolName)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var section = ExtractMarkdownSection(content, $"## `{toolName}`");
+
+        section.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS");
+        section.Should().Contain("destructive");
+    }
+
+    [Theory]
     [InlineData(
         "docfx/architecture/ipc.md",
         "event push from inspector to server",
@@ -410,6 +426,15 @@ public sealed class DocfxCapabilityDocumentationTests
             .Cast<string>()
             .Order(StringComparer.Ordinal)
             .ToArray();
+    }
+
+    private static string ExtractMarkdownSection(string content, string heading)
+    {
+        var start = content.IndexOf(heading, StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0);
+
+        var nextHeading = content.IndexOf("\n## ", start + heading.Length, StringComparison.Ordinal);
+        return nextHeading < 0 ? content[start..] : content[start..nextHeading];
     }
 
     private static IEnumerable<string> EnumerateDocfxContractMarkdownFiles()

@@ -107,6 +107,8 @@
 
 用途：在 destructive testing 或多步驟 debugging 前，捕捉可復原的 runtime state。
 
+Policy gate：destructive。使用此工具前，需設定 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=1`。
+
 參數：
 
 - `processId`：選好 active process 後可省略。
@@ -170,6 +172,8 @@ Policy gate：destructive。Server 必須允許 destructive tools，此工具才
 ## `restore_state_snapshot`
 
 用途：在暫時 runtime changes 後，還原仍被保留的 state snapshot。
+
+Policy gate：destructive。使用此工具前，需設定 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=1`。
 
 參數：
 

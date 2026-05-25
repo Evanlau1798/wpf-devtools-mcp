@@ -48,9 +48,12 @@ public sealed class CanonicalMcpToolManifestTests
 
         AssertTags(tools, "get_processes", "read-only", "process-discovery", "safe-first");
         AssertTags(tools, "connect", "destructive", "process-discovery", "requires-target");
+        AssertMissingTags(tools, "connect", "nested-mutation-supported");
         AssertTags(tools, "element_screenshot", "read-only", "screenshot", "requires-target");
         AssertTags(tools, "get_viewmodel", "read-only", "viewmodel", "requires-target");
         AssertTags(tools, "override_style_setter", "destructive", "nested-mutation-supported", "requires-target");
+        AssertTags(tools, "wait_for_dp_change_after_mutation", "destructive", "accepts-mutation-step", "requires-target");
+        AssertMissingTags(tools, "wait_for_dp_change_after_mutation", "nested-mutation-supported");
     }
 
     private static (string Name, McpServerToolAttribute Attribute)[] GetRegisteredTools()
@@ -69,17 +72,32 @@ public sealed class CanonicalMcpToolManifestTests
 
     private static void AssertTags(JsonElement[] tools, string toolName, params string[] expectedTags)
     {
-        var tool = tools.Single(entry => GetName(entry) == toolName);
-        var tags = tool.GetProperty("capabilityTags")
-            .EnumerateArray()
-            .Select(entry => entry.GetString())
-            .Where(entry => entry is not null)
-            .Cast<string>()
-            .ToArray();
+        var tags = GetTags(tools, toolName);
 
         foreach (var expectedTag in expectedTags)
         {
             tags.Should().Contain(expectedTag);
         }
+    }
+
+    private static void AssertMissingTags(JsonElement[] tools, string toolName, params string[] unexpectedTags)
+    {
+        var tags = GetTags(tools, toolName);
+
+        foreach (var unexpectedTag in unexpectedTags)
+        {
+            tags.Should().NotContain(unexpectedTag);
+        }
+    }
+
+    private static string[] GetTags(JsonElement[] tools, string toolName)
+    {
+        var tool = tools.Single(entry => GetName(entry) == toolName);
+        return tool.GetProperty("capabilityTags")
+            .EnumerateArray()
+            .Select(entry => entry.GetString())
+            .Where(entry => entry is not null)
+            .Cast<string>()
+            .ToArray();
     }
 }

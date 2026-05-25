@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Mcp.Server.McpResources;
 
@@ -122,7 +123,16 @@ internal static class CanonicalMcpToolManifest
         if (attribute.Destructive)
         {
             tags.Add("destructive");
+        }
+
+        if (BatchMutationCatalog.SupportedTools.Contains(attribute.Name ?? string.Empty))
+        {
             tags.Add("nested-mutation-supported");
+        }
+
+        if (string.Equals(attribute.Name, "wait_for_dp_change_after_mutation", StringComparison.Ordinal))
+        {
+            tags.Add("accepts-mutation-step");
         }
 
         if (!string.Equals(attribute.Name, "get_processes", StringComparison.Ordinal))

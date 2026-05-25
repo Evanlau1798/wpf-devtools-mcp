@@ -95,7 +95,7 @@ public static partial class CapabilityResources
 
         Use this compact path when the client is using progressive tool discovery and should keep only the highest-value WPF tools in the initial context.
 
-        1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed exact local absolute executable path.
+        1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed exact local absolute executable path and `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` is set for scene, binding, DP, and state reads.
         2. Call `connect()`.
         3. Call `get_ui_summary(depthMode="semantic", summaryOnly=true)` for first scene context.
         4. When you have a concrete `elementId`, call `get_element_snapshot(elementId)`.

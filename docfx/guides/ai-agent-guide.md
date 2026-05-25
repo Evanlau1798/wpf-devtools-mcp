@@ -5,7 +5,7 @@ This server is explicitly intended for AI-assisted WPF debugging and testing. Th
 ## Recommended workflow
 
 1. Discover tools and schemas.
-2. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact local absolute executable path; unset or malformed values fail closed before `connect` attaches.
+2. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact local absolute executable path, and set `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` before scene, binding, DP, or state reads; unset or malformed values fail closed before `connect` attaches.
 3. Call `connect()` first and let the server auto-discover the target when there is only one visible WPF app.
 4. If auto-discovery returns multiple candidates, call `get_processes(windowFilter)` and retry `connect(processId)`.
 5. Use directly executable scene-level tools such as `get_ui_summary` or `get_form_summary` before falling back to tree-heavy inspection.
@@ -144,25 +144,25 @@ When a workflow needs multiple ordered live mutations, prefer `batch_mutate` ove
 ### Scene-first prompt
 
 ```text
-Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the WPF test app's exact local absolute executable path; unset or malformed values fail closed before connect() attaches. Then connect with connect(), get_ui_summary(depthMode: "semantic"), and inspect the visual tree only if the summary is insufficient.
+Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the WPF test app's exact local absolute executable path and WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true is set for scene and tree reads; unset or malformed values fail closed before connect() attaches. Then connect with connect(), get_ui_summary(depthMode: "semantic"), and inspect the visual tree only if the summary is insufficient.
 ```
 
 ### Binding triage prompt
 
 ```text
-Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact local absolute executable path; unset or malformed values fail closed before connect() attaches. Then connect with connect(), inspect binding errors with compact defaults, use get_affected_elements or get_element_snapshot(elementId) after identifying a concrete failing element, and explain which bindings are failing and why. Do not modify the UI unless a fix requires it.
+Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact local absolute executable path and WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true is set for binding and element reads; unset or malformed values fail closed before connect() attaches. Then connect with connect(), inspect binding errors with compact defaults, use get_affected_elements or get_element_snapshot(elementId) after identifying a concrete failing element, and explain which bindings are failing and why. Do not modify the UI unless a fix requires it.
 ```
 
 ### Safe interaction prompt
 
 ```text
-Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact local absolute executable path and WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true is set before clicking; unset or malformed values fail closed before connect() attaches. Then connect with connect(), get_form_summary or get_interaction_readiness for the target form, find the Save button, confirm its command metadata, click it, drain buffered runtime events if present, and report the state diff.
+Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact local absolute executable path, WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true is set for form, event, and state reads, and WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true is set before clicking; unset or malformed values fail closed before connect() attaches. Then connect with connect(), get_form_summary or get_interaction_readiness for the target form, find the Save button, confirm its command metadata, click it, drain buffered runtime events if present, and report the state diff.
 ```
 
 ### Snapshot-safe mutation prompt
 
 ```text
-Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact local absolute executable path and WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true is set before mutation; unset or malformed values fail closed before connect() attaches. Then connect with connect(), capture a state snapshot, locate the target control, apply one UI mutation or an ordered batch_mutate sequence, verify the result with get_state_diff, and restore the snapshot before finishing.
+Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact local absolute executable path, WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true is set for snapshot, state, and previous-value reads, and WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true is set before mutation; unset or malformed values fail closed before connect() attaches. Then connect with connect(), capture a state snapshot, locate the target control, apply one UI mutation or an ordered batch_mutate sequence, verify the result with get_state_diff, and restore the snapshot before finishing.
 ```
 
 ## Anti-patterns
@@ -178,7 +178,7 @@ Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the target WPF app's exact loca
 
 For end-to-end automated validation, use this order whenever possible:
 
-1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the target's exact local absolute executable path; unset or malformed values fail closed before `connect()` attaches
+1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the target's exact local absolute executable path and set `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` before scene, binding, event, DP, or state reads; unset or malformed values fail closed before `connect()` attaches
 2. `connect()`
 3. If needed, `get_processes(windowFilter)` and `connect(processId)`
 4. `get_ui_summary` or `get_form_summary`

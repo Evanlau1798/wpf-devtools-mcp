@@ -38,6 +38,7 @@ public sealed class McpProgressiveDiscoveryBudgetTests
             "get_element_snapshot",
             "get_bindings",
             "get_form_summary",
+            "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true",
             "wpf://contracts/tools");
         ServerInstructions.Value.Should().Contain("wpf://workflows/starter-path");
     }

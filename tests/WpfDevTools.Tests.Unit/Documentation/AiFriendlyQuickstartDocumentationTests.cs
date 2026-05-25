@@ -116,6 +116,36 @@ public sealed class AiFriendlyQuickstartDocumentationTests
         traditionalChineseGuide.Should().Contain("不適用時機");
     }
 
+    [Theory]
+    [InlineData(
+        "docfx/guides/ai-agent-guide.md",
+        "## Prompt patterns that work well",
+        "## Anti-patterns",
+        "## Golden sequence for automation",
+        "This keeps failures")]
+    [InlineData(
+        "docfx/zh-tw/guides/ai-agent-guide.md",
+        "## 容易成功的提示模式",
+        "## 常見反模式",
+        "## 自動化的黃金順序",
+        "這能讓")]
+    public void AiGuideSensitiveReadWorkflows_ShouldDeclareSensitiveReadGate(
+        string relativePath,
+        string promptSectionStart,
+        string promptSectionEnd,
+        string goldenSectionStart,
+        string goldenSectionEnd)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var promptSection = GetSection(content, promptSectionStart, promptSectionEnd);
+        var goldenSection = GetSection(content, goldenSectionStart, goldenSectionEnd);
+
+        promptSection.Split("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true").Length.Should().BeGreaterThanOrEqualTo(5,
+            $"{relativePath} prompt examples use scene, binding, form, state, or runtime-event reads and should state the sensitive-read gate in each example");
+        goldenSection.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true",
+            $"{relativePath} automation sequence should state the sensitive-read gate before read-heavy scene diagnostics");
+    }
+
     [Fact]
     public void PublicInstallerEntrypoints_ShouldPreferReviewedOnlineInstaller_NotRawMasterScript()
     {
@@ -150,4 +180,15 @@ public sealed class AiFriendlyQuickstartDocumentationTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string GetSection(string content, string startMarker, string endMarker)
+    {
+        var start = content.IndexOf(startMarker, StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0, $"section marker '{startMarker}' should exist");
+
+        var end = content.IndexOf(endMarker, start + startMarker.Length, StringComparison.Ordinal);
+        end.Should().BeGreaterThan(start, $"section marker '{endMarker}' should exist after '{startMarker}'");
+
+        return content[start..end];
+    }
 }

@@ -177,17 +177,26 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
-    public void CiWorkflow_ShouldOnlyRunHostedRuntimeSmokeForX64Packages()
+    public void CiWorkflow_ShouldRunHostedRuntimeSmokeForX64AndX86Packages()
     {
         var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+        var releasePackagingSmokeJob = GetWorkflowJobBlock(lines, "release-packaging-smoke");
+        var buildAndTestJob = GetWorkflowJobBlock(lines, "build-and-test");
+        var content = string.Join(Environment.NewLine, releasePackagingSmokeJob);
 
         var packageRuntimeSmoke = GetNamedStepBlock(lines, "Start installed package runtime smoke test");
         var onlineRuntimeSmoke = GetNamedStepBlock(lines, "Start online-installed runtime smoke test");
 
-        packageRuntimeSmoke.Should().Contain("      if: matrix.architecture == 'x64'",
-            "hosted x64 runners do not include the x86 dotnet host needed to launch the x86 packaged server");
-        onlineRuntimeSmoke.Should().Contain("      if: matrix.architecture == 'x64'",
-            "x86 package layout is still install/uninstall tested, but runtime execution needs a matching host");
+        content.Should().Contain("Setup .NET x86 SDK",
+            "x86 package runtime smoke needs an x86 .NET host before launching the x86 packaged server");
+        buildAndTestJob.Should().NotContain("    - name: Setup .NET x86 SDK",
+            "x86 runtime smoke setup belongs to the release packaging smoke job, not the build-and-test platform matrix");
+        content.Should().Contain("architecture: x86",
+            "actions/setup-dotnet supports architecture-specific SDK installation for the x86 package smoke lane");
+        packageRuntimeSmoke.Should().NotContain("      if: matrix.architecture == 'x64'",
+            "hosted package runtime smoke should cover both x64 and x86 matrix entries");
+        onlineRuntimeSmoke.Should().NotContain("      if: matrix.architecture == 'x64'",
+            "online-installed runtime smoke should cover both x64 and x86 matrix entries");
     }
 
     [Fact]
@@ -405,6 +414,23 @@ public class ReleasePackagingWorkflowTests
         start.Should().BeGreaterThanOrEqualTo(0, $"workflow should define step {stepName}");
 
         var end = Array.FindIndex(lines, start + 1, line => line.StartsWith("    - name: ", StringComparison.Ordinal));
+        if (end < 0)
+        {
+            end = lines.Length;
+        }
+
+        return lines[start..end];
+    }
+
+    private static string[] GetWorkflowJobBlock(string[] lines, string jobName)
+    {
+        var start = Array.FindIndex(lines, line => line == $"  {jobName}:");
+        start.Should().BeGreaterThanOrEqualTo(0, $"workflow should define job {jobName}");
+
+        var end = Array.FindIndex(lines, start + 1, line =>
+            line.StartsWith("  ", StringComparison.Ordinal) &&
+            !line.StartsWith("    ", StringComparison.Ordinal) &&
+            line.TrimEnd().EndsWith(':'));
         if (end < 0)
         {
             end = lines.Length;

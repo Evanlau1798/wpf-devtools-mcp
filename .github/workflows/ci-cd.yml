@@ -188,6 +188,13 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
+    - name: Setup .NET x86 SDK
+      if: matrix.architecture == 'x86'
+      uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+      with:
+        dotnet-version: '8.0.x'
+        architecture: x86
+
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
 
@@ -218,7 +225,6 @@ jobs:
         . (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
 
     - name: Start installed package runtime smoke test
-      if: matrix.architecture == 'x64'
       shell: pwsh
       run: |
         $serverPath = Join-Path (Resolve-Path './tmp-release-install-smoke').Path '${{ matrix.architecture }}\current\bin\wpf-devtools-${{ matrix.architecture }}.exe'
@@ -245,7 +251,6 @@ jobs:
         . ./scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory 'artifacts/release' -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
 
     - name: Start online-installed runtime smoke test
-      if: matrix.architecture == 'x64'
       shell: pwsh
       run: |
         $serverPath = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path '${{ matrix.architecture }}\current\bin\wpf-devtools-${{ matrix.architecture }}.exe'

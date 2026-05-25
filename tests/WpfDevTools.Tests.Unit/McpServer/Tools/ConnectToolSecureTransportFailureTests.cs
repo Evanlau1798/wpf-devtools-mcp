@@ -181,6 +181,56 @@ public partial class ConnectToolTests
     }
 
     [Fact]
+    public async Task Execute_WithExistingSecureHostAndMismatchedCertificateDirectory_ShouldReturnSecurityErrorWithoutInjection()
+    {
+        EnsureDummyBootstrapperExists();
+
+        const int processId = 24684;
+        var hostCertDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-host-cert-mismatch-{Guid.NewGuid():N}");
+        var clientCertDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-client-cert-mismatch-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(hostCertDirectory);
+        Directory.CreateDirectory(clientCertDirectory);
+
+        var sharedSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+        using var hostAuthManager = new AuthenticationManager(() => sharedSecret);
+        using var clientAuthManager = new AuthenticationManager(() => sharedSecret);
+        var hostCertificateManager = new CertificateManager(hostCertDirectory);
+        var clientCertificateManager = new CertificateManager(clientCertDirectory);
+        using var host = new InspectorHost(processId, hostAuthManager, hostCertificateManager);
+        host.Start();
+
+        try
+        {
+            using var sessionManager = new SessionManager(
+                authManager: clientAuthManager,
+                certManager: clientCertificateManager);
+            var injector = new FakeProcessInjector();
+            var tool = CreateTool(sessionManager: sessionManager, injector: injector);
+
+            var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
+
+            var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+            resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+            resultJson.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+            injector.InjectWithBootstrapCallCount.Should().Be(0,
+                "an SDK-host with a different certificate directory must not be reused or followed by raw injection");
+        }
+        finally
+        {
+            host.Stop();
+            if (Directory.Exists(hostCertDirectory))
+            {
+                Directory.Delete(hostCertDirectory, recursive: true);
+            }
+            if (Directory.Exists(clientCertDirectory))
+            {
+                Directory.Delete(clientCertDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task Execute_WhenSecureTransportArtifactsCannotBeCreated_ShouldReturnClearError()
     {
         var certDirectory = Path.GetTempFileName();

@@ -39,7 +39,8 @@ function Read-McpResponse {
         [Parameter(Mandatory)] [System.Diagnostics.Process]$Process,
         [Parameter(Mandatory)] [string]$OperationName,
         [Parameter(Mandatory)] [int]$ExpectedResponseId,
-        [Parameter(Mandatory)] [int]$TimeoutMilliseconds
+        [Parameter(Mandatory)] [int]$TimeoutMilliseconds,
+        [bool]$AllowError = $false
     )
 
     $responseTask = $Process.StandardOutput.ReadLineAsync()
@@ -60,7 +61,8 @@ function Read-McpResponse {
         $response = $responseLine | ConvertFrom-Json
     }
     catch {
-        throw "Packaged server $OperationName returned malformed JSON-RPC: $responseLine. Error: $($_.Exception.Message)"
+        $stderr = Get-ProcessDiagnostics -Process $Process
+        throw "Packaged server $OperationName returned stdout contamination before JSON-RPC response: $responseLine. Error: $($_.Exception.Message). Stderr: $stderr"
     }
 
     $jsonRpcVersion = Get-JsonProperty -Object $response -Name 'jsonrpc'
@@ -78,7 +80,7 @@ function Read-McpResponse {
     }
 
     $errorPayload = Get-JsonProperty -Object $response -Name 'error'
-    if ($null -ne $errorPayload) {
+    if ($null -ne $errorPayload -and -not $AllowError) {
         throw "Packaged server $OperationName returned an error: $($errorPayload | ConvertTo-Json -Compress -Depth 8)"
     }
 
@@ -91,7 +93,8 @@ function Invoke-McpRequest {
         [Parameter(Mandatory)] [int]$Id,
         [Parameter(Mandatory)] [string]$Method,
         [Parameter(Mandatory)] [object]$Params,
-        [Parameter(Mandatory)] [int]$TimeoutMilliseconds
+        [Parameter(Mandatory)] [int]$TimeoutMilliseconds,
+        [switch]$AllowError
     )
 
     $request = @{
@@ -104,7 +107,7 @@ function Invoke-McpRequest {
     $Process.StandardInput.WriteLine($request)
     $Process.StandardInput.Flush()
 
-    return Read-McpResponse -Process $Process -OperationName $Method -ExpectedResponseId $Id -TimeoutMilliseconds $TimeoutMilliseconds
+    return Read-McpResponse -Process $Process -OperationName $Method -ExpectedResponseId $Id -TimeoutMilliseconds $TimeoutMilliseconds -AllowError:$AllowError
 }
 
 function Send-McpNotification {
@@ -183,6 +186,33 @@ function Invoke-McpTool {
     }
 
     return Get-McpToolResult -ToolCallResponse $response -ToolName $Name
+}
+
+function Invoke-FailingMcpTool {
+    param(
+        [Parameter(Mandatory)] [System.Diagnostics.Process]$Process,
+        [Parameter(Mandatory)] [int]$Id,
+        [Parameter(Mandatory)] [string]$Name,
+        [Parameter(Mandatory)] [hashtable]$Arguments,
+        [Parameter(Mandatory)] [int]$TimeoutMilliseconds
+    )
+
+    $response = Invoke-McpRequest -Process $Process -Id $Id -Method 'tools/call' -TimeoutMilliseconds $TimeoutMilliseconds -AllowError -Params @{
+        name = $Name
+        arguments = $Arguments
+    }
+
+    $jsonRpcError = Get-JsonProperty -Object $response -Name 'error'
+    if ($null -ne $jsonRpcError) {
+        return
+    }
+
+    $result = Get-JsonProperty -Object $response -Name 'result'
+    if ($null -ne $result -and $result.isError -eq $true) {
+        return
+    }
+
+    throw "Packaged server $Name failure probe unexpectedly succeeded: $($response | ConvertTo-Json -Compress -Depth 8)"
 }
 
 function Resolve-SmokeElementId {
@@ -274,39 +304,44 @@ try {
         throw 'Packaged server resources/read did not return the expected capabilities resource content.'
     }
 
-    Invoke-McpTool -Process $process -Id 4 -Name 'get_processes' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+    Invoke-FailingMcpTool -Process $process -Id 4 -Name 'connect' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+        processId = -1
+    }
+
+    # Any non-JSON stdout emitted after this failure is caught by the next successful request.
+    Invoke-McpTool -Process $process -Id 5 -Name 'get_processes' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
         windowFilter = 'visible'
     } | Out-Null
 
     if ($TargetProcessId -gt 0) {
-        Invoke-McpTool -Process $process -Id 5 -Name 'connect' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+        Invoke-McpTool -Process $process -Id 6 -Name 'connect' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
             processId = $TargetProcessId
         } | Out-Null
 
-        Invoke-McpTool -Process $process -Id 6 -Name 'ping' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+        Invoke-McpTool -Process $process -Id 7 -Name 'ping' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
             processId = $TargetProcessId
         } | Out-Null
 
-        Invoke-McpTool -Process $process -Id 7 -Name 'get_ui_summary' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+        Invoke-McpTool -Process $process -Id 8 -Name 'get_ui_summary' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
             processId = $TargetProcessId
             depthMode = 'semantic'
         } | Out-Null
 
         $textBoxElementId = Resolve-SmokeElementId `
             -Process $process `
-            -Id 8 `
+            -Id 9 `
             -TargetProcessId $TargetProcessId `
             -ElementName 'NameTextBox' `
             -TimeoutMilliseconds $RequestTimeoutMilliseconds
 
-        $beforeValueSource = Invoke-McpTool -Process $process -Id 9 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+        $beforeValueSource = Invoke-McpTool -Process $process -Id 10 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
             processId = $TargetProcessId
             elementId = $textBoxElementId
             propertyName = 'Text'
         }
         $baselineValue = Get-JsonProperty -Object $beforeValueSource -Name 'currentValue'
 
-        $snapshot = Invoke-McpTool -Process $process -Id 10 -Name 'capture_state_snapshot' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+        $snapshot = Invoke-McpTool -Process $process -Id 11 -Name 'capture_state_snapshot' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
             processId = $TargetProcessId
             elementId = $textBoxElementId
             propertyNames = @('Text')
@@ -318,14 +353,14 @@ try {
 
         $overrideValue = "Packaged runtime smoke $([System.Guid]::NewGuid().ToString('N'))"
         try {
-            Invoke-McpTool -Process $process -Id 11 -Name 'set_dp_value' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+            Invoke-McpTool -Process $process -Id 12 -Name 'set_dp_value' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
                 processId = $TargetProcessId
                 elementId = $textBoxElementId
                 propertyName = 'Text'
                 value = $overrideValue
             } | Out-Null
 
-            $mutatedValueSource = Invoke-McpTool -Process $process -Id 12 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+            $mutatedValueSource = Invoke-McpTool -Process $process -Id 13 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
                 processId = $TargetProcessId
                 elementId = $textBoxElementId
                 propertyName = 'Text'
@@ -336,13 +371,13 @@ try {
             }
         }
         finally {
-            Invoke-McpTool -Process $process -Id 13 -Name 'restore_state_snapshot' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+            Invoke-McpTool -Process $process -Id 14 -Name 'restore_state_snapshot' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
                 processId = $TargetProcessId
                 snapshotId = $snapshotId
             } | Out-Null
         }
 
-        $restoredValueSource = Invoke-McpTool -Process $process -Id 14 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+        $restoredValueSource = Invoke-McpTool -Process $process -Id 15 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
             processId = $TargetProcessId
             elementId = $textBoxElementId
             propertyName = 'Text'

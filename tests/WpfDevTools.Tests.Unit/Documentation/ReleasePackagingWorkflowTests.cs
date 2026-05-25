@@ -249,7 +249,7 @@ public class ReleasePackagingWorkflowTests
             "packaged runtime smoke should validate resource serving from the packaged executable");
         content.Should().Contain("wpf://capabilities",
             "capability resource reads are safe and do not require a target process");
-        content.Should().Contain("Invoke-McpTool -Process $process -Id 4 -Name 'get_processes'",
+        content.Should().Contain("Invoke-McpTool -Process $process -Id 5 -Name 'get_processes'",
             "packaged runtime smoke should execute at least one safe tool call");
         content.Should().Contain("get_processes",
             "get_processes is a safe process-discovery tool that does not mutate target UI state");
@@ -278,6 +278,32 @@ public class ReleasePackagingWorkflowTests
         initializedIndex.Should().BeLessThan(toolsListIndex);
         toolsListIndex.Should().BeLessThan(resourcesReadIndex);
         resourcesReadIndex.Should().BeLessThan(toolCallIndex);
+    }
+
+    [Fact]
+    public void PackagedServerRuntimeSmokeScript_ShouldGuardAgainstStdoutContamination()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));
+
+        content.Should().Contain("stdout contamination",
+            "packaged runtime smoke should distinguish MCP protocol pollution from ordinary JSON-RPC errors");
+        content.Should().Contain("Invoke-FailingMcpTool -Process $process -Id 4 -Name 'connect'",
+            "the smoke lane should include one deterministic failing tool call before continuing with a successful request");
+        content.Should().Contain("-AllowError:$AllowError",
+            "the JSON-RPC reader should support expected error responses without treating them as stdout contamination");
+        content.Should().Contain("Any non-JSON stdout emitted after this failure is caught by the next successful request.",
+            "the successful request after the failing probe is the after-failure contamination guard");
+
+        var initializeIndex = content.IndexOf("-Method 'initialize'", StringComparison.Ordinal);
+        var toolsListIndex = content.IndexOf("-Method 'tools/list'", StringComparison.Ordinal);
+        var resourcesReadIndex = content.IndexOf("-Method 'resources/read'", StringComparison.Ordinal);
+        var failingToolIndex = content.IndexOf("Invoke-FailingMcpTool -Process $process -Id 4 -Name 'connect'", StringComparison.Ordinal);
+        var safeToolIndex = content.IndexOf("Invoke-McpTool -Process $process -Id 5 -Name 'get_processes'", StringComparison.Ordinal);
+
+        initializeIndex.Should().BeLessThan(toolsListIndex);
+        toolsListIndex.Should().BeLessThan(resourcesReadIndex);
+        resourcesReadIndex.Should().BeLessThan(failingToolIndex);
+        failingToolIndex.Should().BeLessThan(safeToolIndex);
     }
 
     [Fact]

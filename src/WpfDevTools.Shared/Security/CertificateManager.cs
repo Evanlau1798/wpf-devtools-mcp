@@ -195,16 +195,38 @@ public sealed class CertificateManager
 
     private static X509Certificate2 LoadCertificateFromFile(string certPath, string password)
     {
-        const X509KeyStorageFlags preferredFlags = X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet;
+        CryptographicException? lastException = null;
+        foreach (var keyStorageFlags in GetNonExportableKeyStoragePreferences())
+        {
+            try
+            {
+                return new X509Certificate2(certPath, password, keyStorageFlags);
+            }
+            catch (CryptographicException ex)
+            {
+                lastException = ex;
+            }
+        }
 
-        try
-        {
-            return new X509Certificate2(certPath, password, preferredFlags);
-        }
-        catch (CryptographicException)
-        {
-            return new X509Certificate2(certPath, password, X509KeyStorageFlags.Exportable);
-        }
+        throw lastException ?? new CryptographicException("Certificate could not be loaded.");
+    }
+
+    private static X509KeyStorageFlags[] GetNonExportableKeyStoragePreferences()
+    {
+#if NET48
+        return
+        [
+            X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet,
+            X509KeyStorageFlags.UserKeySet
+        ];
+#else
+        return
+        [
+            X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet,
+            X509KeyStorageFlags.UserKeySet,
+            X509KeyStorageFlags.EphemeralKeySet
+        ];
+#endif
     }
 
     private static string GenerateRandomPassword()

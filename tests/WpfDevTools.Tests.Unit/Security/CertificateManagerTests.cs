@@ -125,6 +125,17 @@ public class CertificateManagerTests : IDisposable
     }
 
     [Fact]
+    public void GetOrCreateCertificate_ShouldLoadPrivateKeyAsNonExportable()
+    {
+        var manager = new CertificateManager(_tempDir);
+
+        using var cert = manager.GetOrCreateCertificate();
+
+        var act = () => cert.Export(X509ContentType.Pfx, "new-export-password");
+        act.Should().Throw<CryptographicException>();
+    }
+
+    [Fact]
     public void GetOrCreateCertificate_ShouldHaveServerAuthEku()
     {
         // Arrange

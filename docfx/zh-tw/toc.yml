@@ -82,6 +82,8 @@
       href: architecture/adrs/adr-003-length-prefix-framing.md
     - name: ADR-005 Multi-Targeting Strategy
       href: architecture/adrs/adr-005-multi-targeting.md
+    - name: ADR-006 STDIO Session State
+      href: architecture/adrs/adr-006-stdio-session-state.md
 - name: 貢獻者
   items:
     - name: 貢獻指南

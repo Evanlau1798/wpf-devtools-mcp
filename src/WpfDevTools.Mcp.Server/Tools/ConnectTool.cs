@@ -366,7 +366,7 @@ public sealed partial class ConnectTool
 
         if (pipeConnectFailure != NamedPipeConnectFailure.None)
         {
-            if (allowFreshInjectionFallback && IsRejectedExistingHostFailure(pipeConnectFailure))
+            if (allowFreshInjectionFallback && IsFreshInjectionRecoverableExistingHostFailure(pipeConnectFailure))
             {
                 Trace.TraceWarning(
                     "ConnectTool rejected an existing Inspector host for process {0} with {1}; continuing with fresh injection because raw injection is allowlisted.",
@@ -381,11 +381,8 @@ public sealed partial class ConnectTool
         return ConnectOperationResult.ReusedExistingHost;
     }
 
-    private static bool IsRejectedExistingHostFailure(NamedPipeConnectFailure failure)
-        => failure is NamedPipeConnectFailure.AuthenticationFailed
-            or NamedPipeConnectFailure.SecureTransportFailed
-            or NamedPipeConnectFailure.ServerProcessMismatch
-            or NamedPipeConnectFailure.IncompatibleHost;
+    private static bool IsFreshInjectionRecoverableExistingHostFailure(NamedPipeConnectFailure failure)
+        => failure == NamedPipeConnectFailure.IncompatibleHost;
 
 
 

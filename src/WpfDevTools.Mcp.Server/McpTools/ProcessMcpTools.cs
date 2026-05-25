@@ -26,7 +26,7 @@ public static class ProcessMcpTools
         "DO NOT USE: As the default first step when connect() auto-discovery can already resolve the target, repeatedly in a loop (process list changes infrequently), or when connect(windowFilter='all') already expresses the broader auto-discovery scope you need.\n\n" +
         "WINDOW FILTERS: Omit windowFilter for the visible-only default; use windowFilter='all' for hidden/background windows; use windowFilter='foreground' for the active foreground WPF window.\n" +
         ToolDescriptionFragments.ContractGuidance +
-        "RESPONSE FIELDS: processes plus per-candidate processId, processName, windowTitle, runtime, requiresElevationToConnect, canConnectFromCurrentServer, and connectionWarning; redactedTargetCount and policyEnvVar report policy-denied targets without exposing their metadata.\n" +
+        "RESPONSE FIELDS: processes plus per-candidate processId, processName, windowTitle, runtime, requiresElevationToConnect, canConnectFromCurrentServer, and connectionWarning; redactedTargetCount and policyEnvVar report policy-denied targets without exposing their metadata. redactedTargetCount is counted before nameFilter so denied target names are never used as a filtering side channel.\n" +
         "REQUEST OPTIONS: nameFilter narrows candidate names; windowFilter='foreground' scopes enumeration to the active WPF window.\n\n" +
         "EXAMPLES:\n" +
         "- { }\n" +

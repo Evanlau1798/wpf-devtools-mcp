@@ -61,6 +61,8 @@ public sealed class McpToolContractDescriptionTests
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "allowlisted targets")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "redactedTargetCount")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "policyEnvVar")]
+    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "counted before nameFilter")]
+    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "filtering side channel")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "suggestedAction")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "requiresElevationToConnect")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "autoDiscovered")]

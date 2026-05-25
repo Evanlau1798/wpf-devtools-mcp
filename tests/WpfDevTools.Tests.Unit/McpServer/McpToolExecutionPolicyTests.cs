@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentAssertions;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpResources;
 using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
@@ -186,6 +187,29 @@ public sealed class McpToolExecutionPolicyTests
         }
     }
 
+    [Theory]
+    [InlineData("screenshot", "screenshots")]
+    [InlineData("viewmodel", "viewmodel-inspection")]
+    public void PolicyGates_ShouldCoverCanonicalCapabilityTags(string capabilityTag, string expectedPolicyCategory)
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "true",
+            allowScreenshots: "false",
+            allowViewModelInspection: "false");
+        var taggedTools = GetManifestToolNamesWithTag(capabilityTag);
+
+        taggedTools.Should().NotBeEmpty($"{capabilityTag} should be represented in the canonical manifest");
+
+        foreach (var toolName in taggedTools)
+        {
+            var decision = policy.EvaluateToolCall(toolName);
+
+            decision.IsAllowed.Should().BeFalse(
+                $"{toolName} is tagged {capabilityTag} in the canonical manifest and should be policy gated");
+            decision.PolicyCategory.Should().Be(expectedPolicyCategory);
+        }
+    }
+
     private static IReadOnlyCollection<string> GetExplicitDestructiveMcpToolNames()
         => typeof(ServerInstructions).Assembly.GetTypes()
             .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
@@ -206,4 +230,17 @@ public sealed class McpToolExecutionPolicyTests
         => attributeData?.NamedArguments.Any(argument =>
             string.Equals(argument.MemberName, "Destructive", StringComparison.Ordinal)
             && argument.TypedValue.Value is true) == true;
+
+    private static string[] GetManifestToolNamesWithTag(string capabilityTag)
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
+        return document.RootElement.GetProperty("tools")
+            .EnumerateArray()
+            .Where(tool => tool.GetProperty("capabilityTags").EnumerateArray()
+                .Any(tag => string.Equals(tag.GetString(), capabilityTag, StringComparison.Ordinal)))
+            .Select(tool => tool.GetProperty("name").GetString())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
+            .ToArray();
+    }
 }

@@ -8,6 +8,24 @@ param(
     [Parameter(Mandatory)] [string]$Password
 )
 
+function ConvertTo-ReadOnlySecureString {
+    param([Parameter(Mandatory)] [string]$PlainText)
+
+    $secureString = New-Object System.Security.SecureString
+    $chars = $PlainText.ToCharArray()
+    try {
+        foreach ($char in $chars) {
+            $secureString.AppendChar($char)
+        }
+
+        $secureString.MakeReadOnly()
+        return $secureString
+    }
+    finally {
+        [Array]::Clear($chars, 0, $chars.Length)
+    }
+}
+
 function Initialize-CertificateProvider {
     # Hosted Windows runners can start without a Cert: drive until the certificate provider is explicitly loaded.
     Remove-TypeData -TypeName System.Security.AccessControl.ObjectSecurity -ErrorAction SilentlyContinue
@@ -46,8 +64,13 @@ Write-Host "Certificate created with thumbprint: $($cert.Thumbprint)" -Foregroun
 
 # Export certificate to PFX file (with private key)
 $pfxPath = Join-Path $OutputPath "WpfDevTools.pfx"
-$securePassword = ConvertTo-SecureString -String $Password -Force -AsPlainText
-Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $securePassword | Out-Null
+$securePassword = ConvertTo-ReadOnlySecureString -PlainText $Password
+try {
+    Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $securePassword | Out-Null
+}
+finally {
+    $securePassword.Dispose()
+}
 
 Write-Host "Certificate exported to: $pfxPath" -ForegroundColor Cyan
 

@@ -59,6 +59,25 @@ public sealed class GitHubActionsWorkflowSecurityTests
             "mirror CI repositories should support one-off CI retries without creating extra commits solely to trigger Actions");
     }
 
+    [Fact]
+    public void CiCdWorkflow_ShouldRunStaticSecurityScanningBeyondNuGetAudit()
+    {
+        var workflow = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        workflow.Should().Contain("security-scan:");
+        workflow.Should().Contain("dotnet format WpfDevTools.sln analyzers --verify-no-changes",
+            "CI should run a .NET analyzer gate, not only restore-time NuGet vulnerability checks");
+        workflow.Should().Contain("PSScriptAnalyzer",
+            "PowerShell installer and release scripts should be statically scanned in CI");
+        workflow.Should().Contain("Invoke-ScriptAnalyzer");
+        workflow.Should().Contain("-Severity Error",
+            "the security scan should fail closed on high-confidence analyzer errors");
+        workflow.Should().Contain("Run repository secret pattern scan");
+        workflow.Should().Contain("Run native bootstrapper security analysis");
+        workflow.Should().Contain("/p:RunCodeAnalysis=true");
+        workflow.Should().Contain("/p:TreatWarningsAsErrors=true");
+    }
+
     private static IEnumerable<string> EnumerateUnpinnedActionReferences(string workflowPath)
     {
         var relativePath = Path.GetRelativePath(

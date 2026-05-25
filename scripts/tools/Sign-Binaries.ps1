@@ -63,13 +63,31 @@ function Get-BinariesToSign {
     return @($binaries | Sort-Object FullName -Unique)
 }
 
+function ConvertTo-ReadOnlySecureString {
+    param([Parameter(Mandatory = $true)] [string]$PlainText)
+
+    $secureString = New-Object System.Security.SecureString
+    $chars = $PlainText.ToCharArray()
+    try {
+        foreach ($char in $chars) {
+            $secureString.AppendChar($char)
+        }
+
+        $secureString.MakeReadOnly()
+        return $secureString
+    }
+    finally {
+        [Array]::Clear($chars, 0, $chars.Length)
+    }
+}
+
 function Get-CertificatePassword {
     param([Parameter(Mandatory = $true)] [string]$EnvironmentVariableName)
 
     $passwordValue = [Environment]::GetEnvironmentVariable($EnvironmentVariableName, 'Process')
 
     if (-not [string]::IsNullOrWhiteSpace($passwordValue)) {
-        return (ConvertTo-SecureString -String $passwordValue -AsPlainText -Force)
+        return (ConvertTo-ReadOnlySecureString -PlainText $passwordValue)
     }
 
     return (Read-Host -Prompt "Enter the PFX password for $CertificatePath" -AsSecureString)
@@ -215,6 +233,9 @@ catch {
 }
 finally {
     Remove-ImportedSigningCertificates -Thumbprints $importedCertificateThumbprints
+    if ($certificatePassword -is [System.Security.SecureString]) {
+        $certificatePassword.Dispose()
+    }
 }
 
 exit $exitCode

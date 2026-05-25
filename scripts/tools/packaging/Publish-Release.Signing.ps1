@@ -98,6 +98,24 @@ function Resolve-SignToolPath {
     return $candidate.FullName
 }
 
+function ConvertTo-ReadOnlySecureString {
+    param([Parameter(Mandatory)] [string]$PlainText)
+
+    $secureString = New-Object System.Security.SecureString
+    $chars = $PlainText.ToCharArray()
+    try {
+        foreach ($char in $chars) {
+            $secureString.AppendChar($char)
+        }
+
+        $secureString.MakeReadOnly()
+        return $secureString
+    }
+    finally {
+        [Array]::Clear($chars, 0, $chars.Length)
+    }
+}
+
 function Get-CertificatePassword {
     param(
         [Parameter(Mandatory)] [string]$EnvironmentVariableName,
@@ -113,7 +131,7 @@ function Get-CertificatePassword {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($passwordValue)) {
-        return (ConvertTo-SecureString -String $passwordValue -AsPlainText -Force)
+        return (ConvertTo-ReadOnlySecureString -PlainText $passwordValue)
     }
 
     if (Test-NonInteractiveReleaseSigningContext) {
@@ -348,6 +366,11 @@ function Invoke-ReleasePayloadSigning {
                 $cleanupFailure = $_.Exception
             }
         }
+    }
+
+    if ($certificatePassword -is [System.Security.SecureString]) {
+        $certificatePassword.Dispose()
+        $certificatePassword = $null
     }
 
     if ($null -ne $signingFailure) {

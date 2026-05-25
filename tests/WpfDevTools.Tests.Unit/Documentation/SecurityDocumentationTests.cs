@@ -47,6 +47,23 @@ public class SecurityDocumentationTests
     }
 
     [Theory]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    public void Documentation_ShouldDefineMcpClientAsUntrustedByDefault(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("MCP client");
+        content.Should().Contain("untrusted by default",
+            $"{relativePath} should state that the local MCP caller is not trusted by default");
+        content.Should().Contain("server-side policy gates",
+            $"{relativePath} should make policy enforcement server-side rather than advisory");
+        content.Should().Contain("redacted",
+            $"{relativePath} should describe redaction before process metadata disclosure");
+    }
+
+    [Theory]
     [InlineData("By default the server runs without authentication or encryption.")]
     [InlineData("If the variable is not set, authentication is disabled.")]
     [InlineData("Authentication and TLS are opt-in, not automatic.")]
@@ -314,6 +331,20 @@ public class SecurityDocumentationTests
             $"{relativePath} should describe thumbprint pinning as part of TLS certificate validation");
         content.Should().NotContain("can pin",
             $"{relativePath} should not imply subject-only TLS certificate validation is acceptable");
+    }
+
+    [Theory]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    public void Documentation_ShouldDescribeNonExportableTlsPrivateKeyImports(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("non-exportable private key",
+            $"{relativePath} should describe the runtime TLS private-key storage model");
+        content.Should().Contain("Exportable",
+            $"{relativePath} should state that TLS certificate loading does not fall back to exportable key imports");
     }
 
     private static string ReadDocumentation()

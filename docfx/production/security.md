@@ -6,10 +6,13 @@ This page documents the controls that are implemented in the current shipping co
 
 The server can inspect and mutate live WPF UI state. That makes these risks relevant:
 
+- a malicious or prompt-injected MCP client issuing direct `tools/call` requests
 - unauthorized access to the inspector pipe
 - loading an unexpected inspector DLL during `connect`
 - leaking credentials or certificates through local files
 - man-in-the-middle or impersonation on the named-pipe channel
+
+The MCP client is untrusted by default. Tool descriptions, annotations, and prompts are guidance only; security decisions are enforced by server-side policy gates before process discovery details, UI text, screenshots, ViewModel values, or runtime mutations are returned.
 
 ## Implemented controls
 
@@ -36,6 +39,7 @@ Raw DLL injection into arbitrary same-user WPF processes is blocked by default.
 The server evaluates high-risk MCP `tools/call` requests before dispatching them to tool implementations.
 
 - `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts all `connect()` targets to exact absolute executable paths, applies before SDK-hosted reuse or raw injection, and fails closed when unset or malformed.
+- `get_processes` and `connect()` auto-discovery apply this target policy before returning process names, window titles, architecture/runtime metadata, or candidate details. Denied targets are redacted to aggregate counts.
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` opts into runtime mutation, interaction, render-measurement, and session state-consuming tools, including `set_dp_value`, `click_element`, `execute_command`, `measure_element_render_time`, `capture_state_snapshot`, `restore_state_snapshot`, `drain_events`, and `batch_mutate`.
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` opts into `element_screenshot` at the MCP boundary.
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` opts into `get_viewmodel`, `get_commands`, `modify_viewmodel`, and `execute_command`.
@@ -60,6 +64,7 @@ Injection-based `connect` sessions use TLS for the inspector connection by defau
 - The server creates or reuses a certificate in that directory.
 - If `WPFDEVTOOLS_CERT_DIR` is not set, the server uses the default certificate directory under `%APPDATA%\WpfDevTools\certs`.
 - If you set `WPFDEVTOOLS_CERT_DIR`, it must be a local absolute directory. Network paths are not allowed; UNC paths and mapped network drives are rejected.
+- Persisted PFX files stay in the protected local certificate directory, but runtime certificate imports use non-exportable private key storage. The transport does not fall back to `Exportable` key imports.
 - The client validates the subject and pins the expected thumbprint.
 - `WPFDEVTOOLS_CERT_THUMBPRINT` can override the expected thumbprint.
 - `connect()` can reuse an existing SDK-hosted Inspector only when the target app calls `InspectorSdk.Initialize()` with matching `WPFDEVTOOLS_AUTH_SECRET` values and the same local absolute `WPFDEVTOOLS_CERT_DIR` value.

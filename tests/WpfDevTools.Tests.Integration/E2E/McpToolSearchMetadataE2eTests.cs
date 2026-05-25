@@ -1,7 +1,11 @@
+using System.ComponentModel;
 using System.IO;
+using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
+using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.Schema;
+using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Tests.Integration.E2E;
 
@@ -9,6 +13,39 @@ namespace WpfDevTools.Tests.Integration.E2E;
 [Trait("Category", "Integration")]
 public sealed class McpToolSearchMetadataE2eTests
 {
+    [Fact]
+    public async Task ToolsList_ShouldMatchSourceRegisteredToolSurface()
+    {
+        var serverExe = FindServerExecutable();
+        using var client = new McpStdioClient();
+        var sourceTools = GetSourceRegisteredTools();
+
+        await client.StartAsync(serverExe);
+
+        var response = await client.ListToolsAsync();
+        var runtimeTools = response.GetProperty("result")
+            .GetProperty("tools")
+            .EnumerateArray()
+            .ToArray();
+        var runtimeByName = runtimeTools.ToDictionary(
+            tool => tool.GetProperty("name").GetString()!,
+            StringComparer.Ordinal);
+
+        runtimeByName.Keys.Should().OnlyHaveUniqueItems();
+        runtimeByName.Keys.Should().BeEquivalentTo(sourceTools.Select(tool => tool.Name));
+        runtimeByName.Count.Should().Be(64);
+
+        foreach (var sourceTool in sourceTools)
+        {
+            var runtimeTool = runtimeByName[sourceTool.Name];
+
+            runtimeTool.GetProperty("title").GetString().Should().Be(sourceTool.Title);
+            runtimeTool.GetProperty("description").GetString().Should().Be(sourceTool.Description);
+            runtimeTool.GetProperty("inputSchema").ValueKind.Should().Be(JsonValueKind.Object);
+            runtimeTool.GetProperty("outputSchema").ValueKind.Should().Be(JsonValueKind.Object);
+        }
+    }
+
     [Fact]
     public async Task ToolsList_ShouldExposeSearchOptimizedAnchorTitles()
     {
@@ -159,6 +196,24 @@ public sealed class McpToolSearchMetadataE2eTests
     }
 
     [Fact]
+    public async Task ResourcesList_ShouldExposeCanonicalToolManifestResource()
+    {
+        var serverExe = FindServerExecutable();
+        using var client = new McpStdioClient();
+
+        await client.StartAsync(serverExe);
+
+        var response = await client.ListResourcesAsync();
+        var resources = response.GetProperty("result").GetProperty("resources");
+        var resource = resources.EnumerateArray()
+            .Single(item => item.GetProperty("uri").GetString() == "wpf://contracts/tools");
+
+        resource.GetProperty("name").GetString().Should().Be("wpf_tool_manifest");
+        resource.GetProperty("title").GetString().Should().Be("Tool Manifest");
+        resource.GetProperty("mimeType").GetString().Should().Be("application/json");
+    }
+
+    [Fact]
     public async Task ReadResource_ShouldReturnMachineReadableResponseContractJson()
     {
         var serverExe = FindServerExecutable();
@@ -181,6 +236,33 @@ public sealed class McpToolSearchMetadataE2eTests
         root.GetProperty("navigation").GetProperty("field").GetString().Should().Be("navigation");
         root.GetProperty("nextSteps").GetProperty("derivedFrom").GetString().Should().Be("navigation.recommended");
         root.GetProperty("compatibility").GetProperty("toolListOutputSchema").GetString().Should().Be("advertised");
+    }
+
+    [Fact]
+    public async Task ReadResource_ShouldReturnCanonicalToolManifestJson()
+    {
+        var serverExe = FindServerExecutable();
+        using var client = new McpStdioClient();
+        var sourceTools = GetSourceRegisteredTools();
+
+        await client.StartAsync(serverExe);
+
+        var response = await client.ReadResourceAsync("wpf://contracts/tools");
+        var contents = response.GetProperty("result").GetProperty("contents");
+        var content = contents.EnumerateArray().Single();
+
+        content.GetProperty("uri").GetString().Should().Be("wpf://contracts/tools");
+        content.GetProperty("mimeType").GetString().Should().Be("application/json");
+
+        using var document = JsonDocument.Parse(content.GetProperty("text").GetString()!);
+        var root = document.RootElement;
+        var manifestNames = root.GetProperty("tools")
+            .EnumerateArray()
+            .Select(tool => tool.GetProperty("name").GetString())
+            .ToArray();
+
+        root.GetProperty("toolCount").GetInt32().Should().Be(64);
+        manifestNames.Should().BeEquivalentTo(sourceTools.Select(tool => tool.Name));
     }
 
     [Fact]
@@ -224,4 +306,25 @@ public sealed class McpToolSearchMetadataE2eTests
             ?? throw new InvalidOperationException(
                 "WpfDevTools.Mcp.Server.exe was not found for the current test configuration. Build the MCP server first.");
     }
+
+    private static SourceTool[] GetSourceRegisteredTools()
+    {
+        return typeof(ProcessMcpTools).Assembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
+            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+            .Select(method => new
+            {
+                Attribute = method.GetCustomAttribute<McpServerToolAttribute>(),
+                Description = method.GetCustomAttribute<DescriptionAttribute>()?.Description
+            })
+            .Where(item => item.Attribute?.Name is not null)
+            .Select(item => new SourceTool(
+                item.Attribute!.Name!,
+                item.Attribute.Title ?? string.Empty,
+                item.Description ?? string.Empty))
+            .OrderBy(tool => tool.Name, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private sealed record SourceTool(string Name, string Title, string Description);
 }

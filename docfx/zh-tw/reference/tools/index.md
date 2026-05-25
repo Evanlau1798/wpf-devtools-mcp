@@ -82,4 +82,12 @@
 - `result.content[0].text` 是精簡的 JSON fallback，會保留高訊號的 top-level scalar 欄位與集合計數摘要，而不是完整 JSON 的重複傳輸。只有 legacy text-only MCP client 需要在 `result.content[0].text` 取得完整 JSON 時，才設定 `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full`；error results include `result.content[0].annotations`。
 - 若 session 內已存在 buffered runtime event，部分 diagnostic 工具也可能在回應中 piggyback `pendingEvents`。若你需要明確且 deterministic 的 event read step，請改用 `drain_events`。
 
+## Generated Contract Snapshot
+
+這些值由 runtime MCP contract resources 產生。當 tool 新增或改名、method signature 變更、policy gate 移動，或 response fields 變更時，文件測試會要求同步更新此 snapshot。
+
+- `wpf://contracts/tools` SHA-256: `a34ca0f3bb3b7ea5262ddc320e5d207de4a674acf571c28256951904c2d7a1a5`
+- `wpf://contracts/response` SHA-256: `5fa322ff224bad9a729bba878cd924a2e1f1eebbd44f13a959623ad5ee7f9feb`
+- Validation scope: `toolCount`、`name`、`title`、`parameters`、`requiredParameters`、`inputSchemaHash`、`outputSchemaHash`、`capabilityTags`、`policyCapabilityTags`、`annotations`、`parameterConstraints`、`parameterVocabularies` 與 `highValueTools`。
+
 需要更深入的語意與使用注意事項時，請再查看各分類頁面。

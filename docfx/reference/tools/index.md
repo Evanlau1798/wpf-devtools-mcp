@@ -83,4 +83,12 @@ Key capabilities worth learning early:
 - `result.content[0].text` is a compact JSON fallback that preserves high-signal top-level scalar fields and collection counts, not a duplicate transport of the full JSON object. Set `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` only for legacy text-only MCP clients that require the full JSON payload in `result.content[0].text`; error results include `result.content[0].annotations`.
 - Diagnostic tools may also piggyback `pendingEvents` when the session has buffered runtime events. Use `drain_events` when you need an explicit deterministic read of the shared event buffer.
 
+## Generated Contract Snapshot
+
+These values are generated from the runtime MCP contract resources. If a tool is added or renamed, a method signature changes, policy gates move, or response fields change, the documentation tests require this snapshot to be regenerated.
+
+- `wpf://contracts/tools` SHA-256: `a34ca0f3bb3b7ea5262ddc320e5d207de4a674acf571c28256951904c2d7a1a5`
+- `wpf://contracts/response` SHA-256: `5fa322ff224bad9a729bba878cd924a2e1f1eebbd44f13a959623ad5ee7f9feb`
+- Validation scope: `toolCount`, `name`, `title`, `parameters`, `requiredParameters`, `inputSchemaHash`, `outputSchemaHash`, `capabilityTags`, `policyCapabilityTags`, `annotations`, `parameterConstraints`, `parameterVocabularies`, and `highValueTools`.
+
 Use the category pages for the most important tools, semantics, and gotchas.

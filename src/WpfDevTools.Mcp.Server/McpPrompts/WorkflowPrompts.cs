@@ -73,14 +73,14 @@ public static class WorkflowPrompts
         Goal: determine whether an administrator-launched WPF process can be controlled from the current MCP session.
 
         Recommended workflow:
-        1. get_processes and inspect isElevated / requiresElevationToConnect
-        2. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before connect(processId) attaches.
+        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before get_processes or connect(processId) disclose target metadata.
+        2. get_processes and inspect isElevated / requiresElevationToConnect for the allowlisted target
         3. connect(processId)
         4. If connect returns AccessDenied for an elevated target, restart the MCP server with administrator rights
         5. Re-run connect and then ping
 
         Key rule:
-        - A non-administrator MCP server can discover an elevated target, but it cannot inject into or control it.
+        - A non-administrator MCP server can discover an allowlisted elevated target, but it cannot inject into or control it.
         - In stdio mode, the MCP server inherits the host client's privilege level.
         """;
 

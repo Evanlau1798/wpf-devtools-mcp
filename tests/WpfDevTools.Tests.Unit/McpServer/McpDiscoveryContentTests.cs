@@ -43,6 +43,7 @@ public class McpDiscoveryContentTests
     {
         CapabilityResources.GetElevatedTargetLimitations().Should().Contain("administrator");
         CapabilityResources.GetElevatedTargetLimitations().Should().Contain("stdio");
+        CapabilityResources.GetElevatedTargetLimitations().Should().Contain("allowlisted elevated WPF process");
         CapabilityResources.GetInjectionFailureLimitations().Should().Contain("architecture mismatch");
         CapabilityResources.GetInjectionFailureLimitations().Should().Contain("SDK mode");
 
@@ -82,6 +83,15 @@ public class McpDiscoveryContentTests
         WorkflowPrompts.ConnectAndListWindows().Should().Contain("Do not call get_processes");
         WorkflowPrompts.InspectSecondaryWindow().Should().Contain("Application.MainWindow");
         WorkflowPrompts.InspectSecondaryWindow().Should().Contain("connect()");
+    }
+
+    [Fact]
+    public void ElevatedTargetPrompt_ShouldConfirmAllowlistBeforeProcessDiscovery()
+    {
+        var prompt = WorkflowPrompts.DiagnoseElevatedTarget();
+
+        prompt.IndexOf("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal)
+            .Should().BeLessThan(prompt.IndexOf("get_processes", StringComparison.Ordinal));
     }
 
     [Fact]

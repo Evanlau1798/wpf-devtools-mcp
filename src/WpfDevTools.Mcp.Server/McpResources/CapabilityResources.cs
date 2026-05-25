@@ -117,15 +117,15 @@ public static partial class CapabilityResources
         Title = "Elevated Target Limitations",
         UriTemplate = "wpf://limitations/elevated-targets",
         MimeType = "text/markdown")]
-    [Description("Explains why elevated targets may be discoverable but still reject connect or control operations.")]
+    [Description("Explains why allowlisted elevated targets may be discoverable but still reject connect or control operations.")]
     public static string GetElevatedTargetLimitations() =>
         """
         # Elevated Target Limitations
 
-        A non-administrator MCP server can often discover an elevated WPF process, but it cannot inject into or control it.
+        A non-administrator MCP server can often discover an allowlisted elevated WPF process, but it cannot inject into or control it.
 
         Expected behavior:
-        - `get_processes` may list the target and mark `isElevated` / `requiresElevationToConnect`.
+        - `get_processes` may list an allowlisted target and mark `isElevated` / `requiresElevationToConnect`.
         - `connect` may fail with `AccessDenied`.
         - Interaction and mutation tools also require matching privilege if the target is elevated.
 

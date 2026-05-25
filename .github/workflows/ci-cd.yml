@@ -11,6 +11,37 @@ permissions:
   contents: read
 
 jobs:
+  docs-validation:
+    runs-on: windows-2022
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore local tools
+      run: dotnet tool restore
+
+    - name: Restore project dependencies
+      run: dotnet restore WpfDevTools.sln --locked-mode
+
+    - name: Build shared assembly for API docs
+      run: dotnet build src/WpfDevTools.Shared/WpfDevTools.Shared.csproj -c Debug -f net8.0
+
+    - name: Build SDK assembly for API docs
+      run: dotnet build src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj -c Debug -f net8.0-windows
+
+    - name: Build DocFX site
+      run: dotnet tool run docfx docfx/docfx.json
+
+    - name: Validate DocFX links and parity
+      shell: pwsh
+      run: ./scripts/ci/Test-DocFxDocumentation.ps1 -RepoRoot $PWD
+
   build-and-test:
     runs-on: windows-2022
 

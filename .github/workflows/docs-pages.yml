@@ -87,6 +87,10 @@ jobs:
       - name: Build DocFX site
         run: dotnet tool run docfx docfx/docfx.json
 
+      - name: Validate DocFX links and parity
+        shell: pwsh
+        run: ./scripts/ci/Test-DocFxDocumentation.ps1 -RepoRoot $PWD
+
       - name: Upload Pages artifact
         if: steps.pages-check.outputs.enabled == 'true'
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4

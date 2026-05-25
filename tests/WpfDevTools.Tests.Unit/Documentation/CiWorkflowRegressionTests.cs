@@ -214,6 +214,26 @@ public sealed partial class SandboxCiScriptContractTests
         deployJob.Should().Contain("id-token: write");
     }
 
+    [Fact]
+    public void DocsWorkflows_ShouldRunDocfxBuildAndValidationInPullRequestCiAndPagesBuilds()
+    {
+        var ciWorkflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
+        var docsWorkflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "docs-pages.yml"));
+        var ciTopLevel = ciWorkflow[..ciWorkflow.IndexOf("\njobs:", StringComparison.Ordinal)];
+
+        var ciDocsJob = GetWorkflowJob(ciWorkflow, "docs-validation");
+        ciDocsJob.Should().Contain("dotnet tool run docfx docfx/docfx.json");
+        ciDocsJob.Should().Contain("scripts/ci/Test-DocFxDocumentation.ps1");
+        ciDocsJob.Should().Contain("Validate DocFX links and parity");
+        ciTopLevel.Should().Contain("pull_request",
+            "DocFX validation should run in the general CI workflow, not only after documentation is merged");
+
+        GetWorkflowStep(docsWorkflow, "Build DocFX site")
+            .Should().Contain("dotnet tool run docfx docfx/docfx.json");
+        GetWorkflowStep(docsWorkflow, "Validate DocFX links and parity")
+            .Should().Contain("scripts/ci/Test-DocFxDocumentation.ps1");
+    }
+
     private static string GetWorkflowStep(string workflow, string name)
     {
         var start = workflow.IndexOf($"      - name: {name}", StringComparison.Ordinal);

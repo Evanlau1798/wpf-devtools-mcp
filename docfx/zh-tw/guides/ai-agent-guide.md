@@ -46,8 +46,8 @@ inspection 工具通常可以安全地重複呼叫。mutation 工具則會直接
 5. 如果需要保持 app 不變，再呼叫 `restore_state_snapshot`
 
 使用高風險工具的 prompt 或範例附近，必須明確確認 local policy gates。
-`connect` 前，`WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 必須包含 target executable
-的 exact absolute path。此外，`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS`
+`connect` 前，`WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 必須包含 target 的 exact local absolute executable path。
+此外，`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS`
 會 gate `click_element`、`set_dp_value`、`capture_state_snapshot`、
 `restore_state_snapshot`、`drain_events`、`batch_mutate` 等 mutation、
 interaction、render-measurement 與 session state-consuming tools；

@@ -105,7 +105,7 @@ public sealed partial class ConnectTool
                         errorCode = "SecurityError",
                         redactedCandidateCount,
                         policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar,
-                        hint = $"Configure {McpServerConfiguration.AllowedTargetsEnvVar} with the exact reviewed executable path before connect() can auto-discover that target."
+                        hint = $"Configure {McpServerConfiguration.AllowedTargetsEnvVar} with the exact local absolute executable path before connect() can auto-discover that target."
                     },
                     0,
                     candidates,

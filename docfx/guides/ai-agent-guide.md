@@ -46,8 +46,8 @@ For stateful validation, prefer this sequence:
 5. `restore_state_snapshot` if the app should be left unchanged
 
 Local policy gates must be confirmed close to any prompt or example that uses
-high-risk tools. `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` must include the target
-executable's exact absolute path before `connect`. In addition,
+high-risk tools. `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` must include the target's
+exact local absolute executable path before `connect`. In addition,
 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` gates mutation, interaction,
 render-measurement, and session state-consuming tools such as `click_element`,
 `set_dp_value`, `capture_state_snapshot`, `restore_state_snapshot`,

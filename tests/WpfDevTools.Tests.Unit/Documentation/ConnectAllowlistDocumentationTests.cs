@@ -170,6 +170,33 @@ public sealed class ConnectAllowlistDocumentationTests
         AssertAllowlistBeforeConnect(section, $"{relativePath} golden sequence");
     }
 
+    [Fact]
+    public void AllowlistGuidance_ShouldNotOmitLocalAbsoluteExecutablePathRequirement()
+    {
+        string[] relativePaths =
+        [
+            "docfx/guides/ai-agent-guide.md",
+            "docfx/zh-tw/guides/ai-agent-guide.md",
+            "src/WpfDevTools.Mcp.Server/Tools/ConnectTool.AutoDiscovery.cs"
+        ];
+
+        var violations = relativePaths
+            .SelectMany(relativePath => File.ReadLines(GetRepoFilePath(relativePath))
+                .Select((line, index) => new
+                {
+                    RelativePath = relativePath,
+                    LineNumber = index + 1,
+                    Text = line
+                }))
+            .Where(entry => entry.Text.Contains("exact absolute path", StringComparison.OrdinalIgnoreCase)
+                || entry.Text.Contains("exact reviewed executable path", StringComparison.OrdinalIgnoreCase))
+            .Select(entry => $"{entry.RelativePath}:{entry.LineNumber}: {entry.Text.Trim()}")
+            .ToArray();
+
+        violations.Should().BeEmpty(
+            "allowlist-facing guidance should consistently require exact local absolute executable paths");
+    }
+
     private static void AssertAllowlistBeforeConnect(string content, string context)
     {
         content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",

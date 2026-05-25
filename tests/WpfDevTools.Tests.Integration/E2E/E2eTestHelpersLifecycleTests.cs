@@ -177,6 +177,43 @@ public sealed class E2eTestHelpersLifecycleTests
             .WithMessage("*NameTextBox*Text*dirty*");
     }
 
+    [Theory]
+    [MemberData(nameof(InvalidSaveButtonReadinessPayloads))]
+    public async Task ResetTestAppStateAsync_WhenSaveButtonReadinessPayloadIsIncomplete_ShouldFailPostcondition(
+        JsonElement readiness)
+    {
+        Task<JsonElement> CallToolAsync(string toolName, object? arguments)
+        {
+            return Task.FromResult(toolName switch
+            {
+                "get_namescope" => NamescopeResult(),
+                "click_element" or "execute_command" or "drain_events" => SuccessResult(),
+                "get_dp_value_source" => ResetNameTextResult(),
+                "get_interaction_readiness" => readiness,
+                _ => throw new InvalidOperationException($"Unexpected tool call: {toolName}")
+            });
+        }
+
+        Func<Task> act = () => E2eTestHelpers.ResetTestAppStateAsync(
+            CallToolAsync,
+            processId: 123);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*SaveButton*commandReadiness*");
+    }
+
+    [Theory]
+    [MemberData(nameof(InvalidDrainEventsPayloads))]
+    public async Task DrainPendingEventsUntilEmptyAsync_WhenPendingEventCountIsMissingOrInvalid_ShouldFail(
+        JsonElement drainEvents)
+    {
+        Func<Task> act = () => E2eTestHelpers.DrainPendingEventsUntilEmptyAsync(
+            () => Task.FromResult(drainEvents));
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*drain_events*pendingEventCount*");
+    }
+
     [Fact]
     public async Task ResetSharedSessionStateAsync_ShouldReconnectBeforeResettingWithCurrentSession()
     {
@@ -325,6 +362,51 @@ public sealed class E2eTestHelpersLifecycleTests
                 canExecute = false
             }
         });
+
+    public static IEnumerable<object[]> InvalidSaveButtonReadinessPayloads()
+    {
+        yield return
+        [
+            JsonSerializer.SerializeToElement(new
+            {
+                success = true,
+                isReady = false
+            })
+        ];
+        yield return
+        [
+            JsonSerializer.SerializeToElement(new
+            {
+                success = true,
+                isReady = false,
+                commandReadiness = new { hasCommand = false, canExecute = false }
+            })
+        ];
+        yield return
+        [
+            JsonSerializer.SerializeToElement(new
+            {
+                success = true,
+                isReady = false,
+                commandReadiness = new { hasCommand = true }
+            })
+        ];
+        yield return
+        [
+            JsonSerializer.SerializeToElement(new
+            {
+                success = true,
+                isReady = false,
+                commandReadiness = new { hasCommand = true, canExecute = (bool?)null }
+            })
+        ];
+    }
+
+    public static IEnumerable<object[]> InvalidDrainEventsPayloads()
+    {
+        yield return [JsonSerializer.SerializeToElement(new { success = true })];
+        yield return [JsonSerializer.SerializeToElement(new { success = true, pendingEventCount = "0" })];
+    }
 
     private static JsonElement NamescopeResult()
         => JsonSerializer.SerializeToElement(new

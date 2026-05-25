@@ -69,12 +69,37 @@ public static partial class E2eTestHelpers
                 $"Shared E2E reset baseline verification failed: {ResetCommandReadinessTargetName} should not be ready after reset.");
         }
 
-        if (result.TryGetProperty("commandReadiness", out var commandReadiness) &&
-            TryGetBoolean(commandReadiness, "canExecute") == true)
+        var commandReadiness = GetRequiredCommandReadiness(result);
+        if (TryGetBoolean(commandReadiness, "hasCommand") != true)
+        {
+            throw new InvalidOperationException(
+                $"Shared E2E reset baseline verification failed: {ResetCommandReadinessTargetName} commandReadiness.hasCommand must be true. Payload: {result.GetRawText()}");
+        }
+
+        var canExecute = TryGetBoolean(commandReadiness, "canExecute");
+        if (canExecute is null)
+        {
+            throw new InvalidOperationException(
+                $"Shared E2E reset baseline verification failed: {ResetCommandReadinessTargetName} commandReadiness.canExecute must be a boolean. Payload: {result.GetRawText()}");
+        }
+
+        if (canExecute.Value)
         {
             throw new InvalidOperationException(
                 $"Shared E2E reset baseline verification failed: {ResetCommandReadinessTargetName} command canExecute should be false after reset.");
         }
+    }
+
+    private static JsonElement GetRequiredCommandReadiness(JsonElement result)
+    {
+        if (result.TryGetProperty("commandReadiness", out var commandReadiness) &&
+            commandReadiness.ValueKind == JsonValueKind.Object)
+        {
+            return commandReadiness;
+        }
+
+        throw new InvalidOperationException(
+            $"Shared E2E reset baseline verification failed: {ResetCommandReadinessTargetName} commandReadiness is required. Payload: {result.GetRawText()}");
     }
 
     private static bool? TryGetBoolean(JsonElement element, string propertyName)

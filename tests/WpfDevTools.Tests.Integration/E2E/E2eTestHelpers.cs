@@ -424,8 +424,13 @@ public static partial class E2eTestHelpers
             EnsureToolSucceeded(lastResult, "drain_events", "pending event queue");
 
             if (!lastResult.TryGetProperty("pendingEventCount", out var pendingEventCount) ||
-                pendingEventCount.ValueKind != JsonValueKind.Number ||
-                pendingEventCount.GetInt32() == 0)
+                pendingEventCount.ValueKind != JsonValueKind.Number)
+            {
+                throw new InvalidOperationException(
+                    $"drain_events response must include numeric pendingEventCount while resetting pending event queue: {lastResult.GetRawText()}");
+            }
+
+            if (pendingEventCount.GetInt32() == 0)
             {
                 return;
             }

@@ -27,7 +27,8 @@ public sealed class ConnectToolRawInjectionPolicyErrorCodeTests
                 McpServerConfiguration.RawInjectionAllowedTargetsEnvVar,
                 @"relative\app.exe");
             var injector = new FakeProcessInjector();
-            var tool = new ConnectTool(new SessionManager(), injector,
+            using var sessionManager = new SessionManager();
+            var tool = new ConnectTool(sessionManager, injector,
                 new FakeProcessDetector(executablePath),
                 _ => { }, () => false, targetPolicy: ConnectToolTestPolicies.AllowAllTargets);
 

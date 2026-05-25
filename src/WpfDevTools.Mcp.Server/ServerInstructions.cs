@@ -23,6 +23,7 @@ public static class ServerInstructions
         4. Build initial context with get_ui_summary or get_form_summary before expanding trees; use get_element_snapshot(elementId) only after a concrete elementId is known
         5. Use focused inspection/interaction tools against the connected process
         6. Do not call get_processes before connect() unless auto-discovery is ambiguous or you explicitly need filtered discovery before connecting
+        Prefer get_ui_summary for scene-first orientation.
 
         === PARAMETER CONVENTIONS ===
         - processId: integer, from get_processes, optional after connect()/select_active_process() establishes the active process
@@ -49,23 +50,18 @@ public static class ServerInstructions
         - Performance tools: Avoid calling in tight loops
 
         === ELEMENT DISCOVERY ===
-        - elementId is required by many tools; omitting it targets the root window
-        - First call find_elements when you need a compact lookup by type/name/automationId/property value
-        - Then call get_visual_tree or get_logical_tree when you need the surrounding structure
-        - Each tree node returns an elementId field - use these in subsequent tool calls
-        - elementId format: 'TypeName_N' (e.g., 'Button_1', 'TextBox_5') - stable per session
-        - For multi-window apps: call get_windows first to discover all windows and their elementId values
+        - elementId is session-specific; omitting it targets Application.MainWindow
+        - Use find_elements for compact lookup, then get_visual_tree/get_logical_tree for surrounding structure
+        - Each tree/window node returns an elementId; use get_windows first for dialogs, tool windows, or secondary windows
 
         === MULTI-WINDOW SUPPORT ===
-        - Call get_windows to discover all open windows in the connected process
-        - Each window returns an elementId that can be used in any tool
-        - Default root (when elementId is omitted) is always Application.MainWindow
-        - To inspect a secondary window: get_windows -> use returned elementId as elementId parameter
-        - Cross-window element search: tools automatically search all windows if element not found in main window
+        - Default root is Application.MainWindow; get_windows returns elementId values for other open windows
+        - Scope tree, screenshot, and interaction tools with the returned window elementId when secondary windows matter
 
         === TOOL SEARCH ===
         - Clients with many MCP tools may rely on tool search instead of loading every tool eagerly
         - For large toolsets, defer loading specialized tools until the task scope is known; start with scene/process/binding summaries, then search for narrower tools
+        - Compact starter workflow resource: wpf://workflows/starter-path
         - Prefer tool Title + Description matching over raw tool-name guessing
         - Treat prompt names and resource URIs as the portable discovery contract across clients before relying on client-specific UI affordances
         - MCP prompts may surface as slash commands in compatible clients; use that rendering as a convenience layer over the prompt name contract
@@ -82,7 +78,7 @@ public static class ServerInstructions
         - Need exact element lookup first? -> find_elements, then get_visual_tree/get_logical_tree for local structure
         - Blank screen / wrong data? -> get_binding_errors, get_bindings, get_datacontext_chain
         - Binding active but data looks wrong? -> get_binding_mismatches (path, type, nullability analysis)
-        - UI not responding to changes? -> get_dp_value_source, get_viewmodel
+        - UI not responding to changes? -> get_dp_value_source, get_viewmodel (MVVM)
         - Element exists but not visible? -> diagnose_visibility (checks Visibility, Opacity, size, clipping)
         - Button disabled/not working? -> get_commands (CanExecute), get_event_handlers
         - Button click not working? -> click_element (full pipeline with ICommand) or fire_routed_event (event-handler-only for non-ButtonBase; OnClick path for ButtonBase+Click)
@@ -95,13 +91,9 @@ public static class ServerInstructions
         - Need safe rollback before debugging? -> capture_state_snapshot before mutation, restore_state_snapshot afterwards
 
         === TOKEN EFFICIENCY ===
-        - Prefer scene tools first: get_ui_summary defaults to depth=3 and depthMode='semantic', so layout-only wrappers do not consume the initial scene budget
-        - Tree tools default to depth=10 when depth is omitted, but initial tree exploration should usually pass a smaller explicit depth
-        - Use depth=1 for immediate children only (fastest)
-        - Use depth=2-3 for typical UI exploration (recommended)
-        - Use depth=5+ only when deep tree analysis is necessary
-        - Use elementId to scope tools to a subtree instead of full tree
-        - Use nameFilter on get_processes to reduce response size
+        - Prefer scene tools first: get_ui_summary defaults to depth=3 and depthMode='semantic'; use summaryOnly=true for orientation
+        - Tree tools default to depth=10; initial tree exploration should usually pass depth=2-3 and scope by elementId
+        - Use nameFilter on get_processes and compact=false/detail=verbose only when needed
 
         === AI AGENT BEST PRACTICES ===
         - Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path before connect(); unset values fail closed with SecurityError, and malformed configured entries fail closed with InvalidPolicyConfiguration
@@ -112,25 +104,16 @@ public static class ServerInstructions
         - Do not call get_processes before connect() as a default habit; treat it as a disambiguation or filtering tool
         - When hidden or background targets matter, prefer connect(windowFilter='all') instead of listing processes first just to widen auto-discovery
         - When multiple WPF processes are expected and largest-target auto-selection is intentional, prefer connect(selectionStrategy='largest_working_set', windowFilter='all') instead of a separate get_processes round trip
-        - Store processId in conversation context after successful connect()
-        - Prefer get_ui_summary/get_form_summary before tree-heavy inspection; use get_element_snapshot(elementId) only after a concrete elementId is known
-        - Prefer get_ui_summary(summaryOnly=true, depthMode='semantic') for initial scene orientation unless you already have a narrow element-centric question
-        - Use depth=2-3 for initial tree exploration; increase only if needed
-        - Batch related operations in single turn (e.g., get_visual_tree + get_bindings)
-        - For clients that can issue concurrent calls, run independent read-only inspections in parallel when the client supports it, then summarize intermediate tool results before choosing the next call
-        - For high-cardinality responses, keep only decision-relevant fields in conversation state and rely on elementId/snapshotId/resource URI references for follow-up calls
-        - For tools with complex parameters, remember that complex parameters require concrete examples; prefer copied examples from the tool description over invented shapes
+        - run independent read-only inspections in parallel when the client supports it, then summarize intermediate tool results before choosing the next call
+        - Keep only decision-relevant fields in conversation state; rely on elementId, snapshotId, and resource URI references for follow-up calls
+        - complex parameters require concrete examples; use advertised examples or wpf://contracts/tools instead of invented shapes
         - Prefer prompt names and resource URIs as the portable discovery contract when you want a predefined workflow entry point or capability summary
-        - Some clients surface those prompt/resource contracts as slash commands or @resource lookups; use the client-specific rendering only as a convenience layer
-        - Check IsEnabled with get_dp_value_source before click_element to avoid errors
-        - Use get_binding_errors as first diagnostic step for data display issues; its default response is compact, so pass compact=false only when the full human-readable binding trace text is required
+        - Some clients surface those prompt/resource contracts as slash commands or @resource lookups; use that rendering only as a convenience layer
+        - Check IsEnabled with get_dp_value_source before click_element; use get_binding_errors first for blank/stale data
         - Treat returned runtime navigation as session-aware when you have already captured a snapshot or started a routed-event trace in the same connected process
         - When you already know the next step and do not need server guidance, get_binding_errors accepts navigation=false to omit navigation and compatibility nextSteps on that specific call; schema-driven clients may rely on that opt-out there because the parameter is advertised in the tool schema today. Do not generalize that opt-out to other tools unless their schema explicitly advertises it too.
         - In STDIO transport, prefer polling workflows over push-style watcher/event streaming expectations
         - wait_for_dp_change is now read-only; if you need the old triggerMutation-style serialized mutation-plus-wait flow, use wait_for_dp_change_after_mutation instead
-        - Avoid calling performance tools (get_render_stats, measure_element_render_time) in loops
-        - When debugging, start broad (get_binding_errors) then narrow (get_bindings on specific element)
-        - For MVVM apps, inspect ViewModel first (get_viewmodel, get_commands) before modifying
         - If get_dp_value_source reports isExpression=true, treat set_dp_value as a temporary override. Binding-backed expressions can usually be restored later in the same session with clear_dp_value or restore_state_snapshot; for two-way bindings, also snapshot the relevant ViewModel property when you need deterministic semantic rollback of the source value. Non-Binding expressions remain an explicit capability boundary
         - focus_element and simulate_keyboard require the target to be attached to the active rendered visual tree; activate inactive tabs before focus-sensitive actions
         - Remember: all destructive changes are runtime-only and NOT persisted to XAML
@@ -173,92 +156,47 @@ public static class ServerInstructions
         Workflow 4 - Performance Profiling:
         connect() -> get_processes(windowFilter) only if connect() reports multiple candidates -> get_visual_count -> get_render_stats -> find_binding_leaks(threshold=50) -> measure_element_render_time(elementId)
 
-        Workflow 5 - Multi-Window Inspection:
-        connect() -> get_windows -> get_ui_summary(elementId=<windowElementId>, depthMode='semantic') -> get_visual_tree(elementId=<windowElementId>, depth=3) -> inspect subtree
-
-        Workflow 6 - Debug Event Handling:
-        connect() -> get_processes(windowFilter) only if connect() reports multiple candidates -> get_event_handlers(elementId, eventName) -> trace_routed_events(mode="start", eventName) -> click_element(elementId) -> drain_events(eventTypes=['RoutedEvent'], elementId)
-
-        Workflow 7 - Debug Validation Errors:
-        connect() -> get_form_summary -> get_validation_errors() [root-scope aggregates all descendants] -> get_validation_errors(elementId) [narrow to specific element] -> get_bindings(elementId)
-
-        Workflow 8 - Safe Mutation Session:
-        connect() -> capture_state_snapshot(processId, elementId, propertyNames/viewModelPropertyNames, includeFocus=true) -> perform runtime mutations -> get_state_diff(snapshotId, trigger='...') -> restore_state_snapshot(processId, snapshotId)
+        More workflows live in MCP resources and prompts, starting with wpf://workflows/starter-path.
 
         === NORMALIZATION & CONTRACT NOTES ===
-        Some tools apply automatic normalization. Responses include metadata so you can see what was normalized:
-        - trace_routed_events (start mode): enforces minimum 30s duration for AI agent IPC round-trips. Response includes both requestedDuration and effectiveDuration.
-        - trace_routed_events (get/capture): maxEvents caps returned trace records. Check returnedEventCount, totalEventCount, eventsTruncated, and maxEvents before assuming the events array is complete.
-        - trace_routed_events cleanup: cleanupState can report deferredPending, deferredCompleted, deferredFailed, or failed. Treat cleanupFailed/cleanupIncomplete as state signals, not as proof that handlers remain attached.
-        - fire_routed_event: for ButtonBase + Click event, uses OnClick() path instead of RaiseEvent(). Response includes usedOnClick: true.
-        - get_validation_errors: recursively aggregates errors from ALL visual descendants (max depth: 50, max errors: 200). Each error includes elementType/elementName to identify the source.
-        - set_dp_value / modify_viewmodel: JSON string values with surrounding double-quotes are auto-stripped (e.g., "\"hello\"" becomes "hello").
-        - set_dp_value reports replacedExpression=true when it overwrote an expression-backed DependencyProperty with a local value; capturedRollbackExpression=true means the previous Binding/MultiBinding/PriorityBinding was captured for same-session rollback.
-        - clear_dp_value may report restoredExpression=true when it reapplies a captured Binding-backed expression instead of merely clearing to default/inherited state.
-        - restore_state_snapshot can restore Binding-backed DependencyProperty expressions captured in the same session; non-Binding expressions are still reported as skipped capability boundaries.
-        - binding/data-context/validation diagnostics expose normalized diagnosticKind/sourceKind fields for cross-tool correlation.
-        - get_binding_errors defaults to compact output at the MCP contract layer while preserving server-side follow-up guidance; use compact=false when you need the original verbose message text.
-        - mutation and interaction tools default to detail=compact when you want trimmed additive normalization metadata while preserving the same core semantics.
-        - use detail=minimal when a mutation workflow only needs success/property/newValue confirmation.
-        - use detail=verbose when you need requested/effective input plus observedEffect metadata; legacy detail=standard remains accepted as a compatibility alias.
+        Some tools normalize inputs or compact outputs. Read wpf://contracts/response for normalized fields, compatibility aliases, detail=compact/minimal/verbose, standard shape notes, trace truncation metadata, Binding-backed rollback markers, cleanupIncomplete/cleanupFailed semantics, explicit opt-out behavior, and get_binding_errors compact=false behavior.
 
         === RESPONSE CONTRACT VERSION ===
         - Current response contract version: {{ResponseContractVersion.Current}}
-        - Machine-readable response contract resource: `wpf://contracts/response` (JSON contract for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, canonical `recovery` error guidance, `parameterVocabularies`, compatibility aliases, and the `get_binding_errors` `navigation=false` opt-out)
+        - Machine-readable response contract resource: `wpf://contracts/response` (descriptive JSON contract for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, canonical `recovery` error guidance, `parameterVocabularies`, compatibility aliases, detail=compact, detail=minimal, detail=verbose, standard response notes, and the `get_binding_errors` `navigation=false` explicit opt-out)
         - Machine-readable canonical tool manifest resource: `wpf://contracts/tools` (generated from source `[McpServerTool]` registration metadata, method signatures, capability tags, and policy annotations)
         - By default, tool responses include the additive `navigation` envelope; prefer `navigation.recommended` as the preferred follow-up surface when present instead of ad hoc tool guessing.
-        - By default, tool responses also include compatibility `nextSteps`; expect `nextSteps: []` when the server has no deterministic runtime guidance.
-        - v2 `nextSteps` entries may also include optional `preconditions`, `expectedOutcome`, `workflowId`, `prefetchTools`, `whyNow`, and `confidence` fields.
-        - v3 `navigation` includes `recommended`, `alternatives`, `prefetchTools`, and descriptive `contextRefs` entries.
-        - `nextSteps` remains a compatibility field and is derived from `navigation.recommended` for clients that ignore the richer envelope.
-        - Clients may use `navigation=false` as an explicit opt-out on `get_binding_errors` to omit both `navigation` and compatibility `nextSteps` on that specific call. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the tool schema today; do not assume other tool schemas expose that parameter unless they advertise it explicitly.
-        - These optional fields are session-aware hints for capable clients; older clients can ignore them safely.
-        - `workflowId` and `expectedOutcome` are advisory only and describe short verification loops, not executable server-side orchestration.
-        - `prefetchTools` is advisory only and contains tool names, not parameters or hidden commands.
-        - `contextRefs` entries are descriptive JSON only; they are not opaque handles and must not be treated as implicit tool execution requests.
-        - Compatibility aliases remain available in the current contract for backward compatibility.
-        - Compatibility aliases:
-          - currentValue -> effectiveValue
-          - typeName -> viewModelType
-          - avgRenderTime -> averageFrameTime
-          - count -> totalCount
-          - renderTimeMs -> renderTime
+        - By default, tool responses also include compatibility `nextSteps`; expect `nextSteps: []` when no deterministic guidance exists.
+        - session-aware `nextSteps` may include `preconditions`, `expectedOutcome`, `workflowId`, `prefetchTools`, `whyNow`, and confidence; all are advisory.
+        - `navigation` includes recommended/alternatives/prefetchTools plus descriptive `contextRefs`; `nextSteps` remains a compatibility field.
+        - If you already know the next step, get_binding_errors accepts navigation=false. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the tool schema today.
+        - Compatibility aliases include currentValue -> effectiveValue, typeName -> viewModelType, avgRenderTime -> averageFrameTime, count -> totalCount, and renderTimeMs -> renderTime.
 
         === ERROR RECOVERY ===
         - "not connected" -> call connect(processId) first, then retry
-        - "Access denied" (errorCode: AccessDenied) -> restart MCP server as administrator
-        - elevated target processes may be discoverable but still require the MCP server itself to run as administrator before connect/click/mutation tools can succeed
+        - "Access denied" / elevated targets -> restart the MCP server as administrator
         - "Not a WPF application" -> use get_processes to find correct processId
         - "Architecture mismatch" -> Architecture matching is mandatory for raw injection/bootstrapper fallback. Use a package/build whose server, bootstrapper, and Inspector sidecar all match the target bitness. SDK-hosted reuse communicates over named pipes and does not require matching process bitness once the target-side host is already running
         - "signature verification failed" (errorCode: SecurityError) -> use a Debug build for local development (auto-skips verification for local DLLs), or sign the Inspector DLL with Authenticode for production
         - "timeout" -> process may be frozen; try ping() to verify connection
-        - existing SDK host security mismatch that completes an incompatible authenticated/TLS handshake (errorCode: SecurityError) -> verify WPFDEVTOOLS_AUTH_SECRET matches and WPFDEVTOOLS_CERT_DIR is the same local absolute path in both the MCP server and target app. Network paths are not allowed. For connect() reuse, hardened SDK mode requires setting both values together before calling InspectorSdk.Initialize()
+        - existing SDK host security mismatch (errorCode: SecurityError) -> verify WPFDEVTOOLS_AUTH_SECRET matches and WPFDEVTOOLS_CERT_DIR is the same local absolute path in both processes. Network paths are not allowed. Hardened SDK mode requires setting both values together before calling InspectorSdk.Initialize(), and the default-hardened MCP server will not reuse a plaintext SDK host.
         - connect() returns SecurityError with requiresExplicitTargetOptIn=true -> raw injection requires an exact executable allowlist entry. Prefer InspectorSdk.Initialize() for target-side reuse, or explicitly allowlist the exact local absolute executable path in WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS before retrying.
-        - connect() returns InvalidPolicyConfiguration with allowlistEnvVar=WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS -> fix malformed raw injection allowlist entries to exact local absolute executable paths, restart the MCP server, then retry.
-        - connect() returns SecurityError with policyEnvVar=WPFDEVTOOLS_MCP_ALLOWED_TARGETS -> the target executable is outside the configured MCP target allowlist. Retry only after the exact local absolute executable path is reviewed and added.
-        - connect() or get_processes returns InvalidPolicyConfiguration with policyEnvVar=WPFDEVTOOLS_MCP_ALLOWED_TARGETS -> fix malformed MCP target allowlist entries to exact local absolute executable paths, restart the MCP server, then retry.
-        - tool call returns SecurityError from a WPFDEVTOOLS_MCP_ALLOW_* gate -> the server policy disabled that capability for this session. Use an allowed inspection workflow or ask the operator to explicitly enable the gate.
-        - tool call returns InvalidPolicyConfiguration -> fix the malformed WPFDEVTOOLS_MCP_ALLOW_* value to true or false and restart the MCP server.
+        - InvalidPolicyConfiguration with WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS or WPFDEVTOOLS_MCP_ALLOWED_TARGETS -> fix malformed entries to exact local absolute executable paths and restart.
+        - SecurityError with policyEnvVar=WPFDEVTOOLS_MCP_ALLOWED_TARGETS -> add the reviewed exact local absolute executable path before retrying.
+        - SecurityError from a WPFDEVTOOLS_MCP_ALLOW_* gate -> use an allowed inspection workflow or ask the operator to enable that capability; InvalidPolicyConfiguration means fix the malformed boolean value.
         - existing SDK host build/protocol mismatch (errorCode: CompatibilityError) -> restart the target process so connect() can inject or reuse an Inspector host built from the same repo revision and compatibility contract as the MCP server
         - SDK startup fails closed before host reuse is possible -> set both WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR before calling InspectorSdk.Initialize(); partial or unset SDK transport configuration is no longer accepted by default
-        - existing plaintext or otherwise unresponsive SDK host may still surface as Timeout -> restart the target host or enable explicit matching transport settings before retrying connect. The default-hardened MCP server will not reuse a plaintext SDK host
         - "element not found" -> verify elementId from get_visual_tree/get_logical_tree
         - "property not found" -> verify propertyName spelling and element type
         - "Rate limit exceeded" -> wait the returned `retryAfterSeconds`, then retry. Response includes { availableTokens, retryAfterSeconds, retryAfter }
-        - errorCode "InternalError" -> an unexpected server error; retry or report the issue
-        - errorCode "FileNotFound" -> required file is missing; verify build output
-        - errorCode "OperationError" -> operation failed; check error message for details
+        - InternalError/FileNotFound/OperationError -> retry when safe, verify build output, or report the issue with errorData
 
         === RESPONSE FORMAT ===
         All tools return JSON: { success: boolean, ...fields }
-        On error: { success: false, error: string, errorCode?: string, errorData?: object, recovery?: { hint?: string, suggestedAction?: string, requiresReconnect?: boolean, stateAfterTimeoutUnknown?: boolean, processId?: number, timeoutSeconds?: number, retryAfterSeconds?: number, retryAfter?: string, availableTokens?: number, availableEvents?: string[] }, hint?: string, suggestedAction?: string, requiresReconnect?: boolean, stateAfterTimeoutUnknown?: boolean, processId?: number, timeoutSeconds?: number, retryAfterSeconds?: number, retryAfter?: string, availableTokens?: number, availableEvents?: string[] }
+        On error: { success: false, error: string, errorCode?: string, errorData?: object, recovery?: object, hint?: string, suggestedAction?: string, requiresReconnect?: boolean, stateAfterTimeoutUnknown?: boolean }
         - errorCode is the Inspector error enum name when the request reached the in-process Inspector
         - errorData is optional structured context for automated recovery logic
-        - recovery is the canonical machine-readable recovery surface; compatibility fields such as suggestedAction/requiresReconnect/stateAfterTimeoutUnknown/retryAfterSeconds remain projected at the top level for older clients
-        - suggestedAction is a human-readable recovery hint when the next step is deterministic
-        - requiresReconnect indicates the current pipe-backed session should be treated as stale before retrying
-        - stateAfterTimeoutUnknown indicates a timeout may have left target state changed but unverified; reconnect and re-read before assuming success or failure
-        - retryAfterSeconds and retryAfter are additive rate-limit backoff hints when throttling occurs
+        - recovery is the canonical machine-readable recovery surface; compatibility fields such as suggestedAction, requiresReconnect, stateAfterTimeoutUnknown, retryAfterSeconds, retryAfter, availableTokens, and availableEvents may remain top-level for older clients
         - Common closed vocabularies for string parameters such as windowFilter, selectionStrategy, depthMode, detail, and outputMode are published in parameterVocabularies inside `wpf://contracts/response`
 
         === LIMITATIONS ===

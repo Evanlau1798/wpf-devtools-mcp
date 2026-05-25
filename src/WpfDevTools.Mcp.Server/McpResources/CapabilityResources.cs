@@ -84,6 +84,29 @@ public static partial class CapabilityResources
 
 
     [McpServerResource(
+        Name = "wpf_starter_path",
+        Title = "Starter Tool Path",
+        UriTemplate = "wpf://workflows/starter-path",
+        MimeType = "text/markdown")]
+    [Description("Compact starter workflow for progressive-discovery clients that keep only the most common WPF tools loaded initially.")]
+    public static string GetStarterPathWorkflow() =>
+        """
+        # Starter Tool Path
+
+        Use this compact path when the client is using progressive tool discovery and should keep only the highest-value WPF tools in the initial context.
+
+        1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed exact local absolute executable path.
+        2. Call `connect()`.
+        3. Call `get_ui_summary(depthMode="semantic", summaryOnly=true)` for first scene context.
+        4. When you have a concrete `elementId`, call `get_element_snapshot(elementId)`.
+        5. Use `get_form_summary` for form readiness or `get_bindings(elementId)` for binding-specific follow-up.
+        6. Search or load specialized tools only after the scene or binding result narrows the task.
+
+        Keep `connect`, `get_ui_summary`, `get_element_snapshot`, `get_bindings`, and `get_form_summary` as the primary always-visible tools. Use `wpf://contracts/tools` for the canonical manifest, categories, capability tags, policy gates, and per-tool schemas before loading the rest of the 64-tool catalog.
+        """;
+
+
+    [McpServerResource(
         Name = "wpf_binding_workflow",
         Title = "Binding Workflow",
         UriTemplate = "wpf://workflows/binding-debug",

@@ -83,9 +83,11 @@ public sealed class DocfxCapabilityDocumentationTests
     [Theory]
     [InlineData("docfx/reference/tools/scene-and-state.md", "capture_state_snapshot")]
     [InlineData("docfx/reference/tools/scene-and-state.md", "restore_state_snapshot")]
+    [InlineData("docfx/reference/tools/scene-and-state.md", "batch_mutate")]
     [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md", "capture_state_snapshot")]
     [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md", "restore_state_snapshot")]
-    public void SceneAndStateReferencePages_ShouldDocumentDestructiveGateForSnapshotTools(
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md", "batch_mutate")]
+    public void SceneAndStateReferencePages_ShouldDocumentDestructiveGateForStateMutationTools(
         string relativePath,
         string toolName)
     {

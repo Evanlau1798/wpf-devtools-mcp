@@ -130,7 +130,7 @@ Policy gate：destructive。使用此工具前，需設定 `WPFDEVTOOLS_MCP_ALLO
 
 用途：依序執行多個允許的 runtime mutation，並用單一 failure surface 呈現結果。
 
-Policy gate：destructive。Server 必須允許 destructive tools，此工具才會執行。
+Policy gate：destructive。Server 必須先以 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=1` 允許 destructive tools，此工具才會執行。
 
 參數：
 

@@ -130,7 +130,7 @@ Recovery path: keep the returned `snapshotId`; use it with `get_state_diff` afte
 
 Purpose: execute multiple allowed runtime mutations in order with one failure surface.
 
-Policy gate: destructive. The server must allow destructive tools before this tool can run.
+Policy gate: destructive. The server must allow destructive tools with `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=1` before this tool can run.
 
 Parameters:
 

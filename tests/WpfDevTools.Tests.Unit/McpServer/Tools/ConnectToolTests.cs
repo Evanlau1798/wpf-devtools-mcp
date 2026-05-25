@@ -260,6 +260,35 @@ public partial class ConnectToolTests : IDisposable
     }
 
     [Fact]
+    public async Task Execute_WhenDllPathChangesAfterPlanValidation_ShouldRevalidateBeforeNativeInjection()
+    {
+        EnsureDummyBootstrapperExists();
+
+        var validationCallCount = 0;
+        var injector = new FakeProcessInjector();
+        var tool = CreateTool(
+            injector: injector,
+            connectTimeout: TimeSpan.FromSeconds(2),
+            dllPathValidator: _ =>
+            {
+                validationCallCount++;
+                if (validationCallCount > 2)
+                {
+                    throw new ArgumentException("DLL path changed after validation.");
+                }
+            });
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("errorCode").GetString().Should().Be("InvalidDllPath");
+        resultJson.GetProperty("error").GetString().Should().Contain("DLL path changed after validation.");
+        validationCallCount.Should().BeGreaterThan(2);
+        injector.InjectWithBootstrapCallCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Execute_WithElevatedTargetAndElevatedServer_ShouldProceedPastPreflight()
     {
         EnsureDummyBootstrapperExists();

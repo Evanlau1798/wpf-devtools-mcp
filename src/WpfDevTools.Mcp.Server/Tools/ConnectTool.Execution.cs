@@ -310,6 +310,14 @@ public sealed partial class ConnectTool
         out string? pipeName)
     {
         pipeName = null;
+        var pathValidationFailure = ValidateInjectionPathsBeforeNativeInjection(
+            processId,
+            injectionRequest);
+        if (pathValidationFailure != null)
+        {
+            return pathValidationFailure;
+        }
+
         InjectionResult injectionResult;
         try
         {
@@ -440,6 +448,29 @@ public sealed partial class ConnectTool
         }
 
         return ConnectOperationResult.FreshConnect;
+    }
+
+    private object? ValidateInjectionPathsBeforeNativeInjection(
+        int processId,
+        InjectionRequest injectionRequest)
+    {
+        try
+        {
+            _dllPathValidator(injectionRequest.InspectorDllPath);
+            _dllPathValidator(injectionRequest.BootstrapperDllPath);
+            return null;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or System.Security.Cryptography.CryptographicException)
+        {
+            Trace.WriteLine($"ConnectTool final DLL path validation failed for process {processId}: {ex.Message}");
+            return new
+            {
+                success = false,
+                error = ex.Message,
+                errorCode = "InvalidDllPath",
+                hint = "The Inspector or Bootstrapper DLL path changed after planning. Retry from a trusted local installation path."
+            };
+        }
     }
 
     private sealed record ConnectTargetContext(

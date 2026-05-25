@@ -60,9 +60,9 @@ public sealed class GitHubActionsWorkflowSecurityTests
     }
 
     [Fact]
-    public void CiCdWorkflow_ShouldRunStaticSecurityScanningBeyondNuGetAudit()
+    public void SecurityScanWorkflow_ShouldRunStaticSecurityScanningBeyondNuGetAudit()
     {
-        var workflow = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(".github/workflows/ci-cd.yml"));
+        var workflow = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(".github/workflows/security-scan.yml"));
 
         workflow.Should().Contain("security-scan:");
         workflow.Should().Contain("dotnet format WpfDevTools.sln analyzers --verify-no-changes",
@@ -70,12 +70,25 @@ public sealed class GitHubActionsWorkflowSecurityTests
         workflow.Should().Contain("PSScriptAnalyzer",
             "PowerShell installer and release scripts should be statically scanned in CI");
         workflow.Should().Contain("Invoke-ScriptAnalyzer");
+        workflow.Should().Contain("-RequiredVersion",
+            "the analyzer module dependency should be pinned so the security gate is reproducible");
+        workflow.Should().NotContain("-SkipPublisherCheck",
+            "the security gate should not disable publisher validation for the analyzer module");
         workflow.Should().Contain("-Severity Error",
             "the security scan should fail closed on high-confidence analyzer errors");
         workflow.Should().Contain("Run repository secret pattern scan");
         workflow.Should().Contain("Run native bootstrapper security analysis");
         workflow.Should().Contain("/p:RunCodeAnalysis=true");
         workflow.Should().Contain("/p:TreatWarningsAsErrors=true");
+    }
+
+    [Fact]
+    public void CiCdWorkflow_ShouldKeepSecurityScanInDedicatedWorkflow()
+    {
+        var workflow = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        workflow.Should().NotContain("security-scan:",
+            "the CI/CD workflow is already large; the security scan must stay in a dedicated workflow file");
     }
 
     private static IEnumerable<string> EnumerateUnpinnedActionReferences(string workflowPath)

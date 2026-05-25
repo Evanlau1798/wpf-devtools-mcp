@@ -294,10 +294,16 @@ function Invoke-ReleasePayloadSigning {
             throw "Release signing certificate was not found: $($signingInputs.CertificatePath)"
         }
 
-        $certificatePassword = Get-CertificatePassword `
-            -EnvironmentVariableName $signingInputs.PasswordEnvironmentVariable `
-            -CertificatePath $signingInputs.CertificatePath
-        $certificateMetadata = Get-PfxCertificateMetadata -Path $signingInputs.CertificatePath -Password $certificatePassword
+        try {
+            $certificatePassword = Get-CertificatePassword `
+                -EnvironmentVariableName $signingInputs.PasswordEnvironmentVariable `
+                -CertificatePath $signingInputs.CertificatePath
+            $certificateMetadata = Get-PfxCertificateMetadata -Path $signingInputs.CertificatePath -Password $certificatePassword
+        }
+        catch {
+            if ($certificatePassword -is [System.Security.SecureString]) { $certificatePassword.Dispose() }
+            throw
+        }
         if ([string]::IsNullOrWhiteSpace($activeThumbprint)) {
             $activeThumbprint = [string]$certificateMetadata.PrimaryThumbprint
         }

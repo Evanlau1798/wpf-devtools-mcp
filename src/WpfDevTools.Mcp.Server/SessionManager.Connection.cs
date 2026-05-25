@@ -73,7 +73,8 @@ public sealed partial class SessionManager
             string.IsNullOrWhiteSpace(pipeName) ? $"WpfDevTools_{processId}" : pipeName,
             processAuthManager,
             _certManager,
-            ownsAuthManager: processAuthManager != null);
+            ownsAuthManager: processAuthManager != null,
+            enforceHostCompatibilityValidation: true);
     }
 
     private NamedPipeClient CreateRootAuthenticatedPipeClient(int processId, string? pipeName = null)
@@ -82,7 +83,8 @@ public sealed partial class SessionManager
             processId,
             string.IsNullOrWhiteSpace(pipeName) ? $"WpfDevTools_{processId}" : pipeName,
             _authManager,
-            _certManager);
+            _certManager,
+            enforceHostCompatibilityValidation: true);
     }
 
     internal async Task<NamedPipeConnectFailure> ConnectInjectedSessionAsync(

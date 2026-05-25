@@ -203,6 +203,11 @@ internal static class RawInjectionTargetPolicy
                 return false;
             }
 
+            if (!TryNormalizeFinalPathName(fullPath, out var normalizedFullPath))
+            {
+                return false;
+            }
+
             var physicalPathResolution = resolvePhysicalPath(fullPath);
             if (physicalPathResolution.IsRejected || !physicalPathResolution.IsResolved)
             {
@@ -220,7 +225,13 @@ internal static class RawInjectionTargetPolicy
                 return false;
             }
 
-            normalizedPath = NormalizePath(resolvedPath);
+            if (!TryNormalizeFinalPathName(resolvedPath, out var normalizedResolvedPath)
+                || !PathComparer.Equals(normalizedFullPath, normalizedResolvedPath))
+            {
+                return false;
+            }
+
+            normalizedPath = normalizedResolvedPath;
             return true;
         }
         catch (Exception ex)

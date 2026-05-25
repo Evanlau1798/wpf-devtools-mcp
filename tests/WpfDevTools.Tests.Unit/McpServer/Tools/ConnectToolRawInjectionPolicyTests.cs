@@ -294,7 +294,7 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
     }
 
     [Fact]
-    public void Authorize_ShouldUseResolvedPhysicalPathForTrustedRootChecks()
+    public void Authorize_WhenResolvedPhysicalPathDiffersFromReviewedPath_ShouldFailClosed()
     {
         var repoRoot = TestRepositoryPaths.ResolveRepoRoot(AppContext.BaseDirectory);
         var linkedTargetPath = Path.Combine(repoRoot, "virtual-link", "ExternalApp.exe");
@@ -310,7 +310,7 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
                 : Path.GetFullPath(path));
 
         authorization.IsAllowed.Should().BeFalse();
-        authorization.Error.Should().Contain("blocked by the server's target policy");
+        authorization.Error.Should().Contain("local absolute path");
     }
 
     [Fact]

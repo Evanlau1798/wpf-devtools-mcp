@@ -122,6 +122,18 @@ public sealed class RawInjectionTargetPolicyTests
     }
 
     [Fact]
+    public void TryNormalizeAbsolutePath_WhenPhysicalResolverRewritesLocalPath_ShouldFailClosed()
+    {
+        var normalized = RawInjectionTargetPolicy.TryNormalizeAbsolutePath(
+            @"C:\ReviewedLink\Target.exe",
+            _ => PhysicalPathResolution.Resolved(@"C:\Retargeted\Target.exe"),
+            out _);
+
+        normalized.Should().BeFalse(
+            "allowlist paths must remain exact local absolute executable paths and should not follow reparse-point retargeting");
+    }
+
+    [Fact]
     public void Authorize_WhenPhysicalResolverCannotResolveTargetPath_ShouldFailClosed()
     {
         const string targetPath = @"C:\Allowed\Target.exe";

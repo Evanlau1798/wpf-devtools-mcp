@@ -87,7 +87,7 @@ Injection-based `connect` sessions use TLS for the inspector connection by defau
 5. Set `WPFDEVTOOLS_CERT_DIR` to the same local absolute directory in both processes when certificate storage must be deterministic or shared with SDK mode.
 6. Optionally set `WPFDEVTOOLS_CERT_THUMBPRINT`.
 7. Keep raw injection disabled by default; use `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` only for explicitly reviewed exact local absolute executable paths.
-8. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the exact local absolute executable paths the server may connect to.
+8. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed exact local absolute executable paths the server may connect to.
 9. Disable destructive tools, screenshots, or ViewModel inspection with the `WPFDEVTOOLS_MCP_ALLOW_*` gates when those capabilities are not needed.
 10. Restrict who can launch the server on the workstation or VM.
 

@@ -96,7 +96,7 @@ This table lists the security-relevant `WPFDEVTOOLS_*` environment variables for
 3. Set `WPFDEVTOOLS_CERT_DIR` to the same local absolute directory in both processes when certificate storage must be deterministic or shared with SDK mode.
 4. Optionally set `WPFDEVTOOLS_CERT_THUMBPRINT` if certificate identity must be fixed explicitly.
 5. Keep raw injection disabled by default; use `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` only for explicitly reviewed exact local absolute executable paths.
-6. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the exact local absolute executable paths the server may connect to.
+6. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed exact local absolute executable paths the server may connect to.
 7. Disable destructive tools, screenshots, or ViewModel inspection with the `WPFDEVTOOLS_MCP_ALLOW_*` gates when those capabilities are not needed for the session.
 
 ### Secret handling

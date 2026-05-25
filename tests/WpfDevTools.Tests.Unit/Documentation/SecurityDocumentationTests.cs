@@ -378,6 +378,10 @@ public class SecurityDocumentationTests
         checklistLines.Should().OnlyContain(
             line => line.Contains("exact local absolute executable path", StringComparison.OrdinalIgnoreCase),
             $"{relativePath} production checklist entries should not weaken allowlists to reviewed executable paths");
+        checklistLines.Should().OnlyContain(
+            line => line.Contains("review", StringComparison.OrdinalIgnoreCase)
+                || line.Contains("審查", StringComparison.Ordinal),
+            $"{relativePath} production checklist entries should preserve the reviewed-target requirement");
     }
 
     private static string ReadDocumentation()

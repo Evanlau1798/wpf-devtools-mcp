@@ -46,8 +46,8 @@ public static class PerformanceMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, warmUp: true }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"warmUp\": true }")]
     public static Task<CallToolResult> GetRenderStats(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -94,10 +94,10 @@ public static class PerformanceMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, threshold: 50 }\n" +
-        "- { processId: 12345, threshold: 50, samplingDurationMs: 3000 }\n" +
-        "- { processId: 12345, threshold: 50, warmUp: true }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"threshold\": 50 }\n" +
+        "- { \"processId\": 12345, \"threshold\": 50, \"samplingDurationMs\": 3000 }\n" +
+        "- { \"processId\": 12345, \"threshold\": 50, \"warmUp\": true }")]
     public static Task<CallToolResult> FindBindingLeaks(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -139,8 +139,8 @@ public static class PerformanceMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\" }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }")]
     public static Task<CallToolResult> MeasureElementRenderTime(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -175,8 +175,8 @@ public static class PerformanceMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\" }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\" }")]
     public static Task<CallToolResult> GetVisualCount(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,

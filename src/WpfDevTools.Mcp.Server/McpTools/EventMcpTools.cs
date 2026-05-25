@@ -44,10 +44,10 @@ public static class EventMcpTools
         "- \"maxEvents\" invalid -> provide a positive integer when limiting returned trace records\n" +
         "- \"invalid mode\" -> use `capture`, `start`, or `get`\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, eventName: \"MouseDown\", durationMs: 500 }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\", mode: \"start\", durationMs: 1000 }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\", mode: \"start\", durationMs: 1000, allowShortStartDuration: true }\n" +
-        "- { processId: 12345, mode: \"get\", maxEvents: 25 }")]
+        "- { \"processId\": 12345, \"eventName\": \"MouseDown\", \"durationMs\": 500 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"eventName\": \"Click\", \"mode\": \"start\", \"durationMs\": 1000 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"eventName\": \"Click\", \"mode\": \"start\", \"durationMs\": 1000, \"allowShortStartDuration\": true }\n" +
+        "- { \"processId\": 12345, \"mode\": \"get\", \"maxEvents\": 25 }")]
     public static Task<CallToolResult> TraceRoutedEvents(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -107,7 +107,7 @@ public static class EventMcpTools
         "- \"invalid event name\" -> verify eventName is valid\n" +
         "- \"eventName required\" -> must specify which event\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"eventName\": \"Click\" }")]
     public static Task<CallToolResult> GetEventHandlers(
         SessionManager sessionManager,
         [Description("WPF routed event name whose handlers should be listed.")] string eventName,
@@ -156,8 +156,8 @@ public static class EventMcpTools
         "- \"invalid event name\" -> verify eventName is valid\n" +
         "- \"eventName required\" -> must specify which event\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", eventName: \"Click\" }\n" +
-        "- { processId: 12345, elementId: \"Panel1\", eventName: \"MouseDown\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"eventName\": \"Click\" }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"Panel1\", \"eventName\": \"MouseDown\" }")]
     public static Task<CallToolResult> FireRoutedEvent(
         SessionManager sessionManager,
         [Description("WPF routed event name to raise, such as Click.")] string eventName,

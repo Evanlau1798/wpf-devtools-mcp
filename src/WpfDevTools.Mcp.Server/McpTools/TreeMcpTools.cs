@@ -37,9 +37,9 @@ public static class TreeMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId from previous get_visual_tree call\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, depth: 3 }\n" +
-        "- { processId: 12345, elementId: \"Button_1\", depth: 2 }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"depth\": 3 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"Button_1\", \"depth\": 2 }")]
     public static Task<CallToolResult> GetVisualTree(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -92,8 +92,8 @@ public static class TreeMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId is valid\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, depth: 5 }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"depth\": 5 }")]
     public static Task<CallToolResult> GetLogicalTree(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -139,8 +139,8 @@ public static class TreeMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"serialization failed\" -> element may contain non-serializable properties\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\" }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }")]
     public static Task<CallToolResult> SerializeToXaml(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -179,7 +179,7 @@ public static class TreeMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }")]
+        "- { \"processId\": 12345 }")]
     public static Task<CallToolResult> GetNamescope(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -220,7 +220,7 @@ public static class TreeMcpTools
         "- \"no template\" -> element is not a templated control\n" +
         "- \"elementId required\" -> must specify which control to inspect\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }")]
     public static Task<CallToolResult> GetTemplateTree(
         SessionManager sessionManager,
         [Description("Element ID of the templated control to inspect.")] string elementId,
@@ -262,7 +262,7 @@ public static class TreeMcpTools
         "1. Call get_windows to discover all open windows\n" +
         "2. Use the elementId from the desired window as elementId in get_visual_tree, get_logical_tree, etc.\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }")]
+        "- { \"processId\": 12345 }")]
     public static Task<CallToolResult> GetWindows(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -308,9 +308,9 @@ public static class TreeMcpTools
         "- \"maxResults\" -> must be a positive integer\n" +
         "- \"maxTraversalNodes\" -> must be a positive integer\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, typeName: \"Button\", maxResults: 10 }\n" +
-        "- { processId: 12345, elementName: \"SaveButton\" }\n" +
-        "- { processId: 12345, propertyName: \"Text\", propertyValue: \"Ready\" }")]
+        "- { \"processId\": 12345, \"typeName\": \"Button\", \"maxResults\": 10 }\n" +
+        "- { \"processId\": 12345, \"elementName\": \"SaveButton\" }\n" +
+        "- { \"processId\": 12345, \"propertyName\": \"Text\", \"propertyValue\": \"Ready\" }")]
     public static Task<CallToolResult> FindElements(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -367,7 +367,7 @@ public static class TreeMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }")]
+        "- { \"processId\": 12345 }")]
     public static Task<CallToolResult> CompareTrees(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,

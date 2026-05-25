@@ -38,8 +38,8 @@ public static class MutationBatchMcpTools
         "}\n\n" +
         "SUPPORTED MUTATION TOOLS: modify_viewmodel, set_dp_value, clear_dp_value, execute_command, click_element, fire_routed_event, focus_element, scroll_to_element, simulate_keyboard, override_style_setter, drag_and_drop.\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, mutations: [{ tool: \"modify_viewmodel\", args: { propertyName: \"Name\", value: \"Alice\" } }, { tool: \"modify_viewmodel\", args: { propertyName: \"Age\", value: 30 } }] }\n" +
-        "- { processId: 12345, captureSnapshot: { propertyNames: [\"Text\"], viewModelPropertyNames: [\"Name\"] }, includeDiff: true, mutations: [{ tool: \"modify_viewmodel\", args: { propertyName: \"Name\", value: \"Batch User\" } }] }\n\n" +
+        "- { \"processId\": 12345, \"mutations\": [{ \"tool\": \"modify_viewmodel\", \"args\": { \"propertyName\": \"Name\", \"value\": \"Alice\" } }, { \"tool\": \"modify_viewmodel\", \"args\": { \"propertyName\": \"Age\", \"value\": 30 } }] }\n" +
+        "- { \"processId\": 12345, \"captureSnapshot\": { \"propertyNames\": [\"Text\"], \"viewModelPropertyNames\": [\"Name\"] }, \"includeDiff\": true, \"mutations\": [{ \"tool\": \"modify_viewmodel\", \"args\": { \"propertyName\": \"Name\", \"value\": \"Batch User\" } }] }\n\n" +
         "RESPONSE FORMAT:\n" +
         "{\n" +
         "  success: boolean,\n" +

@@ -37,9 +37,9 @@ public static class BindingMcpTools
         "- \"not connected\" -> call connect() or connect(processId) first\n" +
         "- \"element not found\" -> verify elementId from find_elements or get_visual_tree\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, elementId: \"BasicControlsTab\", recursive: true }\n" +
-        "- { processId: 12345, recursive: true, includeFramework: true }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"BasicControlsTab\", \"recursive\": true }\n" +
+        "- { \"processId\": 12345, \"recursive\": true, \"includeFramework\": true }")]
     public static Task<CallToolResult> GetBindingMismatches(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect() or connect(processId) has established the active process.")] int? processId = null,
@@ -76,9 +76,9 @@ public static class BindingMcpTools
         "RESPONSE FIELDS: bindings for single-target inspection, or results/resultCount/successCount/failureCount for batch inspection; each binding can include bindingType, bindingPaths, and currentValue.\n" +
         "REQUEST OPTIONS: elementId or elementIds choose targets; recursive expands subtree inspection; statusFilter narrows returned binding statuses.\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\" }\n" +
-        "- { processId: 12345, recursive: true }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\" }\n" +
+        "- { \"processId\": 12345, \"recursive\": true }")]
     public static Task<CallToolResult> GetBindings(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -129,9 +129,9 @@ public static class BindingMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId from get_visual_tree or find_elements\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, propertyName: \"Name\" }\n" +
-        "- { processId: 12345, elementId: \"ProfilePanel\", propertyName: \"IsEnabled\", recursive: true }\n" +
-        "- { processId: 12345, propertyName: \"Name\", viewModelType: \"CustomerViewModel\" }")]
+        "- { \"processId\": 12345, \"propertyName\": \"Name\" }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"ProfilePanel\", \"propertyName\": \"IsEnabled\", \"recursive\": true }\n" +
+        "- { \"processId\": 12345, \"propertyName\": \"Name\", \"viewModelType\": \"CustomerViewModel\" }")]
     public static Task<CallToolResult> GetAffectedElements(
         SessionManager sessionManager,
         [Description("ViewModel property name to match against simple binding paths, such as Name or IsEnabled.")] string propertyName,
@@ -176,7 +176,7 @@ public static class BindingMcpTools
         "elementId is present when the failing DependencyObject can be identified directly. suggestedElementId is a best-effort match for trace-only errors.\n" +
         "NOTE: sourceId is a numeric trace ID, NOT an elementId. It cannot be used directly as the elementId parameter in other tools.\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }")]
+        "- { \"processId\": 12345 }")]
     public static Task<CallToolResult> GetBindingErrors(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID whose captured binding errors should be returned. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -224,7 +224,7 @@ public static class BindingMcpTools
         "- \"no binding\" -> property has no binding (check with get_bindings first)\n" +
         "- \"propertyName required\" -> must specify which property to inspect\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\", \"propertyName\": \"Text\" }")]
     public static Task<CallToolResult> GetBindingValueChain(
         SessionManager sessionManager,
         [Description("DependencyProperty name whose binding value chain should be traced, such as Text.")] string propertyName,
@@ -264,8 +264,8 @@ public static class BindingMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId is valid\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, elementId: \"ErrorTextBox1\" }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"ErrorTextBox1\" }")]
     public static Task<CallToolResult> GetDataContextChain(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -300,8 +300,8 @@ public static class BindingMcpTools
         "- \"no binding\" -> property has no binding\n" +
         "- \"propertyName required\" -> must specify which property\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\", direction: \"Target\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\", \"propertyName\": \"Text\" }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\", \"propertyName\": \"Text\", \"direction\": \"Target\" }")]
     public static Task<CallToolResult> ForceBindingUpdate(
         SessionManager sessionManager,
         [Description("DependencyProperty name whose binding should be refreshed.")] string propertyName,

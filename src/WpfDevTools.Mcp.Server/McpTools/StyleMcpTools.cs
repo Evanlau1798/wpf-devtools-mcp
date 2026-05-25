@@ -40,8 +40,8 @@ public static class StyleMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\" }\n" +
-        "- { processId: 12345 }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }\n" +
+        "- { \"processId\": 12345 }")]
     public static Task<CallToolResult> GetAppliedStyles(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -83,7 +83,7 @@ public static class StyleMcpTools
         "- \"element not found\" -> verify elementId\n" +
         "- \"elementId required\" -> must specify which element\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }")]
     public static Task<CallToolResult> GetTriggers(
         SessionManager sessionManager,
         [Description("Element ID whose style and template triggers should be listed.")] string elementId,
@@ -121,8 +121,8 @@ public static class StyleMcpTools
         "- \"element not found\" -> verify elementId\n" +
         "- \"resourceKey required\" -> must specify which resource to look up\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, resourceKey: \"PrimaryBrush\" }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", resourceKey: \"ButtonStyle\" }")]
+        "- { \"processId\": 12345, \"resourceKey\": \"PrimaryBrush\" }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"resourceKey\": \"ButtonStyle\" }")]
     public static Task<CallToolResult> GetResourceChain(
         SessionManager sessionManager,
         [Description("XAML resource key to resolve, such as PrimaryBrush or ButtonStyle.")] string resourceKey,
@@ -163,7 +163,7 @@ public static class StyleMcpTools
         "- \"propertyName required\" -> must specify which property\n" +
         "- \"value required\" -> must provide new value\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"Background\", value: \"Red\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"propertyName\": \"Background\", \"value\": \"Red\" }")]
     public static Task<CallToolResult> OverrideStyleSetter(
         SessionManager sessionManager,
         [Description("Style-backed property name to override at runtime.")] string propertyName,

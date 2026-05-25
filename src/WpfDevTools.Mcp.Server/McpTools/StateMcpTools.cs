@@ -30,8 +30,8 @@ public static class StateMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"propertyNames / viewModelPropertyNames / includeFocus required\" -> choose at least one capture dimension\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", propertyNames: [\"IsEnabled\"] }\n" +
-        "- { processId: 12345, elementId: \"EditorPanel\", viewModelPropertyNames: [\"Name\"], includeFocus: true }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"propertyNames\": [\"IsEnabled\"] }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"EditorPanel\", \"viewModelPropertyNames\": [\"Name\"], \"includeFocus\": true }")]
     public static Task<CallToolResult> CaptureStateSnapshot(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -85,7 +85,7 @@ public static class StateMcpTools
         "- \"snapshotId\" -> snapshot missing, expired, or created for another process\n" +
         "- \"not connected\" -> reconnect before restore\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, snapshotId: \"snapshot_abc\" }")]
+        "- { \"processId\": 12345, \"snapshotId\": \"snapshot_abc\" }")]
     public static Task<CallToolResult> RestoreStateSnapshot(
         SessionManager sessionManager,
         [Description("Snapshot ID returned by capture_state_snapshot.")] string snapshotId,

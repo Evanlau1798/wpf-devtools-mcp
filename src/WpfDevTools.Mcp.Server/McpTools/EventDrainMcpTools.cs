@@ -38,9 +38,9 @@ public static class EventDrainMcpTools
         "- \"maxEvents\" invalid -> provide a positive integer when filtering the drain size\n" +
         "- \"sinceTimestamp\" invalid -> provide an ISO-8601 timestamp\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, maxEvents: 10, eventTypes: [\"DpChange\"] }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", sinceTimestamp: \"2026-03-14T10:00:00.0000000Z\" }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"maxEvents\": 10, \"eventTypes\": [\"DpChange\"] }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"sinceTimestamp\": \"2026-03-14T10:00:00.0000000Z\" }")]
     public static Task<CallToolResult> DrainEvents(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,

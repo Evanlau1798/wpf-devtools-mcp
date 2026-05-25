@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Reflection;
+using System.Text.Json;
 using FluentAssertions;
+using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.McpTools;
 using Xunit;
 
@@ -92,6 +94,36 @@ public sealed class McpToolContractDescriptionTests
             description.Should().NotContain("\"nextSteps\"");
             description.Should().NotContain("nextSteps: [");
         }
+    }
+
+    [Fact]
+    public void ToolDescriptionExamples_ShouldBeStrictJsonObjects()
+    {
+        var failures = new List<string>();
+        foreach (var (toolName, description) in GetAllToolDescriptions())
+        {
+            foreach (var example in ExtractExamples(description))
+            {
+                try
+                {
+                    using var document = JsonDocument.Parse(
+                        example,
+                        new JsonDocumentOptions
+                        {
+                            AllowTrailingCommas = false,
+                            CommentHandling = JsonCommentHandling.Disallow
+                        });
+
+                    document.RootElement.ValueKind.Should().Be(JsonValueKind.Object);
+                }
+                catch (Exception ex)
+                {
+                    failures.Add($"{toolName}: {example} ({ex.Message})");
+                }
+            }
+        }
+
+        failures.Should().BeEmpty("tool-call examples are copied by MCP clients and must be strict JSON, not JavaScript-like object literals");
     }
 
     [Theory]
@@ -210,5 +242,52 @@ public sealed class McpToolContractDescriptionTests
         var description = method!.GetCustomAttribute<DescriptionAttribute>();
         description.Should().NotBeNull();
         return description!.Description;
+    }
+
+    private static IEnumerable<(string ToolName, string Description)> GetAllToolDescriptions()
+    {
+        return typeof(ProcessMcpTools).Assembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() is not null)
+            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+            .Select(method => new
+            {
+                Tool = method.GetCustomAttribute<McpServerToolAttribute>(),
+                Description = method.GetCustomAttribute<DescriptionAttribute>()
+            })
+            .Where(item => item.Tool is not null
+                && !string.IsNullOrWhiteSpace(item.Tool.Name)
+                && item.Description is not null)
+            .Select(item => (item.Tool!.Name!, item.Description!.Description));
+    }
+
+    private static IEnumerable<string> ExtractExamples(string description)
+    {
+        var inExamples = false;
+        foreach (var rawLine in description.Split('\n'))
+        {
+            var line = rawLine.Trim();
+            if (line == "EXAMPLES:")
+            {
+                inExamples = true;
+                continue;
+            }
+
+            if (!inExamples)
+            {
+                continue;
+            }
+
+            if (line.Length == 0)
+            {
+                yield break;
+            }
+
+            if (!line.StartsWith("- ", StringComparison.Ordinal))
+            {
+                yield break;
+            }
+
+            yield return line[2..].Trim();
+        }
     }
 }

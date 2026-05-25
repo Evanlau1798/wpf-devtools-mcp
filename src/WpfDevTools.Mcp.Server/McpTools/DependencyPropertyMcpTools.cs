@@ -44,9 +44,9 @@ public static class DependencyPropertyMcpTools
         "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n" +
         "- \"propertyName required\" -> must specify propertyName or propertyNames\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\" }\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }\n" +
-        "- { processId: 12345, elementIds: [\"SaveButton\", \"NameTextBox\"], propertyNames: [\"IsEnabled\", \"Text\"] }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"propertyName\": \"IsEnabled\" }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\", \"propertyName\": \"Text\" }\n" +
+        "- { \"processId\": 12345, \"elementIds\": [\"SaveButton\", \"NameTextBox\"], \"propertyNames\": [\"IsEnabled\", \"Text\"] }")]
     public static Task<CallToolResult> GetDpValueSource(
         SessionManager sessionManager,
         [Description("Optional DependencyProperty name to inspect, such as Text or IsEnabled. Omit only when propertyNames is provided for batch inspection.")] string? propertyName = null,
@@ -88,8 +88,8 @@ public static class DependencyPropertyMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, propertyName: \"IsEnabled\" }\n" +
-        "- { processId: 12345, propertyName: \"Visibility\" }")]
+        "- { \"processId\": 12345, \"propertyName\": \"IsEnabled\" }\n" +
+        "- { \"processId\": 12345, \"propertyName\": \"Visibility\" }")]
     public static Task<CallToolResult> GetDpMetadata(
         SessionManager sessionManager,
         [Description("DependencyProperty name whose metadata should be returned.")] string propertyName,
@@ -130,9 +130,9 @@ public static class DependencyPropertyMcpTools
         "- \"conversion failed\" -> value string cannot be converted to property type\n" +
         "- \"value required\" -> must provide value parameter\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\", value: false }\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\", value: \"New Value\" }\n" +
-        "- { processId: 12345, elementId: \"Panel\", propertyName: \"Width\", value: 200 }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"propertyName\": \"IsEnabled\", \"value\": false }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\", \"propertyName\": \"Text\", \"value\": \"New Value\" }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"Panel\", \"propertyName\": \"Width\", \"value\": 200 }")]
     public static Task<CallToolResult> SetDpValue(
         SessionManager sessionManager,
         [Description("DependencyProperty name to set at runtime.")] string propertyName,
@@ -178,7 +178,7 @@ public static class DependencyPropertyMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is valid\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"propertyName\": \"IsEnabled\" }")]
     public static Task<CallToolResult> ClearDpValue(
         SessionManager sessionManager,
         [Description("DependencyProperty name whose local value should be cleared.")] string propertyName,
@@ -222,8 +222,8 @@ public static class DependencyPropertyMcpTools
         "- \"property not found\" -> verify propertyName is valid\n" +
         "- \"already watching this property\" -> watcher already exists for this element/property pair\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Text\" }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\", \"propertyName\": \"Text\" }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"propertyName\": \"IsEnabled\" }")]
     public static Task<CallToolResult> WatchDpChanges(
         SessionManager sessionManager,
         [Description("DependencyProperty name to watch for runtime changes.")] string propertyName,
@@ -276,9 +276,9 @@ public static class DependencyPropertyMcpTools
         "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n" +
         "- \"invalid argument\" -> verify timeoutMs/pollIntervalMs are within allowed bounds\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\", timeoutMs: 5000 }\n" +
-        "- { processId: 12345, elementId: \"StatusText\", propertyName: \"Text\", expectedValue: \"Complete\", timeoutMs: 10000 }\n" +
-        "- { elementId: \"NameTextBox\", propertyName: \"Text\", pollIntervalMs: 100, timeoutMs: 2000 }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"propertyName\": \"IsEnabled\", \"timeoutMs\": 5000 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"StatusText\", \"propertyName\": \"Text\", \"expectedValue\": \"Complete\", \"timeoutMs\": 10000 }\n" +
+        "- { \"elementId\": \"NameTextBox\", \"propertyName\": \"Text\", \"pollIntervalMs\": 100, \"timeoutMs\": 2000 }")]
     public static Task<CallToolResult> WaitForDpChange(
         SessionManager sessionManager,
         [Description("DependencyProperty name to monitor for changes.")] string propertyName,
@@ -337,8 +337,8 @@ public static class DependencyPropertyMcpTools
         "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n" +
         "- \"invalid argument\" -> verify timeoutMs/pollIntervalMs are within allowed bounds\n\n" +
         "EXAMPLES:\n" +
-        "- { elementId: \"SearchProbeTextBox\", propertyName: \"Text\", expectedValue: \"Ready\", triggerMutation: { tool: \"modify_viewmodel\", args: { propertyName: \"SearchText\", value: \"Ready\" } } }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", propertyName: \"IsEnabled\", triggerMutation: { tool: \"execute_command\", args: { commandName: \"RefreshCommand\" } }, timeoutMs: 5000 }")]
+        "- { \"elementId\": \"SearchProbeTextBox\", \"propertyName\": \"Text\", \"expectedValue\": \"Ready\", \"triggerMutation\": { \"tool\": \"modify_viewmodel\", \"args\": { \"propertyName\": \"SearchText\", \"value\": \"Ready\" } } }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"propertyName\": \"IsEnabled\", \"triggerMutation\": { \"tool\": \"execute_command\", \"args\": { \"commandName\": \"RefreshCommand\" } }, \"timeoutMs\": 5000 }")]
     public static Task<CallToolResult> WaitForDpChangeAfterMutation(
         SessionManager sessionManager,
         [Description("DependencyProperty name to monitor for changes after the mutation runs.")] string propertyName,

@@ -30,8 +30,8 @@ public static class ProcessMcpTools
         "REQUEST OPTIONS: nameFilter narrows candidate names; windowFilter='foreground' scopes enumeration to the active WPF window.\n\n" +
         "EXAMPLES:\n" +
         "- { }\n" +
-        "- { nameFilter: \"TestApp\" }\n" +
-        "- { windowFilter: \"foreground\" }")]
+        "- { \"nameFilter\": \"TestApp\" }\n" +
+        "- { \"windowFilter\": \"foreground\" }")]
     public static Task<CallToolResult> GetProcesses(
         [Description("Optional case-insensitive substring filter for the target process name.")] string? nameFilter = null,
         [AllowedValues("visible", "all", "foreground")]
@@ -58,7 +58,7 @@ public static class ProcessMcpTools
         "RESPONSE FORMAT:\n" +
         "{ success: boolean, processId?: number, message?: string, error?: string, errorCode?: string }\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }")]
+        "- { \"processId\": 12345 }")]
     public static Task<CallToolResult> SelectActiveProcess(
         SessionManager sessionManager,
         [Range(1, int.MaxValue)]
@@ -112,10 +112,10 @@ public static class ProcessMcpTools
         "REQUEST OPTIONS: processId selects an explicit target; selectionStrategy controls auto-selection behavior including largest_working_set; windowFilter widens or narrows auto-discovery scope.\n\n" +
         "EXAMPLES:\n" +
         "- { }\n" +
-        "- { processId: 12345 }\n" +
-        "- { selectionStrategy: \"largest_working_set\" }\n" +
-        "- { windowFilter: \"all\" }\n" +
-        "- { selectionStrategy: \"largest_working_set\", windowFilter: \"all\" }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"selectionStrategy\": \"largest_working_set\" }\n" +
+        "- { \"windowFilter\": \"all\" }\n" +
+        "- { \"selectionStrategy\": \"largest_working_set\", \"windowFilter\": \"all\" }")]
     public static Task<CallToolResult> Connect(
         SessionManager sessionManager,
         [Range(1, int.MaxValue)]
@@ -185,7 +185,7 @@ public static class ProcessMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"timeout\" -> process may be frozen or unresponsive\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }")]
+        "- { \"processId\": 12345 }")]
     public static Task<CallToolResult> Ping(
         SessionManager sessionManager,
         [Range(1, int.MaxValue)]

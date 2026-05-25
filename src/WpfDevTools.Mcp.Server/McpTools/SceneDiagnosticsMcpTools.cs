@@ -38,8 +38,8 @@ public static class SceneDiagnosticsMcpTools
         "- \"snapshotId\" -> capture_state_snapshot first or verify the snapshotId before retrying\n" +
         "- \"not connected\" -> reconnect before diffing the stored snapshot\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, snapshotId: \"snapshot_abc\" }\n" +
-        "- { processId: 12345, snapshotId: \"snapshot_abc\", trigger: \"click_element(SaveButton)\" }")]
+        "- { \"processId\": 12345, \"snapshotId\": \"snapshot_abc\" }\n" +
+        "- { \"processId\": 12345, \"snapshotId\": \"snapshot_abc\", \"trigger\": \"click_element(SaveButton)\" }")]
     public static Task<CallToolResult> GetStateDiff(
         SessionManager sessionManager,
         [Description("Snapshot ID returned by capture_state_snapshot.")] string snapshotId,
@@ -73,8 +73,8 @@ public static class SceneDiagnosticsMcpTools
         "RESPONSE FIELDS: elementId, elementType, elementName, dataContextType, properties, bindings, validationErrors, style, and layout.\n" +
         "REQUEST OPTIONS: includeProperties appends extra DependencyProperty probes to the default snapshot set.\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"TextBox_42\" }\n" +
-        "- { elementId: \"SaveButton_7\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"TextBox_42\" }\n" +
+        "- { \"elementId\": \"SaveButton_7\" }")]
     public static Task<CallToolResult> GetElementSnapshot(
         SessionManager sessionManager,
         [Description("Runtime element ID to inspect.")] string elementId,
@@ -116,8 +116,8 @@ public static class SceneDiagnosticsMcpTools
         "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree\n" +
         "- \"not connected\" -> reconnect before diagnosing visibility\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"Button_12\" }\n" +
-        "- { elementId: \"HiddenByAncestorText_4\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"Button_12\" }\n" +
+        "- { \"elementId\": \"HiddenByAncestorText_4\" }")]
     public static Task<CallToolResult> DiagnoseVisibility(
         SessionManager sessionManager,
         [Description("Runtime element ID to inspect.")] string elementId,
@@ -157,8 +157,8 @@ public static class SceneDiagnosticsMcpTools
         "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree\n" +
         "- \"not connected\" -> reconnect before inspecting readiness\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton_7\" }\n" +
-        "- { elementId: \"FocusActionButton_3\", interactionType: \"Click\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton_7\" }\n" +
+        "- { \"elementId\": \"FocusActionButton_3\", \"interactionType\": \"Click\" }")]
     public static Task<CallToolResult> GetInteractionReadiness(
         SessionManager sessionManager,
         [Description("Runtime element ID to inspect.")] string elementId,
@@ -191,9 +191,9 @@ public static class SceneDiagnosticsMcpTools
         "RESPONSE FIELDS: rootElementId, rootElementType, rootElementName, depth, semanticNodeCount, summaryText, and nodes.\n" +
         "REQUEST OPTIONS: elementId scopes the subtree; depth and depthMode='semantic' shape traversal; summaryOnly omits the node table.\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, depthMode: \"semantic\" }\n" +
-        "- { elementId: \"BasicControlsStackPanel_4\", depth: 4, depthMode: \"semantic\" }\n" +
-        "- { processId: 12345, depthMode: \"semantic\", summaryOnly: true }")]
+        "- { \"processId\": 12345, \"depthMode\": \"semantic\" }\n" +
+        "- { \"elementId\": \"BasicControlsStackPanel_4\", \"depth\": 4, \"depthMode\": \"semantic\" }\n" +
+        "- { \"processId\": 12345, \"depthMode\": \"semantic\", \"summaryOnly\": true }")]
     public static Task<CallToolResult> GetUiSummary(
         SessionManager sessionManager,
         [Description("Optional runtime element ID to scope the semantic summary. Omit to summarize the root window.")] string? elementId = null,
@@ -232,9 +232,9 @@ public static class SceneDiagnosticsMcpTools
         "RESPONSE FIELDS: formScope, scopeVisibility, isCurrentlyVisible, inputs, commands, summary, and nested summary.totalInputs/summary.emptyInputs/summary.errorCount/summary.validationSubmittable/summary.interactionSubmittable/summary.isSubmittable.\n" +
         "REQUEST OPTIONS: includeFramework keeps framework-internal template controls in the summary.\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"BasicControlsStackPanel_4\" }\n" +
-        "- { elementId: \"ProfileForm_2\" }\n" +
-        "- { processId: 12345, includeFramework: true }")]
+        "- { \"processId\": 12345, \"elementId\": \"BasicControlsStackPanel_4\" }\n" +
+        "- { \"elementId\": \"ProfileForm_2\" }\n" +
+        "- { \"processId\": 12345, \"includeFramework\": true }")]
     public static Task<CallToolResult> GetFormSummary(
         SessionManager sessionManager,
         [Description("Optional runtime element ID to scope the form summary. Omit to use the root window.")] string? elementId = null,

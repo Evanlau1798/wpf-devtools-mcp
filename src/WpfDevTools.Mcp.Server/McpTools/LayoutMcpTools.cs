@@ -35,8 +35,8 @@ public static class LayoutMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\" }\n" +
-        "- { processId: 12345 }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }\n" +
+        "- { \"processId\": 12345 }")]
     public static Task<CallToolResult> GetLayoutInfo(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -74,7 +74,7 @@ public static class LayoutMcpTools
         "- \"element not found\" -> verify elementId\n" +
         "- \"elementId required\" -> must specify which element to check\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\" }")]
     public static Task<CallToolResult> GetClippingInfo(
         SessionManager sessionManager,
         [Description("Element ID whose clipping state should be analyzed.")] string elementId,
@@ -109,8 +109,8 @@ public static class LayoutMcpTools
         "- \"element not found\" -> verify elementId\n" +
         "- \"invalid color\" -> use WPF color names or hex format\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\" }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", color: \"Red\", duration: 3000 }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"color\": \"Red\", \"duration\": 3000 }")]
     public static Task<CallToolResult> HighlightElement(
         SessionManager sessionManager,
         [Description("Required element ID to highlight.")] string elementId,
@@ -150,8 +150,8 @@ public static class LayoutMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\" }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\" }")]
     public static Task<CallToolResult> InvalidateLayout(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,

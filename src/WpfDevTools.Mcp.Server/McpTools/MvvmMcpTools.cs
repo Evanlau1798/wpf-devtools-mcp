@@ -35,8 +35,8 @@ public static class MvvmMcpTools
         "- \"no datacontext\" -> element has no DataContext set\n" +
         "- \"element not found\" -> verify elementId\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\" }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\" }")]
     public static Task<CallToolResult> GetViewModel(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -74,8 +74,8 @@ public static class MvvmMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"no datacontext\" -> element has no ViewModel\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\" }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }")]
     public static Task<CallToolResult> GetCommands(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -114,8 +114,8 @@ public static class MvvmMcpTools
         "- \"cannot execute\" -> CanExecute returned false\n" +
         "- \"commandName required\" -> must specify which command\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, commandName: \"SaveCommand\" }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", commandName: \"SaveCommand\" }")]
+        "- { \"processId\": 12345, \"commandName\": \"SaveCommand\" }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"commandName\": \"SaveCommand\" }")]
     public static Task<CallToolResult> ExecuteCommand(
         SessionManager sessionManager,
         [Description("ICommand property name to execute, such as SaveCommand.")] string commandName,
@@ -170,9 +170,9 @@ public static class MvvmMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }  // get ALL validation errors in the app\n" +
-        "- { processId: 12345, elementId: \"FormPanel\" }  // get errors in a specific form section\n" +
-        "- { processId: 12345, elementId: \"AgeTextBox\" }  // get errors on a single element")]
+        "- { \"processId\": 12345 }  \n" +
+        "- { \"processId\": 12345, \"elementId\": \"FormPanel\" }  \n" +
+        "- { \"processId\": 12345, \"elementId\": \"AgeTextBox\" }")]
     public static Task<CallToolResult> GetValidationErrors(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -214,8 +214,8 @@ public static class MvvmMcpTools
         "- \"propertyName required\" -> must specify which property\n" +
         "- \"value required\" -> must provide new value\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, propertyName: \"Name\", value: \"John Doe\" }\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\", propertyName: \"Age\", value: 30 }")]
+        "- { \"processId\": 12345, \"propertyName\": \"Name\", \"value\": \"John Doe\" }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\", \"propertyName\": \"Age\", \"value\": 30 }")]
     public static Task<CallToolResult> ModifyViewModel(
         SessionManager sessionManager,
         [Description("ViewModel property name to update at runtime.")] string propertyName,

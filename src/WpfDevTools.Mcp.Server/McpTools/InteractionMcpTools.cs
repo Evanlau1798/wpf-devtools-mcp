@@ -41,8 +41,8 @@ public static class InteractionMcpTools
         "- \"element not found\" -> verify elementId from get_visual_tree\n" +
         "- \"element not clickable\" -> element is disabled or not a clickable type\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\" }\n" +
-        "- { processId: 12345, elementId: \"ClearButton\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"ClearButton\" }")]
     public static Task<CallToolResult> ClickElement(
         SessionManager sessionManager,
         [Description("Element ID of the clickable control.")] string elementId,
@@ -82,8 +82,8 @@ public static class InteractionMcpTools
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345 }\n" +
-        "- { processId: 12345, elementId: \"SettingsDialog_1\" }")]
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SettingsDialog_1\" }")]
     public static Task<CallToolResult> GetFocusState(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -120,7 +120,7 @@ public static class InteractionMcpTools
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"elementId required\" -> must specify which element should receive focus\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SearchTextBox\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"SearchTextBox\" }")]
     public static Task<CallToolResult> FocusElement(
         SessionManager sessionManager,
         [Description("Element ID that should receive focus.")] string elementId,
@@ -169,7 +169,7 @@ public static class InteractionMcpTools
         "- \"sourceElementId required\" -> must specify drag source\n" +
         "- \"targetElementId required\" -> must specify drop target\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, sourceElementId: \"Item1\", targetElementId: \"Item2\" }")]
+        "- { \"processId\": 12345, \"sourceElementId\": \"Item1\", \"targetElementId\": \"Item2\" }")]
     public static Task<CallToolResult> DragAndDrop(
         SessionManager sessionManager,
         [Description("Element ID that acts as the drag source.")] string sourceElementId,
@@ -212,7 +212,7 @@ public static class InteractionMcpTools
         "- \"element not found\" -> verify elementId\n" +
         "- \"elementId required\" -> must specify which element to scroll to\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\" }")]
     public static Task<CallToolResult> ScrollToElement(
         SessionManager sessionManager,
         [Description("Element ID that should be brought into view.")] string elementId,
@@ -260,8 +260,8 @@ public static class InteractionMcpTools
         "- \"invalid key\" -> key name not recognized (use WPF Key enum names)\n" +
         "- \"key required\" -> must specify which key to press\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\", key: \"Enter\" }\n" +
-        "- { processId: 12345, elementId: \"NameTextBox\", key: \"Tab\" }")]
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\", \"key\": \"Enter\" }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\", \"key\": \"Tab\" }")]
     public static Task<CallToolResult> SimulateKeyboard(
         SessionManager sessionManager,
         [Description("WPF Key enum name to simulate, such as Enter or Tab.")] string key,
@@ -314,11 +314,11 @@ public static class InteractionMcpTools
         "- \"invalid outputMode\" -> use base64, metadata, or file\n" +
         "- \"render failed\" -> element may be collapsed or have zero size\n\n" +
         "EXAMPLES:\n" +
-        "- { processId: 12345, elementId: \"SaveButton\" }\n" +
-        "- { processId: 12345, elementId: \"SaveButton\", outputMode: \"base64\" }\n" +
-        "- { processId: 12345, outputMode: \"file\", maxWidth: 512 }\n" +
-        "- { processId: 12345, outputMode: \"metadata\", maxWidth: 512 }\n" +
-        "- { processId: 12345 }")]
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"outputMode\": \"base64\" }\n" +
+        "- { \"processId\": 12345, \"outputMode\": \"file\", \"maxWidth\": 512 }\n" +
+        "- { \"processId\": 12345, \"outputMode\": \"metadata\", \"maxWidth\": 512 }\n" +
+        "- { \"processId\": 12345 }")]
     public static Task<CallToolResult> ElementScreenshot(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,

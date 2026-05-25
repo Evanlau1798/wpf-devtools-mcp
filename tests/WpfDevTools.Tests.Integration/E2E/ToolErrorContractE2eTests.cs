@@ -1,5 +1,6 @@
 using System.IO;
 using FluentAssertions;
+using WpfDevTools.Mcp.Server;
 
 namespace WpfDevTools.Tests.Integration.E2E;
 
@@ -13,7 +14,12 @@ public class ToolErrorContractE2eTests : IDisposable
     public async Task GetVisualTree_WithoutConnect_ShouldReturnStructuredNotConnectedError()
     {
         var serverExe = FindServerExe();
-        await _client.StartAsync(serverExe);
+        await _client.StartAsync(
+            serverExe,
+            new Dictionary<string, string>
+            {
+                [McpServerConfiguration.AllowSensitiveReadsEnvVar] = "true"
+            });
 
         var result = await _client.CallToolAsync(
             "get_visual_tree",

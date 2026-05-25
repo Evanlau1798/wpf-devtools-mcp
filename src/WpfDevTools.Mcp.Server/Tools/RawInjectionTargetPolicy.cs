@@ -69,7 +69,7 @@ internal static class RawInjectionTargetPolicy
         {
             return new RawInjectionAuthorization(
                 IsAllowed: false,
-                Error: "Raw injection is blocked because the target executable path is missing or not a local absolute path. Start the target-side SDK host with InspectorSdk.Initialize() or allowlist the exact local executable path before retrying connect().",
+                Error: "Raw injection is blocked because the target executable path is missing or not a local absolute path. Start the target-side SDK host with InspectorSdk.Initialize() or allowlist the exact local absolute executable path before retrying connect().",
                 Hint: $"Set {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact local absolute executable paths when raw injection into a specific target executable is explicitly intended.");
         }
 

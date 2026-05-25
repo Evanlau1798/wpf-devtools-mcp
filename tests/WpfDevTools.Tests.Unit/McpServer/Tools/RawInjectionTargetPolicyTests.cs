@@ -22,6 +22,7 @@ public sealed class RawInjectionTargetPolicyTests
 
         authorization.IsAllowed.Should().BeFalse();
         authorization.Error.Should().Contain("local absolute path");
+        authorization.Error.Should().Contain("exact local absolute executable path");
         authorization.Hint.Should().Contain("exact local absolute executable paths");
     }
 

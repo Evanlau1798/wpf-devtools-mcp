@@ -259,7 +259,7 @@ public sealed class ConnectToolSecurityErrorTests
                 {
                     ProcessId = 4242,
                     ProcessName = "PrivateRawApp",
-                    WindowTitle = "PrivateRawApp Window",
+                    WindowTitle = "Sensitive Raw Window",
                     Architecture = ProcessArchitecture.X64,
                     Runtime = TargetRuntime.NetCore,
                     IsWpfApplication = true,
@@ -285,8 +285,10 @@ public sealed class ConnectToolSecurityErrorTests
             json.GetProperty("errorCode").GetString().Should().Be("SecurityError");
             jsonText.Should().NotContain(executablePath.Replace("\\", "\\\\"));
             jsonText.Should().NotContain("PrivateRawApp");
+            jsonText.Should().NotContain("Sensitive Raw Window");
             json.TryGetProperty("targetExecutablePath", out _).Should().BeFalse();
             json.TryGetProperty("targetProcessName", out _).Should().BeFalse();
+            json.TryGetProperty("targetWindowTitle", out _).Should().BeFalse();
             injector.InjectWithBootstrapCallCount.Should().Be(0);
         }
         finally

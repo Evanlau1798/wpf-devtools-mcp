@@ -54,6 +54,7 @@ Injection-based `connect` sessions use HMAC challenge-response authentication by
 - When `WPFDEVTOOLS_AUTH_SECRET` is not set, the server generates a default secret once and reuses it across server restarts for the current user profile.
 - Set `WPFDEVTOOLS_AUTH_SECRET` when you need to override the generated secret with a deterministic shared value.
 - During injection-based bootstrap, the server writes the short-lived auth-secret handoff file as a DPAPI-protected payload and the native bootstrapper deletes it after loading. This prevents direct plaintext disclosure from the temp file, but code already running as the same Windows user remains inside the local trust boundary.
+- The default persisted auth-secret file is `%APPDATA%\WpfDevTools\auth\shared-secret.bin`.
 - For `connect()` to reuse an SDK-hosted Inspector, set `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR` together on both sides before calling `InspectorSdk.Initialize()`. The default-hardened MCP server will not reuse a plaintext SDK host.
 - If either value is missing, or both are unset, `InspectorSdk.Initialize()` now fails closed instead of starting a plaintext SDK host.
 
@@ -72,6 +73,13 @@ Injection-based `connect` sessions use TLS for the inspector connection by defau
 - `connect()` can reuse an existing SDK-hosted Inspector only when the target app calls `InspectorSdk.Initialize()` with matching `WPFDEVTOOLS_AUTH_SECRET` values and the same local absolute `WPFDEVTOOLS_CERT_DIR` value.
 - Even outside SDK-host reuse, any default-pipe `connect()` attempt validates that the named-pipe server is owned by the requested target process and reports a compatible protocol/build fingerprint before the client accepts the connection.
 - Before reusing an existing host, the client verifies that the named-pipe server is owned by the requested target process and that the host reports a compatible protocol/build fingerprint.
+
+Package `uninstall` removes client registration. Package `full-uninstall` removes installer-owned payloads and generated registration artifacts, but it does not delete current-user transport state because the same server profile may reuse it across package upgrades. To remove the default persisted auth secret and TLS certificate store intentionally, run:
+
+```powershell
+Remove-Item -LiteralPath "$env:APPDATA\WpfDevTools\auth\shared-secret.bin" -Force
+Remove-Item -LiteralPath "$env:APPDATA\WpfDevTools\certs" -Recurse -Force
+```
 
 ### Pipe access limits and server-side controls
 

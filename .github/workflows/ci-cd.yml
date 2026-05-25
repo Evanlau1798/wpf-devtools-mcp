@@ -269,6 +269,14 @@ jobs:
         $script:WpfDevToolsInstallerTestModeEnabled = $true
         . $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
 
+    - name: Full uninstall published package residue test
+      shell: pwsh
+      run: |
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . ./scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}'
+
     - name: Uninstall online installer smoke test
       shell: pwsh
       run: |
@@ -281,6 +289,14 @@ jobs:
         $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
         $script:WpfDevToolsInstallerTestModeEnabled = $true
         . $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
+
+    - name: Full uninstall online installer residue test
+      shell: pwsh
+      run: |
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . ./scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}'
 
   release-packaging-smoke-arm64:
     if: vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE == 'true'
@@ -378,6 +394,14 @@ jobs:
         $script:WpfDevToolsInstallerTestModeEnabled = $true
         . $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
 
+    - name: Full uninstall published ARM64 package residue test
+      shell: pwsh
+      run: |
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . ./scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64'
+
     - name: Uninstall ARM64 online installer smoke test
       shell: pwsh
       run: |
@@ -390,6 +414,14 @@ jobs:
         $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
         $script:WpfDevToolsInstallerTestModeEnabled = $true
         . $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+
+    - name: Full uninstall ARM64 online installer residue test
+      shell: pwsh
+      run: |
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . ./scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64'
   code-coverage:
     runs-on: windows-2022
 

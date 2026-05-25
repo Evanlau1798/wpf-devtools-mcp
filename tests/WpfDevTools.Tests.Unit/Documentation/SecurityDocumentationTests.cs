@@ -392,6 +392,26 @@ public class SecurityDocumentationTests
     }
 
     [Theory]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    public void Documentation_ShouldDescribePersistedTransportStateAndCleanupCommand(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("%APPDATA%\\WpfDevTools\\auth\\shared-secret.bin",
+            $"{relativePath} should document the default persisted auth-secret file");
+        content.Should().Contain("%APPDATA%\\WpfDevTools\\certs",
+            $"{relativePath} should document the default persisted TLS certificate directory");
+        content.Should().Contain("full-uninstall",
+            $"{relativePath} should distinguish package cleanup from persisted transport state cleanup");
+        content.Should().Contain("Remove-Item -LiteralPath \"$env:APPDATA\\WpfDevTools\\auth\\shared-secret.bin\"",
+            $"{relativePath} should provide a copy-paste cleanup command for the default auth secret");
+        content.Should().Contain("Remove-Item -LiteralPath \"$env:APPDATA\\WpfDevTools\\certs\" -Recurse",
+            $"{relativePath} should provide a copy-paste cleanup command for the default certificate store");
+    }
+
+    [Theory]
     [InlineData("SECURITY.md", "net8-net8", "TLS 1.3")]
     [InlineData("docfx/production/security.md", "net8-net48", "TLS 1.3")]
     [InlineData("docfx/zh-tw/production/security.md", "net48-net8", "TLS 1.3")]

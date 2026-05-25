@@ -133,6 +133,23 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
+    public void CiWorkflow_ShouldVerifyFullUninstallResidueForReleasePackagingSmoke()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain("Full uninstall published package residue test",
+            "package-local smoke should verify installer-owned payload removal, not only client unregistration");
+        content.Should().Contain("Full uninstall online installer residue test",
+            "online-installer smoke should verify installer-owned payload removal, not only client unregistration");
+        content.Should().Contain("Test-InstallResidue.ps1",
+            "release smoke should fail if install manifests, current payloads, generated registration artifacts, or rollback/temp files remain after full-uninstall");
+        content.Should().Contain("-Action full-uninstall",
+            "full payload cleanup must use the installer-supported full-uninstall action instead of ad hoc deletion");
+        content.Should().Contain("-InstallRoot './tmp-release-install-smoke'");
+        content.Should().Contain("-InstallRoot './tmp-release-bootstrap-smoke'");
+    }
+
+    [Fact]
     public void CiWorkflow_ShouldUseTargetAwarePackagedRuntimeLiveSmokeForHostedX64Packages()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));

@@ -32,6 +32,20 @@ internal static class McpToolCapabilityCatalog
 {
     private static readonly Lazy<McpToolCapabilityEntry[]> Entries = new(CreateEntries);
 
+    private static readonly HashSet<string> ScreenshotToolNames = new(StringComparer.Ordinal)
+    {
+        "element_screenshot"
+    };
+
+    private static readonly HashSet<string> ViewModelInspectionToolNames = new(StringComparer.Ordinal)
+    {
+        "execute_command",
+        "get_commands",
+        "get_datacontext_chain",
+        "get_viewmodel",
+        "modify_viewmodel"
+    };
+
     internal static IReadOnlyCollection<McpToolCapabilityEntry> GetEntries()
         => Entries.Value;
 
@@ -158,14 +172,12 @@ internal static class McpToolCapabilityCatalog
             tags.Add("process-discovery");
         }
 
-        if (toolName.Contains("viewmodel", StringComparison.Ordinal) ||
-            toolName.Contains("command", StringComparison.Ordinal) ||
-            toolName.Contains("datacontext", StringComparison.Ordinal))
+        if (ViewModelInspectionToolNames.Contains(toolName))
         {
             tags.Add(McpToolCapabilityTags.ViewModel);
         }
 
-        if (toolName.Contains("screenshot", StringComparison.Ordinal))
+        if (ScreenshotToolNames.Contains(toolName))
         {
             tags.Add(McpToolCapabilityTags.Screenshot);
         }

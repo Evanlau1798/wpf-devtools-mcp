@@ -46,10 +46,26 @@ public sealed class CertificateManager
     /// Creates a CertificateManager using the default directory (%APPDATA%\WpfDevTools\certs)
     /// </summary>
     public CertificateManager()
-        : this(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "WpfDevTools", "certs"))
+        : this(ResolveDefaultCertificateDirectory(
+            static () => Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)))
     {
+    }
+
+    internal static CertificateManager CreateForDefaultProfile(Func<string> appDataPathProvider)
+        => new(ResolveDefaultCertificateDirectory(appDataPathProvider));
+
+    private static string ResolveDefaultCertificateDirectory(Func<string> appDataPathProvider)
+    {
+        ArgumentNullException.ThrowIfNull(appDataPathProvider);
+        var appDataPath = appDataPathProvider();
+        if (string.IsNullOrWhiteSpace(appDataPath) || !Path.IsPathRooted(appDataPath))
+        {
+            throw new InvalidOperationException(
+                "Could not resolve a valid ApplicationData directory for the default TLS certificate directory. " +
+                "Set WPFDEVTOOLS_CERT_DIR explicitly if the current environment does not provide a writable user profile.");
+        }
+
+        return Path.Combine(appDataPath, "WpfDevTools", "certs");
     }
 
     /// <summary>

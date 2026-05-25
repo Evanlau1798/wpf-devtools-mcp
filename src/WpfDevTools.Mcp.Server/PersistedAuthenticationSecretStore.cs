@@ -25,6 +25,11 @@ internal sealed class PersistedAuthenticationSecretStore
         _mutexTimeout = mutexTimeout ?? TimeSpan.FromSeconds(30);
     }
 
+    internal static PersistedAuthenticationSecretStore CreateForDefaultProfile(
+        Func<string> appDataPathProvider,
+        TimeSpan? mutexTimeout = null)
+        => new(ResolveDefaultSecretFilePath(appDataPathProvider), mutexTimeout);
+
     public string GetOrCreateSecretBase64()
     {
         using var mutex = new Mutex(false, BuildMutexName());
@@ -190,8 +195,13 @@ internal sealed class PersistedAuthenticationSecretStore
     }
 
     private static string ResolveDefaultSecretFilePath()
+        => ResolveDefaultSecretFilePath(
+            static () => Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
+
+    private static string ResolveDefaultSecretFilePath(Func<string> appDataPathProvider)
     {
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        ArgumentNullException.ThrowIfNull(appDataPathProvider);
+        var appDataPath = appDataPathProvider();
         if (string.IsNullOrWhiteSpace(appDataPath) || !Path.IsPathRooted(appDataPath))
         {
             throw new InvalidOperationException(

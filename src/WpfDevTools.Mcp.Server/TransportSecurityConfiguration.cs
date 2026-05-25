@@ -34,7 +34,8 @@ internal sealed class TransportSecurityConfiguration
         string? authenticationSecretBase64,
         string? certificateDirectory,
         PersistedAuthenticationSecretStore? secretStore = null,
-        Func<CertificateManager>? defaultCertificateManagerFactory = null)
+        Func<CertificateManager>? defaultCertificateManagerFactory = null,
+        Func<string>? defaultAppDataPathProvider = null)
     {
         var usesExplicitAuthenticationSecret = !string.IsNullOrWhiteSpace(authenticationSecretBase64);
         var usesExplicitCertificateDirectory = !string.IsNullOrWhiteSpace(certificateDirectory);
@@ -49,7 +50,8 @@ internal sealed class TransportSecurityConfiguration
         {
             try
             {
-                resolvedAuthenticationSecretBase64 = (secretStore ?? new PersistedAuthenticationSecretStore()).GetOrCreateSecretBase64();
+                var effectiveSecretStore = secretStore ?? CreateDefaultSecretStore(defaultAppDataPathProvider);
+                resolvedAuthenticationSecretBase64 = effectiveSecretStore.GetOrCreateSecretBase64();
             }
             catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or CryptographicException or TimeoutException)
             {
@@ -75,7 +77,8 @@ internal sealed class TransportSecurityConfiguration
         {
             try
             {
-                certificateManager = (defaultCertificateManagerFactory ?? (() => new CertificateManager()))();
+                certificateManager = (defaultCertificateManagerFactory
+                    ?? CreateDefaultCertificateManagerFactory(defaultAppDataPathProvider))();
             }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or IOException or UnauthorizedAccessException)
             {
@@ -144,6 +147,18 @@ internal sealed class TransportSecurityConfiguration
                 ex);
         }
     }
+
+    private static PersistedAuthenticationSecretStore CreateDefaultSecretStore(
+        Func<string>? defaultAppDataPathProvider)
+        => defaultAppDataPathProvider == null
+            ? new PersistedAuthenticationSecretStore()
+            : PersistedAuthenticationSecretStore.CreateForDefaultProfile(defaultAppDataPathProvider);
+
+    private static Func<CertificateManager> CreateDefaultCertificateManagerFactory(
+        Func<string>? defaultAppDataPathProvider)
+        => defaultAppDataPathProvider == null
+            ? static () => new CertificateManager()
+            : () => CertificateManager.CreateForDefaultProfile(defaultAppDataPathProvider);
 
     private static bool IsAbsolutePath(string path)
     {

@@ -34,7 +34,7 @@
 - `elementId`：可選 form scope。省略時檢查 root window。
 - `includeFramework`：可選。維持 `false` 可排除 framework-internal template controls。
 
-輸出欄位包含 `inputs`、`commands`、`summary`、`validationSubmittable`、`interactionSubmittable` 與 `isSubmittable`。
+輸出欄位包含 `inputs`、`commands`、`summary`、`summary.validationSubmittable`、`summary.interactionSubmittable` 與 `summary.isSubmittable`。
 
 範例：
 

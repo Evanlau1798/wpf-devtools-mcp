@@ -67,6 +67,20 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/reference/tools/scene-and-state.md")]
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md")]
+    public void SceneAndStateReferencePages_ShouldDocumentFormSummarySubmittabilityAsNestedSummaryFields(
+        string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("summary.validationSubmittable");
+        content.Should().Contain("summary.interactionSubmittable");
+        content.Should().Contain("summary.isSubmittable");
+        content.Should().NotContain("`validationSubmittable`, `interactionSubmittable`,");
+    }
+
+    [Theory]
     [InlineData(
         "docfx/architecture/ipc.md",
         "event push from inspector to server",

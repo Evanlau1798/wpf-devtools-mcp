@@ -34,7 +34,7 @@ Parameters:
 - `elementId` optional form scope. Omit to inspect the root window.
 - `includeFramework` optional. Keep `false` for user-facing controls only.
 
-Output fields include `inputs`, `commands`, `summary`, `validationSubmittable`, `interactionSubmittable`, and `isSubmittable`.
+Output fields include `inputs`, `commands`, `summary`, `summary.validationSubmittable`, `summary.interactionSubmittable`, and `summary.isSubmittable`.
 
 Example:
 

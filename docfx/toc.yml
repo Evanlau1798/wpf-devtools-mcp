@@ -54,6 +54,10 @@
       href: reference/tools/tree-and-xaml.md
     - name: Binding and Dependency Property Tools
       href: reference/tools/binding-and-dp.md
+    - name: Style and Template Tools
+      href: reference/tools/style-and-template.md
+    - name: Scene and State Diagnostic Tools
+      href: reference/tools/scene-and-state.md
     - name: Interaction, Event, Layout, and Performance Tools
       href: reference/tools/interaction-events-layout.md
     - name: Configuration Reference

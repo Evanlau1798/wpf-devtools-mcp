@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
@@ -17,6 +18,26 @@ public sealed class DocfxCapabilityDocumentationTests
             .Should().Contain($"{toolCount} tools");
         File.ReadAllText(GetRepoFilePath("docfx/zh-tw/reference/tools/index.md"))
             .Should().Contain($"{toolCount} 個工具");
+    }
+
+    [Theory]
+    [InlineData("docfx/reference/tools")]
+    [InlineData("docfx/zh-tw/reference/tools")]
+    public void ToolReferenceCategoryPages_ShouldCoverEverySourceRegisteredTool(string relativeDirectory)
+    {
+        var toolNames = GetSourceRegisteredToolNames();
+        var categoryContent = Directory
+            .EnumerateFiles(GetRepoFilePath(relativeDirectory), "*.md", SearchOption.TopDirectoryOnly)
+            .Where(path => !string.Equals(Path.GetFileName(path), "index.md", StringComparison.OrdinalIgnoreCase))
+            .Select(File.ReadAllText)
+            .Aggregate(string.Empty, static (left, right) => left + "\n" + right);
+
+        var missingTools = toolNames
+            .Where(toolName => !categoryContent.Contains(toolName, StringComparison.Ordinal))
+            .ToArray();
+
+        missingTools.Should().BeEmpty(
+            "every source-registered MCP tool should have name-level coverage in a dedicated DocFX reference category page, not only the overview index");
     }
 
     [Theory]
@@ -352,6 +373,16 @@ public sealed class DocfxCapabilityDocumentationTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string[] GetSourceRegisteredToolNames()
+    {
+        var pattern = new Regex(@"\[McpServerTool\(Name = ""([^""]+)""", RegexOptions.Compiled);
+        return Directory
+            .EnumerateFiles(GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools"), "*.cs", SearchOption.TopDirectoryOnly)
+            .SelectMany(path => pattern.Matches(File.ReadAllText(path)).Select(match => match.Groups[1].Value))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
 
     private static IEnumerable<string> EnumerateDocfxContractMarkdownFiles()
     {

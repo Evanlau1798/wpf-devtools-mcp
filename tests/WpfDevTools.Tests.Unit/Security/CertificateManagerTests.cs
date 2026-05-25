@@ -159,6 +159,38 @@ public class CertificateManagerTests : IDisposable
             });
 
         loaded.HasPrivateKey.Should().BeTrue();
+        attemptedFlags.Should().NotBeEmpty();
+#if !NET48
+        attemptedFlags[0].Should().HaveFlag(X509KeyStorageFlags.EphemeralKeySet);
+#endif
+        attemptedFlags.Should().NotContain(flags => (flags & X509KeyStorageFlags.PersistKeySet) != 0);
+    }
+
+    [Fact]
+    public void LoadCertificateFromFile_WhenEphemeralImportFails_ShouldFallbackWithoutPersistingKeyStorage()
+    {
+        const string password = "loader-test-password";
+        using var source = CreateCertificate();
+        var certificatePath = Path.Combine(_tempDir, "loader-fallback-test.pfx");
+        File.WriteAllBytes(certificatePath, source.Export(X509ContentType.Pfx, password));
+        var attemptedFlags = new List<X509KeyStorageFlags>();
+
+        using var loaded = CertificateManager.LoadCertificateFromFile(
+            certificatePath,
+            password,
+            (path, certificatePassword, flags) =>
+            {
+                attemptedFlags.Add(flags);
+                if ((flags & X509KeyStorageFlags.EphemeralKeySet) != 0)
+                {
+                    throw new CryptographicException("Simulated ephemeral import failure.");
+                }
+
+                return new X509Certificate2(path, certificatePassword, flags);
+            });
+
+        loaded.HasPrivateKey.Should().BeTrue();
+        attemptedFlags.Should().Contain(flags => (flags & X509KeyStorageFlags.UserKeySet) != 0);
         attemptedFlags.Should().NotContain(flags => (flags & X509KeyStorageFlags.PersistKeySet) != 0);
     }
 

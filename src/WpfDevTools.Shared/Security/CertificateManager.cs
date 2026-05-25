@@ -233,8 +233,8 @@ public sealed class CertificateManager
 #else
         return
         [
-            X509KeyStorageFlags.UserKeySet,
             X509KeyStorageFlags.EphemeralKeySet,
+            X509KeyStorageFlags.UserKeySet,
             X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet
         ];
 #endif

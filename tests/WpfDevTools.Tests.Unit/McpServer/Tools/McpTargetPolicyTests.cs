@@ -96,15 +96,20 @@ public sealed class McpTargetPolicyTests
     [Fact]
     public void Authorize_WhenResolvedTargetPathIsNetworkPath_ShouldFailClosed()
     {
+        var resolverCallCount = 0;
+
         var authorization = McpTargetPolicy.Authorize(
             CreateProcessInfo(@"C:\Allowed\Target.exe"),
             configuredAllowedTargets: @"C:\Allowed\Target.exe",
-            _ => @"\\server\share\Target.exe");
+            path => ++resolverCallCount == 1
+                ? path
+                : @"\\server\share\Target.exe");
 
         authorization.IsAllowed.Should().BeFalse();
-        authorization.Error.Should().Contain("Invalid MCP target allowlist configuration");
-        authorization.Error.Should().Contain("exact local absolute executable path");
+        authorization.Error.Should().Contain("target executable path");
+        authorization.Error.Should().Contain("local absolute path");
         authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
+        resolverCallCount.Should().Be(2);
     }
 
     private static WpfProcessInfo CreateProcessInfo(string? executablePath, string processName = "TargetApp")

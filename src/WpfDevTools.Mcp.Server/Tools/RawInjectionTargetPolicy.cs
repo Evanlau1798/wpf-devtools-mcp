@@ -306,25 +306,43 @@ internal static class RawInjectionTargetPolicy
             }
         }
 
-        return NormalizePath(TrimDevicePrefix(builder.ToString()));
+        return TryNormalizeFinalPathName(builder.ToString(), out var normalizedPath)
+            ? normalizedPath
+            : null;
     }
 
-    private static string TrimDevicePrefix(string path)
+    internal static bool TryNormalizeFinalPathName(string path, out string normalizedPath)
     {
+        normalizedPath = string.Empty;
         const string uncPrefix = @"\\?\UNC\";
         const string devicePrefix = @"\\?\";
 
         if (path.StartsWith(uncPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            return @"\\" + path[uncPrefix.Length..];
+            normalizedPath = NormalizePath(@"\\" + path[uncPrefix.Length..]);
+            return true;
         }
 
         if (path.StartsWith(devicePrefix, StringComparison.OrdinalIgnoreCase))
         {
-            return path[devicePrefix.Length..];
+            var candidate = path[devicePrefix.Length..];
+            if (!TryGetWindowsLocalDriveRoot(candidate, out _))
+            {
+                return false;
+            }
+
+            normalizedPath = NormalizePath(candidate);
+            return true;
         }
 
-        return path;
+        if (path.StartsWith(@"\\.\", StringComparison.OrdinalIgnoreCase)
+            || IsRejectedTargetPath(path))
+        {
+            return false;
+        }
+
+        normalizedPath = NormalizePath(path);
+        return true;
     }
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]

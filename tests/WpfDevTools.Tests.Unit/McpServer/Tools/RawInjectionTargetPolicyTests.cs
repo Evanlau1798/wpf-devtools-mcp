@@ -70,6 +70,18 @@ public sealed class RawInjectionTargetPolicyTests
         authorization.Error.Should().Contain("local absolute path");
     }
 
+    [Theory]
+    [InlineData(@"\\?\GLOBALROOT\Device\Mup\server\share\Target.exe")]
+    [InlineData(@"\\.\GLOBALROOT\Device\Mup\server\share\Target.exe")]
+    public void TryNormalizeFinalPathName_WhenPathUsesDeviceNamespace_ShouldFailClosed(string finalPathName)
+    {
+        var normalized = RawInjectionTargetPolicy.TryNormalizeFinalPathName(
+            finalPathName,
+            out _);
+
+        normalized.Should().BeFalse();
+    }
+
     private static WpfProcessInfo CreateProcessInfo(string executablePath)
     {
         return new WpfProcessInfo

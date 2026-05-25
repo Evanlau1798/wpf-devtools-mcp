@@ -194,13 +194,23 @@ public sealed class CertificateManager
     }
 
     private static X509Certificate2 LoadCertificateFromFile(string certPath, string password)
+        => LoadCertificateFromFile(
+            certPath,
+            password,
+            static (path, certificatePassword, keyStorageFlags) =>
+                new X509Certificate2(path, certificatePassword, keyStorageFlags));
+
+    internal static X509Certificate2 LoadCertificateFromFile(
+        string certPath,
+        string password,
+        Func<string, string, X509KeyStorageFlags, X509Certificate2> certificateLoader)
     {
         CryptographicException? lastException = null;
         foreach (var keyStorageFlags in GetNonExportableKeyStoragePreferences())
         {
             try
             {
-                return new X509Certificate2(certPath, password, keyStorageFlags);
+                return certificateLoader(certPath, password, keyStorageFlags);
             }
             catch (CryptographicException ex)
             {
@@ -211,7 +221,7 @@ public sealed class CertificateManager
         throw lastException ?? new CryptographicException("Certificate could not be loaded.");
     }
 
-    internal static X509KeyStorageFlags[] GetNonExportableKeyStoragePreferences()
+    private static X509KeyStorageFlags[] GetNonExportableKeyStoragePreferences()
     {
 #if NET48
         return

@@ -136,18 +136,55 @@ public class CertificateManagerTests : IDisposable
     }
 
     [Fact]
-    public void GetNonExportableKeyStoragePreferences_ShouldAvoidPersistedKeyStorageUntilFallback()
+    public void LoadCertificateFromFile_ShouldAvoidPersistedKeyStorageWhenNonPersistingImportSucceeds()
     {
-        var preferences = CertificateManager.GetNonExportableKeyStoragePreferences();
+        const string password = "loader-test-password";
+        using var source = CreateCertificate();
+        var certificatePath = Path.Combine(_tempDir, "loader-test.pfx");
+        File.WriteAllBytes(certificatePath, source.Export(X509ContentType.Pfx, password));
+        var attemptedFlags = new List<X509KeyStorageFlags>();
 
-#if NET48
-        preferences[0].Should().Be(X509KeyStorageFlags.UserKeySet);
-        preferences[1].Should().Be(X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet);
-#else
-        preferences[0].Should().Be(X509KeyStorageFlags.UserKeySet);
-        preferences[1].Should().Be(X509KeyStorageFlags.EphemeralKeySet);
-        preferences[2].Should().Be(X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet);
-#endif
+        using var loaded = CertificateManager.LoadCertificateFromFile(
+            certificatePath,
+            password,
+            (path, certificatePassword, flags) =>
+            {
+                attemptedFlags.Add(flags);
+                if ((flags & X509KeyStorageFlags.PersistKeySet) != 0)
+                {
+                    throw new CryptographicException("Persisted key storage should not be needed.");
+                }
+
+                return new X509Certificate2(path, certificatePassword, flags);
+            });
+
+        loaded.HasPrivateKey.Should().BeTrue();
+        attemptedFlags.Should().NotContain(flags => (flags & X509KeyStorageFlags.PersistKeySet) != 0);
+    }
+
+    [Fact]
+    public void GetOrCreateCertificate_ShouldSupportPrivateKeySigning()
+    {
+        var manager = new CertificateManager(_tempDir);
+
+        using var cert = manager.GetOrCreateCertificate();
+        using var privateKey = cert.GetRSAPrivateKey();
+        using var publicKey = cert.GetRSAPublicKey();
+        var payload = System.Text.Encoding.UTF8.GetBytes("wpf-devtools-certificate-signing-check");
+
+        privateKey.Should().NotBeNull();
+        publicKey.Should().NotBeNull();
+
+        var signature = privateKey!.SignData(
+            payload,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
+
+        publicKey!.VerifyData(
+            payload,
+            signature,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1).Should().BeTrue();
     }
 
     [Fact]

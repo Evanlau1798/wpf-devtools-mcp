@@ -1,33 +1,19 @@
+using System.Reflection;
 using System.Text.Json;
+using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal sealed class McpToolExecutionPolicy
 {
-    private static readonly HashSet<string> DestructiveTools = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> SessionLifecycleDestructiveExceptions = new(StringComparer.Ordinal)
     {
-        "set_dp_value",
-        "clear_dp_value",
-        "click_element",
-        "fire_routed_event",
-        "execute_command",
-        "modify_viewmodel",
-        "override_style_setter",
-        "invalidate_layout",
-        "drag_and_drop",
-        "focus_element",
-        "simulate_keyboard",
-        "force_binding_update",
-        "wait_for_dp_change_after_mutation",
-        "scroll_to_element",
-        "highlight_element",
-        "measure_element_render_time",
-        "restore_state_snapshot",
-        "capture_state_snapshot",
-        "drain_events",
-        "batch_mutate"
+        "connect",
+        "select_active_process"
     };
+
+    private static readonly HashSet<string> DestructiveTools = DiscoverExplicitDestructiveTools();
 
     private static readonly HashSet<string> ScreenshotTools = new(StringComparer.Ordinal)
     {
@@ -141,6 +127,26 @@ internal sealed class McpToolExecutionPolicy
                 : string.Equals(toolName, "wait_for_dp_change_after_mutation", StringComparison.Ordinal)
                     && TriggerMutationUsesViewModel(arguments);
     }
+
+    private static HashSet<string> DiscoverExplicitDestructiveTools()
+        => typeof(McpToolExecutionPolicy).Assembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
+            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+            .Select(method => new
+            {
+                Attribute = method.GetCustomAttribute<McpServerToolAttribute>(),
+                AttributeData = method.GetCustomAttributesData()
+                    .FirstOrDefault(attribute => attribute.AttributeType == typeof(McpServerToolAttribute))
+            })
+            .Where(tool => tool.Attribute?.Name is not null && IsExplicitlyDestructive(tool.AttributeData))
+            .Select(tool => tool.Attribute!.Name!)
+            .Where(name => !SessionLifecycleDestructiveExceptions.Contains(name))
+            .ToHashSet(StringComparer.Ordinal);
+
+    private static bool IsExplicitlyDestructive(CustomAttributeData? attributeData)
+        => attributeData?.NamedArguments.Any(argument =>
+            string.Equals(argument.MemberName, "Destructive", StringComparison.Ordinal)
+            && argument.TypedValue.Value is true) == true;
 
     private static bool BatchMutateUsesViewModel(IDictionary<string, JsonElement>? arguments)
     {

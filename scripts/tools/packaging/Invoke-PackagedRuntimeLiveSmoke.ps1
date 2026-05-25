@@ -38,6 +38,35 @@ function ConvertTo-TestAppPlatform {
     }
 }
 
+function Resolve-TestAppRunCommand {
+    param(
+        [Parameter(Mandatory)] [string]$ProjectPath,
+        [Parameter(Mandatory)] [string]$Configuration,
+        [Parameter(Mandatory)] [string]$Platform
+    )
+
+    $runCommandOutput = & dotnet msbuild $ProjectPath `
+        "-property:Configuration=$Configuration" `
+        "-property:Platform=$Platform" `
+        -getProperty:RunCommand
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to resolve TestApp RunCommand for $Platform."
+    }
+
+    $runCommand = @($runCommandOutput |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Last 1)
+    if ([string]::IsNullOrWhiteSpace([string]$runCommand)) {
+        throw "MSBuild did not return a TestApp RunCommand for $Platform."
+    }
+
+    if ([System.IO.Path]::IsPathRooted([string]$runCommand)) {
+        return [System.IO.Path]::GetFullPath([string]$runCommand)
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path ([string]$runCommand)))
+}
+
 function Wait-TestAppReady {
     param(
         [Parameter(Mandatory)] [System.Diagnostics.Process]$Process,
@@ -77,7 +106,10 @@ try {
         throw "TestApp build failed for $Architecture."
     }
 
-    $targetProcessPath = Join-Path $repoRoot "tests\WpfDevTools.Tests.TestApp\bin\$Configuration\net8.0-windows\WpfDevTools.Tests.TestApp.exe"
+    $targetProcessPath = Resolve-TestAppRunCommand `
+        -ProjectPath $testAppProject `
+        -Configuration $Configuration `
+        -Platform $platform
     if (-not (Test-Path $targetProcessPath)) {
         throw "Could not locate built TestApp executable at $targetProcessPath."
     }

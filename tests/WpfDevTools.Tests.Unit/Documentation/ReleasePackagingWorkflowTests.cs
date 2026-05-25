@@ -172,6 +172,14 @@ public class ReleasePackagingWorkflowTests
         content.Should().Contain("Test-PackagedServerRuntime.ps1");
         content.Should().Contain("-TargetProcessId $targetProcess.Id");
         content.Should().Contain("-TargetProcessPath $targetProcessPath");
+        content.Should().Contain("Resolve-TestAppRunCommand",
+            "the helper should resolve the platform-specific TestApp executable instead of assuming a non-platform output path");
+        content.Should().Contain("-getProperty:RunCommand",
+            "MSBuild RunCommand points at the executable path under bin/<Platform>/<Configuration>/...");
+        content.Should().Contain("-property:Platform=$Platform",
+            "the TestApp executable path must be evaluated for the same architecture used by the smoke lane");
+        content.Should().NotContain("\"tests\\WpfDevTools.Tests.TestApp\\bin\\$Configuration\\net8.0-windows\\WpfDevTools.Tests.TestApp.exe\"",
+            "platform-specific builds do not emit the executable under the non-platform bin/<Configuration> path");
         content.Should().Contain("Stop-Process",
             "the helper must not leave a live WPF TestApp behind after package smoke validation");
     }

@@ -55,7 +55,7 @@ internal static class CanonicalMcpToolManifest
             bridgeFile = $"src/WpfDevTools.Mcp.Server/McpTools/{type.Name}.cs",
             method = $"{type.FullName}.{method.Name}",
             category = entry.Category,
-            policyCapabilityTags = entry.CapabilityTags,
+            policyCapabilityTags = entry.PolicyCapabilityTags,
             capabilityTags = entry.CapabilityTags,
             parameters,
             requiredParameters,

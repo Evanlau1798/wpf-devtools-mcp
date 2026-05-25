@@ -78,6 +78,22 @@ public sealed class CanonicalMcpToolManifestTests
     }
 
     [Fact]
+    public void ToolManifestResource_ShouldExposePolicyCapabilityTagsThatMatchStaticPolicyGates()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
+        var tools = document.RootElement.GetProperty("tools").EnumerateArray().ToArray();
+
+        AssertTags(tools, "connect", "destructive");
+        AssertPolicyMissingTags(tools, "connect", "destructive", "destructive-tools");
+        AssertTags(tools, "select_active_process", "destructive");
+        AssertPolicyMissingTags(tools, "select_active_process", "destructive", "destructive-tools");
+
+        AssertPolicyTags(tools, "modify_viewmodel", "destructive-tools", "viewmodel-inspection");
+        AssertPolicyTags(tools, "element_screenshot", "screenshots");
+        AssertPolicyTags(tools, "get_datacontext_chain", "viewmodel-inspection");
+    }
+
+    [Fact]
     public void ToolManifestResource_ShouldClassifyOnlyStatefulSnapshotToolsAsStateConsuming()
     {
         using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
@@ -125,6 +141,26 @@ public sealed class CanonicalMcpToolManifestTests
         }
     }
 
+    private static void AssertPolicyTags(JsonElement[] tools, string toolName, params string[] expectedTags)
+    {
+        var tags = GetPolicyTags(tools, toolName);
+
+        foreach (var expectedTag in expectedTags)
+        {
+            tags.Should().Contain(expectedTag);
+        }
+    }
+
+    private static void AssertPolicyMissingTags(JsonElement[] tools, string toolName, params string[] unexpectedTags)
+    {
+        var tags = GetPolicyTags(tools, toolName);
+
+        foreach (var unexpectedTag in unexpectedTags)
+        {
+            tags.Should().NotContain(unexpectedTag);
+        }
+    }
+
     private static string[] GetTags(JsonElement[] tools, string toolName)
     {
         var tool = tools.Single(entry => GetName(entry) == toolName);
@@ -134,6 +170,17 @@ public sealed class CanonicalMcpToolManifestTests
     private static string[] GetTags(JsonElement tool)
     {
         return tool.GetProperty("capabilityTags")
+            .EnumerateArray()
+            .Select(entry => entry.GetString())
+            .Where(entry => entry is not null)
+            .Cast<string>()
+            .ToArray();
+    }
+
+    private static string[] GetPolicyTags(JsonElement[] tools, string toolName)
+    {
+        var tool = tools.Single(entry => GetName(entry) == toolName);
+        return tool.GetProperty("policyCapabilityTags")
             .EnumerateArray()
             .Select(entry => entry.GetString())
             .Where(entry => entry is not null)

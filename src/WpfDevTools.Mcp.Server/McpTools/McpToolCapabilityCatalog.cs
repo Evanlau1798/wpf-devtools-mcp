@@ -12,13 +12,21 @@ internal static class McpToolCapabilityTags
     internal const string ViewModel = "viewmodel";
 }
 
+internal static class McpToolPolicyTags
+{
+    internal const string DestructiveTools = "destructive-tools";
+    internal const string Screenshots = "screenshots";
+    internal const string ViewModelInspection = "viewmodel-inspection";
+}
+
 internal sealed record McpToolCapabilityEntry(
     Type Type,
     MethodInfo Method,
     McpServerToolAttribute Attribute,
     string Description,
     string Category,
-    string[] CapabilityTags);
+    string[] CapabilityTags,
+    string[] PolicyCapabilityTags);
 
 internal static class McpToolCapabilityCatalog
 {
@@ -30,6 +38,14 @@ internal static class McpToolCapabilityCatalog
     internal static HashSet<string> DiscoverToolNamesWithTag(string capabilityTag)
         => Entries.Value
             .Where(entry => entry.CapabilityTags.Contains(capabilityTag, StringComparer.Ordinal))
+            .Select(entry => entry.Attribute.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
+            .ToHashSet(StringComparer.Ordinal);
+
+    internal static HashSet<string> DiscoverToolNamesWithPolicyTag(string policyTag)
+        => Entries.Value
+            .Where(entry => entry.PolicyCapabilityTags.Contains(policyTag, StringComparer.Ordinal))
             .Select(entry => entry.Attribute.Name)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Select(name => name!)
@@ -53,14 +69,40 @@ internal static class McpToolCapabilityCatalog
 
             var description = method.GetCustomAttribute<DescriptionAttribute>()?.Description ?? string.Empty;
             var category = GetCategory(description);
+            var capabilityTags = GetCapabilityTags(attribute, method, category);
             yield return new McpToolCapabilityEntry(
                 type,
                 method,
                 attribute,
                 description,
                 category,
-                GetCapabilityTags(attribute, method, category));
+                capabilityTags,
+                GetPolicyCapabilityTags(attribute.Name, capabilityTags));
         }
+    }
+
+    private static string[] GetPolicyCapabilityTags(string? toolName, IReadOnlyCollection<string> capabilityTags)
+    {
+        var policyTags = new SortedSet<string>(StringComparer.Ordinal);
+        var name = toolName ?? string.Empty;
+
+        if (capabilityTags.Contains(McpToolCapabilityTags.Destructive, StringComparer.Ordinal)
+            && name is not "connect" and not "select_active_process")
+        {
+            policyTags.Add(McpToolPolicyTags.DestructiveTools);
+        }
+
+        if (capabilityTags.Contains(McpToolCapabilityTags.Screenshot, StringComparer.Ordinal))
+        {
+            policyTags.Add(McpToolPolicyTags.Screenshots);
+        }
+
+        if (capabilityTags.Contains(McpToolCapabilityTags.ViewModel, StringComparer.Ordinal))
+        {
+            policyTags.Add(McpToolPolicyTags.ViewModelInspection);
+        }
+
+        return policyTags.ToArray();
     }
 
     private static string[] GetCapabilityTags(

@@ -5,21 +5,14 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal sealed class McpToolExecutionPolicy
 {
-    private static readonly HashSet<string> SessionLifecycleDestructiveExceptions = new(StringComparer.Ordinal)
-    {
-        "connect",
-        "select_active_process"
-    };
-
-    private static readonly HashSet<string> DestructiveTools = DiscoverPolicyToolNames(
-        McpToolCapabilityTags.Destructive,
-        SessionLifecycleDestructiveExceptions);
+    private static readonly HashSet<string> DestructiveTools =
+        McpToolCapabilityCatalog.DiscoverToolNamesWithPolicyTag(McpToolPolicyTags.DestructiveTools);
 
     private static readonly HashSet<string> ScreenshotTools =
-        McpToolCapabilityCatalog.DiscoverToolNamesWithTag(McpToolCapabilityTags.Screenshot);
+        McpToolCapabilityCatalog.DiscoverToolNamesWithPolicyTag(McpToolPolicyTags.Screenshots);
 
     private static readonly HashSet<string> ViewModelInspectionTools =
-        McpToolCapabilityCatalog.DiscoverToolNamesWithTag(McpToolCapabilityTags.ViewModel);
+        McpToolCapabilityCatalog.DiscoverToolNamesWithPolicyTag(McpToolPolicyTags.ViewModelInspection);
 
     private readonly PolicyGate _destructiveTools;
     private readonly PolicyGate _screenshots;
@@ -67,7 +60,7 @@ internal sealed class McpToolExecutionPolicy
             var decision = EvaluateGate(
                 _screenshots,
                 toolName,
-                policyCategory: "screenshots",
+                policyCategory: McpToolPolicyTags.Screenshots,
                 capabilityDescription: "capture or return target UI screenshots");
             if (!decision.IsAllowed)
             {
@@ -80,7 +73,7 @@ internal sealed class McpToolExecutionPolicy
             var decision = EvaluateGate(
                 _viewModelInspection,
                 toolName,
-                policyCategory: "viewmodel-inspection",
+                policyCategory: McpToolPolicyTags.ViewModelInspection,
                 capabilityDescription: "inspect or modify target ViewModel state");
             if (!decision.IsAllowed)
             {
@@ -93,7 +86,7 @@ internal sealed class McpToolExecutionPolicy
             var decision = EvaluateGate(
                 _destructiveTools,
                 toolName,
-                policyCategory: "destructive-tools",
+                policyCategory: McpToolPolicyTags.DestructiveTools,
                 capabilityDescription: "mutate the running target application");
             if (!decision.IsAllowed)
             {
@@ -120,13 +113,6 @@ internal sealed class McpToolExecutionPolicy
                 : string.Equals(toolName, "wait_for_dp_change_after_mutation", StringComparison.Ordinal)
                     && TriggerMutationUsesViewModel(arguments);
     }
-
-    private static HashSet<string> DiscoverPolicyToolNames(
-        string capabilityTag,
-        IReadOnlySet<string> exceptions)
-        => McpToolCapabilityCatalog.DiscoverToolNamesWithTag(capabilityTag)
-            .Where(name => !exceptions.Contains(name))
-            .ToHashSet(StringComparer.Ordinal);
 
     private static bool BatchMutateUsesViewModel(IDictionary<string, JsonElement>? arguments)
     {

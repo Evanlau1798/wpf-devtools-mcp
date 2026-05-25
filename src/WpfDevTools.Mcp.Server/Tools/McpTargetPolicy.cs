@@ -66,10 +66,11 @@ internal static class McpTargetPolicy
 
         if (configuredTargetEntries.Length == 0)
         {
-            return CreateInvalidConfigurationAuthorization();
+            return CreateInvalidConfigurationAuthorization(invalidEntryCount: 0);
         }
 
         var configuredTargets = new HashSet<string>(RawInjectionTargetPolicy.PathComparer);
+        var invalidEntryCount = 0;
         foreach (var configuredTargetEntry in configuredTargetEntries)
         {
             if (!RawInjectionTargetPolicy.TryNormalizeAbsolutePath(
@@ -77,10 +78,16 @@ internal static class McpTargetPolicy
                     resolvePhysicalPath,
                     out var normalizedConfiguredTarget))
             {
-                return CreateInvalidConfigurationAuthorization();
+                invalidEntryCount++;
+                continue;
             }
 
             configuredTargets.Add(normalizedConfiguredTarget);
+        }
+
+        if (invalidEntryCount > 0)
+        {
+            return CreateInvalidConfigurationAuthorization(invalidEntryCount);
         }
 
         if (!RawInjectionTargetPolicy.TryNormalizeAbsolutePath(
@@ -105,10 +112,13 @@ internal static class McpTargetPolicy
             Hint: $"Add the exact local absolute executable path to {McpServerConfiguration.AllowedTargetsEnvVar} only after reviewing the target process. The full denied path is written only to server diagnostics.");
     }
 
-    private static McpTargetAuthorization CreateInvalidConfigurationAuthorization()
+    private static McpTargetAuthorization CreateInvalidConfigurationAuthorization(int invalidEntryCount)
         => new(
             IsAllowed: false,
-            Error: "Invalid MCP target allowlist configuration. Every configured entry must be an exact local absolute executable path.",
+            Error: "Invalid MCP target allowlist configuration for " +
+                   $"{McpServerConfiguration.AllowedTargetsEnvVar}. " +
+                   $"{EnvironmentVariableDiagnostics.FormatInvalidEntryCount(invalidEntryCount)} " +
+                   "Every configured entry must be an exact local absolute executable path.",
             Hint: $"Fix {McpServerConfiguration.AllowedTargetsEnvVar} to a semicolon-separated list of exact local absolute executable paths, then restart the MCP server.",
             FailureKind: McpTargetAuthorizationFailureKind.InvalidPolicyConfiguration);
 }

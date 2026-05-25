@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ModelContextProtocol.Protocol;
+using WpfDevTools.Mcp.Server;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
@@ -319,7 +320,8 @@ internal sealed class McpToolExecutionPolicy
             return new PolicyGate(
                 environmentVariable,
                 IsAllowed: false,
-                ConfigurationError: $"Value '{configuredValue}' is not valid; use true or false.");
+                ConfigurationError:
+                $"Invalid value for {environmentVariable}. {EnvironmentVariableDiagnostics.AcceptedBooleanValues}");
         }
 
         private static bool IsEnabledValue(string value)

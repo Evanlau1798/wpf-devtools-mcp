@@ -77,9 +77,13 @@ internal static class RawInjectionTargetPolicy
         string? configuredAllowedTargets,
         Func<string, PhysicalPathResolution> resolvePhysicalPath)
     {
-        if (!TryGetConfiguredAllowedTargets(configuredAllowedTargets, resolvePhysicalPath, out var configuredTargets))
+        if (!TryGetConfiguredAllowedTargets(
+            configuredAllowedTargets,
+            resolvePhysicalPath,
+            out var configuredTargets,
+            out var invalidEntryCount))
         {
-            return CreateInvalidConfigurationAuthorization();
+            return CreateInvalidConfigurationAuthorization(invalidEntryCount);
         }
 
         if (!TryNormalizeAbsolutePath(processInfo.ExecutablePath, resolvePhysicalPath, out var normalizedTargetPath))
@@ -119,7 +123,11 @@ internal static class RawInjectionTargetPolicy
     private static IReadOnlyCollection<string> GetConfiguredAllowedTargets(
         string? configuredValue,
         Func<string, PhysicalPathResolution> resolvePhysicalPath)
-        => TryGetConfiguredAllowedTargets(configuredValue, resolvePhysicalPath, out var configuredTargets)
+        => TryGetConfiguredAllowedTargets(
+            configuredValue,
+            resolvePhysicalPath,
+            out var configuredTargets,
+            out _)
             ? configuredTargets
             : Array.Empty<string>();
 
@@ -130,14 +138,17 @@ internal static class RawInjectionTargetPolicy
         => TryGetConfiguredAllowedTargets(
             configuredValue,
             ToPhysicalPathResolver(tryResolvePhysicalPath),
-            out configuredTargets);
+            out configuredTargets,
+            out _);
 
     private static bool TryGetConfiguredAllowedTargets(
         string? configuredValue,
         Func<string, PhysicalPathResolution> resolvePhysicalPath,
-        out IReadOnlyCollection<string> configuredTargets)
+        out IReadOnlyCollection<string> configuredTargets,
+        out int invalidEntryCount)
     {
         configuredTargets = Array.Empty<string>();
+        invalidEntryCount = 0;
         if (string.IsNullOrWhiteSpace(configuredValue))
         {
             return true;
@@ -149,6 +160,7 @@ internal static class RawInjectionTargetPolicy
 
         if (configuredTargetEntries.Length == 0)
         {
+            invalidEntryCount = 0;
             return false;
         }
 
@@ -160,21 +172,30 @@ internal static class RawInjectionTargetPolicy
                     resolvePhysicalPath,
                     out var normalizedConfiguredTarget))
             {
-                configuredTargets = Array.Empty<string>();
-                return false;
+                invalidEntryCount++;
+                continue;
             }
 
             normalizedPaths.Add(normalizedConfiguredTarget);
+        }
+
+        if (invalidEntryCount > 0)
+        {
+            configuredTargets = Array.Empty<string>();
+            return false;
         }
 
         configuredTargets = new ReadOnlyCollection<string>(normalizedPaths.ToArray());
         return true;
     }
 
-    private static RawInjectionAuthorization CreateInvalidConfigurationAuthorization()
+    private static RawInjectionAuthorization CreateInvalidConfigurationAuthorization(int invalidEntryCount)
         => new(
             IsAllowed: false,
-            Error: "Invalid raw injection allowlist configuration. Every configured entry must be an exact local absolute executable path.",
+            Error: "Invalid raw injection allowlist configuration for " +
+                   $"{McpServerConfiguration.RawInjectionAllowedTargetsEnvVar}. " +
+                   $"{EnvironmentVariableDiagnostics.FormatInvalidEntryCount(invalidEntryCount)} " +
+                   "Every configured entry must be an exact local absolute executable path.",
             Hint: $"Fix {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} to a semicolon-separated list of exact local absolute executable paths, then restart the MCP server.",
             FailureKind: RawInjectionAuthorizationFailureKind.InvalidPolicyConfiguration);
 

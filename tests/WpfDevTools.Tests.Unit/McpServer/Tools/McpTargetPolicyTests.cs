@@ -78,6 +78,24 @@ public sealed class McpTargetPolicyTests
         authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
     }
 
+    [Fact]
+    public void Authorize_WhenTargetAllowlistContainsInvalidEntries_ShouldReportCountWithoutEchoingPaths()
+    {
+        var authorization = McpTargetPolicy.Authorize(
+            CreateProcessInfo(@"C:\Allowed\Target.exe"),
+            configuredAllowedTargets: @"relative\SecretTarget.exe;\\server\share\Payroll.exe;C:\Allowed\Target.exe",
+            path => path);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.ErrorCode.Should().Be("InvalidPolicyConfiguration");
+        authorization.Error.Should().Contain("2 configured entries are invalid");
+        authorization.Error.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
+        authorization.Hint.Should().Contain("semicolon-separated");
+        authorization.Error.Should().NotContain("SecretTarget");
+        authorization.Error.Should().NotContain("Payroll");
+        authorization.Hint.Should().NotContain(@"\\server\share");
+    }
+
     [Theory]
     [InlineData(@"\\server\share\Target.exe")]
     [InlineData(@"\\?\UNC\server\share\Target.exe")]

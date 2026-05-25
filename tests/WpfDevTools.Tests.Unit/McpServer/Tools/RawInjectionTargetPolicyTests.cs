@@ -1,5 +1,6 @@
 using FluentAssertions;
 using WpfDevTools.Injector.Discovery;
+using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Enums;
 
@@ -57,6 +58,25 @@ public sealed class RawInjectionTargetPolicyTests
         authorization.IsAllowed.Should().BeFalse();
         authorization.Error.Should().Contain("Invalid raw injection allowlist configuration");
         authorization.ErrorCode.Should().Be("InvalidPolicyConfiguration");
+    }
+
+    [Fact]
+    public void Authorize_WhenRawInjectionAllowlistContainsInvalidEntries_ShouldReportCountWithoutEchoingPaths()
+    {
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            CreateProcessInfo(@"C:\Allowed\Target.exe"),
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: @"relative\SecretTarget.exe;\\server\share\Payroll.exe;C:\Allowed\Target.exe",
+            tryResolvePhysicalPath: path => path);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.ErrorCode.Should().Be("InvalidPolicyConfiguration");
+        authorization.Error.Should().Contain("2 configured entries are invalid");
+        authorization.Error.Should().Contain(McpServerConfiguration.RawInjectionAllowedTargetsEnvVar);
+        authorization.Hint.Should().Contain("semicolon-separated");
+        authorization.Error.Should().NotContain("SecretTarget");
+        authorization.Error.Should().NotContain("Payroll");
+        authorization.Hint.Should().NotContain(@"\\server\share");
     }
 
     [Fact]

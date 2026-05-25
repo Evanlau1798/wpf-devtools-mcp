@@ -258,6 +258,26 @@ public sealed class McpToolExecutionPolicyTests
         decision.Hint.Should().Contain("true or false");
     }
 
+    [Fact]
+    public void EvaluateToolCall_WhenGateValueIsInvalid_ShouldNotEchoRawConfiguredValue()
+    {
+        const string rawConfiguredValue = "secret=C:\\Sensitive\\Target.exe";
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: rawConfiguredValue,
+            allowScreenshots: null,
+            allowViewModelInspection: null);
+
+        var decision = policy.EvaluateToolCall("click_element");
+
+        decision.IsAllowed.Should().BeFalse();
+        decision.Error.Should().Contain(McpServerConfiguration.AllowDestructiveToolsEnvVar);
+        decision.Hint.Should().Contain("Accepted values");
+        decision.Hint.Should().Contain("true, 1, yes, on");
+        decision.Hint.Should().Contain("false, 0, no, off");
+        decision.Hint.Should().NotContain(rawConfiguredValue);
+        decision.Hint.Should().NotContain("Sensitive");
+    }
+
     [Theory]
     [InlineData("batch_mutate", "{\"mutations\":[{\"tool\":\"modify_viewmodel\",\"args\":{\"propertyName\":\"Name\",\"value\":\"Alice\"}}]}")]
     [InlineData("batch_mutate", "{\"mutations\":[{\"tool\":\"execute_command\",\"args\":{\"commandName\":\"Save\"}}]}")]

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Input;
 using WpfDevTools.Inspector.Utilities;
 
@@ -68,19 +69,17 @@ public sealed partial class InteractionAnalyzer
                 blockers.Add(CreateBlocker(reason, message, activationGuidance));
             }
 
-            if (frameworkElement is ButtonBase button && button.Command is ICommand command)
+            var resolvedElementId = elementId ?? _elementFinder.GenerateElementId(frameworkElement);
+            var commandReadiness = CreateCommandReadiness(frameworkElement, resolvedElementId, out var canExecute);
+            if (canExecute == false)
             {
-                var canExecute = command.CanExecute(button.CommandParameter);
-                if (!canExecute)
-                {
-                    blockers.Add(CreateBlocker("CommandCannotExecute", "The bound ICommand.CanExecute returned false."));
-                }
+                blockers.Add(CreateBlocker("CommandCannotExecute", "The bound ICommand.CanExecute returned false."));
             }
 
             return new
             {
                 success = true,
-                elementId = elementId ?? _elementFinder.GenerateElementId(frameworkElement),
+                elementId = resolvedElementId,
                 interactionType = normalizedInteractionType,
                 isReady = blockers.Count == 0,
                 blockers,
@@ -99,9 +98,123 @@ public sealed partial class InteractionAnalyzer
                     opacity = frameworkElement.Opacity,
                     isHitTestVisible = frameworkElement.IsHitTestVisible,
                     hasSize = frameworkElement.ActualWidth > 0 && frameworkElement.ActualHeight > 0
-                }
+                },
+                commandReadiness
             };
         });
+    }
+
+    private static object CreateCommandReadiness(
+        FrameworkElement frameworkElement,
+        string sourceElementId,
+        out bool? canExecute)
+    {
+        canExecute = null;
+        var sourceElementType = frameworkElement.GetType().Name;
+        if (frameworkElement is not ButtonBase button)
+        {
+            return new
+            {
+                hasCommand = false,
+                sourceElementId,
+                sourceElementType,
+                commandName = (string?)null,
+                commandNameSource = "None",
+                canExecute,
+                commandParameterKind = "None",
+                riskNotes = new[] { "ElementIsNotButtonBase" }
+            };
+        }
+
+        if (button.Command is not ICommand command)
+        {
+            return new
+            {
+                hasCommand = false,
+                sourceElementId,
+                sourceElementType,
+                commandName = (string?)null,
+                commandNameSource = "None",
+                canExecute,
+                commandParameterKind = GetCommandParameterKind(button.CommandParameter),
+                riskNotes = BuildCommandRiskNotes(button.CommandParameter, hasCommand: false, commandNameSource: "None")
+            };
+        }
+
+        var (commandName, commandNameSource) = GetCommandName(button, command);
+        canExecute = command.CanExecute(button.CommandParameter);
+
+        return new
+        {
+            hasCommand = true,
+            sourceElementId,
+            sourceElementType,
+            commandName,
+            commandNameSource,
+            canExecute,
+            commandParameterKind = GetCommandParameterKind(button.CommandParameter),
+            riskNotes = BuildCommandRiskNotes(button.CommandParameter, hasCommand: true, commandNameSource)
+        };
+    }
+
+    private static (string CommandName, string CommandNameSource) GetCommandName(ButtonBase button, ICommand command)
+    {
+        var bindingPath = BindingOperations
+            .GetBindingExpression(button, ButtonBase.CommandProperty)
+            ?.ParentBinding
+            .Path
+            ?.Path;
+        if (!string.IsNullOrWhiteSpace(bindingPath))
+        {
+            return (bindingPath, "BindingPath");
+        }
+
+        if (command is RoutedCommand routedCommand && !string.IsNullOrWhiteSpace(routedCommand.Name))
+        {
+            return (routedCommand.Name, "RoutedCommandName");
+        }
+
+        return (command.GetType().Name, "CommandType");
+    }
+
+    private static string GetCommandParameterKind(object? parameter)
+        => parameter switch
+        {
+            null => "None",
+            string => "String",
+            bool => "Boolean",
+            byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal => "Number",
+            Enum => "Enum",
+            DependencyObject => "WpfObject",
+            _ => "Object"
+        };
+
+    private static string[] BuildCommandRiskNotes(
+        object? commandParameter,
+        bool hasCommand,
+        string commandNameSource)
+    {
+        var notes = new List<string>();
+        if (!hasCommand)
+        {
+            notes.Add("NoButtonCommand");
+        }
+        else
+        {
+            notes.Add("CanExecuteEvaluatedWithoutExecution");
+        }
+
+        if (commandParameter is not null)
+        {
+            notes.Add("CommandParameterValueRedacted");
+        }
+
+        if (commandNameSource == "CommandType")
+        {
+            notes.Add("CommandNameDerivedFromType");
+        }
+
+        return notes.ToArray();
     }
 
     private static object CreateBlocker(

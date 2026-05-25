@@ -93,7 +93,7 @@
 - `processId`：選好 active process 後可省略。
 - `interactionType`：可選 label，預設為 `Click`。
 
-輸出欄位包含 `isReady`、`blockers`、`interactionType` 與 `elementState`。此工具可以提供 command readiness，不需要暴露任意 ViewModel value。
+輸出欄位包含 `isReady`、`blockers`、`interactionType`、`commandReadiness` 與 `elementState`。`commandReadiness` 會回報 command source element、command name/source、`canExecute`、parameter kind 與 risk notes，但不回傳 command parameter value 或任意 ViewModel value。
 
 範例：
 

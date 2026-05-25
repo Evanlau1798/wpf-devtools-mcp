@@ -151,8 +151,10 @@ public static class SceneDiagnosticsMcpTools
         "  interactionType: string,\n" +
         "  isReady: boolean,\n" +
         "  blockers: [],\n" +
+        "  commandReadiness: { hasCommand: boolean, commandName: string|null, commandNameSource: string, canExecute: boolean|null, sourceElementId: string, commandParameterKind: string, riskNotes: [] },\n" +
         "  elementState: object\n" +
         "}\n\n" +
+        "COMMAND READINESS: commandReadiness is redacted and does not include command parameter values or arbitrary ViewModel values. Risk notes include CommandParameterValueRedacted when a parameter exists.\n\n" +
         "ERRORS:\n" +
         "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree\n" +
         "- \"not connected\" -> reconnect before inspecting readiness\n\n" +

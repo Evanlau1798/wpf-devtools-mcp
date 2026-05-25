@@ -5,6 +5,8 @@ using WpfDevTools.Inspector.Utilities;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows;
+using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Text.Json;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
@@ -357,6 +359,37 @@ public class InteractionAnalyzerTests
         finally { window.Close(); }
     }
 
+    [StaFact]
+    public void GetInteractionReadiness_WithBoundButtonCommand_ShouldExposeRedactedCommandReadiness()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var viewModel = new CommandReadinessViewModel();
+        var button = new Button
+        {
+            DataContext = viewModel,
+            CommandParameter = "private-command-parameter"
+        };
+        button.SetBinding(ButtonBase.CommandProperty, new Binding(nameof(CommandReadinessViewModel.SaveCommand)));
+        var elementId = finder.GenerateElementId(button);
+
+        var result = JsonSerializer.Deserialize<JsonElement>(
+            JsonSerializer.Serialize(analyzer.GetInteractionReadiness(elementId, "Click")));
+
+        var commandReadiness = result.GetProperty("commandReadiness");
+        commandReadiness.GetProperty("hasCommand").GetBoolean().Should().BeTrue();
+        commandReadiness.GetProperty("sourceElementId").GetString().Should().Be(elementId);
+        commandReadiness.GetProperty("sourceElementType").GetString().Should().Be(nameof(Button));
+        commandReadiness.GetProperty("commandName").GetString().Should().Be(nameof(CommandReadinessViewModel.SaveCommand));
+        commandReadiness.GetProperty("commandNameSource").GetString().Should().Be("BindingPath");
+        commandReadiness.GetProperty("canExecute").GetBoolean().Should().BeTrue();
+        commandReadiness.GetProperty("commandParameterKind").GetString().Should().Be("String");
+        commandReadiness.GetProperty("riskNotes").EnumerateArray()
+            .Select(note => note.GetString())
+            .Should().Contain("CommandParameterValueRedacted");
+        result.GetRawText().Should().NotContain("private-command-parameter");
+    }
+
     private sealed class TestCommand : ICommand
     {
         private readonly Action _execute;
@@ -375,5 +408,10 @@ public class InteractionAnalyzerTests
         public bool CanExecute(object? parameter) => true;
 
         public void Execute(object? parameter) => _execute();
+    }
+
+    private sealed class CommandReadinessViewModel
+    {
+        public ICommand SaveCommand { get; } = new TestCommand(() => { });
     }
 }

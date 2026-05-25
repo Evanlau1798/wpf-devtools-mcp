@@ -93,7 +93,7 @@ Parameters:
 - `processId` optional after an active process is selected.
 - `interactionType` optional label, default `Click`.
 
-Output fields include `isReady`, `blockers`, `interactionType`, and `elementState`. The tool can surface command readiness without exposing arbitrary ViewModel values.
+Output fields include `isReady`, `blockers`, `interactionType`, `commandReadiness`, and `elementState`. `commandReadiness` reports the command source element, command name/source, `canExecute`, parameter kind, and risk notes without returning command parameter values or arbitrary ViewModel values.
 
 Example:
 

@@ -191,6 +191,20 @@ public sealed class McpToolExecutionPolicyTests
     }
 
     [Fact]
+    public void EvaluateToolCall_WhenViewModelInspectionIsDisabled_ShouldAllowRedactedInteractionReadiness()
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "false",
+            allowScreenshots: "false",
+            allowViewModelInspection: "false",
+            allowSensitiveReads: "true");
+
+        policy.EvaluateToolCall("get_interaction_readiness").IsAllowed.Should().BeTrue();
+        policy.EvaluateToolCall("get_commands").PolicyCategory.Should().Be("viewmodel-inspection");
+        policy.EvaluateToolCall("execute_command").PolicyCategory.Should().Be("viewmodel-inspection");
+    }
+
+    [Fact]
     public void EvaluateToolCall_WhenBatchMutateRequestsStringifiedSnapshotAndSensitiveReadsAreDisabled_ShouldDeny()
     {
         var policy = McpToolExecutionPolicy.FromConfiguredValues(

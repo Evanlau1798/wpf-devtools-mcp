@@ -211,8 +211,9 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
                 InjectionErrorMessage = "Expected downstream injection failure",
                 FailedError = InjectionError.BootstrapFailed
             };
+            using var sessionManager = new SessionManager();
             var tool = new ConnectTool(
-                new SessionManager(),
+                sessionManager,
                 injector,
                 new FakeProcessDetector(executablePath: executablePath),
                 _ => { },

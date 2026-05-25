@@ -66,6 +66,7 @@ public sealed partial class ConnectTool
                     : null,
                 candidateCount = autoDiscoveryResolution.CandidateCount,
                 redactedCandidateCount = autoDiscoveryResolution.RedactedCandidateCount,
+                policyEnvVar = GetCandidateRedactionPolicyEnvVar(autoDiscoveryResolution.RedactedCandidateCount),
                 processes = autoDiscoveryResolution.Candidates.Select(ToContractCandidate).ToArray()
             };
         }
@@ -108,6 +109,7 @@ public sealed partial class ConnectTool
                         : null,
                     candidateCount = autoDiscoveryResolution.CandidateCount,
                     redactedCandidateCount = autoDiscoveryResolution.RedactedCandidateCount,
+                    policyEnvVar = GetCandidateRedactionPolicyEnvVar(autoDiscoveryResolution.RedactedCandidateCount),
                     processes = autoDiscoveryResolution.Candidates.Select(ToContractCandidate).ToArray(),
                     reusedExistingHost = true
                 };
@@ -127,6 +129,7 @@ public sealed partial class ConnectTool
                     : null,
                 candidateCount = autoDiscoveryResolution.CandidateCount,
                 redactedCandidateCount = autoDiscoveryResolution.RedactedCandidateCount,
+                policyEnvVar = GetCandidateRedactionPolicyEnvVar(autoDiscoveryResolution.RedactedCandidateCount),
                 processes = autoDiscoveryResolution.Candidates.Select(ToContractCandidate).ToArray()
             };
         }
@@ -152,6 +155,9 @@ public sealed partial class ConnectTool
 
     private static string BuildConnectSuccessMessage(string prefix)
         => $"{prefix} Start with get_ui_summary, get_element_snapshot, or get_form_summary to build scene-first context before any tree-heavy follow-up.";
+
+    private static string? GetCandidateRedactionPolicyEnvVar(int redactedCandidateCount)
+        => redactedCandidateCount > 0 ? McpServerConfiguration.AllowedTargetsEnvVar : null;
 
     private static object CreatePreInjectionConnectFailure(
         int processId,

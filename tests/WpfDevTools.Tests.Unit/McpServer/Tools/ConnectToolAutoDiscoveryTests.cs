@@ -105,7 +105,38 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
         json.GetProperty("processName").GetString().Should().Be("AllowedApp");
         json.GetProperty("candidateCount").GetInt32().Should().Be(1);
         json.GetProperty("redactedCandidateCount").GetInt32().Should().Be(1);
+        json.GetProperty("policyEnvVar").GetString().Should().Be(McpServerConfiguration.AllowedTargetsEnvVar);
         json.GetProperty("processes").GetArrayLength().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Execute_WithoutProcessId_AndMultipleAllowedWithDeniedCandidate_ShouldReturnPolicyEnvVar()
+    {
+        var deniedProcessId = NextSyntheticProcessId();
+        var firstAllowedProcessId = NextSyntheticProcessId();
+        var secondAllowedProcessId = NextSyntheticProcessId();
+        var tool = CreateTool(
+            detector: new FakeAutoDiscoveryProcessDetector(
+                CreateProcessInfo(firstAllowedProcessId, "AllowedAppA"),
+                CreateProcessInfo(deniedProcessId, "DeniedApp"),
+                CreateProcessInfo(secondAllowedProcessId, "AllowedAppB")),
+            targetPolicy: process => process.ProcessId == deniedProcessId
+                ? new McpTargetAuthorization(IsAllowed: false, Error: "blocked", Hint: "denied")
+                : new McpTargetAuthorization(IsAllowed: true, Error: null, Hint: null));
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
+
+        var jsonText = JsonSerializer.Serialize(result);
+        jsonText.Should().NotContain("DeniedApp");
+        jsonText.Should().NotContain("DeniedApp Window");
+
+        var json = JsonSerializer.Deserialize<JsonElement>(jsonText);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("MultipleWpfProcessesFound");
+        json.GetProperty("candidateCount").GetInt32().Should().Be(2);
+        json.GetProperty("redactedCandidateCount").GetInt32().Should().Be(1);
+        json.GetProperty("policyEnvVar").GetString().Should().Be(McpServerConfiguration.AllowedTargetsEnvVar);
+        json.GetProperty("processes").GetArrayLength().Should().Be(2);
     }
 
     [Fact]

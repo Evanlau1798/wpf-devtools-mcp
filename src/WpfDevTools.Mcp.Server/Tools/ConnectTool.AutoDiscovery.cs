@@ -153,6 +153,7 @@ public sealed partial class ConnectTool
                     errorCode = "MultipleWpfProcessesFound",
                     candidateCount = candidates.Length,
                     redactedCandidateCount,
+                    policyEnvVar = GetCandidateRedactionPolicyEnvVar(redactedCandidateCount),
                     processes = candidates.Select(ToContractCandidate).ToArray(),
                     hint = "Call connect(processId) for a specific target, or retry connect(selectionStrategy='largest_working_set') if the largest process is acceptable."
                 },

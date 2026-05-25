@@ -77,6 +77,20 @@ public sealed class CanonicalMcpToolManifestTests
         }
     }
 
+    [Fact]
+    public void ToolManifestResource_ShouldClassifyOnlyStatefulSnapshotToolsAsStateConsuming()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
+        var tools = document.RootElement.GetProperty("tools").EnumerateArray().ToArray();
+
+        AssertMissingTags(tools, "get_element_snapshot", "state-consuming");
+        AssertTags(tools, "capture_state_snapshot", "state-consuming");
+        AssertTags(tools, "restore_state_snapshot", "state-consuming");
+        AssertTags(tools, "get_state_diff", "state-consuming");
+        AssertTags(tools, "drain_events", "state-consuming");
+        AssertTags(tools, "batch_mutate", "state-consuming");
+    }
+
     private static (string Name, McpServerToolAttribute Attribute)[] GetRegisteredTools()
     {
         return typeof(ProcessMcpTools).Assembly.GetTypes()

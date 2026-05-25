@@ -197,9 +197,7 @@ internal static class CanonicalMcpToolManifest
             tags.Add("performance");
         }
 
-        if (declaringTypeName.Contains("State", StringComparison.Ordinal) ||
-            toolName.Contains("state", StringComparison.Ordinal) ||
-            toolName.Contains("snapshot", StringComparison.Ordinal))
+        if (IsStateConsumingTool(toolName))
         {
             tags.Add("state-consuming");
         }
@@ -212,6 +210,13 @@ internal static class CanonicalMcpToolManifest
             tags.Add("ui-text");
         }
     }
+
+    private static bool IsStateConsumingTool(string toolName)
+        => toolName is "batch_mutate"
+            or "capture_state_snapshot"
+            or "drain_events"
+            or "get_state_diff"
+            or "restore_state_snapshot";
 
     private static string GetCategory(string description)
     {

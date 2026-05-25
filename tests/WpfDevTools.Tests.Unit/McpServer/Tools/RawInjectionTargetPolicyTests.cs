@@ -83,6 +83,17 @@ public sealed class RawInjectionTargetPolicyTests
     }
 
     [Fact]
+    public void TryNormalizeFinalPathName_WhenPathUsesExtendedDrivePrefix_ShouldNormalize()
+    {
+        var normalized = RawInjectionTargetPolicy.TryNormalizeFinalPathName(
+            @"\\?\C:\Allowed\Target.exe",
+            out var normalizedPath);
+
+        normalized.Should().BeTrue();
+        normalizedPath.Should().Be(@"C:\Allowed\Target.exe");
+    }
+
+    [Fact]
     public void TryNormalizeAbsolutePath_WhenPhysicalResolverRejectsPath_ShouldFailClosed()
     {
         var normalized = RawInjectionTargetPolicy.TryNormalizeAbsolutePath(

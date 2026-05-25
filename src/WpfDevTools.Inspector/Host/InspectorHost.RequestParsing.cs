@@ -1,5 +1,6 @@
 using System.Text.Json;
 using WpfDevTools.Shared.Messages;
+using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Inspector.Host;
 
@@ -48,17 +49,37 @@ public sealed partial class InspectorHost
             return false;
         }
 
-        if (!TryReadRequiredString(root, "id", out var id))
+        if (!TryReadRequiredString(
+            root,
+            "id",
+            BoundaryStringLimits.MaxJsonRpcIdLength,
+            out var id,
+            out var idError))
         {
-            errorMessage = "Invalid request: id must be a non-empty string.";
+            errorMessage = $"Invalid request: id {idError}.";
             return false;
         }
 
         requestId = id;
 
-        if (!TryReadRequiredString(root, "method", out _))
+        if (!TryReadRequiredString(
+            root,
+            "method",
+            BoundaryStringLimits.MaxInspectorMethodLength,
+            out _,
+            out var methodError))
         {
-            errorMessage = "Invalid request: method must be a non-empty string.";
+            errorMessage = $"Invalid request: method {methodError}.";
+            return false;
+        }
+
+        if (!TryReadOptionalString(
+            root,
+            "correlationId",
+            BoundaryStringLimits.MaxCorrelationIdLength,
+            out var correlationIdError))
+        {
+            errorMessage = $"Invalid request: correlationId {correlationIdError}.";
             return false;
         }
 
@@ -69,9 +90,12 @@ public sealed partial class InspectorHost
     private static bool TryReadRequiredString(
         JsonElement root,
         string propertyName,
-        out string value)
+        int maxLength,
+        out string value,
+        out string error)
     {
         value = string.Empty;
+        error = "must be a non-empty string";
         if (!TryGetRequestProperty(root, propertyName, out var property)
             || property.ValueKind != JsonValueKind.String)
         {
@@ -84,7 +108,41 @@ public sealed partial class InspectorHost
             return false;
         }
 
+        if (stringValue!.Length > maxLength)
+        {
+            error = $"must be at most {maxLength} characters";
+            return false;
+        }
+
         value = stringValue!;
+        return true;
+    }
+
+    private static bool TryReadOptionalString(
+        JsonElement root,
+        string propertyName,
+        int maxLength,
+        out string error)
+    {
+        error = "must be a string when provided";
+        if (!TryGetRequestProperty(root, propertyName, out var property)
+            || property.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (property.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        var stringValue = property.GetString() ?? string.Empty;
+        if (stringValue.Length > maxLength)
+        {
+            error = $"must be at most {maxLength} characters";
+            return false;
+        }
+
         return true;
     }
 

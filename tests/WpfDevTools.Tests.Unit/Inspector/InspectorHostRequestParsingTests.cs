@@ -58,6 +58,45 @@ public sealed class InspectorHostRequestParsingTests
         response.Error.Message.Should().Contain("id");
     }
 
+    [Fact]
+    public async Task InvalidRequest_WithOversizedId_ShouldReturnInvalidRequestWithoutEchoingId()
+    {
+        var oversizedId = new string('r', 129);
+        var response = await SendRawRequestAsync($$"""{"id":"{{oversizedId}}","method":"ping"}""");
+
+        response.Id.Should().Be("unknown");
+        response.Result.Should().BeNull();
+        response.Error.Should().NotBeNull();
+        response.Error!.Code.Should().Be(ErrorCode.InvalidRequest);
+        response.Error.Message.Should().Contain("id");
+    }
+
+    [Fact]
+    public async Task InvalidRequest_WithOversizedMethod_ShouldReturnInvalidRequestAndPreserveRequestId()
+    {
+        var oversizedMethod = new string('m', 129);
+        var response = await SendRawRequestAsync($$"""{"id":"oversized-method","method":"{{oversizedMethod}}"}""");
+
+        response.Id.Should().Be("oversized-method");
+        response.Result.Should().BeNull();
+        response.Error.Should().NotBeNull();
+        response.Error!.Code.Should().Be(ErrorCode.InvalidRequest);
+        response.Error.Message.Should().Contain("method");
+    }
+
+    [Fact]
+    public async Task InvalidRequest_WithOversizedCorrelationId_ShouldReturnInvalidRequestAndPreserveRequestId()
+    {
+        var oversizedCorrelationId = new string('c', 129);
+        var response = await SendRawRequestAsync($$"""{"id":"oversized-correlation","method":"ping","correlationId":"{{oversizedCorrelationId}}"}""");
+
+        response.Id.Should().Be("oversized-correlation");
+        response.Result.Should().BeNull();
+        response.Error.Should().NotBeNull();
+        response.Error!.Code.Should().Be(ErrorCode.InvalidRequest);
+        response.Error.Message.Should().Contain("correlationId");
+    }
+
     private static async Task<InspectorResponse> SendRawRequestAsync(string requestJson)
     {
         var pid = TestHelpers.NextSyntheticProcessId();

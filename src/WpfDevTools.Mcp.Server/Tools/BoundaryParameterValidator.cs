@@ -1,10 +1,60 @@
 using System.Text.Json;
 using WpfDevTools.Shared.ErrorHandling;
+using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
 internal static class BoundaryParameterValidator
 {
+    private static readonly HashSet<string> LabelLikeStringProperties = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "automationId",
+        "commandName",
+        "depthMode",
+        "detail",
+        "direction",
+        "elementName",
+        "eventName",
+        "interactionType",
+        "key",
+        "matchMode",
+        "mode",
+        "nameFilter",
+        "outputMode",
+        "propertyName",
+        "propertyNames",
+        "resourceKey",
+        "selectionStrategy",
+        "sessionId",
+        "sinceTimestamp",
+        "snapshotId",
+        "snapshotName",
+        "statusFilter",
+        "trigger",
+        "typeName",
+        "typeNames",
+        "viewModelPropertyNames",
+        "viewModelType",
+        "windowFilter"
+    };
+
+    private static readonly HashSet<string> StringifiedJsonProperties = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "captureSnapshot",
+        "triggerMutation"
+    };
+
+    internal static bool TryValidateStringBoundaries(JsonElement? arguments, out object? error)
+    {
+        error = null;
+        if (!arguments.HasValue)
+        {
+            return true;
+        }
+
+        return TryValidateStringBoundaries(arguments.Value, propertyName: null, path: "$", out error);
+    }
+
     internal static bool TryGetOptionalStringEnum(
         JsonElement? arguments,
         string propertyName,
@@ -99,6 +149,90 @@ internal static class BoundaryParameterValidator
         value = property.GetString();
         error = null;
         return true;
+    }
+
+    private static bool TryValidateStringBoundaries(
+        JsonElement element,
+        string? propertyName,
+        string path,
+        out object? error)
+    {
+        error = null;
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (!TryValidateStringBoundaries(
+                        property.Value,
+                        property.Name,
+                        $"{path}.{property.Name}",
+                        out error))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+
+            case JsonValueKind.Array:
+                var index = 0;
+                foreach (var item in element.EnumerateArray())
+                {
+                    if (!TryValidateStringBoundaries(
+                        item,
+                        propertyName,
+                        $"{path}[{index}]",
+                        out error))
+                    {
+                        return false;
+                    }
+
+                    index++;
+                }
+
+                return true;
+
+            case JsonValueKind.String:
+                var value = element.GetString() ?? string.Empty;
+                var maxLength = ResolveMaxLength(propertyName);
+                if (value.Length <= maxLength)
+                {
+                    return true;
+                }
+
+                var displayName = string.IsNullOrWhiteSpace(propertyName) ? path : propertyName;
+                error = CreateInvalidArgument(
+                    $"{displayName} exceeds the maximum length of {maxLength} characters.",
+                    $"Shorten {displayName}; oversized strings are rejected before the request is forwarded to the target process.");
+                return false;
+
+            default:
+                return true;
+        }
+    }
+
+    private static int ResolveMaxLength(string? propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return BoundaryStringLimits.MaxStringArgumentLength;
+        }
+
+        if (string.Equals(propertyName, "elementId", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(propertyName, "elementIds", StringComparison.OrdinalIgnoreCase))
+        {
+            return BoundaryStringLimits.MaxElementIdLength;
+        }
+
+        if (StringifiedJsonProperties.Contains(propertyName))
+        {
+            return BoundaryStringLimits.MaxStringifiedJsonArgumentLength;
+        }
+
+        return LabelLikeStringProperties.Contains(propertyName)
+            ? BoundaryStringLimits.MaxLabelLength
+            : BoundaryStringLimits.MaxStringArgumentLength;
     }
 
     private static bool TryReadInt(JsonElement property, out int value)

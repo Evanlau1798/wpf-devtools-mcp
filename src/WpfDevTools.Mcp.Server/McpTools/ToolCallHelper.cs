@@ -5,6 +5,7 @@ using System.Text.Json;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Navigation;
 using WpfDevTools.Mcp.Server.Schema;
+using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
@@ -131,6 +132,27 @@ public static partial class ToolCallHelper
         var effectiveTimeoutSeconds = ResolveExecutionTimeoutSeconds(toolName, args, timeoutSeconds);
         var includeNavigation = ShouldIncludeNavigation(toolName, args);
         var metricsCollector = CurrentMetricsCollector;
+
+        if (!BoundaryParameterValidator.TryValidateStringBoundaries(args, out var boundaryError))
+        {
+            var payload = EnsureNavigation(
+                JsonSerializer.SerializeToElement(boundaryError, SerializerOptions),
+                ToolNavigationEnvelope.Empty);
+            if (!includeNavigation)
+            {
+                payload = RemoveTopLevelProperties(payload, "nextSteps", "navigation");
+            }
+
+            payload = NormalizeErrorContract(payload);
+            RecordRequestMetrics(metricsCollector, toolName, 0, success: false, payload);
+
+            return new CallToolResult()
+            {
+                Content = [CreateTextContentBlock(payload, isError: true)],
+                StructuredContent = payload,
+                IsError = true
+            };
+        }
 
         // CRITICAL FIX: Enforce timeout on all tool executions
         // Prevents server hang if target process is frozen or unresponsive

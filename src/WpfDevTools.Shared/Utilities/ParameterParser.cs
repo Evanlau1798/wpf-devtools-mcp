@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Shared.Utilities;
 
@@ -8,8 +9,6 @@ namespace WpfDevTools.Shared.Utilities;
 /// </summary>
 public static class ParameterParser
 {
-    private const int MaxElementIdLength = 256;
-
     // SECURITY: Only allow alphanumeric, hyphen, and underscore to prevent path traversal and injection attacks
     private static readonly Regex ElementIdPattern = new Regex(
         @"^[a-zA-Z0-9_-]+$",
@@ -156,9 +155,9 @@ public static class ParameterParser
         }
 
         // SECURITY: Check length to prevent DoS
-        if (elementId!.Length > MaxElementIdLength)
+        if (elementId!.Length > BoundaryStringLimits.MaxElementIdLength)
         {
-            error = $"elementId too long (max {MaxElementIdLength} characters)";
+            error = $"elementId too long (max {BoundaryStringLimits.MaxElementIdLength} characters)";
             return false;
         }
 

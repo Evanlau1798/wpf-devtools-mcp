@@ -1,5 +1,7 @@
 using FluentAssertions;
-using System.Text.RegularExpressions;
+using System.Reflection;
+using ModelContextProtocol.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
@@ -9,10 +11,7 @@ public sealed class DocfxCapabilityDocumentationTests
     [Fact]
     public void ToolOverviewPages_ShouldReflectCurrentToolCount()
     {
-        var toolCount = Directory
-            .EnumerateFiles(GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools"), "*.cs", SearchOption.TopDirectoryOnly)
-            .Select(File.ReadAllText)
-            .Sum(content => CountOccurrences(content, "[McpServerTool("));
+        var toolCount = GetSourceRegisteredToolNames().Length;
 
         File.ReadAllText(GetRepoFilePath("docfx/reference/tools/index.md"))
             .Should().Contain($"{toolCount} tools");
@@ -38,6 +37,33 @@ public sealed class DocfxCapabilityDocumentationTests
 
         missingTools.Should().BeEmpty(
             "every source-registered MCP tool should have name-level coverage in a dedicated DocFX reference category page, not only the overview index");
+    }
+
+    [Theory]
+    [InlineData("docfx/reference/tools/scene-and-state.md")]
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md")]
+    public void SceneAndStateReferencePages_ShouldDocumentPrimarySceneAndStateToolsAsHeadings(
+        string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        string[] expectedTools =
+        [
+            "get_ui_summary",
+            "get_form_summary",
+            "get_element_snapshot",
+            "diagnose_visibility",
+            "get_interaction_readiness",
+            "capture_state_snapshot",
+            "batch_mutate",
+            "get_state_diff",
+            "restore_state_snapshot"
+        ];
+
+        foreach (var toolName in expectedTools)
+        {
+            content.Should().Contain($"## `{toolName}`",
+                "the dedicated scene/state reference page should expose primary workflow tools as sections, not only incidental mentions");
+        }
     }
 
     [Theory]
@@ -357,29 +383,17 @@ public sealed class DocfxCapabilityDocumentationTests
         traditionalChinese.Should().Contain("WPFDEVTOOLS_TEXT_FALLBACK_MODE=full");
     }
 
-    private static int CountOccurrences(string content, string value)
-    {
-        var count = 0;
-        var startIndex = 0;
-
-        while ((startIndex = content.IndexOf(value, startIndex, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            startIndex += value.Length;
-        }
-
-        return count;
-    }
-
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 
     private static string[] GetSourceRegisteredToolNames()
     {
-        var pattern = new Regex(@"\[McpServerTool\(Name = ""([^""]+)""", RegexOptions.Compiled);
-        return Directory
-            .EnumerateFiles(GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools"), "*.cs", SearchOption.TopDirectoryOnly)
-            .SelectMany(path => pattern.Matches(File.ReadAllText(path)).Select(match => match.Groups[1].Value))
+        return typeof(ProcessMcpTools).Assembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
+            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+            .Select(method => method.GetCustomAttribute<McpServerToolAttribute>()?.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Cast<string>()
             .Order(StringComparer.Ordinal)
             .ToArray();
     }

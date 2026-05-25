@@ -29,6 +29,24 @@ dotnet add <your-wpf-app.csproj> package WpfDevTools.Inspector.Sdk
 
 Before using the sample below, set matching `WPFDEVTOOLS_AUTH_SECRET` and the same local absolute directory in `WPFDEVTOOLS_CERT_DIR` in both the MCP server process and the target application environment. `InspectorSdk.Initialize()` fails closed if either value is missing or if both are left unset.
 
+Use the same values in both shells. The auth secret must decode to exactly 32 bytes:
+
+```powershell
+$env:WPFDEVTOOLS_AUTH_SECRET = "base64-encoded-32-byte-secret"
+$env:WPFDEVTOOLS_CERT_DIR = "C:\wpf-devtools-certs"
+```
+
+Start the MCP server from the first shell, then start the WPF target app from a second shell with the same two variables. Only call `InspectorSdk.Initialize()` after the target process has those variables in its environment.
+
+### Expected fail-closed cases
+
+These checks intentionally fail closed instead of falling back to plaintext SDK transport:
+
+- A target app with missing `WPFDEVTOOLS_AUTH_SECRET` fails closed during `InspectorSdk.Initialize()` and does not start a plaintext SDK host.
+- A target app with missing `WPFDEVTOOLS_CERT_DIR` fails closed during `InspectorSdk.Initialize()` and does not mix partial SDK transport settings with defaults.
+- A target app with mismatched `WPFDEVTOOLS_AUTH_SECRET` starts with different HMAC material; `connect()` must reject reuse instead of accepting the host.
+- A target app with mismatched `WPFDEVTOOLS_CERT_DIR` uses a different TLS certificate store; `connect()` must reject reuse because the certificate chain and thumbprint no longer match.
+
 ### Basic Usage
 
 Add the following code to your WPF application's `App.xaml.cs`:

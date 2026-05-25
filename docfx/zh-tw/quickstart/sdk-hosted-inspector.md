@@ -24,6 +24,24 @@ Local SDK package 會包含 repository-internal `WpfDevTools.Inspector` 與 `Wpf
 
 `WPFDEVTOOLS_CERT_DIR` 必須是 local absolute directory，且兩邊必須相同。SDK plaintext mode 預設不支援。
 
+兩個 shell 都要使用相同值。Auth secret 必須可解碼成剛好 32 bytes：
+
+```powershell
+$env:WPFDEVTOOLS_AUTH_SECRET = "base64-encoded-32-byte-secret"
+$env:WPFDEVTOOLS_CERT_DIR = "C:\wpf-devtools-certs"
+```
+
+先從第一個 shell 啟動 MCP server，再從第二個 shell 啟動 WPF target app，並維持同一組兩個變數。Target process 取得這些環境變數後，才呼叫 `InspectorSdk.Initialize()`。
+
+### Expected fail-closed cases
+
+這些檢查會刻意 fail closed，而不是 fallback 到 plaintext SDK transport：
+
+- target app missing `WPFDEVTOOLS_AUTH_SECRET` 時，`InspectorSdk.Initialize()` 會 fail closed，且不會啟動 plaintext SDK host。
+- target app missing `WPFDEVTOOLS_CERT_DIR` 時，`InspectorSdk.Initialize()` 會 fail closed，且不會把 partial SDK transport settings 與 defaults 混用。
+- target app mismatched `WPFDEVTOOLS_AUTH_SECRET` 時，會使用不同 HMAC material；`connect()` 必須拒絕 reuse，而不是接受該 host。
+- target app mismatched `WPFDEVTOOLS_CERT_DIR` 時，會使用不同 TLS certificate store；`connect()` 必須因 certificate chain 與 thumbprint 不相符而拒絕 reuse。
+
 ## Application integration
 
 ```csharp

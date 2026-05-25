@@ -85,6 +85,34 @@ public sealed class SdkPreferredDocumentationTests
     }
 
     [Fact]
+    public void SdkUsageDocs_ShouldShowCopyPasteTransportEnvironmentAndFailClosedCases()
+    {
+        foreach (var file in SdkUsageFiles)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+
+            content.Should().Contain("$env:WPFDEVTOOLS_AUTH_SECRET =",
+                $"{file} should provide a copy-paste PowerShell snippet for the shared auth secret");
+            content.Should().Contain("$env:WPFDEVTOOLS_CERT_DIR =",
+                $"{file} should provide a copy-paste PowerShell snippet for the shared certificate directory");
+            content.Should().Contain("InspectorSdk.Initialize()",
+                $"{file} should tie the environment snippet to the SDK-host entrypoint");
+            content.Should().Contain("Expected fail-closed cases",
+                $"{file} should list the SDK-host transport failures operators should expect");
+            content.Should().Contain("missing `WPFDEVTOOLS_AUTH_SECRET`",
+                $"{file} should document the missing-auth-secret failure");
+            content.Should().Contain("missing `WPFDEVTOOLS_CERT_DIR`",
+                $"{file} should document the missing-certificate-directory failure");
+            content.Should().Contain("mismatched `WPFDEVTOOLS_AUTH_SECRET`",
+                $"{file} should document the mismatched-auth-secret failure");
+            content.Should().Contain("mismatched `WPFDEVTOOLS_CERT_DIR`",
+                $"{file} should document the mismatched-certificate-directory failure");
+            content.Should().Contain("fail closed",
+                $"{file} should describe the security posture in operator-facing terms");
+        }
+    }
+
+    [Fact]
     public void SdkReadmeBasicUsage_ShouldIncludeWpfApplicationNamespace()
     {
         var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Inspector.Sdk/README.md"));

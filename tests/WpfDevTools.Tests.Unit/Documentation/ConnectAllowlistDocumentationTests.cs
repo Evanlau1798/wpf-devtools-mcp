@@ -35,7 +35,7 @@ public sealed class ConnectAllowlistDocumentationTests
 
         content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
             $"{relativePath} should tell first-run users that connect() requires the MCP target allowlist before it can succeed");
-        content.Should().Contain("exact absolute executable path",
+        content.Should().Contain("exact local absolute executable path",
             $"{relativePath} should require exact absolute paths instead of path fragments or relative paths");
         content.IndexOf("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal)
             .Should().BeLessThan(content.IndexOf(workflowMarker, StringComparison.Ordinal),
@@ -55,6 +55,31 @@ public sealed class ConnectAllowlistDocumentationTests
             $"{relativePath} should not imply that visibility alone is enough for connect() to succeed");
         content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
             $"{relativePath} should pair first-run connect success with the required MCP target allowlist");
+    }
+
+    [Theory]
+    [InlineData("docfx/reference/tools/process-and-connection.md")]
+    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md")]
+    public void ProcessToolReference_ShouldDescribeAllowlistScopedDiscoveryAndRedaction(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("allowlisted targets",
+            $"{relativePath} should not imply get_processes is unrestricted process metadata discovery");
+        content.Should().Contain("redactedTargetCount",
+            $"{relativePath} should document aggregate redaction for targets blocked by policy");
+        content.Should().Contain("denied target",
+            $"{relativePath} should make blocked-target metadata handling explicit");
+
+        var candidateRedactionLine = File.ReadLines(GetRepoFilePath(relativePath))
+            .Single(line => line.Contains("redactedCandidateCount", StringComparison.Ordinal));
+
+        candidateRedactionLine.Should().Contain("connect",
+            $"{relativePath} should scope candidate redaction guidance to connect payloads");
+        candidateRedactionLine.Should().Contain("auto-discovery",
+            $"{relativePath} should tie candidate redaction to connect auto-discovery");
+        candidateRedactionLine.Should().Contain("policyEnvVar",
+            $"{relativePath} should tell clients which policy variable controls connect candidate redaction");
     }
 
     [Fact]
@@ -125,7 +150,7 @@ public sealed class ConnectAllowlistDocumentationTests
             .Description;
 
         processIdDescription.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
-        processIdDescription.Should().Contain("exact absolute executable path");
+        processIdDescription.Should().Contain("exact local absolute executable path");
         processIdDescription.Should().Contain("fail closed");
         processIdDescription.Should().Contain("allowlisted");
     }
@@ -155,11 +180,38 @@ public sealed class ConnectAllowlistDocumentationTests
         AssertAllowlistBeforeConnect(section, $"{relativePath} golden sequence");
     }
 
+    [Fact]
+    public void AllowlistGuidance_ShouldNotOmitLocalAbsoluteExecutablePathRequirement()
+    {
+        string[] relativePaths =
+        [
+            "docfx/guides/ai-agent-guide.md",
+            "docfx/zh-tw/guides/ai-agent-guide.md",
+            "src/WpfDevTools.Mcp.Server/Tools/ConnectTool.AutoDiscovery.cs"
+        ];
+
+        var violations = relativePaths
+            .SelectMany(relativePath => File.ReadLines(GetRepoFilePath(relativePath))
+                .Select((line, index) => new
+                {
+                    RelativePath = relativePath,
+                    LineNumber = index + 1,
+                    Text = line
+                }))
+            .Where(entry => entry.Text.Contains("exact absolute path", StringComparison.OrdinalIgnoreCase)
+                || entry.Text.Contains("exact reviewed executable path", StringComparison.OrdinalIgnoreCase))
+            .Select(entry => $"{entry.RelativePath}:{entry.LineNumber}: {entry.Text.Trim()}")
+            .ToArray();
+
+        violations.Should().BeEmpty(
+            "allowlist-facing guidance should consistently require exact local absolute executable paths");
+    }
+
     private static void AssertAllowlistBeforeConnect(string content, string context)
     {
         content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
             $"{context} should mention the target allowlist before a successful connect step");
-        content.Should().Contain("exact absolute executable path",
+        content.Should().Contain("exact local absolute executable path",
             $"{context} should specify the exact executable path requirement");
         content.Should().Contain("fail closed",
             $"{context} should document unset or malformed allowlist behavior");

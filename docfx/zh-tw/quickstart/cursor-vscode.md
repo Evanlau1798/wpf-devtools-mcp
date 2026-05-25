@@ -88,7 +88,7 @@ Cursor editor workflow 與 Cursor CLI 的 MCP workflow 會共用這個 `.cursor\
 
 installer 預設會把 VS Code 註冊寫到 `%APPDATA%\Code\User\mcp.json`，並把 Visual Studio 註冊寫到 `%USERPROFILE%\.mcp.json`。只有在你刻意要用手動的專案層級替代方案時，才使用 `.vscode\mcp.json`。請把產生的 `client-registration` artifact 視為解析後 executable 路徑的真源，而不是只依賴上面的範例路徑。
 
-第一次 workflow 前，請確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含已審查 target 的 exact absolute executable path；未設定或 malformed value 會在 `connect` attach 前 fail closed。
+第一次 workflow 前，請確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含已審查 target 的 exact local absolute executable path；未設定或 malformed value 會在 `connect` attach 前 fail closed。
 
 ## 3. 第一個實用流程
 

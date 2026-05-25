@@ -45,6 +45,10 @@ public sealed class ConnectToolRawInjectionIdentityTests
         payload.GetProperty("success").GetBoolean().Should().BeFalse();
         payload.GetProperty("errorCode").GetString().Should().Be("SecurityError");
         payload.GetProperty("requiresExplicitTargetOptIn").GetBoolean().Should().BeTrue();
+        var serializedPayload = payload.GetRawText();
+        serializedPayload.Should().NotContain("ReplacementSecretApp");
+        serializedPayload.Should().NotContain("Replacement Secret Window");
+        AssertNoJsonStringContains(payload, replacementPath);
         injector.InjectWithBootstrapCallCount.Should().Be(0);
         processDetector.GetProcessInfoCallCount.Should().BeGreaterThanOrEqualTo(2);
     }
@@ -91,6 +95,10 @@ public sealed class ConnectToolRawInjectionIdentityTests
             payload.GetProperty("success").GetBoolean().Should().BeFalse();
             payload.GetProperty("errorCode").GetString().Should().Be("SecurityError");
             payload.TryGetProperty("reusedExistingHost", out _).Should().BeFalse();
+            var serializedPayload = payload.GetRawText();
+            serializedPayload.Should().NotContain("ReplacementSecretApp");
+            serializedPayload.Should().NotContain("Replacement Secret Window");
+            AssertNoJsonStringContains(payload, replacementPath);
             injector.InjectWithBootstrapCallCount.Should().Be(0);
             processDetector.GetProcessInfoCallCount.Should().BeGreaterThanOrEqualTo(2);
         }
@@ -109,6 +117,30 @@ public sealed class ConnectToolRawInjectionIdentityTests
             _ => { },
             () => [pipeName]);
 
+    private static void AssertNoJsonStringContains(JsonElement element, string unexpected)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    AssertNoJsonStringContains(property.Value, unexpected);
+                }
+
+                break;
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    AssertNoJsonStringContains(item, unexpected);
+                }
+
+                break;
+            case JsonValueKind.String:
+                element.GetString().Should().NotContain(unexpected);
+                break;
+        }
+    }
+
     private sealed class ChangingProcessDetector(
         int expectedProcessId,
         string firstExecutablePath,
@@ -123,7 +155,12 @@ public sealed class ConnectToolRawInjectionIdentityTests
             return new WpfProcessInfo
             {
                 ProcessId = processId,
-                ProcessName = "TestApp",
+                ProcessName = GetProcessInfoCallCount == 1
+                    ? "OriginalApp"
+                    : "ReplacementSecretApp",
+                WindowTitle = GetProcessInfoCallCount == 1
+                    ? "Original Window"
+                    : "Replacement Secret Window",
                 Architecture = ProcessArchitecture.X64,
                 Runtime = TargetRuntime.NetCore,
                 IsWpfApplication = true,

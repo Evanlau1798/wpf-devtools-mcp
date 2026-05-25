@@ -125,7 +125,8 @@ public static partial class InspectorSdk
 
             var transportSecurity = InspectorSdkTransportSecurityConfiguration.Create(
                 ResolveAuthenticationSecret(options),
-                ResolveCertificateDirectory(options));
+                ResolveCertificateDirectory(options),
+                ResolveCertificateDirectorySourceName(options));
             authenticationManager = transportSecurity.AuthenticationManager;
             certificateManager = transportSecurity.CertificateManager;
 

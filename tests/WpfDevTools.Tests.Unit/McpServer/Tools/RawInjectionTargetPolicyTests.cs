@@ -1,0 +1,203 @@
+using FluentAssertions;
+using WpfDevTools.Injector.Discovery;
+using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.Enums;
+
+namespace WpfDevTools.Tests.Unit.McpServer.Tools;
+
+public sealed class RawInjectionTargetPolicyTests
+{
+    [Theory]
+    [InlineData(@"\\server\share\Target.exe")]
+    [InlineData(@"\\?\UNC\server\share\Target.exe")]
+    [InlineData(@"\\?\GLOBALROOT\Device\Mup\server\share\Target.exe")]
+    [InlineData(@"\\.\GLOBALROOT\Device\Mup\server\share\Target.exe")]
+    public void Authorize_WhenRawInjectionTargetPathIsNetworkPath_ShouldFailClosed(string targetPath)
+    {
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            CreateProcessInfo(targetPath),
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: null,
+            tryResolvePhysicalPath: path => path);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("local absolute path");
+        authorization.Error.Should().Contain("exact local absolute executable path");
+        authorization.Hint.Should().Contain("exact local absolute executable paths");
+    }
+
+    [Theory]
+    [InlineData(@"\\server\share\Target.exe")]
+    [InlineData(@"\\?\UNC\server\share\Target.exe")]
+    [InlineData(@"\\?\GLOBALROOT\Device\Mup\server\share\Target.exe")]
+    [InlineData(@"\\.\GLOBALROOT\Device\Mup\server\share\Target.exe")]
+    public void Authorize_WhenRawInjectionAllowlistContainsNetworkPath_ShouldFailClosed(string configuredAllowedTarget)
+    {
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            CreateProcessInfo(@"C:\Allowed\Target.exe"),
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: configuredAllowedTarget,
+            tryResolvePhysicalPath: path => path);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("Invalid raw injection allowlist configuration");
+        authorization.Error.Should().Contain("exact local absolute executable path");
+        authorization.ErrorCode.Should().Be("InvalidPolicyConfiguration");
+    }
+
+    [Fact]
+    public void Authorize_WhenRawInjectionAllowlistIsMalformedAndTargetPathIsMissing_ShouldReportInvalidConfiguration()
+    {
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            CreateProcessInfo(string.Empty),
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: @"relative\Target.exe",
+            tryResolvePhysicalPath: path => path);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("Invalid raw injection allowlist configuration");
+        authorization.ErrorCode.Should().Be("InvalidPolicyConfiguration");
+    }
+
+    [Fact]
+    public void Authorize_WhenRawInjectionTargetUsesUnclassifiedDrive_ShouldFailClosed()
+    {
+        var targetPath = Path.Combine(GetUnusedDriveRoot(), "Target.exe");
+
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            CreateProcessInfo(targetPath),
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: null,
+            tryResolvePhysicalPath: path => path);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("local absolute path");
+        authorization.Hint.Should().Contain("exact local absolute executable path");
+    }
+
+    [Fact]
+    public void Authorize_WhenRawInjectionTargetIsBlockedByAllowlist_ShouldRequireExactLocalPath()
+    {
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            CreateProcessInfo(@"C:\Denied\Target.exe"),
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: @"C:\Allowed\Target.exe",
+            tryResolvePhysicalPath: path => path);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("blocked by the server's target policy");
+        authorization.Hint.Should().Contain("exact local absolute executable path");
+    }
+
+    [Fact]
+    public void Authorize_WhenResolvedTargetPathIsNetworkPath_ShouldFailClosed()
+    {
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            CreateProcessInfo(@"C:\Allowed\Target.exe"),
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: null,
+            tryResolvePhysicalPath: _ => @"\\server\share\Target.exe");
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("local absolute path");
+    }
+
+    [Theory]
+    [InlineData(@"\\?\UNC\server\share\Target.exe")]
+    [InlineData(@"\\?\GLOBALROOT\Device\Mup\server\share\Target.exe")]
+    [InlineData(@"\\.\GLOBALROOT\Device\Mup\server\share\Target.exe")]
+    public void TryNormalizeFinalPathName_WhenPathUsesDeviceNamespace_ShouldFailClosed(string finalPathName)
+    {
+        var normalized = RawInjectionTargetPolicy.TryNormalizeFinalPathName(
+            finalPathName,
+            out _);
+
+        normalized.Should().BeFalse();
+    }
+
+    [Fact]
+    public void TryNormalizeFinalPathName_WhenPathUsesExtendedDrivePrefix_ShouldNormalize()
+    {
+        var normalized = RawInjectionTargetPolicy.TryNormalizeFinalPathName(
+            @"\\?\C:\Allowed\Target.exe",
+            out var normalizedPath);
+
+        normalized.Should().BeTrue();
+        normalizedPath.Should().Be(@"C:\Allowed\Target.exe");
+    }
+
+    [Fact]
+    public void TryNormalizeAbsolutePath_WhenPhysicalResolverRejectsPath_ShouldFailClosed()
+    {
+        var normalized = RawInjectionTargetPolicy.TryNormalizeAbsolutePath(
+            @"C:\Allowed\Target.exe",
+            _ => PhysicalPathResolution.Rejected(),
+            out _);
+
+        normalized.Should().BeFalse();
+    }
+
+    [Fact]
+    public void TryNormalizeAbsolutePath_WhenPhysicalResolverRewritesLocalPath_ShouldFailClosed()
+    {
+        var normalized = RawInjectionTargetPolicy.TryNormalizeAbsolutePath(
+            @"C:\ReviewedLink\Target.exe",
+            _ => PhysicalPathResolution.Resolved(@"C:\Retargeted\Target.exe"),
+            out _);
+
+        normalized.Should().BeFalse(
+            "allowlist paths must remain exact local absolute executable paths and should not follow reparse-point retargeting");
+    }
+
+    [Fact]
+    public void Authorize_WhenPhysicalResolverCannotResolveTargetPath_ShouldFailClosed()
+    {
+        const string targetPath = @"C:\Allowed\Target.exe";
+
+        var authorization = RawInjectionTargetPolicy.Authorize(
+            CreateProcessInfo(targetPath),
+            AppContext.BaseDirectory,
+            configuredAllowedTargets: null,
+            tryResolvePhysicalPath: _ => null);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("local absolute path");
+    }
+
+    private static WpfProcessInfo CreateProcessInfo(string executablePath)
+    {
+        return new WpfProcessInfo
+        {
+            ProcessId = 12345,
+            ProcessName = "TargetApp",
+            WindowTitle = "TargetApp",
+            Architecture = ProcessArchitecture.X64,
+            Runtime = TargetRuntime.NetCore,
+            IsWpfApplication = true,
+            ExecutablePath = executablePath
+        };
+    }
+
+    private static string GetUnusedDriveRoot()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return Path.GetPathRoot(Path.GetFullPath("Target.exe")) ?? "/";
+        }
+
+        var usedRoots = DriveInfo.GetDrives()
+            .Select(drive => drive.Name[..2])
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        for (var driveLetter = 'Z'; driveLetter >= 'D'; driveLetter--)
+        {
+            var root = driveLetter + @":\";
+            if (!usedRoots.Contains(root[..2]))
+            {
+                return root;
+            }
+        }
+
+        return @"A:\";
+    }
+}

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using WpfDevTools.Injector.Discovery;
+using WpfDevTools.Mcp.Server;
 using WpfDevTools.Shared.Enums;
 
 namespace WpfDevTools.Mcp.Server.Tools;
@@ -70,30 +71,74 @@ public sealed partial class ConnectTool
         ProcessWindowFilter windowFilter)
     {
         var currentProcessIsElevated = _isCurrentProcessElevated();
-        var candidates = _processDetector
-            .GetAllWpfProcesses(windowFilter)
-            .Select(process =>
+        var allProcesses = _processDetector.GetAllWpfProcesses(windowFilter);
+        var redactedCandidateCount = 0;
+        var allowedProcesses = new List<WpfProcessInfo>();
+        McpTargetAuthorization? discoveryAbort = null;
+        foreach (var process in allProcesses)
+        {
+            var authorization = _targetPolicy(process);
+            if (authorization.IsAllowed)
             {
-                var access = ProcessConnectionAccessEvaluator.Evaluate(
-                    process.ProcessId,
-                    process.IsElevated,
-                    currentProcessIsElevated);
-                return new ProcessDiscoveryCandidateSummary(
-                    process.ProcessId,
-                    process.ProcessName,
-                    process.WindowTitle,
-                    _workingSetResolver(process.ProcessId),
-                    process.IsElevated,
-                    access.RequiresElevationToConnect,
-                    access.CanConnectFromCurrentServer,
-                    access.ConnectionWarning);
-            })
+                allowedProcesses.Add(process);
+                continue;
+            }
+
+            redactedCandidateCount++;
+            if (authorization.ShouldAbortDiscovery && discoveryAbort is null)
+            {
+                discoveryAbort = authorization;
+            }
+        }
+
+        if (discoveryAbort is { } policyFailure)
+        {
+            return new AutoDiscoveryResolution(
+                null,
+                new
+                {
+                    success = false,
+                    error = policyFailure.Error,
+                    errorCode = policyFailure.ErrorCode,
+                    hint = policyFailure.Hint,
+                    redactedCandidateCount,
+                    policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar
+                },
+                0,
+                [],
+                null,
+                false,
+                redactedCandidateCount);
+        }
+
+        var candidates = allowedProcesses
+            .Select(process => ToAllowedCandidateSummary(process, currentProcessIsElevated))
             .OrderByDescending(candidate => candidate.WorkingSetBytes)
             .ThenBy(candidate => candidate.ProcessId)
             .ToArray();
 
         if (candidates.Length == 0)
         {
+            if (redactedCandidateCount > 0)
+            {
+                return new AutoDiscoveryResolution(
+                    null,
+                    new
+                    {
+                        success = false,
+                        error = "No allowlisted WPF targets were found for auto-discovery.",
+                        errorCode = "SecurityError",
+                        redactedCandidateCount,
+                        policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar,
+                        hint = $"Configure {McpServerConfiguration.AllowedTargetsEnvVar} with the exact local absolute executable path before connect() can auto-discover that target."
+                    },
+                    0,
+                    candidates,
+                    null,
+                    false,
+                    redactedCandidateCount);
+            }
+
             return new AutoDiscoveryResolution(
                 null,
                 new
@@ -106,7 +151,8 @@ public sealed partial class ConnectTool
                 0,
                 candidates,
                 null,
-                false);
+                false,
+                redactedCandidateCount);
         }
 
         if (candidates.Length == 1)
@@ -117,7 +163,8 @@ public sealed partial class ConnectTool
                 1,
                 candidates,
                 candidates[0],
-                false);
+                false,
+                redactedCandidateCount);
         }
 
         if (selectionStrategy != ProcessDiscoverySelectionStrategy.LargestWorkingSet)
@@ -130,13 +177,16 @@ public sealed partial class ConnectTool
                     error = "Multiple WPF processes found; specify processId or use selectionStrategy='largest_working_set'.",
                     errorCode = "MultipleWpfProcessesFound",
                     candidateCount = candidates.Length,
+                    redactedCandidateCount,
+                    policyEnvVar = GetCandidateRedactionPolicyEnvVar(redactedCandidateCount),
                     processes = candidates.Select(ToContractCandidate).ToArray(),
                     hint = "Call connect(processId) for a specific target, or retry connect(selectionStrategy='largest_working_set') if the largest process is acceptable."
                 },
                 candidates.Length,
                 candidates,
                 null,
-                false);
+                false,
+                redactedCandidateCount);
         }
 
         return new AutoDiscoveryResolution(
@@ -145,7 +195,27 @@ public sealed partial class ConnectTool
             candidates.Length,
             candidates,
             candidates[0],
-            true);
+            true,
+            redactedCandidateCount);
+    }
+
+    private ProcessDiscoveryCandidateSummary ToAllowedCandidateSummary(
+        WpfProcessInfo process,
+        bool currentProcessIsElevated)
+    {
+        var access = ProcessConnectionAccessEvaluator.Evaluate(
+            process.ProcessId,
+            process.IsElevated,
+            currentProcessIsElevated);
+        return new ProcessDiscoveryCandidateSummary(
+            process.ProcessId,
+            process.ProcessName,
+            process.WindowTitle,
+            _workingSetResolver(process.ProcessId),
+            process.IsElevated,
+            access.RequiresElevationToConnect,
+            access.CanConnectFromCurrentServer,
+            access.ConnectionWarning);
     }
 
     private static object ToContractCandidate(ProcessDiscoveryCandidateSummary candidate)
@@ -190,5 +260,6 @@ public sealed partial class ConnectTool
         int CandidateCount,
         IReadOnlyList<ProcessDiscoveryCandidateSummary> Candidates,
         ProcessDiscoveryCandidateSummary? SelectedCandidate,
-        bool AutoSelected);
+        bool AutoSelected,
+        int RedactedCandidateCount);
 }

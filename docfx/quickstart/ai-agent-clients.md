@@ -60,7 +60,7 @@ The online installer and manual package setup both generate client-specific regi
 
 If you omit `-InstallRoot`, the installer first reuses the last live install root when possible and falls back to `%APPDATA%\WpfDevToolsMcp` only when no reusable install root is available. Treat the generated `client-registration` artifacts as the source of truth for the resolved output path.
 
-Before the first connection, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before `connect` attaches.
+Before the first connection, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before `connect` attaches.
 
 ## Recommended paths
 
@@ -88,7 +88,7 @@ No matter which client you choose, verify the first connection in this order:
 - Keep the MCP server on Windows.
 - Keep `stdout` clean because the transport is STDIO.
 - Match the server and bootstrapper bitness to the target process.
-- Configure `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` with exact absolute executable paths for reviewed targets before calling `connect`.
+- Configure `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` with exact local absolute executable paths for reviewed targets before calling `connect`.
 - Treat the generated `client-registration` artifacts as the source of truth for copy-paste setup.
 - Prefer scene-level tools before tree dumps or screenshots.
 - When a tool response already includes `navigation.recommended` or `nextSteps`, use that runtime guidance before inventing another follow-up.

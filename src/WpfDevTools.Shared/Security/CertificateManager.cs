@@ -150,7 +150,8 @@ public sealed class CertificateManager
         SavePassword(passwordPath, password);
         CertificateStorageSecurity.ApplyFileSecurity(passwordPath);
 
-        // Export and re-import to make the private key persistable
+        // Persist the encrypted PFX on disk, then re-import with a non-exportable
+        // private key and non-persistent key storage unless compatibility fallback is required.
         var pfxBytes = cert.Export(X509ContentType.Pfx, password);
         File.WriteAllBytes(certPath, pfxBytes);
         CertificateStorageSecurity.ApplyFileSecurity(certPath);
@@ -194,17 +195,66 @@ public sealed class CertificateManager
     }
 
     private static X509Certificate2 LoadCertificateFromFile(string certPath, string password)
-    {
-        const X509KeyStorageFlags preferredFlags = X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet;
+        => LoadCertificateFromFile(
+            certPath,
+            password,
+            static (path, certificatePassword, keyStorageFlags) =>
+                new X509Certificate2(path, certificatePassword, keyStorageFlags));
 
-        try
+    internal static X509Certificate2 LoadCertificateFromFile(
+        string certPath,
+        string password,
+        Func<string, string, X509KeyStorageFlags, X509Certificate2> certificateLoader)
+    {
+        CryptographicException? lastException = null;
+        foreach (var keyStorageFlags in GetNonExportableKeyStoragePreferences())
         {
-            return new X509Certificate2(certPath, password, preferredFlags);
+            try
+            {
+                var certificate = certificateLoader(certPath, password, keyStorageFlags);
+                if (RequiresServerTlsFallback(keyStorageFlags))
+                {
+                    certificate.Dispose();
+                    continue;
+                }
+
+                return certificate;
+            }
+            catch (CryptographicException ex)
+            {
+                lastException = ex;
+            }
         }
-        catch (CryptographicException)
-        {
-            return new X509Certificate2(certPath, password, X509KeyStorageFlags.Exportable);
-        }
+
+        throw lastException ?? new CryptographicException("Certificate could not be loaded.");
+    }
+
+    private static X509KeyStorageFlags[] GetNonExportableKeyStoragePreferences()
+    {
+#if NET48
+        return
+        [
+            X509KeyStorageFlags.UserKeySet,
+            X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet
+        ];
+#else
+        return
+        [
+            X509KeyStorageFlags.EphemeralKeySet,
+            X509KeyStorageFlags.UserKeySet,
+            X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet
+        ];
+#endif
+    }
+
+    private static bool RequiresServerTlsFallback(X509KeyStorageFlags keyStorageFlags)
+    {
+#if NET48
+        return false;
+#else
+        return OperatingSystem.IsWindows()
+               && (keyStorageFlags & X509KeyStorageFlags.EphemeralKeySet) != 0;
+#endif
     }
 
     private static string GenerateRandomPassword()

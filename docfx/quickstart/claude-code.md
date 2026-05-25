@@ -73,12 +73,12 @@ The installer also writes `client-registration\claude-code.txt`. Treat that file
 claude mcp list
 ```
 
-Before using this prompt, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the running WPF app's exact absolute executable path; unset or malformed values fail closed before `connect` attaches.
+Before using this prompt, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the running WPF app's exact local absolute executable path; unset or malformed values fail closed before `connect` attaches.
 
 ## 5. First useful prompt
 
 ```text
-After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact absolute executable path, connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
+After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact local absolute executable path, connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
 ```
 
 ## 6. Discovery entry points inside Claude Code
@@ -91,7 +91,7 @@ After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact absol
 
 - Keep the server on Windows.
 - Do not wrap `wpf-devtools-x64.exe` with extra stdout logging.
-- Start with `connect()` in the common case after `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact absolute executable path. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates or when you need explicit target metadata first.
+- Start with `connect()` in the common case after `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact local absolute executable path. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates or when you need explicit target metadata first.
 - Prefer `get_ui_summary` or `get_form_summary` before tree-heavy inspection; use `get_element_snapshot(elementId)` only after a concrete elementId is known.
 - After each diagnostic, interaction, or mutation, follow `navigation.recommended` first and treat `nextSteps` as the compatibility field.
 - If you already know the next tool and want a leaner payload, capable clients may pass `navigation=false` on `get_binding_errors`. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the `get_binding_errors` tool schema today, but should not assume other tools expose it yet.

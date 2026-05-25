@@ -24,6 +24,8 @@ internal static class ResponseContractToolEntries
                     "autoSelected",
                     "selectionReason",
                     "candidateCount",
+                    "redactedCandidateCount",
+                    "policyEnvVar",
                     "requiresElevationToConnect",
                     "canConnectFromCurrentServer",
                     "suggestedAction",
@@ -56,7 +58,9 @@ internal static class ResponseContractToolEntries
                 {
                     "success",
                     "processes",
-                    "message"
+                    "message",
+                    "redactedTargetCount",
+                    "policyEnvVar"
                 },
                 nestedResponsePaths = new[]
                 {

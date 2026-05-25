@@ -64,12 +64,14 @@ For local development, use a Debug build and build native bootstrapper binaries 
 
 ## Security Defaults
 
-`WPFDEVTOOLS_MCP_ALLOWED_TARGETS` must contain the reviewed target's exact absolute executable path before a successful `connect()` workflow; unset, relative, or malformed values fail closed.
+The MCP client is untrusted by default. Security decisions are enforced by server-side policy gates before process discovery details, UI text, screenshots, ViewModel values, or runtime mutations are returned; policy-denied process targets are redacted instead of disclosed.
+
+`WPFDEVTOOLS_MCP_ALLOWED_TARGETS` must contain the reviewed target's exact local absolute executable path before a successful `connect()` workflow; unset values fail closed with `SecurityError`, while relative or malformed configured entries fail closed with `InvalidPolicyConfiguration`.
 
 The injection-based transport is hardened by default. Key runtime gates:
 
-- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts every `connect()` target before SDK-hosted reuse or raw injection.
-- `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` explicitly allowlists raw-injection targets; blocked raw injection returns `SecurityError` with `requiresExplicitTargetOptIn`.
+- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts every `connect()` target before SDK-hosted reuse or raw injection; malformed configured entries return `InvalidPolicyConfiguration`.
+- `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` explicitly allowlists raw-injection targets; malformed configured entries return `InvalidPolicyConfiguration`, while non-allowlisted targets return `SecurityError` with `requiresExplicitTargetOptIn`.
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` gates runtime mutation, interaction, render measurement, and session state-consuming tools such as `capture_state_snapshot` and `drain_events`.
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` gates `element_screenshot`.
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` gates ViewModel inspection tools.
@@ -79,7 +81,7 @@ Detailed environment-variable behavior lives in [SECURITY.md](SECURITY.md), [doc
 
 ## Typical MCP workflow
 
-1. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the target WPF executable's exact absolute executable path.
+1. Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the target WPF executable's exact local absolute executable path.
 2. Call `connect()` and let the server auto-discover when only one allowlisted visible WPF target is available.
 3. Use `get_processes(windowFilter)` only for disambiguation or metadata-first selection.
 4. Start with `get_ui_summary` or `get_form_summary`; use `get_element_snapshot(elementId)` after discovering a concrete element.

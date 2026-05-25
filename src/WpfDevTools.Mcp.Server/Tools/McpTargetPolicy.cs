@@ -5,7 +5,23 @@ namespace WpfDevTools.Mcp.Server.Tools;
 public readonly record struct McpTargetAuthorization(
     bool IsAllowed,
     string? Error,
-    string? Hint);
+    string? Hint,
+    McpTargetAuthorizationFailureKind FailureKind = McpTargetAuthorizationFailureKind.TargetDenied)
+{
+    public string ErrorCode => FailureKind == McpTargetAuthorizationFailureKind.InvalidPolicyConfiguration
+        ? "InvalidPolicyConfiguration"
+        : "SecurityError";
+
+    public bool ShouldAbortDiscovery
+        => FailureKind == McpTargetAuthorizationFailureKind.InvalidPolicyConfiguration;
+}
+
+public enum McpTargetAuthorizationFailureKind
+{
+    TargetDenied,
+    PolicyNotConfigured,
+    InvalidPolicyConfiguration
+}
 
 internal static class McpTargetPolicy
 {
@@ -13,19 +29,35 @@ internal static class McpTargetPolicy
         => Authorize(
             processInfo,
             Environment.GetEnvironmentVariable(McpServerConfiguration.AllowedTargetsEnvVar),
-            RawInjectionTargetPolicy.TryResolvePhysicalPath);
+            RawInjectionTargetPolicy.ResolvePhysicalPathForPolicy);
 
     internal static McpTargetAuthorization Authorize(
         WpfProcessInfo processInfo,
         string? configuredAllowedTargets,
         Func<string, string?> tryResolvePhysicalPath)
+        => Authorize(
+            processInfo,
+            configuredAllowedTargets,
+            path =>
+            {
+                var resolvedPath = tryResolvePhysicalPath(path);
+                return resolvedPath is null
+                    ? PhysicalPathResolution.Unresolved()
+                    : PhysicalPathResolution.Resolved(resolvedPath);
+            });
+
+    private static McpTargetAuthorization Authorize(
+        WpfProcessInfo processInfo,
+        string? configuredAllowedTargets,
+        Func<string, PhysicalPathResolution> resolvePhysicalPath)
     {
         if (string.IsNullOrWhiteSpace(configuredAllowedTargets))
         {
             return new McpTargetAuthorization(
                 IsAllowed: false,
                 Error: "MCP target allowlist is not configured.",
-                Hint: $"Set {McpServerConfiguration.AllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths, then retry connect(processId).");
+                Hint: $"Set {McpServerConfiguration.AllowedTargetsEnvVar} to a semicolon-separated list of exact local absolute executable paths, then retry connect(processId).",
+                FailureKind: McpTargetAuthorizationFailureKind.PolicyNotConfigured);
         }
 
         var configuredTargetEntries = configuredAllowedTargets.Split(
@@ -42,7 +74,7 @@ internal static class McpTargetPolicy
         {
             if (!RawInjectionTargetPolicy.TryNormalizeAbsolutePath(
                     configuredTargetEntry,
-                    tryResolvePhysicalPath,
+                    resolvePhysicalPath,
                     out var normalizedConfiguredTarget))
             {
                 return CreateInvalidConfigurationAuthorization();
@@ -53,13 +85,13 @@ internal static class McpTargetPolicy
 
         if (!RawInjectionTargetPolicy.TryNormalizeAbsolutePath(
             processInfo.ExecutablePath,
-            tryResolvePhysicalPath,
+            resolvePhysicalPath,
             out var normalizedTargetPath))
         {
             return new McpTargetAuthorization(
                 IsAllowed: false,
-                Error: "MCP target allowlisting is enabled, but the target executable path is missing or not an absolute path.",
-                Hint: $"Set {McpServerConfiguration.AllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths, then retry connect(processId).");
+                Error: "MCP target allowlisting is enabled, but the target executable path is missing or not a local absolute path.",
+                Hint: $"Set {McpServerConfiguration.AllowedTargetsEnvVar} to a semicolon-separated list of exact local absolute executable paths, then retry connect(processId).");
         }
 
         if (configuredTargets.Contains(normalizedTargetPath, RawInjectionTargetPolicy.PathComparer))
@@ -70,12 +102,13 @@ internal static class McpTargetPolicy
         return new McpTargetAuthorization(
             IsAllowed: false,
             Error: "Target is blocked by the MCP target allowlist.",
-            Hint: $"Add the exact absolute executable path to {McpServerConfiguration.AllowedTargetsEnvVar} only after reviewing the target process. The full denied path is written only to server diagnostics.");
+            Hint: $"Add the exact local absolute executable path to {McpServerConfiguration.AllowedTargetsEnvVar} only after reviewing the target process. The full denied path is written only to server diagnostics.");
     }
 
     private static McpTargetAuthorization CreateInvalidConfigurationAuthorization()
         => new(
             IsAllowed: false,
-            Error: "Invalid MCP target allowlist configuration. Every configured entry must be an exact absolute executable path.",
-            Hint: $"Fix {McpServerConfiguration.AllowedTargetsEnvVar} to a semicolon-separated list of exact absolute executable paths, then restart the MCP server.");
+            Error: "Invalid MCP target allowlist configuration. Every configured entry must be an exact local absolute executable path.",
+            Hint: $"Fix {McpServerConfiguration.AllowedTargetsEnvVar} to a semicolon-separated list of exact local absolute executable paths, then restart the MCP server.",
+            FailureKind: McpTargetAuthorizationFailureKind.InvalidPolicyConfiguration);
 }

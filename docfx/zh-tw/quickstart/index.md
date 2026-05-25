@@ -7,7 +7,7 @@
 - Windows 10 以上
 - 與 MCP server 使用同一個使用者帳號執行的 WPF 應用程式
 - 已確認要安裝的 package 架構為 `x64`、`x86` 或 `arm64`
-- 已審查 WPF target 的 exact absolute executable path，並將它加入 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`；未設定或 malformed allowlist 會在 `connect()` attach 前 fail closed
+- 已審查 WPF target 的 exact local absolute executable path，並將它加入 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`；未設定或 malformed allowlist 會在 `connect()` attach 前 fail closed
 
 ## 先確認架構規則
 
@@ -85,7 +85,7 @@ server 只能檢查 live WPF process。先啟動目標應用程式，再啟動 M
 
 在 MCP client 中使用以下順序：
 
-1. 確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含 target 的 exact absolute executable path。
+1. 確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含 target 的 exact local absolute executable path。
 2. `connect`
 3. 如果 auto-discovery 回報多個候選，先呼叫 `get_processes(windowFilter)`，再重試 `connect(processId)`
 4. `get_ui_summary(depthMode: "semantic")`
@@ -104,7 +104,7 @@ server 只能檢查 live WPF process。先啟動目標應用程式，再啟動 M
 以下保留英文，是為了方便直接貼給 client：
 
 ```text
-After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact absolute executable path, connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
+After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact local absolute executable path, connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
 ```
 
 ## 想看更深入的安裝說明？

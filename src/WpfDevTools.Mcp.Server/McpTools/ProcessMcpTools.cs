@@ -20,12 +20,13 @@ public static class ProcessMcpTools
     [McpServerTool(Name = "get_processes", Title = "List Inspectable WPF Processes", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Use this tool to resolve target ambiguity after connect() reports multiple candidates, or when you explicitly need process metadata before connecting.\n\n" +
-        ProcessMetadata + "[Process] List all running WPF processes available for inspection and surface the metadata needed for explicit target selection.\n\n" +
-        "USE WHEN: connect() reports multiple candidates; you need architecture/elevation/window metadata before choosing a target; you need an explicit visible/all/foreground candidate list before choosing a specific processId.\n" +
+        ProcessMetadata + "[Process] List allowlisted WPF processes available for inspection and surface the metadata needed for explicit target selection.\n\n" +
+        "POLICY PRECONDITION: WPFDEVTOOLS_MCP_ALLOWED_TARGETS scopes discovery to allowlisted targets only; malformed configured entries return InvalidPolicyConfiguration without target metadata. Targets denied by policy are counted but their process name, window title, executable path, architecture, runtime, and elevation metadata are not disclosed.\n" +
+        "USE WHEN: connect() reports multiple candidates; you need architecture/elevation/window metadata before choosing an allowlisted target; you need an explicit visible/all/foreground candidate list before choosing a specific processId.\n" +
         "DO NOT USE: As the default first step when connect() auto-discovery can already resolve the target, repeatedly in a loop (process list changes infrequently), or when connect(windowFilter='all') already expresses the broader auto-discovery scope you need.\n\n" +
         "WINDOW FILTERS: Omit windowFilter for the visible-only default; use windowFilter='all' for hidden/background windows; use windowFilter='foreground' for the active foreground WPF window.\n" +
         ToolDescriptionFragments.ContractGuidance +
-        "RESPONSE FIELDS: processes plus per-candidate processId, processName, windowTitle, runtime, requiresElevationToConnect, canConnectFromCurrentServer, and connectionWarning.\n" +
+        "RESPONSE FIELDS: processes plus per-candidate processId, processName, windowTitle, runtime, requiresElevationToConnect, canConnectFromCurrentServer, and connectionWarning; redactedTargetCount and policyEnvVar report policy-denied targets without exposing their metadata. redactedTargetCount is counted before nameFilter so denied target names are never used as a filtering side channel.\n" +
         "REQUEST OPTIONS: nameFilter narrows candidate names; windowFilter='foreground' scopes enumeration to the active WPF window.\n\n" +
         "EXAMPLES:\n" +
         "- { }\n" +
@@ -101,13 +102,13 @@ public static class ProcessMcpTools
         "Use this tool to connect to a running WPF process before any inspection tool is used.\n\n" +
         ProcessMetadata + "[Process] Connect to a WPF application by injecting the Inspector DLL. " +
         "MUST be called before any other inspection tool. Returns success status.\n\n" +
-        "POLICY PRECONDITION: WPFDEVTOOLS_MCP_ALLOWED_TARGETS must contain the reviewed target's exact absolute executable path before this tool can attach; unset or malformed values fail closed with SecurityError.\n" +
+        "POLICY PRECONDITION: WPFDEVTOOLS_MCP_ALLOWED_TARGETS must contain the reviewed target's exact local absolute executable path before this tool can attach; unset values fail closed with SecurityError, and malformed configured entries fail closed with InvalidPolicyConfiguration.\n" +
         "USE WHEN: Before using any inspection tools after the target executable is allowlisted. If processId is omitted, connect auto-discovers the allowlisted target when exactly one WPF process is running under the chosen window filter. After connect succeeds, build initial context with get_ui_summary, get_element_snapshot, or get_form_summary before expanding trees or relying on screenshots.\n" +
         "DO NOT USE: As a health check on an already-connected target; use ping instead.\n\n" +
         "AUTO-DISCOVERY: Omit processId to auto-connect when exactly one allowlisted WPF process is available. Omit windowFilter for the visible-only default. Use connect(windowFilter='all') when hidden/background targets must participate in auto-discovery without a separate process listing step. Use selectionStrategy='largest_working_set' only when you intentionally want the largest allowlisted candidate, including connect(selectionStrategy='largest_working_set', windowFilter='all') for broad multi-process auto-selection.\n" +
         "TIMEOUT: Connection attempt times out after 30 seconds.\n" +
         ToolDescriptionFragments.ContractGuidance +
-        "RESPONSE FIELDS: processId, processName, windowTitle, autoDiscovered, autoSelected, selectionReason, candidateCount, candidate processes when ambiguity remains, requiresElevationToConnect, canConnectFromCurrentServer, and suggestedAction.\n" +
+        "RESPONSE FIELDS: processId, processName, windowTitle, autoDiscovered, autoSelected, selectionReason, candidateCount, redactedCandidateCount, policyEnvVar, candidate processes when ambiguity remains, requiresElevationToConnect, canConnectFromCurrentServer, and suggestedAction.\n" +
         "REQUEST OPTIONS: processId selects an explicit target; selectionStrategy controls auto-selection behavior including largest_working_set; windowFilter widens or narrows auto-discovery scope.\n\n" +
         "EXAMPLES:\n" +
         "- { }\n" +
@@ -118,7 +119,7 @@ public static class ProcessMcpTools
     public static Task<CallToolResult> Connect(
         SessionManager sessionManager,
         [Range(1, int.MaxValue)]
-        [Description("Optional target WPF process ID returned by get_processes. WPFDEVTOOLS_MCP_ALLOWED_TARGETS must contain the target's exact absolute executable path or connect will fail closed. Omit to auto-discover when exactly one allowlisted WPF process is running.")] int? processId = null,
+        [Description("Optional target WPF process ID returned by get_processes. WPFDEVTOOLS_MCP_ALLOWED_TARGETS must contain the target's exact local absolute executable path or connect will fail closed. Omit to auto-discover when exactly one allowlisted WPF process is running.")] int? processId = null,
         [AllowedValues("single_only", "largest_working_set")]
         [Description("Optional auto-discovery strategy: 'single_only' (safe default) or 'largest_working_set' for multi-process auto-selection.")] string? selectionStrategy = null,
         [AllowedValues("visible", "all", "foreground")]

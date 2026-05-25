@@ -19,6 +19,7 @@ public sealed class McpTargetPolicyTests
         authorization.IsAllowed.Should().BeFalse();
         authorization.Error.Should().Contain("target allowlist is not configured");
         authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
+        authorization.Hint.Should().Contain("exact local absolute executable paths");
     }
 
     [Fact]
@@ -45,6 +46,7 @@ public sealed class McpTargetPolicyTests
         authorization.IsAllowed.Should().BeFalse();
         authorization.Error.Should().Contain("blocked by the MCP target allowlist");
         authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
+        authorization.Hint.Should().Contain("exact local absolute executable path");
     }
 
     [Fact]
@@ -58,6 +60,7 @@ public sealed class McpTargetPolicyTests
         authorization.IsAllowed.Should().BeFalse();
         authorization.Error.Should().Contain("target executable path is missing");
         authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
+        authorization.Hint.Should().Contain("exact local absolute executable paths");
     }
 
     [Theory]
@@ -72,6 +75,40 @@ public sealed class McpTargetPolicyTests
 
         authorization.IsAllowed.Should().BeFalse();
         authorization.Error.Should().Contain("Invalid MCP target allowlist configuration");
+        authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
+    }
+
+    [Theory]
+    [InlineData(@"\\server\share\Target.exe")]
+    [InlineData(@"\\?\UNC\server\share\Target.exe")]
+    [InlineData(@"\\?\GLOBALROOT\Device\Mup\server\share\Target.exe")]
+    [InlineData(@"\\.\GLOBALROOT\Device\Mup\server\share\Target.exe")]
+    public void Authorize_WhenTargetAllowlistContainsNetworkPath_ShouldFailClosed(string configuredAllowedTargets)
+    {
+        var authorization = McpTargetPolicy.Authorize(
+            CreateProcessInfo(configuredAllowedTargets),
+            configuredAllowedTargets,
+            path => path);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("Invalid MCP target allowlist configuration");
+        authorization.Error.Should().Contain("exact local absolute executable path");
+        authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
+    }
+
+    [Fact]
+    public void Authorize_WhenResolvedTargetPathIsNetworkPath_ShouldFailClosed()
+    {
+        var authorization = McpTargetPolicy.Authorize(
+            CreateProcessInfo(@"C:\Allowed\Target.exe"),
+            configuredAllowedTargets: @"C:\Allowed\Configured.exe",
+            path => path.EndsWith(@"\Target.exe", StringComparison.OrdinalIgnoreCase)
+                ? @"\\server\share\Target.exe"
+                : path);
+
+        authorization.IsAllowed.Should().BeFalse();
+        authorization.Error.Should().Contain("target executable path");
+        authorization.Error.Should().Contain("local absolute path");
         authorization.Hint.Should().Contain(McpServerConfiguration.AllowedTargetsEnvVar);
     }
 

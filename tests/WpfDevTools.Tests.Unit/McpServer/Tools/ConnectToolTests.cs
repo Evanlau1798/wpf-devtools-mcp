@@ -224,9 +224,37 @@ public partial class ConnectToolTests : IDisposable
 
         var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
 
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        var resultText = JsonSerializer.Serialize(result);
+        resultText.Should().NotContain("TestApp");
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(resultText);
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+        resultJson.GetProperty("policyEnvVar").GetString().Should().Be(McpServerConfiguration.AllowedTargetsEnvVar);
+        injector.InjectWithBootstrapCallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Execute_WhenMcpTargetPolicyConfigurationIsInvalid_ShouldReturnPolicyErrorWithoutInjection()
+    {
+        EnsureDummyBootstrapperExists();
+
+        var injector = new FakeProcessInjector();
+        var tool = CreateTool(
+            injector: injector,
+            processDetector: new FakeProcessDetector(executablePath: @"C:\Denied\Target.exe"),
+            targetPolicy: _ => new McpTargetAuthorization(
+                IsAllowed: false,
+                Error: "Invalid MCP target allowlist configuration.",
+                Hint: $"Fix {McpServerConfiguration.AllowedTargetsEnvVar}.",
+                FailureKind: McpTargetAuthorizationFailureKind.InvalidPolicyConfiguration));
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var resultText = JsonSerializer.Serialize(result);
+        resultText.Should().NotContain("TestApp");
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(resultText);
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("errorCode").GetString().Should().Be("InvalidPolicyConfiguration");
         resultJson.GetProperty("policyEnvVar").GetString().Should().Be(McpServerConfiguration.AllowedTargetsEnvVar);
         injector.InjectWithBootstrapCallCount.Should().Be(0);
     }

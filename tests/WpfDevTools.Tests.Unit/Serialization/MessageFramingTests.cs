@@ -27,6 +27,21 @@ public class MessageFramingTests
     }
 
     [Fact]
+    public void MessageFraming_ShouldClearPooledBuffersBeforeReturn()
+    {
+        var content = File.ReadAllText(
+            WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(
+                "src/WpfDevTools.Shared/Serialization/MessageFraming.cs"));
+
+        content.Should().Contain("Return(combined, clearArray: true)",
+            "written IPC frames may contain application state and must not be left in the shared ArrayPool");
+        content.Should().Contain("Return(messageBytes, clearArray: true)",
+            "read IPC frames may contain application state and must not be left in the shared ArrayPool");
+        content.Should().NotContain("Return(combined);");
+        content.Should().NotContain("Return(messageBytes);");
+    }
+
+    [Fact]
     public async Task WriteMessageAsync_ShouldWriteLittleEndianLengthPrefix()
     {
         using var stream = new MemoryStream();

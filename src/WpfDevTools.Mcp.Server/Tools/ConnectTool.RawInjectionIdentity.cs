@@ -55,7 +55,7 @@ public sealed partial class ConnectTool
             Trace.WriteLine(
                 "ConnectTool raw injection target changed before injection for process " +
                 $"{processId}: original={context.ProcessInfo.ExecutablePath}; current={currentProcessInfo.ExecutablePath}");
-            failure = CreateRawInjectionIdentityChangedFailure(currentProcessInfo);
+            failure = CreateRawInjectionIdentityChangedFailure();
             return false;
         }
 
@@ -91,7 +91,7 @@ public sealed partial class ConnectTool
         return true;
     }
 
-    private static object CreateRawInjectionIdentityChangedFailure(WpfProcessInfo processInfo)
+    private static object CreateRawInjectionIdentityChangedFailure()
     {
         return new
         {
@@ -100,8 +100,7 @@ public sealed partial class ConnectTool
             errorCode = "SecurityError",
             hint = $"Refresh get_processes() or connect() discovery, then set {McpServerConfiguration.RawInjectionAllowedTargetsEnvVar} only for the exact current executable path.",
             requiresExplicitTargetOptIn = true,
-            allowlistEnvVar = McpServerConfiguration.RawInjectionAllowedTargetsEnvVar,
-            targetProcessName = processInfo.ProcessName
+            allowlistEnvVar = McpServerConfiguration.RawInjectionAllowedTargetsEnvVar
         };
     }
 }

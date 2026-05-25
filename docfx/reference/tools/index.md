@@ -20,7 +20,7 @@ The server currently exposes 64 tools across eleven categories.
 
 Most real sessions should follow this progression:
 
-Before step 1, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact absolute executable path; unset or malformed values fail closed before `connect` attaches.
+Before step 1, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact local absolute executable path; unset or malformed values fail closed before `connect` attaches.
 
 1. `connect()` for the default auto-discovery path
 2. `get_active_process`
@@ -79,6 +79,7 @@ Key capabilities worth learning early:
 - High-value tool descriptions in `tools/list` are intentionally brief discovery hints; use `wpf://contracts/response` for stable field-level contracts instead of relying on long inline prose.
 - `tools/list` advertises an `outputSchema` for the common `result.structuredContent` payload fields, including `success`, `navigation`, and common identifiers such as `processId`. Claude-compatible client smoke tests should validate discovery against this structured-output metadata shape.
 - Need a machine-readable contract? Read MCP resource `wpf://contracts/response`. It publishes the stable detailed WPF payload contract for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, and the `get_binding_errors` `navigation=false` opt-out beyond the common `tools/list` schema.
+- Need canonical tool metadata? Read MCP resource `wpf://contracts/tools`. It publishes the machine-readable JSON manifest for tool names, categories, safety flags, capability tags, and parameter metadata.
 - `result.content[0].text` is a compact JSON fallback that preserves high-signal top-level scalar fields and collection counts, not a duplicate transport of the full JSON object. Set `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` only for legacy text-only MCP clients that require the full JSON payload in `result.content[0].text`; error results include `result.content[0].annotations`.
 - Diagnostic tools may also piggyback `pendingEvents` when the session has buffered runtime events. Use `drain_events` when you need an explicit deterministic read of the shared event buffer.
 

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using WpfDevTools.Injector.Discovery;
+using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Shared.ErrorHandling;
 
@@ -12,6 +13,7 @@ public sealed class GetProcessesTool
 {
     private readonly WpfProcessDetector _detector;
     private readonly Func<bool> _isCurrentProcessElevated;
+    private readonly Func<WpfProcessInfo, McpTargetAuthorization> _targetPolicy;
 
     /// <summary>
     /// Initializes a new instance of the GetProcessesTool class
@@ -23,10 +25,12 @@ public sealed class GetProcessesTool
 
     internal GetProcessesTool(
         WpfProcessDetector detector,
-        Func<bool>? isCurrentProcessElevated = null)
+        Func<bool>? isCurrentProcessElevated = null,
+        Func<WpfProcessInfo, McpTargetAuthorization>? targetPolicy = null)
     {
         _detector = detector;
         _isCurrentProcessElevated = isCurrentProcessElevated ?? CurrentProcessElevationDetector.IsCurrentProcessElevated;
+        _targetPolicy = targetPolicy ?? McpTargetPolicy.Authorize;
     }
 
     /// <summary>
@@ -64,10 +68,41 @@ public sealed class GetProcessesTool
 
             var allProcesses = _detector.GetAllWpfProcesses(windowFilter);
             var currentProcessIsElevated = _isCurrentProcessElevated();
+            var redactedTargetCount = 0;
+            var allowedProcesses = new List<WpfProcessInfo>();
+            McpTargetAuthorization? discoveryAbort = null;
+            foreach (var process in allProcesses)
+            {
+                var authorization = _targetPolicy(process);
+                if (authorization.IsAllowed)
+                {
+                    allowedProcesses.Add(process);
+                    continue;
+                }
+
+                redactedTargetCount++;
+                if (authorization.ShouldAbortDiscovery && discoveryAbort is null)
+                {
+                    discoveryAbort = authorization;
+                }
+            }
+
+            if (discoveryAbort is { } policyFailure)
+            {
+                return Task.FromResult<object>(new
+                {
+                    success = false,
+                    error = policyFailure.Error,
+                    errorCode = policyFailure.ErrorCode,
+                    hint = policyFailure.Hint,
+                    redactedTargetCount,
+                    policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar
+                });
+            }
 
             var filteredProcesses = string.IsNullOrEmpty(nameFilter)
-                ? allProcesses
-                : allProcesses.Where(p => p.ProcessName.Contains(nameFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+                ? allowedProcesses
+                : allowedProcesses.Where(p => p.ProcessName.Contains(nameFilter, StringComparison.OrdinalIgnoreCase)).ToList();
 
             var processes = filteredProcesses.Select(p =>
             {
@@ -98,11 +133,21 @@ public sealed class GetProcessesTool
                 {
                     success = true,
                     processes = Array.Empty<object>(),
-                    message = "No WPF processes found. Make sure a WPF application is running."
+                    redactedTargetCount,
+                    policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar,
+                    message = redactedTargetCount > 0
+                        ? "No allowlisted WPF processes found. Configure the MCP target allowlist before discovery can reveal target metadata."
+                        : "No WPF processes found. Make sure a WPF application is running."
                 });
             }
 
-            return Task.FromResult<object>(new { success = true, processes });
+            return Task.FromResult<object>(new
+            {
+                success = true,
+                processes,
+                redactedTargetCount,
+                policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar
+            });
         }
         catch (Exception ex)
         {

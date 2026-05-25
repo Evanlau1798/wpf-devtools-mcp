@@ -2,13 +2,22 @@
 #include <wincrypt.h>
 #include <algorithm>
 #include <string>
-#include <fstream>
 #include <sstream>
 #include "exit_codes.h"
 #include "clr_hosting.h"
 #include "coreclr_hosting.h"
-#include "bootstrap_config_parser.h"
 #include "secure_memory.h"
+
+struct BootstrapConfig
+{
+    std::wstring InspectorPath;
+    std::wstring PipeName;
+    std::wstring AuthSecretBase64;
+    std::wstring AuthSecretFile;
+    std::wstring CertDirectory;
+    bool AuthEnabled = false;
+    bool EncryptionEnabled = false;
+};
 
 static void AppendParam(std::wstring& target, const wchar_t* key, const std::wstring& value)
 {
@@ -435,27 +444,6 @@ static bool LoadAuthSecretFromFile(BootstrapConfig& config)
     return true;
 }
 
-// Fallback: read params from temp config file.
-static bool ReadConfigFile(DWORD pid, BootstrapConfig& config)
-{
-    wchar_t tempPath[MAX_PATH];
-    if (GetTempPathW(MAX_PATH, tempPath) == 0)
-        return false;
-
-    std::wstring configPath = std::wstring(tempPath)
-        + L"WpfDevTools_Bootstrap_" + std::to_wstring(pid) + L".json";
-
-    std::ifstream file(configPath);
-    if (!file.is_open())
-        return false;
-
-    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    file.close();
-    bool parsed = TryParseBootstrapConfigJson(content, config);
-    DeleteFileW(configPath.c_str());
-    return parsed;
-}
-
 // Exported function called via CreateRemoteThread (step 2).
 extern "C" __declspec(dllexport) DWORD WINAPI BootstrapInspector(LPVOID lpParameter)
 {
@@ -465,9 +453,7 @@ extern "C" __declspec(dllexport) DWORD WINAPI BootstrapInspector(LPVOID lpParame
     auto params = static_cast<const wchar_t*>(lpParameter);
     if (!ParseParams(params, config))
     {
-        DWORD pid = GetCurrentProcessId();
-        if (!ReadConfigFile(pid, config))
-            return ExitCodes::InspectorPathInvalid;
+        return ExitCodes::InspectorPathInvalid;
     }
 
     if (!LoadAuthSecretFromFile(config))

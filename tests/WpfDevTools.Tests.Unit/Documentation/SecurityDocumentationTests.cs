@@ -47,6 +47,24 @@ public class SecurityDocumentationTests
     }
 
     [Theory]
+    [InlineData("README.md")]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    public void Documentation_ShouldDefineMcpClientAsUntrustedByDefault(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("MCP client");
+        content.Should().Contain("untrusted by default",
+            $"{relativePath} should state that the local MCP caller is not trusted by default");
+        content.Should().Contain("server-side policy gates",
+            $"{relativePath} should make policy enforcement server-side rather than advisory");
+        content.Should().Contain("redacted",
+            $"{relativePath} should describe redaction before process metadata disclosure");
+    }
+
+    [Theory]
     [InlineData("By default the server runs without authentication or encryption.")]
     [InlineData("If the variable is not set, authentication is disabled.")]
     [InlineData("Authentication and TLS are opt-in, not automatic.")]
@@ -103,6 +121,25 @@ public class SecurityDocumentationTests
     [InlineData("docfx/reference/configuration.md")]
     [InlineData("docfx/zh-tw/reference/configuration.md")]
     [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
+    public void Documentation_ShouldDescribeMalformedRawInjectionAllowlistErrorContract(string relativePath)
+    {
+        var policyLines = File.ReadLines(GetRepoFilePath(relativePath))
+            .Where(line => line.Contains("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS", StringComparison.Ordinal))
+            .ToArray();
+        var policyText = string.Join(Environment.NewLine, policyLines);
+
+        policyText.Should().Contain("InvalidPolicyConfiguration",
+            $"{relativePath} should document malformed raw injection allowlist entries as policy configuration errors");
+    }
+
+    [Theory]
+    [InlineData("README.md")]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    [InlineData("docfx/reference/configuration.md")]
+    [InlineData("docfx/zh-tw/reference/configuration.md")]
+    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
     public void Documentation_ShouldNotDescribeRepositoryTargetsAsImplicitRawInjectionTrust(string relativePath)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
@@ -137,6 +174,27 @@ public class SecurityDocumentationTests
             $"{relativePath} should document the screenshot gate");
         content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION",
             $"{relativePath} should document the ViewModel inspection gate");
+    }
+
+    [Theory]
+    [InlineData("README.md")]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    [InlineData("docfx/reference/configuration.md")]
+    [InlineData("docfx/zh-tw/reference/configuration.md")]
+    [InlineData("docfx/reference/tools/process-and-connection.md")]
+    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md")]
+    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
+    [InlineData("src/WpfDevTools.Mcp.Server/McpTools/ProcessMcpTools.cs")]
+    public void Documentation_ShouldDescribeMalformedMcpTargetAllowlistErrorContract(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
+            $"{relativePath} should identify the MCP target allowlist being validated");
+        content.Should().Contain("InvalidPolicyConfiguration",
+            $"{relativePath} should document the malformed target allowlist error code");
     }
 
     [Theory]
@@ -314,6 +372,56 @@ public class SecurityDocumentationTests
             $"{relativePath} should describe thumbprint pinning as part of TLS certificate validation");
         content.Should().NotContain("can pin",
             $"{relativePath} should not imply subject-only TLS certificate validation is acceptable");
+    }
+
+    [Theory]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    public void Documentation_ShouldDescribeNonExportableTlsPrivateKeyImports(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("non-exportable private key",
+            $"{relativePath} should describe the runtime TLS private-key storage model");
+        content.Should().Contain("Exportable",
+            $"{relativePath} should state that TLS certificate loading does not fall back to exportable key imports");
+    }
+
+    [Fact]
+    public void CertificateManagerSource_ShouldNotDescribeTlsPrivateKeyImportAsPersistable()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Shared/Security/CertificateManager.cs"));
+
+        content.Should().NotContain("private key persistable",
+            "TLS certificate loading should not document Windows key-store persistence as the intended behavior");
+        content.Should().Contain("non-exportable",
+            "the source comment should describe the runtime import security boundary");
+    }
+
+    [Theory]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    public void ProductionChecklists_ShouldRequireExactLocalAbsoluteExecutablePaths(string relativePath)
+    {
+        var checklistLines = File.ReadLines(GetRepoFilePath(relativePath))
+            .Select(line => line.TrimStart())
+            .Where(line => line.Length > 2
+                && char.IsDigit(line[0])
+                && (line.Contains("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS", StringComparison.Ordinal)
+                    || line.Contains("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal)))
+            .ToArray();
+
+        checklistLines.Should().HaveCount(2,
+            $"{relativePath} should have production checklist entries for both executable allowlists");
+        checklistLines.Should().OnlyContain(
+            line => line.Contains("exact local absolute executable path", StringComparison.OrdinalIgnoreCase),
+            $"{relativePath} production checklist entries should not weaken allowlists to reviewed executable paths");
+        checklistLines.Should().OnlyContain(
+            line => line.Contains("review", StringComparison.OrdinalIgnoreCase)
+                || line.Contains("審查", StringComparison.Ordinal),
+            $"{relativePath} production checklist entries should preserve the reviewed-target requirement");
     }
 
     private static string ReadDocumentation()

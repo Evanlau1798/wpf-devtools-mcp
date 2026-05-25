@@ -200,6 +200,12 @@ public static partial class CapabilityResources
             schemaMetadata = ResponseContractSchemaMetadata.GetSchemaMetadata(),
             parameterVocabularies = ResponseContractParameterVocabularies.GetParameterVocabularies(),
             parameterConstraints = ResponseContractParameterConstraints.GetParameterConstraints(),
+            toolManifest = new
+            {
+                resourceUri = ToolManifestResourceUri,
+                generatedFrom = nameof(ModelContextProtocol.Server.McpServerToolAttribute),
+                usage = "Canonical source-generated tool surface for runtime tools/list parity, documentation coverage, and policy capability classification."
+            },
             registeredToolCoverage = ResponseContractToolCoverage.GetRegisteredToolCoverage(ResponseContractResourceUri),
             highValueTools = ResponseContractToolEntries.GetHighValueTools(ResponseContractResourceUri)
         };

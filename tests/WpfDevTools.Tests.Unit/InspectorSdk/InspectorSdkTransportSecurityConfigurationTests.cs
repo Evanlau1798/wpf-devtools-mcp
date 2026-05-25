@@ -92,6 +92,18 @@ public sealed class InspectorSdkTransportSecurityConfigurationTests
             .WithMessage("*WPFDEVTOOLS_CERT_DIR*absolute path*");
     }
 
+    [Theory]
+    [InlineData(@"\\server\share\wpfdevtools-certs")]
+    [InlineData(@"\\?\UNC\server\share\wpfdevtools-certs")]
+    public void Create_WithNetworkCertificateDirectory_ShouldThrowLocalPathError(string certificateDirectory)
+    {
+        var authSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        var act = () => InspectorSdkTransportSecurityConfiguration.Create(authSecret, certificateDirectory);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*WPFDEVTOOLS_CERT_DIR*local path*Network paths are not allowed*");
+    }
+
     private static string GetDriveRelativePath(string pathSuffix)
     {
         var root = Path.GetPathRoot(Path.GetTempPath())!;

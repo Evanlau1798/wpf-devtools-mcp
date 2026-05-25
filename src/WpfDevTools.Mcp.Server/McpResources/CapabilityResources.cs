@@ -27,12 +27,12 @@ public static partial class CapabilityResources
         - Transport: `stdio`
         - Tool surface: WPF process discovery, connection, exact-match element search, tree inspection, binding diagnostics, DependencyProperty analysis, MVVM inspection, style/template inspection, interaction, layout, performance, and routed-event diagnostics
         - Prompt surface: workflow entry points for connection, binding diagnosis, command/click diagnosis, elevated-target diagnosis, performance profiling, and secondary-window inspection
-        - Resource surface: capability summary, response contract JSON, workflow references, retained screenshot PNG resources, elevated-target limitations, injection failure notes, window/focus limitations, performance profiling notes, and runtime state safety notes
+        - Resource surface: capability summary, response contract JSON, canonical tool manifest JSON, workflow references, retained screenshot PNG resources, elevated-target limitations, injection failure notes, window/focus limitations, performance profiling notes, and runtime state safety notes
         - Feature flags: `prompts=true`, `resources=true`, `stateSnapshots=true`, `diagnosticNormalization=true`, `elevatedTargetDiagnostics=true`
 
         ## Recommended workflow shape
 
-        - Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before `connect()` attaches.
+        - Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before `connect()` attaches.
         - Start with `connect()` and let auto-discovery pick the single visible allowlisted WPF target when possible.
         - Call `get_processes(windowFilter)` only when `connect()` reports multiple candidates or when you explicitly need a filtered process list before connecting.
         - Prefer `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before tree-heavy inspection.
@@ -40,7 +40,8 @@ public static partial class CapabilityResources
 
         ## Response contract notes
 
-        - Machine-readable JSON contract resource: `wpf://contracts/response`. Read it when clients need stable field-level metadata for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, canonical `recovery` error guidance, closed vocabularies for common enum-like parameters, and the `get_binding_errors` `navigation=false` opt-out without relying on prose alone.
+        - Machine-readable JSON contract resources: `wpf://contracts/response` for stable response fields and `wpf://contracts/tools` for the canonical tool manifest generated from source registration metadata.
+        - Read `wpf://contracts/response` when clients need stable field-level metadata for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, canonical `recovery` error guidance, closed vocabularies for common enum-like parameters, and the `get_binding_errors` `navigation=false` opt-out without relying on prose alone.
         - By default, every tool response includes compatibility `nextSteps`; tools without runtime-computable guidance return `nextSteps: []`.
         - By default, responses also include a `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and `contextRefs`.
         - `nextSteps` remains a compatibility field and is derived from `navigation.recommended` unless `get_binding_errors` explicitly receives `navigation=false`.
@@ -93,7 +94,7 @@ public static partial class CapabilityResources
 
         Use this when UI data is blank, wrong, or stale.
 
-        1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before `connect()` attaches.
+        1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before `connect()` attaches.
         2. `connect()`
         3. If `connect()` reports multiple candidates, call `get_processes(windowFilter)` and retry `connect(processId)`
         4. `get_binding_errors`
@@ -116,15 +117,15 @@ public static partial class CapabilityResources
         Title = "Elevated Target Limitations",
         UriTemplate = "wpf://limitations/elevated-targets",
         MimeType = "text/markdown")]
-    [Description("Explains why elevated targets may be discoverable but still reject connect or control operations.")]
+    [Description("Explains why allowlisted elevated targets may be discoverable but still reject connect or control operations.")]
     public static string GetElevatedTargetLimitations() =>
         """
         # Elevated Target Limitations
 
-        A non-administrator MCP server can often discover an elevated WPF process, but it cannot inject into or control it.
+        A non-administrator MCP server can often discover an allowlisted elevated WPF process, but it cannot inject into or control it.
 
         Expected behavior:
-        - `get_processes` may list the target and mark `isElevated` / `requiresElevationToConnect`.
+        - `get_processes` may list an allowlisted target and mark `isElevated` / `requiresElevationToConnect`.
         - `connect` may fail with `AccessDenied`.
         - Interaction and mutation tools also require matching privilege if the target is elevated.
 

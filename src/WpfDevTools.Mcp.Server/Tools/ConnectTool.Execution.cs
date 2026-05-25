@@ -107,11 +107,10 @@ public sealed partial class ConnectTool
         {
             success = false,
             error = targetAuthorization.Error,
-            errorCode = "SecurityError",
+            errorCode = targetAuthorization.ErrorCode,
             hint = targetAuthorization.Hint,
             requiresExplicitTargetOptIn = true,
-            policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar,
-            targetProcessName = processInfo.ProcessName
+            policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar
         };
     }
 
@@ -189,11 +188,10 @@ public sealed partial class ConnectTool
         {
             success = false,
             error = authorization.Error,
-            errorCode = "SecurityError",
+            errorCode = authorization.ErrorCode,
             hint = authorization.Hint,
             requiresExplicitTargetOptIn = true,
-            allowlistEnvVar = McpServerConfiguration.RawInjectionAllowedTargetsEnvVar,
-            targetProcessName = processInfo.ProcessName
+            allowlistEnvVar = McpServerConfiguration.RawInjectionAllowedTargetsEnvVar
         };
     }
 

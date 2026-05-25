@@ -1,4 +1,7 @@
 using FluentAssertions;
+using System.Reflection;
+using ModelContextProtocol.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
@@ -8,15 +11,103 @@ public sealed class DocfxCapabilityDocumentationTests
     [Fact]
     public void ToolOverviewPages_ShouldReflectCurrentToolCount()
     {
-        var toolCount = Directory
-            .EnumerateFiles(GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools"), "*.cs", SearchOption.TopDirectoryOnly)
-            .Select(File.ReadAllText)
-            .Sum(content => CountOccurrences(content, "[McpServerTool("));
+        var toolCount = GetSourceRegisteredToolNames().Length;
 
         File.ReadAllText(GetRepoFilePath("docfx/reference/tools/index.md"))
             .Should().Contain($"{toolCount} tools");
         File.ReadAllText(GetRepoFilePath("docfx/zh-tw/reference/tools/index.md"))
             .Should().Contain($"{toolCount} 個工具");
+    }
+
+    [Theory]
+    [InlineData("docfx/reference/tools")]
+    [InlineData("docfx/zh-tw/reference/tools")]
+    public void ToolReferenceCategoryPages_ShouldCoverEverySourceRegisteredTool(string relativeDirectory)
+    {
+        var toolNames = GetSourceRegisteredToolNames();
+        var categoryContent = Directory
+            .EnumerateFiles(GetRepoFilePath(relativeDirectory), "*.md", SearchOption.TopDirectoryOnly)
+            .Where(path => !string.Equals(Path.GetFileName(path), "index.md", StringComparison.OrdinalIgnoreCase))
+            .Select(File.ReadAllText)
+            .Aggregate(string.Empty, static (left, right) => left + "\n" + right);
+
+        var missingTools = toolNames
+            .Where(toolName => !categoryContent.Contains(toolName, StringComparison.Ordinal))
+            .ToArray();
+
+        missingTools.Should().BeEmpty(
+            "every source-registered MCP tool should have name-level coverage in a dedicated DocFX reference category page, not only the overview index");
+    }
+
+    [Theory]
+    [InlineData("docfx/reference/tools/scene-and-state.md")]
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md")]
+    public void SceneAndStateReferencePages_ShouldDocumentPrimarySceneAndStateToolsAsHeadings(
+        string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        string[] expectedTools =
+        [
+            "get_ui_summary",
+            "get_form_summary",
+            "get_element_snapshot",
+            "diagnose_visibility",
+            "get_interaction_readiness",
+            "capture_state_snapshot",
+            "batch_mutate",
+            "get_state_diff",
+            "restore_state_snapshot"
+        ];
+
+        foreach (var toolName in expectedTools)
+        {
+            content.Should().Contain($"## `{toolName}`",
+                "the dedicated scene/state reference page should expose primary workflow tools as sections, not only incidental mentions");
+        }
+    }
+
+    [Theory]
+    [InlineData("docfx/reference/tools/scene-and-state.md")]
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md")]
+    public void SceneAndStateReferencePages_ShouldDocumentFormSummarySubmittabilityAsNestedSummaryFields(
+        string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("summary.validationSubmittable");
+        content.Should().Contain("summary.interactionSubmittable");
+        content.Should().Contain("summary.isSubmittable");
+        content.Should().NotContain("`validationSubmittable`, `interactionSubmittable`,");
+    }
+
+    [Theory]
+    [InlineData("docfx/reference/tools/scene-and-state.md", "capture_state_snapshot")]
+    [InlineData("docfx/reference/tools/scene-and-state.md", "restore_state_snapshot")]
+    [InlineData("docfx/reference/tools/scene-and-state.md", "batch_mutate")]
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md", "capture_state_snapshot")]
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md", "restore_state_snapshot")]
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md", "batch_mutate")]
+    public void SceneAndStateReferencePages_ShouldDocumentDestructiveGateForStateMutationTools(
+        string relativePath,
+        string toolName)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var section = ExtractMarkdownSection(content, $"## `{toolName}`");
+
+        section.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS");
+        section.Should().Contain("destructive");
+    }
+
+    [Theory]
+    [InlineData("docfx/reference/tools/scene-and-state.md")]
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md")]
+    public void SceneAndStateReferencePages_ShouldScopeBatchMutateSnapshotExampleToMutatedElement(
+        string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var section = ExtractMarkdownSection(content, "## `batch_mutate`");
+
+        section.Should().Contain("\"captureSnapshot\": { \"elementId\": \"NameTextBox\", \"propertyNames\": [\"Text\"] }");
     }
 
     [Theory]
@@ -312,12 +403,20 @@ public sealed class DocfxCapabilityDocumentationTests
     [Theory]
     [InlineData("docfx/reference/tools/index.md")]
     [InlineData("docfx/zh-tw/reference/tools/index.md")]
-    public void ToolOverviewPages_ShouldPointToMachineReadableResponseContractResource(string relativePath)
+    public void ToolOverviewPages_ShouldPointToMachineReadableContractResources(string relativePath)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
         content.Should().Contain("wpf://contracts/response",
             "tool overview pages should point clients at the machine-readable response contract resource for stable payload details beyond SDK outputSchema");
+        content.Should().Contain("wpf://contracts/tools",
+            "tool overview pages should point clients at the canonical tool manifest for machine-readable tool surface details");
+        content.Should().Contain("capability tag",
+            "tool overview pages should describe a field that the canonical tool manifest actually publishes");
+        content.Should().Contain("parameter metadata",
+            "tool overview pages should describe a field that the canonical tool manifest actually publishes");
+        content.Should().NotContain("discovery alias",
+            "tool overview pages should not promise alias metadata that the canonical manifest does not publish");
         content.Should().Contain("JSON",
             "tool overview pages should clarify that the fallback contract surface is machine-readable JSON rather than prose alone");
     }
@@ -336,22 +435,29 @@ public sealed class DocfxCapabilityDocumentationTests
         traditionalChinese.Should().Contain("WPFDEVTOOLS_TEXT_FALLBACK_MODE=full");
     }
 
-    private static int CountOccurrences(string content, string value)
-    {
-        var count = 0;
-        var startIndex = 0;
-
-        while ((startIndex = content.IndexOf(value, startIndex, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            startIndex += value.Length;
-        }
-
-        return count;
-    }
-
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string[] GetSourceRegisteredToolNames()
+    {
+        return typeof(ProcessMcpTools).Assembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
+            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+            .Select(method => method.GetCustomAttribute<McpServerToolAttribute>()?.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Cast<string>()
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static string ExtractMarkdownSection(string content, string heading)
+    {
+        var start = content.IndexOf(heading, StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0);
+
+        var nextHeading = content.IndexOf("\n## ", start + heading.Length, StringComparison.Ordinal);
+        return nextHeading < 0 ? content[start..] : content[start..nextHeading];
+    }
 
     private static IEnumerable<string> EnumerateDocfxContractMarkdownFiles()
     {

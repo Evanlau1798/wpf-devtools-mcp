@@ -88,6 +88,41 @@ public class ArchitectureCompatibilityTests
         result.Should().Be(InjectionError.None);
     }
 
+    [Fact]
+    public void CheckCompatibility_ARM64Injector_ARM64Target_ARM64Dll_ShouldPass()
+    {
+        var result = ProcessInjector.CheckArchitectureCompatibility(
+            processArch: ProcessArchitecture.ARM64,
+            dllArch: ProcessArchitecture.ARM64,
+            injectorArch: ProcessArchitecture.ARM64);
+
+        result.Should().Be(InjectionError.None);
+    }
+
+    [Fact]
+    public void CheckCompatibility_ARM64Injector_X64Target_AnyCpuDll_ShouldFail()
+    {
+        var result = ProcessInjector.CheckArchitectureCompatibility(
+            processArch: ProcessArchitecture.X64,
+            dllArch: ProcessArchitecture.Unknown,
+            injectorArch: ProcessArchitecture.ARM64);
+
+        result.Should().Be(InjectionError.ArchitectureMismatch);
+    }
+
+    [Fact]
+    public void ErrorMessage_ARM64ServerToX64Target_AnyCpuDll_ShouldBlameArm64Server()
+    {
+        var message = ProcessInjector.GetArchitectureErrorMessage(
+            processArch: ProcessArchitecture.X64,
+            dllArch: ProcessArchitecture.Unknown,
+            injectorArch: ProcessArchitecture.ARM64);
+
+        message.Should().Contain("ARM64");
+        message.Should().Contain("X64");
+        message.Should().Contain("server");
+    }
+
     // === Error message tests ===
 
     [Fact]

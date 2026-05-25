@@ -132,6 +132,34 @@ public class ProcessInjectorTests
     }
 
     [Fact]
+    public void InjectWithBootstrap_WhenTargetArchitectureDiffersFromInjector_ShouldFailBeforeOpenProcess()
+    {
+        var processId = Process.GetCurrentProcess().Id;
+        var mismatchedArchitecture = Environment.Is64BitProcess
+            ? ProcessArchitecture.X86
+            : ProcessArchitecture.X64;
+        var dllInjector = new CapturingDllInjector();
+        var injector = new ProcessInjector(
+            new AlwaysWpfProcessDetector(processId, mismatchedArchitecture),
+            dllInjector,
+            () => new PipeReadyProbe((_, _) => true, () => DateTime.UtcNow, _ => { }));
+        var request = new InjectionRequest
+        {
+            ProcessId = processId,
+            BootstrapperDllPath = "bootstrapper.dll",
+            InspectorDllPath = "inspector.dll",
+            ExpectedPipeName = "WpfDevTools_TestPipe"
+        };
+
+        var result = injector.InjectWithBootstrap(request);
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Be(InjectionError.ArchitectureMismatch);
+        result.ErrorMessage.Should().Contain("Architecture mismatch");
+        dllInjector.Parameters.Should().BeNull("bootstrap injection should reject cross-bitness before OpenProcess and remote thread work");
+    }
+
+    [Fact]
     public void InjectWithBootstrap_WhenSharedBudgetIsExhaustedBeforePipeReadyPhaseStart_ShouldReturnStructuredPipeReadyTimeout()
     {
         var processId = Process.GetCurrentProcess().Id;
@@ -184,7 +212,9 @@ public class ProcessInjectorTests
         File.Exists(dllInjector.SecretFilePath!).Should().BeFalse();
     }
 
-    private sealed class AlwaysWpfProcessDetector(int expectedProcessId) : WpfProcessDetector
+    private sealed class AlwaysWpfProcessDetector(
+        int expectedProcessId,
+        ProcessArchitecture? architecture = null) : WpfProcessDetector
     {
         public override WpfProcessInfo? GetProcessInfo(int processId)
         {
@@ -197,7 +227,7 @@ public class ProcessInjectorTests
             {
                 ProcessId = processId,
                 ProcessName = "TestProcess",
-                Architecture = Environment.Is64BitProcess ? ProcessArchitecture.X64 : ProcessArchitecture.X86,
+                Architecture = architecture ?? (Environment.Is64BitProcess ? ProcessArchitecture.X64 : ProcessArchitecture.X86),
                 Runtime = TargetRuntime.NetCore,
                 IsWpfApplication = true
             };

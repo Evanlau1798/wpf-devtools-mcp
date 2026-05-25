@@ -52,6 +52,10 @@
       href: reference/tools/tree-and-xaml.md
     - name: Binding 與 Dependency Property 工具
       href: reference/tools/binding-and-dp.md
+    - name: Style 與 Template 工具
+      href: reference/tools/style-and-template.md
+    - name: Scene 與 State 診斷工具
+      href: reference/tools/scene-and-state.md
     - name: Interaction、Event、Layout 與 Performance 工具
       href: reference/tools/interaction-events-layout.md
     - name: 設定參考

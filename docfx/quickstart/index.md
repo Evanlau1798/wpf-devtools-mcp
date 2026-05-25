@@ -7,7 +7,7 @@ This quickstart is optimized for the pre-publication distribution model: use a l
 - Windows 10 or later
 - A live WPF application running under the same user account as the MCP server
 - An architecture choice for the package you want to install: `x64`, `x86`, or `arm64`
-- The exact absolute executable path of the WPF target reviewed and listed in `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`; unset or malformed allowlist values fail closed before `connect()` attaches
+- The exact local absolute executable path of the WPF target reviewed and listed in `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`; unset or malformed allowlist values fail closed before `connect()` attaches
 
 ## Architecture rule first
 
@@ -85,7 +85,7 @@ If you own the target app source code, prefer the [SDK-hosted Inspector quicksta
 
 Use this sequence in your MCP client:
 
-1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the target's exact absolute executable path.
+1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the target's exact local absolute executable path.
 2. `connect`
 3. If auto-discovery reports multiple candidates, `get_processes(windowFilter)` and retry `connect(processId)`
 4. `get_ui_summary(depthMode: "semantic")`
@@ -102,7 +102,7 @@ Healthy first-run signs:
 ## Fast useful prompt for an AI client
 
 ```text
-After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact absolute executable path, connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
+After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact local absolute executable path, connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
 ```
 
 ## Need deeper installation details?

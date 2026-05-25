@@ -74,7 +74,7 @@ public static class MessageFraming
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(combined);
+            ArrayPool<byte>.Shared.Return(combined, clearArray: true);
         }
     }
 
@@ -130,7 +130,7 @@ public static class MessageFraming
             finally
             {
                 // Return buffer to pool for reuse
-                ArrayPool<byte>.Shared.Return(messageBytes);
+                ArrayPool<byte>.Shared.Return(messageBytes, clearArray: true);
             }
         }
         catch (IOException ex) when (cancellationToken.IsCancellationRequested)
@@ -169,7 +169,7 @@ public static class MessageFraming
         finally
         {
             // Return buffer to pool for reuse
-            ArrayPool<byte>.Shared.Return(messageBytes);
+            ArrayPool<byte>.Shared.Return(messageBytes, clearArray: true);
         }
 #endif
     }

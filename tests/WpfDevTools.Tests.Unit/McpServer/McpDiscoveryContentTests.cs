@@ -22,7 +22,9 @@ public class McpDiscoveryContentTests
         content.Should().Contain("portable discovery contract");
         content.Should().Contain("stateSnapshots");
         content.Should().Contain("wpf://contracts/response");
+        content.Should().Contain("wpf://contracts/tools");
         content.Should().Contain("response contract JSON");
+        content.Should().Contain("canonical tool manifest JSON");
         content.Should().Contain("performance profiling");
         content.Should().Contain("runtime state safety notes");
         content.Should().Contain("cleanupIncomplete");
@@ -41,6 +43,7 @@ public class McpDiscoveryContentTests
     {
         CapabilityResources.GetElevatedTargetLimitations().Should().Contain("administrator");
         CapabilityResources.GetElevatedTargetLimitations().Should().Contain("stdio");
+        CapabilityResources.GetElevatedTargetLimitations().Should().Contain("allowlisted elevated WPF process");
         CapabilityResources.GetInjectionFailureLimitations().Should().Contain("architecture mismatch");
         CapabilityResources.GetInjectionFailureLimitations().Should().Contain("SDK mode");
 
@@ -80,6 +83,19 @@ public class McpDiscoveryContentTests
         WorkflowPrompts.ConnectAndListWindows().Should().Contain("Do not call get_processes");
         WorkflowPrompts.InspectSecondaryWindow().Should().Contain("Application.MainWindow");
         WorkflowPrompts.InspectSecondaryWindow().Should().Contain("connect()");
+    }
+
+    [Fact]
+    public void ElevatedTargetPrompt_ShouldConfirmAllowlistBeforeProcessDiscovery()
+    {
+        var prompt = WorkflowPrompts.DiagnoseElevatedTarget();
+
+        var allowlistIndex = prompt.IndexOf("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal);
+        var getProcessesIndex = prompt.IndexOf("get_processes", StringComparison.Ordinal);
+
+        allowlistIndex.Should().BeGreaterThanOrEqualTo(0);
+        getProcessesIndex.Should().BeGreaterThanOrEqualTo(0);
+        allowlistIndex.Should().BeLessThan(getProcessesIndex);
     }
 
     [Fact]

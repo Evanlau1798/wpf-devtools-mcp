@@ -92,7 +92,7 @@ Use `client-registration\vscode.json` or `client-registration\visual-studio.json
 
 By default, the installer writes VS Code registrations to `%APPDATA%\Code\User\mcp.json` and Visual Studio registrations to `%USERPROFILE%\.mcp.json`. Use `.vscode\mcp.json` only when you intentionally want a manual project-scoped alternative. Treat the generated `client-registration` artifact as the source of truth for the resolved executable path instead of the sample path above.
 
-Before the first workflow, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact absolute executable path; unset or malformed values fail closed before `connect` attaches.
+Before the first workflow, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before `connect` attaches.
 
 ## 3. First useful workflow
 

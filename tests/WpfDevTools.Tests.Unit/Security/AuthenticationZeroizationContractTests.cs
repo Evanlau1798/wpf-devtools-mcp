@@ -37,6 +37,17 @@ public sealed class AuthenticationZeroizationContractTests
         source.Should().Contain("CryptographicOperations.ZeroMemory(secretCopy)");
     }
 
+    [Fact]
+    public void Net48CryptographicOperationsPolyfill_ShouldExposeZeroMemory()
+    {
+        var source = ReadSource("src/WpfDevTools.Shared/Polyfills/CryptographicOperations.cs");
+
+        source.Should().Contain("public static void ZeroMemory(byte[] buffer)",
+            "net48 builds use this polyfill and must support the same zeroization calls as the shared security code");
+        source.Should().Contain("Array.Clear(buffer, 0, buffer.Length)",
+            "the fallback implementation should still clear the managed buffer on .NET Framework");
+    }
+
     private static string ReadSource(string relativePath)
         => File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(relativePath));
 }

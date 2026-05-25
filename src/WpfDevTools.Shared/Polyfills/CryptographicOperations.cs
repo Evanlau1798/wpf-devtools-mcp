@@ -38,5 +38,17 @@ internal static class CryptographicOperations
 
         return result == 0;
     }
+
+    /// <summary>
+    /// Clears a sensitive byte buffer in-place.
+    /// </summary>
+    /// <param name="buffer">Buffer to clear.</param>
+    public static void ZeroMemory(byte[] buffer)
+    {
+        if (buffer == null)
+            throw new ArgumentNullException(nameof(buffer));
+
+        Array.Clear(buffer, 0, buffer.Length);
+    }
 }
 #endif

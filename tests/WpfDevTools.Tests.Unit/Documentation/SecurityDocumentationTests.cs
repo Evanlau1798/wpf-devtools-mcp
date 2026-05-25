@@ -359,6 +359,27 @@ public class SecurityDocumentationTests
             "the source comment should describe the runtime import security boundary");
     }
 
+    [Theory]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    public void ProductionChecklists_ShouldRequireExactLocalAbsoluteExecutablePaths(string relativePath)
+    {
+        var checklistLines = File.ReadLines(GetRepoFilePath(relativePath))
+            .Select(line => line.TrimStart())
+            .Where(line => line.Length > 2
+                && char.IsDigit(line[0])
+                && (line.Contains("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS", StringComparison.Ordinal)
+                    || line.Contains("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal)))
+            .ToArray();
+
+        checklistLines.Should().HaveCount(2,
+            $"{relativePath} should have production checklist entries for both executable allowlists");
+        checklistLines.Should().OnlyContain(
+            line => line.Contains("exact local absolute executable path", StringComparison.OrdinalIgnoreCase),
+            $"{relativePath} production checklist entries should not weaken allowlists to reviewed executable paths");
+    }
+
     private static string ReadDocumentation()
     {
         var readme = File.ReadAllText(GetRepoFilePath("README.md"));

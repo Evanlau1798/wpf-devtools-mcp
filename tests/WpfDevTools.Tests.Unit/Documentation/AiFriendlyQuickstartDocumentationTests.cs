@@ -101,6 +101,11 @@ public sealed class AiFriendlyQuickstartDocumentationTests
             "README should point maintainers at Anthropic's current tool-definition guidance");
         readme.Should().Contain("anthropic.com/engineering/writing-tools-for-agents",
             "README should point maintainers at Anthropic's detailed tool-design guidance");
+        readme.Should().Contain("anthropic.com/engineering/advanced-tool-use",
+            "README should include the exact advanced tool-use article requested by the production review");
+        readme.Should().Contain("progressive discovery");
+        readme.Should().Contain("wpf://contracts/tools");
+        readme.Should().Contain("tool examples");
 
         englishGuide.Should().Contain("runtime validation",
             "the AI guide should explain that schemas and annotations are not a substitute for explicit runtime validation");

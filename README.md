@@ -103,6 +103,7 @@ This validates the Release build, unit tests, package layout, and staged GitHub 
 - [ModelContextProtocol C# SDK API](https://csharp.sdk.modelcontextprotocol.io/api/ModelContextProtocol.html)
 - [Anthropic tool-definition guidance](https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools)
 - [Anthropic tool design guidance](https://www.anthropic.com/engineering/writing-tools-for-agents)
+- [Anthropic advanced tool-use guidance](https://www.anthropic.com/engineering/advanced-tool-use) - reflected here through progressive discovery via `wpf://contracts/tools`, compact startup guidance, and reviewed tool examples.
 
 ## Development
 

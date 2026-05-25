@@ -211,7 +211,14 @@ public sealed class CertificateManager
         {
             try
             {
-                return certificateLoader(certPath, password, keyStorageFlags);
+                var certificate = certificateLoader(certPath, password, keyStorageFlags);
+                if (RequiresServerTlsFallback(keyStorageFlags))
+                {
+                    certificate.Dispose();
+                    continue;
+                }
+
+                return certificate;
             }
             catch (CryptographicException ex)
             {
@@ -239,6 +246,10 @@ public sealed class CertificateManager
         ];
 #endif
     }
+
+    private static bool RequiresServerTlsFallback(X509KeyStorageFlags keyStorageFlags)
+        => OperatingSystem.IsWindows()
+           && (keyStorageFlags & X509KeyStorageFlags.EphemeralKeySet) != 0;
 
     private static string GenerateRandomPassword()
     {

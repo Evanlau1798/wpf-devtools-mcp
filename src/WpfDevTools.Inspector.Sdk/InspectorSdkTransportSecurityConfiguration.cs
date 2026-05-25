@@ -29,13 +29,16 @@ internal sealed class InspectorSdkTransportSecurityConfiguration
 
     public static InspectorSdkTransportSecurityConfiguration Create(
         string? authenticationSecretBase64,
-        string? certificateDirectory)
+        string? certificateDirectory,
+        string certificateDirectorySourceName = "WPFDEVTOOLS_CERT_DIR")
     {
         ValidateExplicitTransportConfiguration(authenticationSecretBase64, certificateDirectory);
 
         var certificateManager = string.IsNullOrWhiteSpace(certificateDirectory)
             ? null
-            : new CertificateManager(ResolveExplicitCertificateDirectory(certificateDirectory));
+            : new CertificateManager(ResolveExplicitCertificateDirectory(
+                certificateDirectory,
+                certificateDirectorySourceName));
 
         if (certificateManager != null)
         {
@@ -73,22 +76,39 @@ internal sealed class InspectorSdkTransportSecurityConfiguration
             "Partial SDK transport configuration is not supported.");
     }
 
-    private static string ResolveExplicitCertificateDirectory(string certificateDirectory)
+    private static string ResolveExplicitCertificateDirectory(
+        string certificateDirectory,
+        string certificateDirectorySourceName)
     {
         try
         {
             if (!IsAbsolutePath(certificateDirectory))
             {
                 throw new InvalidOperationException(
-                    $"WPFDEVTOOLS_CERT_DIR must be an absolute path. Received '{certificateDirectory}'.");
+                    $"{certificateDirectorySourceName} must be an absolute path. Received '{certificateDirectory}'.");
             }
 
-            return Path.GetFullPath(certificateDirectory);
+            return CertificateStorageSecurity.ResolveAndValidateLocalPath(
+                certificateDirectory,
+                nameof(certificateDirectory));
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (ArgumentException ex)
+        {
+            if (string.Equals(ex.ParamName, nameof(certificateDirectory), StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"{certificateDirectorySourceName} must be a local path. Network paths are not allowed, and reparse points are not allowed. Received '{certificateDirectory}'.",
+                    ex);
+            }
+
+            throw new InvalidOperationException(
+                $"{certificateDirectorySourceName} must resolve to a valid absolute path. Received '{certificateDirectory}'.",
+                ex);
+        }
+        catch (Exception ex) when (ex is NotSupportedException or PathTooLongException)
         {
             throw new InvalidOperationException(
-                $"WPFDEVTOOLS_CERT_DIR must resolve to a valid absolute path. Received '{certificateDirectory}'.",
+                $"{certificateDirectorySourceName} must resolve to a valid absolute path. Received '{certificateDirectory}'.",
                 ex);
         }
     }

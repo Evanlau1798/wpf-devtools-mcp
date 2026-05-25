@@ -109,7 +109,10 @@ public sealed class InspectorSdkOptionsInitializationTests
         SdkInspector.Initialize(processId: 12348);
 
         SdkInspector.IsInitialized.Should().BeFalse();
-        SdkInspector.LastInitializationError.Should().BeAssignableTo<ArgumentException>();
+        SdkInspector.LastInitializationError.Should().BeOfType<InvalidOperationException>();
+        SdkInspector.LastInitializationError!.Message.Should().Contain("WPFDEVTOOLS_CERT_DIR");
+        SdkInspector.LastInitializationError.Message.Should().Contain("local path");
+        SdkInspector.LastInitializationError.Message.Should().Contain("Network paths are not allowed");
         SdkInspector.LastInitializationStatus.ProcessId.Should().Be(12348);
         SdkInspector.LastInitializationStatus.ErrorCode.Should().Be("SdkCertificateDirectoryInvalid");
         SdkInspector.LastInitializationStatus.Hint.Should().Contain("local absolute");
@@ -130,7 +133,10 @@ public sealed class InspectorSdkOptionsInitializationTests
         });
 
         SdkInspector.IsInitialized.Should().BeFalse();
-        SdkInspector.LastInitializationError.Should().BeAssignableTo<ArgumentException>();
+        SdkInspector.LastInitializationError.Should().BeOfType<InvalidOperationException>();
+        SdkInspector.LastInitializationError!.Message.Should().Contain("InspectorSdkOptions.CertificateDirectory");
+        SdkInspector.LastInitializationError.Message.Should().Contain("local path");
+        SdkInspector.LastInitializationError.Message.Should().Contain("Network paths are not allowed");
         SdkInspector.LastInitializationStatus.ProcessId.Should().Be(12349);
         SdkInspector.LastInitializationStatus.ErrorCode.Should().Be("SdkCertificateDirectoryInvalid");
         SdkInspector.LastInitializationStatus.Hint.Should().Contain("local absolute");

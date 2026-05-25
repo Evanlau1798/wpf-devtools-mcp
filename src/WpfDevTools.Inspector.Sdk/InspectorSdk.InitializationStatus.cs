@@ -91,7 +91,7 @@ public static partial class InspectorSdk
 
         if (IsCertificateDirectoryException(exception))
         {
-            return "Provide WPFDEVTOOLS_CERT_DIR as a writable local absolute directory shared with the MCP server. Network paths are not allowed.";
+            return "Provide WPFDEVTOOLS_CERT_DIR or InspectorSdkOptions.CertificateDirectory as a writable local absolute directory shared with the MCP server. Network paths are not allowed.";
         }
 
         if (exception is TimeoutException)
@@ -108,5 +108,7 @@ public static partial class InspectorSdk
     private static bool IsCertificateDirectoryException(Exception exception)
         => exception is IOException
             || (exception is ArgumentException && ContainsOrdinal(exception.Message, "Certificate directory"))
-            || (exception is InvalidOperationException && ContainsOrdinal(exception.Message, "WPFDEVTOOLS_CERT_DIR must"));
+            || (exception is InvalidOperationException &&
+                (ContainsOrdinal(exception.Message, "WPFDEVTOOLS_CERT_DIR must") ||
+                 ContainsOrdinal(exception.Message, "InspectorSdkOptions.CertificateDirectory must")));
 }

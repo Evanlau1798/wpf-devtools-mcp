@@ -18,6 +18,14 @@ public static partial class InspectorSdk
             : Environment.GetEnvironmentVariable("WPFDEVTOOLS_CERT_DIR");
     }
 
+    private static string ResolveCertificateDirectorySourceName(InspectorSdkOptions options)
+    {
+        ValidateExplicitTransportOptions(options);
+        return HasExplicitTransportOptions(options)
+            ? "InspectorSdkOptions.CertificateDirectory"
+            : "WPFDEVTOOLS_CERT_DIR";
+    }
+
     private static void ValidateExplicitTransportOptions(InspectorSdkOptions options)
     {
         var hasAuthenticationSecret = !string.IsNullOrWhiteSpace(options.AuthenticationSecretBase64);

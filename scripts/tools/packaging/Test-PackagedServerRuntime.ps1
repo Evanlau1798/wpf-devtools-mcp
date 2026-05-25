@@ -264,6 +264,7 @@ if ($TargetProcessId -gt 0) {
     $resolvedTargetProcessPath = (Resolve-Path -LiteralPath $TargetProcessPath).Path
     $startInfo.Environment['WPFDEVTOOLS_MCP_ALLOWED_TARGETS'] = $resolvedTargetProcessPath
     $startInfo.Environment['WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS'] = $resolvedTargetProcessPath
+    $startInfo.Environment['WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS'] = 'true'
     $startInfo.Environment['WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS'] = 'true'
 }
 
@@ -327,23 +328,23 @@ try {
             depthMode = 'semantic'
         } | Out-Null
 
-        $textBoxElementId = Resolve-SmokeElementId `
+        $smokeElementId = Resolve-SmokeElementId `
             -Process $process `
             -Id 9 `
             -TargetProcessId $TargetProcessId `
-            -ElementName 'NameTextBox' `
+            -ElementName 'FocusStatusTextBlock' `
             -TimeoutMilliseconds $RequestTimeoutMilliseconds
 
         $beforeValueSource = Invoke-McpTool -Process $process -Id 10 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
             processId = $TargetProcessId
-            elementId = $textBoxElementId
+            elementId = $smokeElementId
             propertyName = 'Text'
         }
         $baselineValue = Get-JsonProperty -Object $beforeValueSource -Name 'currentValue'
 
         $snapshot = Invoke-McpTool -Process $process -Id 11 -Name 'capture_state_snapshot' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
             processId = $TargetProcessId
-            elementId = $textBoxElementId
+            elementId = $smokeElementId
             propertyNames = @('Text')
         }
         $snapshotId = Get-JsonProperty -Object $snapshot -Name 'snapshotId'
@@ -355,14 +356,14 @@ try {
         try {
             Invoke-McpTool -Process $process -Id 12 -Name 'set_dp_value' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
                 processId = $TargetProcessId
-                elementId = $textBoxElementId
+                elementId = $smokeElementId
                 propertyName = 'Text'
                 value = $overrideValue
             } | Out-Null
 
             $mutatedValueSource = Invoke-McpTool -Process $process -Id 13 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
                 processId = $TargetProcessId
-                elementId = $textBoxElementId
+                elementId = $smokeElementId
                 propertyName = 'Text'
             }
             $mutatedValue = Get-JsonProperty -Object $mutatedValueSource -Name 'currentValue'
@@ -379,7 +380,7 @@ try {
 
         $restoredValueSource = Invoke-McpTool -Process $process -Id 15 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
             processId = $TargetProcessId
-            elementId = $textBoxElementId
+            elementId = $smokeElementId
             propertyName = 'Text'
         }
         $restoredValue = Get-JsonProperty -Object $restoredValueSource -Name 'currentValue'

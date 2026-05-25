@@ -15,8 +15,11 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
         script.Should().Contain("[string]$TargetProcessPath = ''");
         script.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
         script.Should().Contain("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS");
+        script.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS");
         script.Should().Contain("connect");
         script.Should().Contain("get_ui_summary");
+        script.Should().Contain("FocusStatusTextBlock");
+        script.Should().NotContain("NameTextBox");
         script.Should().Contain("TargetProcessId");
     }
 

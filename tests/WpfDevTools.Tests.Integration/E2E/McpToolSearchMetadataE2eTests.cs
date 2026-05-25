@@ -214,6 +214,24 @@ public sealed class McpToolSearchMetadataE2eTests
     }
 
     [Fact]
+    public async Task ResourcesList_ShouldExposeToolExamplesResource()
+    {
+        var serverExe = FindServerExecutable();
+        using var client = new McpStdioClient();
+
+        await client.StartAsync(serverExe);
+
+        var response = await client.ListResourcesAsync();
+        var resources = response.GetProperty("result").GetProperty("resources");
+        var resource = resources.EnumerateArray()
+            .Single(item => item.GetProperty("uri").GetString() == "wpf://contracts/tool-examples");
+
+        resource.GetProperty("name").GetString().Should().Be("wpf_tool_examples");
+        resource.GetProperty("title").GetString().Should().Be("Tool Input Examples");
+        resource.GetProperty("mimeType").GetString().Should().Be("application/json");
+    }
+
+    [Fact]
     public async Task ReadResource_ShouldReturnMachineReadableResponseContractJson()
     {
         var serverExe = FindServerExecutable();
@@ -263,6 +281,31 @@ public sealed class McpToolSearchMetadataE2eTests
 
         root.GetProperty("toolCount").GetInt32().Should().Be(64);
         manifestNames.Should().BeEquivalentTo(sourceTools.Select(tool => tool.Name));
+    }
+
+    [Fact]
+    public async Task ReadResource_ShouldReturnToolInputExamplesJson()
+    {
+        var serverExe = FindServerExecutable();
+        using var client = new McpStdioClient();
+
+        await client.StartAsync(serverExe);
+
+        var response = await client.ReadResourceAsync("wpf://contracts/tool-examples");
+        var contents = response.GetProperty("result").GetProperty("contents");
+        var content = contents.EnumerateArray().Single();
+
+        content.GetProperty("uri").GetString().Should().Be("wpf://contracts/tool-examples");
+        content.GetProperty("mimeType").GetString().Should().Be("application/json");
+
+        using var document = JsonDocument.Parse(content.GetProperty("text").GetString()!);
+        var examples = document.RootElement.GetProperty("examplesByTool");
+
+        examples.GetProperty("batch_mutate").GetArrayLength().Should().BeGreaterThan(0);
+        examples.GetProperty("wait_for_dp_change_after_mutation").GetArrayLength().Should().BeGreaterThan(0);
+        examples.GetProperty("element_screenshot").EnumerateArray()
+            .Any(example => example.TryGetProperty("resourceFollowUp", out _))
+            .Should().BeTrue();
     }
 
     [Fact]

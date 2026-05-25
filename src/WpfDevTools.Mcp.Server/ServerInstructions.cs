@@ -106,7 +106,7 @@ public static class ServerInstructions
         - When multiple WPF processes are expected and largest-target auto-selection is intentional, prefer connect(selectionStrategy='largest_working_set', windowFilter='all') instead of a separate get_processes round trip
         - run independent read-only inspections in parallel when the client supports it, then summarize intermediate tool results before choosing the next call
         - Keep only decision-relevant fields in conversation state; rely on elementId, snapshotId, and resource URI references for follow-up calls
-        - complex parameters require concrete examples; use advertised examples or wpf://contracts/tools instead of invented shapes
+        - complex parameters require concrete examples; use wpf://contracts/tool-examples and wpf://contracts/tools instead of invented shapes
         - Prefer prompt names and resource URIs as the portable discovery contract when you want a predefined workflow entry point or capability summary
         - Some clients surface those prompt/resource contracts as slash commands or @resource lookups; use that rendering only as a convenience layer
         - Check IsEnabled with get_dp_value_source before click_element; use get_binding_errors first for blank/stale data

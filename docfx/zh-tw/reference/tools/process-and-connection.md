@@ -10,7 +10,7 @@
 
 ## 什麼時候用哪一個
 
-- 呼叫任何 `connect` 變體前，先將已審查 target 的 exact local absolute executable path 設到 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`。未設定、relative path 或 malformed entry 會以 `SecurityError` fail closed。
+- 呼叫任何 `connect` 變體前，先將已審查 target 的 exact local absolute executable path 設到 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`。未設定會以 `SecurityError` fail closed；relative path 或 malformed entry 會以 `InvalidPolicyConfiguration` fail closed。
 - target 已 allowlist 後，一般情況先用 `connect()`。它會自動發現單一可見的 WPF 目標並直接建立連線。
 - 當 hidden 或 background 的 WPF 視窗也必須參與 auto-discovery，但你不想先多做一次 process listing 時，使用 `connect(windowFilter='all')`。
 - 當你預期同時有多個 WPF target，且你是有意識地要直接挑選最大 working set 候選者時，使用 `connect(selectionStrategy='largest_working_set', windowFilter='all')`，而不是先 list 再 connect。
@@ -23,7 +23,7 @@
 ## 重要行為
 
 - `get_processes` 只會針對 allowlisted targets 回傳 `isElevated`、`requiresElevationToConnect` 與 `canConnectFromCurrentServer`；blocked targets 只會以 denied target aggregate count 的形式出現在 `redactedTargetCount`。
-- `connect` 會先套用 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` target allowlist，再進入 SDK-hosted reuse 或 raw injection；policy denial 會回傳帶有 `policyEnvVar` 的 `SecurityError`
+- `connect` 會先套用 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` target allowlist，再進入 SDK-hosted reuse 或 raw injection；policy denial 會回傳帶有 `policyEnvVar` 的 `SecurityError`，malformed allowlist configuration 則會回傳 `InvalidPolicyConfiguration` 且不帶 candidate metadata。
 - `connect` auto-discovery 與 ambiguity responses 會用 `redactedCandidateCount` 回報被 policy 擋下的候選數；將此 count 搭配 `policyEnvVar` 使用，才能設定精確 target allowlist 且不暴露 denied candidate metadata。
 - `connect()` 預設會對單一可見 WPF 目標做 auto-discovery；若找到多個目標，會回傳候選清單而不是隨機連線
 - `connect` 會驗證目標、解析 bootstrapper 候選項，並在目前 server 權限不足時提早阻擋

@@ -10,7 +10,7 @@
 
 ## When to use which
 
-- Before any `connect` variant, set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact local absolute executable path. Unset, relative, or malformed entries fail closed with `SecurityError`.
+- Before any `connect` variant, set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact local absolute executable path. Unset values fail closed with `SecurityError`; relative or malformed entries fail closed with `InvalidPolicyConfiguration`.
 - Use `connect()` first for the common case after the target is allowlisted. It auto-discovers a single visible WPF target and connects in one step.
 - Use `connect(windowFilter='all')` when hidden or background WPF windows should participate in auto-discovery without a separate process-listing step.
 - Use `connect(selectionStrategy='largest_working_set', windowFilter='all')` when multiple WPF targets are expected and you intentionally want the largest candidate instead of a list-then-connect disambiguation round trip.
@@ -23,7 +23,7 @@
 ## Important behavior
 
 - `get_processes` reports `isElevated`, `requiresElevationToConnect`, and `canConnectFromCurrentServer` only for allowlisted targets; blocked targets remain aggregate-only denied target counts through `redactedTargetCount`.
-- `connect` applies the `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` target allowlist before SDK-hosted reuse or raw injection; policy denials return `SecurityError` with `policyEnvVar`
+- `connect` applies the `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` target allowlist before SDK-hosted reuse or raw injection; policy denials return `SecurityError` with `policyEnvVar`, and malformed allowlist configuration returns `InvalidPolicyConfiguration` without candidate metadata.
 - `connect` auto-discovery and ambiguity responses report candidates blocked by policy through `redactedCandidateCount`; pair that count with `policyEnvVar` to configure the exact target allowlist without exposing denied candidate metadata.
 - `connect()` auto-discovers a single visible WPF target by default and returns deterministic candidate data when multiple targets are found
 - `connect` validates the target, resolves bootstrapper candidates, and blocks early when the current server lacks permission to attach

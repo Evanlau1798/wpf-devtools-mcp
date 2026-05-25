@@ -38,7 +38,7 @@ Raw DLL injection into arbitrary same-user WPF processes is blocked by default.
 
 The server evaluates high-risk MCP `tools/call` requests before dispatching them to tool implementations.
 
-- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts all `connect()` targets to exact local absolute executable paths, applies before SDK-hosted reuse or raw injection, and fails closed when unset or malformed.
+- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts all `connect()` targets to exact local absolute executable paths and applies before SDK-hosted reuse or raw injection. Unset values fail closed with `SecurityError`; malformed configured entries fail closed with `InvalidPolicyConfiguration`.
 - `get_processes` and `connect()` auto-discovery apply this target policy before returning process names, window titles, architecture/runtime metadata, or candidate details. Denied targets are redacted to aggregate counts.
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` opts into runtime mutation, interaction, render-measurement, and session state-consuming tools, including `set_dp_value`, `click_element`, `execute_command`, `measure_element_render_time`, `capture_state_snapshot`, `restore_state_snapshot`, `drain_events`, and `batch_mutate`.
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` opts into `element_screenshot` at the MCP boundary.

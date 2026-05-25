@@ -161,6 +161,33 @@ public sealed class ConnectToolAutoDiscoveryTests : IDisposable
     }
 
     [Fact]
+    public async Task Execute_WithoutProcessId_AndInvalidTargetPolicyConfiguration_ShouldFailWithoutMetadata()
+    {
+        var processId = NextSyntheticProcessId();
+        var tool = CreateTool(
+            detector: new FakeAutoDiscoveryProcessDetector(CreateProcessInfo(processId, "InvalidConfigApp")),
+            targetPolicy: _ => new McpTargetAuthorization(
+                IsAllowed: false,
+                Error: "Invalid MCP target allowlist configuration.",
+                Hint: $"Fix {McpServerConfiguration.AllowedTargetsEnvVar}.",
+                FailureKind: McpTargetAuthorizationFailureKind.InvalidPolicyConfiguration));
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
+
+        var jsonText = JsonSerializer.Serialize(result);
+        jsonText.Should().NotContain("InvalidConfigApp");
+        jsonText.Should().NotContain("InvalidConfigApp Window");
+
+        var json = JsonSerializer.Deserialize<JsonElement>(jsonText);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidPolicyConfiguration");
+        json.GetProperty("error").GetString().Should().Contain("Invalid MCP target allowlist configuration");
+        json.GetProperty("policyEnvVar").GetString().Should().Be(McpServerConfiguration.AllowedTargetsEnvVar);
+        json.GetProperty("redactedCandidateCount").GetInt32().Should().Be(1);
+        json.TryGetProperty("processes", out _).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Execute_WithoutProcessId_AndLargestWorkingSetStrategy_ShouldAutoSelectLargestCandidate()
     {
         EnsureDummyBootstrapperExists();

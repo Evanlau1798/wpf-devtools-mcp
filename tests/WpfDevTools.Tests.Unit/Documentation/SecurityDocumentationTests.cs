@@ -158,6 +158,27 @@ public class SecurityDocumentationTests
     }
 
     [Theory]
+    [InlineData("README.md")]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    [InlineData("docfx/reference/configuration.md")]
+    [InlineData("docfx/zh-tw/reference/configuration.md")]
+    [InlineData("docfx/reference/tools/process-and-connection.md")]
+    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md")]
+    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
+    [InlineData("src/WpfDevTools.Mcp.Server/McpTools/ProcessMcpTools.cs")]
+    public void Documentation_ShouldDescribeMalformedMcpTargetAllowlistErrorContract(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
+            $"{relativePath} should identify the MCP target allowlist being validated");
+        content.Should().Contain("InvalidPolicyConfiguration",
+            $"{relativePath} should document the malformed target allowlist error code");
+    }
+
+    [Theory]
     [InlineData("README.md", "session state-consuming tools")]
     [InlineData("SECURITY.md", "session state-consuming tools")]
     [InlineData("docfx/production/security.md", "session state-consuming tools")]

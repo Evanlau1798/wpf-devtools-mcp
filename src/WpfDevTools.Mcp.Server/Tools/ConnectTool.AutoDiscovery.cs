@@ -74,6 +74,7 @@ public sealed partial class ConnectTool
         var allProcesses = _processDetector.GetAllWpfProcesses(windowFilter);
         var redactedCandidateCount = 0;
         var allowedProcesses = new List<WpfProcessInfo>();
+        McpTargetAuthorization? discoveryAbort = null;
         foreach (var process in allProcesses)
         {
             var authorization = _targetPolicy(process);
@@ -84,6 +85,30 @@ public sealed partial class ConnectTool
             }
 
             redactedCandidateCount++;
+            if (authorization.ShouldAbortDiscovery && discoveryAbort is null)
+            {
+                discoveryAbort = authorization;
+            }
+        }
+
+        if (discoveryAbort is { } policyFailure)
+        {
+            return new AutoDiscoveryResolution(
+                null,
+                new
+                {
+                    success = false,
+                    error = policyFailure.Error,
+                    errorCode = policyFailure.ErrorCode,
+                    hint = policyFailure.Hint,
+                    redactedCandidateCount,
+                    policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar
+                },
+                0,
+                [],
+                null,
+                false,
+                redactedCandidateCount);
         }
 
         var candidates = allowedProcesses

@@ -66,11 +66,11 @@ For local development, use a Debug build and build native bootstrapper binaries 
 
 The MCP client is untrusted by default. Security decisions are enforced by server-side policy gates before process discovery details, UI text, screenshots, ViewModel values, or runtime mutations are returned; policy-denied process targets are redacted instead of disclosed.
 
-`WPFDEVTOOLS_MCP_ALLOWED_TARGETS` must contain the reviewed target's exact local absolute executable path before a successful `connect()` workflow; unset, relative, or malformed values fail closed.
+`WPFDEVTOOLS_MCP_ALLOWED_TARGETS` must contain the reviewed target's exact local absolute executable path before a successful `connect()` workflow; unset values fail closed with `SecurityError`, while relative or malformed configured entries fail closed with `InvalidPolicyConfiguration`.
 
 The injection-based transport is hardened by default. Key runtime gates:
 
-- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts every `connect()` target before SDK-hosted reuse or raw injection.
+- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts every `connect()` target before SDK-hosted reuse or raw injection; malformed configured entries return `InvalidPolicyConfiguration`.
 - `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` explicitly allowlists raw-injection targets; blocked raw injection returns `SecurityError` with `requiresExplicitTargetOptIn`.
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` gates runtime mutation, interaction, render measurement, and session state-consuming tools such as `capture_state_snapshot` and `drain_events`.
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` gates `element_screenshot`.

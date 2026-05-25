@@ -256,6 +256,34 @@ public class GetProcessesToolTests
         json.GetProperty("redactedTargetCount").GetInt32().Should().Be(1);
     }
 
+    [Fact]
+    public async Task Execute_WhenTargetPolicyConfigurationIsInvalid_ShouldFailWithoutMetadata()
+    {
+        var target = CreateProcessInfo(43, "InvalidConfigApp", executablePath: @"C:\Denied\InvalidConfigApp.exe");
+        var tool = new GetProcessesTool(
+            new FakeProcessDetector([target]),
+            () => false,
+            _ => new McpTargetAuthorization(
+                IsAllowed: false,
+                Error: "Invalid MCP target allowlist configuration.",
+                Hint: $"Fix {McpServerConfiguration.AllowedTargetsEnvVar}.",
+                FailureKind: McpTargetAuthorizationFailureKind.InvalidPolicyConfiguration));
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { }), CancellationToken.None);
+
+        var jsonText = JsonSerializer.Serialize(result);
+        jsonText.Should().NotContain("InvalidConfigApp");
+        jsonText.Should().NotContain("InvalidConfigApp Window");
+
+        var json = JsonSerializer.Deserialize<JsonElement>(jsonText);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidPolicyConfiguration");
+        json.GetProperty("error").GetString().Should().Contain("Invalid MCP target allowlist configuration");
+        json.GetProperty("policyEnvVar").GetString().Should().Be(McpServerConfiguration.AllowedTargetsEnvVar);
+        json.GetProperty("redactedTargetCount").GetInt32().Should().Be(1);
+        json.TryGetProperty("processes", out _).Should().BeFalse();
+    }
+
     private sealed class FakeProcessDetector : WpfProcessDetector
     {
         private readonly IReadOnlyList<WpfProcessInfo> _processes;

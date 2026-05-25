@@ -70,6 +70,7 @@ public sealed class GetProcessesTool
             var currentProcessIsElevated = _isCurrentProcessElevated();
             var redactedTargetCount = 0;
             var allowedProcesses = new List<WpfProcessInfo>();
+            McpTargetAuthorization? discoveryAbort = null;
             foreach (var process in allProcesses)
             {
                 var authorization = _targetPolicy(process);
@@ -80,6 +81,23 @@ public sealed class GetProcessesTool
                 }
 
                 redactedTargetCount++;
+                if (authorization.ShouldAbortDiscovery && discoveryAbort is null)
+                {
+                    discoveryAbort = authorization;
+                }
+            }
+
+            if (discoveryAbort is { } policyFailure)
+            {
+                return Task.FromResult<object>(new
+                {
+                    success = false,
+                    error = policyFailure.Error,
+                    errorCode = policyFailure.ErrorCode,
+                    hint = policyFailure.Hint,
+                    redactedTargetCount,
+                    policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar
+                });
             }
 
             var filteredProcesses = string.IsNullOrEmpty(nameFilter)

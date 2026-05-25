@@ -107,7 +107,7 @@ public sealed partial class ConnectTool
         {
             success = false,
             error = targetAuthorization.Error,
-            errorCode = "SecurityError",
+            errorCode = targetAuthorization.ErrorCode,
             hint = targetAuthorization.Hint,
             requiresExplicitTargetOptIn = true,
             policyEnvVar = McpServerConfiguration.AllowedTargetsEnvVar

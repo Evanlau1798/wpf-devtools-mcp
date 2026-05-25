@@ -35,7 +35,7 @@ The MCP client is untrusted by default. Tool descriptions, annotations, and prom
 ### 1.6 MCP tool and target policy gates
 
 - The server evaluates high-risk MCP `tools/call` requests before dispatching them to tool implementations.
-- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts all `connect()` targets to a semicolon-separated list of exact local absolute executable paths. This applies before SDK-hosted reuse or raw injection, and unset or malformed configured entries fail closed.
+- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts all `connect()` targets to a semicolon-separated list of exact local absolute executable paths. This applies before SDK-hosted reuse or raw injection; unset values fail closed with `SecurityError`, and malformed configured entries fail closed with `InvalidPolicyConfiguration`.
 - `get_processes` and `connect()` auto-discovery apply this target policy before returning process names, window titles, architecture/runtime metadata, or candidate details. Denied targets are redacted to aggregate counts.
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` opts into runtime mutation, interaction, render-measurement, and session state-consuming tools such as `set_dp_value`, `click_element`, `execute_command`, `measure_element_render_time`, `capture_state_snapshot`, `restore_state_snapshot`, `drain_events`, and `batch_mutate`.
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` opts into `element_screenshot` at the MCP boundary.

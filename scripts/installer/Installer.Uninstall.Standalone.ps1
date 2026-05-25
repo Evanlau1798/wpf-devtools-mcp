@@ -94,6 +94,21 @@ function Get-StandaloneDetectedInstallerRegistrations {
     return @($registrationMap.Values)
 }
 
+function Remove-InstallerRuntimeScreenshotCache {
+    if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+        return $false
+    }
+
+    $cachePath = Join-Path $env:LOCALAPPDATA 'WpfDevTools\tmp\screenshots'
+    $trustedCachePath = Assert-InstallerLocalPathTrusted -Path $cachePath
+    if (-not (Test-Path -LiteralPath $trustedCachePath)) {
+        return $false
+    }
+
+    Remove-PathIfExists -Path $trustedCachePath
+    return $true
+}
+
 function Get-JsonConfigRegisteredExecutable {
     param(
         [Parameter(Mandatory)] [string]$CollectionName,
@@ -335,6 +350,7 @@ function Invoke-StandaloneFullUninstall {
         throw ($verificationFailures -join ' ')
     }
 
+    $removedRuntimeScreenshotCache = Remove-InstallerRuntimeScreenshotCache
     $newState = Get-EmptyInstallerState
     $newState.lastInstallRoot = $State.lastInstallRoot
     $statePath = Save-InstallerState -State $newState
@@ -342,6 +358,7 @@ function Invoke-StandaloneFullUninstall {
         statePath = $statePath
         removedInstallation = ($removedInstallations.Count -gt 0)
         removedInstallations = @($removedInstallations)
+        removedRuntimeScreenshotCache = $removedRuntimeScreenshotCache
         registrations = @($unregistrationResults)
         verificationMessage = "Verified removal of $($detectedRegistrations.Count) registration(s) and $($removedInstallations.Count) installer-owned server location(s)."
     }

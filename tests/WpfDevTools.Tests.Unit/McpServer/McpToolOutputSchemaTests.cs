@@ -19,7 +19,7 @@ public sealed class McpToolOutputSchemaTests
         { "get_state_diff", ["snapshotId", "trigger", "diff"] },
         { "restore_state_snapshot", ["snapshotId", "restoredDependencyProperties", "restoredViewModelProperties", "skippedDependencyProperties", "skippedViewModelProperties"] },
         { "batch_mutate", ["results", "mutationCount", "successfulMutationCount", "failedMutationCount", "snapshotId", "diff", "rollback", "recovery"] },
-        { "element_screenshot", ["elementId", "screenshotId", "resourceUri", "outputMode", "width", "height", "mimeType", "base64"] }
+        { "element_screenshot", ["elementId", "screenshotId", "resourceUri", "expiresAtUtc", "outputMode", "width", "height", "mimeType", "base64Image"] }
     };
 
     [Fact]

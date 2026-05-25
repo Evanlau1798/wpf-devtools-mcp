@@ -95,10 +95,12 @@ public sealed class ScreenshotResourceTests
     {
         using var tempDirectory = new TemporaryDirectory();
         using var sessionManager = new SessionManager();
-        var screenshotId = RegisterValidScreenshot(
+        string? filePath = null;
+        var screenshotId = RegisterValidScreenshotWithPath(
             sessionManager,
             tempDirectory.Path,
-            processId: 12345);
+            processId: 12345,
+            filePath: out filePath);
 
         sessionManager.RemoveSession(12345);
         var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, screenshotId);
@@ -106,6 +108,8 @@ public sealed class ScreenshotResourceTests
         act.Should()
             .Throw<InvalidOperationException>()
             .WithMessage("*is not retained in this MCP session*");
+        File.Exists(filePath).Should().BeFalse(
+            "disconnecting a target should purge retained screenshot pixels");
     }
 
     [Fact]
@@ -128,14 +132,101 @@ public sealed class ScreenshotResourceTests
     }
 
     [Fact]
+    public void GetScreenshotPng_AfterRetentionWindow_ShouldExpireHandleAndDeleteFile()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var now = DateTimeOffset.Parse("2026-05-26T12:00:00Z");
+        using var sessionManager = new SessionManager(
+            maxRequestsPerMinute: 60,
+            authManager: null,
+            certManager: null,
+            utcNowProvider: () => now);
+        string? filePath = null;
+        var screenshotId = RegisterValidScreenshotWithPath(
+            sessionManager,
+            tempDirectory.Path,
+            processId: 12345,
+            filePath: out filePath);
+
+        now = now.Add(SessionManager.ScreenshotResourceRetentionWindow).AddTicks(1);
+
+        var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, screenshotId);
+
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("*is not retained in this MCP session*");
+        File.Exists(filePath).Should().BeFalse(
+            "expired screenshot resources should remove their retained PNG file");
+        var counts = GetRetainedScreenshotResourceCounts(sessionManager);
+        counts.Resources.Should().Be(0);
+        counts.Order.Should().Be(0);
+    }
+
+    [Fact]
+    public void RegisterScreenshotResource_WhenRetentionLimitIsExceeded_ShouldDeleteEvictedFile()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        using var sessionManager = new SessionManager();
+        string? firstPath = null;
+
+        for (var index = 0; index <= SessionManager.RetainedScreenshotResourceLimit; index++)
+        {
+            var screenshotId = "shot_" + index.ToString("x32");
+            RegisterValidScreenshotWithPath(
+                sessionManager,
+                tempDirectory.Path,
+                processId: 12345,
+                out var filePath,
+                screenshotId);
+            firstPath ??= filePath;
+        }
+
+        File.Exists(firstPath).Should().BeFalse(
+            "evicted screenshot resources should not leave pixel files behind");
+        var counts = GetRetainedScreenshotResourceCounts(sessionManager);
+        counts.Resources.Should().Be(SessionManager.RetainedScreenshotResourceLimit);
+        counts.Order.Should().Be(SessionManager.RetainedScreenshotResourceLimit);
+    }
+
+    [Fact]
+    public void RegisterScreenshotResource_WithSameIdAndPath_ShouldKeepRetainedFileReadable()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        using var sessionManager = new SessionManager();
+        var screenshotId = "shot_0123456789abcdef0123456789abcdef";
+        RegisterValidScreenshotWithPath(
+            sessionManager,
+            tempDirectory.Path,
+            processId: 12345,
+            out var filePath,
+            screenshotId);
+
+        sessionManager.RegisterScreenshotResource(
+            processId: 12345,
+            screenshotId,
+            filePath,
+            sha256: null);
+
+        File.Exists(filePath).Should().BeTrue(
+            "refreshing a retained handle must not delete the same file path");
+        var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, screenshotId);
+        act.Should().NotThrow();
+        var counts = GetRetainedScreenshotResourceCounts(sessionManager);
+        counts.Resources.Should().Be(1);
+        counts.Order.Should().Be(1);
+    }
+
+    [Fact]
     public void Dispose_ShouldClearRetainedScreenshotResources()
     {
         using var tempDirectory = new TemporaryDirectory();
         using var sessionManager = new SessionManager();
-        var screenshotId = RegisterValidScreenshot(
+        string? filePath = null;
+        var screenshotId = RegisterValidScreenshotWithPath(
             sessionManager,
             tempDirectory.Path,
-            processId: 12345);
+            processId: 12345,
+            filePath: out filePath);
 
         var beforeDispose = GetRetainedScreenshotResourceCounts(sessionManager);
         beforeDispose.Resources.Should().Be(1);
@@ -145,6 +236,8 @@ public sealed class ScreenshotResourceTests
         var afterDispose = GetRetainedScreenshotResourceCounts(sessionManager);
         afterDispose.Resources.Should().Be(0);
         afterDispose.Order.Should().Be(0);
+        File.Exists(filePath).Should().BeFalse(
+            "disposing the server session manager should purge retained screenshot pixels");
 
         var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, screenshotId);
         act.Should().Throw<ObjectDisposedException>();
@@ -156,8 +249,23 @@ public sealed class ScreenshotResourceTests
         int processId,
         string screenshotId = "shot_0123456789abcdef0123456789abcdef")
     {
+        return RegisterValidScreenshotWithPath(
+            sessionManager,
+            directory,
+            processId,
+            out _,
+            screenshotId);
+    }
+
+    private static string RegisterValidScreenshotWithPath(
+        SessionManager sessionManager,
+        string directory,
+        int processId,
+        out string filePath,
+        string screenshotId = "shot_0123456789abcdef0123456789abcdef")
+    {
         var imageBytes = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 };
-        var filePath = Path.Combine(directory, screenshotId + ".png");
+        filePath = Path.Combine(directory, screenshotId + ".png");
         File.WriteAllBytes(filePath, imageBytes);
         var sha256 = Convert.ToHexString(SHA256.HashData(imageBytes)).ToLowerInvariant();
         sessionManager.RegisterScreenshotResource(processId, screenshotId, filePath, sha256);

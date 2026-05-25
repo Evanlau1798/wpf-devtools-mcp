@@ -127,6 +127,7 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
             {
                 var screenshot = _sessionManager.RegisterScreenshotResource(processId, screenshotId, path, sha256);
                 writer.WriteString("resourceUri", screenshot.ResourceUri);
+                writer.WriteString("expiresAtUtc", screenshot.ExpiresAtUtc);
             }
 
             if (!string.IsNullOrWhiteSpace(fileName))

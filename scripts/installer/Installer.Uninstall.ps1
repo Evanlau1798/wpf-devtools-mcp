@@ -117,6 +117,7 @@ function Invoke-InstallerFullUninstallCore {
             throw ($verificationFailures -join ' ')
         }
 
+        $removedRuntimeScreenshotCache = Remove-InstallerRuntimeScreenshotCache
         $newState = Get-EmptyInstallerState
         $newState.lastInstallRoot = $State.lastInstallRoot
         $statePath = Save-InstallerState -State $newState
@@ -134,6 +135,7 @@ function Invoke-InstallerFullUninstallCore {
             statePath = $statePath
             removedInstallation = ($removedInstallations.Count -gt 0)
             removedInstallations = @($removedInstallations)
+            removedRuntimeScreenshotCache = $removedRuntimeScreenshotCache
             registrations = @($unregistrationResults)
             verificationMessage = "Verified removal of $($detectedRegistrations.Count) registration(s) and $($removedInstallations.Count) installer-owned server location(s)."
         }

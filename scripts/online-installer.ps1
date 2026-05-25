@@ -287,7 +287,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:4af518216cd880887f4cb3a519fc453e80f3d0cc41066bf8c40eb10c6190cc06'
+$script:InstallerHelperManifestCacheKey = 'sha256:4180b38ba2582e54df1d5860e6b2000ea58cfdc45ff963a18115ac1a42c6c1c4'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/Installer.BootstrapUi.ps1'
     'scripts/installer/Tui.Terminal.ps1'

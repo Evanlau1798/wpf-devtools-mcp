@@ -121,6 +121,7 @@ function Invoke-InstallerActionCore {
                 throw $verification.VerificationMessage
             }
 
+            $removedRuntimeScreenshotCache = Remove-InstallerRuntimeScreenshotCache
             if (-not [string]::IsNullOrWhiteSpace($stateRegistrationKey) -and $state.registrations.Contains($stateRegistrationKey)) {
                 [void]$state.registrations.Remove($stateRegistrationKey)
             }
@@ -152,6 +153,7 @@ function Invoke-InstallerActionCore {
             selectedClients = @($ResolvedClient)
             statePath = $statePath
             removedInstallation = $false
+            removedRuntimeScreenshotCache = $removedRuntimeScreenshotCache
             registrations = @($registrations)
             verificationMessage = [string]$verification.VerificationMessage
         }

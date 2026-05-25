@@ -4,7 +4,9 @@ namespace WpfDevTools.Mcp.Server;
 
 public sealed partial class SessionManager
 {
-    private const int RetainedScreenshotResourceLimit = 100;
+    internal const int RetainedScreenshotResourceLimit = 100;
+    internal static readonly TimeSpan ScreenshotResourceRetentionWindow = TimeSpan.FromHours(24);
+
     private const string ScreenshotResourcePrefix = "wpf://screenshots/";
     private const string ScreenshotFileExtension = ".png";
     private readonly Dictionary<string, StoredScreenshotResource> _screenshotResources = new(StringComparer.Ordinal);
@@ -33,23 +35,31 @@ public sealed partial class SessionManager
             throw new ArgumentException("Screenshot file name must match screenshotId plus .png.", nameof(filePath));
         }
 
+        var registeredAtUtc = _utcNowProvider();
         var resource = new StoredScreenshotResource(
             processId,
             screenshotId,
             ScreenshotResourcePrefix + screenshotId,
             fullPath,
             fileName,
-            sha256);
+            sha256,
+            registeredAtUtc,
+            registeredAtUtc.Add(ScreenshotResourceRetentionWindow));
 
         lock (_lock)
         {
+            TrimExpiredScreenshotResources(registeredAtUtc, retainedScreenshotId: screenshotId);
             if (!_screenshotResources.ContainsKey(screenshotId))
             {
                 _screenshotResourceOrder.Enqueue(screenshotId);
             }
+            else
+            {
+                RemoveScreenshotResource(screenshotId, protectedFilePath: fullPath);
+            }
 
             _screenshotResources[screenshotId] = resource;
-            TrimScreenshotResources();
+            TrimScreenshotResources(retainedScreenshotId: screenshotId);
         }
 
         return resource;
@@ -60,6 +70,7 @@ public sealed partial class SessionManager
         ThrowIfDisposed();
         lock (_lock)
         {
+            TrimExpiredScreenshotResources(_utcNowProvider());
             return _screenshotResources.TryGetValue(screenshotId, out resource!);
         }
     }
@@ -72,7 +83,7 @@ public sealed partial class SessionManager
             .Select(entry => entry.Key)
             .ToArray())
         {
-            removedAny |= _screenshotResources.Remove(screenshotId);
+            removedAny |= RemoveScreenshotResource(screenshotId);
         }
 
         if (removedAny)
@@ -81,12 +92,73 @@ public sealed partial class SessionManager
         }
     }
 
-    private void TrimScreenshotResources()
+    private void TrimScreenshotResources(string? retainedScreenshotId = null)
     {
         while (_screenshotResources.Count > RetainedScreenshotResourceLimit &&
             _screenshotResourceOrder.TryDequeue(out var oldestScreenshotId))
         {
-            _screenshotResources.Remove(oldestScreenshotId);
+            if (string.Equals(oldestScreenshotId, retainedScreenshotId, StringComparison.Ordinal))
+            {
+                _screenshotResourceOrder.Enqueue(oldestScreenshotId);
+                continue;
+            }
+
+            RemoveScreenshotResource(oldestScreenshotId);
+        }
+    }
+
+    private void TrimExpiredScreenshotResources(
+        DateTimeOffset now,
+        string? retainedScreenshotId = null)
+    {
+        var removedAny = false;
+        foreach (var screenshotId in _screenshotResources
+            .Where(entry => !string.Equals(entry.Key, retainedScreenshotId, StringComparison.Ordinal)
+                && entry.Value.ExpiresAtUtc <= now)
+            .Select(entry => entry.Key)
+            .ToArray())
+        {
+            removedAny |= RemoveScreenshotResource(screenshotId);
+        }
+
+        if (removedAny)
+        {
+            CompactScreenshotResourceOrder();
+        }
+    }
+
+    private bool RemoveScreenshotResource(string screenshotId, string? protectedFilePath = null)
+    {
+        if (!_screenshotResources.Remove(screenshotId, out var resource))
+        {
+            return false;
+        }
+
+        if (!string.Equals(
+            Path.GetFullPath(resource.FilePath),
+            protectedFilePath is null ? null : Path.GetFullPath(protectedFilePath),
+            StringComparison.OrdinalIgnoreCase))
+        {
+            TryDeleteScreenshotFile(resource.FilePath);
+        }
+
+        return true;
+    }
+
+    private static void TryDeleteScreenshotFile(string filePath)
+    {
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
         }
     }
 
@@ -132,4 +204,6 @@ internal sealed record StoredScreenshotResource(
     string ResourceUri,
     string FilePath,
     string FileName,
-    string? Sha256);
+    string? Sha256,
+    DateTimeOffset RegisteredAtUtc,
+    DateTimeOffset ExpiresAtUtc);

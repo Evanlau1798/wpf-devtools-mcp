@@ -397,6 +397,11 @@ public sealed partial class SessionManager : IDisposable
 
                 clientsToDispose = _pipeClients.Values.ToList();
 
+                foreach (var screenshot in _screenshotResources.Values)
+                {
+                    TryDeleteScreenshotFile(screenshot.FilePath);
+                }
+
                 _pipeClients.Clear();
                 _sessions.Clear();
                 _stateSnapshots.Clear();

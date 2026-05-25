@@ -123,11 +123,13 @@ internal static class McpToolOutputSchemas
                 ["elementId"] = String("Runtime element id captured."),
                 ["screenshotId"] = String("Registered screenshot identifier."),
                 ["resourceUri"] = String("MCP resource URI for file-mode screenshot retrieval."),
+                ["expiresAtUtc"] = String("UTC expiration timestamp for the retained screenshot resource."),
                 ["outputMode"] = String("Selected screenshot output mode."),
                 ["width"] = Integer("Screenshot width in pixels."),
                 ["height"] = Integer("Screenshot height in pixels."),
                 ["mimeType"] = String("Image MIME type."),
-                ["base64"] = String("Inline base64 image data when explicitly requested.")
+                ["base64Image"] = String("Inline base64 image data when explicitly requested and below the inline byte limit."),
+                ["maxInlineByteLength"] = Integer("Inline base64 PNG byte limit reported on oversized inline requests.")
             })
         };
 

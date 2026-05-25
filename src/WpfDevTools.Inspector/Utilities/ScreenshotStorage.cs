@@ -6,6 +6,7 @@ namespace WpfDevTools.Inspector.Utilities;
 internal static class ScreenshotStorage
 {
     internal const string DirectoryEnvironmentVariable = "WPFDEVTOOLS_SCREENSHOT_DIR";
+    internal const int MaxInlineEncodedPngBytes = 256 * 1024;
     internal const int MaxEncodedPngBytes = 6 * 1024 * 1024;
     internal const int MaxStoredScreenshots = 100;
     internal static readonly TimeSpan RetentionMaxAge = TimeSpan.FromHours(24);

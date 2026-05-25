@@ -1,6 +1,9 @@
 using System.IO;
 using System.Text.Json;
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
@@ -87,6 +90,33 @@ public sealed class InteractionAnalyzerScreenshotOptionsTests
     }
 
     [StaFact]
+    public void TakeScreenshot_WithLargeBase64Output_ShouldRequireFileResourceMode()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var image = new Image
+        {
+            Width = 384,
+            Height = 384,
+            Source = CreateNoisyBitmap(width: 384, height: 384)
+        };
+        image.Measure(new Size(384, 384));
+        image.Arrange(new Rect(0, 0, 384, 384));
+        image.UpdateLayout();
+        var elementId = finder.GenerateElementId(image);
+
+        var result = analyzer.TakeScreenshot(elementId, "base64");
+        var json = JsonSerializer.SerializeToElement(result);
+
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("PayloadTooLarge");
+        json.GetProperty("hint").GetString().Should().Contain("outputMode 'file'");
+        json.GetProperty("errorData").GetProperty("maxInlineByteLength")
+            .GetInt32().Should().Be(ScreenshotStorage.MaxInlineEncodedPngBytes);
+        json.TryGetProperty("base64Image", out _).Should().BeFalse();
+    }
+
+    [StaFact]
     public void TakeScreenshot_WithNonPositiveMaxDimension_ShouldReturnStructuredError()
     {
         var finder = new ElementFinder();
@@ -159,5 +189,30 @@ public sealed class InteractionAnalyzerScreenshotOptionsTests
                 Directory.Delete(Path, recursive: true);
             }
         }
+    }
+
+    private static BitmapSource CreateNoisyBitmap(int width, int height)
+    {
+        var stride = width * 4;
+        var pixels = new byte[stride * height];
+        var seed = 17u;
+        for (var index = 0; index < pixels.Length; index += 4)
+        {
+            seed = (seed * 1664525u) + 1013904223u;
+            pixels[index] = (byte)seed;
+            pixels[index + 1] = (byte)(seed >> 8);
+            pixels[index + 2] = (byte)(seed >> 16);
+            pixels[index + 3] = 255;
+        }
+
+        return BitmapSource.Create(
+            width,
+            height,
+            96,
+            96,
+            PixelFormats.Bgra32,
+            palette: null,
+            pixels,
+            stride);
     }
 }

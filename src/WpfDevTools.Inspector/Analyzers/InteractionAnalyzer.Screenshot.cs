@@ -116,6 +116,20 @@ public sealed partial class InteractionAnalyzer
                     };
                 }
 
+                if (imageBytes.Length > ScreenshotStorage.MaxInlineEncodedPngBytes)
+                {
+                    return ToolErrorFactory.PayloadTooLarge(
+                        $"Screenshot PNG payload is {imageBytes.Length} bytes, exceeding the {ScreenshotStorage.MaxInlineEncodedPngBytes} byte inline base64 limit.",
+                        "Use outputMode 'file' to receive a retained resource handle, or provide smaller maxWidth/maxHeight values.",
+                        new
+                        {
+                            byteLength = imageBytes.Length,
+                            maxInlineByteLength = ScreenshotStorage.MaxInlineEncodedPngBytes,
+                            width = targetWidth,
+                            height = targetHeight
+                        });
+                }
+
                 return new
                 {
                     success = true,

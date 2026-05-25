@@ -144,7 +144,12 @@ public class ElementScreenshotToolTests
             }
         });
 
-        var sessionManager = new SessionManager();
+        var now = DateTimeOffset.Parse("2026-05-26T12:00:00Z");
+        var sessionManager = new SessionManager(
+            maxRequestsPerMinute: 60,
+            authManager: null,
+            certManager: null,
+            utcNowProvider: () => now);
         DisableSessionManagerCleanupTimer(sessionManager);
         sessionManager.AddSession(processId);
         var client = new NamedPipeClient(
@@ -170,6 +175,8 @@ public class ElementScreenshotToolTests
             result.TryGetProperty("path", out _).Should().BeFalse();
             result.GetProperty("fileName").GetString().Should().Be("shot_0123456789abcdef0123456789abcdef.png");
             result.GetProperty("resourceUri").GetString().Should().Be("wpf://screenshots/shot_0123456789abcdef0123456789abcdef");
+            result.GetProperty("expiresAtUtc").GetDateTimeOffset().Should().Be(
+                now.Add(SessionManager.ScreenshotResourceRetentionWindow));
             result.GetProperty("localPathRedacted").GetBoolean().Should().BeTrue();
             var request = await requestCompletion.Task.WaitAsync(TimeSpan.FromSeconds(5));
             request.Params.Should().NotBeNull();

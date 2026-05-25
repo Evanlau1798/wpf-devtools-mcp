@@ -46,6 +46,8 @@ The server evaluates high-risk MCP `tools/call` requests before dispatching them
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` opts into `get_viewmodel`, `get_commands`, `modify_viewmodel`, and `execute_command`.
 - Unset, false, or invalid boolean gates fail closed for the affected category.
 
+Screenshot capture is additionally bounded by resource lifecycle controls. `element_screenshot` defaults to metadata-only output. Inline `base64` output is capped for small PNG payloads; larger pixel captures must use `outputMode: "file"`, which returns a `wpf://screenshots/{screenshotId}` resource handle instead of a local path. File-mode resources expire after 24 hours, are capped at 100 retained screenshots per MCP server session, delete their retained PNG files when evicted or expired, and are purged when the target session disconnects or the server session manager is disposed. `full-uninstall` also removes the default current-user screenshot cache under `%LOCALAPPDATA%\WpfDevTools\tmp\screenshots`; auth secrets and certificates remain intentionally manual cleanup items.
+
 ### Named-pipe authentication
 
 Injection-based `connect` sessions use HMAC challenge-response authentication by default.

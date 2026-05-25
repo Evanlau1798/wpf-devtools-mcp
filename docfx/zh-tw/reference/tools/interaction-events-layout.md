@@ -12,7 +12,7 @@
 
 當流程和鍵盤輸入、預設按鈕、tab 導覽或多視窗切換有關時，`get_focus_state` 與 `focus_element` 會很重要。
 
-`element_screenshot` 預設使用 `outputMode: "metadata"`，也支援 `"file"` 或 `"base64"`。Metadata 回應會包含 dimensions、`format`、`rendered: false` 與 `byteLength: 0`，不會 render PNG bytes。File 與 base64 回應會 render pixels，包含 `rendered: true`、dimensions、`format` 與 `byteLength`；file mode 會回傳 `screenshotId`、`resourceUri`、`fileName`、`localPathRedacted: true` 與 `sha256`，base64 mode 會回傳 `base64Image`。
+`element_screenshot` 預設使用 `outputMode: "metadata"`，也支援 `"file"` 或 `"base64"`。Metadata 回應會包含 dimensions、`format`、`rendered: false` 與 `byteLength: 0`，不會 render PNG bytes。File 與 base64 回應會 render pixels，包含 `rendered: true`、dimensions、`format` 與 `byteLength`；file mode 會回傳 `screenshotId`、`resourceUri`、`fileName`、`expiresAtUtc`、`localPathRedacted: true` 與 `sha256`，base64 mode 只會在小型 inline PNG payload 時回傳 `base64Image`。較大的截圖請使用 file mode，讓 client 取得 session-scoped resource handle，而不是 inline pixels。保留的 screenshot resource 會在 24 小時後到期、每個 MCP server session 最多保留 100 筆，並會在 target session disconnect 時清除。
 
 ## 狀態快照與批次 mutation
 

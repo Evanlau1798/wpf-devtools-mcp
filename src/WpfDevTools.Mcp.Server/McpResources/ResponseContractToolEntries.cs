@@ -372,6 +372,7 @@ internal static class ResponseContractToolEntries
                     "outputMode",
                     "resourceUri",
                     "fileName",
+                    "expiresAtUtc",
                     "localPathRedacted",
                     "sha256",
                     "base64Image"
@@ -411,6 +412,7 @@ internal static class ResponseContractToolEntries
                             "outputMode",
                             "resourceUri",
                             "fileName",
+                            "expiresAtUtc",
                             "localPathRedacted",
                             "sha256",
                             "width",
@@ -435,6 +437,13 @@ internal static class ResponseContractToolEntries
                             "byteLength"
                         }
                     }
+                },
+                errorDataFields = new[]
+                {
+                    "errorData.byteLength",
+                    "errorData.maxInlineByteLength",
+                    "errorData.width",
+                    "errorData.height"
                 }
             }
         };

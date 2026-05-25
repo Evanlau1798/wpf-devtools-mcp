@@ -10,6 +10,8 @@ using WpfDevTools.Injector.Injection;
 using WpfDevTools.Inspector.Host;
 using WpfDevTools.Shared.Configuration;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Messages;
+using WpfDevTools.Shared.Serialization;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Security;
@@ -227,5 +229,79 @@ public partial class ConnectToolTests
                 Directory.Delete(certDirectory, recursive: true);
             }
         }
+    }
+
+    [Fact]
+    public async Task Execute_WhenIncompatibleExistingHostButRawInjectionAllowed_ShouldInjectFreshHost()
+    {
+        EnsureDummyBootstrapperExists();
+
+        var processId = Environment.ProcessId;
+        var pipeName = CreateUniquePipeName($"WpfDevTools_{processId}");
+        using var incompatibleHost = CreateIncompatibleExistingHost(processId, pipeName);
+        var injector = new FakeProcessInjector();
+        var tool = CreateTool(
+            injector: injector,
+            pipeReadyProbe: CreateExactPipeReadyProbe(pipeName),
+            connectInjectedSessionAsync: (_, _, _) => Task.FromResult(NamedPipeConnectFailure.None));
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
+
+        var payload = JsonSerializer.Serialize(result);
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(payload);
+        resultJson.GetProperty("success").GetBoolean().Should().BeTrue(payload);
+        resultJson.TryGetProperty("reusedExistingHost", out _).Should().BeFalse();
+        injector.InjectWithBootstrapCallCount.Should().Be(1);
+    }
+
+    private static NamedPipeServerStream CreateIncompatibleExistingHost(int processId, string pipeName)
+    {
+        var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await server.WaitForConnectionAsync();
+                var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+
+                request.Should().NotBeNull();
+                request!.Method.Should().Be("ping");
+
+                var response = new InspectorResponse
+                {
+                    Id = request.Id,
+                    CorrelationId = request.CorrelationId,
+                    Result = JsonSerializer.SerializeToElement(new
+                    {
+                        success = true,
+                        status = "pong",
+                        processId,
+                        protocolVersion = InspectorCompatibilityContract.ProtocolVersion,
+                        buildFingerprint = "stale-build"
+                    }),
+                    Error = null
+                };
+
+                await MessageFraming.WriteMessageAsync(
+                    server,
+                    JsonSerializer.Serialize(response),
+                    CancellationToken.None);
+            }
+            catch (IOException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        });
+
+        return server;
     }
 }

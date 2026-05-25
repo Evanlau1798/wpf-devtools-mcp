@@ -172,11 +172,15 @@ public sealed partial class ConnectTool
                 : McpServerConfiguration.ExternalSdkHostReuseGracePeriod)
             : TimeSpan.FromMilliseconds(250);
 
+        var allowFreshInjectionFallback =
+            context.IsRawInjectionTargetAllowed && !context.LikelySdkOnlyPackaging;
+
         return await TryConnectToExistingInspectorHostAsync(
             processId,
             context.LikelySdkOnlyPackaging,
             elapsedBeforeProbe,
             existingHostProbeBudget,
+            allowFreshInjectionFallback,
             cancellationToken).ConfigureAwait(false);
     }
 

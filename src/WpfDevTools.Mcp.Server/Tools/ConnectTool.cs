@@ -300,6 +300,7 @@ public sealed partial class ConnectTool
         bool preferRootAuthentication,
         TimeSpan elapsedBeforeProbe,
         TimeSpan probeBudget,
+        bool allowFreshInjectionFallback,
         CancellationToken cancellationToken)
     {
         var remainingPipeConnectTimeout = GetRemainingPipeConnectTimeout(
@@ -365,11 +366,26 @@ public sealed partial class ConnectTool
 
         if (pipeConnectFailure != NamedPipeConnectFailure.None)
         {
+            if (allowFreshInjectionFallback && IsRejectedExistingHostFailure(pipeConnectFailure))
+            {
+                Trace.TraceWarning(
+                    "ConnectTool rejected an existing Inspector host for process {0} with {1}; continuing with fresh injection because raw injection is allowlisted.",
+                    processId,
+                    pipeConnectFailure);
+                return null;
+            }
+
             return CreatePreInjectionConnectFailure(processId, pipeConnectFailure);
         }
 
         return ConnectOperationResult.ReusedExistingHost;
     }
+
+    private static bool IsRejectedExistingHostFailure(NamedPipeConnectFailure failure)
+        => failure is NamedPipeConnectFailure.AuthenticationFailed
+            or NamedPipeConnectFailure.SecureTransportFailed
+            or NamedPipeConnectFailure.ServerProcessMismatch
+            or NamedPipeConnectFailure.IncompatibleHost;
 
 
 

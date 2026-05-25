@@ -15,6 +15,11 @@ namespace WpfDevTools.Inspector.Host;
 /// </summary>
 public sealed partial class InspectorHost
 {
+    private static readonly SecurityIdentifier LocalSystemSid = new(WellKnownSidType.LocalSystemSid, null);
+    private static readonly SecurityIdentifier EveryoneSid = new(WellKnownSidType.WorldSid, null);
+    private static readonly SecurityIdentifier AuthenticatedUsersSid = new(WellKnownSidType.AuthenticatedUserSid, null);
+    private static readonly SecurityIdentifier BuiltinUsersSid = new(WellKnownSidType.BuiltinUsersSid, null);
+
     internal static Action<System.Security.Cryptography.X509Certificates.X509Certificate2>? ServerCertificateLoadedCallback { get; set; }
 
     private NamedPipeServerStream CreateSecurePipeServer()
@@ -24,24 +29,7 @@ public sealed partial class InspectorHost
             return _pipeServerFactory();
         }
 
-        var pipeSecurity = new PipeSecurity();
-
-        // Allow current user
-        var currentUser = WindowsIdentity.GetCurrent().User;
-        if (currentUser != null)
-        {
-            pipeSecurity.AddAccessRule(new PipeAccessRule(
-                currentUser,
-                PipeAccessRights.FullControl,
-                AccessControlType.Allow));
-        }
-
-        // Allow SYSTEM account
-        var systemSid = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
-        pipeSecurity.AddAccessRule(new PipeAccessRule(
-            systemSid,
-            PipeAccessRights.FullControl,
-            AccessControlType.Allow));
+        var pipeSecurity = CreatePipeSecurityForCurrentUser();
 
 #if NET48
         return new NamedPipeServerStream(
@@ -64,6 +52,52 @@ public sealed partial class InspectorHost
             0,
             pipeSecurity);
 #endif
+    }
+
+    internal static PipeSecurity CreatePipeSecurityForCurrentUser()
+    {
+        var pipeSecurity = new PipeSecurity();
+        pipeSecurity.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+
+        var currentUser = WindowsIdentity.GetCurrent().User
+            ?? throw new InvalidOperationException("Unable to resolve current Windows user SID for named pipe ACL.");
+        pipeSecurity.AddAccessRule(new PipeAccessRule(
+            currentUser,
+            PipeAccessRights.FullControl,
+            AccessControlType.Allow));
+
+        pipeSecurity.AddAccessRule(new PipeAccessRule(
+            LocalSystemSid,
+            PipeAccessRights.FullControl,
+            AccessControlType.Allow));
+
+        ValidatePipeSecurityDoesNotGrantBroadPrincipals(pipeSecurity);
+        return pipeSecurity;
+    }
+
+    internal static void ValidatePipeSecurityDoesNotGrantBroadPrincipals(PipeSecurity pipeSecurity)
+    {
+        ArgumentNullException.ThrowIfNull(pipeSecurity);
+
+        foreach (PipeAccessRule rule in pipeSecurity.GetAccessRules(
+            includeExplicit: true,
+            includeInherited: true,
+            typeof(SecurityIdentifier)))
+        {
+            if (rule.AccessControlType != AccessControlType.Allow ||
+                rule.IdentityReference is not SecurityIdentifier sid)
+            {
+                continue;
+            }
+
+            if (sid.Equals(EveryoneSid) ||
+                sid.Equals(AuthenticatedUsersSid) ||
+                sid.Equals(BuiltinUsersSid))
+            {
+                throw new InvalidOperationException(
+                    $"Named pipe ACL must not grant access to broad principal '{sid.Value}'.");
+            }
+        }
     }
 
     private async Task<bool> AuthenticateClientAsync(

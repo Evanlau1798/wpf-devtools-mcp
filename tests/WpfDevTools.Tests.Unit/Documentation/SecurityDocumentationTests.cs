@@ -348,6 +348,17 @@ public class SecurityDocumentationTests
             $"{relativePath} should state that TLS certificate loading does not fall back to exportable key imports");
     }
 
+    [Fact]
+    public void CertificateManagerSource_ShouldNotDescribeTlsPrivateKeyImportAsPersistable()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Shared/Security/CertificateManager.cs"));
+
+        content.Should().NotContain("private key persistable",
+            "TLS certificate loading should not document Windows key-store persistence as the intended behavior");
+        content.Should().Contain("non-exportable",
+            "the source comment should describe the runtime import security boundary");
+    }
+
     private static string ReadDocumentation()
     {
         var readme = File.ReadAllText(GetRepoFilePath("README.md"));

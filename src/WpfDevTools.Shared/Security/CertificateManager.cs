@@ -150,7 +150,8 @@ public sealed class CertificateManager
         SavePassword(passwordPath, password);
         CertificateStorageSecurity.ApplyFileSecurity(passwordPath);
 
-        // Export and re-import to make the private key persistable
+        // Persist the encrypted PFX on disk, then re-import with a non-exportable
+        // private key and non-persistent key storage unless compatibility fallback is required.
         var pfxBytes = cert.Export(X509ContentType.Pfx, password);
         File.WriteAllBytes(certPath, pfxBytes);
         CertificateStorageSecurity.ApplyFileSecurity(certPath);

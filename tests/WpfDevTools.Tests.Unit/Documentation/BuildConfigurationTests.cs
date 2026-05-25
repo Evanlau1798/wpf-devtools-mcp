@@ -98,6 +98,17 @@ public class BuildConfigurationTests
             "integration tests should only run on the hosted architecture that has matching runtime dependencies");
     }
 
+    [Theory]
+    [InlineData("src/WpfDevTools.Shared/Security/CertificateManager.cs")]
+    [InlineData("src/WpfDevTools.Inspector/Host/InspectorHostSecurity.cs")]
+    public void Net48TargetedSources_ShouldAvoidModernThrowHelpersUnavailableOnFramework(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().NotContain("ArgumentNullException.ThrowIfNull",
+            $"{relativePath} still targets net48, where this throw helper is unavailable");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 

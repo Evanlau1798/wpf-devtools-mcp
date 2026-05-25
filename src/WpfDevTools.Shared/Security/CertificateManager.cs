@@ -56,7 +56,9 @@ public sealed class CertificateManager
 
     private static string ResolveDefaultCertificateDirectory(Func<string> appDataPathProvider)
     {
-        ArgumentNullException.ThrowIfNull(appDataPathProvider);
+        if (appDataPathProvider == null)
+            throw new ArgumentNullException(nameof(appDataPathProvider));
+
         var appDataPath = appDataPathProvider();
         if (string.IsNullOrWhiteSpace(appDataPath) || !Path.IsPathRooted(appDataPath))
         {

@@ -166,7 +166,7 @@ public sealed partial class InteractionAnalyzer
             ?.Path;
         if (!string.IsNullOrWhiteSpace(bindingPath))
         {
-            return (bindingPath, "BindingPath");
+            return (bindingPath!, "BindingPath");
         }
 
         if (command is RoutedCommand routedCommand && !string.IsNullOrWhiteSpace(routedCommand.Name))

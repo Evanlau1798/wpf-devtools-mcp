@@ -77,7 +77,8 @@ public sealed partial class InspectorHost
 
     internal static void ValidatePipeSecurityDoesNotGrantBroadPrincipals(PipeSecurity pipeSecurity)
     {
-        ArgumentNullException.ThrowIfNull(pipeSecurity);
+        if (pipeSecurity == null)
+            throw new ArgumentNullException(nameof(pipeSecurity));
 
         foreach (PipeAccessRule rule in pipeSecurity.GetAccessRules(
             includeExplicit: true,

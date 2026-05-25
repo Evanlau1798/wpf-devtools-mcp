@@ -6,7 +6,7 @@ namespace System.Security.Cryptography;
 /// <summary>
 /// Polyfill for CryptographicOperations in .NET Framework 4.8
 /// </summary>
-internal static class CryptographicOperations
+public static class CryptographicOperations
 {
     /// <summary>
     /// Compares two byte arrays in constant time to prevent timing attacks.

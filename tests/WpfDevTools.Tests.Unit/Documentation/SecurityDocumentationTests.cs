@@ -189,7 +189,7 @@ public class SecurityDocumentationTests
     [InlineData("docfx/reference/tools/process-and-connection.md")]
     [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md")]
     [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
-    [InlineData("src/WpfDevTools.Mcp.Server/McpTools/ProcessMcpTools.cs")]
+    [InlineData("src/WpfDevTools.Mcp.Server/McpTools/ProcessMcpToolDescriptions.cs")]
     public void Documentation_ShouldDescribeMalformedMcpTargetAllowlistErrorContract(string relativePath)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));

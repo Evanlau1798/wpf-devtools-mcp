@@ -1,0 +1,33 @@
+﻿namespace WpfDevTools.Mcp.Server.McpTools;
+
+internal static class EventDrainMcpToolDescriptions
+{
+    private const string EventMetadata = "CATEGORY: Event\n" + ToolDescriptionFragments.ConnectPrerequisite;
+
+    public const string DrainEvents =
+        "Use this tool to explicitly drain pending runtime watch events that were buffered by prior DependencyProperty or routed-event activity.\n\n" +
+        EventMetadata + "[Event] Return and clear buffered runtime events from the current Inspector session. " +
+        "Use it when you want deterministic event consumption instead of waiting for piggyback on a later tool response.\n\n" +
+        "USE WHEN: You have active DP watches or routed-event traces and need an explicit read step; you want to filter buffered events by type, element, or time window.\n" +
+        "DO NOT USE: As a long-running subscription. This drains a bounded in-memory buffer.\n\n" +
+        "REPLAY SEMANTICS: When replay is already buffered, the server performs an uncapped live read internally, then applies maxEvents across the merged replay + live event set. Any replay event that is not returned by the explicit read, and any matching live event that exceeds the caller-visible result cap, remain buffered for the next explicit drain_events call. If that live drain fails before merge completes, the error surfaces errorData.replayPreserved plus errorData.bufferedReplayEventCount so callers can retry without assuming the preserved replay buffer was discarded.\n\n" +
+        "RESPONSE FORMAT:\n" +
+        "{\n" +
+        "  success: boolean,\n" +
+        "  pendingEventCount: number,\n" +
+        "  droppedEventCount: number,\n" +
+        "  cleanupIncomplete?: boolean,\n" +
+        "  cleanupFailureMessage?: string,\n" +
+        "  cleanupFailureType?: string,\n" +
+        "  pendingEvents?: [{ eventType, elementId, propertyName?, eventName?, timestampUtc }]\n" +
+        "}\n\n" +
+        "If post-drain cleanup cannot finish cleanly, the response surfaces cleanupIncomplete plus optional cleanupFailureMessage and cleanupFailureType so callers can quarantine or retry follow-up workflows explicitly.\n\n" +
+        "ERRORS:\n" +
+        "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"maxEvents\" invalid -> provide a positive integer when filtering the drain size\n" +
+        "- \"sinceTimestamp\" invalid -> provide an ISO-8601 timestamp\n\n" +
+        "EXAMPLES:\n" +
+        "- { \"processId\": 12345 }\n" +
+        "- { \"processId\": 12345, \"maxEvents\": 10, \"eventTypes\": [\"DpChange\"] }\n" +
+        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"sinceTimestamp\": \"2026-03-14T10:00:00.0000000Z\" }";
+}

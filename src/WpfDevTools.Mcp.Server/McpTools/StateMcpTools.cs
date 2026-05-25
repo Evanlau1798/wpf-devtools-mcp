@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.Tools;
@@ -11,27 +11,9 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class StateMcpTools
 {
-    private const string StateMetadata = "CATEGORY: State\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
     [McpServerTool(Name = "capture_state_snapshot", Title = "Capture WPF Runtime State Snapshot", OpenWorld = false, ReadOnly = false, Destructive = true, UseStructuredContent = true)]
-    [Description(
-        "Use this tool to capture a WPF runtime state snapshot before mutations or multi-step debugging.\n\n" +
-        StateMetadata + "[State] Capture a restorable runtime snapshot for a connected WPF process.\n\n" +
-        "USE WHEN: Before mutation-heavy debugging, demos, or regression flows where rollback matters.\n" +
-        "DO NOT USE: As durable persistence; snapshots are in-memory and session-scoped only.\n" +
-        "RETENTION: The server retains at most 20 snapshots per process for up to 30 minutes; capture a fresh snapshot before long mutation sequences.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  snapshotId: string,\n" +
-        "  snapshotSummary: { dependencyPropertyCount, viewModelPropertyCount, capturedFocus }\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"propertyNames / viewModelPropertyNames / includeFocus required\" -> choose at least one capture dimension\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"propertyNames\": [\"IsEnabled\"] }\n" +
-        "- { \"processId\": 12345, \"elementId\": \"EditorPanel\", \"viewModelPropertyNames\": [\"Name\"], \"includeFocus\": true }")]
+    [Description(StateMcpToolDescriptions.CaptureStateSnapshot)]
     public static Task<CallToolResult> CaptureStateSnapshot(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -60,32 +42,7 @@ public static class StateMcpTools
     }
 
     [McpServerTool(Name = "restore_state_snapshot", Title = "Restore WPF Runtime State Snapshot", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
-    [Description(
-        "Use this tool to restore a WPF runtime state snapshot after temporary debugging changes.\n\n" +
-        StateMetadata + "[State] Restore a previously captured in-memory runtime snapshot.\n\n" +
-        "USE WHEN: Rolling back temporary DependencyProperty, ViewModel, or focus changes in the same session.\n" +
-        "DO NOT USE: Across disconnected sessions, application restarts, or after the in-memory snapshot has expired.\n" +
-        "RETENTION: Snapshots are kept for at most 30 minutes and the oldest snapshots are evicted when a process retains more than 20.\n\n" +
-        "EXPRESSION ROLLBACK: Binding-backed DependencyProperty expressions captured in the same session can be restored. When a two-way source property also needs to return to its baseline value, capture that ViewModel property in the same snapshot. Non-Binding expressions are still surfaced through skippedDependencyProperties with explicit reasons.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  restoredDependencyPropertyCount: number,\n" +
-        "  restoredDependencyProperties: [{ propertyName, verified: boolean, expectedValue, currentValue, expectedIsExpression, currentIsExpression, verificationSkippedReason }],\n" +
-        "  skippedDependencyPropertyCount: number,\n" +
-        "  skippedDependencyProperties: [{ propertyName, reason, restoreDisposition, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
-        "  restoredViewModelPropertyCount: number,\n" +
-        "  restoredViewModelProperties: [{ propertyName, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
-        "  skippedViewModelPropertyCount: number,\n" +
-        "  skippedViewModelProperties: [{ propertyName, reason, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
-        "  restoredFocus: boolean,\n" +
-        "  warnings: string[]\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"snapshotId\" -> snapshot missing, expired, or created for another process\n" +
-        "- \"not connected\" -> reconnect before restore\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"snapshotId\": \"snapshot_abc\" }")]
+    [Description(StateMcpToolDescriptions.RestoreStateSnapshot)]
     public static Task<CallToolResult> RestoreStateSnapshot(
         SessionManager sessionManager,
         [Description("Snapshot ID returned by capture_state_snapshot.")] string snapshotId,

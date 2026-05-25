@@ -8,7 +8,7 @@ public sealed class TreeMcpToolDocumentationTests
     [Fact]
     public void TreeToolDescriptions_ShouldDescribeCompressedResponseShapes()
     {
-        var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools/TreeMcpTools.cs"));
+        var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools/TreeMcpToolDescriptions.cs"));
 
         content.Should().Contain("flat-summary-v1");
         content.Should().Contain("returnedNodeCount");

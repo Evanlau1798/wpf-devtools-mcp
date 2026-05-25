@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
@@ -13,36 +13,9 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 [McpServerToolType]
 public static class InteractionMcpTools
 {
-    private const string InteractionMetadata = "CATEGORY: Interaction\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
     [McpServerTool(Name = "click_element", Title = "Click WPF Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
-    [Description(
-        "Use this tool to interact with a WPF element through a runtime click path that matches user behavior.\n\n" +
-        InteractionMetadata + "[Interaction] Simulate a mouse click on a WPF element. " +
-        "Uses ButtonBase.OnClick() for all ButtonBase descendants (Button, ToggleButton, CheckBox, RadioButton) " +
-        "which triggers ICommand execution + Click event. For TabItem, selects the tab. " +
-        "Returns error for non-clickable element types.\n\n" +
-        "USE WHEN: Testing button handlers, navigation, or click-triggered logic; executing ICommand via button click.\n" +
-        "DO NOT USE: On disabled elements (check IsEnabled first with get_dp_value_source); on non-ButtonBase/non-TabItem elements.\n\n" +
-        "SEMANTIC DIFFERENCE FROM fire_routed_event:\n" +
-        "- click_element: calls OnClick() for ButtonBase descendants (includes ICommand execution + Click event); selects TabItem\n" +
-        "- fire_routed_event('Click'): on ButtonBase calls OnClick() (same ICommand execution); on non-ButtonBase only fires routed event handlers\n" +
-        "- For button ICommand testing, both tools work; click_element is preferred for general use\n\n" +
-        "WARNING: This triggers real application logic (e.g., button handlers, navigation, data modifications).\n\n" +
-        "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core click result, use `minimal` for the most concise success confirmation, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  clicked: boolean\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"elementId required\" -> must specify which element to click\n" +
-        "- \"element not found\" -> verify elementId from get_visual_tree\n" +
-        "- \"element not clickable\" -> element is disabled or not a clickable type\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }\n" +
-        "- { \"processId\": 12345, \"elementId\": \"ClearButton\" }")]
+    [Description(InteractionMcpToolDescriptions.ClickElement)]
     public static Task<CallToolResult> ClickElement(
         SessionManager sessionManager,
         [Description("Element ID of the clickable control.")] string elementId,
@@ -65,25 +38,7 @@ public static class InteractionMcpTools
     }
 
     [McpServerTool(Name = "get_focus_state", Title = "Inspect WPF Focus State", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
-    [Description(
-        "Use this tool to inspect the current WPF focus state across a window or scoped subtree.\n\n" +
-        InteractionMetadata + "[Interaction] Get the current logical or keyboard focus snapshot for a window or element scope.\n\n" +
-        "USE WHEN: Multi-window workflows, focus-sensitive interactions, or before capturing a restorable state snapshot.\n" +
-        "DO NOT USE: As a persistent subscription; this is a point-in-time snapshot only.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  focusKind: 'Logical'|'Keyboard'|'None',\n" +
-        "  focusedElementId: string|null,\n" +
-        "  focusedElementType: string|null,\n" +
-        "  windowElementId: string|null,\n" +
-        "  windowTitle: string\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345 }\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SettingsDialog_1\" }")]
+    [Description(InteractionMcpToolDescriptions.GetFocusState)]
     public static Task<CallToolResult> GetFocusState(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
@@ -104,23 +59,7 @@ public static class InteractionMcpTools
     }
 
     [McpServerTool(Name = "focus_element", Title = "Focus WPF Element", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
-    [Description(
-        "Use this tool to move focus to a specific WPF element before keyboard-driven runtime inspection.\n\n" +
-        InteractionMetadata + "[Interaction] Move logical focus to a specific WPF element.\n\n" +
-        "USE WHEN: Restoring focus after a mutation sequence, or preparing a keyboard-driven workflow.\n" +
-        "DO NOT USE: On elements that cannot receive focus.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  focused: boolean,\n" +
-        "  focusKind: 'Logical'|'Keyboard',\n" +
-        "  focusedElementId: string|null\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"elementId required\" -> must specify which element should receive focus\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SearchTextBox\" }")]
+    [Description(InteractionMcpToolDescriptions.FocusElement)]
     public static Task<CallToolResult> FocusElement(
         SessionManager sessionManager,
         [Description("Element ID that should receive focus.")] string elementId,
@@ -143,33 +82,7 @@ public static class InteractionMcpTools
     }
 
     [McpServerTool(Name = "drag_and_drop", Title = "Simulate WPF Drag And Drop", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
-    [Description(
-        "Use this tool to simulate WPF drag and drop behavior between two runtime elements.\n\n" +
-        InteractionMetadata + "[Interaction] Simulate drag and drop between two WPF elements. " +
-        "Raises DragEnter, DragOver, and Drop events on the target.\n\n" +
-        "USE WHEN: Testing drag-drop functionality, reordering items, or file drop handlers.\n" +
-        "DO NOT USE: Without verifying both elements exist first.\n\n" +
-        "WARNING: This triggers real application logic.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  targetHandlerHints: {\n" +
-        "    targetAllowsDrop: boolean,\n" +
-        "    hasDropHandler: boolean|null,\n" +
-        "    hasDragOverHandler: boolean|null,\n" +
-        "    hasAnyDropOrDragOverHandler: boolean|null,\n" +
-        "    inspectionSupported: boolean,\n" +
-        "    mayBeIncomplete: boolean\n" +
-        "  }\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"source not found\" -> verify sourceElementId\n" +
-        "- \"target not found\" -> verify targetElementId\n" +
-        "- \"sourceElementId required\" -> must specify drag source\n" +
-        "- \"targetElementId required\" -> must specify drop target\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"sourceElementId\": \"Item1\", \"targetElementId\": \"Item2\" }")]
+    [Description(InteractionMcpToolDescriptions.DragAndDrop)]
     public static Task<CallToolResult> DragAndDrop(
         SessionManager sessionManager,
         [Description("Element ID that acts as the drag source.")] string sourceElementId,
@@ -196,23 +109,7 @@ public static class InteractionMcpTools
     }
 
     [McpServerTool(Name = "scroll_to_element", Title = "Scroll WPF Element Into View", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
-    [Description(
-        "Use this tool to scroll a WPF element into view before runtime screenshots or interactions.\n\n" +
-        InteractionMetadata + "[Interaction] Scroll a WPF element into view within its parent ScrollViewer. " +
-        "Calls BringIntoView() on the element.\n\n" +
-        "USE WHEN: Element is off-screen before taking screenshot or clicking; testing scroll behavior.\n" +
-        "DO NOT USE: On elements not inside a ScrollViewer (has no effect).\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  scrolled: boolean\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"element not found\" -> verify elementId\n" +
-        "- \"elementId required\" -> must specify which element to scroll to\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\" }")]
+    [Description(InteractionMcpToolDescriptions.ScrollToElement)]
     public static Task<CallToolResult> ScrollToElement(
         SessionManager sessionManager,
         [Description("Element ID that should be brought into view.")] string elementId,
@@ -232,36 +129,7 @@ public static class InteractionMcpTools
     }
 
     [McpServerTool(Name = "simulate_keyboard", Title = "Simulate WPF Keyboard Input", OpenWorld = false, Destructive = true, UseStructuredContent = true)]
-    [Description(
-        "Use this tool to simulate WPF keyboard input when runtime focus, shortcuts, or key handlers matter.\n\n" +
-        InteractionMetadata + "[Interaction] Simulate a keyboard key press on an element. " +
-        "Key parameter uses WPF Key enum names.\n\n" +
-        "USE WHEN: Testing keyboard shortcuts, Enter key submission, Tab navigation, or key event handlers.\n" +
-        "DO NOT USE: For text input (use set_dp_value on Text property instead).\n\n" +
-        "WARNING: This triggers real application logic.\n\n" +
-        "SEMANTIC EFFECTS: semanticEffectObserved=true when: Tab moves focus, " +
-        "Enter/Space activates a Button (triggers OnClick and ICommand), " +
-        "Enter/Space toggles a CheckBox, or Up/Down changes ComboBox selection. " +
-        "appliedDirectEdit=true when character keys modify TextBox text.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  key,\n" +
-        "  eventType,\n" +
-        "  appliedDirectEdit: boolean,\n" +
-        "  focusChanged: boolean,\n" +
-        "  semanticEffectObserved: boolean,\n" +
-        "  focusedElementIdBefore: string|null,\n" +
-        "  focusedElementIdAfter: string|null\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"element not found\" -> verify elementId\n" +
-        "- \"invalid key\" -> key name not recognized (use WPF Key enum names)\n" +
-        "- \"key required\" -> must specify which key to press\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\", \"key\": \"Enter\" }\n" +
-        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\", \"key\": \"Tab\" }")]
+    [Description(InteractionMcpToolDescriptions.SimulateKeyboard)]
     public static Task<CallToolResult> SimulateKeyboard(
         SessionManager sessionManager,
         [Description("WPF Key enum name to simulate, such as Enter or Tab.")] string key,
@@ -286,41 +154,7 @@ public static class InteractionMcpTools
     }
 
     [McpServerTool(Name = "element_screenshot", Title = "Capture WPF Element Screenshot", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
-    [Description(
-        "Use this tool to capture a WPF element screenshot for runtime visual verification.\n\n" +
-        InteractionMetadata + "[Interaction] Capture a PNG screenshot of a specific element. " +
-        "Returns compact metadata by default, small inline base64 image data when explicitly requested, or a retained PNG resource URI in file mode. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +
-        "USE WHEN: Visual verification needed; documenting UI state; debugging rendering issues.\n" +
-        "DO NOT USE: As a first-pass scene exploration tool (prefer get_ui_summary or get_element_snapshot), or on off-screen elements (use scroll_to_element first).\n\n" +
-        "PRIVACY: The MCP screenshot policy gate must be enabled. Use `outputMode: \"file\"` for larger pixel captures; it returns a session-scoped `resourceUri`, redacts local paths, expires predictably, and is purged on disconnect. Inline `base64` is capped for small images only.\n" +
-        "PERFORMANCE: The default `metadata` mode does not render or return PNG bytes. Use `outputMode: \"file\"` or explicit `outputMode: \"base64\"` plus `maxWidth` / `maxHeight` when pixels are required.\n\n" +
-        "RESPONSE FORMAT:\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  base64Image?: string,\n" +
-        "  screenshotId?: string,\n" +
-        "  resourceUri?: string,\n" +
-        "  fileName?: string,\n" +
-        "  expiresAtUtc?: string,\n" +
-        "  localPathRedacted?: boolean,\n" +
-        "  sha256?: string,\n" +
-        "  width: number,\n" +
-        "  height: number,\n" +
-        "  format: 'png',\n" +
-        "  rendered: boolean,\n" +
-        "  byteLength: number\n" +
-        "}\n\n" +
-        "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"element not found\" -> verify elementId\n" +
-        "- \"invalid outputMode\" -> use base64, metadata, or file\n" +
-        "- \"render failed\" -> element may be collapsed or have zero size\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"outputMode\": \"base64\" }\n" +
-        "- { \"processId\": 12345, \"outputMode\": \"file\", \"maxWidth\": 512 }\n" +
-        "- { \"processId\": 12345, \"outputMode\": \"metadata\", \"maxWidth\": 512 }\n" +
-        "- { \"processId\": 12345 }")]
+    [Description(InteractionMcpToolDescriptions.ElementScreenshot)]
     public static Task<CallToolResult> ElementScreenshot(
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,

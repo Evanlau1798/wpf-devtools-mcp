@@ -88,6 +88,7 @@ public sealed class RawInjectionTargetPolicyTests
     }
 
     [Theory]
+    [InlineData(@"\\?\UNC\server\share\Target.exe")]
     [InlineData(@"\\?\GLOBALROOT\Device\Mup\server\share\Target.exe")]
     [InlineData(@"\\.\GLOBALROOT\Device\Mup\server\share\Target.exe")]
     public void TryNormalizeFinalPathName_WhenPathUsesDeviceNamespace_ShouldFailClosed(string finalPathName)

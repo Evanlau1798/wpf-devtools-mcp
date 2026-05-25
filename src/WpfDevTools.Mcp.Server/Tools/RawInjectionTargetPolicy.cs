@@ -408,8 +408,7 @@ internal static class RawInjectionTargetPolicy
 
         if (path.StartsWith(uncPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            normalizedPath = NormalizePath(@"\\" + path[uncPrefix.Length..]);
-            return true;
+            return false;
         }
 
         if (path.StartsWith(devicePrefix, StringComparison.OrdinalIgnoreCase))

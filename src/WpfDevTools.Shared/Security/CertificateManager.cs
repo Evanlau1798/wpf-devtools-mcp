@@ -248,8 +248,14 @@ public sealed class CertificateManager
     }
 
     private static bool RequiresServerTlsFallback(X509KeyStorageFlags keyStorageFlags)
-        => OperatingSystem.IsWindows()
-           && (keyStorageFlags & X509KeyStorageFlags.EphemeralKeySet) != 0;
+    {
+#if NET48
+        return false;
+#else
+        return OperatingSystem.IsWindows()
+               && (keyStorageFlags & X509KeyStorageFlags.EphemeralKeySet) != 0;
+#endif
+    }
 
     private static string GenerateRandomPassword()
     {

@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using FluentAssertions;
-using Xunit.Sdk;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
@@ -9,10 +8,8 @@ public sealed partial class InstallerPathSafetyTests
 {
     private static void RequireWindowsJunctions()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw SkipException.ForSkip("Directory junction contract is Windows-specific.");
-        }
+        OperatingSystem.IsWindows().Should().BeTrue(
+            "release installer path-safety tests require a Windows runner with junction support");
     }
 
     private static void CreateDirectoryJunctionOrSkip(string junctionPath, string targetPath)
@@ -30,34 +27,28 @@ public sealed partial class InstallerPathSafetyTests
         using var process = Process.Start(startInfo);
         process.Should().NotBeNull();
         process!.WaitForExit(5000).Should().BeTrue("mklink should complete promptly");
-        if (process.ExitCode != 0)
-        {
-            throw SkipException.ForSkip(
-                "Directory junction creation failed: " + process.StandardError.ReadToEnd() + process.StandardOutput.ReadToEnd());
-        }
+        process.ExitCode.Should().Be(0,
+            "directory junction creation must be available for release path-safety verification. stderr/stdout: {0}",
+            process.StandardError.ReadToEnd() + process.StandardOutput.ReadToEnd());
     }
 
     private static void CreateHardLinkOrSkip(string hardLinkPath, string existingFilePath)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw SkipException.ForSkip("Hardlink contract is Windows-specific.");
-        }
+        OperatingSystem.IsWindows().Should().BeTrue(
+            "release installer path-safety tests require a Windows runner with hardlink support");
 
         try
         {
-            if (!CreateHardLink(hardLinkPath, existingFilePath, nint.Zero))
-            {
-                throw SkipException.ForSkip("Hardlink creation failed with Win32 error " + Marshal.GetLastWin32Error() + ".");
-            }
+            CreateHardLink(hardLinkPath, existingFilePath, nint.Zero)
+                .Should().BeTrue("hardlink creation must be available; Win32 error {0}", Marshal.GetLastWin32Error());
         }
         catch (DllNotFoundException ex)
         {
-            throw SkipException.ForSkip("Hardlink creation is unavailable: " + ex.Message);
+            throw new InvalidOperationException("Hardlink creation is unavailable.", ex);
         }
         catch (EntryPointNotFoundException ex)
         {
-            throw SkipException.ForSkip("Hardlink creation is unavailable: " + ex.Message);
+            throw new InvalidOperationException("Hardlink creation is unavailable.", ex);
         }
     }
 }

@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Reflection;
 using Xunit;
 using FluentAssertions;
-using Xunit.Sdk;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Tests.Unit.Execution;
 using WpfDevTools.Tests.Unit.Release;
@@ -445,10 +444,8 @@ public class SignaturePolicyTests
 
     private static void RequireWindowsJunctions()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw SkipException.ForSkip("Directory junction contract is Windows-specific.");
-        }
+        OperatingSystem.IsWindows().Should().BeTrue(
+            "signature policy reparse-point tests require a Windows runner with junction support");
     }
 
     private static void CreateDirectoryJunctionOrSkip(string junctionPath, string targetPath)
@@ -466,11 +463,9 @@ public class SignaturePolicyTests
         using var process = Process.Start(startInfo);
         process.Should().NotBeNull();
         process!.WaitForExit(5000).Should().BeTrue("mklink should complete promptly");
-        if (process.ExitCode != 0)
-        {
-            throw SkipException.ForSkip(
-                "Directory junction creation failed: " + process.StandardError.ReadToEnd() + process.StandardOutput.ReadToEnd());
-        }
+        process.ExitCode.Should().Be(0,
+            "directory junction creation must be available for signature policy verification. stderr/stdout: {0}",
+            process.StandardError.ReadToEnd() + process.StandardOutput.ReadToEnd());
     }
 
     private static void TryDeleteDirectoryJunction(string junctionPath)

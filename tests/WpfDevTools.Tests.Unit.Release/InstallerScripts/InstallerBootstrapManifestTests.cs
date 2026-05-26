@@ -6,7 +6,6 @@ using System.Text.Json.Nodes;
 using FluentAssertions;
 using WpfDevTools.Tests.Unit;
 using Xunit;
-using Xunit.Sdk;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
@@ -43,10 +42,8 @@ public sealed partial class InstallerBootstrapTests
     public void InstallerHelperManifest_ShouldOnlyReferenceGitTrackedHelperFiles()
     {
         var repoRoot = ReleaseScriptTestHarness.GetRepoFilePath(".");
-        if (!CanValidateTrackedFilesWithGit(repoRoot))
-        {
-            throw SkipException.ForSkip("Git metadata or the git executable is unavailable, so tracked-file validation cannot run in this environment.");
-        }
+        CanValidateTrackedFilesWithGit(repoRoot).Should().BeTrue(
+            "release manifest validation requires git metadata and the git executable");
 
         var installerDirectory = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
         var manifestPath = Path.Combine(installerDirectory, "installer-helpers.manifest.json");

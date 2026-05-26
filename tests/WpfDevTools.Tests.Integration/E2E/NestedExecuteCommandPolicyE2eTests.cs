@@ -7,7 +7,6 @@ using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Tests.Integration.TestSupport;
-using Xunit.Sdk;
 
 namespace WpfDevTools.Tests.Integration.E2E;
 
@@ -161,20 +160,20 @@ public sealed class NestedExecuteCommandPolicyE2eTests : IAsyncLifetime, IDispos
         _serverExePath = TryFindServerExe();
         if (_serverExePath == null)
         {
-            throw SkipException.ForSkip(
+            throw new InvalidOperationException(
                 "MCP Server executable not found for the current test configuration. Build src/WpfDevTools.Mcp.Server first.");
         }
 
         _testAppExePath = TryFindTestAppExe();
         if (_testAppExePath == null)
         {
-            throw SkipException.ForSkip(
+            throw new InvalidOperationException(
                 "TestApp executable not found for the current test configuration. Build tests/WpfDevTools.Tests.TestApp first.");
         }
 
         if (!BootstrapperArtifactLocator.HasNativeBootstrapper(AppContext.BaseDirectory))
         {
-            throw SkipException.ForSkip(
+            throw new InvalidOperationException(
                 "Native bootstrapper DLLs not found. Build src/WpfDevTools.Bootstrapper first.");
         }
 

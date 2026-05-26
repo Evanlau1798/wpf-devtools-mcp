@@ -73,15 +73,9 @@ public sealed class McpE2eResetDisciplineContractTests
         var initializeBody = ExtractMethodBody(content, "InitializeAsync");
         var liveTry = Regex.Match(initializeBody, @"(?m)^\s*try\s*$", RegexOptions.CultureInvariant);
         liveTry.Success.Should().BeTrue("the live setup block should have an explicit top-level try before starting child processes");
-        var liveTryIndex = liveTry.Index;
 
-        var skipMatches = Regex.Matches(initializeBody, "SkipException\\.ForSkip", RegexOptions.CultureInvariant)
-            .ToArray();
-        skipMatches.Should().HaveCount(3, "only the three prerequisite artifact checks may skip");
-        skipMatches.Select(match => match.Index)
-            .Should()
-            .OnlyContain(index => index < liveTryIndex,
-                "only missing prerequisite artifacts may skip before live TestApp/MCP setup begins");
+        initializeBody.Should().NotContain("SkipException.ForSkip",
+            "self-contained live security E2E prerequisites must fail visibly instead of producing skipped tests");
 
         initializeBody.Should().Contain("MCP Server executable not found");
         initializeBody.Should().Contain("TestApp executable not found");

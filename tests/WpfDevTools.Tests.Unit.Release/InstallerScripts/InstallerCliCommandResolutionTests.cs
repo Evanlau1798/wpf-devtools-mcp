@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using FluentAssertions;
 using Xunit;
-using Xunit.Sdk;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
@@ -114,14 +113,12 @@ public sealed class InstallerCliCommandResolutionTests
         try
         {
             var driveRoot = Path.GetPathRoot(tempRoot);
-            if (string.IsNullOrWhiteSpace(driveRoot) || driveRoot.Length < 2 || driveRoot[1] != ':')
-            {
-                throw SkipException.ForSkip("Drive-relative path contract is Windows drive specific.");
-            }
+            (driveRoot is { Length: >= 2 } && driveRoot[1] == ':').Should().BeTrue(
+                "drive-relative override validation requires a Windows drive-rooted temp directory");
 
             var commandPath = Path.Combine(tempRoot, "codex.cmd");
             File.WriteAllText(commandPath, "@echo off" + Environment.NewLine + "exit /b 0");
-            var driveRelativePath = driveRoot[..2] + "codex.cmd";
+            var driveRelativePath = driveRoot![..2] + "codex.cmd";
 
             var command = string.Join(
                 Environment.NewLine,
@@ -341,10 +338,8 @@ public sealed class InstallerCliCommandResolutionTests
 
     private static void RequireWindowsJunctions()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw SkipException.ForSkip("Directory junction contract is Windows-specific.");
-        }
+        OperatingSystem.IsWindows().Should().BeTrue(
+            "release installer command-resolution tests require a Windows runner with junction support");
     }
 
     private static void CreateDirectoryJunctionOrSkip(string junctionPath, string targetPath)
@@ -362,34 +357,28 @@ public sealed class InstallerCliCommandResolutionTests
         using var process = Process.Start(startInfo);
         process.Should().NotBeNull();
         process!.WaitForExit(5000).Should().BeTrue("mklink should complete promptly");
-        if (process.ExitCode != 0)
-        {
-            throw SkipException.ForSkip(
-                "Directory junction creation failed: " + process.StandardError.ReadToEnd() + process.StandardOutput.ReadToEnd());
-        }
+        process.ExitCode.Should().Be(0,
+            "directory junction creation must be available for release command-resolution verification. stderr/stdout: {0}",
+            process.StandardError.ReadToEnd() + process.StandardOutput.ReadToEnd());
     }
 
     private static void CreateHardLinkOrSkip(string hardLinkPath, string existingFilePath)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw SkipException.ForSkip("Hardlink contract is Windows-specific.");
-        }
+        OperatingSystem.IsWindows().Should().BeTrue(
+            "release installer command-resolution tests require a Windows runner with hardlink support");
 
         try
         {
-            if (!CreateHardLink(hardLinkPath, existingFilePath, nint.Zero))
-            {
-                throw SkipException.ForSkip("Hardlink creation failed with Win32 error " + Marshal.GetLastWin32Error() + ".");
-            }
+            CreateHardLink(hardLinkPath, existingFilePath, nint.Zero)
+                .Should().BeTrue("hardlink creation must be available; Win32 error {0}", Marshal.GetLastWin32Error());
         }
         catch (DllNotFoundException ex)
         {
-            throw SkipException.ForSkip("Hardlink creation is unavailable: " + ex.Message);
+            throw new InvalidOperationException("Hardlink creation is unavailable.", ex);
         }
         catch (EntryPointNotFoundException ex)
         {
-            throw SkipException.ForSkip("Hardlink creation is unavailable: " + ex.Message);
+            throw new InvalidOperationException("Hardlink creation is unavailable.", ex);
         }
     }
 }

@@ -182,6 +182,27 @@ public class RepositoryHygieneTests
     }
 
     [Fact]
+    public void Tests_ShouldNotThrowRuntimeSkipExceptions()
+    {
+        const string forbiddenSkipCall = "throw SkipException." + "ForSkip";
+        var violations = EnumeratePolicyFiles()
+            .Where(path => path.StartsWith("tests/", StringComparison.Ordinal))
+            .SelectMany(path => File.ReadLines(GetRepoFilePath(path))
+                .Select((line, index) => new
+                {
+                    Path = path,
+                    Line = index + 1,
+                    Text = line.Trim()
+                }))
+            .Where(line => line.Text.Contains(forbiddenSkipCall, StringComparison.Ordinal))
+            .Select(line => $"{line.Path}:{line.Line}: {line.Text}")
+            .ToArray();
+
+        violations.Should().BeEmpty(
+            "production verification should fail visibly when required runner capabilities or build artifacts are missing");
+    }
+
+    [Fact]
     public void VisualTreeAnalyzerTests_ShouldNotDocumentStaleDefaultDepth()
     {
         var content = ReadRepoFile("tests/WpfDevTools.Tests.Unit/Inspector/Analyzers/VisualTreeAnalyzerGapTests.cs");

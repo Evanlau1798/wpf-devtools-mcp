@@ -24,8 +24,6 @@ public class BootstrapInjectionTests : IDisposable
 {
     private static readonly TimeSpan LiveTestAppStartupTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan LiveSmokeTimeout = TimeSpan.FromSeconds(60);
-    private const string DebugDelayHookSkipReason =
-        "Live timeout-budget bootstrap coverage requires the Debug-only delay hooks and is skipped in Release test lanes.";
     private readonly ITestOutputHelper _output;
     private System.Diagnostics.Process? _testApp;
     private DummyBootstrapperArtifact? _dummyBootstrapperArtifact;
@@ -139,9 +137,6 @@ public class BootstrapInjectionTests : IDisposable
 
 #if DEBUG
     [Fact]
-#else
-    [Fact(Skip = DebugDelayHookSkipReason)]
-#endif
     [Trait("Category", "Integration")]
     public async Task ConnectTool_WhenBootstrapHostStartConsumesSharedBudget_ShouldReturnStructuredPipeReadyTimeout()
     {
@@ -169,12 +164,10 @@ public class BootstrapInjectionTests : IDisposable
         connectJson.GetProperty("stage").GetString().Should().Be("PipeReady");
         connectJson.GetProperty("error").GetString().Should().Contain("Named Pipe");
     }
+#endif
 
 #if DEBUG
     [Fact]
-#else
-    [Fact(Skip = DebugDelayHookSkipReason)]
-#endif
     [Trait("Category", "Integration")]
     public async Task ConnectTool_WhenFinalAttachConsumesSharedBudget_ShouldReturnStructuredNamedPipeTimeout()
     {
@@ -202,6 +195,7 @@ public class BootstrapInjectionTests : IDisposable
         connectJson.TryGetProperty("stage", out _).Should().BeFalse();
         connectJson.GetProperty("error").GetString().Should().Be("Timeout connecting to Inspector Named Pipe");
     }
+#endif
 
     [Fact]
     [Trait("Category", "Integration")]

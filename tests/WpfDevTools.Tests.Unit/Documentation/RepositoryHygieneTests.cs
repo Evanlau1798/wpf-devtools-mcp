@@ -162,6 +162,26 @@ public class RepositoryHygieneTests
     }
 
     [Fact]
+    public void IntegrationTests_ShouldNotDeclareStaticSkippedFacts()
+    {
+        var violations = EnumeratePolicyFiles()
+            .Where(path => path.StartsWith("tests/WpfDevTools.Tests.Integration/", StringComparison.Ordinal))
+            .SelectMany(path => File.ReadLines(GetRepoFilePath(path))
+                .Select((line, index) => new
+                {
+                    Path = path,
+                    Line = index + 1,
+                    Text = line.Trim()
+                }))
+            .Where(line => line.Text.Contains("[Fact(Skip", StringComparison.Ordinal))
+            .Select(line => $"{line.Path}:{line.Line}: {line.Text}")
+            .ToArray();
+
+        violations.Should().BeEmpty(
+            "Release-specific integration exclusions should use conditional compilation instead of producing skipped test results");
+    }
+
+    [Fact]
     public void VisualTreeAnalyzerTests_ShouldNotDocumentStaleDefaultDepth()
     {
         var content = ReadRepoFile("tests/WpfDevTools.Tests.Unit/Inspector/Analyzers/VisualTreeAnalyzerGapTests.cs");

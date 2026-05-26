@@ -27,7 +27,7 @@ public sealed class ConnectToolActiveProcessIntegrationTests : IDisposable
 
         using var liveSession = SecureLiveSession.Create("WpfDevTools_ActiveProcess");
         var sessionManager = liveSession.SessionManager;
-        sessionManager.AddSession(54321);
+        sessionManager.AddSession(Environment.ProcessId);
 
         var connectTool = new ConnectTool(sessionManager, new ProcessInjector(), new WpfProcessDetector(),
             dllPathValidator: TrustedLocalReleaseSignatureSkip.ValidateDllPath,

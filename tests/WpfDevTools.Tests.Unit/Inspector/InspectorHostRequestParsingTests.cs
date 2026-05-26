@@ -97,6 +97,31 @@ public sealed class InspectorHostRequestParsingTests
         response.Error.Message.Should().Contain("correlationId");
     }
 
+    [Fact]
+    public async Task InvalidRequest_WithOversizedNestedParamsString_ShouldRejectBeforeDispatch()
+    {
+        var oversizedPropertyName = new string('p', 257);
+        var requestJson = $$"""
+        {
+          "id": "oversized-param",
+          "method": "ping",
+          "params": {
+            "nested": {
+              "propertyName": "{{oversizedPropertyName}}"
+            }
+          }
+        }
+        """;
+
+        var response = await SendRawRequestAsync(requestJson);
+
+        response.Id.Should().Be("oversized-param");
+        response.Result.Should().BeNull();
+        response.Error.Should().NotBeNull();
+        response.Error!.Code.Should().Be(ErrorCode.InvalidRequest);
+        response.Error.Message.Should().Contain("propertyName");
+    }
+
     private static async Task<InspectorResponse> SendRawRequestAsync(string requestJson)
     {
         var pid = TestHelpers.NextSyntheticProcessId();

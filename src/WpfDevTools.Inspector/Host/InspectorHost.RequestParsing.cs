@@ -83,6 +83,15 @@ public sealed partial class InspectorHost
             return false;
         }
 
+        if (TryGetRequestProperty(root, "params", out var parameters)
+            && parameters.ValueKind != JsonValueKind.Null
+            && !BoundaryJsonStringValidator.TryValidate(parameters, out var parameterError))
+        {
+            errorMessage =
+                $"Invalid request: params.{parameterError.DisplayName} exceeds the maximum length of {parameterError.MaxLength} characters.";
+            return false;
+        }
+
         errorMessage = string.Empty;
         return true;
     }

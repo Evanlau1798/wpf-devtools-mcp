@@ -1,9 +1,19 @@
 [CmdletBinding()]
 param(
-    [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+    [string]$RepoRoot
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $scriptRoot = $PSScriptRoot
+    if ([string]::IsNullOrWhiteSpace($scriptRoot)) {
+        $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+    }
+
+    $RepoRoot = (Resolve-Path (Join-Path $scriptRoot '..\..')).Path
+}
+
 $script:Failures = New-Object System.Collections.Generic.List[string]
 
 function Add-ValidationFailure {

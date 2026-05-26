@@ -24,7 +24,7 @@ public partial class ConnectToolTests
     {
         EnsureDummyBootstrapperExists();
 
-        const int processId = 24681;
+        var processId = Environment.ProcessId;
         var secretFilePath = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-{Guid.NewGuid():N}.bin");
         var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-plaintext-host-{Guid.NewGuid():N}");
         Directory.CreateDirectory(certDirectory);
@@ -55,7 +55,8 @@ public partial class ConnectToolTests
             var tool = CreateTool(sessionManager: sessionManager, injector: injector);
 
             var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
-            await acceptTask;
+            (await Task.WhenAny(acceptTask, Task.Delay(TimeSpan.FromSeconds(5))) == acceptTask)
+                .Should().BeTrue("connect should reach the fake default pipe before reporting secure handshake failure");
 
             var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
             resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
@@ -81,7 +82,7 @@ public partial class ConnectToolTests
     {
         EnsureDummyBootstrapperExists();
 
-        const int processId = 24683;
+        var processId = Environment.ProcessId;
         var secretFilePath = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-{Guid.NewGuid():N}.bin");
         var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-plaintext-timeout-{Guid.NewGuid():N}");
         Directory.CreateDirectory(certDirectory);
@@ -141,7 +142,7 @@ public partial class ConnectToolTests
     {
         EnsureDummyBootstrapperExists();
 
-        const int processId = 24682;
+        var processId = Environment.ProcessId;
         var certDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-auth-mismatch-{Guid.NewGuid():N}");
         Directory.CreateDirectory(certDirectory);
 
@@ -185,7 +186,7 @@ public partial class ConnectToolTests
     {
         EnsureDummyBootstrapperExists();
 
-        const int processId = 24684;
+        var processId = Environment.ProcessId;
         var hostCertDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-host-cert-mismatch-{Guid.NewGuid():N}");
         var clientCertDirectory = Path.Combine(Path.GetTempPath(), $"wpf-devtools-client-cert-mismatch-{Guid.NewGuid():N}");
         Directory.CreateDirectory(hostCertDirectory);

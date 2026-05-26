@@ -18,6 +18,7 @@ internal static partial class DllPathValidator
     private static readonly AsyncLocal<Func<string, ValidatedAuthenticodeSigner?>?> ValidatedSignerOverrideForTestingState = new();
     private static readonly AsyncLocal<ValidatedAuthenticodeSigner?> CurrentProcessReleaseSignerOverrideForTestingState = new();
     private static readonly AsyncLocal<bool?> TrustedLocalDevelopmentBuildOverrideForTestingState = new();
+    private static readonly AsyncLocal<bool?> DebugBuildOverrideForTestingState = new();
 
     internal static Func<string, int>? WinVerifyTrustOverrideForTesting
     {
@@ -43,11 +44,19 @@ internal static partial class DllPathValidator
         set => TrustedLocalDevelopmentBuildOverrideForTestingState.Value = value;
     }
 
+    internal static bool? DebugBuildOverrideForTesting
+    {
+        get => DebugBuildOverrideForTestingState.Value;
+        set => DebugBuildOverrideForTestingState.Value = value;
+    }
+
 #if DEBUG
-    private static readonly bool IsDebugBuild = true;
+    private const bool CompileTimeIsDebugBuild = true;
 #else
-    private static readonly bool IsDebugBuild = false;
+    private const bool CompileTimeIsDebugBuild = false;
 #endif
+
+    private static bool IsDebugBuild => DebugBuildOverrideForTesting ?? CompileTimeIsDebugBuild;
 
     /// <summary>
     /// Validate DLL path to prevent path traversal and untrusted loading.

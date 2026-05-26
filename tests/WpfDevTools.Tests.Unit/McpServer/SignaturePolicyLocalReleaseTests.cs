@@ -10,15 +10,12 @@ public sealed class SignaturePolicyLocalReleaseTests
     private const string ReleaseOnlySignaturePolicyReason =
         "Packaged Release signature enforcement is verified only in Release builds because Debug builds intentionally skip DLL signatures.";
 
-#if DEBUG
-    [Fact(Skip = ReleaseOnlySignaturePolicyReason)]
-#else
     [Fact]
-#endif
     public void GetSignatureAction_ReleaseWorkspaceWithLegacyEnvironmentVariable_ShouldVerify()
     {
         var previousValue = Environment.GetEnvironmentVariable(LegacySkipSignatureCheckEnvironmentVariable);
         var baseDirectory = CreateWorkspaceBuildBaseDirectory(configuration: "Release");
+        using var releasePolicyScope = UseReleaseBuildPolicy();
 
         try
         {
@@ -36,15 +33,12 @@ public sealed class SignaturePolicyLocalReleaseTests
         }
     }
 
-#if DEBUG
-    [Fact(Skip = ReleaseOnlySignaturePolicyReason)]
-#else
     [Fact]
-#endif
     public void GetSignatureAction_ReleaseWorkspaceWithExplicitOverride_ShouldSkipWithoutMutatingEnvironment()
     {
         var previousValue = Environment.GetEnvironmentVariable(LegacySkipSignatureCheckEnvironmentVariable);
         var baseDirectory = CreateWorkspaceBuildBaseDirectory(configuration: "Release");
+        using var releasePolicyScope = UseReleaseBuildPolicy();
 
         try
         {
@@ -65,15 +59,12 @@ public sealed class SignaturePolicyLocalReleaseTests
         }
     }
 
-#if DEBUG
-    [Fact(Skip = ReleaseOnlySignaturePolicyReason)]
-#else
     [Fact]
-#endif
     public void GetSignatureAction_PackagedReleaseDirectoryWithExplicitOverride_ShouldStillVerify()
     {
         var previousValue = Environment.GetEnvironmentVariable(LegacySkipSignatureCheckEnvironmentVariable);
         var baseDirectory = CreatePackagedReleaseBaseDirectory();
+        using var releasePolicyScope = UseReleaseBuildPolicy();
 
         try
         {
@@ -124,6 +115,13 @@ public sealed class SignaturePolicyLocalReleaseTests
     private static void DeleteWorkspace(string baseDirectory)
         => Directory.Delete(GetTempRoot(baseDirectory), recursive: true);
 
+    private static IDisposable UseReleaseBuildPolicy()
+    {
+        var previousValue = DllPathValidator.DebugBuildOverrideForTesting;
+        DllPathValidator.DebugBuildOverrideForTesting = false;
+        return new RestoreAction(() => DllPathValidator.DebugBuildOverrideForTesting = previousValue);
+    }
+
     private static string GetTempRoot(string baseDirectory)
     {
         var directory = new DirectoryInfo(baseDirectory);
@@ -134,5 +132,10 @@ public sealed class SignaturePolicyLocalReleaseTests
         }
 
         return directory.FullName;
+    }
+
+    private sealed class RestoreAction(Action restore) : IDisposable
+    {
+        public void Dispose() => restore();
     }
 }

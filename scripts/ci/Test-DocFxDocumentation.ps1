@@ -33,6 +33,16 @@ function Join-PathMany {
     return $path
 }
 
+function Join-RelativePath {
+    param(
+        [Parameter(Mandatory = $true)] [string]$Root,
+        [Parameter(Mandatory = $true)] [string]$RelativePath
+    )
+
+    $segments = @($RelativePath -split '[\\/]' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    return Join-PathMany -Parts (@($Root) + $segments)
+}
+
 function Get-RelativePath {
     param(
         [Parameter(Mandatory = $true)] [string]$BasePath,
@@ -46,7 +56,7 @@ function Get-RelativePath {
 
     $baseUri = [System.Uri]::new($resolvedBase)
     $pathUri = [System.Uri]::new([System.IO.Path]::GetFullPath($Path))
-    return [System.Uri]::UnescapeDataString($baseUri.MakeRelativeUri($pathUri).ToString()).Replace('/', '\')
+    return [System.Uri]::UnescapeDataString($baseUri.MakeRelativeUri($pathUri).ToString())
 }
 
 function Test-IsUnderDirectory {
@@ -86,7 +96,7 @@ function Test-GeneratedPages {
     foreach ($file in Get-MarkdownFiles -DocfxRoot $DocfxRoot) {
         $relative = Get-RelativePath -BasePath $DocfxRoot -Path $file.FullName
         $expectedRelative = [System.IO.Path]::ChangeExtension($relative, '.html')
-        $expectedHtml = Join-Path $SiteRoot $expectedRelative
+        $expectedHtml = Join-RelativePath -Root $SiteRoot -RelativePath $expectedRelative
         if (-not (Test-Path -LiteralPath $expectedHtml -PathType Leaf)) {
             Add-ValidationFailure "Missing generated DocFX page: $expectedRelative"
         }
@@ -98,16 +108,16 @@ function Test-ZhTwParity {
 
     $files = @(Get-MarkdownFiles -DocfxRoot $DocfxRoot)
     foreach ($file in $files) {
-        $relative = (Get-RelativePath -BasePath $DocfxRoot -Path $file.FullName).Replace('\', '/')
+        $relative = Get-RelativePath -BasePath $DocfxRoot -Path $file.FullName
         if ($relative.StartsWith('zh-tw/', [System.StringComparison]::OrdinalIgnoreCase)) {
             $englishRelative = $relative.Substring('zh-tw/'.Length)
-            $englishPath = Join-Path $DocfxRoot $englishRelative.Replace('/', '\')
+            $englishPath = Join-RelativePath -Root $DocfxRoot -RelativePath $englishRelative
             if (-not (Test-Path -LiteralPath $englishPath -PathType Leaf)) {
                 Add-ValidationFailure "Missing English DocFX page for zh-TW page: $englishRelative"
             }
         }
         else {
-            $zhTwPath = Join-PathMany @($DocfxRoot, 'zh-tw', $relative.Replace('/', '\'))
+            $zhTwPath = Join-RelativePath -Root $DocfxRoot -RelativePath "zh-tw/$relative"
             if (-not (Test-Path -LiteralPath $zhTwPath -PathType Leaf)) {
                 Add-ValidationFailure "Missing zh-TW DocFX page: $relative"
             }
@@ -172,7 +182,7 @@ function Test-GeneratedLinks {
 
     $htmlFiles = @(Get-ChildItem -LiteralPath $SiteRoot -Recurse -File -Filter '*.html' |
         Where-Object {
-            $relative = (Get-RelativePath -BasePath $SiteRoot -Path $_.FullName).Replace('\', '/')
+            $relative = Get-RelativePath -BasePath $SiteRoot -Path $_.FullName
             -not $relative.StartsWith('api/', [System.StringComparison]::OrdinalIgnoreCase)
         })
     foreach ($htmlFile in $htmlFiles) {
@@ -194,12 +204,20 @@ function Test-GeneratedLinks {
                 $htmlFile.FullName
             }
             else {
-                $decodedPath = [System.Uri]::UnescapeDataString($split.Path).Replace('/', '\')
-                if ($decodedPath.EndsWith('\', [System.StringComparison]::Ordinal)) {
-                    $decodedPath = Join-Path $decodedPath 'index.html'
+                $decodedPath = [System.Uri]::UnescapeDataString($split.Path)
+                $basePath = $htmlFile.DirectoryName
+                if ($decodedPath.StartsWith('/', [System.StringComparison]::Ordinal) -or
+                    $decodedPath.StartsWith('\', [System.StringComparison]::Ordinal)) {
+                    $basePath = $SiteRoot
+                    $decodedPath = $decodedPath -replace '^[\\/]+', ''
                 }
 
-                [System.IO.Path]::GetFullPath((Join-Path $htmlFile.DirectoryName $decodedPath))
+                if ($decodedPath.EndsWith('/', [System.StringComparison]::Ordinal) -or
+                    $decodedPath.EndsWith('\', [System.StringComparison]::Ordinal)) {
+                    $decodedPath = "${decodedPath}index.html"
+                }
+
+                [System.IO.Path]::GetFullPath((Join-RelativePath -Root $basePath -RelativePath $decodedPath))
             }
 
             if (-not (Test-IsUnderDirectory -Root $SiteRoot -Path $targetPath)) {

@@ -74,6 +74,17 @@ public sealed class DocfxValidationScriptTests
         }
     }
 
+    [Fact]
+    public void Script_ShouldUsePortableRelativePathJoins()
+    {
+        var content = File.ReadAllText(ScriptPath);
+
+        content.Should().NotContain("Replace('/', '\\')",
+            "DocFX validation must not normalize canonical relative paths to Windows-only separators");
+        content.Should().NotContain("Join-Path $SiteRoot $expectedRelative",
+            "relative paths that may contain separators should be joined segment-by-segment");
+    }
+
     private static string CreateFixture()
         => Path.Combine(Path.GetTempPath(), $"wpf-devtools-docfx-validation-{Guid.NewGuid():N}");
 

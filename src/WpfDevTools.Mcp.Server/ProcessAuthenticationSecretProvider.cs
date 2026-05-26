@@ -44,9 +44,10 @@ internal sealed class ProcessAuthenticationSecretProvider
             var effectivePipeName = string.IsNullOrWhiteSpace(pipeName)
                 ? $"WpfDevTools_{processId}"
                 : pipeName;
-            var processIdentity = _processIdentityProvider(processId);
+            var processIdentity = GetRequiredProcessIdentity(processId);
+            var startTimeUtcTicks = processIdentity.StartTimeUtcTicks.GetValueOrDefault();
             context = Encoding.UTF8.GetBytes(
-                $"{DerivationPurpose}|build={BuildFingerprint}|pid={processId}|pipe={effectivePipeName}|startTicks={FormatStartTicks(processIdentity)}");
+                $"{DerivationPurpose}|build={BuildFingerprint}|pid={processId}|pipe={effectivePipeName}|startTicks={startTimeUtcTicks.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
             using var hmac = new HMACSHA256(rootSecret);
             derivedSecret = hmac.ComputeHash(context);
             return Convert.ToBase64String(derivedSecret);
@@ -74,8 +75,17 @@ internal sealed class ProcessAuthenticationSecretProvider
             : new AuthenticationManager(() => secretBase64);
     }
 
-    private static string FormatStartTicks(ProcessIdentity? identity)
-        => identity?.StartTimeUtcTicks?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unknown";
+    private ProcessIdentity GetRequiredProcessIdentity(int processId)
+    {
+        var identity = _processIdentityProvider(processId);
+        if (identity is not { StartTimeUtcTicks: not null } || identity.Value.ProcessId != processId)
+        {
+            throw new InvalidOperationException(
+                "Cannot derive a process-scoped authentication secret because the target process identity is incomplete.");
+        }
+
+        return identity.Value;
+    }
 
     internal readonly record struct ProcessIdentity(
         int ProcessId,

@@ -120,11 +120,10 @@ public sealed partial class SessionManager
             return false;
         }
 
-        if (session.ProcessIdentity == null
-            || session.ProcessIdentity.Value.StartTimeUtcTicks == null
+        if (session.ProcessIdentity?.StartTimeUtcTicks == null
             || currentIdentity.Value.StartTimeUtcTicks == null)
         {
-            return currentIdentity.Value.ProcessId == session.ProcessId;
+            return false;
         }
 
         return currentIdentity.Value.Equals(session.ProcessIdentity.Value);

@@ -30,7 +30,10 @@ public partial class ConnectToolTests
         Directory.CreateDirectory(certDirectory);
         try
         {
-            using var sessionManager = new SessionManager(authManager: authManager, certManager: new CertificateManager(certDirectory));
+            using var sessionManager = CreateSecureSessionManager(
+                authManager,
+                new CertificateManager(certDirectory),
+                processId: 12345);
             var injector = new FakeProcessInjector
             {
                 ShouldFailInjection = true,
@@ -44,7 +47,7 @@ public partial class ConnectToolTests
             var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
             resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
             injector.LastInjectionRequest.Should().NotBeNull();
-            var expectedAuthSecret = new ProcessAuthenticationSecretProvider(authManager)
+            var expectedAuthSecret = CreateExpectedSecretProvider(authManager)
                 .GetAuthenticationSecretBase64(12345, injector.LastInjectionRequest!.ExpectedPipeName);
             injector.LastInjectionRequest!.AuthenticationSecretBase64.Should().Be(expectedAuthSecret);
             injector.LastInjectionRequest.AuthenticationSecretBase64.Should().NotBe(authSecret);
@@ -79,9 +82,10 @@ public partial class ConnectToolTests
         var expectedCertDirectory = transportSecurity.CertificateManager.CertificateDirectory;
         try
         {
-            using var sessionManager = new SessionManager(
-                authManager: transportSecurity.AuthenticationManager,
-                certManager: transportSecurity.CertificateManager);
+            using var sessionManager = CreateSecureSessionManager(
+                transportSecurity.AuthenticationManager,
+                transportSecurity.CertificateManager,
+                processId: 12345);
             var injector = new FakeProcessInjector
             {
                 ShouldFailInjection = true,
@@ -95,7 +99,7 @@ public partial class ConnectToolTests
             var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
             resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
             injector.LastInjectionRequest.Should().NotBeNull();
-            var expectedAuthSecret = new ProcessAuthenticationSecretProvider(transportSecurity.AuthenticationManager)
+            var expectedAuthSecret = CreateExpectedSecretProvider(transportSecurity.AuthenticationManager)
                 .GetAuthenticationSecretBase64(12345, injector.LastInjectionRequest!.ExpectedPipeName);
             injector.LastInjectionRequest!.AuthenticationSecretBase64.Should().Be(expectedAuthSecret);
             injector.LastInjectionRequest.CertificateDirectory.Should().Be(expectedCertDirectory);
@@ -118,6 +122,32 @@ public partial class ConnectToolTests
                 Directory.Delete(expectedCertDirectory, recursive: true);
             }
         }
+    }
+
+    [Fact]
+    public async Task Execute_WhenProcessScopedIdentityIsIncomplete_ShouldFailClosedWithoutInjection()
+    {
+        EnsureDummyBootstrapperExists();
+
+        var authSecret = Convert.ToBase64String(new byte[32]);
+        using var authManager = new AuthenticationManager(() => authSecret);
+        using var sessionManager = new SessionManager(
+            McpServerConfiguration.RateLimitRequestsPerMinute,
+            authManager,
+            certManager: null,
+            utcNowProvider: null,
+            processIdentityProvider: processId => new SessionManager.ProcessIdentity(
+                processId,
+                StartTimeUtcTicks: null));
+        var injector = new FakeProcessInjector();
+        var tool = CreateTool(sessionManager: sessionManager, injector: injector);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var payload = JsonSerializer.SerializeToElement(result);
+        payload.GetProperty("success").GetBoolean().Should().BeFalse();
+        payload.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+        injector.InjectWithBootstrapCallCount.Should().Be(0);
     }
 
     [Fact]
@@ -193,4 +223,24 @@ public partial class ConnectToolTests
             }
         }
     }
+
+    private static SessionManager CreateSecureSessionManager(
+        AuthenticationManager authManager,
+        CertificateManager certificateManager,
+        int processId)
+        => new(
+            McpServerConfiguration.RateLimitRequestsPerMinute,
+            authManager,
+            certificateManager,
+            utcNowProvider: null,
+            processIdentityProvider: candidateProcessId => candidateProcessId == processId
+                ? new SessionManager.ProcessIdentity(candidateProcessId, StartTimeUtcTicks: 1_000_000 + candidateProcessId)
+                : null);
+
+    private static ProcessAuthenticationSecretProvider CreateExpectedSecretProvider(AuthenticationManager authManager)
+        => new(
+            authManager,
+            processId => new ProcessAuthenticationSecretProvider.ProcessIdentity(
+                processId,
+                StartTimeUtcTicks: 1_000_000 + processId));
 }

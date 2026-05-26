@@ -11,7 +11,7 @@ public sealed class ProcessAuthenticationSecretProviderTests
     public void GetAuthenticationSecretBase64_WithDifferentProcesses_ShouldReturnDifferentSecrets()
     {
         using var rootAuthentication = CreateRootAuthenticationManager();
-        var provider = new ProcessAuthenticationSecretProvider(rootAuthentication);
+        var provider = CreateProvider(rootAuthentication);
 
         var firstSecret = provider.GetAuthenticationSecretBase64(101);
         var secondSecret = provider.GetAuthenticationSecretBase64(202);
@@ -27,7 +27,7 @@ public sealed class ProcessAuthenticationSecretProviderTests
     public void GetAuthenticationSecretBase64_WithSameProcess_ShouldBeStable()
     {
         using var rootAuthentication = CreateRootAuthenticationManager();
-        var provider = new ProcessAuthenticationSecretProvider(rootAuthentication);
+        var provider = CreateProvider(rootAuthentication);
 
         provider.GetAuthenticationSecretBase64(303)
             .Should().Be(provider.GetAuthenticationSecretBase64(303));
@@ -37,7 +37,7 @@ public sealed class ProcessAuthenticationSecretProviderTests
     public void GetAuthenticationSecretBase64_WithSameProcessDifferentPipeNames_ShouldReturnDifferentSecrets()
     {
         using var rootAuthentication = CreateRootAuthenticationManager();
-        var provider = new ProcessAuthenticationSecretProvider(rootAuthentication);
+        var provider = CreateProvider(rootAuthentication);
 
         var firstSecret = provider.GetAuthenticationSecretBase64(303, "WpfDevTools_303_first");
         var secondSecret = provider.GetAuthenticationSecretBase64(303, "WpfDevTools_303_second");
@@ -69,10 +69,26 @@ public sealed class ProcessAuthenticationSecretProviderTests
     }
 
     [Fact]
+    public void GetAuthenticationSecretBase64_WhenProcessIdentityIsIncomplete_ShouldFailClosed()
+    {
+        using var rootAuthentication = CreateRootAuthenticationManager();
+        var provider = new ProcessAuthenticationSecretProvider(
+            rootAuthentication,
+            processId => new ProcessAuthenticationSecretProvider.ProcessIdentity(
+                processId,
+                StartTimeUtcTicks: null));
+
+        var act = () => provider.GetAuthenticationSecretBase64(303, "WpfDevTools_303_reused");
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*process identity*");
+    }
+
+    [Fact]
     public void GetAuthenticationSecretBase64_WithDifferentProcesses_ShouldPreventCrossTargetResponses()
     {
         using var rootAuthentication = CreateRootAuthenticationManager();
-        var provider = new ProcessAuthenticationSecretProvider(rootAuthentication);
+        var provider = CreateProvider(rootAuthentication);
         var firstSecret = Convert.FromBase64String(provider.GetAuthenticationSecretBase64(101)!);
         var secondSecret = Convert.FromBase64String(provider.GetAuthenticationSecretBase64(202)!);
         var challenge = RandomNumberGenerator.GetBytes(32);
@@ -88,7 +104,7 @@ public sealed class ProcessAuthenticationSecretProviderTests
     public void SessionManager_GetAuthenticationSecretBase64_ShouldScopeSecretToProcess()
     {
         using var rootAuthentication = CreateRootAuthenticationManager();
-        using var sessionManager = new SessionManager(authManager: rootAuthentication);
+        using var sessionManager = CreateSessionManager(rootAuthentication);
 
         sessionManager.GetAuthenticationSecretBase64(101)
             .Should().NotBe(sessionManager.GetAuthenticationSecretBase64(202));
@@ -98,7 +114,7 @@ public sealed class ProcessAuthenticationSecretProviderTests
     public void SessionManager_GetAuthenticationSecretBase64_WithPipeName_ShouldScopeSecretToPipeInstance()
     {
         using var rootAuthentication = CreateRootAuthenticationManager();
-        using var sessionManager = new SessionManager(authManager: rootAuthentication);
+        using var sessionManager = CreateSessionManager(rootAuthentication);
 
         sessionManager.GetAuthenticationSecretBase64(101, "WpfDevTools_101_first")
             .Should().NotBe(sessionManager.GetAuthenticationSecretBase64(101, "WpfDevTools_101_second"));
@@ -114,4 +130,21 @@ public sealed class ProcessAuthenticationSecretProviderTests
 
         return new AuthenticationManager(() => Convert.ToBase64String(rootSecret));
     }
+
+    private static ProcessAuthenticationSecretProvider CreateProvider(AuthenticationManager rootAuthentication)
+        => new(
+            rootAuthentication,
+            processId => new ProcessAuthenticationSecretProvider.ProcessIdentity(
+                processId,
+                StartTimeUtcTicks: 1_000_000 + processId));
+
+    private static SessionManager CreateSessionManager(AuthenticationManager rootAuthentication)
+        => new(
+            McpServerConfiguration.RateLimitRequestsPerMinute,
+            authManager: rootAuthentication,
+            certManager: null,
+            utcNowProvider: null,
+            processIdentityProvider: processId => new SessionManager.ProcessIdentity(
+                processId,
+                StartTimeUtcTicks: 1_000_000 + processId));
 }

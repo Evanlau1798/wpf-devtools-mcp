@@ -89,6 +89,26 @@ public class SessionManagerConcurrencyTests
     }
 
     [Fact]
+    public void CleanupDeadSessions_ShouldRemoveSessionWhenCurrentProcessIdentityIsIncomplete()
+    {
+        var processId = 123460;
+        var currentIdentity = new SessionManager.ProcessIdentity(
+            processId,
+            StartTimeUtcTicks: 100);
+        using var manager = CreateManagerWithProcessIdentityProvider(_ => currentIdentity);
+
+        manager.AddSession(processId);
+        currentIdentity = new SessionManager.ProcessIdentity(
+            processId,
+            StartTimeUtcTicks: null);
+
+        manager.CleanupDeadSessions();
+
+        manager.HasSession(processId).Should().BeFalse(
+            "PID-only identity is not enough to prove the session still belongs to the same process instance");
+    }
+
+    [Fact]
     public void CleanupDeadSessions_ShouldNotRemoveReplacementSessionForSamePid()
     {
         var processId = 123458;

@@ -265,8 +265,26 @@ public sealed partial class ConnectTool
 
         _dllPathValidator(injectionRequest.InspectorDllPath);
         _dllPathValidator(injectionRequest.BootstrapperDllPath);
-        injectionRequest = injectionRequest.WithAuthenticationSecretBase64(
-            _sessionManager.GetAuthenticationSecretBase64(processId, injectionRequest.ExpectedPipeName));
+        string? authenticationSecretBase64;
+        try
+        {
+            authenticationSecretBase64 = _sessionManager.GetAuthenticationSecretBase64(
+                processId,
+                injectionRequest.ExpectedPipeName);
+        }
+        catch (InvalidOperationException ex) when (ex is not ObjectDisposedException)
+        {
+            injectionRequest = null;
+            return new
+            {
+                success = false,
+                error = ex.Message,
+                errorCode = "SecurityError",
+                hint = "Retry after the target process identity can be resolved. Process-scoped secure bootstrap is fail-closed when PID reuse cannot be ruled out."
+            };
+        }
+
+        injectionRequest = injectionRequest.WithAuthenticationSecretBase64(authenticationSecretBase64);
         return null;
     }
 

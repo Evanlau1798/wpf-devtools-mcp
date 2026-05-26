@@ -47,10 +47,12 @@ internal static class CanonicalMcpToolManifest
             .ToArray();
         var inputHashSource = string.Join("|", parameters.Select(parameter =>
             $"{parameter.name}:{parameter.type}:{parameter.required}:{parameter.defaultValue}:{parameter.description}"));
+        var toolName = attribute.Name!;
+        var outputSchemaStatus = McpToolOutputSchemas.GetSchemaStatus(toolName);
 
         return new
         {
-            name = attribute.Name,
+            name = toolName,
             title = attribute.Title,
             bridgeFile = $"src/WpfDevTools.Mcp.Server/McpTools/{type.Name}.cs",
             method = $"{type.FullName}.{method.Name}",
@@ -60,8 +62,8 @@ internal static class CanonicalMcpToolManifest
             parameters,
             requiredParameters,
             inputSchemaHash = Sha256(inputHashSource),
-            outputSchemaStatus = "generic-structured-payload",
-            outputSchemaHash = Sha256("generic-structured-payload:" + resourceUri),
+            outputSchemaStatus,
+            outputSchemaHash = Sha256(McpToolOutputSchemas.GetSchemaHashSource(toolName)),
             examplesStatus = description.Contains("EXAMPLES:", StringComparison.Ordinal)
                 ? "embedded-description"
                 : "missing-description-examples",

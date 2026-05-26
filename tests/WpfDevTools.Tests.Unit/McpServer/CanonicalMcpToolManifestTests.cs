@@ -109,6 +109,33 @@ public sealed class CanonicalMcpToolManifestTests
         AssertTags(tools, "batch_mutate", "state-consuming");
     }
 
+    [Fact]
+    public void ToolManifestResource_ShouldExposeExactOutputSchemaStatusForHighValueTools()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
+        var tools = document.RootElement.GetProperty("tools").EnumerateArray().ToArray();
+
+        foreach (var toolName in new[]
+                 {
+                     "connect",
+                     "get_processes",
+                     "get_ui_summary",
+                     "get_element_snapshot",
+                     "get_bindings",
+                     "get_binding_errors",
+                     "capture_state_snapshot",
+                     "get_state_diff",
+                     "restore_state_snapshot",
+                     "batch_mutate",
+                     "element_screenshot"
+                 })
+        {
+            var tool = tools.Single(entry => GetName(entry) == toolName);
+            tool.GetProperty("outputSchemaStatus").GetString().Should().Be("exact-tool-output-schema");
+            tool.GetProperty("outputSchemaHash").GetString().Should().HaveLength(64);
+        }
+    }
+
     private static (string Name, McpServerToolAttribute Attribute)[] GetRegisteredTools()
     {
         return typeof(ProcessMcpTools).Assembly.GetTypes()

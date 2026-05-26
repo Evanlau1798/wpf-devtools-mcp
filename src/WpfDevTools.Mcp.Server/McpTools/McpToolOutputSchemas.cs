@@ -26,6 +26,21 @@ internal static class McpToolOutputSchemas
             : StructuredPayloadSchema.Clone();
     }
 
+    internal static string GetSchemaStatus(string toolName)
+        => HighValueSchemas.ContainsKey(toolName)
+            ? "exact-tool-output-schema"
+            : "generic-structured-payload";
+
+    internal static string GetSchemaHashSource(string toolName)
+    {
+        var status = GetSchemaStatus(toolName);
+        var schema = HighValueSchemas.TryGetValue(toolName, out var highValueSchema)
+            ? highValueSchema
+            : StructuredPayloadSchema;
+
+        return status + ":" + schema.GetRawText();
+    }
+
     private static Dictionary<string, JsonElement> CreateHighValueSchemas()
         => new(StringComparer.Ordinal)
         {

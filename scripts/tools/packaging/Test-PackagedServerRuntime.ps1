@@ -266,6 +266,7 @@ if ($TargetProcessId -gt 0) {
     $startInfo.Environment['WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS'] = $resolvedTargetProcessPath
     $startInfo.Environment['WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS'] = 'true'
     $startInfo.Environment['WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS'] = 'true'
+    $startInfo.Environment['WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE'] = 'true'
 }
 
 $process = New-Object System.Diagnostics.Process

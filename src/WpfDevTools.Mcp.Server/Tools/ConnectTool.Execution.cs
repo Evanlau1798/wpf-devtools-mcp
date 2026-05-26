@@ -166,6 +166,11 @@ public sealed partial class ConnectTool
         TimeSpan elapsedBeforeProbe,
         CancellationToken cancellationToken)
     {
+        if (ShouldSkipExistingHostReuseForRawInjection(context))
+        {
+            return null;
+        }
+
         var existingHostProbeBudget = context.LikelySdkOnlyPackaging
             ? (context.IsRawInjectionTargetAllowed
                 ? _connectTimeout

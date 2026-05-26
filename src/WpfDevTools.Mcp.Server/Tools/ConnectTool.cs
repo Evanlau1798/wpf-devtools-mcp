@@ -384,6 +384,16 @@ public sealed partial class ConnectTool
     private static bool IsFreshInjectionRecoverableExistingHostFailure(NamedPipeConnectFailure failure)
         => failure == NamedPipeConnectFailure.IncompatibleHost;
 
+    private static bool ShouldSkipExistingHostReuseForRawInjection(ConnectTargetContext context)
+        => context.IsRawInjectionTargetAllowed
+            && !context.LikelySdkOnlyPackaging
+            && IsEnvironmentFlagEnabled(Environment.GetEnvironmentVariable(
+                McpServerConfiguration.SkipExistingHostReuseEnvVar));
+
+    private static bool IsEnvironmentFlagEnabled(string? value)
+        => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "1", StringComparison.OrdinalIgnoreCase);
+
 
 
 

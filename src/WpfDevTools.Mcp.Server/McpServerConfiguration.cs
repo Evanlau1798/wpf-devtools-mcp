@@ -12,6 +12,7 @@ public static class McpServerConfiguration
     public const string AllowScreenshotsEnvVar = "WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS";
     public const string AllowViewModelInspectionEnvVar = "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION";
     public const string AllowSensitiveReadsEnvVar = "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS";
+    public const string SkipExistingHostReuseEnvVar = "WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE";
     public const string RateLimitRequestsPerMinuteEnvVar = "WPFDEVTOOLS_RATE_LIMIT_RPM";
     public const string TextFallbackModeEnvVar = "WPFDEVTOOLS_TEXT_FALLBACK_MODE";
 

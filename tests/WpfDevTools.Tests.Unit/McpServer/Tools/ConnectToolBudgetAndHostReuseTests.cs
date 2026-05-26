@@ -254,6 +254,40 @@ public partial class ConnectToolTests
         injector.InjectWithBootstrapCallCount.Should().Be(1);
     }
 
+    [Fact]
+    public async Task Execute_WhenExistingHostReuseIsDisabledForRawAllowedTarget_ShouldInjectFreshHost()
+    {
+        EnsureDummyBootstrapperExists();
+
+        var previous = Environment.GetEnvironmentVariable("WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE");
+        Environment.SetEnvironmentVariable("WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE", "true");
+        try
+        {
+            var injector = new FakeProcessInjector();
+            var probe = new PipeReadyProbe(
+                (_, _) => throw new InvalidOperationException("Existing host probe should be skipped."),
+                () => DateTime.UtcNow,
+                _ => { });
+            var tool = CreateTool(
+                injector: injector,
+                pipeReadyProbe: probe,
+                connectInjectedSessionAsync: (_, _, _) => Task.FromResult(NamedPipeConnectFailure.None));
+
+            var result = await tool.ExecuteAsync(
+                ToJsonElement(new { processId = Environment.ProcessId }),
+                CancellationToken.None);
+
+            var payload = JsonSerializer.Serialize(result);
+            var resultJson = JsonSerializer.Deserialize<JsonElement>(payload);
+            resultJson.GetProperty("success").GetBoolean().Should().BeTrue(payload);
+            injector.InjectWithBootstrapCallCount.Should().Be(1);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE", previous);
+        }
+    }
+
     private static NamedPipeServerStream CreateIncompatibleExistingHost(int processId, string pipeName)
     {
         var server = new NamedPipeServerStream(

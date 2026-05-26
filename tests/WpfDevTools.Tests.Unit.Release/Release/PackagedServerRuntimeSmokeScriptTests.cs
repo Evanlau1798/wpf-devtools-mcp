@@ -17,6 +17,7 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
         script.Should().Contain("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS");
         script.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS");
         script.Should().Contain("connect");
+        script.Should().Contain("WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE");
         script.Should().Contain("get_ui_summary");
         script.Should().Contain("FocusStatusTextBlock");
         script.Should().NotContain("NameTextBox");

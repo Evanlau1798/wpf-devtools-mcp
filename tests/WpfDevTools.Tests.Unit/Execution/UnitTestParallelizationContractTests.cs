@@ -310,6 +310,7 @@ public sealed class UnitTestParallelizationContractTests
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.TraceRoutedEventsToolReplayTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ConnectToolTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ConnectToolConcurrencyTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ConnectToolRawInjectionIdentityTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InspectorHostObservabilityTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(EncryptedCommunicationTests)).Should().Be("TimingSensitive");
     }

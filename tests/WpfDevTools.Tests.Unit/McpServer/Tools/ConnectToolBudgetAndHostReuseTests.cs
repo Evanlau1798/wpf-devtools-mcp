@@ -288,6 +288,40 @@ public partial class ConnectToolTests
         }
     }
 
+    [Fact]
+    public async Task Execute_WhenExistingHostReuseIsDisabledButRawTargetDenied_ShouldFailClosedWithoutProbe()
+    {
+        EnsureDummyBootstrapperExists();
+
+        var previous = Environment.GetEnvironmentVariable("WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE");
+        Environment.SetEnvironmentVariable("WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE", "true");
+        try
+        {
+            var injector = new FakeProcessInjector();
+            var probe = new PipeReadyProbe(
+                (_, _) => throw new InvalidOperationException("Existing host probe should be skipped."),
+                () => DateTime.UtcNow,
+                _ => { });
+            var tool = CreateTool(
+                injector: injector,
+                pipeReadyProbe: probe,
+                isRawInjectionTargetAllowed: _ => false);
+
+            var result = await tool.ExecuteAsync(
+                ToJsonElement(new { processId = Environment.ProcessId }),
+                CancellationToken.None);
+
+            var payload = JsonSerializer.SerializeToElement(result);
+            payload.GetProperty("success").GetBoolean().Should().BeFalse();
+            payload.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+            injector.InjectWithBootstrapCallCount.Should().Be(0);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE", previous);
+        }
+    }
+
     private static NamedPipeServerStream CreateIncompatibleExistingHost(int processId, string pipeName)
     {
         var server = new NamedPipeServerStream(

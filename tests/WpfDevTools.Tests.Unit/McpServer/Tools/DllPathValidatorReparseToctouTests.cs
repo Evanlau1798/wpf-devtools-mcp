@@ -11,13 +11,18 @@ public sealed class DllPathValidatorReparseToctouTests
     {
         var dllPath = Path.Combine(AppContext.BaseDirectory, "WpfDevTools.Inspector.dll");
         var previousDetector = DllPathValidator.ReparsePointChainDetectorOverrideForTesting;
+        var previousTrustedLocalBuild = DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting;
         var calls = 0;
 
         try
         {
             DllPathValidator.ReparsePointChainDetectorOverrideForTesting = _ => ++calls >= 2;
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = true;
 
-            var act = () => DllPathValidator.ValidateDllPath(dllPath);
+            var act = () => DllPathValidator.ValidateDllPath(
+                dllPath,
+                AppContext.BaseDirectory,
+                trustedLocalDevelopmentSkipOptIn: true);
 
             act.Should().Throw<ArgumentException>()
                 .WithMessage("*reparse point*");
@@ -26,6 +31,7 @@ public sealed class DllPathValidatorReparseToctouTests
         finally
         {
             DllPathValidator.ReparsePointChainDetectorOverrideForTesting = previousDetector;
+            DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = previousTrustedLocalBuild;
         }
     }
 }

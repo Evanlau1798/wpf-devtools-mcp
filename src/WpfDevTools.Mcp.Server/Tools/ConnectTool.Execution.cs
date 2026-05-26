@@ -166,7 +166,7 @@ public sealed partial class ConnectTool
         TimeSpan elapsedBeforeProbe,
         CancellationToken cancellationToken)
     {
-        if (ShouldSkipExistingHostReuseForRawInjection(context))
+        if (ShouldSkipExistingHostReuse())
         {
             return null;
         }

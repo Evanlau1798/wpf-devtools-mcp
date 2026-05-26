@@ -83,6 +83,23 @@ public sealed class GitHubReleaseWorkflowTests
     }
 
     [Fact]
+    public void ReleaseWorkflow_ShouldVerifyFullUninstallResidueForStagedAssetsBeforeUpload()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/release.yml"));
+
+        content.Should().Contain("Full uninstall staged installed x64 package residue test");
+        content.Should().Contain("Full uninstall staged x64 online installer residue test");
+        content.Should().Contain("Full uninstall staged installed ARM64 package residue test");
+        content.Should().Contain("Full uninstall staged ARM64 online installer residue test");
+        content.Should().Contain("Test-InstallResidue.ps1",
+            "signed staged packages must prove installer-owned files and generated registrations are removed before upload");
+        content.Should().Contain("-Action full-uninstall",
+            "release validation should use the supported full-uninstall action instead of ad hoc cleanup");
+        content.Should().Contain("-InstallRoot './tmp-release-install-smoke'");
+        content.Should().Contain("-InstallRoot './tmp-release-bootstrap-smoke'");
+    }
+
+    [Fact]
     public void ReleaseWorkflow_ShouldProvideExecutableSigningInputsToPackaging()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/release.yml"));

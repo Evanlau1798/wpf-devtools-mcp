@@ -254,6 +254,12 @@ jobs:
 
           & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
 
+      - name: Full uninstall staged installed x64 package residue test
+        shell: pwsh
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture 'x64'
+
       - name: Uninstall staged x64 online installer smoke test
         shell: pwsh
         run: |
@@ -264,6 +270,12 @@ jobs:
           }
 
           & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
+
+      - name: Full uninstall staged x64 online installer residue test
+        shell: pwsh
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x64'
 
   validate-arm64-release-assets:
     if: vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE == 'true'
@@ -362,6 +374,12 @@ jobs:
 
           & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
 
+      - name: Full uninstall staged installed ARM64 package residue test
+        shell: pwsh
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64'
+
       - name: Uninstall staged ARM64 online installer smoke test
         shell: pwsh
         run: |
@@ -372,6 +390,12 @@ jobs:
           }
 
           & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+
+      - name: Full uninstall staged ARM64 online installer residue test
+        shell: pwsh
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64'
 
   upload-release-assets:
     needs:

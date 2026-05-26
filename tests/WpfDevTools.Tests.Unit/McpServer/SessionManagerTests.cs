@@ -14,14 +14,15 @@ public class SessionManagerTests
         // Arrange
         var authManager = new AuthenticationManager(() => Convert.ToBase64String(new byte[32]));
         using var sm = new SessionManager(authManager: authManager);
+        var processId = Environment.ProcessId;
 
         // Act
-        sm.AddSession(99999);
-        var client = sm.GetPipeClient(99999);
+        sm.AddSession(processId);
+        var client = sm.GetPipeClient(processId);
 
         // Assert
         client.Should().NotBeNull();
-        sm.RemoveSession(99999);
+        sm.RemoveSession(processId);
     }
 
     [Fact]

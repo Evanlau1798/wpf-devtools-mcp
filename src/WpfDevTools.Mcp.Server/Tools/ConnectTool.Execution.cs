@@ -84,16 +84,6 @@ public sealed partial class ConnectTool
         return null;
     }
 
-    private object? CheckConnectRateLimit(int processId)
-    {
-        var rateLimitStatus = _sessionManager.CheckRateLimitStatus(processId);
-        return rateLimitStatus.Allowed
-            ? null
-            : RateLimitResponseFactory.Create(
-                rateLimitStatus,
-                "Rate limit exceeded for connect operations. Please slow down your requests.");
-    }
-
     private object? AuthorizeTarget(int processId, WpfProcessInfo processInfo)
     {
         var targetAuthorization = _targetPolicy(processInfo);
@@ -500,9 +490,4 @@ public sealed partial class ConnectTool
         }
     }
 
-    private sealed record ConnectTargetContext(
-        WpfProcessInfo ProcessInfo,
-        ProcessConnectionAccess Access,
-        bool LikelySdkOnlyPackaging,
-        bool IsRawInjectionTargetAllowed);
 }

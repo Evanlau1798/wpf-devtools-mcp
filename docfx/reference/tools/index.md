@@ -77,7 +77,7 @@ Key capabilities worth learning early:
 
 - Structured clients should read `result.structuredContent` as the canonical wire payload.
 - High-value tool descriptions in `tools/list` are intentionally brief discovery hints; use `wpf://contracts/response` for stable field-level contracts instead of relying on long inline prose.
-- `tools/list` advertises an `outputSchema` for the common `result.structuredContent` payload fields, including `success`, `navigation`, and common identifiers such as `processId`. Claude-compatible client smoke tests should validate discovery against this structured-output metadata shape.
+- `tools/list` advertises exact `outputSchema` shapes for high-value tools such as `connect`, `get_processes`, `get_ui_summary`, `get_element_snapshot`, state snapshot/restore, batch mutation, and screenshots. Other tools inherit the common structured payload schema with stable fields such as `success`, `navigation`, and common identifiers.
 - Need a machine-readable contract? Read MCP resource `wpf://contracts/response`. It publishes the stable detailed WPF payload contract for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, and the `get_binding_errors` `navigation=false` opt-out beyond the common `tools/list` schema.
 - Need canonical tool metadata? Read MCP resource `wpf://contracts/tools`. It publishes the machine-readable JSON manifest for tool names, categories, safety flags, capability tags, and parameter metadata.
 - `result.content[0].text` is a compact JSON fallback that preserves high-signal top-level scalar fields and collection counts, not a duplicate transport of the full JSON object. Set `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` only for legacy text-only MCP clients that require the full JSON payload in `result.content[0].text`; error results include `result.content[0].annotations`.
@@ -87,7 +87,7 @@ Key capabilities worth learning early:
 
 These values are generated from the runtime MCP contract resources. If a tool is added or renamed, a method signature changes, policy gates move, or response fields change, the documentation tests require this snapshot to be regenerated.
 
-- `wpf://contracts/tools` SHA-256: `dcb7d0feadad0c16ce4236ebdfa6821144ffc5dc983f8aed6732f6a1ba376183`
+- `wpf://contracts/tools` SHA-256: `af8988ca50da44f9415fb49dc5799f8f11106e9b754e87a33f76fc3d9aa54681`
 - `wpf://contracts/response` SHA-256: `d7efc51f35e5041f214b92f94379405b30a585921e1db320c8743669e8de0c40`
 - Validation scope: `toolCount`, `name`, `title`, `parameters`, `requiredParameters`, `inputSchemaHash`, `outputSchemaHash`, `capabilityTags`, `policyCapabilityTags`, `annotations`, `parameterConstraints`, `parameterVocabularies`, and `highValueTools`.
 

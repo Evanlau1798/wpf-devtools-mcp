@@ -76,7 +76,7 @@
 ## 回應形狀補充
 
 - 支援 structured content 的 client 應以 `result.structuredContent` 作為正式 wire payload。
-- `tools/list` 會公告共用 `result.structuredContent` payload 欄位的 `outputSchema`，包含 `success`、`navigation`，以及 `processId` 這類常見識別欄位。Claude-compatible client smoke test 應針對這個 structured-output metadata shape 驗證 discovery。
+- `tools/list` 會針對 `connect`、`get_processes`、`get_ui_summary`、`get_element_snapshot`、state snapshot/restore、batch mutation 與 screenshot 等 high-value tools 公告更精確的 `outputSchema`。其他工具仍繼承共用 structured payload schema，包含 `success`、`navigation` 與常見識別欄位。
 - 如果 client 需要 machine-readable contract，請直接讀取 MCP resource `wpf://contracts/response`。它會提供比共用 `tools/list` schema 更完整的 WPF payload contract，涵蓋 `structuredContent`、`navigation`、`nextSteps`、`contextRefs`，以及 `get_binding_errors` `navigation=false` opt-out。
 - 如果需要 canonical tool metadata，請讀取 MCP resource `wpf://contracts/tools`。它會提供 tool name、category、safety flag、capability tags 與 parameter metadata 的 machine-readable JSON manifest。
 - `result.content[0].text` 是精簡的 JSON fallback，會保留高訊號的 top-level scalar 欄位與集合計數摘要，而不是完整 JSON 的重複傳輸。只有 legacy text-only MCP client 需要在 `result.content[0].text` 取得完整 JSON 時，才設定 `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full`；error results include `result.content[0].annotations`。
@@ -86,7 +86,7 @@
 
 這些值由 runtime MCP contract resources 產生。當 tool 新增或改名、method signature 變更、policy gate 移動，或 response fields 變更時，文件測試會要求同步更新此 snapshot。
 
-- `wpf://contracts/tools` SHA-256: `dcb7d0feadad0c16ce4236ebdfa6821144ffc5dc983f8aed6732f6a1ba376183`
+- `wpf://contracts/tools` SHA-256: `af8988ca50da44f9415fb49dc5799f8f11106e9b754e87a33f76fc3d9aa54681`
 - `wpf://contracts/response` SHA-256: `d7efc51f35e5041f214b92f94379405b30a585921e1db320c8743669e8de0c40`
 - Validation scope: `toolCount`、`name`、`title`、`parameters`、`requiredParameters`、`inputSchemaHash`、`outputSchemaHash`、`capabilityTags`、`policyCapabilityTags`、`annotations`、`parameterConstraints`、`parameterVocabularies` 與 `highValueTools`。
 

@@ -72,6 +72,21 @@ public sealed class McpToolOutputSchemaTests
         }
     }
 
+    [Theory]
+    [MemberData(nameof(HighValueToolFields))]
+    public void HighValueTools_ShouldNotExposeArbitraryNestedObjectSchemas(string toolName, string[] _)
+    {
+        var tool = CreateTool(toolName);
+
+        McpToolOutputSchemas.Apply(tool);
+
+        var violations = new List<string>();
+        CollectLooseSchemaViolations(tool.OutputSchema!.Value, "$", violations);
+
+        violations.Should().BeEmpty(
+            $"{toolName} is advertised as an exact high-value output schema and should describe nested object and array shapes");
+    }
+
     [Fact]
     public void NonHighValueTools_ShouldKeepSharedOpenOutputSchema()
     {
@@ -88,4 +103,56 @@ public sealed class McpToolOutputSchemaTests
             Name = name,
             InputSchema = JsonSerializer.SerializeToElement(new { type = "object" })
         };
+
+    private static void CollectLooseSchemaViolations(JsonElement schema, string path, List<string> violations)
+    {
+        if (schema.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        if (schema.TryGetProperty("additionalProperties", out var additionalProperties)
+            && additionalProperties.ValueKind == JsonValueKind.True)
+        {
+            violations.Add($"{path}.additionalProperties=true");
+        }
+
+        if (schema.TryGetProperty("type", out var type)
+            && type.GetString() == "array"
+            && schema.TryGetProperty("items", out var items)
+            && IsBareObjectSchema(items))
+        {
+            violations.Add($"{path}.items is a bare object schema");
+        }
+
+        foreach (var property in schema.EnumerateObject())
+        {
+            if (property.Value.ValueKind == JsonValueKind.Object)
+            {
+                CollectLooseSchemaViolations(property.Value, $"{path}.{property.Name}", violations);
+            }
+            else if (property.Value.ValueKind == JsonValueKind.Array)
+            {
+                var index = 0;
+                foreach (var item in property.Value.EnumerateArray())
+                {
+                    CollectLooseSchemaViolations(item, $"{path}.{property.Name}[{index}]", violations);
+                    index++;
+                }
+            }
+        }
+    }
+
+    private static bool IsBareObjectSchema(JsonElement schema)
+    {
+        if (schema.ValueKind != JsonValueKind.Object
+            || !schema.TryGetProperty("type", out var type)
+            || type.GetString() != "object")
+        {
+            return false;
+        }
+
+        return !schema.TryGetProperty("properties", out _)
+            && !schema.TryGetProperty("additionalProperties", out _);
+    }
 }

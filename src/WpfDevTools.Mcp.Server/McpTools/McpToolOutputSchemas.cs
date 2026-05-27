@@ -3,7 +3,7 @@ using ModelContextProtocol.Protocol;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
-internal static class McpToolOutputSchemas
+internal static partial class McpToolOutputSchemas
 {
     private static readonly JsonElement StructuredPayloadSchema = CreateSchema(
         additionalProperties: true,
@@ -55,14 +55,14 @@ internal static class McpToolOutputSchemas
                 ["candidateCount"] = Integer("Number of allowlisted candidate targets."),
                 ["redactedCandidateCount"] = Integer("Number of denied candidates hidden by policy."),
                 ["policyEnvVar"] = String("Policy environment variable relevant to the result."),
-                ["processes"] = ArrayOfObject("Allowed candidate processes when disambiguation is required."),
+                ["processes"] = ArrayOf("Allowed candidate processes when disambiguation is required.", ProcessSummary()),
                 ["requiresElevationToConnect"] = Boolean("Whether the server must run elevated to connect."),
                 ["canConnectFromCurrentServer"] = Boolean("Whether the current server can connect directly."),
                 ["suggestedAction"] = String("Operator-oriented next step for failed connection attempts.")
             }),
             ["get_processes"] = CreateSchema(false, new()
             {
-                ["processes"] = ArrayOfObject("Allowlisted WPF processes visible to this server."),
+                ["processes"] = ArrayOf("Allowlisted WPF processes visible to this server.", ProcessSummary()),
                 ["redactedTargetCount"] = Integer("Number of denied targets hidden by policy before filtering."),
                 ["policyEnvVar"] = String("Policy environment variable controlling process visibility.")
             }),
@@ -74,7 +74,7 @@ internal static class McpToolOutputSchemas
                 ["depth"] = Integer("Traversal depth used to build the summary."),
                 ["semanticNodeCount"] = Integer("Number of semantic nodes returned."),
                 ["summaryText"] = String("Compact scene summary for AI clients."),
-                ["nodes"] = ArrayOfObject("Semantic scene nodes.")
+                ["nodes"] = ArrayOf("Semantic scene nodes.", SceneNode())
             }),
             ["get_element_snapshot"] = CreateSchema(false, new()
             {
@@ -82,16 +82,16 @@ internal static class McpToolOutputSchemas
                 ["elementType"] = String("WPF element type."),
                 ["elementName"] = String("Element name when available."),
                 ["dataContextType"] = String("DataContext type name when available."),
-                ["properties"] = Object("DependencyProperty snapshot."),
-                ["bindings"] = ArrayOfObject("Binding entries for the element."),
-                ["validationErrors"] = ArrayOfObject("Validation errors for the element."),
-                ["style"] = Object("Style and template summary."),
-                ["layout"] = Object("Layout summary.")
+                ["properties"] = MapOf("DependencyProperty snapshot keyed by property name.", PropertySnapshot()),
+                ["bindings"] = ArrayOf("Binding entries for the element.", BindingEntry()),
+                ["validationErrors"] = ArrayOf("Validation errors for the element.", ValidationError()),
+                ["style"] = StyleSummary(),
+                ["layout"] = LayoutSummary()
             }),
             ["get_bindings"] = CreateSchema(false, new()
             {
-                ["bindings"] = ArrayOfObject("Binding entries for single-target inspection."),
-                ["results"] = ArrayOfObject("Per-target batch binding results."),
+                ["bindings"] = ArrayOf("Binding entries for single-target inspection.", BindingEntry()),
+                ["results"] = ArrayOf("Per-target batch binding results.", BindingBatchResult()),
                 ["resultCount"] = Integer("Number of batch results."),
                 ["successCount"] = Integer("Number of successful batch results."),
                 ["failureCount"] = Integer("Number of failed batch results.")
@@ -99,39 +99,39 @@ internal static class McpToolOutputSchemas
             ["get_binding_errors"] = CreateSchema(false, new()
             {
                 ["errorCount"] = Integer("Number of binding errors."),
-                ["errors"] = ArrayOfObject("Binding error records."),
+                ["errors"] = ArrayOf("Binding error records.", BindingErrorEntry()),
                 ["navigation"] = Navigation(),
-                ["nextSteps"] = ArrayOfObject("Compatibility next-step list.")
+                ["nextSteps"] = ArrayOf("Compatibility next-step list.", NextStep())
             }),
             ["capture_state_snapshot"] = CreateSchema(false, new()
             {
                 ["snapshotId"] = String("Captured mutation-safety snapshot id."),
-                ["snapshotSummary"] = Object("Summary of captured DependencyProperty, ViewModel, and focus state.")
+                ["snapshotSummary"] = StateSnapshotSummary()
             }),
             ["get_state_diff"] = CreateSchema(false, new()
             {
                 ["snapshotId"] = String("Snapshot id used for the diff."),
                 ["trigger"] = String("Human-readable trigger label for the observed change."),
-                ["diff"] = Object("State diff payload.")
+                ["diff"] = StateDiff()
             }),
             ["restore_state_snapshot"] = CreateSchema(false, new()
             {
                 ["snapshotId"] = String("Snapshot id restored."),
-                ["restoredDependencyProperties"] = ArrayOfObject("DependencyProperty entries restored."),
-                ["restoredViewModelProperties"] = ArrayOfObject("ViewModel properties restored."),
-                ["skippedDependencyProperties"] = ArrayOfObject("DependencyProperty entries skipped with reasons."),
-                ["skippedViewModelProperties"] = ArrayOfObject("ViewModel properties skipped with reasons.")
+                ["restoredDependencyProperties"] = ArrayOf("DependencyProperty entries restored.", RestoredStateEntry()),
+                ["restoredViewModelProperties"] = ArrayOf("ViewModel properties restored.", RestoredStateEntry()),
+                ["skippedDependencyProperties"] = ArrayOf("DependencyProperty entries skipped with reasons.", SkippedStateEntry()),
+                ["skippedViewModelProperties"] = ArrayOf("ViewModel properties skipped with reasons.", SkippedStateEntry())
             }),
             ["batch_mutate"] = CreateSchema(false, new()
             {
-                ["results"] = ArrayOfObject("Per-mutation results in execution order."),
+                ["results"] = ArrayOf("Per-mutation results in execution order.", MutationResult()),
                 ["mutationCount"] = Integer("Total mutation count."),
                 ["successfulMutationCount"] = Integer("Number of successful mutations."),
                 ["failedMutationCount"] = Integer("Number of failed mutations."),
                 ["snapshotId"] = String("Snapshot captured for the batch when requested."),
-                ["diff"] = Object("Optional diff computed after successful mutations."),
-                ["rollback"] = Object("Rollback availability and restore parameters."),
-                ["recovery"] = Object("Machine-readable recovery guidance.")
+                ["diff"] = StateDiff(),
+                ["rollback"] = RollbackInfo(),
+                ["recovery"] = Recovery()
             }),
             ["element_screenshot"] = CreateSchema(false, new()
             {
@@ -139,7 +139,7 @@ internal static class McpToolOutputSchemas
                 ["screenshotId"] = String("Registered screenshot identifier."),
                 ["resourceUri"] = String("MCP resource URI for file-mode screenshot retrieval."),
                 ["expiresAtUtc"] = String("UTC expiration timestamp for the retained screenshot resource."),
-                ["outputMode"] = String("Selected screenshot output mode."),
+                ["outputMode"] = EnumString("Selected screenshot output mode.", ["metadata", "file", "base64"]),
                 ["width"] = Integer("Screenshot width in pixels."),
                 ["height"] = Integer("Screenshot height in pixels."),
                 ["mimeType"] = String("Image MIME type."),
@@ -177,14 +177,14 @@ internal static class McpToolOutputSchemas
             ["status"] = String("Tool-specific status string."),
             ["summaryText"] = String("Compact tool-specific summary text."),
             ["navigation"] = Navigation(),
-            ["nextSteps"] = ArrayOfObject("Compatibility next-step list."),
-            ["pendingEvents"] = ArrayOfObject("Piggybacked runtime events when present."),
+            ["nextSteps"] = ArrayOf("Compatibility next-step list.", NextStep()),
+            ["pendingEvents"] = ArrayOf("Piggybacked runtime events when present.", PendingEvent()),
             ["pendingEventCount"] = Integer("Number of piggybacked pending events."),
             ["droppedEventCount"] = Integer("Number of dropped pending events when bounded buffers overflow."),
             ["cleanupIncomplete"] = Boolean("Whether cleanup after a tool operation was incomplete."),
             ["cleanupFailureMessage"] = String("Cleanup failure details when cleanupIncomplete is true."),
-            ["recovery"] = Object("Machine-readable recovery guidance for structured errors."),
-            ["errorData"] = Object("Structured error context when available.")
+            ["recovery"] = Recovery(),
+            ["errorData"] = MapOf("Structured error context when available.", JsonValue())
         };
 
     private static object Navigation()
@@ -195,28 +195,11 @@ internal static class McpToolOutputSchemas
             additionalProperties = false,
             properties = new Dictionary<string, object>
             {
-                ["recommended"] = ArrayOfObject("Primary next-step recommendations."),
-                ["alternatives"] = ArrayOfObject("Alternative follow-up actions."),
+                ["recommended"] = ArrayOf("Primary next-step recommendations.", NextStep()),
+                ["alternatives"] = ArrayOf("Alternative follow-up actions.", NextStep()),
                 ["prefetchTools"] = ArrayOfString("Useful tools to inspect before choosing a follow-up."),
-                ["contextRefs"] = ArrayOfObject("Structured references for follow-up tool calls.")
+                ["contextRefs"] = ArrayOf("Structured references for follow-up tool calls.", ContextRef())
             }
         };
 
-    private static object Object(string description)
-        => new { type = "object", additionalProperties = true, description };
-
-    private static object ArrayOfObject(string description)
-        => new { type = "array", items = new { type = "object" }, description };
-
-    private static object ArrayOfString(string description)
-        => new { type = "array", items = new { type = "string" }, description };
-
-    private static object String(string description)
-        => new { type = "string", description };
-
-    private static object Integer(string description)
-        => new { type = "integer", description };
-
-    private static object Boolean(string description)
-        => new { type = "boolean", description };
 }

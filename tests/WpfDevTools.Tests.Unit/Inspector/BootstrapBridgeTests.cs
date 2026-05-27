@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Text.Json;
 using WpfDevTools.Inspector;
 using Xunit;
 
@@ -53,13 +54,33 @@ public class BootstrapBridgeTests
     public void Net8InspectorAssembly_ShouldHaveRuntimeConfigNextToAssembly()
     {
 #if NET8_0_OR_GREATER
-        var assemblyPath = typeof(BootstrapBridge).Assembly.Location;
-        var runtimeConfigPath = Path.Combine(
-            Path.GetDirectoryName(assemblyPath)!,
-            $"{Path.GetFileNameWithoutExtension(assemblyPath)}.runtimeconfig.json");
+        var runtimeConfigPath = GetRuntimeConfigPath();
 
         File.Exists(runtimeConfigPath).Should().BeTrue(
             "hostfxr bootstrap requires a runtimeconfig.json next to WpfDevTools.Inspector.dll");
 #endif
+    }
+
+    [Fact]
+    public void Net8InspectorRuntimeConfig_ShouldAllowMajorRollForwardForComponentHosting()
+    {
+#if NET8_0_OR_GREATER
+        using var document = JsonDocument.Parse(File.ReadAllText(GetRuntimeConfigPath()));
+
+        document.RootElement
+            .GetProperty("runtimeOptions")
+            .GetProperty("rollForward")
+            .GetString()
+            .Should().Be("LatestMajor",
+                "raw injection loads the net8 inspector as a component inside already-running newer .NET WPF processes such as .NET 10");
+#endif
+    }
+
+    private static string GetRuntimeConfigPath()
+    {
+        var assemblyPath = typeof(BootstrapBridge).Assembly.Location;
+        return Path.Combine(
+            Path.GetDirectoryName(assemblyPath)!,
+            $"{Path.GetFileNameWithoutExtension(assemblyPath)}.runtimeconfig.json");
     }
 }

@@ -111,26 +111,31 @@ public class TraceAuditLoggerTests
 
     private class TestTraceListener : TraceListener
     {
-        public List<string> Messages { get; } = new();
+        private readonly List<string> _messages = new();
+        private readonly object _gate = new();
+
+        public IReadOnlyList<string> Messages
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _messages.ToArray();
+                }
+            }
+        }
 
         public override void Write(string? message)
         {
-            if (message != null)
-            {
-                lock (Messages)
-                {
-                    Messages.Add(message);
-                }
-            }
         }
 
         public override void WriteLine(string? message)
         {
             if (message != null)
             {
-                lock (Messages)
+                lock (_gate)
                 {
-                    Messages.Add(message);
+                    _messages.Add(message);
                 }
             }
         }

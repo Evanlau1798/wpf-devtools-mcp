@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using ModelContextProtocol.Protocol;
+using WpfDevTools.Mcp.Server.McpResources;
 using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
@@ -88,6 +89,76 @@ public sealed class McpToolOutputSchemaTests
     }
 
     [Fact]
+    public void ExactHighValueTools_ShouldCoverResponseContractTopLevelFields()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetResponseContract());
+        var missingByTool = new List<string>();
+
+        foreach (var contract in document.RootElement.GetProperty("highValueTools").EnumerateArray())
+        {
+            var toolName = contract.GetProperty("tool").GetString()!;
+            var tool = CreateTool(toolName);
+            McpToolOutputSchemas.Apply(tool);
+
+            var schema = tool.OutputSchema!.Value;
+            if (schema.GetProperty("additionalProperties").GetBoolean())
+            {
+                continue;
+            }
+
+            var properties = schema.GetProperty("properties");
+            var missing = contract.GetProperty("topLevelFields")
+                .EnumerateArray()
+                .Select(field => field.GetString())
+                .Where(field => field is not null)
+                .Cast<string>()
+                .Where(field => !properties.TryGetProperty(field, out _))
+                .ToArray();
+
+            if (missing.Length > 0)
+            {
+                missingByTool.Add($"{toolName}: {string.Join(", ", missing)}");
+            }
+        }
+
+        missingByTool.Should().BeEmpty(
+            "closed high-value tools/list outputSchema entries must not omit fields advertised by wpf://contracts/response");
+    }
+
+    [Fact]
+    public void ExactHighValueTools_ShouldCoverKnownRuntimePayloadFields()
+    {
+        AssertTopLevelFields("connect",
+            "hint",
+            "reusedExistingHost",
+            "targetIsElevated",
+            "requiresExplicitTargetOptIn");
+        AssertProcessSummaryFields(
+            "get_processes",
+            "secondaryWindowTitle",
+            "dotNetVersion",
+            "isElevated",
+            "connectionWarning");
+        AssertTopLevelFields("batch_mutate",
+            "executionMode",
+            "mutations",
+            "stateDiff",
+            "requiresReconnect",
+            "stateAfterTimeoutUnknown",
+            "retryAfterSeconds",
+            "retryAfter",
+            "availableTokens",
+            "availableEvents");
+        AssertTopLevelFields("element_screenshot",
+            "format",
+            "rendered",
+            "byteLength",
+            "fileName",
+            "localPathRedacted",
+            "sha256");
+    }
+
+    [Fact]
     public void NonHighValueTools_ShouldKeepSharedOpenOutputSchema()
     {
         var tool = CreateTool("schema_probe");
@@ -103,6 +174,36 @@ public sealed class McpToolOutputSchemaTests
             Name = name,
             InputSchema = JsonSerializer.SerializeToElement(new { type = "object" })
         };
+
+    private static void AssertTopLevelFields(string toolName, params string[] expectedFields)
+    {
+        var tool = CreateTool(toolName);
+        McpToolOutputSchemas.Apply(tool);
+        var properties = tool.OutputSchema!.Value.GetProperty("properties");
+
+        foreach (var expectedField in expectedFields)
+        {
+            properties.TryGetProperty(expectedField, out _).Should().BeTrue(
+                $"{toolName} outputSchema should include runtime structuredContent field '{expectedField}'");
+        }
+    }
+
+    private static void AssertProcessSummaryFields(string toolName, params string[] expectedFields)
+    {
+        var tool = CreateTool(toolName);
+        McpToolOutputSchemas.Apply(tool);
+        var processProperties = tool.OutputSchema!.Value
+            .GetProperty("properties")
+            .GetProperty("processes")
+            .GetProperty("items")
+            .GetProperty("properties");
+
+        foreach (var expectedField in expectedFields)
+        {
+            processProperties.TryGetProperty(expectedField, out _).Should().BeTrue(
+                $"{toolName} outputSchema process item should include runtime field '{expectedField}'");
+        }
+    }
 
     private static void CollectLooseSchemaViolations(JsonElement schema, string path, List<string> violations)
     {

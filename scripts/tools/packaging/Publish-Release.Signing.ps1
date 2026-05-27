@@ -92,7 +92,7 @@ function Resolve-SignToolPath {
     }
 
     $candidate = Get-ChildItem -Path $kitsRoot -Recurse -Filter 'signtool.exe' -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -like '*\\x64\\signtool.exe' } |
+        Where-Object { $_.FullName -like '*\x64\signtool.exe' } |
         Sort-Object FullName -Descending |
         Select-Object -First 1
     return $candidate.FullName

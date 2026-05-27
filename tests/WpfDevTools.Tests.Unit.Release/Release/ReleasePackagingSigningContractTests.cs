@@ -24,6 +24,46 @@ public sealed partial class ReleasePackagingContractTests
     }
 
     [Fact]
+    public void PublishReleaseSigning_ShouldResolveWindowsSdkSignToolFallback()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var fakeProgramFilesX86 = Path.Combine(tempRoot, "Program Files (x86)");
+            var fakeSignTool = Path.Combine(
+                fakeProgramFilesX86,
+                "Windows Kits",
+                "10",
+                "bin",
+                "10.0.99999.0",
+                "x64",
+                "signtool.exe");
+            Directory.CreateDirectory(Path.GetDirectoryName(fakeSignTool)!);
+            File.WriteAllText(fakeSignTool, "fake signtool");
+
+            var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath(
+                "scripts/tools/packaging/Publish-Release.Signing.ps1");
+            var command =
+                $"$env:WPFDEVTOOLS_SIGNTOOL_PATH = ''; . '{scriptPath}'; Resolve-SignToolPath";
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+                command,
+                new Dictionary<string, string?>
+                {
+                    ["PATH"] = tempRoot,
+                    ["ProgramFiles(x86)"] = fakeProgramFilesX86
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().Be(fakeSignTool);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void PublishReleaseScript_ShouldFailFastInCiWhenPfxPasswordIsMissing()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

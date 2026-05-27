@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Globalization;
 
 namespace WpfDevTools.Tests.Integration.TestSupport;
 
@@ -16,7 +17,7 @@ internal static partial class ReleasePackagingTestHarness
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();
-        var effectiveTimeout = timeout ?? DefaultProcessTimeout;
+        var effectiveTimeout = ScaleTimeout(timeout ?? DefaultProcessTimeout);
         var timeoutMilliseconds = effectiveTimeout.TotalMilliseconds > int.MaxValue
             ? int.MaxValue
             : (int)Math.Ceiling(effectiveTimeout.TotalMilliseconds);
@@ -56,6 +57,18 @@ internal static partial class ReleasePackagingTestHarness
         }
 
         return (process.ExitCode, stdout, stderr);
+    }
+
+    internal static TimeSpan ScaleTimeout(TimeSpan timeout)
+    {
+        var rawScale = Environment.GetEnvironmentVariable("WPFDEVTOOLS_TEST_TIMEOUT_SCALE");
+        if (!double.TryParse(rawScale, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale) || scale <= 1)
+        {
+            return timeout;
+        }
+
+        scale = Math.Min(scale, 10);
+        return TimeSpan.FromMilliseconds(timeout.TotalMilliseconds * scale);
     }
 
     private static void TryKillProcessTree(Process process)

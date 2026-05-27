@@ -11,6 +11,23 @@ namespace WpfDevTools.Tests.Integration;
 public sealed class ReleasePackagingTestHarnessIntegrationTests
 {
     [Fact]
+    public void ScaleTimeout_ShouldHonorSandboxTimeoutScale()
+    {
+        var previousScale = Environment.GetEnvironmentVariable("WPFDEVTOOLS_TEST_TIMEOUT_SCALE");
+        try
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_TEST_TIMEOUT_SCALE", "4");
+
+            ReleasePackagingTestHarness.ScaleTimeout(TimeSpan.FromSeconds(5))
+                .Should().Be(TimeSpan.FromSeconds(20));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_TEST_TIMEOUT_SCALE", previousScale);
+        }
+    }
+
+    [Fact]
     public void RunPowerShellScript_WithOnlineInstallerScript_ShouldInjectWorkingRootAndIsolatedEnvironment()
     {
         var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();

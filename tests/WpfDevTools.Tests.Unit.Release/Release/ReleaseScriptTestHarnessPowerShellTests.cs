@@ -5,6 +5,23 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class ReleaseScriptTestHarnessPowerShellTests
 {
     [Fact]
+    public void ScaleTimeout_ShouldHonorSandboxTimeoutScale()
+    {
+        var previousScale = Environment.GetEnvironmentVariable("WPFDEVTOOLS_TEST_TIMEOUT_SCALE");
+        try
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_TEST_TIMEOUT_SCALE", "4");
+
+            ReleaseScriptTestHarness.ScaleTimeout(TimeSpan.FromSeconds(10))
+                .Should().Be(TimeSpan.FromSeconds(40));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_TEST_TIMEOUT_SCALE", previousScale);
+        }
+    }
+
+    [Fact]
     public void RunPowerShellScript_ShouldIgnoreStaleNativeLastExitCodeForOnlineInstallerAfterSuccessfulScriptReturn()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

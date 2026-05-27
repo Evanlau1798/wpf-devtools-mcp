@@ -313,13 +313,15 @@ public sealed partial class ReleasePackagingContractTests
 
     private static async Task ReleaseLockAfterMarkerAsync(string markerPath, Action releaseLock)
     {
-        var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+        var timeout = ReleaseScriptTestHarness.ScaleTimeout(TimeSpan.FromSeconds(10));
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
         while (!File.Exists(markerPath))
         {
             if (DateTimeOffset.UtcNow > deadline)
             {
                 releaseLock();
-                throw new TimeoutException("The packaging retry test marker was not written.");
+                throw new TimeoutException(
+                    $"The packaging retry test marker was not written within {timeout.TotalSeconds:0.###} second(s).");
             }
 
             await Task.Delay(TimeSpan.FromMilliseconds(50));

@@ -56,7 +56,7 @@ internal static partial class ReleaseScriptTestHarness
         return (process.ExitCode, stdout, stderr);
     }
 
-    private static TimeSpan ScaleTimeout(TimeSpan timeout)
+    internal static TimeSpan ScaleTimeout(TimeSpan timeout)
     {
         var rawScale = Environment.GetEnvironmentVariable("WPFDEVTOOLS_TEST_TIMEOUT_SCALE");
         if (!double.TryParse(rawScale, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale) || scale <= 1)

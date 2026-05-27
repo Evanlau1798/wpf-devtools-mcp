@@ -460,9 +460,26 @@ foreach ($script in Get-ChildItem -LiteralPath $scriptRoot -Filter '*.ps1') {
 
     private static void DeleteTempRoot(string tempRoot)
     {
-        if (Directory.Exists(tempRoot))
+        for (var attempt = 0; attempt < 10; attempt++)
         {
-            Directory.Delete(tempRoot, recursive: true);
+            if (!Directory.Exists(tempRoot))
+            {
+                return;
+            }
+
+            try
+            {
+                Directory.Delete(tempRoot, recursive: true);
+                return;
+            }
+            catch (IOException) when (attempt < 9)
+            {
+                Thread.Sleep(100);
+            }
+            catch (UnauthorizedAccessException) when (attempt < 9)
+            {
+                Thread.Sleep(100);
+            }
         }
     }
 

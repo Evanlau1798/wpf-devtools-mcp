@@ -64,7 +64,7 @@ public sealed partial class ReleasePackagingContractTests
     }
 
     [Fact]
-    public void ReleaseSigningEntrypoints_ShouldUseSignToolCompatibleTimestampDefault()
+    public void ReleaseSigningEntrypoints_ShouldUseHttpsTimestampDefault()
     {
         var publishRelease = File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath(
             "scripts/tools/packaging/Publish-Release.ps1"));
@@ -75,9 +75,10 @@ public sealed partial class ReleasePackagingContractTests
 
         foreach (var content in new[] { publishRelease, publishSigning, signBinaries })
         {
-            content.Should().Contain("http://timestamp.digicert.com");
-            content.Should().NotContain("https://timestamp.digicert.com",
-                "the installed Windows SDK SignTool rejects the HTTPS timestamp endpoint as an invalid timestamp URL");
+            content.Should().Contain("https://timestamp.digicert.com",
+                "production signing should keep timestamp traffic on HTTPS by default");
+            content.Should().NotContain("\"http://timestamp.digicert.com\"");
+            content.Should().NotContain("'http://timestamp.digicert.com'");
         }
     }
 

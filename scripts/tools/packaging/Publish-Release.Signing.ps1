@@ -65,7 +65,7 @@ function Get-ReleaseSigningInputs {
         [string]$env:WPFDEVTOOLS_RELEASE_TIMESTAMP_SERVER
     }
     else {
-        'http://timestamp.digicert.com'
+        'https://timestamp.digicert.com'
     }
 
     return [ordered]@{

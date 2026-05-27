@@ -10,7 +10,7 @@ param(
 
     [string]$BuildConfiguration = "Release",
 
-    [string]$TimestampServer = "http://timestamp.digicert.com"
+    [string]$TimestampServer = "https://timestamp.digicert.com"
 )
 
 function Resolve-SignToolPath {

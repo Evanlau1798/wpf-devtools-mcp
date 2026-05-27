@@ -91,12 +91,12 @@ public static class BoundaryJsonStringValidator
             return BoundaryStringLimits.MaxElementIdLength;
         }
 
-        if (StringifiedJsonProperties.Contains(propertyName))
+        if (StringifiedJsonProperties.Contains(propertyName!))
         {
             return BoundaryStringLimits.MaxStringifiedJsonArgumentLength;
         }
 
-        return LabelLikeStringProperties.Contains(propertyName)
+        return LabelLikeStringProperties.Contains(propertyName!)
             ? BoundaryStringLimits.MaxLabelLength
             : BoundaryStringLimits.MaxStringArgumentLength;
     }
@@ -153,7 +153,7 @@ public static class BoundaryJsonStringValidator
 
                 var displayName = string.IsNullOrWhiteSpace(propertyName)
                     ? path
-                    : propertyName;
+                    : propertyName!;
                 error = new BoundaryStringValidationError(displayName, path, maxLength);
                 return false;
 
@@ -166,7 +166,7 @@ public static class BoundaryJsonStringValidator
     {
         var safeName = propertyName.Length <= 64
             ? propertyName
-            : propertyName[..64] + "...";
+            : propertyName.Substring(0, 64) + "...";
         return $"{path}.{safeName}";
     }
 }

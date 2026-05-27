@@ -64,6 +64,24 @@ public sealed partial class ReleasePackagingContractTests
     }
 
     [Fact]
+    public void ReleaseSigningEntrypoints_ShouldUseSignToolCompatibleTimestampDefault()
+    {
+        var publishRelease = File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath(
+            "scripts/tools/packaging/Publish-Release.ps1"));
+        var publishSigning = File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath(
+            "scripts/tools/packaging/Publish-Release.Signing.ps1"));
+        var signBinaries = File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath(
+            "scripts/tools/Sign-Binaries.ps1"));
+
+        foreach (var content in new[] { publishRelease, publishSigning, signBinaries })
+        {
+            content.Should().Contain("http://timestamp.digicert.com");
+            content.Should().NotContain("https://timestamp.digicert.com",
+                "the installed Windows SDK SignTool rejects the HTTPS timestamp endpoint as an invalid timestamp URL");
+        }
+    }
+
+    [Fact]
     public void PublishReleaseScript_ShouldFailFastInCiWhenPfxPasswordIsMissing()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

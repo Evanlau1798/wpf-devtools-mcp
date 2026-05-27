@@ -7,7 +7,7 @@ param(
     [string]$SigningCertificatePath,
     [string]$SigningCertificateThumbprint,
     [string]$SigningPasswordEnvironmentVariable = 'WPFDEVTOOLS_PFX_PASSWORD',
-    [string]$SigningTimestampServer = 'https://timestamp.digicert.com',
+    [string]$SigningTimestampServer = 'http://timestamp.digicert.com',
     [switch]$SkipBuild
 )
 

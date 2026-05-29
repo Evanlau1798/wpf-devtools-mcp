@@ -122,13 +122,11 @@ public sealed class AgentGuidanceDocumentationTests
     }
 
     [Fact]
-    public void RepoAgentsGuide_WhenPresent_ShouldTrackCurrentToolCount()
+    public void RepoAgentsGuide_ShouldBeRequiredAndTrackCurrentToolCount()
     {
         var agentGuidePath = GetRepoFilePath("AGENTS.md");
-        if (!File.Exists(agentGuidePath))
-        {
-            return;
-        }
+        File.Exists(agentGuidePath).Should().BeTrue(
+            "AGENTS.md is the repository-local operating contract for coding agents and should not be optional");
 
         var content = File.ReadAllText(agentGuidePath);
 
@@ -136,6 +134,10 @@ public sealed class AgentGuidanceDocumentationTests
             "AGENTS.md is local agent-facing guidance and should match the current public tool count when present");
         content.Should().NotContain("63 MCP tools",
             "AGENTS.md should not preserve the stale pre-64 tool count");
+        content.Should().Contain("Do not commit any files under `docs/`",
+            "the agent contract should preserve repository-specific file hygiene rules");
+        content.Should().Contain("Build and Test Commands",
+            "the agent contract should preserve local verification commands");
     }
 
     private static string ExtractSection(string content, string heading)

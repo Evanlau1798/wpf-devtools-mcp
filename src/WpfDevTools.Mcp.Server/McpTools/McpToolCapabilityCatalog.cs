@@ -75,6 +75,7 @@ internal static class McpToolCapabilityCatalog
         "get_visual_count",
         "get_visual_tree",
         "get_windows",
+        "measure_element_render_time",
         "restore_state_snapshot",
         "serialize_to_xaml",
         "set_dp_value",

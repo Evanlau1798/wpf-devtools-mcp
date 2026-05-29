@@ -74,6 +74,7 @@ public sealed class McpToolCapabilityCatalogTests
                 "get_visual_count",
                 "get_visual_tree",
                 "get_windows",
+                "measure_element_render_time",
                 "restore_state_snapshot",
                 "serialize_to_xaml",
                 "set_dp_value",
@@ -84,6 +85,21 @@ public sealed class McpToolCapabilityCatalogTests
                 "wait_for_dp_change_after_mutation",
                 "watch_dp_changes"
             ]);
+    }
+
+    [Theory]
+    [InlineData("find_binding_leaks")]
+    [InlineData("get_render_stats")]
+    [InlineData("get_visual_count")]
+    [InlineData("measure_element_render_time")]
+    public void PerformanceDiagnosticTools_ShouldRequireSensitiveReadPolicy(string toolName)
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
+
+        GetToolNamesWithPolicyTag(document, "sensitive-reads")
+            .Should()
+            .Contain(toolName,
+                "performance diagnostics expose target runtime timing, tree size, or binding-lifetime signals and should require sensitive-read opt-in");
     }
 
     [Fact]

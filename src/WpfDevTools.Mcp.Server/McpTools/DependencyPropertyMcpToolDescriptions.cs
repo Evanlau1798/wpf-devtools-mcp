@@ -1,4 +1,4 @@
-﻿namespace WpfDevTools.Mcp.Server.McpTools;
+namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal static class DependencyPropertyMcpToolDescriptions
 {
@@ -19,7 +19,7 @@ internal static class DependencyPropertyMcpToolDescriptions
         "(e.g., if ReadLocalValue() returns a value, baseValueSource becomes 'LocalValue' " +
         "even when GetValueSource().BaseValueSource reports 'Default'). " +
         "Use baseValueSource for agent decision-making; use rawBaseValueSource only for advanced debugging.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  propertyName, currentValue, baseValueSource: 'Default'|'Inherited'|'Style'|'LocalValue'|'Trigger'|'Animation',\n" +
@@ -41,7 +41,7 @@ internal static class DependencyPropertyMcpToolDescriptions
         "inherits flag, affects measure/arrange, and coerce/validation callbacks.\n\n" +
         "USE WHEN: You need to understand property behavior at framework level (inheritance, layout impact).\n" +
         "DO NOT USE: For runtime value inspection (use get_dp_value_source instead).\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  propertyName, defaultValue, inherits, affectsMeasure, affectsArrange,\n" +
@@ -63,7 +63,7 @@ internal static class DependencyPropertyMcpToolDescriptions
         "WARNING: This modifies the running app. Changes are lost on app restart.\n\n" +
         "EXPRESSION ROLLBACK: If this overwrites a Binding, MultiBinding, or PriorityBinding expression, the response can report `replacedExpression=true` and `capturedRollbackExpression=true`. In the same session, clear_dp_value or restore_state_snapshot can then reapply that captured binding-backed expression. For two-way bindings where source-value rollback also matters, pair this with capture_state_snapshot(viewModelPropertyNames=...) so the source property can be restored deterministically.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep the core mutation result, use `minimal` for success/property/newValue confirmation only, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  propertyName, oldValue, newValue, requestedValue,\n" +
@@ -88,7 +88,7 @@ internal static class DependencyPropertyMcpToolDescriptions
         "WARNING: This modifies the running app. Changes are NOT persisted.\n\n" +
         "EXPRESSION ROLLBACK: When the current local value came from set_dp_value replacing a captured Binding, MultiBinding, or PriorityBinding, this tool re-applies that binding-backed expression in the same session instead of falling back to plain ClearValue semantics. If you also need the original two-way source value restored, capture that ViewModel property in the snapshot workflow.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep the core mutation result, use `minimal` for success/property/newValue confirmation only, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  propertyName, hadLocalValue, clearedValue, newValue,\n" +
@@ -107,7 +107,7 @@ internal static class DependencyPropertyMcpToolDescriptions
         "Over STDIO, this is registration-only - events are not pushed, and the registration is intentionally transient so shared-session state does not accumulate stale watchers. Any successful drain_events readback ends that transient watch cycle, even when no DpChange payload is returned.\n\n" +
         "USE WHEN: You are preparing for future push-capable transports, or you explicitly want watch registration state.\n" +
         "DO NOT USE: Expecting real-time event delivery over STDIO or expecting watch state to survive unrelated drain_events reads - use wait_for_dp_change or poll get_dp_value_source instead.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  message: string,\n" +
@@ -131,7 +131,7 @@ internal static class DependencyPropertyMcpToolDescriptions
         "READ-ONLY MODE: This call only polls existing runtime state and does not mutate the application.\n\n" +
         "OPTIONAL MATCHING: Provide `expectedValue` to wait until the property equals a specific value. Omit it to stop on any value change.\n\n" +
         "SERIALIZED-CLIENT WORKFLOW: If your MCP client cannot issue a concurrent mutation while this wait is running, use `wait_for_dp_change_after_mutation` for the destructive mutation-plus-wait workflow instead of overloading this read-only tool.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  changed: boolean,\n" +
@@ -167,7 +167,7 @@ internal static class DependencyPropertyMcpToolDescriptions
         "DO NOT USE: For plain read-only waits. Use wait_for_dp_change when you only need to observe existing runtime state.\n\n" +
         "MUTATION STEP: Provide `triggerMutation` using the same shape as one `batch_mutate` step. The server will execute that mutation first, then wait for the property transition. This workflow is destructive because it mutates live runtime state before waiting.\n\n" +
         "OPTIONAL MATCHING: Provide `expectedValue` to wait until the property equals a specific value after the mutation. Omit it to stop on any value change.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  changed: boolean,\n" +

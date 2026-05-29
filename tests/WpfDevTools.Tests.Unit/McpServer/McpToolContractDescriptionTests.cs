@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
+using WpfDevTools.Mcp.Server;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.McpTools;
 using Xunit;
@@ -126,6 +127,33 @@ public sealed class McpToolContractDescriptionTests
         }
 
         failures.Should().BeEmpty("tool-call examples are copied by MCP clients and must be strict JSON, not JavaScript-like object literals");
+    }
+
+    [Fact]
+    public void AiFacingResponseShapeSketches_ShouldNotLookLikeCopyPasteJsonExamples()
+    {
+        var failures = new List<string>();
+        foreach (var (name, text) in GetAllAiFacingContractTexts())
+        {
+            if (text.Contains("RESPONSE FORMAT:", StringComparison.Ordinal))
+            {
+                failures.Add($"{name}: uses RESPONSE FORMAT instead of SCHEMA SKETCH");
+            }
+
+            var containsPseudoJson = text.Contains("success: boolean", StringComparison.Ordinal)
+                || text.Contains("{ success:", StringComparison.Ordinal)
+                || text.Contains("processId?:", StringComparison.Ordinal);
+            if (containsPseudoJson && !text.Contains("SCHEMA SKETCH", StringComparison.Ordinal))
+            {
+                failures.Add($"{name}: pseudo-JSON fields are not explicitly labeled as a schema sketch");
+            }
+        }
+
+        ServerInstructions.Value.Should().NotContain("All tools return JSON: {",
+            "server-level response guidance should be prose plus contract-resource references, not JavaScript-like object literals");
+        ServerInstructions.Value.Should().NotContain("On error: {",
+            "error response guidance should not look like a copy-paste JSON example");
+        failures.Should().BeEmpty("AI-facing response shapes should be labeled as schema sketches, while request examples remain strict JSON");
     }
 
     [Theory]
@@ -260,6 +288,16 @@ public sealed class McpToolContractDescriptionTests
                 && !string.IsNullOrWhiteSpace(item.Tool.Name)
                 && item.Description is not null)
             .Select(item => (item.Tool!.Name!, item.Description!.Description));
+    }
+
+    private static IEnumerable<(string Name, string Text)> GetAllAiFacingContractTexts()
+    {
+        foreach (var (toolName, description) in GetAllToolDescriptions())
+        {
+            yield return ($"tool:{toolName}", description);
+        }
+
+        yield return ("server-instructions", ServerInstructions.Value);
     }
 
     private static IEnumerable<string> ExtractExamples(string description)

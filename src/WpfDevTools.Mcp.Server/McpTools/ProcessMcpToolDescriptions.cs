@@ -1,4 +1,4 @@
-﻿namespace WpfDevTools.Mcp.Server.McpTools;
+namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal static class ProcessMcpToolDescriptions
 {
@@ -25,7 +25,7 @@ internal static class ProcessMcpToolDescriptions
         "[Process] Set the active connected process for processId-omission workflows.\n\n" +
         "USE WHEN: Multiple WPF sessions are connected and you want one explicit default target.\n" +
         "DO NOT USE: Before connect(processId) has succeeded for the chosen process.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{ success: boolean, processId?: number, message?: string, error?: string, errorCode?: string }\n\n" +
         "EXAMPLES:\n" +
         "- { \"processId\": 12345 }";
@@ -35,7 +35,7 @@ internal static class ProcessMcpToolDescriptions
         ProcessMetadata + "[Process] Returns the active selected process, if any.\n\n" +
         "USE WHEN: Verifying session state before omitting processId in later calls.\n" +
         "DO NOT USE: As a substitute for connect(), or when you already pass processId explicitly on every later tool call.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{ success: boolean, hasActiveProcess: boolean, processId?: number, selectedAtUtc?: string }\n\n" +
         "EXAMPLES:\n" +
         "- { }";
@@ -67,7 +67,7 @@ internal static class ProcessMcpToolDescriptions
         "USE WHEN: Verifying connection is still alive; measuring IPC performance.\n" +
         "DO NOT USE: Before calling connect() (will fail).\n\n" +
         "TIMEOUT: Ping times out after 5 seconds.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  status: string,\n" +

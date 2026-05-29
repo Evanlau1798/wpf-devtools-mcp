@@ -1,4 +1,4 @@
-﻿namespace WpfDevTools.Mcp.Server.McpTools;
+namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal static class EventDrainMcpToolDescriptions
 {
@@ -11,7 +11,7 @@ internal static class EventDrainMcpToolDescriptions
         "USE WHEN: You have active DP watches or routed-event traces and need an explicit read step; you want to filter buffered events by type, element, or time window.\n" +
         "DO NOT USE: As a long-running subscription. This drains a bounded in-memory buffer.\n\n" +
         "REPLAY SEMANTICS: When replay is already buffered, the server performs an uncapped live read internally, then applies maxEvents across the merged replay + live event set. Any replay event that is not returned by the explicit read, and any matching live event that exceeds the caller-visible result cap, remain buffered for the next explicit drain_events call. If that live drain fails before merge completes, the error surfaces errorData.replayPreserved plus errorData.bufferedReplayEventCount so callers can retry without assuming the preserved replay buffer was discarded.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  pendingEventCount: number,\n" +

@@ -1,4 +1,4 @@
-﻿namespace WpfDevTools.Mcp.Server.McpTools;
+namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal static class PerformanceMcpToolDescriptions
 {
@@ -11,7 +11,7 @@ internal static class PerformanceMcpToolDescriptions
         "USE WHEN: UI feels slow or laggy; investigating rendering performance issues.\n" +
         "DO NOT USE: For memory leaks (use find_binding_leaks instead).\n\n" +
         "PERFORMANCE: This tool measures rendering metrics over a short period (1-2 seconds).\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  isWarmedUp: boolean,\n" +
@@ -45,7 +45,7 @@ internal static class PerformanceMcpToolDescriptions
         "Threshold is the minimum number of live bindings on a single element to flag as suspicious.\n\n" +
         "USE WHEN: Memory usage grows over time; suspecting binding-related memory leaks.\n" +
         "DO NOT USE: On apps with legitimately many bindings per element (e.g., data grids).\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  confidence: 'low'|'medium'|'high',\n" +
@@ -80,7 +80,7 @@ internal static class PerformanceMcpToolDescriptions
         "USE WHEN: Identifying slow-rendering elements; profiling UI performance.\n" +
         "DO NOT USE: Repeatedly in a loop (causes performance overhead).\n\n" +
         "PERFORMANCE: This tool forces a re-render, which may briefly impact UI responsiveness.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  renderTimeMs: number,\n" +
@@ -102,7 +102,7 @@ internal static class PerformanceMcpToolDescriptions
         "High counts (>5000) may indicate performance issues.\n\n" +
         "USE WHEN: UI feels slow; need to identify overly complex subtrees.\n" +
         "DO NOT USE: For memory usage (use find_binding_leaks instead).\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  count: number,\n" +

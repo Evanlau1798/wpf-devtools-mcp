@@ -1,4 +1,4 @@
-﻿namespace WpfDevTools.Mcp.Server.McpTools;
+namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal static class StateMcpToolDescriptions
 {
@@ -10,7 +10,7 @@ internal static class StateMcpToolDescriptions
         "USE WHEN: Before mutation-heavy debugging, demos, or regression flows where rollback matters.\n" +
         "DO NOT USE: As durable persistence; snapshots are in-memory and session-scoped only.\n" +
         "RETENTION: The server retains at most 20 snapshots per process for up to 30 minutes; capture a fresh snapshot before long mutation sequences.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  snapshotId: string,\n" +
@@ -30,7 +30,7 @@ internal static class StateMcpToolDescriptions
         "DO NOT USE: Across disconnected sessions, application restarts, or after the in-memory snapshot has expired.\n" +
         "RETENTION: Snapshots are kept for at most 30 minutes and the oldest snapshots are evicted when a process retains more than 20.\n\n" +
         "EXPRESSION ROLLBACK: Binding-backed DependencyProperty expressions captured in the same session can be restored. When a two-way source property also needs to return to its baseline value, capture that ViewModel property in the same snapshot. Non-Binding expressions are still surfaced through skippedDependencyProperties with explicit reasons.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  restoredDependencyPropertyCount: number,\n" +

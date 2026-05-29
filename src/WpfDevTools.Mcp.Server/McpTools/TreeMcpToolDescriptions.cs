@@ -1,4 +1,4 @@
-﻿namespace WpfDevTools.Mcp.Server.McpTools;
+namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal static class TreeMcpToolDescriptions
 {
@@ -13,7 +13,7 @@ internal static class TreeMcpToolDescriptions
         "PERFORMANCE: Large trees (depth >5) can return 10,000+ elements. Always set depth=2-4 for initial exploration.\n" +
         "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table. " +
         "maxNodes caps total returned nodes (default 1000), and maxChildrenPerNode caps fan-out per level (default 200).\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "Nested mode:\n" +
         "{ success, tree, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
         "- tree: { elementId, type, name?, childCount, children?, omittedChildCount? }\n" +
@@ -37,7 +37,7 @@ internal static class TreeMcpToolDescriptions
         "DO NOT USE: When you need to inspect template internals (use get_visual_tree or get_template_tree instead).\n\n" +
         "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table. " +
         "maxNodes caps total returned nodes (default 1000), and maxChildrenPerNode caps fan-out per level (default 200).\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "Nested mode:\n" +
         "{ success, tree, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
         "- tree: { elementId, type, name?, childCount, childCountExact?, hasMoreChildren?, children?, omittedChildCount? }\n" +
@@ -60,7 +60,7 @@ internal static class TreeMcpToolDescriptions
         "Returns the XAML markup string for the element and its children.\n\n" +
         "USE WHEN: You need to understand element structure in markup form or export UI definition.\n" +
         "DO NOT USE: On large subtrees (use elementId to scope to specific element).\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  xaml: string\n" +
@@ -78,7 +78,7 @@ internal static class TreeMcpToolDescriptions
         "Returns all named elements (x:Name) registered in the element's scope.\n\n" +
         "USE WHEN: You need to discover all named elements in a window or UserControl, including names registered for inactive tabs or other logical-only content.\n" +
         "DO NOT USE: For finding elements by type (use get_visual_tree to browse the tree instead).\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  hasNameScope: boolean,\n" +
@@ -102,7 +102,7 @@ internal static class TreeMcpToolDescriptions
         "USE WHEN: You need to inspect how a control renders internally or find template parts.\n" +
         "DO NOT USE: On non-templated elements (will return empty); check element type first.\n\n" +
         "PERFORMANCE: Template traversal applies the same default 1000-node and 200-child fan-out caps as visual/logical tree tools; pass maxNodes or maxChildrenPerNode to narrow large template payloads.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  tree: { elementId, type, name, childCount, children: [...], omittedChildCount? },\n" +
@@ -125,7 +125,7 @@ internal static class TreeMcpToolDescriptions
         "(e.g., dialogs, tool windows, child windows). Use the returned elementId as the elementId " +
         "parameter in get_visual_tree, get_logical_tree, and other tools to target that window.\n\n" +
         "DO NOT USE: For single-window apps where the default root is sufficient.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  windowCount: integer,\n" +
@@ -154,7 +154,7 @@ internal static class TreeMcpToolDescriptions
         "- automationId\n" +
         "- propertyName + propertyValue\n" +
         "- matchMode: exact | contains\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  resultCount: integer,\n" +
@@ -182,7 +182,7 @@ internal static class TreeMcpToolDescriptions
         "USE WHEN: You need to understand which elements are template-generated vs XAML-defined.\n" +
         "DO NOT USE: On large apps without elementId scope (will be slow).\n\n" +
         "PERFORMANCE: Scope with elementId for apps with >1000 elements. Full-tree comparison may exceed the tool timeout on complex UIs.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  visualChildCount: integer,\n" +

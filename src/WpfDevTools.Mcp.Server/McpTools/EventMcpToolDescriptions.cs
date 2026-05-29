@@ -1,4 +1,4 @@
-﻿namespace WpfDevTools.Mcp.Server.McpTools;
+namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal static class EventMcpToolDescriptions
 {
@@ -14,7 +14,7 @@ internal static class EventMcpToolDescriptions
         "- `capture` (default): start tracing, wait for the capture window to end, then return the collected records\n" +
         "- `start`: start tracing immediately and return without blocking the session\n" +
         "- `get`: return the current buffered trace and tracing status; `eventName` is not required in this mode\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "- capture mode:\n" +
         "  { success, mode: \"capture\", eventName, duration, isTracing, eventCount, events, handlerInvocationCount, cleanupState?, cleanupFailed?, cleanupIncomplete? }\n" +
         "- start mode:\n" +
@@ -42,7 +42,7 @@ internal static class EventMcpToolDescriptions
         "Returns handler method names, declaring types, and whether they handle tunneling/bubbling.\n\n" +
         "USE WHEN: Button click does nothing; need to verify event handlers are attached.\n" +
         "DO NOT USE: Without eventName - it's required.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  eventName,\n" +
@@ -77,7 +77,7 @@ internal static class EventMcpToolDescriptions
         "- click_element: calls OnClick() for ButtonBase descendants, selects TabItem; returns error for other element types\n\n" +
         "WARNING: This triggers real application logic. For ButtonBase+Click, ICommand WILL execute.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core routed-event result while still preserving semantically relevant fallback indicators. Use `minimal` for success/property/newValue confirmation only, `verbose` for requested/effective input + observedEffect, or legacy `standard` as a compatibility alias.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  message: string,\n" +

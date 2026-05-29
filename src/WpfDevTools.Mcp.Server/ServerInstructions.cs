@@ -191,9 +191,9 @@ public static class ServerInstructions
         - "Rate limit exceeded" -> wait the returned `retryAfterSeconds`, then retry. Response includes { availableTokens, retryAfterSeconds, retryAfter }
         - InternalError/FileNotFound/OperationError -> retry when safe, verify build output, or report the issue with errorData
 
-        === RESPONSE FORMAT ===
-        All tools return JSON: { success: boolean, ...fields }
-        On error: { success: false, error: string, errorCode?: string, errorData?: object, recovery?: object, hint?: string, suggestedAction?: string, requiresReconnect?: boolean, stateAfterTimeoutUnknown?: boolean }
+        === RESPONSE CONTRACT ===
+        All tool responses include a JSON `success` field plus tool-specific structuredContent fields. Exact field contracts live in `wpf://contracts/response`; selected high-value tools also advertise closed `tools/list` outputSchema.
+        Error responses set `success=false` and may include `error`, `errorCode`, `errorData`, `recovery`, `hint`, `suggestedAction`, `requiresReconnect`, or `stateAfterTimeoutUnknown` depending on the failure.
         - errorCode is the Inspector error enum name when the request reached the in-process Inspector
         - errorData is optional structured context for automated recovery logic
         - recovery is the canonical machine-readable recovery surface; compatibility fields such as suggestedAction, requiresReconnect, stateAfterTimeoutUnknown, retryAfterSeconds, retryAfter, availableTokens, and availableEvents may remain top-level for older clients

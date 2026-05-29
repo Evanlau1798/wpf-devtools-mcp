@@ -1,4 +1,4 @@
-﻿namespace WpfDevTools.Mcp.Server.McpTools;
+namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal static class InteractionMcpToolDescriptions
 {
@@ -18,7 +18,7 @@ internal static class InteractionMcpToolDescriptions
         "- For button ICommand testing, both tools work; click_element is preferred for general use\n\n" +
         "WARNING: This triggers real application logic (e.g., button handlers, navigation, data modifications).\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core click result, use `minimal` for the most concise success confirmation, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  clicked: boolean\n" +
@@ -37,7 +37,7 @@ internal static class InteractionMcpToolDescriptions
         InteractionMetadata + "[Interaction] Get the current logical or keyboard focus snapshot for a window or element scope.\n\n" +
         "USE WHEN: Multi-window workflows, focus-sensitive interactions, or before capturing a restorable state snapshot.\n" +
         "DO NOT USE: As a persistent subscription; this is a point-in-time snapshot only.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  focusKind: 'Logical'|'Keyboard'|'None',\n" +
@@ -57,7 +57,7 @@ internal static class InteractionMcpToolDescriptions
         InteractionMetadata + "[Interaction] Move logical focus to a specific WPF element.\n\n" +
         "USE WHEN: Restoring focus after a mutation sequence, or preparing a keyboard-driven workflow.\n" +
         "DO NOT USE: On elements that cannot receive focus.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  focused: boolean,\n" +
@@ -77,7 +77,7 @@ internal static class InteractionMcpToolDescriptions
         "USE WHEN: Testing drag-drop functionality, reordering items, or file drop handlers.\n" +
         "DO NOT USE: Without verifying both elements exist first.\n\n" +
         "WARNING: This triggers real application logic.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  targetHandlerHints: {\n" +
@@ -104,7 +104,7 @@ internal static class InteractionMcpToolDescriptions
         "Calls BringIntoView() on the element.\n\n" +
         "USE WHEN: Element is off-screen before taking screenshot or clicking; testing scroll behavior.\n" +
         "DO NOT USE: On elements not inside a ScrollViewer (has no effect).\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  scrolled: boolean\n" +
@@ -127,7 +127,7 @@ internal static class InteractionMcpToolDescriptions
         "Enter/Space activates a Button (triggers OnClick and ICommand), " +
         "Enter/Space toggles a CheckBox, or Up/Down changes ComboBox selection. " +
         "appliedDirectEdit=true when character keys modify TextBox text.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  key,\n" +
@@ -155,7 +155,7 @@ internal static class InteractionMcpToolDescriptions
         "DO NOT USE: As a first-pass scene exploration tool (prefer get_ui_summary or get_element_snapshot), or on off-screen elements (use scroll_to_element first).\n\n" +
         "PRIVACY: The MCP screenshot policy gate must be enabled. Use `outputMode: \"file\"` for larger pixel captures; it returns a session-scoped `resourceUri`, redacts local paths, expires predictably, and is purged on disconnect. Inline `base64` is capped for small images only.\n" +
         "PERFORMANCE: The default `metadata` mode does not render or return PNG bytes. Use `outputMode: \"file\"` or explicit `outputMode: \"base64\"` plus `maxWidth` / `maxHeight` when pixels are required.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  base64Image?: string,\n" +

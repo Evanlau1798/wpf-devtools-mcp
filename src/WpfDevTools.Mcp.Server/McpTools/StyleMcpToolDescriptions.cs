@@ -1,4 +1,4 @@
-﻿namespace WpfDevTools.Mcp.Server.McpTools;
+namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal static class StyleMcpToolDescriptions
 {
@@ -12,7 +12,7 @@ internal static class StyleMcpToolDescriptions
         "BATCH MODE: Provide `elementIds` to inspect multiple elements in one call. Single-target responses keep the original shape; batch responses return `results` with per-item `elementId` correlation.\n" +
         "COMPACT MODE: Optional `compact=true` returns style summaries without enumerating every setter value.\n" +
         "DO NOT USE: For runtime property values (use get_dp_value_source instead).\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  hasStyle: boolean,\n" +
@@ -37,7 +37,7 @@ internal static class StyleMcpToolDescriptions
         "Returns trigger type (Property/Data/Event/MultiTrigger), conditions, and setter actions.\n\n" +
         "USE WHEN: Conditional styling not working; need to understand trigger logic.\n" +
         "DO NOT USE: For static styles (use get_applied_styles instead).\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  triggers: [{\n" +
@@ -59,7 +59,7 @@ internal static class StyleMcpToolDescriptions
         "Shows which ResourceDictionary at which level (element, window, app, theme) provides the resource.\n\n" +
         "USE WHEN: Resource not found errors; need to understand resource lookup order.\n" +
         "DO NOT USE: Without resourceKey - it's required.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  found: boolean,\n" +
@@ -84,7 +84,7 @@ internal static class StyleMcpToolDescriptions
         "DO NOT USE: For permanent changes (not persisted to XAML).\n\n" +
         "WARNING: This modifies the running app. Changes are NOT persisted.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core mutation result. Use `minimal` for success/property/newValue confirmation only, `verbose` for requested/effective input + observedEffect, or legacy `standard` as a compatibility alias.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  propertyName, oldValue, newValue, valueType\n" +

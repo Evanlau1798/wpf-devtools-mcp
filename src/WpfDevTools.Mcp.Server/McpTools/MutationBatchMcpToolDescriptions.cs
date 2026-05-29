@@ -1,4 +1,4 @@
-﻿namespace WpfDevTools.Mcp.Server.McpTools;
+namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal static class MutationBatchMcpToolDescriptions
 {
@@ -29,7 +29,7 @@ internal static class MutationBatchMcpToolDescriptions
         "EXAMPLES:\n" +
         "- { \"processId\": 12345, \"mutations\": [{ \"tool\": \"modify_viewmodel\", \"args\": { \"propertyName\": \"Name\", \"value\": \"Alice\" } }, { \"tool\": \"modify_viewmodel\", \"args\": { \"propertyName\": \"Age\", \"value\": 30 } }] }\n" +
         "- { \"processId\": 12345, \"captureSnapshot\": { \"propertyNames\": [\"Text\"], \"viewModelPropertyNames\": [\"Name\"] }, \"includeDiff\": true, \"mutations\": [{ \"tool\": \"modify_viewmodel\", \"args\": { \"propertyName\": \"Name\", \"value\": \"Batch User\" } }] }\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  error?: string,\n" +

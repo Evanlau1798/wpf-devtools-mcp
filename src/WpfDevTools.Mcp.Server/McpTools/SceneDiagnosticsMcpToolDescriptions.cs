@@ -1,4 +1,4 @@
-﻿namespace WpfDevTools.Mcp.Server.McpTools;
+namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal static class SceneDiagnosticsMcpToolDescriptions
 {
@@ -10,7 +10,7 @@ internal static class SceneDiagnosticsMcpToolDescriptions
         "[Scene] Compute semantic before/after differences for tracked DependencyProperty values, ViewModel properties, focus, binding errors, and validation errors.\n\n" +
         "USE WHEN: After click_element, execute_command, modify_viewmodel, or manual debugging steps when you need to know what changed.\n" +
         "DO NOT USE: As a replacement for capture_state_snapshot; you must capture a snapshot first.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  snapshotId: string,\n" +
@@ -50,7 +50,7 @@ internal static class SceneDiagnosticsMcpToolDescriptions
         "[Scene] Diagnose visibility blockers such as element or ancestor Visibility, zero Opacity, zero layout size, and clipping.\n\n" +
         "USE WHEN: An element exists in the tree but does not appear on screen, or when you want a structured replacement for screenshot-based visibility debugging.\n" +
         "DO NOT USE: As a generic tree browser; use get_visual_tree/get_logical_tree for structure exploration.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  elementId: string,\n" +
@@ -72,7 +72,7 @@ internal static class SceneDiagnosticsMcpToolDescriptions
         "[Scene] Aggregate enabled state, visibility, opacity, hit testing, layout size, and ButtonBase ICommand.CanExecute into one interaction readiness verdict.\n\n" +
         "USE WHEN: Before click_element or simulate_keyboard when you need to know whether the target is interactable right now.\n" +
         "DO NOT USE: As a replacement for diagnose_visibility when the question is specifically why something is not visible.\n\n" +
-        "RESPONSE FORMAT:\n" +
+        "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +
         "  success: boolean,\n" +
         "  elementId: string,\n" +

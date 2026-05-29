@@ -259,6 +259,50 @@ internal static partial class McpToolOutputSchemas
             ["payload"] = MapOf("Event payload.", JsonValue())
         });
 
+    private static object FormScope()
+        => ObjectSchema("Form summary scope.", new()
+        {
+            ["elementId"] = String("Scoped root element id."),
+            ["elementType"] = String("Scoped root WPF type."),
+            ["elementName"] = String("Scoped root name when available."),
+            ["heading"] = String("Best available form heading or title.")
+        });
+
+    private static object FormInput()
+        => ObjectSchema("Form input summary.", new()
+        {
+            ["elementId"] = String("Input element id."),
+            ["elementType"] = String("Input WPF type."),
+            ["label"] = String("Best available input label."),
+            ["value"] = JsonValue(),
+            ["valuePreview"] = String("Truncated value preview."),
+            ["isRequired"] = Boolean("Whether the input appears required."),
+            ["isEnabled"] = Boolean("Whether the input is enabled."),
+            ["validationErrors"] = ArrayOf("Validation errors associated with this input.", ValidationError())
+        });
+
+    private static object FormCommand()
+        => ObjectSchema("Form command summary.", new()
+        {
+            ["elementId"] = String("Command element id."),
+            ["elementType"] = String("Command WPF type."),
+            ["label"] = String("Button text or accessible command label."),
+            ["commandName"] = String("Bound ICommand property name when known."),
+            ["canExecute"] = Boolean("Whether the command can execute."),
+            ["readiness"] = String("Interaction readiness summary.")
+        });
+
+    private static object FormSummary()
+        => ObjectSchema("Aggregate form submittability summary.", new()
+        {
+            ["totalInputs"] = Integer("Number of discovered input controls."),
+            ["emptyInputs"] = Integer("Number of empty inputs."),
+            ["errorCount"] = Integer("Number of validation errors."),
+            ["validationSubmittable"] = Boolean("Whether validation state allows submission."),
+            ["interactionSubmittable"] = Boolean("Whether command/readiness state allows submission."),
+            ["isSubmittable"] = Boolean("Combined form submittability result.")
+        });
+
     private static object StyleSetter()
         => ObjectSchema("Style setter summary.", new()
         {

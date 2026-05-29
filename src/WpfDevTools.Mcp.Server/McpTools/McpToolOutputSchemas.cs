@@ -82,6 +82,15 @@ internal static partial class McpToolOutputSchemas
                 ["summaryText"] = String("Compact scene summary for AI clients."),
                 ["nodes"] = ArrayOf("Semantic scene nodes.", SceneNode())
             }),
+            ["get_form_summary"] = CreateSchema(false, new()
+            {
+                ["formScope"] = FormScope(),
+                ["scopeVisibility"] = String("Visibility scope used for form traversal."),
+                ["isCurrentlyVisible"] = Boolean("Whether the summarized form scope is currently visible."),
+                ["inputs"] = ArrayOf("Input controls discovered under the form scope.", FormInput()),
+                ["commands"] = ArrayOf("Command-capable controls discovered under the form scope.", FormCommand()),
+                ["summary"] = FormSummary()
+            }),
             ["get_element_snapshot"] = CreateSchema(false, new()
             {
                 ["elementId"] = String("Runtime element id."),
@@ -108,6 +117,15 @@ internal static partial class McpToolOutputSchemas
                 ["errors"] = ArrayOf("Binding error records.", BindingErrorEntry()),
                 ["navigation"] = Navigation(),
                 ["nextSteps"] = ArrayOf("Compatibility next-step list.", NextStep())
+            }),
+            ["drain_events"] = CreateSchema(false, new()
+            {
+                ["pendingEventCount"] = Integer("Number of runtime events returned by this drain."),
+                ["droppedEventCount"] = Integer("Number of runtime events dropped before this drain."),
+                ["cleanupIncomplete"] = Boolean("Whether event-drain cleanup was incomplete."),
+                ["cleanupFailureMessage"] = String("Cleanup failure details when cleanupIncomplete is true."),
+                ["cleanupFailureType"] = String("Cleanup failure type when cleanupIncomplete is true."),
+                ["pendingEvents"] = ArrayOf("Runtime events drained from the connected process.", PendingEvent())
             }),
             ["capture_state_snapshot"] = CreateSchema(false, new()
             {

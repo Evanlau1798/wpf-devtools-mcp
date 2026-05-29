@@ -16,6 +16,8 @@ public sealed class McpToolOutputSchemaTests
         { "get_element_snapshot", ["elementId", "elementType", "elementName", "dataContextType", "properties", "bindings", "validationErrors", "style", "layout"] },
         { "get_bindings", ["bindings", "results", "resultCount", "successCount", "failureCount"] },
         { "get_binding_errors", ["errorCount", "errors", "navigation", "nextSteps"] },
+        { "drain_events", ["pendingEventCount", "droppedEventCount", "cleanupIncomplete", "cleanupFailureMessage", "cleanupFailureType", "pendingEvents"] },
+        { "get_form_summary", ["formScope", "scopeVisibility", "isCurrentlyVisible", "inputs", "commands", "summary"] },
         { "capture_state_snapshot", ["snapshotId", "snapshotSummary"] },
         { "get_state_diff", ["snapshotId", "trigger", "diff"] },
         { "restore_state_snapshot", ["snapshotId", "restoredDependencyProperties", "restoredViewModelProperties", "skippedDependencyProperties", "skippedViewModelProperties"] },
@@ -123,6 +125,28 @@ public sealed class McpToolOutputSchemaTests
 
         missingByTool.Should().BeEmpty(
             "closed high-value tools/list outputSchema entries must not omit fields advertised by wpf://contracts/response");
+    }
+
+    [Fact]
+    public void SpecializedResponseContractTools_ShouldExposeExactClosedOutputSchemas()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetResponseContract());
+        var genericTools = new List<string>();
+
+        foreach (var contract in document.RootElement.GetProperty("highValueTools").EnumerateArray())
+        {
+            var toolName = contract.GetProperty("tool").GetString()!;
+            var tool = CreateTool(toolName);
+            McpToolOutputSchemas.Apply(tool);
+
+            if (tool.OutputSchema!.Value.GetProperty("additionalProperties").GetBoolean())
+            {
+                genericTools.Add(toolName);
+            }
+        }
+
+        genericTools.Should().BeEmpty(
+            "tools with specialized response-resource contracts should expose the same exact closed contract through tools/list outputSchema");
     }
 
     [Fact]

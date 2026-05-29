@@ -37,14 +37,21 @@ public class RepositoryHygieneTests
     [Fact]
     public void GitIgnoredMarkdownFiles_ShouldNotBeTracked()
     {
+        var intentionalTrackedIgnoredMarkdown = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "AGENTS.md"
+        };
+
         var trackedIgnoredMarkdown = RunGitLines(
             "ls-files",
             "-ci",
             "--exclude-standard",
-            "*.md");
+            "*.md")
+            .Where(path => !intentionalTrackedIgnoredMarkdown.Contains(path.Replace('\\', '/')))
+            .ToArray();
 
         trackedIgnoredMarkdown.Should().BeEmpty(
-            "non-DocFX local documentation markdown that is ignored by .gitignore must not stay tracked");
+            "non-DocFX local documentation markdown that is ignored by .gitignore must not stay tracked unless it is an explicitly tracked repository contract");
     }
 
     [Theory]

@@ -15,6 +15,9 @@ public static class MessageFraming
 {
     /// <summary>
     /// Maximum UTF-8 payload size accepted by the length-prefixed IPC frame.
+    /// This is a hard per-frame limit. Large result producers must use
+    /// tool-level caps, truncation, or resource handles; raising this value
+    /// requires a streaming or chunking transport design first.
     /// </summary>
     public const int MaxMessageSizeBytes = 10 * 1024 * 1024; // 10 MB
     private const int LengthPrefixSize = 4;

@@ -83,6 +83,26 @@ public sealed class GitHubActionsWorkflowSecurityTests
     }
 
     [Fact]
+    public void CodeQlWorkflow_ShouldAnalyzeManagedAndNativeCodeWithManualBuilds()
+    {
+        var workflow = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(".github/workflows/codeql.yml"));
+
+        workflow.Should().Contain("github/codeql-action/init@");
+        workflow.Should().Contain("github/codeql-action/analyze@");
+        workflow.Should().Contain("security-events: write",
+            "CodeQL needs permission to publish code scanning results");
+        workflow.Should().Contain("language: csharp",
+            "managed MCP server and Inspector code must be part of the SAST baseline");
+        workflow.Should().Contain("language: c-cpp",
+            "native bootstrapper code must be part of the SAST baseline");
+        workflow.Should().Contain("build-mode: manual",
+            "compiled-language CodeQL should trace the same explicit builds used by release validation");
+        workflow.Should().Contain("dotnet build WpfDevTools.sln");
+        workflow.Should().Contain("WpfDevTools.Bootstrapper.vcxproj");
+        workflow.Should().Contain("+security-extended,security-and-quality");
+    }
+
+    [Fact]
     public void CiCdWorkflow_ShouldKeepSecurityScanInDedicatedWorkflow()
     {
         var workflow = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(".github/workflows/ci-cd.yml"));

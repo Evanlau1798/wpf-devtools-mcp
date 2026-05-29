@@ -140,6 +140,15 @@ public sealed class AgentGuidanceDocumentationTests
             "the agent contract should preserve local verification commands");
     }
 
+    [Fact]
+    public void SandboxCiCopy_ShouldNotExcludeTrackedAgentsGuide()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("scripts/ci/Start-SandboxCi.ps1"));
+
+        content.Should().NotContain("'AGENTS.md'",
+            "sandbox CI must copy the tracked repository agent contract so sandbox tests validate the same source surface as GitHub CI");
+    }
+
     private static string ExtractSection(string content, string heading)
     {
         var startIndex = content.IndexOf(heading, StringComparison.Ordinal);

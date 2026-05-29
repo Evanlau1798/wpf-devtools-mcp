@@ -19,6 +19,26 @@ public class ProgramRegistrationTests
             "Claude Code @resource discovery needs MCP resource registration");
     }
 
+    [Fact]
+    public void Program_CallToolFilter_ShouldRejectOversizedToolNamesBeforePolicyDispatch()
+    {
+        var programPath = Path.Combine(FindSolutionRoot(), "src", "WpfDevTools.Mcp.Server", "Program.cs");
+        var content = File.ReadAllText(programPath);
+
+        content.Should().Contain("parameters?.Name is { Length: > BoundaryStringLimits.MaxInspectorMethodLength }",
+            "the MCP server owns the tool-call boundary after the SDK parses the JSON-RPC envelope");
+        content.Should().Contain("ToolCallHelper.CreateStructuredErrorResult");
+        content.Should().Contain("\"InvalidArgument\"");
+
+        var guardIndex = content.IndexOf("BoundaryStringLimits.MaxInspectorMethodLength", StringComparison.Ordinal);
+        var policyIndex = content.IndexOf("toolPolicy.EvaluateToolCall", StringComparison.Ordinal);
+
+        guardIndex.Should().BeGreaterThanOrEqualTo(0);
+        policyIndex.Should().BeGreaterThanOrEqualTo(0);
+        guardIndex.Should().BeLessThan(policyIndex,
+            "oversized names should be rejected before allowlist policy evaluation or dispatch");
+    }
+
     private static string FindSolutionRoot()
     {
         var current = new DirectoryInfo(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!);

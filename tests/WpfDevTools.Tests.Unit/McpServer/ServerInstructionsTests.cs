@@ -35,6 +35,15 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldDescribeJsonRpcEnvelopeBoundaryOwnership()
+    {
+        ServerInstructions.Value.Should().Contain("MCP JSON-RPC envelope");
+        ServerInstructions.Value.Should().Contain("MCP C# SDK");
+        ServerInstructions.Value.Should().Contain("tool-call names and arguments");
+        ServerInstructions.Value.Should().Contain("Inspector IPC request ids, methods, and correlation ids");
+    }
+
+    [Fact]
     public void Value_ShouldSeparateSceneAndTreeDepthDefaults()
     {
         ServerInstructions.Value.Should().Contain("depth: integer (0-100)");
@@ -113,9 +122,9 @@ public class ServerInstructionsTests
     }
 
     [Fact]
-    public void Value_ShouldContainResponseFormat()
+    public void Value_ShouldContainResponseContract()
     {
-        ServerInstructions.Value.Should().Contain("RESPONSE FORMAT");
+        ServerInstructions.Value.Should().Contain("RESPONSE CONTRACT");
         ServerInstructions.Value.Should().Contain("success");
     }
 

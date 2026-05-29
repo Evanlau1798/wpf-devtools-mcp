@@ -9,6 +9,7 @@ using WpfDevTools.Mcp.Server.McpResources;
 using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Shared.Security;
 using WpfDevTools.Shared.Utilities;
+using WpfDevTools.Shared.Validation;
 
 [assembly: SupportedOSPlatform("windows")]
 
@@ -79,6 +80,15 @@ try
         filters.AddCallToolFilter(next => async (request, cancellationToken) =>
         {
             var parameters = request.Params;
+            if (parameters?.Name is { Length: > BoundaryStringLimits.MaxInspectorMethodLength } toolName)
+            {
+                return ToolCallHelper.CreateStructuredErrorResult(
+                    $"MCP tool name exceeds maximum length of {BoundaryStringLimits.MaxInspectorMethodLength} characters.",
+                    "InvalidArgument",
+                    hint: $"Received tool name length {toolName.Length}. Use a registered MCP tool name from tools/list.",
+                    suggestedAction: "Retry with a registered MCP tool name from tools/list.");
+            }
+
             var policyDecision = toolPolicy.EvaluateToolCall(parameters?.Name, parameters?.Arguments);
             if (!policyDecision.IsAllowed)
             {

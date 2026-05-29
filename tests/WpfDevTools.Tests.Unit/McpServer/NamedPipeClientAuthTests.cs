@@ -47,6 +47,9 @@ public class NamedPipeClientAuthTests : IDisposable
     }
 
     [Fact]
+    [NamedPipeMitmScenario(
+        "wrong-hmac-secret",
+        "A host that cannot prove the expected HMAC secret must be rejected.")]
     public async Task ConnectAsync_WithMismatchedSecret_ShouldReturnFalse()
     {
         // Arrange

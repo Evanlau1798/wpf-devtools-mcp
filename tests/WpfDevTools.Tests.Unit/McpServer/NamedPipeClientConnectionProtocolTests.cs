@@ -26,6 +26,9 @@ public sealed class NamedPipeClientConnectionProtocolTests
     }
 
     [Fact]
+    [NamedPipeMitmScenario(
+        "wrong-server-pid",
+        "A pipe owned by a different process ID must be rejected before protocol trust is established.")]
     public async Task ConnectAsync_WhenConnectedServerProcessDoesNotMatchExpectedProcess_ShouldReturnFalse()
     {
         var expectedProcessId = Environment.ProcessId + 100000;
@@ -65,6 +68,9 @@ public sealed class NamedPipeClientConnectionProtocolTests
     }
 
     [Fact]
+    [NamedPipeMitmScenario(
+        "stale-build-fingerprint",
+        "A host reporting a stale protocol or build fingerprint must fail compatibility validation.")]
     public async Task ConnectAsync_WhenConnectedHostReportsIncompatibleBuild_ShouldReturnFalse()
     {
         var processId = Environment.ProcessId;
@@ -174,6 +180,9 @@ public sealed class NamedPipeClientConnectionProtocolTests
     }
 
     [Fact]
+    [NamedPipeMitmScenario(
+        "custom-pipe-name-bypass",
+        "A custom pipe name must not bypass authentication and compatibility checks for existing-host reuse.")]
     public async Task ConnectExistingHostSession_WithCustomPipeAndAuthenticatedStaleFakeHost_ShouldFailClosed()
     {
         var processId = Environment.ProcessId;

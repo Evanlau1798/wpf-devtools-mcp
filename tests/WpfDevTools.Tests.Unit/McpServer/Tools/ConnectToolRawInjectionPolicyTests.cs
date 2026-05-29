@@ -12,6 +12,7 @@ using WpfDevTools.Shared.Enums;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Security;
 using WpfDevTools.Shared.Serialization;
+using WpfDevTools.Tests.Unit.McpServer;
 using WpfDevTools.Tests.Unit.TestSupport;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
@@ -151,6 +152,9 @@ public sealed class ConnectToolRawInjectionPolicyTests : IDisposable
     }
 
     [Fact]
+    [NamedPipeMitmScenario(
+        "rejected-fake-host-no-raw-injection-fallback",
+        "A rejected fake existing host must not fall through to raw injection unless policy explicitly allows injection.")]
     public async Task Execute_WhenBlockedExternalTargetFindsIncompatibleExistingHostDuringGracePeriod_ShouldReturnCompatibilityErrorWithoutInjection()
     {
         EnsureDummyBootstrapperExists();

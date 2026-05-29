@@ -13,6 +13,7 @@ using WpfDevTools.Shared.Enums;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Security;
+using WpfDevTools.Tests.Unit.McpServer;
 using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
@@ -182,6 +183,12 @@ public partial class ConnectToolTests
     }
 
     [Fact]
+    [NamedPipeMitmScenario(
+        "wrong-certificate-thumbprint",
+        "A secure host using a different certificate directory or thumbprint must be rejected.")]
+    [NamedPipeMitmScenario(
+        "sdk-host-mismatched-auth-or-cert",
+        "An SDK-hosted inspector with mismatched auth or certificate settings must not be reused.")]
     public async Task Execute_WithExistingSecureHostAndMismatchedCertificateDirectory_ShouldReturnSecurityErrorWithoutInjection()
     {
         EnsureDummyBootstrapperExists();

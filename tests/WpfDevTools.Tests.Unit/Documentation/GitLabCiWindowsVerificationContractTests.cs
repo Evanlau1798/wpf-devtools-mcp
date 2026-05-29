@@ -137,7 +137,11 @@ public sealed class GitLabCiWindowsVerificationContractTests
         hosted.Should().Contain("LOCALAPPDATA = Join-Path $installUserRoot");
         hosted.Should().Contain("APPDATA = Join-Path $bootstrapUserRoot");
         hosted.Should().Contain("LOCALAPPDATA = Join-Path $bootstrapUserRoot");
-        hosted.Should().Contain("Skipping packaged server runtime smoke test for $Architecture",
+        hosted.Should().Contain("Start targetless protocol-only installed package runtime smoke test $Architecture",
+            "direct package runtime smoke without a launched target must be labelled as protocol-only");
+        hosted.Should().Contain("Start targetless protocol-only online-installed runtime smoke test $Architecture",
+            "direct online-installed runtime smoke without a launched target must be labelled as protocol-only");
+        hosted.Should().Contain("Skipping targetless protocol-only packaged server runtime smoke test for $Architecture",
             "the hosted x64 lane validates non-x64 package install/uninstall layout but skips runtime launch");
     }
 

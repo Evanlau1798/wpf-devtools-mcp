@@ -290,7 +290,7 @@ function Invoke-HostedReleasePackagingSmoke {
 
     if ($Architecture -eq 'x64') {
         $serverPath = Join-Path $installSmokeRoot "$Architecture\current\bin\wpf-devtools-$Architecture.exe"
-        Invoke-ExternalWithTimeout "Start installed package runtime smoke test $Architecture" 'powershell.exe' @(
+        Invoke-ExternalWithTimeout "Start targetless protocol-only installed package runtime smoke test $Architecture" 'powershell.exe' @(
             '-NoProfile',
             '-ExecutionPolicy',
             'Bypass',
@@ -301,7 +301,7 @@ function Invoke-HostedReleasePackagingSmoke {
         ) -TimeoutSeconds 300 -OutputRoot $OutputRoot -Timestamp $Timestamp
     }
     else {
-        Write-Host "Skipping packaged server runtime smoke test for $Architecture; GitHub's hosted x64 lane only install/uninstall smokes non-x64 package layouts."
+        Write-Host "Skipping targetless protocol-only packaged server runtime smoke test for $Architecture; GitHub's hosted x64 lane only install/uninstall smokes non-x64 package layouts."
     }
 
     $archiveLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $packageArchive.FullName
@@ -315,7 +315,7 @@ function Invoke-HostedReleasePackagingSmoke {
 
     if ($Architecture -eq 'x64') {
         $bootstrapServerPath = Join-Path $bootstrapSmokeRoot "$Architecture\current\bin\wpf-devtools-$Architecture.exe"
-        Invoke-ExternalWithTimeout "Start online-installed runtime smoke test $Architecture" 'powershell.exe' @(
+        Invoke-ExternalWithTimeout "Start targetless protocol-only online-installed runtime smoke test $Architecture" 'powershell.exe' @(
             '-NoProfile',
             '-ExecutionPolicy',
             'Bypass',
@@ -326,7 +326,7 @@ function Invoke-HostedReleasePackagingSmoke {
         ) -TimeoutSeconds 300 -OutputRoot $OutputRoot -Timestamp $Timestamp
     }
     else {
-        Write-Host "Skipping online-installed runtime smoke test for $Architecture; GitHub's hosted x64 lane only install/uninstall smokes non-x64 package layouts."
+        Write-Host "Skipping targetless protocol-only online-installed runtime smoke test for $Architecture; GitHub's hosted x64 lane only install/uninstall smokes non-x64 package layouts."
     }
 
     $installedScript = Join-Path $installSmokeRoot "$Architecture\current\bin\install.ps1"

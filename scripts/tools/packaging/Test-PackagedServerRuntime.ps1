@@ -256,6 +256,10 @@ $startInfo.StandardOutputEncoding = [System.Text.Encoding]::UTF8
 $startInfo.StandardErrorEncoding = [System.Text.Encoding]::UTF8
 $startInfo.Environment['WPFDEVTOOLS_RATE_LIMIT_RPM'] = '2000'
 
+$smokeMode = if ($TargetProcessId -gt 0) { 'target-aware live-injection' } else { 'targetless protocol-only' }
+$clientName = if ($TargetProcessId -gt 0) { 'packaged-runtime-live-injection-smoke' } else { 'packaged-runtime-protocol-only-smoke' }
+Write-Host "Running $smokeMode packaged runtime smoke for $resolvedServerPath."
+
 if ($TargetProcessId -gt 0) {
     if ([string]::IsNullOrWhiteSpace($TargetProcessPath)) {
         throw 'TargetProcessPath is required when TargetProcessId is specified so packaged smoke can set exact target allowlists.'
@@ -281,7 +285,7 @@ try {
         protocolVersion = '2025-06-18'
         capabilities = @{}
         clientInfo = @{
-            name = 'packaged-runtime-smoke'
+            name = $clientName
             version = '1.0.0'
         }
     }

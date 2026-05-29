@@ -315,6 +315,19 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
+    public void PackagedServerRuntimeSmokeScript_ShouldLabelTargetlessAndLiveInjectionModes()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));
+
+        content.Should().Contain("targetless protocol-only",
+            "package smoke without TargetProcessId validates the MCP protocol and package startup, not live WPF injection");
+        content.Should().Contain("target-aware live-injection",
+            "package smoke with TargetProcessId validates attach, read, mutation, and restore against a live WPF app");
+        content.Should().Contain("packaged-runtime-protocol-only-smoke");
+        content.Should().Contain("packaged-runtime-live-injection-smoke");
+    }
+
+    [Fact]
     public void PackagedServerRuntimeSmokeScript_ShouldGuardAgainstStdoutContamination()
     {
         var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));

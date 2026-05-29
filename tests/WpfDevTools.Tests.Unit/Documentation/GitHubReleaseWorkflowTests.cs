@@ -83,6 +83,21 @@ public sealed class GitHubReleaseWorkflowTests
     }
 
     [Fact]
+    public void ReleaseWorkflow_ShouldValidateX86StagedAssetsWithTargetAwareLiveSmokeBeforeUpload()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/release.yml"));
+
+        content.Should().Contain("validate-x86-release-assets",
+            "public x86 Release assets are built and uploaded, so they must be installed and live-injection tested before upload");
+        content.Should().Contain("release_*_win-x86.zip",
+            "the x86 validation lane must resolve the staged x86 archive instead of accidentally retesting another architecture");
+        content.Should().Contain("-Architecture 'x86'",
+            "the x86 validation lane must exercise the package through the x86 install and runtime smoke paths");
+        content.Should().Contain("- validate-x86-release-assets",
+            "asset upload should wait for signed x86 live-injection validation");
+    }
+
+    [Fact]
     public void ReleaseWorkflow_ShouldVerifyFullUninstallResidueForStagedAssetsBeforeUpload()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/release.yml"));

@@ -277,6 +277,126 @@ jobs:
           & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
           & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x64'
 
+  validate-x86-release-assets:
+    needs: publish-release-assets
+    runs-on: windows-2022
+    env:
+      RELEASE_STAGING_ROOT: artifacts/release/github-assets
+
+    steps:
+      - name: Checkout tagged revision
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: refs/tags/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '8.0.x'
+          architecture: x86
+
+      - name: Download staged release bundle artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: github-release-assets-${{ needs.publish-release-assets.outputs.release-tag }}
+          path: ${{ env.RELEASE_STAGING_ROOT }}/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Install staged x86 package smoke test
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
+          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x86.zip' |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+
+          if ($null -eq $packageArchive) {
+            throw 'Could not locate staged x86 release archive for runtime validation.'
+          }
+
+          $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
+          if (Test-Path $packageDir) {
+            Remove-Item -LiteralPath $packageDir -Recurse -Force
+          }
+
+          Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
+          & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+
+      - name: Start staged installed x86 runtime live smoke test
+        shell: pwsh
+        run: |
+          $serverPath = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'x86\current\bin\wpf-devtools-x86.exe'
+
+          if (-not (Test-Path $serverPath)) {
+            throw "Could not locate staged installed x86 server executable at $serverPath"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x86'
+
+      - name: x86 online installer smoke test
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
+          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x86.zip' |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+
+          if ($null -eq $packageArchive) {
+            throw 'Could not locate staged x86 release archive for online installer validation.'
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory $stagingRoot -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
+
+      - name: Start staged online-installed x86 runtime live smoke test
+        shell: pwsh
+        run: |
+          $serverPath = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'x86\current\bin\wpf-devtools-x86.exe'
+
+          if (-not (Test-Path $serverPath)) {
+            throw "Could not locate staged online-installed x86 server executable at $serverPath"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x86'
+
+      - name: Uninstall staged installed x86 package smoke test
+        shell: pwsh
+        run: |
+          $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'x86\current\bin\install.ps1'
+
+          if (-not (Test-Path $installedScript)) {
+            throw "Could not locate installed package-local installer at $installedScript"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'x86' -Client other -NonInteractive -OutputJson
+
+      - name: Full uninstall staged installed x86 package residue test
+        shell: pwsh
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'x86' -Client other -NonInteractive -OutputJson
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture 'x86'
+
+      - name: Uninstall staged x86 online installer smoke test
+        shell: pwsh
+        run: |
+          $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'x86\current\bin\install.ps1'
+
+          if (-not (Test-Path $installedScript)) {
+            throw "Could not locate installed online-installer payload at $installedScript"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x86' -Client other -NonInteractive -OutputJson
+
+      - name: Full uninstall staged x86 online installer residue test
+        shell: pwsh
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x86' -Client other -NonInteractive -OutputJson
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x86'
+
   validate-arm64-release-assets:
     if: vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE == 'true'
     needs: publish-release-assets
@@ -401,6 +521,7 @@ jobs:
     needs:
       - publish-release-assets
       - validate-x64-release-assets
+      - validate-x86-release-assets
       - validate-arm64-release-assets
     permissions:
       contents: write

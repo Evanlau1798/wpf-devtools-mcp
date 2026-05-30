@@ -182,6 +182,39 @@ public sealed class ToolCallHelperTextFallbackTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteAndWrapAsync_WithFullTextFallbackMode_ShouldOmitLargeSensitiveTextPayloads()
+    {
+        using var fallbackScope = EnvironmentVariableScope.Set("WPFDEVTOOLS_TEXT_FALLBACK_MODE", "full");
+        var payload = new
+        {
+            success = true,
+            status = "Captured",
+            screenshotId = "shot-1",
+            base64Image = new string('A', 512),
+            diagnostics = new
+            {
+                logDump = "line1\nline2\nsecret-path"
+            }
+        };
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(payload),
+            null,
+            CancellationToken.None);
+
+        var textBlock = result.Content[0].Should().BeOfType<TextContentBlock>().Subject;
+        var textPayload = JsonSerializer.Deserialize<JsonElement>(textBlock.Text);
+
+        textPayload.GetProperty("status").GetString().Should().Be("Captured");
+        textPayload.GetProperty("base64Image").GetProperty("omittedFromTextFallback").GetBoolean().Should().BeTrue();
+        textPayload.GetProperty("diagnostics").GetProperty("logDump")
+            .GetProperty("omittedFromTextFallback").GetBoolean().Should().BeTrue();
+        textBlock.Text.Should().NotContain(new string('A', 128));
+        textBlock.Text.Should().NotContain("secret-path");
+        result.StructuredContent!.Value.GetProperty("base64Image").GetString().Should().HaveLength(512);
+    }
+
+    [Fact]
     public async Task ExecuteAndWrapAsync_WithMinimalObjectPayload_ShouldExplainStructuredContentAsCanonicalPayload()
     {
         var result = await ToolCallHelper.ExecuteAndWrapAsync(

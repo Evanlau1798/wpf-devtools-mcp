@@ -79,7 +79,7 @@
 - `tools/list` 會針對 `connect`、`get_processes`、`get_ui_summary`、`get_element_snapshot(elementId)`、state snapshot/restore、batch mutation 與 screenshot 等 high-value tools 公告更精確的 `outputSchema`。其他工具仍繼承共用 structured payload schema，包含 `success`、`navigation` 與常見識別欄位。Claude-compatible client smoke test 應針對這些 structured-output metadata shapes 驗證 discovery。
 - 如果 client 需要 machine-readable contract，請直接讀取 MCP resource `wpf://contracts/response`。它會提供比共用 `tools/list` schema 更完整的 WPF payload contract，涵蓋 `structuredContent`、`navigation`、`nextSteps`、`contextRefs`，以及 `get_binding_errors` `navigation=false` opt-out。
 - 如果需要 canonical tool metadata，請讀取 MCP resource `wpf://contracts/tools`。它會提供 tool name、category、safety flag、capability tags 與 parameter metadata 的 machine-readable JSON manifest。
-- `result.content[0].text` 是精簡的 JSON fallback，會保留高訊號的 top-level scalar 欄位與集合計數摘要，而不是完整 JSON 的重複傳輸。只有 legacy text-only MCP client 需要在 `result.content[0].text` 取得完整 JSON 時，才設定 `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full`；error results include `result.content[0].annotations`。
+- `result.content[0].text` 是精簡的 JSON fallback，會保留高訊號的 top-level scalar 欄位與集合計數摘要，而不是完整 JSON 的重複傳輸。只有 legacy text-only MCP client 才設定 `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full`；即使如此，base64 screenshots、log dumps、raw XAML/markup 與類似大型欄位仍會在 text fallback 中改成省略 metadata。Error results include `result.content[0].annotations`。
 - 若 session 內已存在 buffered runtime event，部分 diagnostic 工具也可能在回應中 piggyback `pendingEvents`。若你需要明確且 deterministic 的 event read step，請改用 `drain_events`。
 
 ## Generated Contract Snapshot

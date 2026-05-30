@@ -14,7 +14,7 @@
 | `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS` | Enables or disables sensitive runtime read tools | Covers target UI text, DependencyProperty and binding values, routed-event payloads, tree/scene summaries, and state snapshots; same boolean values as above; unset, invalid, or false values fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | Enables or disables ViewModel inspection tools | Same boolean values as above; unset, invalid, or false values block `get_viewmodel`, `get_commands`, `modify_viewmodel`, and `execute_command` |
 | `WPFDEVTOOLS_RATE_LIMIT_RPM` | Overrides the MCP server request rate limit | Positive integer requests per minute; default is 300; values above 10000 are clamped to 10000 |
-| `WPFDEVTOOLS_TEXT_FALLBACK_MODE` | Controls MCP `content[0].text` fallback verbosity | Set to `full` to emit full JSON text; unset uses the compact fallback |
+| `WPFDEVTOOLS_TEXT_FALLBACK_MODE` | Controls MCP `content[0].text` fallback verbosity | Set to `full` only for legacy text-only clients; large or sensitive payload fields such as base64 screenshots and log dumps remain omitted from the text fallback. Unset uses the compact fallback |
 
 The internal per-process rate limiter cache is capped at 1000 entries and evicts the least recently used entries when full. This cache capacity is not externally configurable.
 

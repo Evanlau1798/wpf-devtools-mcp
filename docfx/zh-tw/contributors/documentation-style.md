@@ -24,7 +24,7 @@
 - Tool metadata 仍然從 SDK attribute 開始，但真正的 runtime response contract 會經過 `ToolCallHelper` 正規化。
 - MCP wrapper 使用 `UseStructuredContent = true`，server 會修正 `tools/list` 的 `outputSchema`，讓它描述共用的 `result.structuredContent` payload 欄位，而不是 `CallToolResult` envelope。
 - `ToolCallHelper` 仍會將 WPF-specific canonical JSON payload 放進 `StructuredContent`。Machine-readable response contract resource 會描述細部的 per-tool payload 欄位。
-- 當 `StructuredContent` 存在時，`Content.Text` 仍保留 compact fallback summary，供只讀文字的 client 使用。`WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` 是 legacy text-only MCP client 的明確相容模式，不是預設文件基準。
+- 當 `StructuredContent` 存在時，`Content.Text` 仍保留 compact fallback summary，供只讀文字的 client 使用。`WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` 是 legacy text-only MCP client 的明確相容模式，但仍會省略 base64 screenshots、log dumps 等大型或敏感文字欄位。
 - 加值的 follow-up guidance 放在共用的 `navigation` envelope；`nextSteps` 則保留給較舊 client 的 compatibility surface。
 - 錯誤結果可能包含 `Annotations`，以及像 `suggestedAction`、`requiresReconnect`、`retryAfterSeconds` 這類 structured recovery 欄位。
 - 公開 docfx 文件應從 code-backed contract 出發更新，不要手動維護另一套容易 drift 的 schema 敘事。

@@ -62,7 +62,7 @@ public static partial class CapabilityResources
                 textFallbackDefaultMode = "compact",
                 textFallbackModes = new[] { "compact", "full" },
                 textFallbackModeEnvironmentVariable = McpServerConfiguration.TextFallbackModeEnvVar,
-                textFallbackFullModeSemantics = "full-json-compatibility-for-legacy-text-only-clients",
+                textFallbackFullModeSemantics = "full-json-compatibility-with-large-sensitive-fields-omitted",
                 structuredContentPreferred = true
             },
             toolPayload = new

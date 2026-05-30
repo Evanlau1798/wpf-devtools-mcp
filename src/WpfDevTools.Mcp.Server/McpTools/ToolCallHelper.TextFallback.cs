@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
@@ -27,6 +28,21 @@ public static partial class ToolCallHelper
         "rawXaml"
     };
 
+    private static readonly HashSet<string> OmittedFullTextFallbackProperties = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "base64Image",
+        "imageBase64",
+        "screenshotBase64",
+        "rawText",
+        "rawXaml",
+        "xaml",
+        "markup",
+        "html",
+        "logDump",
+        "logs",
+        "traceLog"
+    };
+
     private static TextContentBlock CreateTextContentBlock(JsonElement payload, bool isError) => new()
     {
         Text = BuildTextFallback(payload, ResolveTextFallbackMode()),
@@ -40,11 +56,72 @@ public static partial class ToolCallHelper
     {
         if (string.Equals(fallbackMode, FullTextFallbackMode, StringComparison.OrdinalIgnoreCase))
         {
-            return payload.GetRawText();
+            return JsonSerializer.Serialize(SanitizeFullTextFallbackPayload(payload), SerializerOptions);
         }
 
         return BuildCompactTextFallback(payload);
     }
+
+    private static JsonNode? SanitizeFullTextFallbackPayload(JsonElement payload, string? propertyName = null)
+    {
+        if (ShouldOmitFullTextFallbackProperty(propertyName))
+        {
+            return CreateTextFallbackOmissionNode();
+        }
+
+        return payload.ValueKind switch
+        {
+            JsonValueKind.Object => SanitizeFullTextFallbackObject(payload),
+            JsonValueKind.Array => SanitizeFullTextFallbackArray(payload, propertyName),
+            JsonValueKind.String => JsonValue.Create(payload.GetString()),
+            JsonValueKind.Number => JsonNode.Parse(payload.GetRawText()),
+            JsonValueKind.True => JsonValue.Create(true),
+            JsonValueKind.False => JsonValue.Create(false),
+            JsonValueKind.Null => null,
+            _ => JsonValue.Create(payload.GetRawText())
+        };
+    }
+
+    private static JsonObject SanitizeFullTextFallbackObject(JsonElement payload)
+    {
+        var sanitized = new JsonObject();
+        foreach (var property in payload.EnumerateObject())
+        {
+            sanitized[property.Name] = SanitizeFullTextFallbackPayload(property.Value, property.Name);
+        }
+
+        return sanitized;
+    }
+
+    private static JsonArray SanitizeFullTextFallbackArray(JsonElement payload, string? propertyName)
+    {
+        var sanitized = new JsonArray();
+        foreach (var item in payload.EnumerateArray())
+        {
+            sanitized.Add(SanitizeFullTextFallbackPayload(item, propertyName));
+        }
+
+        return sanitized;
+    }
+
+    private static bool ShouldOmitFullTextFallbackProperty(string? propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return false;
+        }
+
+        return OmittedFullTextFallbackProperties.Contains(propertyName)
+               || propertyName.Contains("base64", StringComparison.OrdinalIgnoreCase)
+               || propertyName.Contains("logDump", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static JsonObject CreateTextFallbackOmissionNode() => new()
+    {
+        ["omittedFromTextFallback"] = true,
+        ["reason"] = "large-or-sensitive-payload",
+        ["availableInStructuredContent"] = true
+    };
 
     private static string BuildCompactTextFallback(JsonElement payload) => payload.ValueKind switch
     {

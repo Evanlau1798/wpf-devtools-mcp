@@ -14,7 +14,7 @@
 | `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS` | 啟用或停用 sensitive runtime read tools | 涵蓋 target UI text、DependencyProperty 與 binding values、routed-event payloads、tree/scene summaries 與 state snapshots；boolean 值同上；未設定、無效或 false 會 fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | 啟用或停用 ViewModel inspection tool | boolean 值同上；未設定、無效或 false 會擋下 `get_viewmodel`、`get_commands`、`modify_viewmodel` 與 `execute_command` |
 | `WPFDEVTOOLS_RATE_LIMIT_RPM` | 覆寫 MCP server request rate limit | 每分鐘 request 數，必須是正整數；預設值為 300；超過 10000 的值會被 clamp 為 10000 |
-| `WPFDEVTOOLS_TEXT_FALLBACK_MODE` | 控制 MCP `content[0].text` fallback 詳細程度 | 設為 `full` 會輸出完整 JSON text；未設定時使用 compact fallback |
+| `WPFDEVTOOLS_TEXT_FALLBACK_MODE` | 控制 MCP `content[0].text` fallback 詳細程度 | 只有 legacy text-only client 才設定為 `full`；base64 screenshots、log dumps 等大型或敏感 payload 欄位仍會從 text fallback 省略。未設定時使用 compact fallback |
 
 internal per-process rate limiter cache 上限為 1000 筆；滿額時會淘汰 least recently used entry。這個 cache capacity 目前不能透過環境變數調整。
 

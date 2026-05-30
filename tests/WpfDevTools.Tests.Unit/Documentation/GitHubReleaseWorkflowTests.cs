@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using Xunit;
 
@@ -150,6 +151,39 @@ public sealed class GitHubReleaseWorkflowTests
     }
 
     [Fact]
+    public void ReleaseWorkflow_ShouldPersistReleaseSbomForUploadJob()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+        var step = GetNamedStepBlock(lines, "Upload staged release bundle artifact");
+
+        step.Should().Contain(line =>
+            string.Equals(
+                line.Trim(),
+                "${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release-sbom.spdx.json",
+                StringComparison.Ordinal),
+            "the generated GitHub upload script publishes release-sbom.spdx.json, so the artifact downloaded by the upload job must contain it");
+    }
+
+    [Fact]
+    public void ReleaseWorkflow_ShouldUploadEveryGeneratedReleaseSidecar()
+    {
+        var workflowLines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+        var uploadStep = GetNamedStepBlock(workflowLines, "Upload staged release bundle artifact");
+        var uploadedPathLines = uploadStep
+            .Select(static line => line.Trim())
+            .Where(static line => line.StartsWith("${{ env.RELEASE_STAGING_ROOT }}", StringComparison.Ordinal))
+            .ToArray();
+        var generatedSidecars = GetGeneratedUploadSidecarNames();
+
+        foreach (var sidecarName in generatedSidecars)
+        {
+            uploadedPathLines.Should().Contain(
+                path => path.EndsWith("/" + sidecarName, StringComparison.Ordinal),
+                "the upload job downloads only the staged artifact, so every generated upload sidecar must be persisted by actions/upload-artifact");
+        }
+    }
+
+    [Fact]
     public void ReleaseWorkflow_ShouldLimitContentsWritePermissionToUploadJob()
     {
         var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
@@ -218,6 +252,24 @@ public sealed class GitHubReleaseWorkflowTests
         return lines
             .Skip(stepIndex)
             .TakeWhile((line, index) => index == 0 || !line.StartsWith("      - name:", StringComparison.Ordinal))
+            .ToArray();
+    }
+
+    private static string[] GetGeneratedUploadSidecarNames()
+    {
+        var exportScript = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"));
+        var uploadAssetList = Regex.Match(
+            exportScript,
+            @"(?s)\$uploadAssetNames\s*=.*?New-UploadScriptContent",
+            RegexOptions.CultureInvariant);
+
+        uploadAssetList.Success.Should().BeTrue(
+            "Export-GitHubReleaseAssets.ps1 should declare the sidecars uploaded by upload-gh-release.ps1");
+
+        return Regex.Matches(uploadAssetList.Value, "'(?<name>[^']+)'", RegexOptions.CultureInvariant)
+            .Select(match => match.Groups["name"].Value)
+            .Where(static name => !name.StartsWith("$", StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
             .ToArray();
     }
 

@@ -176,11 +176,11 @@ public static partial class CapabilityResources
             compatibility = new
             {
                 toolListOutputSchema = "advertised",
-                toolListOutputSchemaReason = "tools/list outputSchema advertises common result.structuredContent payload fields while this resource remains the detailed contract for WPF-specific fields",
+                toolListOutputSchemaReason = "High-value tools expose an exact closed output schema in tools/list. Other tools intentionally use the generic structured payload schema. wpf://contracts/response remains the detailed narrative contract and versioning source.",
                 outputSchemaPublication = new
                 {
                     canonicalLocation = "tools/list",
-                    reason = "Native tools/list outputSchema describes the common result.structuredContent payload shape; this resource remains the stable detailed contract for WPF-specific structuredContent fields."
+                    reason = "Native tools/list outputSchema is authoritative for schema-driven clients: high-value tools expose exact closed schemas, while other tools use the generic structured payload schema. This resource remains the stable detailed contract for WPF-specific structuredContent fields, semantics, and compatibility versioning."
                 },
                 versioning = new
                 {

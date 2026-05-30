@@ -360,7 +360,12 @@ public sealed partial class ResponseContractResourceTests
 
         var compatibility = root.GetProperty("compatibility");
         compatibility.GetProperty("toolListOutputSchema").GetString().Should().Be("advertised");
+        compatibility.GetProperty("toolListOutputSchemaReason").GetString().Should().Contain("exact closed output schema");
+        compatibility.GetProperty("toolListOutputSchemaReason").GetString().Should().Contain("generic structured payload schema");
+        compatibility.GetProperty("toolListOutputSchemaReason").GetString().Should().Contain("wpf://contracts/response");
         compatibility.GetProperty("outputSchemaPublication").GetProperty("canonicalLocation").GetString().Should().Be("tools/list");
+        compatibility.GetProperty("outputSchemaPublication").GetProperty("reason").GetString().Should().Contain("high-value tools");
+        compatibility.GetProperty("outputSchemaPublication").GetProperty("reason").GetString().Should().Contain("other tools");
 
         var versioning = compatibility.GetProperty("versioning");
         versioning.GetProperty("currentVersionField").GetString().Should().Be("responseContractVersion");

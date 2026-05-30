@@ -11,7 +11,7 @@ internal static class ResponseContractSchemaMetadata
             perToolSchemaStrategy = new
             {
                 inputSchemas = "Use MCP tools/list inputSchema for callable parameters.",
-                outputSchemas = "Use MCP tools/list outputSchema for the common result.structuredContent payload fields, then this resource's toolPayload/errorPayload guidance and highValueTools contracts for detailed WPF-specific payload fields."
+                outputSchemas = "Use MCP tools/list outputSchema first. High-value tools expose exact closed output schemas there; other tools use the generic structured payload schema. Then use this resource's toolPayload/errorPayload guidance and highValueTools contracts for detailed WPF-specific semantics and compatibility versioning."
             },
             constraintFields = new[]
             {

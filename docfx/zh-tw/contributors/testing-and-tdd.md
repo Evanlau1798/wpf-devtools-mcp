@@ -92,7 +92,7 @@ $package = Get-ChildItem .\tmp\sandbox-ci\artifact-preflight\release -Filter 're
 .\scripts\ci\Invoke-WindowsSandboxArtifactPreflight.ps1 -PackageArchivePath $package.FullName -Architecture x64 -Client other
 ```
 
-Debug package 範例是 unsigned local package smoke。當 installer、package layout，或 packaged server 啟動行為有變更時，優先使用 artifact preflight。這條路徑不會在 Windows Sandbox 內重新建置 repository，而是只映射 release archive 與小型 preflight bootstrap 目錄；接著解壓 package、執行 package-local installer、以 STDIO 啟動已安裝的 MCP server、驗證 `initialize`、`tools/list`、`resources/read` 與 `get_processes`，最後 uninstall package。除非傳入已簽章的 Release archive，否則它不能證明 signed Release gate 行為。它也不會透過產生的 client registration entry 啟動；registration metadata 仍由 installer/client registration 測試覆蓋。
+Debug package 範例是 unsigned local package smoke。當 installer、package layout，或 packaged server 啟動行為有變更時，優先使用 artifact preflight。這條路徑不會在 Windows Sandbox 內重新建置 repository，而是只映射 release archive 與小型 preflight bootstrap 目錄；接著解壓 package、執行 package-local installer、以 STDIO 啟動已安裝的 MCP server、驗證 `initialize`、`tools/list`、`resources/read` 與 `get_processes`，最後 uninstall package。Package runtime smoke 會執行 first run、second run、corrupt transport state recovery run、package-local uninstall、reinstall、full-uninstall 與 residue validation。除非傳入已簽章的 Release archive，否則它不能證明 signed Release gate 行為。它也不會透過產生的 client registration entry 啟動；registration metadata 仍由 installer/client registration 測試覆蓋。
 
 artifact preflight 會在 Sandbox 內依需要 provision .NET runtime channel `8.0`，用來模擬 hosted runner 通常由 `setup-dotnet` 提供的前置條件。若要驗證不同 runtime channel 可使用 `-DotNetChannel`；只有在 Sandbox image 已有必要 runtime 時才使用 `-SkipDotNetProvisioning`。
 

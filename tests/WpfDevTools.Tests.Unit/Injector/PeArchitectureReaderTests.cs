@@ -11,14 +11,20 @@ namespace WpfDevTools.Tests.Unit.Injector;
 public class PeArchitectureReaderTests
 {
     [Fact]
-    public void Detect_WithInspectorDllFromTestOutput_ShouldReturnUnknownForNeutralManagedAssembly()
+    public void Detect_WithManagedAnyCpuPe_ShouldReturnUnknown()
     {
-        var inspectorDllPath = RequireAssemblyFile(typeof(global::WpfDevTools.Inspector.Bootstrap));
+        var dllPath = CreateManagedI386PeFixture(corFlags: 0x00000001);
+        try
+        {
+            var result = PeArchitectureReader.Detect(dllPath);
 
-        var result = PeArchitectureReader.Detect(inspectorDllPath);
-
-        result.Should().Be(ProcessArchitecture.Unknown,
-            "the test output inspector assembly is a neutral IL-only managed DLL and should not be misreported as native x86");
+            result.Should().Be(ProcessArchitecture.Unknown,
+                "IL-only managed I386 assemblies without 32BITREQUIRED are neutral AnyCPU assets");
+        }
+        finally
+        {
+            File.Delete(dllPath);
+        }
     }
 
     [Fact]
@@ -64,14 +70,20 @@ public class PeArchitectureReaderTests
     }
 
     [Fact]
-    public void Detect_WithSharedProjectDllFromTestOutput_ShouldReturnUnknownForNeutralManagedAssembly()
+    public void Detect_WithManaged32BitRequiredPe_ShouldReturnX86()
     {
-        var sharedDllPath = RequireAssemblyFile(typeof(ProcessArchitecture));
+        var dllPath = CreateManagedI386PeFixture(corFlags: 0x00000003);
+        try
+        {
+            var result = PeArchitectureReader.Detect(dllPath);
 
-        var result = PeArchitectureReader.Detect(sharedDllPath);
-
-        result.Should().Be(ProcessArchitecture.Unknown,
-            "the shared assembly in unit test output is also a neutral IL-only managed DLL");
+            result.Should().Be(ProcessArchitecture.X86,
+                "managed I386 assemblies with 32BITREQUIRED are architecture-specific");
+        }
+        finally
+        {
+            File.Delete(dllPath);
+        }
     }
 
     [Fact]
@@ -82,15 +94,47 @@ public class PeArchitectureReaderTests
         result.Should().Be(ProcessArchitecture.Unknown);
     }
 
-    private static string RequireAssemblyFile(Type assemblyMarkerType)
+    private static string CreateManagedI386PeFixture(uint corFlags)
     {
-        var assemblyPath = assemblyMarkerType.Assembly.Location;
+        const int PeOffset = 0x80;
+        const int OptionalHeaderOffset = PeOffset + 24;
+        const int SizeOfOptionalHeader = 224;
+        const int DataDirectoriesOffset = OptionalHeaderOffset + 96;
+        const int ClrDirectoryIndex = 14;
+        const int SectionTableOffset = OptionalHeaderOffset + SizeOfOptionalHeader;
+        const uint ClrRva = 0x2000;
+        const uint ClrFileOffset = 0x300;
 
-        assemblyPath.Should().NotBeNullOrWhiteSpace(
-            $"{assemblyMarkerType.Assembly.GetName().Name} must be resolved from the unit test output");
-        File.Exists(assemblyPath).Should().BeTrue(
-            $"{assemblyMarkerType.Assembly.GetName().Name} must exist as a deterministic PE reader test asset");
+        var path = Path.Combine(Path.GetTempPath(), $"wpf-devtools-pe-{Guid.NewGuid():N}.dll");
+        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        using var writer = new BinaryWriter(stream);
+        writer.Write(new byte[0x400]);
 
-        return assemblyPath;
+        WriteAt(0, () => writer.Write((ushort)0x5A4D));
+        WriteAt(0x3C, () => writer.Write(PeOffset));
+        WriteAt(PeOffset, () => writer.Write(0x00004550u));
+        WriteAt(PeOffset + 4, () => writer.Write((ushort)0x014C));
+        WriteAt(PeOffset + 6, () => writer.Write((ushort)1));
+        WriteAt(PeOffset + 20, () => writer.Write((ushort)SizeOfOptionalHeader));
+        WriteAt(OptionalHeaderOffset, () => writer.Write((ushort)0x010B));
+        WriteAt(DataDirectoriesOffset + (ClrDirectoryIndex * 8), () =>
+        {
+            writer.Write(ClrRva);
+            writer.Write(0x48u);
+        });
+        WriteAt(SectionTableOffset, () => writer.Write(new byte[8]));
+        WriteAt(SectionTableOffset + 8, () => writer.Write(0x100u));
+        WriteAt(SectionTableOffset + 12, () => writer.Write(ClrRva));
+        WriteAt(SectionTableOffset + 16, () => writer.Write(0x200u));
+        WriteAt(SectionTableOffset + 20, () => writer.Write(ClrFileOffset));
+        WriteAt(ClrFileOffset + 16, () => writer.Write(corFlags));
+
+        return path;
+
+        void WriteAt(long offset, Action write)
+        {
+            stream.Seek(offset, SeekOrigin.Begin);
+            write();
+        }
     }
 }

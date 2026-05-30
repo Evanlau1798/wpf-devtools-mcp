@@ -39,7 +39,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Package
 ### Public release package fallback
 
 1. Use a locally generated package, or after public endpoint smoke checks pass, download the architecture-matched `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json`.
-2. Verify the archive with `SHA256SUMS.txt` and `release-assets.json`, then retain `release-sbom.spdx.json` as the published package SBOM before extraction.
+2. Verify the archive with `SHA256SUMS.txt` and `release-assets.json` before extraction. Retain `release-sbom.spdx.json` as the published package SBOM.
 3. Extract the package.
 4. Run `run.bat`.
 

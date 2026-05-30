@@ -39,7 +39,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Package
 ### 公開 release package 備援路徑
 
 1. 使用本機產生的 package，或等 public endpoint smoke check 通過後，再從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載符合架構的 `release_<version>_win-<arch>.zip`、`SHA256SUMS.txt`、`release-assets.json` 與 `release-sbom.spdx.json`。
-2. 解壓前，先用 `SHA256SUMS.txt` 與 `release-assets.json` 驗證 archive，並保留 `release-sbom.spdx.json` 作為 published package SBOM。
+2. 解壓前，先用 `SHA256SUMS.txt` 與 `release-assets.json` 驗證 archive。保留 `release-sbom.spdx.json` 作為 published package SBOM。
 3. 解壓縮套件。
 4. 執行 `run.bat`。
 

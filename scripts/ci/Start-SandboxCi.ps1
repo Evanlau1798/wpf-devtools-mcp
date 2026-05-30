@@ -272,13 +272,24 @@ function Initialize-EphemeralGitRepository {
         'core.autocrlf',
         'false'
     )
+    $existingTrackedFilesPath = Join-Path $MappedWorkRoot 'git-existing-tracked-files.txt'
+    $trackedFiles = @([System.IO.File]::ReadAllLines($TrackedFilesPath) | Where-Object {
+        -not [string]::IsNullOrWhiteSpace($_) -and
+            (Test-Path -LiteralPath (Join-Path $RepoRoot $_) -PathType Leaf)
+    })
+    if ($trackedFiles.Count -eq 0) {
+        throw "Tracked-file manifest did not contain existing files: $TrackedFilesPath"
+    }
+
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllLines($existingTrackedFilesPath, [string[]]$trackedFiles, $utf8NoBom)
     Invoke-External 'Index copied sandbox repository files' $gitPath @(
         '-C',
         $RepoRoot,
         'add',
         '--force',
         '--pathspec-from-file',
-        $TrackedFilesPath
+        $existingTrackedFilesPath
     )
 }
 

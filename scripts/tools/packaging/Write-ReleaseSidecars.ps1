@@ -256,7 +256,8 @@ function New-ReleaseSbom {
         spdxVersion = 'SPDX-2.3'
         dataLicense = 'CC0-1.0'
         SPDXID = 'SPDXRef-DOCUMENT'
-        name = "wpf-devtools-mcp-$ReleaseTag"
+        name = "wpf-devtools-mcp-$ReleaseTag-release-assets"
+        documentComment = 'This is a release asset SPDX inventory for published archive files only; it is not a full package/dependency SBOM and does not enumerate managed assemblies, NuGet dependencies, native binaries, or scripts inside each archive.'
         documentNamespace = "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/download/$ReleaseTag/release-sbom.spdx.json"
         creationInfo = [pscustomobject]@{
             creators = @('Tool: WPF DevTools MCP release sidecar writer')
@@ -301,7 +302,7 @@ $sbomFile = Get-Item -LiteralPath $sbomPath
 $sidecars = @(
     [pscustomobject]@{
         name = $sbomFile.Name
-        role = 'spdx-sbom'
+        role = 'release-asset-spdx-sbom'
         sizeBytes = $sbomFile.Length
         sha256 = Get-Sha256FileHashHex -Path $sbomFile.FullName
     }

@@ -280,7 +280,7 @@ public sealed class GitHubReleaseAssetScriptTests
     }
 
     [Fact]
-    public void ExportGitHubReleaseAssets_ShouldWriteSpdxSbomForEveryPackageAsset()
+    public void ExportGitHubReleaseAssets_ShouldWriteAssetLevelSpdxSbomForEveryPackageAsset()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -302,12 +302,15 @@ public sealed class GitHubReleaseAssetScriptTests
             using var sbom = JsonDocument.Parse(File.ReadAllText(sbomPath));
 
             sbom.RootElement.GetProperty("spdxVersion").GetString().Should().Be("SPDX-2.3");
-            sbom.RootElement.GetProperty("name").GetString().Should().Be("wpf-devtools-mcp-v1.2.3");
+            sbom.RootElement.GetProperty("name").GetString().Should().Be("wpf-devtools-mcp-v1.2.3-release-assets");
+            sbom.RootElement.GetProperty("documentComment").GetString()
+                .Should().Contain("release asset SPDX inventory")
+                .And.Contain("not a full package/dependency SBOM");
             var sbomSidecar = manifest.RootElement.GetProperty("sidecars")
                 .EnumerateArray()
                 .Single(sidecar => sidecar.GetProperty("name").GetString() == "release-sbom.spdx.json");
             sbomSidecar.GetProperty("sha256").GetString().Should().Be(ComputeSha256(sbomPath));
-            sbomSidecar.GetProperty("role").GetString().Should().Be("spdx-sbom");
+            sbomSidecar.GetProperty("role").GetString().Should().Be("release-asset-spdx-sbom");
             var packages = sbom.RootElement.GetProperty("packages").EnumerateArray().ToArray();
             packages.Select(package => package.GetProperty("name").GetString())
                 .Should().BeEquivalentTo("release_1.2.3_win-x64.zip", "release_1.2.3_win-x86.zip");

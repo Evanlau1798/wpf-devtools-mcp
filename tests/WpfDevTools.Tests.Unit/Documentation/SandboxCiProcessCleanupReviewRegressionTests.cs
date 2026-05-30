@@ -102,6 +102,10 @@ public sealed partial class SandboxCiScriptContractTests
         runner.Should().Contain("[object[]]$ScanRoots = @()");
         runner.Should().Contain("DescendantCutoffUtcTicks");
         runner.Should().Contain("CreationCutoffUtcTicks").And.Contain("CreationStartUtcTicks");
+        runner.Should().Contain("$childSnapshot = [pscustomobject]@{");
+        runner.Should().Contain("if (-not (Test-ProcessSnapshotExists -Snapshot $childSnapshot)) {");
+        runner.IndexOf("$snapshots += $childSnapshot", StringComparison.Ordinal)
+            .Should().BeLessThan(runner.IndexOf("Get-DescendantProcessSnapshots -ParentProcessId $childId", StringComparison.Ordinal));
         runner.Should().Contain("Update-ProcessSnapshotCutoffIfAlive");
         runner.Should().Contain("Get-MatchingProcessFromSnapshot");
         runner.Should().Contain("StartTime.ToUniversalTime().Ticks");

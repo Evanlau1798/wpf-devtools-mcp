@@ -8,6 +8,64 @@ WPF DevTools MCP 是本機除錯工具。支援的 trust boundary 是同一個 W
 
 真正的安全決策必須在 server-side policy gates。Client guidance、tool annotations、examples 與 prompts 只是不具強制力的 usability hints。
 
+## Architecture diagram
+
+```mermaid
+flowchart LR
+    Client["MCP client / AI agent"] -->|STDIO MCP JSON-RPC| Server["WpfDevTools.Mcp.Server"]
+    Server -->|Named pipe + HMAC + TLS| Inspector["Injected or SDK-hosted Inspector"]
+    Inspector -->|WPF Dispatcher access| Target["Reviewed local WPF target"]
+    Server -->|Release/install scripts| Package["Signed package and sidecars"]
+```
+
+## Trust-boundary table
+
+| Boundary | Trusted side | Untrusted side | Control |
+| --- | --- | --- | --- |
+| MCP STDIO | server typed request filters | MCP client prompts、tool calls 與 raw JSON-RPC envelope | SDK 解析 envelope；server 在解析後執行 tool gates。 |
+| Target selection | 已審查的 exact local executable paths | discovered process metadata 與 denied targets | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`，metadata disclosure 前先 redaction。 |
+| Inspector IPC | 已驗證的 server 與 inspector | 同使用者的 local pipe impersonators | HMAC、TLS thumbprint pinning、PID 與 compatibility checks。 |
+| Raw injection | signed local payloads 與 allowlisted target | wrong architecture、stale PID、被替換的 payload paths | architecture preflight、path validation、signature/integrity checks。 |
+| Release chain | signed artifacts 與 generated sidecars | modified archive、stale SBOM、missing checksum | signer trust、hash sidecars、release asset inventory、staged upload parity tests。 |
+
+## Data-flow table
+
+| Flow | Sensitive data | Primary limits |
+| --- | --- | --- |
+| `connect()` / `get_processes` | process names、executable identity、window titles | target allowlist、denied counts redaction、只接受 exact local paths。 |
+| scene and binding reads | UI text、DependencyProperty values、binding data | sensitive-read gate、output caps、compact response modes。 |
+| screenshots | target pixels 與 retained PNG files | screenshot gate、預設 metadata/file mode、server-owned resource root、retention window。 |
+| mutation tools | live UI 與 ViewModel state changes | destructive gate、snapshot/diff/restore workflow、structured cleanup fields。 |
+| release publishing | package archives、checksums、signer metadata、release asset SBOM | trusted signer policy、sidecar parity、staged artifact upload checks。 |
+
+## Attacker capability matrix
+
+| Attacker | Assumed capability | Not assumed |
+| --- | --- | --- |
+| Prompt-injected MCP client | 可以呼叫 registered tools 並要求誤導性 workflow。 | 不能繞過 server-side gates 或 target allowlists。 |
+| Same-user local process | 可以檢查 user-writable files 並競爭 local processes。 | 若沒有 matching secrets 與 target identity，不能繞過 HMAC/TLS/PID checks。 |
+| Malicious target process | 可以呈現誤導性 UI/runtime data，或 host incompatible SDK pipe。 | 未經 exact target policy configuration，不能自行成為 allowlisted target。 |
+| Release tamperer | 可以修改 unsigned local copies，或在發佈前漏掉 artifacts。 | 沒有 release credentials 時，不能產生 trusted signer metadata 或 matching generated sidecars。 |
+
+## Release-chain diagram
+
+```mermaid
+flowchart LR
+    Build["Release build"] --> Sign["Sign payloads"]
+    Sign --> Verify["Verify signer and hashes"]
+    Verify --> Sidecars["Generate checksums, metadata, release asset SBOM"]
+    Sidecars --> Stage["Stage release bundle artifact"]
+    Stage --> Publish["Upload GitHub Release assets"]
+```
+
+## Accepted-risk register
+
+| Risk | Status | Rationale |
+| --- | --- | --- |
+| Same-user code remains inside the local trust boundary. | Accepted with controls | 這是本機 debugger；DPAPI、ACLs、HMAC/TLS 與 redaction 可降低意外曝露，但不承諾防禦已完全入侵的同使用者程式。 |
+| Raw injection remains an emergency path. | Accepted with opt-in | 部分 WPF target 無法 host SDK。Raw injection 必須有 exact target allowlists、matched architecture 與 trusted local payloads。 |
+| STDIO is single-session only. | Accepted until transport redesign | HTTP/SSE 或 multi-client transport 在 production 使用前，需要明確的 session isolation work。 |
+
 ## Threats and Mitigations
 
 | Threat | Risk | Mitigations |

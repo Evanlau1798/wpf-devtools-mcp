@@ -28,4 +28,19 @@ public sealed class ThreatModelDocumentationTests
         content.Should().Contain("Out of scope");
         content.Should().Contain("Mitigations");
     }
+
+    [Theory]
+    [InlineData("docfx/production/threat-model.md")]
+    [InlineData("docfx/zh-tw/production/threat-model.md")]
+    public void ProductionThreatModel_ShouldBeReadyForExternalReview(string relativePath)
+    {
+        var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(relativePath));
+
+        content.Should().Contain("## Architecture diagram");
+        content.Should().Contain("## Trust-boundary table");
+        content.Should().Contain("## Data-flow table");
+        content.Should().Contain("## Attacker capability matrix");
+        content.Should().Contain("## Release-chain diagram");
+        content.Should().Contain("## Accepted-risk register");
+    }
 }

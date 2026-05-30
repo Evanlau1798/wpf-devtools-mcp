@@ -8,6 +8,64 @@ WPF DevTools MCP is a local debugging tool. The supported trust boundary is a si
 
 Server-side policy gates are the security decisions. Client guidance, tool annotations, examples, and prompts are usability hints only.
 
+## Architecture diagram
+
+```mermaid
+flowchart LR
+    Client["MCP client / AI agent"] -->|STDIO MCP JSON-RPC| Server["WpfDevTools.Mcp.Server"]
+    Server -->|Named pipe + HMAC + TLS| Inspector["Injected or SDK-hosted Inspector"]
+    Inspector -->|WPF Dispatcher access| Target["Reviewed local WPF target"]
+    Server -->|Release/install scripts| Package["Signed package and sidecars"]
+```
+
+## Trust-boundary table
+
+| Boundary | Trusted side | Untrusted side | Control |
+| --- | --- | --- | --- |
+| MCP STDIO | Server typed request filters | MCP client prompts, tool calls, and raw JSON-RPC envelope | SDK envelope parsing; server-side tool gates after parsing. |
+| Target selection | Reviewed exact local executable paths | Discovered process metadata and denied targets | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`, redaction before disclosure. |
+| Inspector IPC | Authenticated server and inspector | Same-user local pipe impersonators | HMAC, TLS thumbprint pinning, PID and compatibility checks. |
+| Raw injection | Signed local payloads and allowlisted target | Wrong architecture, stale PID, replaced payload paths | Architecture preflight, path validation, signature/integrity checks. |
+| Release chain | Signed artifacts and generated sidecars | Modified archive, stale SBOM, missing checksum | signer trust, hash sidecars, release asset inventory, staged upload parity tests. |
+
+## Data-flow table
+
+| Flow | Sensitive data | Primary limits |
+| --- | --- | --- |
+| `connect()` / `get_processes` | process names, executable identity, window titles | target allowlist, redacted denied counts, exact local paths only. |
+| scene and binding reads | UI text, DependencyProperty values, binding data | sensitive-read gate, output caps, compact response modes. |
+| screenshots | target pixels and retained PNG files | screenshot gate, metadata/file mode default, server-owned resource root, retention window. |
+| mutation tools | live UI and ViewModel state changes | destructive gate, snapshot/diff/restore workflow, structured cleanup fields. |
+| release publishing | package archives, checksums, signer metadata, release asset SBOM | trusted signer policy, sidecar parity, staged artifact upload checks. |
+
+## Attacker capability matrix
+
+| Attacker | Assumed capability | Not assumed |
+| --- | --- | --- |
+| Prompt-injected MCP client | Can call registered tools and request misleading workflows. | Cannot bypass server-side gates or target allowlists. |
+| Same-user local process | Can inspect user-writable files and race local processes. | Cannot bypass HMAC/TLS/PID checks without matching secrets and target identity. |
+| Malicious target process | Can present misleading UI/runtime data and host an incompatible SDK pipe. | Cannot become allowlisted without exact target policy configuration. |
+| Release tamperer | Can modify unsigned local copies or omit artifacts before publication. | Cannot produce trusted signer metadata or matching generated sidecars without release credentials. |
+
+## Release-chain diagram
+
+```mermaid
+flowchart LR
+    Build["Release build"] --> Sign["Sign payloads"]
+    Sign --> Verify["Verify signer and hashes"]
+    Verify --> Sidecars["Generate checksums, metadata, release asset SBOM"]
+    Sidecars --> Stage["Stage release bundle artifact"]
+    Stage --> Publish["Upload GitHub Release assets"]
+```
+
+## Accepted-risk register
+
+| Risk | Status | Rationale |
+| --- | --- | --- |
+| Same-user code remains inside the local trust boundary. | Accepted with controls | This is a local debugger; DPAPI, ACLs, HMAC/TLS, and redaction reduce accidental exposure but do not defend against fully compromised same-user code. |
+| Raw injection remains an emergency path. | Accepted with opt-in | Some WPF targets cannot host the SDK. Raw injection requires exact target allowlists, matched architecture, and trusted local payloads. |
+| STDIO is single-session only. | Accepted until transport redesign | HTTP/SSE or multi-client transport requires explicit session isolation work before production use. |
+
 ## Threats and mitigations
 
 | Threat | Risk | Mitigations |

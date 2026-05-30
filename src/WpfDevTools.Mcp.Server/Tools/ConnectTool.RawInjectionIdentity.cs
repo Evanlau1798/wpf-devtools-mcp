@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using WpfDevTools.Injector;
 using WpfDevTools.Injector.Discovery;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -54,7 +55,8 @@ public sealed partial class ConnectTool
         {
             Trace.WriteLine(
                 "ConnectTool raw injection target changed before injection for process " +
-                $"{processId}: original={context.ProcessInfo.ExecutablePath}; current={currentProcessInfo.ExecutablePath}");
+                $"{processId}: original={SensitiveLogRedactor.Redact(context.ProcessInfo.ExecutablePath)}; " +
+                $"current={SensitiveLogRedactor.Redact(currentProcessInfo.ExecutablePath)}");
             failure = CreateRawInjectionIdentityChangedFailure();
             return false;
         }

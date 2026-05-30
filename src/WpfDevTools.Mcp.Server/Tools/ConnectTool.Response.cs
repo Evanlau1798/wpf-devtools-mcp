@@ -2,6 +2,7 @@
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -182,7 +183,7 @@ public sealed partial class ConnectTool
 
         if (exception.Message.Contains("Maximum session limit", StringComparison.Ordinal))
         {
-            Trace.WriteLine($"ConnectTool session limit prevented attach for process {processId}: {exception}");
+            Trace.WriteLine($"ConnectTool session limit prevented attach for process {processId}: {SensitiveLogRedactor.Redact(exception.ToString())}");
             return new
             {
                 success = false,
@@ -203,7 +204,7 @@ public sealed partial class ConnectTool
             };
         }
 
-        Trace.WriteLine($"ConnectTool session connection failure for process {processId}: {exception}");
+        Trace.WriteLine($"ConnectTool session connection failure for process {processId}: {SensitiveLogRedactor.Redact(exception.ToString())}");
 
         return new
         {
@@ -250,7 +251,7 @@ public sealed partial class ConnectTool
         Trace.WriteLine(
             $"ConnectTool injection failure for process {processId}: error={injectionResult.Error}; " +
             $"stage={injectionResult.FailedAtStage}; exitCode={injectionResult.BootstrapExitCode}; " +
-            $"detail={injectionResult.ErrorMessage}");
+            $"detail={SensitiveLogRedactor.Redact(injectionResult.ErrorMessage)}");
 
         return (errorCode, error);
     }

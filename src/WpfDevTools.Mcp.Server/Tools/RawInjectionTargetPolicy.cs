@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 using WpfDevTools.Injector.Discovery;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -271,7 +272,7 @@ internal static class RawInjectionTargetPolicy
         catch (Exception ex)
         {
             Trace.TraceWarning(
-                $"RawInjectionTargetPolicy path normalization failed: {ex.Message}");
+                $"RawInjectionTargetPolicy path normalization failed: {SensitiveLogRedactor.Redact(ex.Message)}");
             return false;
         }
     }

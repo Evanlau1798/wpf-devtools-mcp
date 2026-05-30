@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Injector.Injection;
 
@@ -348,7 +349,7 @@ public class DllInjector
         string publicMessage,
         string diagnosticMessage)
     {
-        Trace.WriteLine($"DllInjector sensitive failure for process {processId}: {diagnosticMessage}");
+        Trace.WriteLine($"DllInjector sensitive failure for process {processId}: {SensitiveLogRedactor.Redact(diagnosticMessage)}");
         return InjectionResult.CreateFailure(processId, error, publicMessage);
     }
 
@@ -358,7 +359,7 @@ public class DllInjector
         string publicMessage,
         Exception exception)
     {
-        Trace.WriteLine($"DllInjector sensitive failure for process {processId}: {exception}");
+        Trace.WriteLine($"DllInjector sensitive failure for process {processId}: {SensitiveLogRedactor.Redact(exception.ToString())}");
         return InjectionResult.CreateFailure(processId, error, publicMessage);
     }
 

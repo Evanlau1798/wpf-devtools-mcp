@@ -6,6 +6,7 @@ using System.IO;
 using System.Runtime.ExceptionServices;
 using WpfDevTools.Shared.Configuration;
 using WpfDevTools.Shared.Security;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Inspector.Sdk;
 
@@ -100,8 +101,8 @@ public static partial class InspectorSdk
         {
             LastInitializationError = ex;
             LastInitializationStatus = CreateFailedStatus(pid, ex);
-            System.Diagnostics.Debug.WriteLine($"Failed to initialize WpfDevTools Inspector SDK: {ex.Message}");
-            Trace.TraceError($"Failed to initialize WpfDevTools Inspector SDK: {ex}");
+            System.Diagnostics.Debug.WriteLine($"Failed to initialize WpfDevTools Inspector SDK: {SensitiveLogRedactor.Redact(ex.Message)}");
+            Trace.TraceError($"Failed to initialize WpfDevTools Inspector SDK: {SensitiveLogRedactor.Redact(ex.ToString())}");
         }
         finally
         {
@@ -163,7 +164,7 @@ public static partial class InspectorSdk
             catch (Exception cleanupError)
             {
                 ex.Data["CleanupFailure"] = cleanupError;
-                Trace.TraceError($"InspectorSdk cleanup after initialization failure also failed: {cleanupError}");
+                Trace.TraceError($"InspectorSdk cleanup after initialization failure also failed: {SensitiveLogRedactor.Redact(cleanupError.ToString())}");
             }
 
             ExceptionDispatchInfo.Capture(ex).Throw();
@@ -204,8 +205,8 @@ public static partial class InspectorSdk
         catch (Exception ex)
         {
             LastShutdownError = ex;
-            System.Diagnostics.Debug.WriteLine($"Failed to shutdown WpfDevTools Inspector SDK: {ex.Message}");
-            Trace.TraceError($"Failed to shutdown WpfDevTools Inspector SDK: {ex}");
+            System.Diagnostics.Debug.WriteLine($"Failed to shutdown WpfDevTools Inspector SDK: {SensitiveLogRedactor.Redact(ex.Message)}");
+            Trace.TraceError($"Failed to shutdown WpfDevTools Inspector SDK: {SensitiveLogRedactor.Redact(ex.ToString())}");
         }
         finally
         {

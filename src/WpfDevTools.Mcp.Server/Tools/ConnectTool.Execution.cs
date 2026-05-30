@@ -4,6 +4,7 @@ using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
 using WpfDevTools.Shared.Configuration;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -92,7 +93,7 @@ public sealed partial class ConnectTool
             return null;
         }
 
-        Trace.WriteLine($"ConnectTool target allowlist denied process {processId}: executable={processInfo.ExecutablePath}");
+        Trace.WriteLine($"ConnectTool target allowlist denied process {processId}: executable={SensitiveLogRedactor.Redact(processInfo.ExecutablePath)}");
         return new
         {
             success = false,
@@ -137,7 +138,7 @@ public sealed partial class ConnectTool
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is not ObjectDisposedException)
         {
-            Trace.WriteLine($"ConnectTool secure transport initialization failed for process {processId}: {ex}");
+            Trace.WriteLine($"ConnectTool secure transport initialization failed for process {processId}: {SensitiveLogRedactor.Redact(ex.ToString())}");
             return new
             {
                 success = false,
@@ -182,7 +183,7 @@ public sealed partial class ConnectTool
     private object CreateRawInjectionDeniedFailure(int processId, WpfProcessInfo processInfo)
     {
         var authorization = RawInjectionTargetPolicy.Authorize(processInfo);
-        Trace.WriteLine($"ConnectTool raw injection denied process {processId}: executable={processInfo.ExecutablePath}");
+        Trace.WriteLine($"ConnectTool raw injection denied process {processId}: executable={SensitiveLogRedactor.Redact(processInfo.ExecutablePath)}");
         return new
         {
             success = false,
@@ -409,7 +410,7 @@ public sealed partial class ConnectTool
                 "ConnectTool cleanup triggered for process {0} after pipe handshake failure: {1}: {2}",
                 processId,
                 ex.GetType().Name,
-                ex.Message);
+                SensitiveLogRedactor.Redact(ex.Message));
             throw;
         }
     }
@@ -479,7 +480,7 @@ public sealed partial class ConnectTool
         }
         catch (Exception ex) when (ex is ArgumentException or IOException or System.Security.Cryptography.CryptographicException)
         {
-            Trace.WriteLine($"ConnectTool final DLL path validation failed for process {processId}: {ex.Message}");
+            Trace.WriteLine($"ConnectTool final DLL path validation failed for process {processId}: {SensitiveLogRedactor.Redact(ex.Message)}");
             return new
             {
                 success = false,

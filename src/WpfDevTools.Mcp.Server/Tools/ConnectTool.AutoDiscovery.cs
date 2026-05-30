@@ -2,6 +2,7 @@ using System.Diagnostics;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -61,7 +62,7 @@ public sealed partial class ConnectTool
         catch (Exception ex)
         {
             Trace.TraceWarning(
-                $"ConnectTool SDK-only packaging heuristic failed: {ex.Message}");
+                $"ConnectTool SDK-only packaging heuristic failed: {SensitiveLogRedactor.Redact(ex.Message)}");
             return false;
         }
     }

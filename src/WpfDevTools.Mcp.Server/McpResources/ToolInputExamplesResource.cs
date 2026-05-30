@@ -23,6 +23,128 @@ public static partial class CapabilityResources
             purpose = "Concise structured examples for complex tool inputs; use these alongside tools/list schemas.",
             examplesByTool = new
             {
+                connect = new object[]
+                {
+                    new
+                    {
+                        name = "Connect to an explicit allowlisted process",
+                        policyGates = new[] { "WPFDEVTOOLS_MCP_ALLOWED_TARGETS" },
+                        arguments = new
+                        {
+                            processId = 12345
+                        }
+                    },
+                    new
+                    {
+                        name = "Auto-discover a single visible allowlisted process",
+                        policyGates = new[] { "WPFDEVTOOLS_MCP_ALLOWED_TARGETS" },
+                        arguments = new
+                        {
+                            selectionStrategy = "single_only",
+                            windowFilter = "visible"
+                        }
+                    }
+                },
+                get_processes = new object[]
+                {
+                    new
+                    {
+                        name = "List visible allowlisted WPF processes",
+                        arguments = new
+                        {
+                            windowFilter = "visible"
+                        }
+                    },
+                    new
+                    {
+                        name = "Find an allowlisted process by name",
+                        arguments = new
+                        {
+                            nameFilter = "TestApp",
+                            windowFilter = "all"
+                        }
+                    }
+                },
+                get_ui_summary = new[]
+                {
+                    new
+                    {
+                        name = "Summarize the active window with semantic depth",
+                        arguments = new
+                        {
+                            processId = 12345,
+                            depthMode = "semantic",
+                            summaryOnly = false
+                        }
+                    }
+                },
+                get_form_summary = new[]
+                {
+                    new
+                    {
+                        name = "Summarize a scoped form without framework internals",
+                        arguments = new
+                        {
+                            processId = 12345,
+                            elementId = "LoginForm",
+                            includeFramework = false
+                        }
+                    }
+                },
+                get_element_snapshot = new[]
+                {
+                    new
+                    {
+                        name = "Inspect a focused element with extra DP probes",
+                        arguments = new
+                        {
+                            processId = 12345,
+                            elementId = "SaveButton",
+                            includeProperties = new[] { "IsEnabled", "Visibility" }
+                        }
+                    }
+                },
+                get_bindings = new[]
+                {
+                    new
+                    {
+                        name = "Inspect active bindings under a subtree",
+                        arguments = new
+                        {
+                            processId = 12345,
+                            elementId = "EditorPanel",
+                            recursive = true,
+                            statusFilter = "Active"
+                        }
+                    }
+                },
+                get_binding_errors = new[]
+                {
+                    new
+                    {
+                        name = "Read compact binding errors with navigation guidance",
+                        arguments = new
+                        {
+                            processId = 12345,
+                            maxErrors = 20,
+                            compact = true,
+                            navigation = true
+                        }
+                    }
+                },
+                drain_events = new[]
+                {
+                    new
+                    {
+                        name = "Drain a bounded batch of binding and validation events",
+                        arguments = new
+                        {
+                            processId = 12345,
+                            maxEvents = 50,
+                            eventTypes = new[] { "BindingError", "ValidationError" }
+                        }
+                    }
+                },
                 batch_mutate = new[]
                 {
                     new
@@ -128,6 +250,19 @@ public static partial class CapabilityResources
                             propertyNames = new[] { "Text", "IsEnabled" },
                             includeFocus = true,
                             snapshotName = "before-editor-change"
+                        }
+                    }
+                },
+                get_state_diff = new[]
+                {
+                    new
+                    {
+                        name = "Compare current state against a retained snapshot",
+                        arguments = new
+                        {
+                            processId = 12345,
+                            snapshotId = "snapshot_20260526_editor_001",
+                            trigger = "after editing sample text"
                         }
                     }
                 },

@@ -18,6 +18,23 @@ public sealed class ToolInputExamplesResourceTests
         "restore_state_snapshot"
     ];
 
+    private static readonly string[] RequiredHighValueTools =
+    [
+        "connect",
+        "get_processes",
+        "get_ui_summary",
+        "get_form_summary",
+        "get_element_snapshot",
+        "get_bindings",
+        "get_binding_errors",
+        "drain_events",
+        "capture_state_snapshot",
+        "get_state_diff",
+        "restore_state_snapshot",
+        "batch_mutate",
+        "element_screenshot"
+    ];
+
     [Fact]
     public void ToolExamplesResource_ShouldExposeHighRiskToolExamples()
     {
@@ -45,6 +62,30 @@ public sealed class ToolInputExamplesResourceTests
                     "token",
                     "apiKey",
                     "auth");
+            }
+        }
+    }
+
+    [Fact]
+    public void ToolExamplesResource_ShouldCoverHighValueResponseContractTools()
+    {
+        using var document = ReadToolExamples();
+        var examplesByTool = document.RootElement.GetProperty("examplesByTool");
+
+        foreach (var toolName in RequiredHighValueTools)
+        {
+            examplesByTool.TryGetProperty(toolName, out var examples).Should().BeTrue(
+                $"{toolName} has an exact high-value output contract and should have machine-readable input examples");
+            examples.ValueKind.Should().Be(JsonValueKind.Array);
+            examples.GetArrayLength().Should().BeInRange(1, 3);
+
+            foreach (var example in examples.EnumerateArray())
+            {
+                example.GetProperty("arguments").ValueKind.Should().Be(JsonValueKind.Object);
+                using var reparsed = JsonDocument.Parse(JsonSerializer.Serialize(example.GetProperty("arguments")));
+                reparsed.RootElement.ValueKind.Should().Be(JsonValueKind.Object);
+                JsonSerializer.Serialize(example).Should().NotMatchRegex(
+                    "(?i)password|secret|token|apikey|customer");
             }
         }
     }

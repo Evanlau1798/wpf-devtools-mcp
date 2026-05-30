@@ -61,6 +61,7 @@ function Read-McpResponse {
         $response = $responseLine | ConvertFrom-Json
     }
     catch {
+        Stop-PackagedServerProcess -Process $Process
         $stderr = Get-ProcessDiagnostics -Process $Process
         throw "Packaged server $OperationName returned stdout contamination before JSON-RPC response: $responseLine. Error: $($_.Exception.Message). Stderr: $stderr"
     }

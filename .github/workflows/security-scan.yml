@@ -58,49 +58,12 @@ jobs:
         Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
         Install-Module PSScriptAnalyzer -Scope CurrentUser -Force -RequiredVersion 1.25.0 -Repository PSGallery
 
-        $results = Invoke-ScriptAnalyzer -Path 'scripts' -Recurse -Severity Error
-        if ($results) {
-          $results | Format-Table -AutoSize | Out-String | Write-Error
-          exit 1
-        }
+        ./scripts/tools/security/Invoke-PowerShellScriptAnalyzerGate.ps1 -Path 'scripts' -Severity Error
 
     - name: Run repository secret pattern scan
       shell: pwsh
       run: |
-        $patterns = [ordered]@{
-          'private-key-block' = '-----BEGIN (RSA |DSA |EC |OPENSSH )?PRIVATE KEY-----'
-          'github-token' = 'gh[pousr]_[A-Za-z0-9_]{36,}'
-          'aws-access-key-id' = 'AKIA[0-9A-Z]{16}'
-          'slack-token' = 'xox[baprs]-[A-Za-z0-9-]{20,}'
-          'openai-api-key' = 'sk-(proj-)?[A-Za-z0-9_-]{32,}'
-          'azure-storage-connection-string' = 'DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[A-Za-z0-9+/=]{40,}'
-        }
-
-        $findings = [System.Collections.Generic.List[string]]::new()
-        foreach ($path in git ls-files) {
-          $fullPath = Join-Path $PWD $path
-          if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
-            continue
-          }
-
-          try {
-            $content = Get-Content -LiteralPath $fullPath -Raw -ErrorAction Stop
-          }
-          catch {
-            continue
-          }
-
-          foreach ($entry in $patterns.GetEnumerator()) {
-            if ($content -match $entry.Value) {
-              $findings.Add("$path matched $($entry.Key)")
-            }
-          }
-        }
-
-        if ($findings.Count -gt 0) {
-          $findings | Sort-Object | ForEach-Object { Write-Error $_ }
-          exit 1
-        }
+        ./scripts/tools/security/Invoke-RepositorySecretScan.ps1
 
     - name: Run native bootstrapper security analysis
       shell: pwsh

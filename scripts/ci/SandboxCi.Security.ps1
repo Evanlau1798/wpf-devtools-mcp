@@ -48,6 +48,7 @@ function Invoke-HostedNativeBootstrapperSecurityAnalysis {
         '/nologo',
         '/p:Configuration=Release',
         '/p:Platform=x64',
+        '/p:PreferredToolArchitecture=x64',
         '/p:RunCodeAnalysis=true',
         '/p:TreatWarningsAsErrors=true'
     )

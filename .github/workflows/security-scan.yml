@@ -73,6 +73,7 @@ jobs:
           /nologo `
           "/p:Configuration=Release" `
           "/p:Platform=x64" `
+          "/p:PreferredToolArchitecture=x64" `
           "/p:LinkIncremental=false" `
           "/p:NetHostIncludeDir=$env:BOOTSTRAPPER_NATIVE_DIR" `
           "/p:NetHostLibDir=$env:BOOTSTRAPPER_NATIVE_DIR" `

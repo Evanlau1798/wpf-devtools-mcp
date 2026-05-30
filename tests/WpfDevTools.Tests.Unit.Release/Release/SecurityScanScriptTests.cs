@@ -38,6 +38,7 @@ public sealed class SecurityScanScriptTests
             log.Should().Contain("Run PowerShell ScriptAnalyzer|powershell.exe|-NoProfile -ExecutionPolicy Bypass -File scripts\\tools\\security\\Invoke-PowerShellScriptAnalyzerGate.ps1 -Path scripts -Severity Error");
             log.Should().Contain("Run repository secret pattern scan|powershell.exe|-NoProfile -ExecutionPolicy Bypass -File scripts\\tools\\security\\Invoke-RepositorySecretScan.ps1");
             log.Should().Contain("Run native bootstrapper security analysis|MSBUILD-STUB|src\\WpfDevTools.Bootstrapper\\WpfDevTools.Bootstrapper.vcxproj");
+            log.Should().Contain("/p:PreferredToolArchitecture=x64");
             log.Should().Contain("/p:RunCodeAnalysis=true");
             log.Should().Contain("/p:TreatWarningsAsErrors=true");
         }

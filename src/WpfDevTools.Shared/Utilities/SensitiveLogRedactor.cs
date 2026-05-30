@@ -13,7 +13,7 @@ public static class SensitiveLogRedactor
     public const string RedactedValue = "[redacted]";
     private const string RedactedPath = "[redacted-path]";
     private const string SensitiveNames =
-        "WPFDEVTOOLS_AUTH_SECRET|authSecret(?:Base64|File)?|secret(?:File)?|password|pwd|token|api[-_]?key|credential|cookie|session|windowTitle|secondaryWindowTitle|base64Image|screenshot|viewModel(?:Value)?|dataContext|propertyValue|currentValue|oldValue|newValue|value";
+        "WPFDEVTOOLS_AUTH_SECRET|WPFDEVTOOLS_CERT_DIR|authSecret(?:Base64|File|FilePath)?|cert(?:ificate)?Directory|targetProcessPath|processPath|pipeName|secret(?:File)?|password|pwd|token|api[-_]?key|credential|cookie|session|windowTitle|secondaryWindowTitle|base64Image|screenshot(?:Id)?|resource(?:Uri|Id)|viewModel(?:Value)?|dataContext|propertyValue|currentValue|oldValue|newValue|value";
 
     private static readonly Regex JsonSensitiveValuePattern = new(
         $"(\"(?:{SensitiveNames})\"\\s*:\\s*)(\"(?:\\\\.|[^\"])*\"|-?\\d+(?:\\.\\d+)?|true|false|null)",

@@ -36,6 +36,8 @@
   items:
     - name: Security Model
       href: production/security.md
+    - name: Threat Model
+      href: production/threat-model.md
     - name: Deployment Guide
       href: production/deployment.md
     - name: Release Layout

@@ -34,6 +34,8 @@
   items:
     - name: 安全模型
       href: production/security.md
+    - name: Threat Model
+      href: production/threat-model.md
     - name: 部署指南
       href: production/deployment.md
     - name: Release Layout

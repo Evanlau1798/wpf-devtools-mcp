@@ -1,5 +1,6 @@
 using System.IO;
 using System.Security.Cryptography;
+using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Inspector.Utilities;
 
@@ -30,7 +31,9 @@ internal static class ScreenshotStorage
         }
 
         var screenshotId = $"shot_{Guid.NewGuid():N}";
-        var directory = directoryOverride ?? GetScreenshotDirectory();
+        var directory = directoryOverride is null
+            ? GetScreenshotDirectory()
+            : ValidateDirectoryOverride(directoryOverride);
         Directory.CreateDirectory(directory);
         CleanupExpiredScreenshots(directory, DateTimeOffset.UtcNow);
 
@@ -137,6 +140,22 @@ internal static class ScreenshotStorage
         return Path.GetFullPath(configuredDirectory);
     }
 
+    private static string ValidateDirectoryOverride(string directoryOverride)
+    {
+        var fullPath = CertificateStorageSecurity.ResolveAndValidateLocalPath(
+            directoryOverride,
+            nameof(directoryOverride),
+            "Screenshot directory override");
+        var processId = System.Diagnostics.Process.GetCurrentProcess().Id;
+        if (!ScreenshotLeasePaths.IsPathWithinProcessRoot(fullPath, Path.GetTempPath(), processId))
+        {
+            throw new ScreenshotDirectoryOverrideException(
+                "Screenshot directory override must be under the MCP server-issued screenshot lease root.");
+        }
+
+        return fullPath;
+    }
+
     private static string ComputeSha256Hex(byte[] imageBytes)
     {
         using var sha256 = SHA256.Create();
@@ -145,4 +164,11 @@ internal static class ScreenshotStorage
     }
 
     internal sealed record ScreenshotFile(string ScreenshotId, string Path, string Sha256);
+
+    internal sealed class ScreenshotDirectoryOverrideException : InvalidOperationException
+    {
+        public ScreenshotDirectoryOverrideException(string message) : base(message)
+        {
+        }
+    }
 }

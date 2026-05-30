@@ -91,6 +91,14 @@ public static class ToolErrorFactory
         errorData);
 
     /// <summary>
+    /// Create a security-policy failure payload.
+    /// </summary>
+    public static ToolErrorPayload SecurityError(string message, string? hint = null) => Create(
+        ToolErrorCode.SecurityError,
+        message,
+        hint);
+
+    /// <summary>
     /// Create an element-not-loaded error payload.
     /// </summary>
     public static ToolErrorPayload ElementNotLoaded(string message, string? hint = null, object? errorData = null) => Create(

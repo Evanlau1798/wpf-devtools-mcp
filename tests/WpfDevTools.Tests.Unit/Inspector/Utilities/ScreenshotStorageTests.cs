@@ -1,6 +1,7 @@
 using System.IO;
 using FluentAssertions;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Utilities;
 
@@ -29,7 +30,7 @@ public sealed class ScreenshotStorageTests
     [Fact]
     public void WritePng_WithOversizedPayload_ShouldRejectBeforeWritingFile()
     {
-        using var tempDirectory = new TemporaryDirectory();
+        using var tempDirectory = TemporaryDirectory.CreateScreenshotLeaseDirectory();
         var imageBytes = new byte[ScreenshotStorage.MaxEncodedPngBytes + 1];
 
         Action act = () => ScreenshotStorage.WritePng(imageBytes, tempDirectory.Path);
@@ -42,7 +43,7 @@ public sealed class ScreenshotStorageTests
     [Fact]
     public void WritePng_ShouldUseConfiguredScreenshotDirectory()
     {
-        using var tempDirectory = new TemporaryDirectory();
+        using var tempDirectory = TemporaryDirectory.CreateScreenshotLeaseDirectory();
         var previousValue = Environment.GetEnvironmentVariable(ScreenshotDirectoryEnvironmentVariable);
         ScreenshotStorage.ScreenshotFile? screenshot = null;
 
@@ -94,7 +95,7 @@ public sealed class ScreenshotStorageTests
     [Fact]
     public void WritePng_ShouldRemoveExpiredScreenshotsInTargetDirectory()
     {
-        using var tempDirectory = new TemporaryDirectory();
+        using var tempDirectory = TemporaryDirectory.CreateScreenshotLeaseDirectory();
         var expiredPath = Path.Combine(tempDirectory.Path, "shot_expired.png");
         File.WriteAllBytes(expiredPath, new byte[] { 9, 9, 9 });
         File.SetLastWriteTimeUtc(
@@ -120,7 +121,7 @@ public sealed class ScreenshotStorageTests
     [Fact]
     public void WritePng_WhenRetentionCountIsFull_ShouldStayWithinRetentionCapAfterWrite()
     {
-        using var tempDirectory = new TemporaryDirectory();
+        using var tempDirectory = TemporaryDirectory.CreateScreenshotLeaseDirectory();
         var now = DateTimeOffset.UtcNow;
         for (var index = 0; index < ScreenshotStorage.MaxStoredScreenshots; index++)
         {
@@ -140,7 +141,7 @@ public sealed class ScreenshotStorageTests
     [Fact]
     public void WritePng_WhenExistingScreenshotsHaveFutureTimestamps_ShouldRetainNewScreenshot()
     {
-        using var tempDirectory = new TemporaryDirectory();
+        using var tempDirectory = TemporaryDirectory.CreateScreenshotLeaseDirectory();
         var future = DateTimeOffset.UtcNow.AddDays(1);
         for (var index = 0; index < ScreenshotStorage.MaxStoredScreenshots; index++)
         {
@@ -159,14 +160,25 @@ public sealed class ScreenshotStorageTests
     private sealed class TemporaryDirectory : IDisposable
     {
         public TemporaryDirectory()
-        {
-            Path = System.IO.Path.Combine(
+            : this(System.IO.Path.Combine(
                 System.IO.Path.GetTempPath(),
-                "wpf-devtools-screenshot-storage-" + Guid.NewGuid().ToString("N"));
+                "wpf-devtools-screenshot-storage-" + Guid.NewGuid().ToString("N")))
+        {
+        }
+
+        private TemporaryDirectory(string path)
+        {
+            Path = path;
             Directory.CreateDirectory(Path);
         }
 
         public string Path { get; }
+
+        public static TemporaryDirectory CreateScreenshotLeaseDirectory()
+            => new(ScreenshotLeasePaths.CreateStorageRootPath(
+                System.IO.Path.GetTempPath(),
+                Environment.ProcessId,
+                Guid.NewGuid().ToString("N")));
 
         public void Dispose()
         {

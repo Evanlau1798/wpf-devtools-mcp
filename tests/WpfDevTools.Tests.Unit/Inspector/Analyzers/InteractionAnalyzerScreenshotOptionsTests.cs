@@ -7,6 +7,7 @@ using System.Windows.Media.Imaging;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
@@ -135,7 +136,7 @@ public sealed class InteractionAnalyzerScreenshotOptionsTests
     [StaFact]
     public void TakeScreenshot_WithFileOutputMode_ShouldWritePngAndOmitBase64()
     {
-        using var tempDirectory = new TemporaryDirectory();
+        using var tempDirectory = TemporaryDirectory.CreateScreenshotLeaseDirectory();
         var finder = new ElementFinder();
         var analyzer = new InteractionAnalyzer(
             finder,
@@ -170,17 +171,48 @@ public sealed class InteractionAnalyzerScreenshotOptionsTests
         }
     }
 
+    [StaFact]
+    public void TakeScreenshot_WithRequestDirectoryOverrideOutsideLeaseRoot_ShouldRejectWithoutWriting()
+    {
+        using var attackerDirectory = new TemporaryDirectory();
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var button = new Button { Width = 140, Height = 70 };
+        var elementId = finder.GenerateElementId(button);
+
+        var result = analyzer.TakeScreenshot(
+            elementId,
+            "file",
+            screenshotDirectoryOverride: attackerDirectory.Path);
+        var json = JsonSerializer.SerializeToElement(result);
+
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+        Directory.EnumerateFiles(attackerDirectory.Path).Should().BeEmpty();
+    }
+
     private sealed class TemporaryDirectory : IDisposable
     {
         public TemporaryDirectory()
-        {
-            Path = System.IO.Path.Combine(
+            : this(System.IO.Path.Combine(
                 System.IO.Path.GetTempPath(),
-                "wpf-devtools-interaction-screenshot-" + Guid.NewGuid().ToString("N"));
+                "wpf-devtools-interaction-screenshot-" + Guid.NewGuid().ToString("N")))
+        {
+        }
+
+        private TemporaryDirectory(string path)
+        {
+            Path = path;
             Directory.CreateDirectory(Path);
         }
 
         public string Path { get; }
+
+        public static TemporaryDirectory CreateScreenshotLeaseDirectory()
+            => new(ScreenshotLeasePaths.CreateStorageRootPath(
+                System.IO.Path.GetTempPath(),
+                Environment.ProcessId,
+                Guid.NewGuid().ToString("N")));
 
         public void Dispose()
         {

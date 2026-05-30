@@ -156,6 +156,12 @@ public sealed partial class InteractionAnalyzer
                     ex.Message,
                     "Ensure the element is visible and rendered in the visual tree before taking a screenshot.");
             }
+            catch (ScreenshotStorage.ScreenshotDirectoryOverrideException ex)
+            {
+                return ToolErrorFactory.SecurityError(
+                    ex.Message,
+                    "Use element_screenshot through the MCP server so file output is bound to a server-owned screenshot lease root.");
+            }
             catch (Exception ex)
             {
                 return ToolErrorFactory.OperationFailed(

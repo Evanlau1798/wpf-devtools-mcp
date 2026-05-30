@@ -1,5 +1,4 @@
 using System.IO;
-using System.Globalization;
 using System.Threading;
 using WpfDevTools.Shared.Security;
 
@@ -12,7 +11,6 @@ public sealed partial class SessionManager
 
     private const string ScreenshotResourcePrefix = "wpf://screenshots/";
     private const string ScreenshotFileExtension = ".png";
-    private const string ScreenshotRootDirectoryName = "wpf-devtools-mcp-screenshots";
     private static readonly AsyncLocal<Func<string, bool>?> ScreenshotReparsePointChainDetectorOverrideForTestingState = new();
     private readonly Dictionary<string, StoredScreenshotResource> _screenshotResources = new(StringComparer.Ordinal);
     private readonly Queue<string> _screenshotResourceOrder = new();
@@ -303,11 +301,10 @@ public sealed partial class SessionManager
     }
 
     private static string CreateScreenshotStorageRootPath(int processId)
-        => Path.GetFullPath(Path.Combine(
+        => ScreenshotLeasePaths.CreateStorageRootPath(
             Path.GetTempPath(),
-            ScreenshotRootDirectoryName,
-            processId.ToString(CultureInfo.InvariantCulture),
-            Guid.NewGuid().ToString("N")));
+            processId,
+            Guid.NewGuid().ToString("N"));
 
     private static void PrepareScreenshotStorageRoot(string root)
         => CertificateStorageSecurity.PrepareDirectory(

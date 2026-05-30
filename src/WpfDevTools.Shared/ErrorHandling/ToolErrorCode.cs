@@ -63,5 +63,10 @@ public enum ToolErrorCode
     /// <summary>
     /// The requested response payload would exceed transport, memory, or storage limits.
     /// </summary>
-    PayloadTooLarge
+    PayloadTooLarge,
+
+    /// <summary>
+    /// A security policy or trust-boundary check rejected the operation.
+    /// </summary>
+    SecurityError
 }

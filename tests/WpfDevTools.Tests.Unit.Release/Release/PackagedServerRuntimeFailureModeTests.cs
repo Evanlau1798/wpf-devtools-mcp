@@ -114,8 +114,12 @@ public sealed class PackagedServerRuntimeFailureModeTests
         if ($helperStart -lt 0 -or $mainStart -lt 0 -or $helperStart -ge $mainStart) { throw 'Could not locate packaged runtime smoke helper body.' }
         $helperPath = Join-Path $env:TEMP ('packaged-smoke-functions-' + [guid]::NewGuid().ToString('N') + '.ps1')
         Set-Content -LiteralPath $helperPath -Value $source.Substring($helperStart, $mainStart - $helperStart) -Encoding UTF8
-        . $helperPath
-        Remove-Item -LiteralPath $helperPath -Force -ErrorAction SilentlyContinue
+        try {
+            . $helperPath
+        }
+        finally {
+            Remove-Item -LiteralPath $helperPath -Force -ErrorAction SilentlyContinue
+        }
 
         function Start-FakePowerShellProcess {
             param([Parameter(Mandatory)] [string]$Command)

@@ -247,16 +247,9 @@ function Get-DescendantProcessSnapshots {
             continue
         }
 
-        $childSnapshot = [pscustomobject]@{
-            ProcessId = $childId
-            CreationDateUtcTicks = $childTicks
-            DescendantCutoffUtcTicks = [DateTime]::UtcNow.Ticks
-        }
-        if (-not (Test-ProcessSnapshotExists -Snapshot $childSnapshot)) {
-            continue
-        }
-
+        $childSnapshot = [pscustomobject]@{ ProcessId = $childId; CreationDateUtcTicks = $childTicks; DescendantCutoffUtcTicks = [DateTime]::UtcNow.Ticks }
         $snapshots += $childSnapshot
+        if (-not (Test-ProcessSnapshotExists -Snapshot $childSnapshot)) { continue }
         $snapshots += Get-DescendantProcessSnapshots -ParentProcessId $childId -CreationCutoffUtcTicks $CreationCutoffUtcTicks -CreationStartUtcTicks $childTicks -VisitedProcessIds $visited
     }
 

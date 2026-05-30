@@ -2,6 +2,8 @@ param(
     [Parameter(Mandatory)] [string]$InputRoot,
     [Parameter(Mandatory)] [string]$OutputRoot,
     [Parameter(Mandatory)] [string]$Tag,
+    [string]$TrustedSignerThumbprint,
+    [string]$TrustPolicyPath,
     [switch]$OutputJson
 )
 
@@ -90,7 +92,21 @@ foreach ($asset in $assets) {
     Copy-Item -Path $asset.FullName -Destination $destinationPath -Force
 }
 
-$manifest = & $sidecarWriter -ArchiveRoot $stagingRoot -Tag $Tag -OutputJson | ConvertFrom-Json
+$sidecarArguments = @{
+    ArchiveRoot = $stagingRoot
+    Tag = $Tag
+    OutputJson = $true
+}
+
+if (-not [string]::IsNullOrWhiteSpace($TrustedSignerThumbprint)) {
+    $sidecarArguments.TrustedSignerThumbprint = $TrustedSignerThumbprint
+}
+
+if (-not [string]::IsNullOrWhiteSpace($TrustPolicyPath)) {
+    $sidecarArguments.TrustPolicyPath = $TrustPolicyPath
+}
+
+$manifest = & $sidecarWriter @sidecarArguments | ConvertFrom-Json
 
 $uploadScriptPath = Join-Path $stagingRoot 'upload-gh-release.ps1'
 $uploadAssetNames = @($manifest.assets | ForEach-Object { [string]$_.name }) +

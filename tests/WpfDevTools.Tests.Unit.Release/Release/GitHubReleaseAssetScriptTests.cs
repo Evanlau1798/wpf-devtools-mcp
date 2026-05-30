@@ -195,6 +195,91 @@ public sealed class GitHubReleaseAssetScriptTests
     }
 
     [Fact]
+    public void ExportGitHubReleaseAssets_WithSignedArchiveMetadataAndNoTrustedSigner_ShouldFailClosedInProductionMode()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var inputRoot = Path.Combine(tempRoot, "release-input");
+            var outputRoot = Path.Combine(tempRoot, "release-output");
+            Directory.CreateDirectory(inputRoot);
+
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(
+                tempRoot,
+                "x64",
+                useSignedPayload: true,
+                isolateArchiveContents: true);
+            File.Copy(archivePath, Path.Combine(inputRoot, Path.GetFileName(archivePath)), overwrite: true);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"),
+                new[] { "-InputRoot", inputRoot, "-OutputRoot", outputRoot, "-Tag", "v1.2.3", "-OutputJson" },
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0",
+                    ["WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"] = null,
+                    ["WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT"] = null
+                });
+
+            result.ExitCode.Should().NotBe(0);
+            (result.Stdout + Environment.NewLine + result.Stderr)
+                .Should().Contain("provide a trusted signer thumbprint");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void ExportGitHubReleaseAssets_WithSignedArchiveMetadataAndTrustedSignerParameter_ShouldSucceedInProductionMode()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var inputRoot = Path.Combine(tempRoot, "release-input");
+            var outputRoot = Path.Combine(tempRoot, "release-output");
+            Directory.CreateDirectory(inputRoot);
+
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(
+                tempRoot,
+                "x64",
+                useSignedPayload: true,
+                isolateArchiveContents: true);
+            var stagedArchivePath = Path.Combine(inputRoot, Path.GetFileName(archivePath));
+            File.Copy(archivePath, stagedArchivePath, overwrite: true);
+            var signer = ReadArchiveSignerMetadata(stagedArchivePath);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"),
+                new[]
+                {
+                    "-InputRoot", inputRoot,
+                    "-OutputRoot", outputRoot,
+                    "-Tag", "v1.2.3",
+                    "-TrustedSignerThumbprint", signer.Thumbprint,
+                    "-OutputJson"
+                },
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0",
+                    ["WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"] = null,
+                    ["WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT"] = null
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(outputRoot, "v1.2.3", "release-assets.json")));
+            var policy = manifest.RootElement.GetProperty("assets")[0].GetProperty("signerTrustPolicy");
+            policy.GetProperty("source").GetString().Should().Be("parameter");
+            policy.GetProperty("trustedSignerThumbprint").GetString().Should().Be(signer.Thumbprint);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void ExportGitHubReleaseAssets_ShouldWriteSpdxSbomForEveryPackageAsset()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -242,6 +327,16 @@ public sealed class GitHubReleaseAssetScriptTests
         {
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
+    }
+
+    private static (string Thumbprint, string? Subject) ReadArchiveSignerMetadata(string archivePath)
+    {
+        using var archive = ZipFile.OpenRead(archivePath);
+        using var stream = archive.GetEntry("bin/manifest.json")!.Open();
+        using var document = JsonDocument.Parse(stream);
+        return (
+            document.RootElement.GetProperty("signerThumbprint").GetString()!,
+            document.RootElement.GetProperty("signerSubject").GetString());
     }
 
     private static string ComputeSha256(string path)

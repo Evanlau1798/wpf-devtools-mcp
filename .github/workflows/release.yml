@@ -130,11 +130,13 @@ jobs:
         shell: pwsh
         env:
           RELEASE_TAG: ${{ steps.release-metadata.outputs.tag }}
+          WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
         run: |
           ./scripts/tools/packaging/Export-GitHubReleaseAssets.ps1 `
             -InputRoot '${{ env.RELEASE_OUTPUT_ROOT }}' `
             -OutputRoot '${{ env.RELEASE_STAGING_ROOT }}' `
             -Tag $env:RELEASE_TAG `
+            -TrustedSignerThumbprint $env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT `
             -OutputJson
 
       - name: Upload staged release bundle artifact

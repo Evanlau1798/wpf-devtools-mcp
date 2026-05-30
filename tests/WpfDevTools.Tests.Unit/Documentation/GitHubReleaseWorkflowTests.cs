@@ -130,6 +130,26 @@ public sealed class GitHubReleaseWorkflowTests
     }
 
     [Fact]
+    public void ReleaseWorkflow_ShouldPassSignerTrustToAssetStagingStep()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+        var step = GetNamedStepBlock(lines, "Stage GitHub Release assets");
+
+        step.Should().Contain(line =>
+            string.Equals(
+                line.Trim(),
+                "WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}",
+                StringComparison.Ordinal),
+            "release sidecar generation validates signed archive metadata and must receive the same pinned signer trust as packaging");
+        step.Should().Contain(line =>
+            string.Equals(
+                line.Trim(),
+                "-TrustedSignerThumbprint $env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT `",
+                StringComparison.Ordinal),
+            "the staging script should pass signer trust explicitly instead of relying on test-mode metadata trust");
+    }
+
+    [Fact]
     public void ReleaseWorkflow_ShouldLimitContentsWritePermissionToUploadJob()
     {
         var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
@@ -183,6 +203,21 @@ public sealed class GitHubReleaseWorkflowTests
         return lines
             .Skip(headerIndex + 1)
             .TakeWhile(line => string.IsNullOrWhiteSpace(line) || char.IsWhiteSpace(line[0]))
+            .ToArray();
+    }
+
+    private static string[] GetNamedStepBlock(string[] lines, string stepName)
+    {
+        var stepHeader = $"      - name: {stepName}";
+        var stepIndex = Array.FindIndex(lines, line => string.Equals(line, stepHeader, StringComparison.Ordinal));
+        if (stepIndex < 0)
+        {
+            return [];
+        }
+
+        return lines
+            .Skip(stepIndex)
+            .TakeWhile((line, index) => index == 0 || !line.StartsWith("      - name:", StringComparison.Ordinal))
             .ToArray();
     }
 

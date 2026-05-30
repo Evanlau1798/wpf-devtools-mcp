@@ -56,7 +56,7 @@ public sealed partial class SessionManager
         }
 
         var fullPath = ResolveAndValidateScreenshotPath(filePath, "Screenshot file");
-        var storageRoot = GetOrCreateScreenshotStorageRoot(processId);
+        var storageRoot = GetOrCreateScreenshotStorageRootForRegistration(processId);
         if (!IsPathWithinRoot(fullPath, storageRoot))
         {
             throw new ArgumentException(
@@ -305,6 +305,22 @@ public sealed partial class SessionManager
             Path.GetTempPath(),
             processId,
             Guid.NewGuid().ToString("N"));
+
+    private string GetOrCreateScreenshotStorageRootForRegistration(int processId)
+    {
+        lock (_lock)
+        {
+            if (_screenshotStorageRoots.TryGetValue(processId, out var existingRoot))
+            {
+                return existingRoot;
+            }
+
+            var root = CreateScreenshotStorageRootPath(processId);
+            PrepareScreenshotStorageRoot(root);
+            _screenshotStorageRoots[processId] = root;
+            return root;
+        }
+    }
 
     private static void PrepareScreenshotStorageRoot(string root)
         => CertificateStorageSecurity.PrepareDirectory(

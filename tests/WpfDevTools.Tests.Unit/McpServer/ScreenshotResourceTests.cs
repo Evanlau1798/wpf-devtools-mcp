@@ -160,6 +160,40 @@ public sealed class ScreenshotResourceTests
         }
     }
 
+    [Fact]
+    public void RegisterScreenshotResource_WithExistingPreparedRoot_ShouldNotPrepareRootAgain()
+    {
+        var previousDetector = SessionManager.ScreenshotReparsePointChainDetectorOverrideForTesting;
+        using var sessionManager = new SessionManager();
+        const int processId = 12345;
+        var checkedPaths = new List<string>();
+
+        try
+        {
+            SessionManager.ScreenshotReparsePointChainDetectorOverrideForTesting = path =>
+            {
+                checkedPaths.Add(Path.GetFullPath(path));
+                return false;
+            };
+            var storageRoot = sessionManager.GetOrCreateScreenshotStorageRoot(processId);
+            var screenshotId = "shot_0123456789abcdef0123456789abcdef";
+            var filePath = Path.Combine(storageRoot, screenshotId + ".png");
+            File.WriteAllBytes(filePath, new byte[] { 137, 80, 78, 71 });
+            checkedPaths.Clear();
+
+            sessionManager.RegisterScreenshotResource(processId, screenshotId, filePath, sha256: null);
+
+            checkedPaths.Should().NotContain(Path.GetFullPath(storageRoot),
+                "registering a file under an existing prepared root should not harden the root a second time");
+            checkedPaths.Should().Contain(Path.GetFullPath(filePath),
+                "the screenshot file path itself must still be validated before registration");
+        }
+        finally
+        {
+            SessionManager.ScreenshotReparsePointChainDetectorOverrideForTesting = previousDetector;
+        }
+    }
+
     [Theory]
     [InlineData("../shot_0123456789abcdef0123456789abcdef")]
     [InlineData("shot_0123456789abcdef0123456789abcdef/x")]

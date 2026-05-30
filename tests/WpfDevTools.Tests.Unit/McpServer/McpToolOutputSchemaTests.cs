@@ -163,6 +163,44 @@ public sealed class McpToolOutputSchemaTests
             "dotNetVersion",
             "isElevated",
             "connectionWarning");
+        AssertTopLevelFields("get_ui_summary",
+            "traversalNodeCount",
+            "omittedNodeCount",
+            "omittedSemanticNodeCount",
+            "truncated",
+            "truncationReasons",
+            "payloadLimits",
+            "navigationNodes");
+        AssertNestedFields("get_ui_summary", ["payloadLimits"],
+            "maxTraversalNodes",
+            "maxSemanticNodes",
+            "maxSummaryTextLength",
+            "maxStringValueLength");
+        AssertTopLevelFields("get_form_summary",
+            "traversalNodeCount",
+            "omittedNodeCount",
+            "omittedInputCount",
+            "omittedCommandCount",
+            "truncated",
+            "truncationReasons",
+            "payloadLimits");
+        AssertPropertyType("get_form_summary", "formScope", "string");
+        AssertArrayItemFields("get_form_summary", "inputs",
+            "elementName",
+            "currentValue",
+            "bindingPath",
+            "isEmpty");
+        AssertArrayItemFields("get_form_summary", "commands",
+            "elementName",
+            "text",
+            "isPrimary",
+            "isReady",
+            "blockers");
+        AssertNestedFields("get_form_summary", ["payloadLimits"],
+            "maxTraversalNodes",
+            "maxInputs",
+            "maxCommands",
+            "maxStringValueLength");
         AssertTopLevelFields("batch_mutate",
             "executionMode",
             "mutations",
@@ -227,6 +265,50 @@ public sealed class McpToolOutputSchemaTests
             processProperties.TryGetProperty(expectedField, out _).Should().BeTrue(
                 $"{toolName} outputSchema process item should include runtime field '{expectedField}'");
         }
+    }
+
+    private static void AssertNestedFields(string toolName, string[] path, params string[] expectedFields)
+    {
+        var schema = CreateToolSchema(toolName);
+        var properties = schema.GetProperty("properties");
+        foreach (var segment in path)
+        {
+            properties = properties.GetProperty(segment).GetProperty("properties");
+        }
+
+        foreach (var expectedField in expectedFields)
+        {
+            properties.TryGetProperty(expectedField, out _).Should().BeTrue(
+                $"{toolName} outputSchema should include runtime structuredContent path '{string.Join(".", path)}.{expectedField}'");
+        }
+    }
+
+    private static void AssertPropertyType(string toolName, string fieldName, string expectedType)
+    {
+        var properties = CreateToolSchema(toolName).GetProperty("properties");
+        properties.GetProperty(fieldName).GetProperty("type").GetString().Should().Be(expectedType);
+    }
+
+    private static void AssertArrayItemFields(string toolName, string fieldName, params string[] expectedFields)
+    {
+        var itemProperties = CreateToolSchema(toolName)
+            .GetProperty("properties")
+            .GetProperty(fieldName)
+            .GetProperty("items")
+            .GetProperty("properties");
+
+        foreach (var expectedField in expectedFields)
+        {
+            itemProperties.TryGetProperty(expectedField, out _).Should().BeTrue(
+                $"{toolName} outputSchema array '{fieldName}' item should include runtime field '{expectedField}'");
+        }
+    }
+
+    private static JsonElement CreateToolSchema(string toolName)
+    {
+        var tool = CreateTool(toolName);
+        McpToolOutputSchemas.Apply(tool);
+        return tool.OutputSchema!.Value;
     }
 
     private static void CollectLooseSchemaViolations(JsonElement schema, string path, List<string> violations)

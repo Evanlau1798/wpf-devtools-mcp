@@ -79,16 +79,30 @@ internal static partial class McpToolOutputSchemas
                 ["scopeVisibility"] = String("Visibility scope used for summary traversal."),
                 ["isCurrentlyVisible"] = Boolean("Whether the summarized scope is currently visible."),
                 ["semanticNodeCount"] = Integer("Number of semantic nodes returned."),
+                ["traversalNodeCount"] = Integer("Number of WPF nodes visited while building the summary."),
+                ["omittedNodeCount"] = Integer("Number of nodes omitted because a traversal budget was reached."),
+                ["omittedSemanticNodeCount"] = Integer("Number of semantic nodes omitted because a semantic budget was reached."),
+                ["truncated"] = Boolean("Whether any summary payload budget was reached."),
+                ["truncationReasons"] = ArrayOfString("Budget reason codes that caused truncation."),
+                ["payloadLimits"] = UiSummaryPayloadLimits(),
                 ["summaryText"] = String("Compact scene summary for AI clients."),
-                ["nodes"] = ArrayOf("Semantic scene nodes.", SceneNode())
+                ["nodes"] = ArrayOf("Semantic scene nodes when summaryOnly is false.", SceneNode()),
+                ["navigationNodes"] = ArrayOf("Navigation-oriented semantic nodes when summaryOnly is true.", SceneNode())
             }),
             ["get_form_summary"] = CreateSchema(false, new()
             {
-                ["formScope"] = FormScope(),
+                ["formScope"] = String("Runtime element id for the summarized form scope."),
                 ["scopeVisibility"] = String("Visibility scope used for form traversal."),
                 ["isCurrentlyVisible"] = Boolean("Whether the summarized form scope is currently visible."),
                 ["inputs"] = ArrayOf("Input controls discovered under the form scope.", FormInput()),
                 ["commands"] = ArrayOf("Command-capable controls discovered under the form scope.", FormCommand()),
+                ["traversalNodeCount"] = Integer("Number of WPF nodes visited while building the form summary."),
+                ["omittedNodeCount"] = Integer("Number of nodes omitted because a traversal budget was reached."),
+                ["omittedInputCount"] = Integer("Number of input controls omitted because an input budget was reached."),
+                ["omittedCommandCount"] = Integer("Number of command controls omitted because a command budget was reached."),
+                ["truncated"] = Boolean("Whether any form summary payload budget was reached."),
+                ["truncationReasons"] = ArrayOfString("Budget reason codes that caused truncation."),
+                ["payloadLimits"] = FormSummaryPayloadLimits(),
                 ["summary"] = FormSummary()
             }),
             ["get_element_snapshot"] = CreateSchema(false, new()

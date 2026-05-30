@@ -259,13 +259,22 @@ internal static partial class McpToolOutputSchemas
             ["payload"] = MapOf("Event payload.", JsonValue())
         });
 
-    private static object FormScope()
-        => ObjectSchema("Form summary scope.", new()
+    private static object UiSummaryPayloadLimits()
+        => ObjectSchema("UI summary payload budget limits.", new()
         {
-            ["elementId"] = String("Scoped root element id."),
-            ["elementType"] = String("Scoped root WPF type."),
-            ["elementName"] = String("Scoped root name when available."),
-            ["heading"] = String("Best available form heading or title.")
+            ["maxTraversalNodes"] = Integer("Maximum traversal nodes."),
+            ["maxSemanticNodes"] = Integer("Maximum semantic nodes."),
+            ["maxSummaryTextLength"] = Integer("Maximum summary text length."),
+            ["maxStringValueLength"] = Integer("Maximum string value length.")
+        });
+
+    private static object FormSummaryPayloadLimits()
+        => ObjectSchema("Form summary payload budget limits.", new()
+        {
+            ["maxTraversalNodes"] = Integer("Maximum traversal nodes."),
+            ["maxInputs"] = Integer("Maximum input controls."),
+            ["maxCommands"] = Integer("Maximum command controls."),
+            ["maxStringValueLength"] = Integer("Maximum string value length.")
         });
 
     private static object FormInput()
@@ -273,12 +282,12 @@ internal static partial class McpToolOutputSchemas
         {
             ["elementId"] = String("Input element id."),
             ["elementType"] = String("Input WPF type."),
+            ["elementName"] = String("Input element name when available."),
             ["label"] = String("Best available input label."),
-            ["value"] = JsonValue(),
-            ["valuePreview"] = String("Truncated value preview."),
-            ["isRequired"] = Boolean("Whether the input appears required."),
-            ["isEnabled"] = Boolean("Whether the input is enabled."),
-            ["validationErrors"] = ArrayOf("Validation errors associated with this input.", ValidationError())
+            ["currentValue"] = JsonValue(),
+            ["bindingPath"] = String("Binding path when available."),
+            ["isEmpty"] = Boolean("Whether the current value is empty."),
+            ["validationErrors"] = ArrayOfString("Validation error messages associated with this input.")
         });
 
     private static object FormCommand()
@@ -286,10 +295,11 @@ internal static partial class McpToolOutputSchemas
         {
             ["elementId"] = String("Command element id."),
             ["elementType"] = String("Command WPF type."),
-            ["label"] = String("Button text or accessible command label."),
-            ["commandName"] = String("Bound ICommand property name when known."),
-            ["canExecute"] = Boolean("Whether the command can execute."),
-            ["readiness"] = String("Interaction readiness summary.")
+            ["elementName"] = String("Command element name when available."),
+            ["text"] = String("Button text or accessible command label."),
+            ["isPrimary"] = Boolean("Whether the command appears to be the primary submit action."),
+            ["isReady"] = Boolean("Whether the command is interaction-ready."),
+            ["blockers"] = ArrayOfString("Interaction readiness blockers.")
         });
 
     private static object FormSummary()

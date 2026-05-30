@@ -29,16 +29,7 @@ public static partial class E2eTestHelpers
         return AssertPngMatchesReportedMetadata(bytes, result);
     }
 
-    public static string AssertFileScreenshotMatchesReportedMetadata(JsonElement result, string expectedDirectory)
-    {
-        AssertFileScreenshotMatchesReportedMetadata(result, expectedDirectory, out var fullPath);
-        return fullPath;
-    }
-
-    public static void AssertFileScreenshotMatchesReportedMetadata(
-        JsonElement result,
-        string expectedDirectory,
-        out string fullPath)
+    public static string AssertFileScreenshotMetadata(JsonElement result)
     {
         result.TryGetProperty("path", out _).Should().BeFalse(
             "file screenshot output should redact absolute local paths from MCP responses");
@@ -54,12 +45,26 @@ public static partial class E2eTestHelpers
         fileName.Should().NotBeNullOrWhiteSpace("fileName should identify the written PNG without exposing an absolute path");
         Path.GetFileName(fileName!).Should().Be(fileName, "fileName should not include directory components");
 
-        fullPath = Path.GetFullPath(Path.Combine(expectedDirectory, fileName!));
-        IsPathUnderDirectory(fullPath, expectedDirectory).Should().BeTrue(
-            $"file screenshot should be written under {expectedDirectory}");
-        File.Exists(fullPath).Should().BeTrue("file screenshot path should exist before cleanup");
+        return result.GetProperty("resourceUri").GetString()!;
+    }
 
-        AssertPngMatchesReportedMetadata(File.ReadAllBytes(fullPath), result);
+    public static ImageDimensions AssertScreenshotResourceMatchesReportedMetadata(
+        JsonElement resourceResponse,
+        JsonElement screenshotResult)
+    {
+        var resourceUri = screenshotResult.GetProperty("resourceUri").GetString();
+        resourceUri.Should().NotBeNullOrWhiteSpace();
+
+        var contents = resourceResponse.GetProperty("result").GetProperty("contents");
+        var content = contents.EnumerateArray().Should().ContainSingle().Subject;
+        content.GetProperty("uri").GetString().Should().Be(resourceUri);
+        content.GetProperty("mimeType").GetString().Should().Be("image/png");
+        content.TryGetProperty("blob", out var blob).Should().BeTrue(
+            "screenshot resources should be returned as MCP blob contents");
+        blob.ValueKind.Should().Be(JsonValueKind.String);
+        var bytes = Convert.FromBase64String(blob.GetString()!);
+
+        return AssertPngMatchesReportedMetadata(bytes, screenshotResult);
     }
 
     private static ImageDimensions AssertPngMatchesReportedMetadata(byte[] bytes, JsonElement result)
@@ -106,15 +111,6 @@ public static partial class E2eTestHelpers
         var pixels = new byte[stride * frame.PixelHeight];
         frame.CopyPixels(pixels, stride, 0);
         return new ImageDimensions(frame.PixelWidth, frame.PixelHeight);
-    }
-
-    private static bool IsPathUnderDirectory(string path, string expectedDirectory)
-    {
-        var fullExpectedDirectory = Path.GetFullPath(expectedDirectory)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return path.StartsWith(
-            fullExpectedDirectory + Path.DirectorySeparatorChar,
-            StringComparison.OrdinalIgnoreCase);
     }
 
 }

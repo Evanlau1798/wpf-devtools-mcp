@@ -18,7 +18,10 @@ internal static class IntegrationExecutableLocator
         }
 
         var solutionRoot = FindSolutionRoot(appBaseDirectory);
-        var candidate = Path.Combine(solutionRoot, projectDir, projectName, "bin", configuration, framework, exeName);
+        var platform = TryGetBuildPlatform(appBaseDirectory);
+        var candidate = string.IsNullOrWhiteSpace(platform)
+            ? Path.Combine(solutionRoot, projectDir, projectName, "bin", configuration, framework, exeName)
+            : Path.Combine(solutionRoot, projectDir, projectName, "bin", platform, configuration, framework, exeName);
         return File.Exists(candidate) ? candidate : null;
     }
 
@@ -32,6 +35,26 @@ internal static class IntegrationExecutableLocator
         var baseDir = appBaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var targetFrameworkDirectory = new DirectoryInfo(baseDir);
         return targetFrameworkDirectory.Parent?.Name;
+    }
+
+    internal static string? TryGetBuildPlatform(string appBaseDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(appBaseDirectory))
+        {
+            return null;
+        }
+
+        var baseDir = appBaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var targetFrameworkDirectory = new DirectoryInfo(baseDir);
+        var configurationDirectory = targetFrameworkDirectory.Parent;
+        var possiblePlatformDirectory = configurationDirectory?.Parent;
+        if (possiblePlatformDirectory?.Parent == null ||
+            !string.Equals(possiblePlatformDirectory.Parent.Name, "bin", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return possiblePlatformDirectory.Name;
     }
 
     private static string FindSolutionRoot(string appBaseDirectory)

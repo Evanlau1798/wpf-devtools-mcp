@@ -66,45 +66,21 @@ public sealed class ElementScreenshotTokenOptimizationE2eTests
     public async Task ElementScreenshot_WithFileOutputMode_ShouldWriteScreenshotToDisk()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
-        string? path = null;
+        var result = await _fixture.Client.CallToolAsync(
+            "element_screenshot",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                outputMode = "file",
+                maxWidth = 256
+            });
 
-        try
-        {
-            var result = await _fixture.Client.CallToolAsync(
-                "element_screenshot",
-                new
-                {
-                    processId = _fixture.TestAppProcessId,
-                    outputMode = "file",
-                    maxWidth = 256
-                });
-
-            result.GetProperty("success").GetBoolean().Should().BeTrue();
-            result.TryGetProperty("base64Image", out _).Should().BeFalse();
-            E2eTestHelpers.AssertFileScreenshotMatchesReportedMetadata(
-                result,
-                _fixture.ScreenshotDirectory,
-                out path);
-            _output.WriteLine($"File screenshot metadata: rendered={result.GetProperty("rendered").GetBoolean()}, width={result.GetProperty("width").GetInt32()}, height={result.GetProperty("height").GetInt32()}, underExpectedDirectory=True");
-            result.GetProperty("width").GetInt32().Should().BeLessOrEqualTo(256);
-        }
-        finally
-        {
-            DeleteGeneratedScreenshots();
-        }
-
-    }
-
-    private void DeleteGeneratedScreenshots()
-    {
-        if (!Directory.Exists(_fixture.ScreenshotDirectory))
-        {
-            return;
-        }
-
-        foreach (var screenshot in Directory.EnumerateFiles(_fixture.ScreenshotDirectory, "shot_*.png"))
-        {
-            File.Delete(screenshot);
-        }
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.TryGetProperty("base64Image", out _).Should().BeFalse();
+        var resourceUri = E2eTestHelpers.AssertFileScreenshotMetadata(result);
+        var resource = await _fixture.Client.ReadResourceAsync(resourceUri);
+        E2eTestHelpers.AssertScreenshotResourceMatchesReportedMetadata(resource, result);
+        _output.WriteLine($"File screenshot metadata: rendered={result.GetProperty("rendered").GetBoolean()}, width={result.GetProperty("width").GetInt32()}, height={result.GetProperty("height").GetInt32()}, resourceUri={resourceUri}");
+        result.GetProperty("width").GetInt32().Should().BeLessOrEqualTo(256);
     }
 }

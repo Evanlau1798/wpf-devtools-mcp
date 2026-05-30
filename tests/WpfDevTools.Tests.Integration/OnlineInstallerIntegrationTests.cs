@@ -11,6 +11,8 @@ namespace WpfDevTools.Tests.Integration;
 [Collection("PackagingIntegration")]
 public sealed class OnlineInstallerIntegrationTests
 {
+    private static readonly TimeSpan BuildReleaseTimeout = TimeSpan.FromMinutes(5);
+
     [Fact]
     public async Task OnlineInstaller_ShouldInstallFromLocalArchiveWithoutNetwork_AndPersistState()
     {
@@ -25,7 +27,8 @@ public sealed class OnlineInstallerIntegrationTests
 
             var packageResult = ReleasePackagingTestHarness.RunPowerShellScript(
                 ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1"),
-                new[] { "-Configuration", "Debug", "-Architectures", "x64", "-OutputRoot", outputRoot, "-SkipBuild" });
+                new[] { "-Configuration", "Debug", "-Architectures", "x64", "-OutputRoot", outputRoot },
+                timeout: BuildReleaseTimeout);
             packageResult.ExitCode.Should().Be(0, packageResult.Stderr);
 
             var archivePath = Directory.GetFiles(outputRoot, "release_*_win-x64.zip").Single();

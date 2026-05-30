@@ -1,5 +1,7 @@
 using System.IO;
 using System.Text.Json;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using FluentAssertions;
 
 namespace WpfDevTools.Tests.Integration.E2E;
@@ -7,13 +9,10 @@ namespace WpfDevTools.Tests.Integration.E2E;
 public sealed class E2eTestScreenshotAssertionsTests
 {
     [Fact]
-    public void AssertFileScreenshotMatchesReportedMetadata_ShouldExposeCleanupPathBeforePngAssertions()
+    public void AssertFileScreenshotMetadata_ShouldReturnResourceUriWithoutLocalPath()
     {
-        using var tempDirectory = new TemporaryDirectory();
         var screenshotId = "shot_00000000000000000000000000000000";
         var fileName = screenshotId + ".png";
-        var filePath = Path.Combine(tempDirectory.Path, fileName);
-        File.WriteAllBytes(filePath, new byte[] { 1, 2, 3 });
         using var document = JsonDocument.Parse($$"""
             {
               "success": true,
@@ -30,37 +29,68 @@ public sealed class E2eTestScreenshotAssertionsTests
               "byteLength": 3
             }
             """);
-        string? cleanupPath = null;
 
-        var act = () => E2eTestHelpers.AssertFileScreenshotMatchesReportedMetadata(
-            document.RootElement,
-            tempDirectory.Path,
-            out cleanupPath);
+        var resourceUri = E2eTestHelpers.AssertFileScreenshotMetadata(document.RootElement);
 
-        act.Should().Throw<Exception>("invalid PNG metadata should still fail validation");
-        cleanupPath.Should().Be(filePath,
-            "caller finally blocks must know which screenshot to delete even when deeper assertions fail");
-        File.Exists(cleanupPath).Should().BeTrue();
+        resourceUri.Should().Be("wpf://screenshots/shot_00000000000000000000000000000000");
     }
 
-    private sealed class TemporaryDirectory : IDisposable
+    [Fact]
+    public void AssertScreenshotResourceMatchesReportedMetadata_ShouldValidateMcpBlob()
     {
-        public TemporaryDirectory()
-        {
-            Path = System.IO.Path.Combine(
-                System.IO.Path.GetTempPath(),
-                "wpf-devtools-e2e-screenshot-assertions-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(Path);
-        }
-
-        public string Path { get; }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(Path))
+        var imageBytes = CreateOnePixelPng();
+        var blob = Convert.ToBase64String(imageBytes);
+        using var resultDocument = JsonDocument.Parse("""
             {
-                Directory.Delete(Path, recursive: true);
+              "success": true,
+              "localPathRedacted": true,
+              "screenshotId": "shot_00000000000000000000000000000000",
+              "outputMode": "file",
+              "resourceUri": "wpf://screenshots/shot_00000000000000000000000000000000",
+              "fileName": "shot_00000000000000000000000000000000.png",
+              "width": 1,
+              "height": 1,
+              "format": "png",
+              "rendered": true
             }
-        }
+            """);
+        using var resourceDocument = JsonDocument.Parse($$"""
+            {
+              "result": {
+                "contents": [
+                  {
+                    "uri": "wpf://screenshots/shot_00000000000000000000000000000000",
+                    "mimeType": "image/png",
+                    "blob": "{{blob}}"
+                  }
+                ]
+              }
+            }
+            """);
+
+        var dimensions = E2eTestHelpers.AssertScreenshotResourceMatchesReportedMetadata(
+            resourceDocument.RootElement,
+            resultDocument.RootElement);
+
+        dimensions.Should().Be(new E2eTestHelpers.ImageDimensions(1, 1));
+    }
+
+    private static byte[] CreateOnePixelPng()
+    {
+        var pixels = new byte[] { 0, 0, 0, 255 };
+        var bitmap = BitmapSource.Create(
+            1,
+            1,
+            96,
+            96,
+            PixelFormats.Bgra32,
+            null,
+            pixels,
+            4);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = new MemoryStream();
+        encoder.Save(stream);
+        return stream.ToArray();
     }
 }

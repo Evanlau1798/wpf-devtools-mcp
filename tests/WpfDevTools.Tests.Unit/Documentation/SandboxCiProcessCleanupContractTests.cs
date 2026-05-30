@@ -138,7 +138,7 @@ public sealed partial class SandboxCiScriptContractTests
         runner.Should().Contain("Stop-ExistingProcessSnapshots -Snapshots $Snapshots");
         runner.Should().Contain("Expand-ProcessSnapshots");
         stopBlock.Should().Contain("while (-not $Process.HasExited");
-        stopBlock.Should().Contain("$descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId)");
+        stopBlock.Should().Contain("$descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))");
         stopBlock.Should().Contain("if (-not $Process.WaitForExit(5000))");
         stopBlock.Should().Contain("Smoke target did not exit after force kill");
         stopBlock.Should().Contain("Stop-ProcessSnapshots -Snapshots @(@($rootSnapshot) + @($descendantSnapshots)) -ScanRoots @($rootSnapshot)");

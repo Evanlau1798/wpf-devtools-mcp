@@ -76,25 +76,39 @@ public class InspectorHostLoggingTests : IDisposable
     {
         // Arrange
         var logPath = Path.Combine(_tempLogDir, "perf.log");
-        using var logger = new FileLogger(logPath);
-        var sw = Stopwatch.StartNew();
+        var writeStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseWrite = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var persistedEntries = new List<string>();
+        using var logger = new FileLogger(
+            logPath,
+            TimeSpan.FromSeconds(5),
+            async (entries, cancellationToken) =>
+            {
+                writeStarted.TrySetResult();
+                await releaseWrite.Task.WaitAsync(cancellationToken);
+                lock (persistedEntries)
+                {
+                    persistedEntries.AddRange(entries);
+                }
+            });
 
-        // Act - log 1000 messages (should be non-blocking)
-        for (int i = 0; i < 1000; i++)
+        logger.LogError("Blocked writer primer");
+        await writeStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Act - log 1000 messages while the background writer is blocked.
+        var loggingTask = Task.Run(() =>
         {
-            logger.LogError($"High frequency message {i}");
-        }
-        sw.Stop();
+            for (int i = 0; i < 1000; i++)
+            {
+                logger.LogError($"High frequency message {i}");
+            }
+        });
 
-        // Assert - 1000 non-blocking writes should complete in < 100ms
-        sw.ElapsedMilliseconds.Should().BeLessThan(100,
-            "non-blocking async logging should return immediately");
-
-        // Wait for background queue to process
+        // Assert - foreground logging should enqueue without waiting for the writer to unblock.
+        await loggingTask.WaitAsync(TimeSpan.FromSeconds(1));
+        releaseWrite.SetResult();
         await logger.DisposeAsync();
-
-        // Verify all messages were written
-        var content = File.ReadAllText(logPath);
+        var content = string.Concat(persistedEntries);
         content.Should().Contain("High frequency message 0");
         content.Should().Contain("High frequency message 999");
     }

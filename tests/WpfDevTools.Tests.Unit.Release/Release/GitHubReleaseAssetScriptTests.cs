@@ -1,5 +1,6 @@
-using System.Text.Json;
 using System.IO.Compression;
+using System.Security.Cryptography;
+using System.Text.Json;
 using FluentAssertions;
 using Xunit;
 
@@ -212,10 +213,16 @@ public sealed class GitHubReleaseAssetScriptTests
             result.ExitCode.Should().Be(0, result.Stderr);
             var stagedRoot = Path.Combine(outputRoot, "v1.2.3");
             using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(stagedRoot, "release-assets.json")));
-            using var sbom = JsonDocument.Parse(File.ReadAllText(Path.Combine(stagedRoot, "release-sbom.spdx.json")));
+            var sbomPath = Path.Combine(stagedRoot, "release-sbom.spdx.json");
+            using var sbom = JsonDocument.Parse(File.ReadAllText(sbomPath));
 
             sbom.RootElement.GetProperty("spdxVersion").GetString().Should().Be("SPDX-2.3");
             sbom.RootElement.GetProperty("name").GetString().Should().Be("wpf-devtools-mcp-v1.2.3");
+            var sbomSidecar = manifest.RootElement.GetProperty("sidecars")
+                .EnumerateArray()
+                .Single(sidecar => sidecar.GetProperty("name").GetString() == "release-sbom.spdx.json");
+            sbomSidecar.GetProperty("sha256").GetString().Should().Be(ComputeSha256(sbomPath));
+            sbomSidecar.GetProperty("role").GetString().Should().Be("spdx-sbom");
             var packages = sbom.RootElement.GetProperty("packages").EnumerateArray().ToArray();
             packages.Select(package => package.GetProperty("name").GetString())
                 .Should().BeEquivalentTo("release_1.2.3_win-x64.zip", "release_1.2.3_win-x86.zip");
@@ -236,4 +243,7 @@ public sealed class GitHubReleaseAssetScriptTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+
+    private static string ComputeSha256(string path)
+        => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
 }

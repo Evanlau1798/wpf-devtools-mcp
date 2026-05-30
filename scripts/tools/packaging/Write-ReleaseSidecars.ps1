@@ -292,19 +292,31 @@ $checksumPath = Join-Path $archiveRootFullPath 'SHA256SUMS.txt'
 $checksumLines = $assets | ForEach-Object { "$($_.sha256)  $($_.name)" }
 $checksumLines | Set-Content -Path $checksumPath -Encoding UTF8
 
-$manifest = [pscustomobject]@{
-    tag = $Tag
-    assetCount = @($assets).Count
-    assets = @($assets)
-}
-
-$manifestPath = Join-Path $archiveRootFullPath 'release-assets.json'
-$manifest | ConvertTo-Json -Depth 5 | Set-Content -Path $manifestPath -Encoding UTF8
-
 $sbomPath = Join-Path $archiveRootFullPath 'release-sbom.spdx.json'
 New-ReleaseSbom -ReleaseTag $Tag -ReleaseAssets @($assets) |
     ConvertTo-Json -Depth 8 |
     Set-Content -Path $sbomPath -Encoding UTF8
+
+$sbomFile = Get-Item -LiteralPath $sbomPath
+$sidecars = @(
+    [pscustomobject]@{
+        name = $sbomFile.Name
+        role = 'spdx-sbom'
+        sizeBytes = $sbomFile.Length
+        sha256 = Get-Sha256FileHashHex -Path $sbomFile.FullName
+    }
+)
+
+$manifest = [pscustomobject]@{
+    tag = $Tag
+    assetCount = @($assets).Count
+    assets = @($assets)
+    sidecarCount = @($sidecars).Count
+    sidecars = @($sidecars)
+}
+
+$manifestPath = Join-Path $archiveRootFullPath 'release-assets.json'
+$manifest | ConvertTo-Json -Depth 5 | Set-Content -Path $manifestPath -Encoding UTF8
 
 if ($OutputJson) {
     $manifest | ConvertTo-Json -Depth 5

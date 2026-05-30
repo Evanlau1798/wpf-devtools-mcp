@@ -56,7 +56,7 @@ public static class WorkflowPrompts
         5. If navigation is absent, or the failing element is already known, call get_element_snapshot(elementId) for one-call local context
         6. get_bindings(elementId)
         7. get_binding_value_chain(elementId, propertyName)
-        8. get_datacontext_chain(elementId)
+        8. get_datacontext_chain(elementId) when WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true
         9. get_validation_errors(elementId) when validation may be involved
 
         Prefer navigation.recommended first. Use the remaining tools when the next step still needs clarification across binding source, value chain, or validation state.

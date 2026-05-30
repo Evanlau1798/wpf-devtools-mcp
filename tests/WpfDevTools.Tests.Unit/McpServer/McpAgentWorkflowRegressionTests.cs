@@ -1,5 +1,8 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using FluentAssertions;
+using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpPrompts;
 using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
@@ -9,7 +12,7 @@ public sealed class McpAgentWorkflowRegressionTests
     [Fact]
     public void ReadOnlyDiagnosisWorkflow_ShouldStartWithConnectAndSceneFirstInspection()
     {
-        var workflow = new[] { "connect", "get_ui_summary", "get_element_snapshot", "get_bindings" };
+        var workflow = ExtractToolCalls(WorkflowPrompts.StartDiagnostics());
         var policy = SensitiveReadPolicy();
 
         workflow.Should().StartWith("connect");
@@ -23,19 +26,19 @@ public sealed class McpAgentWorkflowRegressionTests
     [Fact]
     public void BindingErrorWorkflow_ShouldDiagnoseErrorsBeforeExpandingBindingDetails()
     {
-        var workflow = new[] { "connect", "get_binding_errors", "get_bindings" };
+        var workflow = ExtractToolCalls(WorkflowPrompts.DebugBindingIssue());
 
         workflow.Should().HaveElementAt(1, "get_binding_errors");
-        AssertWorkflowAllowed(SensitiveReadPolicy(), workflow);
+        workflow.Should().ContainInOrder("get_binding_errors", "get_bindings");
+        AssertWorkflowAllowed(BindingDiagnosticPolicy(), workflow);
     }
 
     [Fact]
     public void MutationWorkflow_ShouldCaptureDiffAndRestoreInOrder()
     {
-        var workflow = new[] { "capture_state_snapshot", "set_dp_value", "get_state_diff", "restore_state_snapshot" };
+        var workflow = ExtractToolCalls(WorkflowPrompts.DebugCommandOrClick());
 
-        workflow.Should().HaveElementAt(0, "capture_state_snapshot");
-        workflow.Should().ContainInOrder("set_dp_value", "get_state_diff", "restore_state_snapshot");
+        workflow.Should().ContainInOrder("connect", "capture_state_snapshot", "click_element", "get_state_diff", "restore_state_snapshot");
         AssertWorkflowAllowed(FullMutationPolicy(), workflow);
     }
 
@@ -107,6 +110,13 @@ public sealed class McpAgentWorkflowRegressionTests
             allowViewModelInspection: "true",
             allowSensitiveReads: "true");
 
+    private static McpToolExecutionPolicy BindingDiagnosticPolicy() =>
+        McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "false",
+            allowScreenshots: "false",
+            allowViewModelInspection: "true",
+            allowSensitiveReads: "true");
+
     private static void AssertWorkflowAllowed(
         McpToolExecutionPolicy policy,
         IEnumerable<string> workflow)
@@ -115,5 +125,21 @@ public sealed class McpAgentWorkflowRegressionTests
         {
             policy.EvaluateToolCall(toolName).IsAllowed.Should().BeTrue($"{toolName} should be allowed in this scripted workflow");
         }
+    }
+
+    private static IReadOnlyList<string> ExtractToolCalls(string agentFacingArtifact)
+    {
+        var toolNames = agentFacingArtifact
+            .Split(["\r\n", "\n"], StringSplitOptions.None)
+            .Where(line => !line.Contains(McpServerConfiguration.AllowedTargetsEnvVar, StringComparison.Ordinal))
+            .SelectMany(line => Regex.Matches(
+                line,
+                @"(?<![A-Za-z0-9_])([a-z][a-z0-9_]+)\s*\(",
+                RegexOptions.CultureInvariant))
+            .Select(match => match.Groups[1].Value)
+            .ToArray();
+
+        toolNames.Should().NotBeEmpty("workflow regression tests must read real agent-facing prompt artifacts");
+        return toolNames;
     }
 }

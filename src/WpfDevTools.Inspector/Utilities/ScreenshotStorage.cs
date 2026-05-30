@@ -31,15 +31,22 @@ internal static class ScreenshotStorage
         }
 
         var screenshotId = $"shot_{Guid.NewGuid():N}";
+        var usesDirectoryOverride = directoryOverride is not null;
         var directory = directoryOverride is null
             ? GetScreenshotDirectory()
             : ValidateDirectoryOverride(directoryOverride);
         Directory.CreateDirectory(directory);
-        CleanupExpiredScreenshots(directory, DateTimeOffset.UtcNow);
+        if (!usesDirectoryOverride)
+        {
+            CleanupExpiredScreenshots(directory, DateTimeOffset.UtcNow);
+        }
 
         var path = Path.Combine(directory, screenshotId + ScreenshotExtension);
         File.WriteAllBytes(path, imageBytes);
-        CleanupExpiredScreenshots(directory, DateTimeOffset.UtcNow, path);
+        if (!usesDirectoryOverride)
+        {
+            CleanupExpiredScreenshots(directory, DateTimeOffset.UtcNow, path);
+        }
 
         return new ScreenshotFile(
             screenshotId,

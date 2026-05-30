@@ -43,13 +43,12 @@ public sealed class ScreenshotStorageTests
     [Fact]
     public void WritePng_ShouldUseConfiguredScreenshotDirectory()
     {
-        using var tempDirectory = TemporaryDirectory.CreateScreenshotLeaseDirectory();
-        var previousValue = Environment.GetEnvironmentVariable(ScreenshotDirectoryEnvironmentVariable);
+        using var tempDirectory = new TemporaryDirectory();
         ScreenshotStorage.ScreenshotFile? screenshot = null;
 
         try
         {
-            Environment.SetEnvironmentVariable(ScreenshotDirectoryEnvironmentVariable, tempDirectory.Path);
+            using var _ = new ScreenshotDirectoryEnvironmentScope(tempDirectory.Path);
 
             screenshot = ScreenshotStorage.WritePng(new byte[] { 1, 2, 3 });
 
@@ -60,7 +59,6 @@ public sealed class ScreenshotStorageTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable(ScreenshotDirectoryEnvironmentVariable, previousValue);
             if (screenshot != null && File.Exists(screenshot.Path))
             {
                 File.Delete(screenshot.Path);
@@ -95,14 +93,15 @@ public sealed class ScreenshotStorageTests
     [Fact]
     public void WritePng_ShouldRemoveExpiredScreenshotsInTargetDirectory()
     {
-        using var tempDirectory = TemporaryDirectory.CreateScreenshotLeaseDirectory();
+        using var tempDirectory = new TemporaryDirectory();
+        using var _ = new ScreenshotDirectoryEnvironmentScope(tempDirectory.Path);
         var expiredPath = Path.Combine(tempDirectory.Path, "shot_expired.png");
         File.WriteAllBytes(expiredPath, new byte[] { 9, 9, 9 });
         File.SetLastWriteTimeUtc(
             expiredPath,
             DateTimeOffset.UtcNow.Subtract(ScreenshotStorage.RetentionMaxAge).AddMinutes(-1).UtcDateTime);
 
-        var screenshot = ScreenshotStorage.WritePng(new byte[] { 1, 2, 3 }, tempDirectory.Path);
+        var screenshot = ScreenshotStorage.WritePng(new byte[] { 1, 2, 3 });
 
         try
         {
@@ -119,9 +118,27 @@ public sealed class ScreenshotStorageTests
     }
 
     [Fact]
-    public void WritePng_WhenRetentionCountIsFull_ShouldStayWithinRetentionCapAfterWrite()
+    public void WritePng_WithServerLeaseDirectoryOverride_ShouldNotDeleteExistingScreenshots()
     {
         using var tempDirectory = TemporaryDirectory.CreateScreenshotLeaseDirectory();
+        var retainedPath = Path.Combine(tempDirectory.Path, "shot_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png");
+        File.WriteAllBytes(retainedPath, new byte[] { 9, 9, 9 });
+        File.SetLastWriteTimeUtc(
+            retainedPath,
+            DateTimeOffset.UtcNow.Subtract(ScreenshotStorage.RetentionMaxAge).AddMinutes(-1).UtcDateTime);
+
+        var screenshot = ScreenshotStorage.WritePng(new byte[] { 1, 2, 3 }, tempDirectory.Path);
+
+        File.Exists(screenshot.Path).Should().BeTrue();
+        File.Exists(retainedPath).Should().BeTrue(
+            "server-owned retained screenshot resources must be deleted only by the MCP server resource registry");
+    }
+
+    [Fact]
+    public void WritePng_WhenRetentionCountIsFull_ShouldStayWithinRetentionCapAfterWrite()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        using var _ = new ScreenshotDirectoryEnvironmentScope(tempDirectory.Path);
         var now = DateTimeOffset.UtcNow;
         for (var index = 0; index < ScreenshotStorage.MaxStoredScreenshots; index++)
         {
@@ -130,7 +147,7 @@ public sealed class ScreenshotStorageTests
             File.SetLastWriteTimeUtc(path, now.AddMinutes(-index - 1).UtcDateTime);
         }
 
-        var screenshot = ScreenshotStorage.WritePng(new byte[] { 1, 2, 3 }, tempDirectory.Path);
+        var screenshot = ScreenshotStorage.WritePng(new byte[] { 1, 2, 3 });
 
         File.Exists(screenshot.Path).Should().BeTrue("the newly written screenshot must not be evicted immediately");
         Directory.EnumerateFiles(tempDirectory.Path, "shot_*.png")
@@ -141,7 +158,8 @@ public sealed class ScreenshotStorageTests
     [Fact]
     public void WritePng_WhenExistingScreenshotsHaveFutureTimestamps_ShouldRetainNewScreenshot()
     {
-        using var tempDirectory = TemporaryDirectory.CreateScreenshotLeaseDirectory();
+        using var tempDirectory = new TemporaryDirectory();
+        using var _ = new ScreenshotDirectoryEnvironmentScope(tempDirectory.Path);
         var future = DateTimeOffset.UtcNow.AddDays(1);
         for (var index = 0; index < ScreenshotStorage.MaxStoredScreenshots; index++)
         {
@@ -150,7 +168,7 @@ public sealed class ScreenshotStorageTests
             File.SetLastWriteTimeUtc(path, future.AddMinutes(index).UtcDateTime);
         }
 
-        var screenshot = ScreenshotStorage.WritePng(new byte[] { 1, 2, 3 }, tempDirectory.Path);
+        var screenshot = ScreenshotStorage.WritePng(new byte[] { 1, 2, 3 });
 
         File.Exists(screenshot.Path).Should().BeTrue("the retention pass must explicitly protect the file it just wrote");
         Directory.EnumerateFiles(tempDirectory.Path, "shot_*.png")
@@ -186,6 +204,22 @@ public sealed class ScreenshotStorageTests
             {
                 Directory.Delete(Path, recursive: true);
             }
+        }
+    }
+
+    private sealed class ScreenshotDirectoryEnvironmentScope : IDisposable
+    {
+        private readonly string? _previousValue;
+
+        public ScreenshotDirectoryEnvironmentScope(string directoryPath)
+        {
+            _previousValue = Environment.GetEnvironmentVariable(ScreenshotDirectoryEnvironmentVariable);
+            Environment.SetEnvironmentVariable(ScreenshotDirectoryEnvironmentVariable, directoryPath);
+        }
+
+        public void Dispose()
+        {
+            Environment.SetEnvironmentVariable(ScreenshotDirectoryEnvironmentVariable, _previousValue);
         }
     }
 }

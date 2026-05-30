@@ -324,6 +324,7 @@ public sealed partial class SandboxCiScriptContractTests
             'Get-MatchingProcessFromSnapshot',
             'Merge-ProcessSnapshots',
             'Get-ScanRootCutoff',
+            'Get-ProcessSnapshotStartCutoff',
             'Update-ProcessSnapshotCutoffIfAlive',
             'Update-ProcessSnapshotCutoffFromProcess',
             'Expand-ProcessSnapshots',

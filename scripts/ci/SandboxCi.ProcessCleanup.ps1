@@ -33,7 +33,7 @@ function Start-SmokeTarget {
             }
 
             $startupSnapshots = @(Merge-ProcessSnapshots -Snapshots @(
-                $startupSnapshots + @(Get-DescendantProcessSnapshots -ParentProcessId $process.Id)))
+                $startupSnapshots + @(Get-DescendantProcessSnapshots -ParentProcessId $process.Id -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))))
             if ($null -ne $rootSnapshot) {
                 $startupSnapshots = @(Expand-ProcessSnapshots -Snapshots $startupSnapshots -ScanRoots @($rootSnapshot))
             }
@@ -225,6 +225,7 @@ function Get-DescendantProcessSnapshots {
     param(
         [Parameter(Mandatory = $true)] [int]$ParentProcessId,
         [long]$CreationCutoffUtcTicks = [long]::MaxValue,
+        [long]$CreationStartUtcTicks = 0,
         [int[]]$VisitedProcessIds = @()
     )
 
@@ -238,14 +239,15 @@ function Get-DescendantProcessSnapshots {
 
     $visited = @($VisitedProcessIds + $ParentProcessId)
     $snapshots = @()
+    $creationStartUtcTicks = $CreationStartUtcTicks - [TimeSpan]::FromMilliseconds(1).Ticks
     foreach ($child in @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $ParentProcessId" -ErrorAction SilentlyContinue)) {
         $childId = [int]$child.ProcessId
         $childTicks = ([datetime]$child.CreationDate).ToUniversalTime().Ticks
-        if ($childTicks -gt $CreationCutoffUtcTicks) {
+        if ($childTicks -lt $creationStartUtcTicks -or $childTicks -gt $CreationCutoffUtcTicks) {
             continue
         }
 
-        $snapshots += Get-DescendantProcessSnapshots -ParentProcessId $childId -CreationCutoffUtcTicks $CreationCutoffUtcTicks -VisitedProcessIds $visited
+        $snapshots += Get-DescendantProcessSnapshots -ParentProcessId $childId -CreationCutoffUtcTicks $CreationCutoffUtcTicks -CreationStartUtcTicks $childTicks -VisitedProcessIds $visited
         $snapshots += [pscustomobject]@{
             ProcessId = $childId
             CreationDateUtcTicks = $childTicks
@@ -319,6 +321,8 @@ function Get-ScanRootCutoff {
     return [long]$ScanRoot.DescendantCutoffUtcTicks
 }
 
+function Get-ProcessSnapshotStartCutoff { param([object]$Snapshot) if ($null -eq $Snapshot) { return 0 }; return [long]$Snapshot.CreationDateUtcTicks }
+
 function Update-ProcessSnapshotCutoffIfAlive {
     param([object]$Snapshot)
 
@@ -360,7 +364,7 @@ function Expand-ProcessSnapshots {
             continue
         }
 
-        $descendants = @(Get-DescendantProcessSnapshots -ParentProcessId $scanRoot.ProcessId -CreationCutoffUtcTicks $cutoff)
+        $descendants = @(Get-DescendantProcessSnapshots -ParentProcessId $scanRoot.ProcessId -CreationCutoffUtcTicks $cutoff -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $scanRoot))
         $Snapshots = @(Merge-ProcessSnapshots -Snapshots @($Snapshots + $descendants))
     }
 
@@ -437,17 +441,17 @@ function Stop-SmokeTarget {
             }
 
             if ($processIsRunning) {
-                $descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId)
+                $descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))
                 $Process.CloseMainWindow() | Out-Null
                 $deadline = [DateTime]::UtcNow.AddSeconds(5)
                 while (-not $Process.HasExited -and [DateTime]::UtcNow -lt $deadline) {
-                    $descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId)
+                    $descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))
                     Start-Sleep -Milliseconds 100
                     $Process.Refresh()
                 }
 
                 if (-not $Process.HasExited) {
-                    $descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId)
+                    $descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))
                     $Process.Kill()
                     if (-not $Process.WaitForExit(5000)) {
                         throw "Smoke target did not exit after force kill: $processId"

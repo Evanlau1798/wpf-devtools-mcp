@@ -101,7 +101,7 @@ public sealed partial class SandboxCiScriptContractTests
         runner.Should().Contain("if ($ParentProcessId -le 0) {");
         runner.Should().Contain("[object[]]$ScanRoots = @()");
         runner.Should().Contain("DescendantCutoffUtcTicks");
-        runner.Should().Contain("CreationCutoffUtcTicks");
+        runner.Should().Contain("CreationCutoffUtcTicks").And.Contain("CreationStartUtcTicks");
         runner.Should().Contain("Update-ProcessSnapshotCutoffIfAlive");
         runner.Should().Contain("Get-MatchingProcessFromSnapshot");
         runner.Should().Contain("StartTime.ToUniversalTime().Ticks");

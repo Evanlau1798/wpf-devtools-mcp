@@ -29,7 +29,7 @@ internal static partial class McpToolOutputSchemas
     internal static string GetSchemaStatus(string toolName)
         => HighValueSchemas.ContainsKey(toolName)
             ? "exact-tool-output-schema"
-            : "generic-structured-payload";
+            : "generic-structured-payload-intentional";
 
     internal static string GetSchemaHashSource(string toolName)
     {

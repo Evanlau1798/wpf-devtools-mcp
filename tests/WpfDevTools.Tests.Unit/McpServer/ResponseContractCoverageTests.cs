@@ -29,6 +29,26 @@ public sealed class ResponseContractCoverageTests
         coverage.GetProperty("generatedFrom").GetString().Should().Be("McpServerToolAttribute");
         coverage.GetProperty("contractResource").GetString().Should().Be("wpf://contracts/response");
         coverage.GetProperty("toolCount").GetInt32().Should().Be(registeredTools.Length);
+
+        var allowedStatuses = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "exact-tool-output-schema",
+            "specialized-response-contract",
+            "generic-structured-payload-intentional"
+        };
+        var invalidStatuses = coverage.GetProperty("tools")
+            .EnumerateArray()
+            .Select(tool => new
+            {
+                Tool = tool.GetProperty("tool").GetString(),
+                Status = tool.GetProperty("outputContractStatus").GetString()
+            })
+            .Where(tool => tool.Status is null || !allowedStatuses.Contains(tool.Status))
+            .Select(tool => $"{tool.Tool}: {tool.Status}")
+            .ToArray();
+
+        invalidStatuses.Should().BeEmpty(
+            "response-contract coverage should classify every tool as exact, specialized, or intentionally generic");
     }
 
     private static string[] GetRegisteredToolNames()

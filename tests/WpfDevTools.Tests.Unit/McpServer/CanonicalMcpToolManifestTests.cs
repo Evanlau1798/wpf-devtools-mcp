@@ -136,6 +136,33 @@ public sealed class CanonicalMcpToolManifestTests
         }
     }
 
+    [Fact]
+    public void ToolManifestResource_ShouldClassifyEveryOutputContractStatus()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
+        var allowedStatuses = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "exact-tool-output-schema",
+            "specialized-response-contract",
+            "generic-structured-payload-intentional"
+        };
+
+        var unclassified = document.RootElement
+            .GetProperty("tools")
+            .EnumerateArray()
+            .Select(tool => new
+            {
+                Name = GetName(tool),
+                Status = tool.GetProperty("outputSchemaStatus").GetString()
+            })
+            .Where(tool => tool.Status is null || !allowedStatuses.Contains(tool.Status))
+            .Select(tool => $"{tool.Name}: {tool.Status}")
+            .ToArray();
+
+        unclassified.Should().BeEmpty(
+            "each registered tool must publish an explicit response-contract status in the canonical manifest");
+    }
+
     private static (string Name, McpServerToolAttribute Attribute)[] GetRegisteredTools()
     {
         return typeof(ProcessMcpTools).Assembly.GetTypes()

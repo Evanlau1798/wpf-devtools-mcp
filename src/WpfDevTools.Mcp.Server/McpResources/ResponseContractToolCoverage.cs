@@ -1,5 +1,6 @@
 using System.Reflection;
 using ModelContextProtocol.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Mcp.Server.McpResources;
 
@@ -15,7 +16,7 @@ internal static class ResponseContractToolCoverage
             coverageKind = "generated-completeness",
             contractResource = resourceUri,
             specializedContractsField = "highValueTools",
-            coverageMeaning = "All registered MCP tools inherit the shared toolPayload, navigation, nextSteps, pendingEvents, and errorPayload guidance unless highValueTools provides a specialized contract.",
+            coverageMeaning = "All registered MCP tools publish an outputContractStatus. exact-tool-output-schema tools also expose closed tools/list output schemas; generic-structured-payload-intentional tools deliberately inherit the shared toolPayload, navigation, nextSteps, pendingEvents, and errorPayload guidance.",
             toolCount = tools.Length,
             tools
         };
@@ -34,6 +35,7 @@ internal static class ResponseContractToolCoverage
             .Select(tool => new
             {
                 tool,
+                outputContractStatus = McpToolOutputSchemas.GetSchemaStatus(tool),
                 coverageKind = "generated-completeness",
                 contractResource = resourceUri,
                 guidanceFields = new[]

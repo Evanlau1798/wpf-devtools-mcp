@@ -27,6 +27,20 @@ public sealed class McpJsonRpcEnvelopeBoundaryDocumentationTests
             $"{relativePath} should state the downstream IPC boundary enforced by this project");
     }
 
+    [Theory]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    public void SecurityDocumentation_ShouldDescribeInjectedAndSdkHostedInspectorHosts(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("injected or SDK-hosted Inspector host",
+            $"{relativePath} should not imply that IPC validation only protects injected hosts");
+        content.Should().NotContain("injected host",
+            $"{relativePath} should use the broader Inspector host boundary wording");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }

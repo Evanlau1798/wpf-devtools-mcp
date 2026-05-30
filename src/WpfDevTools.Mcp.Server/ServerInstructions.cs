@@ -160,7 +160,7 @@ public static class ServerInstructions
 
         === NORMALIZATION & CONTRACT NOTES ===
         Some tools normalize inputs or compact outputs. Read wpf://contracts/response for normalized fields, compatibility aliases, detail=compact/minimal/verbose, standard shape notes, trace truncation metadata, Binding-backed rollback markers, cleanupIncomplete/cleanupFailed semantics, explicit opt-out behavior, and get_binding_errors compact=false behavior.
-        The MCP JSON-RPC envelope is parsed by the MCP C# SDK transport. This server validates tool-call names and arguments at the call-tool filter/tool boundary, and validates Inspector IPC request ids, methods, and correlation ids before dispatch into the injected host.
+        The MCP JSON-RPC envelope is parsed by the MCP C# SDK transport. This server validates tool-call names and arguments at the call-tool filter/tool boundary, and validates Inspector IPC request ids, methods, and correlation ids before dispatch into the injected or SDK-hosted Inspector host.
 
         === RESPONSE CONTRACT VERSION ===
         - Current response contract version: {{ResponseContractVersion.Current}}

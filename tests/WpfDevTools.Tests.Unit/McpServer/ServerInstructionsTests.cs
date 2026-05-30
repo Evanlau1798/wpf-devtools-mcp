@@ -41,6 +41,8 @@ public class ServerInstructionsTests
         ServerInstructions.Value.Should().Contain("MCP C# SDK");
         ServerInstructions.Value.Should().Contain("tool-call names and arguments");
         ServerInstructions.Value.Should().Contain("Inspector IPC request ids, methods, and correlation ids");
+        ServerInstructions.Value.Should().Contain("injected or SDK-hosted Inspector host");
+        ServerInstructions.Value.Should().NotContain("injected host");
     }
 
     [Fact]

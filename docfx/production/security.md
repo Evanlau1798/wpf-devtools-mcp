@@ -48,7 +48,7 @@ The server evaluates high-risk MCP `tools/call` requests before dispatching them
 
 ### MCP JSON-RPC envelope boundary
 
-The raw MCP JSON-RPC envelope for STDIO requests is parsed by the MCP C# SDK before this server receives typed requests. Pre-dispatch envelope fields such as `id` and `method` on `initialize`, `resources/read`, and `tools/list` are therefore SDK-owned. This project validates tool-call names and arguments after SDK parsing, then validates Inspector IPC request ids, methods, and correlation ids before dispatching requests into the injected host.
+The raw MCP JSON-RPC envelope for STDIO requests is parsed by the MCP C# SDK before this server receives typed requests. Pre-dispatch envelope fields such as `id` and `method` on `initialize`, `resources/read`, and `tools/list` are therefore SDK-owned. This project validates tool-call names and arguments after SDK parsing, then validates Inspector IPC request ids, methods, and correlation ids before dispatching requests into the injected or SDK-hosted Inspector host.
 
 Do not treat this as a blanket input-validation gap for tool execution. The project-owned boundary starts at typed MCP request filters and tool wrappers, where oversized tool names, unsupported tools, tool arguments, process target policy, sensitive-read gates, screenshot gates, ViewModel gates, and destructive gates are enforced. The downstream named-pipe IPC boundary also enforces request id, method, correlation id, framing, and authentication constraints.
 

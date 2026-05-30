@@ -93,7 +93,10 @@ foreach ($asset in $assets) {
 $manifest = & $sidecarWriter -ArchiveRoot $stagingRoot -Tag $Tag -OutputJson | ConvertFrom-Json
 
 $uploadScriptPath = Join-Path $stagingRoot 'upload-gh-release.ps1'
-$uploadAssetNames = @($manifest.assets | ForEach-Object { [string]$_.name }) + 'SHA256SUMS.txt' + 'release-assets.json'
+$uploadAssetNames = @($manifest.assets | ForEach-Object { [string]$_.name }) +
+    'SHA256SUMS.txt' +
+    'release-assets.json' +
+    'release-sbom.spdx.json'
 New-UploadScriptContent -ReleaseTag $Tag -AssetNames ([string[]]$uploadAssetNames) | Set-Content -Path $uploadScriptPath -Encoding UTF8
 
 if ($OutputJson) {

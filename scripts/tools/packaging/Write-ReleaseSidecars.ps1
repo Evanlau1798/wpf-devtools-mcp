@@ -214,6 +214,59 @@ function Get-Sha256FileHashHex {
     return (($hashBytes | ForEach-Object { $_.ToString('x2') }) -join '')
 }
 
+function ConvertTo-SpdxIdSuffix {
+    param([Parameter(Mandatory)] [string]$Value)
+
+    $suffix = $Value -replace '[^A-Za-z0-9\.\-]', '-'
+    return $suffix.Trim('-')
+}
+
+function New-ReleaseSbom {
+    param(
+        [Parameter(Mandatory)] [string]$ReleaseTag,
+        [Parameter(Mandatory)] [object[]]$ReleaseAssets
+    )
+
+    $packages = @($ReleaseAssets | ForEach-Object {
+        $packageId = "SPDXRef-Package-$(ConvertTo-SpdxIdSuffix -Value ([string]$_.name))"
+        [pscustomobject]@{
+            name = [string]$_.name
+            SPDXID = $packageId
+            downloadLocation = 'NOASSERTION'
+            filesAnalyzed = $false
+            packageFileName = [string]$_.name
+            checksums = @(
+                [pscustomobject]@{
+                    algorithm = 'SHA256'
+                    checksumValue = [string]$_.sha256
+                }
+            )
+        }
+    })
+
+    $relationships = @($packages | ForEach-Object {
+        [pscustomobject]@{
+            spdxElementId = 'SPDXRef-DOCUMENT'
+            relationshipType = 'DESCRIBES'
+            relatedSpdxElement = [string]$_.SPDXID
+        }
+    })
+
+    [pscustomobject]@{
+        spdxVersion = 'SPDX-2.3'
+        dataLicense = 'CC0-1.0'
+        SPDXID = 'SPDXRef-DOCUMENT'
+        name = "wpf-devtools-mcp-$ReleaseTag"
+        documentNamespace = "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/download/$ReleaseTag/release-sbom.spdx.json"
+        creationInfo = [pscustomobject]@{
+            creators = @('Tool: WPF DevTools MCP release sidecar writer')
+            created = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ', [System.Globalization.CultureInfo]::InvariantCulture)
+        }
+        packages = $packages
+        relationships = $relationships
+    }
+}
+
 $archiveRootFullPath = (Resolve-Path $ArchiveRoot).Path
 $trustPolicy = Resolve-ReleaseTrustPolicy -TrustedThumbprint $TrustedSignerThumbprint -PolicyPath $TrustPolicyPath
 $archives = Get-ReleaseArchives -Root $archiveRootFullPath
@@ -247,6 +300,11 @@ $manifest = [pscustomobject]@{
 
 $manifestPath = Join-Path $archiveRootFullPath 'release-assets.json'
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path $manifestPath -Encoding UTF8
+
+$sbomPath = Join-Path $archiveRootFullPath 'release-sbom.spdx.json'
+New-ReleaseSbom -ReleaseTag $Tag -ReleaseAssets @($assets) |
+    ConvertTo-Json -Depth 8 |
+    Set-Content -Path $sbomPath -Encoding UTF8
 
 if ($OutputJson) {
     $manifest | ConvertTo-Json -Depth 5

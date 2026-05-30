@@ -164,6 +164,8 @@ public sealed partial class ReleaseReadinessDocumentationTests
             $"{relativePath} should require release checksum sidecars in the production checklist");
         content.Should().Contain("release-assets.json",
             $"{relativePath} should require canonical release metadata in the production checklist");
+        content.Should().Contain("release-sbom.spdx.json",
+            $"{relativePath} should require the package SBOM in the production checklist");
         content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
             $"{relativePath} should require an explicit signer pin when adjacent sidecars are absent");
         content.Should().Contain("wpf-devtools-<arch>.exe",

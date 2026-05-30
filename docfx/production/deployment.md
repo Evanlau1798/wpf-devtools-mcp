@@ -38,12 +38,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Package
 
 ### Public release package fallback
 
-1. Use a locally generated package, or after public endpoint smoke checks pass, download the architecture-matched `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt` and `release-assets.json`.
-2. Verify the archive with `SHA256SUMS.txt` and `release-assets.json` before extraction.
+1. Use a locally generated package, or after public endpoint smoke checks pass, download the architecture-matched `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json`.
+2. Verify the archive with `SHA256SUMS.txt` and `release-assets.json`, then retain `release-sbom.spdx.json` as the published package SBOM before extraction.
 3. Extract the package.
 4. Run `run.bat`.
 
-Before trusting the extracted package, keep the verified release sidecars beside the archive: `SHA256SUMS.txt` for the checksum and `release-assets.json` for the canonical release metadata. If the verified archive and those sidecars are no longer adjacent to the extracted package, set `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required thumbprint trust root before launching `run.bat`; `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only an additional constraint after the thumbprint is pinned.
+Before trusting the extracted package, keep the verified release sidecars beside the archive: `SHA256SUMS.txt` for the checksum, `release-assets.json` for the canonical release metadata, and `release-sbom.spdx.json` for the package SBOM. If the verified archive and those sidecars are no longer adjacent to the extracted package, set `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required thumbprint trust root before launching `run.bat`; `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only an additional constraint after the thumbprint is pinned.
 
 `run.bat` requests elevation when the current shell is not already elevated and then launches the packaged `bin/install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
 
@@ -81,7 +81,7 @@ If you do not pass `-InstallRoot`, the installer first reuses the last live inst
 
 ## Signed payload provenance checklist
 
-- Keep the verified `SHA256SUMS.txt` and `release-assets.json` beside the downloaded archive until after installation evidence is captured.
+- Keep the verified `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json` beside the downloaded archive until after installation evidence is captured.
 - Verify the signed release payloads, including `bin/wpf-devtools-<arch>.exe`, `bin/inspectors`, and `bin/bootstrapper`, against the pinned release signer. Set `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` when the verified sidecars are no longer adjacent to the extracted package.
 - Run a package-local smoke check from the extracted package with `run.bat`, then verify `get_processes`, `connect`, and `get_ui_summary` before registering that install with user tools.
 - Repeat the smoke check from the final installed path by launching `<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe`.

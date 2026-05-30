@@ -48,6 +48,14 @@ function Invoke-Step {
     }
 }
 
+function Assert-LastExitCodeSucceeded {
+    param([Parameter(Mandatory)] [string]$CommandDescription)
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed with exit code ${LASTEXITCODE}: $CommandDescription"
+    }
+}
+
 function Resolve-ArchitectureList {
     param([string[]]$InputArchitectures)
 
@@ -167,7 +175,9 @@ if (-not $SkipTest) {
     Invoke-Step -FilePath 'dotnet' -Arguments @('test', 'tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj', '-c', $Configuration, '--no-build')
 }
 
-Write-StepMessage -Message "$publishScript -Configuration $Configuration -Architectures $($resolvedArchitectures -join ',') -OutputRoot $packageOutputRoot"
+$publishCommandDescription = "$publishScript -Configuration $Configuration -Architectures $($resolvedArchitectures -join ',') -OutputRoot $packageOutputRoot"
+Write-StepMessage -Message $publishCommandDescription
+$global:LASTEXITCODE = 0
 if ($OutputJson) {
     & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot 2>&1 6>&1 |
         ForEach-Object { [Console]::Error.WriteLine($_.ToString()) }
@@ -175,9 +185,12 @@ if ($OutputJson) {
 else {
     & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot
 }
+Assert-LastExitCodeSucceeded -CommandDescription $publishCommandDescription
 
 if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
-    Write-StepMessage -Message "$exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag"
+    $exportCommandDescription = "$exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag"
+    Write-StepMessage -Message $exportCommandDescription
+    $global:LASTEXITCODE = 0
     if ($OutputJson) {
         & $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag 2>&1 6>&1 |
             ForEach-Object { [Console]::Error.WriteLine($_.ToString()) }
@@ -185,6 +198,7 @@ if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
     else {
         & $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag
     }
+    Assert-LastExitCodeSucceeded -CommandDescription $exportCommandDescription
 }
 
 if ($OutputJson) {

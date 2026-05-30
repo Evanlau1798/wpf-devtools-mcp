@@ -134,4 +134,48 @@ public sealed class ReleasePreflightScriptTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+
+    [Fact]
+    public void PreflightReleaseScript_WhenPublishScriptSetsNativeExitCode_ShouldFail()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var fakePublishScript = Path.Combine(tempRoot, "fake-publish.ps1");
+            var outputRoot = Path.Combine(tempRoot, "preflight-output");
+
+            File.WriteAllText(
+                fakePublishScript,
+                string.Join(Environment.NewLine,
+                [
+                    "param(",
+                    "    [string]$Configuration,",
+                    "    [string[]]$Architectures,",
+                    "    [string]$OutputRoot",
+                    ")",
+                    "cmd /c exit 17"
+                ]));
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Preflight-Release.ps1"),
+                new[]
+                {
+                    "-OutputRoot", outputRoot,
+                    "-SkipBuild",
+                    "-SkipTest",
+                    "-OutputJson"
+                },
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_PREFLIGHT_PUBLISH_SCRIPT"] = fakePublishScript
+                });
+
+            result.ExitCode.Should().NotBe(0, result.Stdout);
+            result.Stderr.Should().Contain("17").And.Contain("fake-publish.ps1");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
 }

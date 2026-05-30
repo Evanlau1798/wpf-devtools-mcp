@@ -128,6 +128,48 @@ public sealed class McpToolOutputSchemaTests
     }
 
     [Fact]
+    public void ResponseContract_ShouldCoverExactHighValueToolSpecificOutputSchemaFields()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetResponseContract());
+        var missingByTool = new List<string>();
+
+        foreach (var contract in document.RootElement.GetProperty("highValueTools").EnumerateArray())
+        {
+            var toolName = contract.GetProperty("tool").GetString()!;
+            var tool = CreateTool(toolName);
+            McpToolOutputSchemas.Apply(tool);
+
+            var schema = tool.OutputSchema!.Value;
+            if (schema.GetProperty("additionalProperties").GetBoolean())
+            {
+                continue;
+            }
+
+            var contractFields = contract.GetProperty("topLevelFields")
+                .EnumerateArray()
+                .Select(field => field.GetString())
+                .Where(field => field is not null)
+                .Cast<string>()
+                .ToHashSet(StringComparer.Ordinal);
+
+            var missing = schema.GetProperty("properties")
+                .EnumerateObject()
+                .Select(property => property.Name)
+                .Where(field => !CommonSchemaFields.Contains(field))
+                .Where(field => !contractFields.Contains(field))
+                .ToArray();
+
+            if (missing.Length > 0)
+            {
+                missingByTool.Add($"{toolName}: {string.Join(", ", missing)}");
+            }
+        }
+
+        missingByTool.Should().BeEmpty(
+            "wpf://contracts/response must include every tool-specific field advertised by exact tools/list outputSchema entries");
+    }
+
+    [Fact]
     public void SpecializedResponseContractTools_ShouldExposeExactClosedOutputSchemas()
     {
         using var document = JsonDocument.Parse(CapabilityResources.GetResponseContract());
@@ -236,6 +278,30 @@ public sealed class McpToolOutputSchemaTests
             Name = name,
             InputSchema = JsonSerializer.SerializeToElement(new { type = "object" })
         };
+
+    private static readonly HashSet<string> CommonSchemaFields = new(StringComparer.Ordinal)
+    {
+        "success",
+        "error",
+        "errorCode",
+        "message",
+        "hint",
+        "suggestedAction",
+        "status",
+        "summaryText",
+        "navigation",
+        "nextSteps",
+        "pendingEvents",
+        "pendingEventCount",
+        "droppedEventCount",
+        "pendingEventsOrigin",
+        "pendingEventsMayIncludePriorContext",
+        "cleanupIncomplete",
+        "cleanupFailureMessage",
+        "cleanupFailureType",
+        "recovery",
+        "errorData"
+    };
 
     private static void AssertTopLevelFields(string toolName, params string[] expectedFields)
     {

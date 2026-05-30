@@ -224,31 +224,8 @@ internal static class ResponseContractToolEntries
                 canonicalPayloadField = "result.structuredContent",
                 textFallbackField = "result.content[0].text",
                 contractResource = resourceUri,
-                topLevelFields = new[]
-                {
-                    "success",
-                    "rootElementId",
-                    "rootElementType",
-                    "rootElementName",
-                    "depth",
-                    "depthMode",
-                    "scopeVisibility",
-                    "isCurrentlyVisible",
-                    "summaryText",
-                    "semanticNodeCount",
-                    "nodes"
-                },
-                nestedResponsePaths = new[]
-                {
-                    "nodes[].elementId",
-                    "nodes[].elementType",
-                    "nodes[].elementName",
-                    "nodes[].kind",
-                    "nodes[].depth",
-                    "nodes[].text",
-                    "nodes[].currentValue",
-                    "nodes[].annotations"
-                },
+                topLevelFields = new[] { "success", "rootElementId", "rootElementType", "rootElementName", "depth", "depthMode", "scopeVisibility", "isCurrentlyVisible", "summaryText", "semanticNodeCount", "traversalNodeCount", "omittedNodeCount", "omittedSemanticNodeCount", "truncated", "truncationReasons", "payloadLimits", "nodes", "navigationNodes" },
+                nestedResponsePaths = new[] { "payloadLimits.maxTraversalNodes", "payloadLimits.maxSemanticNodes", "payloadLimits.maxSummaryTextLength", "payloadLimits.maxStringValueLength", "nodes[].elementId", "nodes[].elementType", "nodes[].elementName", "nodes[].kind", "nodes[].depth", "nodes[].text", "nodes[].currentValue", "nodes[].annotations", "navigationNodes[].elementId", "navigationNodes[].kind" },
                 requestParameters = new[]
                 {
                     "elementId",
@@ -291,25 +268,8 @@ internal static class ResponseContractToolEntries
                 canonicalPayloadField = "result.structuredContent",
                 textFallbackField = "result.content[0].text",
                 contractResource = resourceUri,
-                topLevelFields = new[]
-                {
-                    "success",
-                    "formScope",
-                    "scopeVisibility",
-                    "isCurrentlyVisible",
-                    "inputs",
-                    "commands",
-                    "summary"
-                },
-                nestedResponsePaths = new[]
-                {
-                    "summary.totalInputs",
-                    "summary.emptyInputs",
-                    "summary.errorCount",
-                    "summary.validationSubmittable",
-                    "summary.interactionSubmittable",
-                    "summary.isSubmittable"
-                },
+                topLevelFields = new[] { "success", "formScope", "scopeVisibility", "isCurrentlyVisible", "inputs", "commands", "traversalNodeCount", "omittedNodeCount", "omittedInputCount", "omittedCommandCount", "truncated", "truncationReasons", "payloadLimits", "summary" },
+                nestedResponsePaths = new[] { "inputs[].elementId", "inputs[].elementName", "inputs[].currentValue", "inputs[].bindingPath", "inputs[].isEmpty", "commands[].elementId", "commands[].elementName", "commands[].text", "commands[].isPrimary", "commands[].isReady", "commands[].blockers", "payloadLimits.maxTraversalNodes", "payloadLimits.maxInputs", "payloadLimits.maxCommands", "payloadLimits.maxStringValueLength", "summary.totalInputs", "summary.emptyInputs", "summary.errorCount", "summary.validationSubmittable", "summary.interactionSubmittable", "summary.isSubmittable" },
                 requestParameters = new[]
                 {
                     "elementId",
@@ -342,8 +302,8 @@ internal static class ResponseContractToolEntries
                 canonicalPayloadField = "result.structuredContent",
                 textFallbackField = "result.content[0].text",
                 contractResource = resourceUri,
-                topLevelFields = new[] { "success", "snapshotId", "trigger", "durationMs", "propertyChanges", "viewModelChanges", "newBindingErrors", "resolvedBindingErrors", "validationChanges", "focusChange" },
-                nestedResponsePaths = new[] { "propertyChanges[].propertyName", "viewModelChanges[].propertyName", "focusChange.changed" },
+                topLevelFields = new[] { "success", "snapshotId", "trigger", "durationMs", "propertyChanges", "viewModelChanges", "newBindingErrors", "resolvedBindingErrors", "validationChanges", "focusChange", "diff" },
+                nestedResponsePaths = new[] { "propertyChanges[].propertyName", "viewModelChanges[].propertyName", "focusChange.changed", "diff.snapshotId" },
                 requestParameters = new[] { "snapshotId", "trigger" }
             },
             new
@@ -353,7 +313,7 @@ internal static class ResponseContractToolEntries
                 canonicalPayloadField = "result.structuredContent",
                 textFallbackField = "result.content[0].text",
                 contractResource = resourceUri,
-                topLevelFields = new[] { "success", "restoredDependencyPropertyCount", "restoredDependencyProperties", "skippedDependencyPropertyCount", "skippedDependencyProperties", "restoredViewModelPropertyCount", "restoredViewModelProperties", "skippedViewModelPropertyCount", "skippedViewModelProperties", "restoredFocus", "warnings" },
+                topLevelFields = new[] { "success", "snapshotId", "restoreIncomplete", "stateAfterTimeoutUnknown", "requiresReconnect", "processId", "timeoutSeconds", "retryAfterSeconds", "retryAfter", "availableTokens", "availableEvents", "restoredDependencyPropertyCount", "restoredDependencyProperties", "skippedDependencyPropertyCount", "skippedDependencyProperties", "restoredViewModelPropertyCount", "restoredViewModelProperties", "skippedViewModelPropertyCount", "skippedViewModelProperties", "restoredFocus", "warnings" },
                 nestedResponsePaths = new[] { "restoredDependencyProperties[].propertyName", "skippedDependencyProperties[].reason", "restoredViewModelProperties[].verified" },
                 requestParameters = new[] { "snapshotId", "removeAfterRestore" }
             },
@@ -364,8 +324,8 @@ internal static class ResponseContractToolEntries
                 canonicalPayloadField = "result.structuredContent",
                 textFallbackField = "result.content[0].text",
                 contractResource = resourceUri,
-                topLevelFields = new[] { "success", "snapshotId", "mutationCount", "executedMutationCount", "successfulMutationCount", "failedMutationCount", "skippedMutationCount", "stateAfterTimeoutUnknown", "requiresReconnect", "retryAfterSeconds", "retryAfter", "availableTokens", "mutations", "stateDiff", "rollback", "recovery" },
-                nestedResponsePaths = new[] { "mutations[].tool", "mutations[].success", "mutations[].stateAfterTimeoutUnknown", "stateDiff.snapshotId", "rollback.params.snapshotId", "recovery.tool", "recovery.retryAfterSeconds" },
+                topLevelFields = new[] { "success", "executionMode", "snapshotId", "mutationCount", "executedMutationCount", "successfulMutationCount", "failedMutationCount", "skippedMutationCount", "stateAfterTimeoutUnknown", "requiresReconnect", "processId", "timeoutSeconds", "retryAfterSeconds", "retryAfter", "availableTokens", "availableEvents", "mutations", "results", "stateDiff", "diff", "rollback", "recovery" },
+                nestedResponsePaths = new[] { "mutations[].tool", "mutations[].success", "mutations[].stateAfterTimeoutUnknown", "results[].tool", "results[].success", "stateDiff.snapshotId", "diff.snapshotId", "rollback.params.snapshotId", "recovery.tool", "recovery.retryAfterSeconds" },
                 requestParameters = new[] { "captureSnapshot", "includeDiff", "mutations", "trigger" }
             },
             new
@@ -378,6 +338,7 @@ internal static class ResponseContractToolEntries
                 topLevelFields = new[]
                 {
                     "success",
+                    "elementId",
                     "width",
                     "height",
                     "format",
@@ -390,7 +351,9 @@ internal static class ResponseContractToolEntries
                     "expiresAtUtc",
                     "localPathRedacted",
                     "sha256",
-                    "base64Image"
+                    "mimeType",
+                    "base64Image",
+                    "maxInlineByteLength"
                 },
                 nestedResponsePaths = Array.Empty<string>(),
                 requestParameters = new[]

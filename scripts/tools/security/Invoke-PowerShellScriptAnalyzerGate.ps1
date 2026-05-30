@@ -16,7 +16,7 @@ if ($results.Count -eq 0) {
 
 foreach ($result in $results) {
     $line = if ($result.Line -gt 0) { $result.Line } else { 1 }
-    Write-Error "$($result.ScriptName):$line $($result.RuleName) [$($result.Severity)] $($result.Message)"
+    [Console]::Error.WriteLine("$($result.ScriptName):$line $($result.RuleName) [$($result.Severity)] $($result.Message)")
 }
 
 exit 1

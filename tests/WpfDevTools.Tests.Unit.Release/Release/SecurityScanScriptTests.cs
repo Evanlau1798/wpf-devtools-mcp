@@ -76,6 +76,32 @@ public sealed class SecurityScanScriptTests
     }
 
     [Fact]
+    public void RepositorySecretScan_ShouldReportAllSyntheticFindingsBeforeFailing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var fixturePath = Path.Combine(tempRoot, "synthetic-secrets.txt");
+            File.WriteAllText(
+                fixturePath,
+                "Synthetic fixture only: ghp_" + new string('A', 40) + Environment.NewLine +
+                "Synthetic fixture only: sk-proj_" + new string('B', 40));
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/security/Invoke-RepositorySecretScan.ps1"),
+                ["-Path", fixturePath]);
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("github-token");
+            result.Stderr.Should().Contain("openai-api-key");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void PowerShellScriptAnalyzerGate_ShouldFailOnSyntheticAnalyzerViolation()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -94,6 +120,32 @@ public sealed class SecurityScanScriptTests
 
             result.ExitCode.Should().NotBe(0);
             result.Stderr.Should().Contain("PSAvoidUsingInvokeExpression");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void PowerShellScriptAnalyzerGate_ShouldReportAllSyntheticViolationsBeforeFailing()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var fixturePath = Path.Combine(tempRoot, "AnalyzerFindingsFixture.ps1");
+            File.WriteAllText(
+                fixturePath,
+                "Invoke-Expression $input" + Environment.NewLine +
+                "Write-Host 'synthetic fixture'");
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/security/Invoke-PowerShellScriptAnalyzerGate.ps1"),
+                ["-Path", tempRoot, "-Severity", "Warning"]);
+
+            result.ExitCode.Should().NotBe(0);
+            result.Stderr.Should().Contain("PSAvoidUsingInvokeExpression");
+            result.Stderr.Should().Contain("PSAvoidUsingWriteHost");
         }
         finally
         {

@@ -73,6 +73,6 @@ foreach ($filePath in Resolve-ScanFiles -ResolvedRoot $rootFullPath -ExplicitPat
 }
 
 if ($findings.Count -gt 0) {
-    $findings | Sort-Object | ForEach-Object { Write-Error $_ }
+    $findings | Sort-Object | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }

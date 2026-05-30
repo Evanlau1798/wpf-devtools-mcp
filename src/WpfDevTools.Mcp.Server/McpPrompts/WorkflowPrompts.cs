@@ -79,6 +79,7 @@ public static class WorkflowPrompts
         8. click_element(elementId)
         9. drain_events(eventTypes=['RoutedEvent'], elementId)
         10. get_state_diff(snapshotId, trigger='click_element(...)') when you need to summarize what changed
+        11. restore_state_snapshot(snapshotId) when a clean rollback point was captured and the live click side effects should not remain
 
         If the control is disabled, diagnose CanExecute or style/trigger state before forcing interaction.
         """;

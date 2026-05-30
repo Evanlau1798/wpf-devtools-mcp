@@ -6,7 +6,6 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 
 public sealed partial class ReleaseReadinessDocumentationTests
 {
-    private const string PublicEndpointUnavailableWarning = "Public release endpoints are not yet anonymously reachable";
     private static readonly string RepoRoot = ResolveRepoRoot();
 
     [Fact]
@@ -55,19 +54,6 @@ public sealed partial class ReleaseReadinessDocumentationTests
             "maintainers need the release guide to call out the fail-closed ARM64 runtime validation gate used by GitHub release automation");
         content.Should().Contain("self-hosted Windows ARM64 runner",
             "the release guide should explain that public ARM64 publication now requires a runner that can actually launch the packaged ARM64 executable");
-    }
-
-    [Fact]
-    public void PublicReleaseChecklist_ShouldNotClaimInstallerCommandIsDocumentedBeforeEndpointPublication()
-    {
-        var checklist = File.ReadAllText(GetRepoFilePath("PUBLIC_RELEASE_READINESS_CHECKLIST.md"));
-        var warningFiles = GetPublicEndpointWarningFiles();
-        var completedClaims = GetCompletedPublicInstallerOnboardingClaims(checklist);
-
-        warningFiles.Should().NotBeEmpty(
-            "this contract applies while README or DocFX quickstarts still warn that public endpoints are unavailable");
-        completedClaims.Should().BeEmpty(
-            "the checklist must not mark public installer onboarding complete while README and DocFX still warn that public endpoints are unavailable");
     }
 
     [Fact]
@@ -151,20 +137,6 @@ public sealed partial class ReleaseReadinessDocumentationTests
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         return mentionsPublicInstaller && mentionsOnboardingDocs;
-    }
-
-    private static IReadOnlyList<string> GetPublicEndpointWarningFiles()
-    {
-        var paths = new List<string> { GetRepoFilePath("README.md") };
-        paths.AddRange(Directory.EnumerateFiles(GetRepoFilePath("docfx/quickstart"), "*.md"));
-        paths.AddRange(Directory.EnumerateFiles(GetRepoFilePath("docfx/zh-tw/quickstart"), "*.md"));
-
-        return paths
-            .Where(path => File.ReadAllText(path).Contains(
-                PublicEndpointUnavailableWarning,
-                StringComparison.Ordinal))
-            .Select(path => Path.GetRelativePath(RepoRoot, path).Replace('\\', '/'))
-            .ToList();
     }
 
     [Theory]

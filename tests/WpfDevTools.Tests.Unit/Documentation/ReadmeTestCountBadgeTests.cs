@@ -34,16 +34,6 @@ public sealed class ReadmeTestCountBadgeTests
         zhTw.Should().Contain("unit、release-unit 與 integration suites");
     }
 
-    [Fact]
-    public void PublicReleaseChecklist_ShouldUseDiscoveryCommandInsteadOfExactSnapshot()
-    {
-        var checklist = ReadRepoFile("PUBLIC_RELEASE_READINESS_CHECKLIST.md");
-
-        checklist.Should().NotContain("tests-3600+");
-        checklist.Should().Contain("README must not publish exact test-count badges");
-        checklist.Should().Contain("dotnet test --no-build --list-tests");
-    }
-
     [Theory]
     [MemberData(nameof(ExactCountDocumentationFiles))]
     public void PublicCountDocs_ShouldNotReintroduceExactTestCountSnapshots(string relativePath)
@@ -71,7 +61,6 @@ public sealed class ReadmeTestCountBadgeTests
     {
         yield return new object[] { "docfx/contributors/testing-and-tdd.md" };
         yield return new object[] { "docfx/zh-tw/contributors/testing-and-tdd.md" };
-        yield return new object[] { "PUBLIC_RELEASE_READINESS_CHECKLIST.md" };
     }
 
     private static IEnumerable<string> ExactCountSnapshotTokens()

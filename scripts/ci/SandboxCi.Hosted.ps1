@@ -1,4 +1,5 @@
 . (Join-Path $PSScriptRoot 'SandboxCi.Hosted.Extras.ps1')
+. (Join-Path $PSScriptRoot 'SandboxCi.Security.ps1')
 
 function Resolve-DotNetNativeHostDirectory {
     param([Parameter(Mandatory = $true)] [string]$RuntimeId)
@@ -410,6 +411,7 @@ function Invoke-HostedWindowsX64Verification {
             'win-x64',
             '-p:NuGetAudit=true'
         )
+        Invoke-HostedSecurityScanEquivalence -DotNetPath $DotNetPath
 
         foreach ($configuration in @('Debug', 'Release')) {
             foreach ($platform in @('x64', 'x86')) {

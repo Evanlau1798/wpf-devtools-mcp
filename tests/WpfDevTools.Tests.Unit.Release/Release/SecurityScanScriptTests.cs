@@ -6,6 +6,48 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class SecurityScanScriptTests
 {
     [Fact]
+    public void HostedSandboxSecurityScanEquivalence_ShouldInvokeGitHubSecurityScanGates()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var logPath = Path.Combine(tempRoot, "sandbox-security-gates.log");
+            var command = string.Join(Environment.NewLine, [
+                "$ErrorActionPreference = 'Stop'",
+                ". " + QuotePowerShellString(ReleaseScriptTestHarness.GetRepoFilePath("scripts/ci/SandboxCi.Process.ps1")),
+                ". " + QuotePowerShellString(ReleaseScriptTestHarness.GetRepoFilePath("scripts/ci/SandboxCi.Native.ps1")),
+                ". " + QuotePowerShellString(ReleaseScriptTestHarness.GetRepoFilePath("scripts/ci/SandboxCi.Hosted.ps1")),
+                "function Invoke-External { param([string]$Name, [string]$FilePath, [string[]]$Arguments) " +
+                "Add-Content -LiteralPath " + QuotePowerShellString(logPath) +
+                " -Value ($Name + '|' + $FilePath + '|' + ($Arguments -join ' ')) }",
+                "function Resolve-MSBuildPath { return 'MSBUILD-STUB' }",
+                "function Resolve-DotNetNativeHostDirectory { param([string]$RuntimeId) return 'NATIVE-STUB' }",
+                "function Get-HostedNativeBuildProperties { param([string]$Platform, [string]$WindowsSdkDirectory, " +
+                "[string]$WindowsSdkVersion, [string]$NativeHostDirectory) return @('/p:NetHostIncludeDir=' + " +
+                "$NativeHostDirectory, '/p:NetHostLibDir=' + $NativeHostDirectory) }",
+                "$env:WindowsSDKDir = " + QuotePowerShellString(Path.Combine(tempRoot, "winsdk")),
+                "New-Item -ItemType Directory -Force -Path (Join-Path $env:WindowsSDKDir 'Include\\10.0.0.0') | Out-Null",
+                "Invoke-HostedSecurityScanEquivalence -DotNetPath 'DOTNET-STUB'"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(20));
+
+            result.ExitCode.Should().Be(0, result.Stdout + result.Stderr);
+            var log = File.ReadAllText(logPath);
+            log.Should().Contain("Run .NET analyzer gate|DOTNET-STUB|format WpfDevTools.sln analyzers --verify-no-changes --severity error --no-restore");
+            log.Should().Contain("Run PowerShell ScriptAnalyzer|powershell.exe|-NoProfile -ExecutionPolicy Bypass -File scripts\\tools\\security\\Invoke-PowerShellScriptAnalyzerGate.ps1 -Path scripts -Severity Error");
+            log.Should().Contain("Run repository secret pattern scan|powershell.exe|-NoProfile -ExecutionPolicy Bypass -File scripts\\tools\\security\\Invoke-RepositorySecretScan.ps1");
+            log.Should().Contain("Run native bootstrapper security analysis|MSBUILD-STUB|src\\WpfDevTools.Bootstrapper\\WpfDevTools.Bootstrapper.vcxproj");
+            log.Should().Contain("/p:RunCodeAnalysis=true");
+            log.Should().Contain("/p:TreatWarningsAsErrors=true");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void RepositorySecretScan_ShouldFailOnSyntheticSecretFixture()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -58,4 +100,7 @@ public sealed class SecurityScanScriptTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+
+    private static string QuotePowerShellString(string value)
+        => "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";
 }

@@ -107,6 +107,7 @@ function Copy-PreflightBootstrapFiles {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'SandboxCi.Process.ps1') -Destination (Join-Path $Destination 'SandboxCi.Process.ps1') -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'SandboxCi.ProcessCleanup.ps1') -Destination (Join-Path $Destination 'SandboxCi.ProcessCleanup.ps1') -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\tools\packaging\Test-PackagedServerRuntime.ps1') -Destination (Join-Path $Destination 'Test-PackagedServerRuntime.ps1') -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\tools\packaging\Test-InstallResidue.ps1') -Destination (Join-Path $Destination 'Test-InstallResidue.ps1') -Force
 }
 
 $resolvedPackageArchive = (Resolve-Path -LiteralPath $PackageArchivePath).Path

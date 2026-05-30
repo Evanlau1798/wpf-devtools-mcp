@@ -16,6 +16,7 @@ public sealed partial class SandboxCiScriptContractTests
         launcher.Should().Contain("PackageArchivePath");
         launcher.Should().Contain("SandboxCi.ArtifactPreflight.ps1");
         launcher.Should().Contain("Test-PackagedServerRuntime.ps1");
+        launcher.Should().Contain("Test-InstallResidue.ps1");
         launcher.Should().Contain(@"C:\release");
         launcher.Should().Contain(@"C:\preflight");
         launcher.Should().Contain(@"C:\preflight-output");
@@ -30,6 +31,7 @@ public sealed partial class SandboxCiScriptContractTests
         runner.Should().Contain(@"bin\install.ps1");
         runner.Should().Contain(@"bin\manifest.json");
         runner.Should().Contain("Test-PackagedServerRuntime.ps1");
+        runner.Should().Contain("Test-InstallResidue.ps1");
         runner.Should().Contain(@"..\tools\packaging\Test-PackagedServerRuntime.ps1");
         runner.Should().Contain("dotnet-install.ps1");
         runner.Should().Contain("DOTNET_ROOT");
@@ -50,6 +52,16 @@ public sealed partial class SandboxCiScriptContractTests
         runner.Should().Contain(". $ScriptPath @Parameters");
         runner.Should().Contain("Invoke-InstallerStep -Name 'Install package-local release' -ScriptPath $installScript -Parameters @{");
         runner.Should().Contain("Invoke-InstallerStep -Name 'Uninstall package-local release' -ScriptPath $installedScript -Parameters @{");
+        runner.Should().Contain("Invoke-InstallerStep -Name 'Reinstall package-local release' -ScriptPath $installScript -Parameters @{");
+        runner.Should().Contain("Invoke-InstallerStep -Name 'Full uninstall package-local release' -ScriptPath $installedScript -Parameters @{");
+        runner.Should().Contain("Invoke-RuntimeSmoke -Name 'Run packaged server runtime smoke first run'");
+        runner.Should().Contain("Invoke-RuntimeSmoke -Name 'Run packaged server runtime smoke second run'");
+        runner.Should().Contain("Invoke-RuntimeSmoke -Name 'Run packaged server runtime smoke after transport state corruption'");
+        runner.Should().Contain("Invoke-DefaultTransportStateCorruptionProbe");
+        runner.Should().Contain("shared-secret.bin");
+        runner.Should().Contain(".corrupt-");
+        runner.Should().Contain("Run install residue validation");
+        runner.Should().Contain("Assert-NoUnexpectedIgnoredArtifacts");
         runner.Should().Contain("-TargetProcessPath");
         runner.Should().Contain("PASS $RunId");
         runner.Should().Contain("FAIL $RunId");
@@ -250,6 +262,11 @@ public sealed partial class SandboxCiScriptContractTests
         english.Should().Contain("GitHub artifact upload/download boundaries");
         english.Should().Contain("GitHub-hosted runner image differences");
         english.Should().Contain("unsigned local package smoke");
+        english.Should().Contain("first run");
+        english.Should().Contain("second run");
+        english.Should().Contain("corrupt transport state");
+        english.Should().Contain("full-uninstall");
+        english.Should().Contain("residue validation");
         english.Should().Contain("registration metadata checks remain covered by the installer/client registration tests");
         english.Should().Contain("Publish-Release.ps1");
         english.Should().Contain("Get-ChildItem");
@@ -275,6 +292,11 @@ public sealed partial class SandboxCiScriptContractTests
         zhTw.Should().Contain("GitHub artifact upload/download 邊界");
         zhTw.Should().Contain("GitHub-hosted runner image 差異");
         zhTw.Should().Contain("unsigned local package smoke");
+        zhTw.Should().Contain("first run");
+        zhTw.Should().Contain("second run");
+        zhTw.Should().Contain("corrupt transport state");
+        zhTw.Should().Contain("full-uninstall");
+        zhTw.Should().Contain("residue validation");
         zhTw.Should().Contain("registration metadata 仍由 installer/client registration 測試覆蓋");
         zhTw.Should().Contain("Publish-Release.ps1");
         zhTw.Should().Contain("Get-ChildItem");

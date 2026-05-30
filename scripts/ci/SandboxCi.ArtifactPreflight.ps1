@@ -91,6 +91,20 @@ function Resolve-RuntimeSmokeScript {
     throw "Runtime smoke script was not found at '$sandboxBootstrapPath' or '$repoFallbackPath'."
 }
 
+function Resolve-InstallResidueScript {
+    $sandboxBootstrapPath = Join-Path $PSScriptRoot 'Test-InstallResidue.ps1'
+    if (Test-Path -LiteralPath $sandboxBootstrapPath) {
+        return (Resolve-Path -LiteralPath $sandboxBootstrapPath).Path
+    }
+
+    $repoFallbackPath = Join-Path $PSScriptRoot '..\tools\packaging\Test-InstallResidue.ps1'
+    if (Test-Path -LiteralPath $repoFallbackPath) {
+        return (Resolve-Path -LiteralPath $repoFallbackPath).Path
+    }
+
+    throw "Install residue script was not found at '$sandboxBootstrapPath' or '$repoFallbackPath'."
+}
+
 function Get-PreflightLogTail {
     param([Parameter(Mandatory = $true)] [string]$Path)
 
@@ -253,6 +267,52 @@ function Invoke-InstallerStep {
     }
 }
 
+function Invoke-RuntimeSmoke {
+    param(
+        [Parameter(Mandatory = $true)] [string]$Name,
+        [Parameter(Mandatory = $true)] [string]$ServerPath
+    )
+
+    $runtimeSmoke = Resolve-RuntimeSmokeScript
+    $runtimeSmokeArguments = @(
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        $runtimeSmoke,
+        '-ServerPath',
+        $ServerPath
+    )
+    if ($null -ne $smokeProcess) {
+        $runtimeSmokeArguments += @(
+            '-TargetProcessId',
+            ([string]$smokeProcess.Id),
+            '-TargetProcessPath',
+            $resolvedSmokeTargetPath
+        )
+    }
+
+    $runtimeSmokeTimeoutSeconds = [Math]::Max(300, $SmokeTargetStartupTimeoutSeconds + 120)
+    Invoke-PowerShellStep -Name $Name -Arguments $runtimeSmokeArguments -TimeoutSeconds $runtimeSmokeTimeoutSeconds
+}
+
+function Invoke-DefaultTransportStateCorruptionProbe {
+    $stateRoot = Join-Path $env:APPDATA 'WpfDevTools'
+    $authFile = Join-Path $stateRoot 'auth\shared-secret.bin'
+    if (Test-Path -LiteralPath $authFile) {
+        Move-Item -LiteralPath $authFile -Destination "$authFile.corrupt-$RunId" -Force
+        Set-Content -LiteralPath $authFile -Value 'corrupt-preflight-secret' -Encoding ASCII -Force
+    }
+
+    $certRoot = Join-Path $stateRoot 'certs'
+    if (Test-Path -LiteralPath $certRoot) {
+        foreach ($certFile in Get-ChildItem -LiteralPath $certRoot -File -Force -ErrorAction SilentlyContinue) {
+            Move-Item -LiteralPath $certFile.FullName -Destination "$($certFile.FullName).corrupt-$RunId" -Force
+            Set-Content -LiteralPath $certFile.FullName -Value 'corrupt-preflight-cert' -Encoding ASCII -Force
+        }
+    }
+}
+
 function Assert-NoPreflightProcessesRemain {
     param([Parameter(Mandatory = $true)] [string]$RootPath)
     $root = [System.IO.Path]::GetFullPath($RootPath).TrimEnd('\') + '\'
@@ -267,6 +327,20 @@ function Assert-NoPreflightProcessesRemain {
     })
     if ($matches.Count -gt 0) {
         throw "Preflight left process(es) running from ${RootPath}: $($matches.ProcessName -join ', ')"
+    }
+}
+
+function Assert-NoUnexpectedIgnoredArtifacts {
+    param([Parameter(Mandatory = $true)] [string]$RootPath)
+    $patterns = @('*.tmp', '*.log', '*.trx', 'coverage.opencover.xml', 'coverage-report.md')
+    $unexpected = @()
+    foreach ($pattern in $patterns) {
+        $unexpected += @(Get-ChildItem -LiteralPath $RootPath -Recurse -Force -Filter $pattern -ErrorAction SilentlyContinue |
+            Where-Object { -not $_.FullName.StartsWith($outputRootFullPath, [System.StringComparison]::OrdinalIgnoreCase) })
+    }
+
+    if ($unexpected.Count -gt 0) {
+        throw "Preflight left unexpected ignored artifact(s): $($unexpected.FullName -join ', ')"
     }
 }
 
@@ -331,27 +405,10 @@ try {
 
     Ensure-DotNetRuntime
     $smokeProcess = Start-SmokeTarget
-    $runtimeSmoke = Resolve-RuntimeSmokeScript
-    $runtimeSmokeArguments = @(
-        '-NoProfile',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-File',
-        $runtimeSmoke,
-        '-ServerPath',
-        $serverPath
-    )
-    if ($null -ne $smokeProcess) {
-        $runtimeSmokeArguments += @(
-            '-TargetProcessId',
-            ([string]$smokeProcess.Id),
-            '-TargetProcessPath',
-            $resolvedSmokeTargetPath
-        )
-    }
-
-    $runtimeSmokeTimeoutSeconds = [Math]::Max(300, $SmokeTargetStartupTimeoutSeconds + 120)
-    Invoke-PowerShellStep -Name 'Run packaged server runtime smoke' -Arguments $runtimeSmokeArguments -TimeoutSeconds $runtimeSmokeTimeoutSeconds
+    Invoke-RuntimeSmoke -Name 'Run packaged server runtime smoke first run' -ServerPath $serverPath
+    Invoke-RuntimeSmoke -Name 'Run packaged server runtime smoke second run' -ServerPath $serverPath
+    Invoke-DefaultTransportStateCorruptionProbe
+    Invoke-RuntimeSmoke -Name 'Run packaged server runtime smoke after transport state corruption' -ServerPath $serverPath
 
     $installedScript = Join-Path $installRoot "$Architecture\current\bin\install.ps1"
     Assert-RequiredPath -Path $installedScript -Description 'installed package-local installer'
@@ -364,8 +421,42 @@ try {
         OutputJson = $true
     }
 
+    Invoke-InstallerStep -Name 'Reinstall package-local release' -ScriptPath $installScript -Parameters @{
+        InstallRoot = $installRoot
+        Architecture = $Architecture
+        Client = $Client
+        NonInteractive = $true
+        Force = $true
+        OutputJson = $true
+    }
+
+    $installedScript = Join-Path $installRoot "$Architecture\current\bin\install.ps1"
+    Assert-RequiredPath -Path $installedScript -Description 'reinstalled package-local installer'
+    Invoke-InstallerStep -Name 'Full uninstall package-local release' -ScriptPath $installedScript -Parameters @{
+        Action = 'full-uninstall'
+        InstallRoot = $installRoot
+        Architecture = $Architecture
+        Client = $Client
+        NonInteractive = $true
+        OutputJson = $true
+    }
+
+    $installResidueScript = Resolve-InstallResidueScript
+    Invoke-PowerShellStep -Name 'Run install residue validation' -Arguments @(
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        $installResidueScript,
+        '-InstallRoot',
+        $installRoot,
+        '-Architecture',
+        $Architecture
+    ) -TimeoutSeconds 300
+
     try { Stop-SmokeTarget -Process $smokeProcess } finally { $smokeProcess = $null }
     Assert-NoPreflightProcessesRemain -RootPath $localRoot
+    Assert-NoUnexpectedIgnoredArtifacts -RootPath $localRoot
     Write-PreflightSummary -Status 'PASS' -Message 'Artifact preflight completed successfully.' -PackagePath $resolvedPackagePath -InstallRoot $installRoot
     Write-PreflightResult -Value "PASS $RunId $timestamp ArtifactPreflight" -Encoding $ascii
     Write-Host "Artifact preflight completed successfully. Results: $outputRootFullPath"

@@ -141,7 +141,7 @@ public static partial class CapabilityResources
                         {
                             processId = 12345,
                             maxEvents = 50,
-                            eventTypes = new[] { "BindingError", "ValidationError" }
+                            eventTypes = new[] { "BindingError", "ValidationChange" }
                         }
                     }
                 },

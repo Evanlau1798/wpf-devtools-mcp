@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
@@ -117,6 +118,30 @@ public sealed class ToolInputExamplesResourceTests
     }
 
     [Fact]
+    public void ToolExamplesResource_DrainEventsExamples_ShouldUseAllowedEventTypes()
+    {
+        using var document = ReadToolExamples();
+        var allowedValues = GetAllowedValues(
+            typeof(WpfDevTools.Mcp.Server.McpTools.EventDrainMcpTools),
+            nameof(WpfDevTools.Mcp.Server.McpTools.EventDrainMcpTools.DrainEvents),
+            "eventTypes");
+
+        var eventTypes = document.RootElement
+            .GetProperty("examplesByTool")
+            .GetProperty("drain_events")
+            .EnumerateArray()
+            .SelectMany(example => example.GetProperty("arguments")
+                .GetProperty("eventTypes")
+                .EnumerateArray()
+                .Select(item => item.GetString()))
+            .Where(item => item is not null)
+            .Cast<string>()
+            .ToArray();
+
+        eventTypes.Should().OnlyContain(value => allowedValues.Contains(value));
+    }
+
+    [Fact]
     public void ServerInstructions_ShouldReferenceToolExamplesResource()
     {
         ServerInstructions.Value.Should().Contain("wpf://contracts/tool-examples");
@@ -150,4 +175,17 @@ public sealed class ToolInputExamplesResourceTests
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Select(name => name!)
             .ToHashSet(StringComparer.Ordinal);
+
+    private static HashSet<string> GetAllowedValues(Type toolType, string methodName, string parameterName)
+    {
+        var method = toolType.GetMethod(methodName);
+        method.Should().NotBeNull();
+
+        var parameter = method!.GetParameters().Single(item => item.Name == parameterName);
+        return parameter.GetCustomAttribute<AllowedValuesAttribute>()!.Values
+            .Select(value => value?.ToString())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .ToHashSet(StringComparer.Ordinal);
+    }
 }

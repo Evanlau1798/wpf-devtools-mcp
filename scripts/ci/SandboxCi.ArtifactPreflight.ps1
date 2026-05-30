@@ -352,6 +352,7 @@ $logRoot = Join-Path $outputRootFullPath 'logs'
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 $transcriptPath = Join-Path $logRoot "artifact-preflight-$timestamp.log"
 $localRoot = Join-Path $env:SystemDrive "sandbox-artifact-preflight-$RunId"
+$preflightProfileRoot = Join-Path $localRoot 'profile'
 $extractRoot = Join-Path $localRoot 'package'
 $installRoot = Join-Path $localRoot 'install'
 $smokeProcess = $null
@@ -364,7 +365,12 @@ try {
 
     $resolvedPackagePath = (Resolve-Path -LiteralPath $PackageArchivePath).Path
     Remove-Item -LiteralPath $localRoot -Recurse -Force -ErrorAction SilentlyContinue
-    New-Item -ItemType Directory -Force -Path $extractRoot, $installRoot | Out-Null
+    $env:USERPROFILE = $preflightProfileRoot
+    $env:APPDATA = Join-Path $preflightProfileRoot 'AppData\Roaming'
+    $env:LOCALAPPDATA = Join-Path $preflightProfileRoot 'AppData\Local'
+    $env:TEMP = Join-Path $preflightProfileRoot 'Temp'
+    $env:TMP = $env:TEMP
+    New-Item -ItemType Directory -Force -Path $env:APPDATA, $env:LOCALAPPDATA, $env:TEMP, $extractRoot, $installRoot | Out-Null
 
     Write-Host '>>> Environment probe'
     $PSVersionTable | Format-List

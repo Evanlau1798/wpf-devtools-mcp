@@ -244,6 +244,20 @@ public sealed partial class SandboxCiScriptContractTests
     }
 
     [Fact]
+    public void SandboxArtifactPreflight_ShouldIsolateDefaultTransportStateBeforeCorruptionProbe()
+    {
+        var runner = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "SandboxCi.ArtifactPreflight.ps1");
+
+        runner.Should().Contain("$preflightProfileRoot = Join-Path $localRoot 'profile'");
+        runner.Should().Contain("$env:APPDATA = Join-Path $preflightProfileRoot 'AppData\\Roaming'");
+        runner.Should().Contain("$env:LOCALAPPDATA = Join-Path $preflightProfileRoot 'AppData\\Local'");
+        runner.Should().Contain("$env:USERPROFILE = $preflightProfileRoot");
+        runner.IndexOf("$env:APPDATA = Join-Path $preflightProfileRoot", StringComparison.Ordinal)
+            .Should().BeLessThan(runner.LastIndexOf("Invoke-DefaultTransportStateCorruptionProbe", StringComparison.Ordinal),
+                "the corruption probe must only mutate the isolated preflight profile, never the caller's real WpfDevTools state");
+    }
+
+    [Fact]
     public void ContributorTestingGuide_ShouldDocumentArtifactPreflightWorkflow()
     {
         var english = File.ReadAllText(Path.Combine(RepoRoot, "docfx", "contributors", "testing-and-tdd.md"));

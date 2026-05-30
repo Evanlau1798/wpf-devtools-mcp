@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 using ModelContextProtocol.Server;
@@ -154,6 +155,38 @@ public sealed class McpToolContractDescriptionTests
         ServerInstructions.Value.Should().NotContain("On error: {",
             "error response guidance should not look like a copy-paste JSON example");
         failures.Should().BeEmpty("AI-facing response shapes should be labeled as schema sketches, while request examples remain strict JSON");
+    }
+
+    [Fact]
+    public void AiFacingRequestFormatBlocks_ShouldNotUsePseudoJsonSyntax()
+    {
+        var failures = new List<string>();
+        foreach (var (name, text) in GetAllAiFacingContractTexts())
+        {
+            var requestFormat = ExtractHeadingBlock(text, "REQUEST FORMAT:");
+            if (string.IsNullOrWhiteSpace(requestFormat))
+            {
+                continue;
+            }
+
+            if (requestFormat.Contains("?:", StringComparison.Ordinal))
+            {
+                failures.Add($"{name}: REQUEST FORMAT uses TypeScript optional markers");
+            }
+
+            if (Regex.IsMatch(requestFormat, @"(?m)^\s{0,6}[A-Za-z_][A-Za-z0-9_]*\??\s*:"))
+            {
+                failures.Add($"{name}: REQUEST FORMAT uses unquoted object keys");
+            }
+
+            if (Regex.IsMatch(requestFormat, @"\{\s*[A-Za-z_][A-Za-z0-9_]*\s*(?:,|\})"))
+            {
+                failures.Add($"{name}: REQUEST FORMAT uses JavaScript object shorthand");
+            }
+        }
+
+        failures.Should().BeEmpty(
+            "REQUEST FORMAT blocks are copied as tool-call arguments, so they must be strict JSON or be renamed to a non-copyable schema sketch");
     }
 
     [Theory]
@@ -329,5 +362,24 @@ public sealed class McpToolContractDescriptionTests
 
             yield return line[2..].Trim();
         }
+    }
+
+    private static string ExtractHeadingBlock(string text, string heading)
+    {
+        var start = text.IndexOf(heading, StringComparison.Ordinal);
+        if (start < 0)
+        {
+            return string.Empty;
+        }
+
+        start += heading.Length;
+        var nextHeading = Regex.Match(
+            text[start..],
+            @"(?m)^[A-Z][A-Z0-9 /()'-]+:\s*$",
+            RegexOptions.CultureInvariant);
+
+        return nextHeading.Success
+            ? text.Substring(start, nextHeading.Index)
+            : text[start..];
     }
 }

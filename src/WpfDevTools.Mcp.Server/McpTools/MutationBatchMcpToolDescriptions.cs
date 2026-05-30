@@ -16,15 +16,13 @@ internal static class MutationBatchMcpToolDescriptions
         "ROLLBACK GUIDANCE: Captured snapshots are retained per process for up to 20 snapshots or 30 minutes. " +
         "Failures include restore_state_snapshot guidance only while that snapshot remains retained; otherwise inspect rollback.available and recovery.tool before retrying.\n" +
         "DIFF SUPPORT: Set includeDiff=true together with captureSnapshot to compute get_state_diff after all mutations succeed.\n\n" +
-        "REQUEST FORMAT:\n" +
-        "{\n" +
-        "  processId?: number,\n" +
-        "  elementId?: string,\n" +
-        "  captureSnapshot?: { elementId?, propertyNames?, viewModelPropertyNames?, includeFocus?, snapshotName? },\n" +
-        "  includeDiff?: boolean,\n" +
-        "  trigger?: string,\n" +
-        "  mutations: [{ tool, label?, args?: object }]\n" +
-        "}\n\n" +
+        "PARAMETER SUMMARY:\n" +
+        "- processId: optional process id; omit only when an active MCP session is already selected.\n" +
+        "- elementId: optional default element id shared by nested mutations that do not provide their own elementId.\n" +
+        "- captureSnapshot: optional object with elementId, propertyNames, viewModelPropertyNames, includeFocus, and snapshotName fields.\n" +
+        "- includeDiff: optional boolean; set true only together with captureSnapshot when you need a post-batch get_state_diff.\n" +
+        "- trigger: optional label forwarded to get_state_diff.\n" +
+        "- mutations: required non-empty array of objects. Each item has tool, optional label, and optional args object fields.\n\n" +
         "SUPPORTED MUTATION TOOLS: modify_viewmodel, set_dp_value, clear_dp_value, execute_command, click_element, fire_routed_event, focus_element, scroll_to_element, simulate_keyboard, override_style_setter, drag_and_drop.\n\n" +
         "EXAMPLES:\n" +
         "- { \"processId\": 12345, \"mutations\": [{ \"tool\": \"modify_viewmodel\", \"args\": { \"propertyName\": \"Name\", \"value\": \"Alice\" } }, { \"tool\": \"modify_viewmodel\", \"args\": { \"propertyName\": \"Age\", \"value\": 30 } }] }\n" +

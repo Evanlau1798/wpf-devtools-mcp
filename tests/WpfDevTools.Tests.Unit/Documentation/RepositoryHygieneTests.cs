@@ -127,6 +127,15 @@ public class RepositoryHygieneTests
                 "large WPF test surfaces need the same 500-line governance as source and script files");
     }
 
+    [Fact]
+    public void LineLimitPolicy_ShouldCoverGitHubWorkflowFiles()
+    {
+        EnumeratePolicyFiles()
+            .Should()
+            .Contain(".github/workflows/release.yml",
+                "GitHub workflow files are production release code and need explicit line-limit governance");
+    }
+
     [Theory]
     [InlineData("tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj")]
     [InlineData("tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj")]
@@ -369,12 +378,14 @@ public class RepositoryHygieneTests
     private static IEnumerable<string> EnumeratePolicyFiles()
     {
         var repoRoot = GetRepoRoot();
-        var roots = new[] { "src", "tests", "scripts" };
+        var roots = new[] { "src", "tests", "scripts", ".github/workflows" };
         var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             ".cs",
             ".ps1",
-            ".xaml"
+            ".xaml",
+            ".yml",
+            ".yaml"
         };
 
         return roots

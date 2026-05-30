@@ -14,12 +14,14 @@ public sealed class ScreenshotResourceTests
     {
         using var tempDirectory = new TemporaryDirectory();
         using var sessionManager = new SessionManager();
+        const int processId = 12345;
         var screenshotId = "shot_0123456789abcdef0123456789abcdef";
         var imageBytes = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 };
-        var filePath = Path.Combine(tempDirectory.Path, screenshotId + ".png");
+        var storageRoot = sessionManager.GetOrCreateScreenshotStorageRoot(processId);
+        var filePath = Path.Combine(storageRoot, screenshotId + ".png");
         File.WriteAllBytes(filePath, imageBytes);
         var sha256 = Convert.ToHexString(SHA256.HashData(imageBytes)).ToLowerInvariant();
-        sessionManager.RegisterScreenshotResource(processId: 12345, screenshotId, filePath, sha256);
+        sessionManager.RegisterScreenshotResource(processId, screenshotId, filePath, sha256);
 
         var result = ScreenshotResources.GetScreenshotPng(sessionManager, screenshotId);
 
@@ -34,12 +36,14 @@ public sealed class ScreenshotResourceTests
     {
         using var tempDirectory = new TemporaryDirectory();
         using var sessionManager = new SessionManager();
+        const int processId = 12345;
         var screenshotId = "shot_0123456789abcdef0123456789abcdef";
         var imageBytes = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 };
-        var filePath = Path.Combine(tempDirectory.Path, screenshotId + ".png");
+        var storageRoot = sessionManager.GetOrCreateScreenshotStorageRoot(processId);
+        var filePath = Path.Combine(storageRoot, screenshotId + ".png");
         File.WriteAllBytes(filePath, imageBytes);
         sessionManager.RegisterScreenshotResource(
-            processId: 12345,
+            processId,
             screenshotId,
             filePath,
             sha256: new string('0', 64));
@@ -60,11 +64,13 @@ public sealed class ScreenshotResourceTests
     {
         using var tempDirectory = new TemporaryDirectory();
         using var sessionManager = new SessionManager();
-        var filePath = Path.Combine(tempDirectory.Path, "shot_0123456789abcdef0123456789abcdef.png");
+        const int processId = 12345;
+        var storageRoot = sessionManager.GetOrCreateScreenshotStorageRoot(processId);
+        var filePath = Path.Combine(storageRoot, "shot_0123456789abcdef0123456789abcdef.png");
         File.WriteAllBytes(filePath, new byte[] { 137, 80, 78, 71 });
 
         var act = () => sessionManager.RegisterScreenshotResource(
-            processId: 12345,
+            processId,
             screenshotId,
             filePath,
             sha256: null);
@@ -72,6 +78,86 @@ public sealed class ScreenshotResourceTests
         act.Should()
             .Throw<ArgumentException>()
             .WithMessage("*shot_<32 hex chars>*");
+    }
+
+    [Fact]
+    public void RegisterScreenshotResource_PathOutsideServerOwnedRoot_ShouldRejectResource()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        using var sessionManager = new SessionManager();
+        const int processId = 12345;
+        var screenshotId = "shot_0123456789abcdef0123456789abcdef";
+        _ = sessionManager.GetOrCreateScreenshotStorageRoot(processId);
+        var outsidePath = Path.Combine(tempDirectory.Path, screenshotId + ".png");
+        File.WriteAllBytes(outsidePath, new byte[] { 137, 80, 78, 71 });
+
+        var act = () => sessionManager.RegisterScreenshotResource(
+            processId,
+            screenshotId,
+            outsidePath,
+            sha256: null);
+
+        act.Should()
+            .Throw<ArgumentException>()
+            .WithMessage("*server-owned screenshot storage root*");
+        File.Exists(outsidePath).Should().BeTrue(
+            "rejected target-supplied paths must remain unowned by the server cleanup path");
+    }
+
+    [Fact]
+    public void Dispose_AfterRejectedOutsideRootPath_ShouldNotDeleteUnownedFile()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var sessionManager = new SessionManager();
+        const int processId = 12345;
+        var screenshotId = "shot_0123456789abcdef0123456789abcdef";
+        _ = sessionManager.GetOrCreateScreenshotStorageRoot(processId);
+        var outsidePath = Path.Combine(tempDirectory.Path, screenshotId + ".png");
+        File.WriteAllBytes(outsidePath, new byte[] { 137, 80, 78, 71 });
+
+        try
+        {
+            var act = () => sessionManager.RegisterScreenshotResource(
+                processId,
+                screenshotId,
+                outsidePath,
+                sha256: null);
+
+            act.Should().Throw<ArgumentException>();
+        }
+        finally
+        {
+            sessionManager.Dispose();
+        }
+
+        File.Exists(outsidePath).Should().BeTrue(
+            "server disposal must not delete arbitrary files outside the owned screenshot root");
+    }
+
+    [Fact]
+    public void GetOrCreateScreenshotStorageRoot_WhenExistingRootBecomesReparsePoint_ShouldFailClosed()
+    {
+        var previousDetector = SessionManager.ScreenshotReparsePointChainDetectorOverrideForTesting;
+        using var sessionManager = new SessionManager();
+        const int processId = 12345;
+        var swappedToReparsePoint = false;
+
+        try
+        {
+            SessionManager.ScreenshotReparsePointChainDetectorOverrideForTesting = _ => swappedToReparsePoint;
+            _ = sessionManager.GetOrCreateScreenshotStorageRoot(processId);
+            swappedToReparsePoint = true;
+
+            var act = () => sessionManager.GetOrCreateScreenshotStorageRoot(processId);
+
+            act.Should()
+                .Throw<InvalidOperationException>()
+                .WithMessage("*symbolic link*reparse point*");
+        }
+        finally
+        {
+            SessionManager.ScreenshotReparsePointChainDetectorOverrideForTesting = previousDetector;
+        }
     }
 
     [Theory]
@@ -265,7 +351,8 @@ public sealed class ScreenshotResourceTests
         string screenshotId = "shot_0123456789abcdef0123456789abcdef")
     {
         var imageBytes = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 };
-        filePath = Path.Combine(directory, screenshotId + ".png");
+        var storageRoot = sessionManager.GetOrCreateScreenshotStorageRoot(processId);
+        filePath = Path.Combine(storageRoot, screenshotId + ".png");
         File.WriteAllBytes(filePath, imageBytes);
         var sha256 = Convert.ToHexString(SHA256.HashData(imageBytes)).ToLowerInvariant();
         sessionManager.RegisterScreenshotResource(processId, screenshotId, filePath, sha256);

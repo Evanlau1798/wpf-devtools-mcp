@@ -56,13 +56,17 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
             return maxHeightError!;
         }
 
+        var screenshotDirectory = string.Equals(outputMode, "file", StringComparison.Ordinal)
+            ? _sessionManager.GetOrCreateScreenshotStorageRoot(processId)
+            : null;
         var result = await SendInspectorRequestAsync(processId, "element_screenshot",
             new
             {
                 elementId,
                 outputMode,
                 maxWidth,
-                maxHeight
+                maxHeight,
+                screenshotDirectory
             }, cancellationToken);
 
         return outputMode == "file"

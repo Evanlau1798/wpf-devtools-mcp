@@ -22,7 +22,8 @@ public static class ScreenshotResources
             throw new InvalidOperationException($"Screenshot '{screenshotId}' is not retained in this MCP session.");
         }
 
-        var imageBytes = File.ReadAllBytes(screenshot.FilePath);
+        var filePath = sessionManager.ResolveScreenshotResourcePathForRead(screenshot);
+        var imageBytes = File.ReadAllBytes(filePath);
         if (!string.IsNullOrWhiteSpace(screenshot.Sha256))
         {
             var actualSha256 = Convert.ToHexString(SHA256.HashData(imageBytes)).ToLowerInvariant();

@@ -117,6 +117,7 @@ public class ElementScreenshotToolTests
         var pipeName = $"WpfDevTools_Test_ElementScreenshotMode_{Guid.NewGuid():N}";
         using var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
         var requestCompletion = new TaskCompletionSource<InspectorRequest>(TaskCreationOptions.RunContinuationsAsynchronously);
+        const string screenshotId = "shot_0123456789abcdef0123456789abcdef";
 
         var serverTask = Task.Run(async () =>
         {
@@ -127,11 +128,27 @@ public class ElementScreenshotToolTests
                 var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
                 requestCompletion.TrySetResult(request!);
 
+                var screenshotDirectory = request!.Params!.Value.TryGetProperty("screenshotDirectory", out var directoryProperty)
+                    ? directoryProperty.GetString()
+                    : null;
+                var screenshotPath = Path.Combine(
+                    screenshotDirectory ?? Path.GetTempPath(),
+                    screenshotId + ".png");
                 var response = new InspectorResponse
                 {
-                    Id = request!.Id,
+                    Id = request.Id,
                     CorrelationId = request.CorrelationId,
-                    Result = JsonSerializer.Deserialize<JsonElement>("""{"success":true,"screenshotId":"shot_0123456789abcdef0123456789abcdef","width":160,"height":80,"format":"png","byteLength":256,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","path":"C:\\Users\\alice\\AppData\\Local\\Temp\\wpf-devtools\\shot_0123456789abcdef0123456789abcdef.png"}""")
+                    Result = JsonSerializer.SerializeToElement(new
+                    {
+                        success = true,
+                        screenshotId,
+                        width = 160,
+                        height = 80,
+                        format = "png",
+                        byteLength = 256,
+                        sha256 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                        path = screenshotPath
+                    })
                 };
 
                 await MessageFraming.WriteMessageAsync(server, JsonSerializer.Serialize(response), CancellationToken.None);
@@ -182,6 +199,10 @@ public class ElementScreenshotToolTests
             request.Params.Should().NotBeNull();
             request.Params!.Value.TryGetProperty("outputMode", out var outputMode).Should().BeTrue();
             outputMode.GetString().Should().Be("file");
+            request.Params.Value.TryGetProperty("screenshotDirectory", out var screenshotDirectory).Should().BeTrue(
+                "file-mode screenshots must write into a server-owned root before the server exposes a retained resource URI");
+            screenshotDirectory.GetString().Should().NotBeNullOrWhiteSpace();
+            Directory.Exists(screenshotDirectory.GetString()!).Should().BeTrue();
         }
         finally
         {

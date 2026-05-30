@@ -16,7 +16,8 @@ public sealed partial class InteractionAnalyzer
         string? elementId,
         string? outputMode = null,
         int? maxWidth = null,
-        int? maxHeight = null)
+        int? maxHeight = null,
+        string? screenshotDirectoryOverride = null)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -101,7 +102,9 @@ public sealed partial class InteractionAnalyzer
 
                 if (normalizedOutputMode == "file")
                 {
-                    var screenshot = ScreenshotStorage.WritePng(imageBytes, _screenshotDirectoryOverride);
+                    var screenshot = ScreenshotStorage.WritePng(
+                        imageBytes,
+                        screenshotDirectoryOverride ?? _screenshotDirectoryOverride);
                     return new
                     {
                         success = true,

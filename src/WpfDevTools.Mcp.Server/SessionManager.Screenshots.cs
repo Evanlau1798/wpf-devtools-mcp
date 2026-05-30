@@ -1,4 +1,7 @@
 using System.IO;
+using System.Globalization;
+using System.Threading;
+using WpfDevTools.Shared.Security;
 
 namespace WpfDevTools.Mcp.Server;
 
@@ -9,8 +12,35 @@ public sealed partial class SessionManager
 
     private const string ScreenshotResourcePrefix = "wpf://screenshots/";
     private const string ScreenshotFileExtension = ".png";
+    private const string ScreenshotRootDirectoryName = "wpf-devtools-mcp-screenshots";
+    private static readonly AsyncLocal<Func<string, bool>?> ScreenshotReparsePointChainDetectorOverrideForTestingState = new();
     private readonly Dictionary<string, StoredScreenshotResource> _screenshotResources = new(StringComparer.Ordinal);
     private readonly Queue<string> _screenshotResourceOrder = new();
+    private readonly Dictionary<int, string> _screenshotStorageRoots = new();
+
+    internal static Func<string, bool>? ScreenshotReparsePointChainDetectorOverrideForTesting
+    {
+        get => ScreenshotReparsePointChainDetectorOverrideForTestingState.Value;
+        set => ScreenshotReparsePointChainDetectorOverrideForTestingState.Value = value;
+    }
+
+    internal string GetOrCreateScreenshotStorageRoot(int processId)
+    {
+        ThrowIfDisposed();
+        lock (_lock)
+        {
+            if (_screenshotStorageRoots.TryGetValue(processId, out var existingRoot))
+            {
+                PrepareScreenshotStorageRoot(existingRoot);
+                return existingRoot;
+            }
+
+            var root = CreateScreenshotStorageRootPath(processId);
+            PrepareScreenshotStorageRoot(root);
+            _screenshotStorageRoots[processId] = root;
+            return root;
+        }
+    }
 
     internal StoredScreenshotResource RegisterScreenshotResource(
         int processId,
@@ -27,7 +57,15 @@ public sealed partial class SessionManager
             throw new ArgumentException("Screenshot ID must match the inspector-generated shot_<32 hex chars> format.", nameof(screenshotId));
         }
 
-        var fullPath = Path.GetFullPath(filePath);
+        var fullPath = ResolveAndValidateScreenshotPath(filePath, "Screenshot file");
+        var storageRoot = GetOrCreateScreenshotStorageRoot(processId);
+        if (!IsPathWithinRoot(fullPath, storageRoot))
+        {
+            throw new ArgumentException(
+                "Screenshot file must be under the server-owned screenshot storage root.",
+                nameof(filePath));
+        }
+
         var expectedFileName = screenshotId + ScreenshotFileExtension;
         var fileName = Path.GetFileName(fullPath);
         if (!string.Equals(fileName, expectedFileName, StringComparison.OrdinalIgnoreCase))
@@ -42,6 +80,7 @@ public sealed partial class SessionManager
             ScreenshotResourcePrefix + screenshotId,
             fullPath,
             fileName,
+            storageRoot,
             sha256,
             registeredAtUtc,
             registeredAtUtc.Add(ScreenshotResourceRetentionWindow));
@@ -63,6 +102,18 @@ public sealed partial class SessionManager
         }
 
         return resource;
+    }
+
+    internal string ResolveScreenshotResourcePathForRead(StoredScreenshotResource resource)
+    {
+        ThrowIfDisposed();
+        var fullPath = ResolveAndValidateScreenshotPath(resource.FilePath, "Screenshot file");
+        if (!IsPathWithinRoot(fullPath, resource.StorageRoot))
+        {
+            throw new InvalidOperationException("Screenshot file is outside the server-owned screenshot storage root.");
+        }
+
+        return fullPath;
     }
 
     internal bool TryGetScreenshotResource(string screenshotId, out StoredScreenshotResource resource)
@@ -89,6 +140,11 @@ public sealed partial class SessionManager
         if (removedAny)
         {
             CompactScreenshotResourceOrder();
+        }
+
+        if (_screenshotStorageRoots.Remove(processId, out var storageRoot))
+        {
+            TryDeleteScreenshotDirectory(storageRoot);
         }
     }
 
@@ -139,16 +195,21 @@ public sealed partial class SessionManager
             protectedFilePath is null ? null : Path.GetFullPath(protectedFilePath),
             StringComparison.OrdinalIgnoreCase))
         {
-            TryDeleteScreenshotFile(resource.FilePath);
+            TryDeleteScreenshotFile(resource);
         }
 
         return true;
     }
 
-    private static void TryDeleteScreenshotFile(string filePath)
+    private static void TryDeleteScreenshotFile(StoredScreenshotResource resource)
     {
         try
         {
+            if (!TryResolveOwnedScreenshotPath(resource, out var filePath))
+            {
+                return;
+            }
+
             if (File.Exists(filePath))
             {
                 File.Delete(filePath);
@@ -159,6 +220,50 @@ public sealed partial class SessionManager
         }
         catch (UnauthorizedAccessException)
         {
+        }
+    }
+
+    private static void TryDeleteScreenshotDirectory(string storageRoot)
+    {
+        try
+        {
+            storageRoot = ResolveAndValidateScreenshotPath(storageRoot, "Screenshot storage directory");
+            if (Directory.Exists(storageRoot))
+            {
+                Directory.Delete(storageRoot, recursive: false);
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+        catch (ArgumentException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    private static bool TryResolveOwnedScreenshotPath(
+        StoredScreenshotResource resource,
+        out string fullPath)
+    {
+        fullPath = string.Empty;
+        try
+        {
+            fullPath = ResolveAndValidateScreenshotPath(resource.FilePath, "Screenshot file");
+            return IsPathWithinRoot(fullPath, resource.StorageRoot);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
         }
     }
 
@@ -196,6 +301,47 @@ public sealed partial class SessionManager
 
         return true;
     }
+
+    private static string CreateScreenshotStorageRootPath(int processId)
+        => Path.GetFullPath(Path.Combine(
+            Path.GetTempPath(),
+            ScreenshotRootDirectoryName,
+            processId.ToString(CultureInfo.InvariantCulture),
+            Guid.NewGuid().ToString("N")));
+
+    private static void PrepareScreenshotStorageRoot(string root)
+        => CertificateStorageSecurity.PrepareDirectory(
+            root,
+            "screenshot storage directory",
+            reparsePointDetector: ScreenshotReparsePointChainDetectorOverrideForTesting);
+
+    private static string ResolveAndValidateScreenshotPath(string path, string description)
+    {
+        var fullPath = CertificateStorageSecurity.ResolveAndValidateLocalPath(
+            path,
+            nameof(path),
+            description);
+        EnsureNoScreenshotReparsePoint(fullPath, description);
+        return fullPath;
+    }
+
+    private static void EnsureNoScreenshotReparsePoint(string fullPath, string description)
+    {
+        var detector = ScreenshotReparsePointChainDetectorOverrideForTesting
+            ?? (path => CertificateStorageSecurity.ContainsReparsePointInPathChain(path));
+        if (detector(fullPath))
+        {
+            throw new InvalidOperationException($"{description} must not traverse symbolic links or reparse points.");
+        }
+    }
+
+    private static bool IsPathWithinRoot(string fullPath, string rootPath)
+    {
+        var normalizedRoot = Path.GetFullPath(rootPath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var normalizedPath = Path.GetFullPath(fullPath);
+        return normalizedPath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 internal sealed record StoredScreenshotResource(
@@ -204,6 +350,7 @@ internal sealed record StoredScreenshotResource(
     string ResourceUri,
     string FilePath,
     string FileName,
+    string StorageRoot,
     string? Sha256,
     DateTimeOffset RegisteredAtUtc,
     DateTimeOffset ExpiresAtUtc);

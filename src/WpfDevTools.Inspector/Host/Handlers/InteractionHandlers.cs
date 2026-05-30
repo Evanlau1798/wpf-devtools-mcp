@@ -110,9 +110,10 @@ public class InteractionHandlers : IRequestHandler
         var outputMode = ParameterHelpers.GetStringParam(@params, "outputMode");
         var maxWidth = ParameterHelpers.GetIntParam(@params, "maxWidth");
         var maxHeight = ParameterHelpers.GetIntParam(@params, "maxHeight");
+        var screenshotDirectory = ParameterHelpers.GetStringParam(@params, "screenshotDirectory");
 
         return await Task.Run(() =>
-            _interactionAnalyzer.TakeScreenshot(elementId, outputMode, maxWidth, maxHeight), cancellationToken).ConfigureAwait(false);
+            _interactionAnalyzer.TakeScreenshot(elementId, outputMode, maxWidth, maxHeight, screenshotDirectory), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleDragAndDropAsync(JsonElement? @params, CancellationToken cancellationToken)

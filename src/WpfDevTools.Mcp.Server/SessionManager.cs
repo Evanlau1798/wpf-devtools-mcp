@@ -399,7 +399,12 @@ public sealed partial class SessionManager : IDisposable
 
                 foreach (var screenshot in _screenshotResources.Values)
                 {
-                    TryDeleteScreenshotFile(screenshot.FilePath);
+                    TryDeleteScreenshotFile(screenshot);
+                }
+
+                foreach (var storageRoot in _screenshotStorageRoots.Values)
+                {
+                    TryDeleteScreenshotDirectory(storageRoot);
                 }
 
                 _pipeClients.Clear();
@@ -408,6 +413,7 @@ public sealed partial class SessionManager : IDisposable
                 _pendingEventReplay.Clear();
                 _screenshotResources.Clear();
                 _screenshotResourceOrder.Clear();
+                _screenshotStorageRoots.Clear();
                 _navigationStateStore.Clear();
             }
 

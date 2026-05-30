@@ -54,6 +54,15 @@ public class RepositoryHygieneTests
             "non-DocFX local documentation markdown that is ignored by .gitignore must not stay tracked unless it is an explicitly tracked repository contract");
     }
 
+    [Fact]
+    public void GitIgnore_ShouldExplainTrackedAgentsContractException()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".gitignore"));
+
+        content.Should().Contain("AGENTS.md remains a tracked repository contract",
+            ".gitignore still ignores local agent overlays, but the tracked repository contract should be explicit");
+    }
+
     [Theory]
     [InlineData("tests/WpfDevTools.Tests.Unit/Release/NewReleaseRegressionTests.cs")]
     [InlineData("tests/WpfDevTools.Tests.Unit/Release/NewInstallerGuardTests.cs")]

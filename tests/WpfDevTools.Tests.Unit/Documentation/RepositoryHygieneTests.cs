@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using FluentAssertions;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
@@ -226,6 +227,54 @@ public class RepositoryHygieneTests
         violations.Should().BeEmpty(
             "production verification should fail visibly when required runner capabilities or build artifacts are missing");
     }
+
+    [Fact]
+    public void EnvironmentMutatingTests_ShouldUseApprovedNonParallelCollection()
+    {
+        const string envMutationCall = "Environment." + "SetEnvironmentVariable(";
+        var approvedCollections = new[]
+        {
+            "ProcessEnvironment",
+            "SecurityState",
+            "TimingSensitive",
+            "ToolCallHelperState"
+        };
+        var testFiles = EnumeratePolicyFiles()
+            .Where(path => path.StartsWith("tests/WpfDevTools.Tests.Unit", StringComparison.Ordinal)
+                           && path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+            .Select(path => new { Path = path, Content = ReadRepoFile(path) })
+            .ToArray();
+
+        var violations = testFiles
+            .Where(file => file.Content.Contains(envMutationCall, StringComparison.Ordinal))
+            .Where(file => file.Content.Contains("[Fact", StringComparison.Ordinal)
+                           || file.Content.Contains("[Theory", StringComparison.Ordinal))
+            .Where(file => !HasApprovedCollection(file.Content, testFiles.Select(item => item.Content), approvedCollections))
+            .Select(file => file.Path)
+            .ToArray();
+
+        violations.Should().BeEmpty(
+            "tests that mutate process-wide environment variables must run in an approved non-parallel collection");
+    }
+
+    private static bool HasApprovedCollection(string content, IEnumerable<string> allTestFileContent, string[] approvedCollections)
+    {
+        if (ContainsApprovedCollection(content, approvedCollections))
+        {
+            return true;
+        }
+
+        var classNames = Regex.Matches(content, @"\bclass\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)")
+            .Select(match => match.Groups["name"].Value)
+            .ToArray();
+        return allTestFileContent.Any(candidate =>
+            ContainsApprovedCollection(candidate, approvedCollections)
+            && classNames.Any(name => candidate.Contains($"class {name}", StringComparison.Ordinal)));
+    }
+
+    private static bool ContainsApprovedCollection(string content, string[] approvedCollections) =>
+        approvedCollections.Any(collection =>
+            content.Contains($"[Collection(\"{collection}\")]", StringComparison.Ordinal));
 
     [Fact]
     public void VisualTreeAnalyzerTests_ShouldNotDocumentStaleDefaultDepth()

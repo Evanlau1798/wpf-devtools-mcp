@@ -2,6 +2,7 @@ using FluentAssertions;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
+[Collection("ProcessEnvironment")]
 public sealed class ReleaseScriptTestHarnessPowerShellTests
 {
     [Fact]

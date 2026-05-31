@@ -8,6 +8,7 @@ using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
+[Collection("ProcessEnvironment")]
 public sealed class McpToolExecutionPolicyTests
 {
     private static readonly HashSet<string> DestructivePolicyExceptions = new(StringComparer.Ordinal)

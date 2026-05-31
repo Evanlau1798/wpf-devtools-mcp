@@ -3,6 +3,7 @@ using WpfDevTools.Mcp.Server;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
+[Collection("ProcessEnvironment")]
 public sealed class McpServerConfigurationTests
 {
     private const string RateLimitEnvVar = "WPFDEVTOOLS_RATE_LIMIT_RPM";

@@ -332,6 +332,10 @@ function Assert-NoPreflightProcessesRemain {
 
 function Assert-NoUnexpectedIgnoredArtifacts {
     param([Parameter(Mandatory = $true)] [string]$RootPath)
+    $runtimeLogRoot = Join-Path $RootPath 'profile\Temp'
+    if (Test-Path -LiteralPath $runtimeLogRoot) {
+        Get-ChildItem -LiteralPath $runtimeLogRoot -Force -Filter 'WpfDevTools_McpServer_*.log' -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+    }
     $patterns = @('*.tmp', '*.log', '*.trx', 'coverage.opencover.xml', 'coverage-report.md')
     $unexpected = @()
     foreach ($pattern in $patterns) {

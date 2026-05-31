@@ -124,6 +124,61 @@ public sealed partial class SessionManager
         }
     }
 
+    internal bool TryDeleteUnregisteredScreenshotFile(int processId, string filePath)
+    {
+        ThrowIfDisposed();
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return false;
+        }
+
+        string? storageRoot;
+        lock (_lock)
+        {
+            _screenshotStorageRoots.TryGetValue(processId, out storageRoot);
+        }
+
+        if (string.IsNullOrWhiteSpace(storageRoot))
+        {
+            return false;
+        }
+
+        try
+        {
+            var fullPath = ResolveAndValidateScreenshotPath(filePath, "Screenshot file");
+            if (!IsPathWithinRoot(fullPath, storageRoot))
+            {
+                return false;
+            }
+
+            var fileName = Path.GetFileName(fullPath);
+            if (!IsValidScreenshotFileName(fileName))
+            {
+                return false;
+            }
+
+            if (File.Exists(fullPath))
+            {
+                File.Delete(fullPath);
+                return true;
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+        catch (ArgumentException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        return false;
+    }
+
     private void RemoveScreenshotResources(int processId)
     {
         var removedAny = false;
@@ -299,6 +354,10 @@ public sealed partial class SessionManager
 
         return true;
     }
+
+    private static bool IsValidScreenshotFileName(string fileName) =>
+        fileName.EndsWith(ScreenshotFileExtension, StringComparison.OrdinalIgnoreCase)
+        && IsValidScreenshotId(Path.GetFileNameWithoutExtension(fileName));
 
     private static string CreateScreenshotStorageRootPath(int processId)
         => ScreenshotLeasePaths.CreateStorageRootPath(

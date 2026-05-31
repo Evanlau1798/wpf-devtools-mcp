@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Shared.ErrorHandling;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -84,24 +85,66 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
             return result;
         }
 
+        string? fileName = null;
+        string? path = null;
+        string? screenshotId = null;
+        string? sha256 = null;
+        foreach (var property in payload.EnumerateObject())
+        {
+            if (IsLocalPathProperty(property.Name) &&
+                property.Value.ValueKind == JsonValueKind.String)
+            {
+                path = property.Value.GetString();
+                fileName ??= Path.GetFileName(path);
+                continue;
+            }
+
+            if (string.Equals(property.Name, "screenshotId", StringComparison.OrdinalIgnoreCase) &&
+                property.Value.ValueKind == JsonValueKind.String)
+            {
+                screenshotId = property.Value.GetString();
+                continue;
+            }
+
+            if (string.Equals(property.Name, "sha256", StringComparison.OrdinalIgnoreCase) &&
+                property.Value.ValueKind == JsonValueKind.String)
+            {
+                sha256 = property.Value.GetString();
+            }
+        }
+
+        StoredScreenshotResource? screenshot = null;
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(screenshotId))
+                {
+                    throw new ArgumentException("File-mode screenshot responses must include a screenshotId.");
+                }
+
+                screenshot = _sessionManager.RegisterScreenshotResource(processId, screenshotId, path, sha256);
+            }
+            catch (ArgumentException)
+            {
+                _sessionManager.TryDeleteUnregisteredScreenshotFile(processId, path);
+                return CreateUnregisteredScreenshotError(processId);
+            }
+            catch (InvalidOperationException)
+            {
+                _sessionManager.TryDeleteUnregisteredScreenshotFile(processId, path);
+                return CreateUnregisteredScreenshotError(processId);
+            }
+        }
+
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
         {
             writer.WriteStartObject();
-            string? fileName = null;
-            string? path = null;
-            string? screenshotId = null;
-            string? sha256 = null;
             foreach (var property in payload.EnumerateObject())
             {
                 if (IsLocalPathProperty(property.Name))
                 {
-                    if (property.Value.ValueKind == JsonValueKind.String)
-                    {
-                        path = property.Value.GetString();
-                        fileName ??= Path.GetFileName(path);
-                    }
-
                     continue;
                 }
 
@@ -110,26 +153,12 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
                     continue;
                 }
 
-                if (string.Equals(property.Name, "screenshotId", StringComparison.OrdinalIgnoreCase) &&
-                    property.Value.ValueKind == JsonValueKind.String)
-                {
-                    screenshotId = property.Value.GetString();
-                }
-
-                if (string.Equals(property.Name, "sha256", StringComparison.OrdinalIgnoreCase) &&
-                    property.Value.ValueKind == JsonValueKind.String)
-                {
-                    sha256 = property.Value.GetString();
-                }
-
                 property.WriteTo(writer);
             }
 
             writer.WriteString("outputMode", "file");
-            if (!string.IsNullOrWhiteSpace(path) &&
-                !string.IsNullOrWhiteSpace(screenshotId))
+            if (screenshot is not null)
             {
-                var screenshot = _sessionManager.RegisterScreenshotResource(processId, screenshotId, path, sha256);
                 writer.WriteString("resourceUri", screenshot.ResourceUri);
                 writer.WriteString("expiresAtUtc", screenshot.ExpiresAtUtc);
             }
@@ -145,6 +174,15 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
 
         return JsonDocument.Parse(stream.ToArray()).RootElement.Clone();
     }
+
+    private static ToolErrorPayload CreateUnregisteredScreenshotError(int processId) =>
+        new()
+        {
+            Error = "Inspector returned a file-mode screenshot that could not be registered as a server-owned resource.",
+            ErrorCode = ToolErrorCode.SecurityError.ToString(),
+            Hint = "Retry the screenshot request. If this repeats, reconnect to the target process before retrying.",
+            ProcessId = processId
+        };
 
     private static bool IsLocalPathProperty(string propertyName) =>
         string.Equals(propertyName, "path", StringComparison.OrdinalIgnoreCase)

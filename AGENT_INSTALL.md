@@ -64,11 +64,12 @@ Supported client ids must stay synchronized with the installer:
 
 3. Detect available MCP clients without writing files.
 4. Ask the user to confirm version, architecture, install root, and client registration target.
-5. Acquire the versioned release archive and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, and `release-assets.json`.
+5. Acquire the versioned release archive and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json`.
 6. Verify the archive hash against `SHA256SUMS.txt`.
 7. Verify canonical metadata from `release-assets.json`.
-8. Enforce signer pin policy with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required thumbprint trust root. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only a certificate subject additional constraint after the thumbprint is pinned. Report the signer pin that was checked.
-9. Only after confirmation, call the reviewed local `scripts/online-installer.ps1` or package-local `run.bat`.
+8. Verify `release-sbom.spdx.json` as the release asset SBOM sidecar. It is an asset-level release archive inventory, not a full package/dependency SBOM.
+9. Enforce signer pin policy with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required thumbprint trust root. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only a certificate subject additional constraint after the thumbprint is pinned. Report the signer pin that was checked.
+10. Only after confirmation, call the reviewed local `scripts/online-installer.ps1` or package-local `run.bat`.
 
    Reviewed local command shape after confirmation:
 
@@ -82,8 +83,8 @@ Supported client ids must stay synchronized with the installer:
      -NonInteractive -Force -OutputJson
    ```
 
-10. Inspect generated `client-registration` artifacts and verify the installed executable path.
-11. Report changed files or registrations without printing secrets.
+11. Inspect generated `client-registration` artifacts and verify the installed executable path.
+12. Report changed files or registrations without printing secrets.
 
 ## Prohibited
 
@@ -98,6 +99,6 @@ Supported client ids must stay synchronized with the installer:
 - Detected platform and architecture.
 - Detected clients and selected client id.
 - Release archive and sidecar paths.
-- Hash, metadata, and signer pin verification result.
+- Hash, metadata, release asset SBOM, and signer pin verification result.
 - The exact local installer command that will run after confirmation.
 - Installed executable path and client registration artifact path.

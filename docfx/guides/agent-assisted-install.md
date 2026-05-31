@@ -101,6 +101,7 @@ Acquire the matching sidecars:
 
 - `SHA256SUMS.txt`
 - `release-assets.json`
+- `release-sbom.spdx.json`
 
 Until public endpoint smoke checks pass, prefer a locally generated package or already downloaded release asset. Do not provide a remote one-line install command.
 
@@ -110,9 +111,10 @@ Before extraction or install:
 
 1. Verify the archive hash with `SHA256SUMS.txt`.
 2. Verify canonical asset metadata with `release-assets.json`.
-3. Verify the signed payload against a signer pin.
-4. Use `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required exact certificate thumbprint trust root when the verified sidecars are no longer adjacent.
-5. Use `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` only as a certificate subject additional constraint after the thumbprint is pinned.
+3. Verify `release-sbom.spdx.json` as the release asset SBOM sidecar. It is an asset-level release archive inventory, not a full package/dependency SBOM.
+4. Verify the signed payload against a signer pin.
+5. Use `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required exact certificate thumbprint trust root when the verified sidecars are no longer adjacent.
+6. Use `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` only as a certificate subject additional constraint after the thumbprint is pinned.
 
 The agent should report the signer pin policy and verification result, not certificate secrets.
 
@@ -154,7 +156,7 @@ Release signing helper path:
 - An agent may explain Authenticode signing concepts and local commands.
 - The user must keep the certificate and secrets local.
 - self-signed certificates are only for local/dev/test and are not production-trusted.
-- After signing local artifacts, regenerate `SHA256SUMS.txt` and `release-assets.json`.
+- After signing local artifacts, regenerate `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json`.
 
 ## Troubleshooting
 
@@ -168,5 +170,5 @@ Release signing helper path:
 ## Copyable agent prompt
 
 ```text
-Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Run powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, then present a plan that includes version, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, and signer pin policy. Ask for confirmation before mutation. After approval, run only the reviewed local installer or package-local run.bat, inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
+Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Run powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, then present a plan that includes version, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, release-sbom.spdx.json, and signer pin policy. Ask for confirmation before mutation. After approval, run only the reviewed local installer or package-local run.bat, inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
 ```

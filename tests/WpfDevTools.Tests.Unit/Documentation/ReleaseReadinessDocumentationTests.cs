@@ -44,6 +44,12 @@ public sealed partial class ReleaseReadinessDocumentationTests
             "maintainers need the exact signer pin variables called out before running signed Release packaging");
         content.Should().Contain("WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH",
             "the guide should explain how hosted or local packaging supplies the signing certificate to Publish-Release.ps1");
+        content.Should().Contain("release-sbom.spdx.json",
+            "the release guide should list every generated GitHub release sidecar");
+        content.Should().Contain("release asset SBOM",
+            "the release guide should state the SBOM sidecar scope");
+        content.Should().Contain("not a full package/dependency SBOM",
+            "the release guide should not overstate the current SBOM contents");
         content.Should().Contain("without uploading to GitHub",
             "the guide should include a local validation path that stops before publication");
         content.Should().Contain("Desktop development with C++",

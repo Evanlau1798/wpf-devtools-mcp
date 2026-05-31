@@ -96,6 +96,9 @@ public sealed class AgentInstallDocumentationTests
             var content = File.ReadAllText(GetRepoFilePath(file));
             content.Should().Contain("SHA256SUMS.txt");
             content.Should().Contain("release-assets.json");
+            content.Should().Contain("release-sbom.spdx.json");
+            content.Should().Contain("release asset SBOM");
+            content.Should().Contain("not a full package/dependency SBOM");
             content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
             content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT");
             content.Should().Contain("signer pin");

@@ -45,7 +45,7 @@ build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.
 2. Stops after package generation; it does not run the preflight build/test validation
 3. Does not stage GitHub Release assets or upload anything
 
-If you also want the local GitHub Release staging artifacts, run the preflight command above with `-VersionTag`. `Preflight-Release.ps1` builds, tests, produces packages, and then stages checksums plus upload metadata through `scripts/tools/packaging/Export-GitHubReleaseAssets.ps1`.
+If you also want the local GitHub Release staging artifacts, run the preflight command above with `-VersionTag`. `Preflight-Release.ps1` builds, tests, produces packages, and then stages checksums, canonical upload metadata, and the release asset SBOM through `scripts/tools/packaging/Export-GitHubReleaseAssets.ps1`. The generated `release-sbom.spdx.json` is an asset-level release archive inventory, not a full package/dependency SBOM.
 
 If the preflight reaches `x64`/`x86` successfully but fails on `ARM64`, that usually means the maintainer machine is missing the ARM64 C++ build components rather than a repository regression.
 
@@ -64,6 +64,7 @@ After a successful preflight run with `-VersionTag`, verify these outputs under 
 - `packages/release_<version>_win-arm64.zip`
 - `github-assets/<tag>/SHA256SUMS.txt`
 - `github-assets/<tag>/release-assets.json`
+- `github-assets/<tag>/release-sbom.spdx.json`
 - `github-assets/<tag>/upload-gh-release.ps1`
 
 ## 3. Release prerequisites
@@ -99,7 +100,7 @@ The workflow will:
 2. Materialize `WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64` into `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH`
 3. Rebuild and sign release packages for `x64`, `x86`, and `arm64` using `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`
 4. Download the staged `win-arm64` asset onto a self-hosted Windows ARM64 runner, install it, launch `wpf-devtools-arm64.exe`, and validate the online-installer lane before asset upload
-5. Stage checksums and metadata
+5. Stage checksums, metadata, and the release asset SBOM
 6. Execute the generated upload helper to attach assets to the GitHub Release only after the ARM64 runtime smoke lane passes
 
 When the workflow is triggered by `release: published`, the GitHub Release entry already exists before validation starts. If signing, packaging, upload, or ARM64 smoke validation fails, immediately retract the release entry or keep it marked as non-distributable until the workflow is rerun successfully.
@@ -109,7 +110,7 @@ The CI smoke lane in `./.github/workflows/ci-cd.yml` does not use the production
 ## 5. Recommended publish sequence
 
 1. Run the local preflight script
-2. Inspect the generated zips and checksum manifest
+2. Inspect the generated zips, checksum manifest, release-assets metadata, and release asset SBOM
 3. Create the Git tag locally and push it when you are satisfied
 4. Create a GitHub Release or run `workflow_dispatch` against the tag
 5. Verify the uploaded assets on the Release page and the online installer path

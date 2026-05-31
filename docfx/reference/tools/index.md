@@ -87,8 +87,8 @@ Key capabilities worth learning early:
 
 These values are generated from the runtime MCP contract resources. If a tool is added or renamed, a method signature changes, policy gates move, or response fields change, the documentation tests require this snapshot to be regenerated.
 
-- `wpf://contracts/tools` SHA-256: `64469596b1d266ff52f8a8db57a3c1d73db505b54ebfff8a223ecf9807e270eb`
-- `wpf://contracts/response` SHA-256: `3090f405fa426cbed17582affc781a6dc2ff68488914a1b7d98cbba8f160335d`
+- `wpf://contracts/tools` SHA-256: `8e29c6bef545528ed1337ea002624ab3a2d88c2714fa8dfffbe4b564cbdae8fd`
+- `wpf://contracts/response` SHA-256: `155f03c3110a1de5cd71ce58c9105fc3a26a63601db57356ef72526e8387bbb0`
 - Validation scope: `toolCount`, `name`, `title`, `parameters`, `requiredParameters`, `inputSchemaHash`, `outputSchemaHash`, `capabilityTags`, `policyCapabilityTags`, `annotations`, `parameterConstraints`, `parameterVocabularies`, and `highValueTools`.
 
 Use the category pages for the most important tools, semantics, and gotchas.

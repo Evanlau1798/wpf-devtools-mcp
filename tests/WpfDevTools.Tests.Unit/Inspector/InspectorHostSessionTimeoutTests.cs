@@ -2,6 +2,7 @@ using System.IO.Pipes;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Inspector.Host;
+using WpfDevTools.Shared.Enums;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Serialization;
 using WpfDevTools.Shared.Utilities;
@@ -113,6 +114,70 @@ public sealed class InspectorHostSessionTimeoutTests : IDisposable
         response.Should().NotBeNull();
         response!.Id.Should().Be("partial-frame-timeout-ping");
         response.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task NonCooperativeHandler_ShouldReturnTimeoutAndAllowNextClient()
+    {
+        var blocker = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        using var host = new InspectorHost(
+            pid,
+            $"WpfDevTools_{pid}",
+            authManager: null,
+            certManager: null,
+            FileLogLevel.Warning,
+            startupTimeout: TimeSpan.FromSeconds(2),
+            requestTimeout: TimeSpan.FromMilliseconds(250),
+            configureDispatcherForTesting: dispatcher =>
+                dispatcher.AddSimpleHandlerForTesting("never_complete", (_, _) => blocker.Task),
+            sessionReadTimeout: TimeSpan.FromSeconds(5));
+        host.Start();
+
+        using var stalledClient = new NamedPipeClientStream(
+            ".",
+            $"WpfDevTools_{pid}",
+            PipeDirection.InOut,
+            PipeOptions.Asynchronous);
+        await stalledClient.ConnectAsync(5_000);
+
+        await MessageFraming.WriteMessageAsync(stalledClient, JsonSerializer.Serialize(new InspectorRequest
+        {
+            Id = "non-cooperative-timeout",
+            Method = "never_complete",
+            Params = null
+        }));
+
+        using var readCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var timeoutJson = await MessageFraming.ReadMessageAsync(stalledClient, readCts.Token);
+        var timeoutResponse = JsonSerializer.Deserialize<InspectorResponse>(timeoutJson);
+        timeoutResponse.Should().NotBeNull();
+        timeoutResponse!.Id.Should().Be("non-cooperative-timeout");
+        timeoutResponse.Error.Should().NotBeNull();
+        timeoutResponse.Error!.Code.Should().Be(ErrorCode.Timeout);
+
+        using var nextClient = new NamedPipeClientStream(
+            ".",
+            $"WpfDevTools_{pid}",
+            PipeDirection.InOut,
+            PipeOptions.Asynchronous);
+        await nextClient.ConnectAsync(3_000);
+
+        await MessageFraming.WriteMessageAsync(nextClient, JsonSerializer.Serialize(new InspectorRequest
+        {
+            Id = "post-timeout-ping",
+            Method = "ping",
+            Params = null
+        }));
+
+        using var pingCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var pingJson = await MessageFraming.ReadMessageAsync(nextClient, pingCts.Token);
+        var pingResponse = JsonSerializer.Deserialize<InspectorResponse>(pingJson);
+        pingResponse.Should().NotBeNull();
+        pingResponse!.Id.Should().Be("post-timeout-ping");
+        pingResponse.Error.Should().BeNull();
+
+        blocker.TrySetResult(new { success = true });
     }
 
     private static async Task SendPartialFrameAsync(NamedPipeClientStream client, int declaredPayloadLength, byte[] payloadBytes)

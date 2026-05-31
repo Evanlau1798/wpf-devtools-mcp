@@ -2,6 +2,7 @@
 using System.IO;
 using System.Text.Json;
 using WpfDevTools.Shared.Configuration;
+using WpfDevTools.Shared.Enums;
 using WpfDevTools.Shared.Messages;
 using WpfDevTools.Shared.Serialization;
 using WpfDevTools.Shared.Utilities;
@@ -69,6 +70,11 @@ public sealed partial class InspectorHost
                 // Send response
                 var responseJson = JsonSerializer.Serialize(response, IpcSerializerOptions);
                 await MessageFraming.WriteMessageAsync(stream, responseJson, cancellationToken).ConfigureAwait(false);
+
+                if (response.Error?.Code == ErrorCode.Timeout)
+                {
+                    break;
+                }
             }
         }
         catch (IOException)
@@ -133,18 +139,75 @@ public sealed partial class InspectorHost
         InspectorRequest request,
         CancellationToken cancellationToken)
     {
-        // Delegate to RequestDispatcher with timeout
         var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(InspectorConfig.RequestTimeout);
+        var dispatchTask = _dispatcher.DispatchAsync(request, timeoutCts.Token);
+        var ownsTimeoutCts = true;
 
         try
         {
-            return await _dispatcher.DispatchAsync(request, timeoutCts.Token).ConfigureAwait(false);
+            var timeoutTask = Task.Delay(_requestTimeout, cancellationToken);
+            var completedTask = await Task.WhenAny(dispatchTask, timeoutTask).ConfigureAwait(false);
+            if (ReferenceEquals(completedTask, dispatchTask))
+            {
+                return await dispatchTask.ConfigureAwait(false);
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            timeoutCts.Cancel();
+            timeoutCts.Dispose();
+            ownsTimeoutCts = false;
+            ObserveTimedOutDispatchTask(dispatchTask);
+            return CreateHardTimeoutResponse(request);
         }
         finally
         {
-            timeoutCts.Dispose();
+            if (ownsTimeoutCts)
+            {
+                timeoutCts.Dispose();
+            }
         }
+    }
+
+    private InspectorResponse CreateHardTimeoutResponse(InspectorRequest request)
+    {
+        var timeoutSeconds = Math.Max(1, (int)Math.Ceiling(_requestTimeout.TotalSeconds));
+        return new InspectorResponse
+        {
+            Id = request.Id,
+            CorrelationId = request.CorrelationId,
+            Result = null,
+            Error = new InspectorError
+            {
+                Code = ErrorCode.Timeout,
+                Message = "Request cancelled or timed out",
+                Data = JsonSerializer.SerializeToElement(new
+                {
+                    stateAfterTimeoutUnknown = true,
+                    requiresReconnect = true,
+                    processId = _processId,
+                    timeoutSeconds,
+                    suggestedAction = $"Reconnect to process {_processId} and re-read target state before retrying.",
+                    hint = "The request timed out while dispatcher work may still be pending or running."
+                })
+            }
+        };
+    }
+
+    private static void ObserveTimedOutDispatchTask(
+        Task<InspectorResponse> dispatchTask)
+    {
+        _ = dispatchTask.ContinueWith(
+            completedTask =>
+            {
+                _ = completedTask.Exception;
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     private async Task SendErrorResponseAsync(

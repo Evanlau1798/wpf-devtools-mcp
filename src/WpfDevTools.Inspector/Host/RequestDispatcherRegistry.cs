@@ -71,13 +71,14 @@ internal static class RequestDispatcherRegistry
         var eventHandlers = new EventHandlers(eventAnalyzer, dependencyPropertyAnalyzer.ClearTransientWatchers);
         var performanceHandlers = new PerformanceHandlers(performanceAnalyzer);
         var sceneSummaryHandlers = new SceneSummaryHandlers(uiSummaryAnalyzer, formSummaryAnalyzer);
-        var elementSnapshotHandlers = new ElementSnapshotHandlers(
-            treeHandlers,
-            bindingHandlers,
-            mvvmHandlers,
-            styleHandlers,
-            layoutHandlers,
-            dependencyPropertyHandlers);
+        var elementSnapshotAggregator = new ElementSnapshotAggregator(
+            visualTreeAnalyzer,
+            bindingAnalyzer,
+            mvvmAnalyzer,
+            styleAnalyzer,
+            layoutAnalyzer,
+            dependencyPropertyAnalyzer);
+        var elementSnapshotHandlers = new ElementSnapshotHandlers(elementSnapshotAggregator);
 
         IRequestHandler[] handlers =
         [

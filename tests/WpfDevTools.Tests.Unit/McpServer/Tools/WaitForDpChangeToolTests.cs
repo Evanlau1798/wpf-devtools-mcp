@@ -78,6 +78,54 @@ public sealed class WaitForDpChangeToolTests
     }
 
     [Fact]
+    public async Task Execute_WhenBudgetExhaustedAfterInitialSnapshot_ShouldNotIssueFinalSnapshot()
+    {
+        const int processId = 4950;
+        var state = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["currentValue"] = "before"
+        };
+        using var connected = await ConnectedWaitSessionBuilder.CreateAsync(
+            processId,
+            state,
+            static async (request, currentState) =>
+            {
+                if (request.Method == "get_dp_value_source")
+                {
+                    await Task.Delay(30);
+                    return new
+                    {
+                        success = true,
+                        propertyName = "Text",
+                        baseValueSource = "Local",
+                        currentValue = currentState["currentValue"],
+                        effectiveValue = currentState["currentValue"]
+                    };
+                }
+
+                return new { success = true };
+            });
+        var waitTool = new WaitForDpChangeTool(connected.SessionManager);
+
+        var result = await waitTool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId,
+                propertyName = "Text",
+                timeoutMs = 1,
+                pollIntervalMs = 50,
+                expectedValue = JsonSerializer.SerializeToElement("after")
+            }),
+            CancellationToken.None);
+
+        var resultJson = JsonSerializer.SerializeToElement(result);
+        resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("timedOut").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("completionReason").GetString().Should().Be("TimedOut");
+        connected.RequestMethods.Should().ContainSingle(method => method == "get_dp_value_source");
+    }
+
+    [Fact]
     public async Task Execute_WhenCancelledDuringPollDelay_ShouldNotIssueAdditionalSnapshots()
     {
         const int processId = 4848;

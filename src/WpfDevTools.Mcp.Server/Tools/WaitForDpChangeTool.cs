@@ -10,6 +10,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 /// </summary>
 public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
 {
+    private const int FinalSnapshotTimeoutMs = 1000;
     private static readonly AsyncLocal<Func<Task>?> BeforePollDelayForTestingValue = new();
 
     internal static Func<Task>? BeforePollDelayForTesting
@@ -118,6 +119,7 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
             return initialSnapshot.Error;
         }
 
+        var latestSnapshot = initialSnapshot;
         var matchedExpectedValueAtStart = expectedValue.HasValue &&
             JsonValueMatchesFormatted(expectedValue.Value, initialSnapshot.FormattedValue);
         var observedChangeSinceStart = false;
@@ -176,6 +178,7 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
             }
 
             observedChangeSinceStart |= HasObservedChange(initialSnapshot, afterTriggerSnapshot);
+            latestSnapshot = afterTriggerSnapshot;
 
             if (stopwatch.ElapsedMilliseconds >= effectiveTimeoutMs)
             {
@@ -236,6 +239,7 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
             }
 
             observedChangeSinceStart |= HasObservedChange(initialSnapshot, currentSnapshot);
+            latestSnapshot = currentSnapshot;
 
             if (HasReachedTarget(initialSnapshot, currentSnapshot, expectedValue, matchedExpectedValueAtStart, observedChangeSinceStart))
             {
@@ -254,7 +258,44 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
             }
         }
 
-        var finalSnapshot = await ReadSnapshotAsync(processId, elementId, propertyName, cancellationToken).ConfigureAwait(false);
+        if (stopwatch.ElapsedMilliseconds >= effectiveTimeoutMs && pollCount == 0)
+        {
+            return BuildWaitResult(
+                changed: false,
+                timedOut: true,
+                propertyName,
+                elementId,
+                initialSnapshot,
+                latestSnapshot,
+                stopwatch.ElapsedMilliseconds,
+                pollCount,
+                observedChange: observedChangeSinceStart,
+                matchedExpectedValueAtStart,
+                completionReason: "TimedOut");
+        }
+
+        var finalSnapshotResult = await TryReadFinalSnapshotAsync(
+            processId,
+            elementId,
+            propertyName,
+            cancellationToken).ConfigureAwait(false);
+        if (!finalSnapshotResult.HasValue)
+        {
+            return BuildWaitResult(
+                changed: false,
+                timedOut: true,
+                propertyName,
+                elementId,
+                initialSnapshot,
+                latestSnapshot,
+                stopwatch.ElapsedMilliseconds,
+                pollCount,
+                observedChange: observedChangeSinceStart,
+                matchedExpectedValueAtStart,
+                completionReason: "TimedOut");
+        }
+
+        var finalSnapshot = finalSnapshotResult.Value;
         if (finalSnapshot.Error != null)
         {
             return finalSnapshot.Error;
@@ -290,6 +331,29 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
                 observedChange: observedChangeSinceStart,
                 matchedExpectedValueAtStart,
             completionReason: "TimedOut");
+    }
+
+    private async Task<DpSnapshot?> TryReadFinalSnapshotAsync(
+        int processId,
+        string? elementId,
+        string propertyName,
+        CancellationToken cancellationToken)
+    {
+        using var finalReadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        finalReadCts.CancelAfter(FinalSnapshotTimeoutMs);
+
+        try
+        {
+            return await ReadSnapshotAsync(
+                processId,
+                elementId,
+                propertyName,
+                finalReadCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
     }
 
     private async Task<DpSnapshot> ReadSnapshotAsync(

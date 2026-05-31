@@ -316,6 +316,7 @@ if ($NoWait) {
 
 $deadline = [DateTime]::UtcNow.AddSeconds($WaitTimeoutSeconds)
 $startupDeadline = [DateTime]::UtcNow.AddSeconds($GuestStartupTimeoutSeconds)
+$guestStarted = $false
 while ([DateTime]::UtcNow -lt $deadline) {
     if (Test-Path -LiteralPath $resultPath) {
         try {
@@ -334,9 +335,14 @@ while ([DateTime]::UtcNow -lt $deadline) {
         if ($result.StartsWith("FAIL $runId ", [System.StringComparison]::Ordinal)) {
             throw $result
         }
+
+        if (-not $guestStarted -and $result.StartsWith("RUNNING $runId ", [System.StringComparison]::Ordinal)) {
+            $guestStarted = $true
+            Write-Host $result
+        }
     }
 
-    if ([DateTime]::UtcNow -ge $startupDeadline) {
+    if (-not $guestStarted -and [DateTime]::UtcNow -ge $startupDeadline) {
         $cleanupCommand = ".\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot `"$sandboxOutputPath`" -WhatIf"
         throw (
             "Windows Sandbox guest did not write RUNNING/PASS/FAIL within $GuestStartupTimeoutSeconds seconds. " +

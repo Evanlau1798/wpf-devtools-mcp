@@ -363,6 +363,7 @@ $resolvedSmokeTargetPath = ''
 $preflightFailureMessage = ''
 
 Start-Transcript -Path $transcriptPath -Force | Out-Null
+Write-PreflightResult -Value "RUNNING $RunId $timestamp ArtifactPreflight" -Encoding $ascii
 try {
     Enable-InstallerTestHarness
 

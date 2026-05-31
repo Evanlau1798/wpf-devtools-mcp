@@ -28,6 +28,16 @@ public sealed class SandboxCiLaunchGuardContractTests
         script.Should().Contain("Inspect the generated .wsb file");
     }
 
+    [Fact]
+    public void InvokeWindowsSandboxCi_ShouldTreatRunningStatusAsGuestStartup()
+    {
+        var script = ReadSandboxLauncher();
+
+        script.Should().Contain("$guestStarted");
+        script.Should().Contain("StartsWith(\"RUNNING $runId \"");
+        script.Should().Contain("if (-not $guestStarted -and [DateTime]::UtcNow -ge $startupDeadline)");
+    }
+
     private static string ReadSandboxLauncher()
         => File.ReadAllText(
             WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(

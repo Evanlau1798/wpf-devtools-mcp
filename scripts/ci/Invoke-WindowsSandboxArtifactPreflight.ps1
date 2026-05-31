@@ -3,6 +3,8 @@ param(
     [string]$WorkRoot = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path 'tmp\sandbox-ci\artifact-preflight'),
     [ValidateRange(1, 86400)]
     [int]$WaitTimeoutSeconds = 1800,
+    [ValidateRange(15, 1800)]
+    [int]$GuestStartupTimeoutSeconds = 600,
     [ValidateSet('x64', 'x86')]
     [string]$Architecture = 'x64',
     [ValidateSet('claude-code', 'codex', 'cursor', 'vscode', 'visual-studio', 'claude-desktop', 'other')]
@@ -80,6 +82,37 @@ function Resolve-WindowsSandboxPath {
     }
 
     return [string]$command.Source
+}
+
+function Get-ActiveWindowsSandboxProcessSummaries {
+    $sandboxProcessNames = @(
+        'WindowsSandbox',
+        'WindowsSandboxClient',
+        'WindowsSandboxRemoteSession',
+        'WindowsSandboxServer',
+        'vmmemWindowsSandbox'
+    )
+
+    return @(Get-Process -ErrorAction SilentlyContinue |
+        Where-Object { $sandboxProcessNames -contains $_.ProcessName } |
+        Sort-Object ProcessName, Id |
+        ForEach-Object { "$($_.ProcessName):$($_.Id)" })
+}
+
+function Assert-NoActiveWindowsSandboxProcesses {
+    param([Parameter(Mandatory = $true)] [string]$SandboxOutputPath)
+
+    $activeSandboxProcesses = @(Get-ActiveWindowsSandboxProcessSummaries)
+    if ($activeSandboxProcesses.Count -eq 0) {
+        return
+    }
+
+    $cleanupCommand = ".\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot `"$SandboxOutputPath`" -WhatIf"
+    throw (
+        "Existing Windows Sandbox process(es) were found before launch: $($activeSandboxProcesses -join ', '). " +
+        "Close Windows Sandbox or inspect cleanup candidates with: $cleanupCommand. " +
+        "After verifying the candidates are Windows Sandbox compute systems, rerun cleanup with -Force or -Confirm:`$false."
+    )
 }
 
 function New-MappedFolderXml {
@@ -194,6 +227,8 @@ Write-Host "Architecture: $Architecture"
 Write-Host "Client: $Client"
 Write-Host "DotNet channel: $DotNetChannel"
 Write-Host "Run ID: $runId"
+Write-Host "Wait timeout seconds: $WaitTimeoutSeconds"
+Write-Host "Guest startup timeout seconds: $GuestStartupTimeoutSeconds"
 Write-Host "Sandbox host priority: $SandboxHostPriority"
 if (-not [string]::IsNullOrWhiteSpace($SandboxHostProcessorAffinityHex)) {
     Write-Host "Sandbox host processor affinity: $SandboxHostProcessorAffinityHex"
@@ -215,6 +250,7 @@ if ([string]::IsNullOrWhiteSpace($sandboxPath)) {
     throw 'WindowsSandbox.exe was not found. Enable Windows Sandbox from Windows Features, reboot, then rerun this script. The .wsb file was still generated.'
 }
 
+Assert-NoActiveWindowsSandboxProcesses -SandboxOutputPath $sandboxOutputPath
 Start-Process -FilePath $sandboxPath -ArgumentList @("`"$configPath`"") | Out-Null
 if (-not $SkipSandboxHostScheduling) {
     Set-SandboxHostScheduling -PriorityClass $SandboxHostPriority -ProcessorAffinityHex $SandboxHostProcessorAffinityHex
@@ -225,6 +261,8 @@ if ($NoWait) {
 }
 
 $deadline = [DateTime]::UtcNow.AddSeconds($WaitTimeoutSeconds)
+$startupDeadline = [DateTime]::UtcNow.AddSeconds($GuestStartupTimeoutSeconds)
+$guestStarted = $false
 while ([DateTime]::UtcNow -lt $deadline) {
     if (Test-Path -LiteralPath $resultPath) {
         try {
@@ -243,6 +281,21 @@ while ([DateTime]::UtcNow -lt $deadline) {
         if ($result.StartsWith("FAIL $runId ", [System.StringComparison]::Ordinal)) {
             throw $result
         }
+
+        if (-not $guestStarted -and $result.StartsWith("RUNNING $runId ", [System.StringComparison]::Ordinal)) {
+            $guestStarted = $true
+            Write-Host $result
+        }
+    }
+
+    if (-not $guestStarted -and [DateTime]::UtcNow -ge $startupDeadline) {
+        $cleanupCommand = ".\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot `"$sandboxOutputPath`" -WhatIf"
+        throw (
+            "Windows Sandbox artifact preflight guest did not write RUNNING/PASS/FAIL within $GuestStartupTimeoutSeconds seconds. " +
+            "RunId: $runId. Inspect the generated .wsb file: $configPath. " +
+            "Inspect cleanup candidates with: $cleanupCommand. " +
+            "After verifying the candidates are Windows Sandbox compute systems, rerun cleanup with -Force or -Confirm:`$false."
+        )
     }
 
     Start-Sleep -Seconds 5

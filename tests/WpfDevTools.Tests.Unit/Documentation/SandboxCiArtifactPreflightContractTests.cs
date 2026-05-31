@@ -200,6 +200,44 @@ public sealed partial class SandboxCiScriptContractTests
     }
 
     [Fact]
+    public void InvokeWindowsSandboxArtifactPreflight_ShouldFailFastWhenSandboxProcessesAlreadyExist()
+    {
+        var launcher = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "Invoke-WindowsSandboxArtifactPreflight.ps1");
+
+        launcher.Should().Contain("Assert-NoActiveWindowsSandboxProcesses");
+        launcher.Should().Contain("WindowsSandboxRemoteSession");
+        launcher.Should().Contain("WindowsSandboxServer");
+        launcher.Should().Contain("vmmemWindowsSandbox");
+        launcher.Should().Contain("Existing Windows Sandbox process");
+        launcher.Should().Contain("Stop-WindowsSandboxHcs.ps1");
+    }
+
+    [Fact]
+    public void InvokeWindowsSandboxArtifactPreflight_ShouldBoundGuestStartupWaitSeparatelyFromFullTimeout()
+    {
+        var launcher = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "Invoke-WindowsSandboxArtifactPreflight.ps1");
+
+        launcher.Should().Contain("GuestStartupTimeoutSeconds");
+        launcher.Should().Contain("$startupDeadline");
+        launcher.Should().Contain("$guestStarted");
+        launcher.Should().Contain("StartsWith(\"RUNNING $runId \"");
+        launcher.Should().Contain("did not write RUNNING/PASS/FAIL");
+        launcher.Should().Contain("Inspect the generated .wsb file");
+    }
+
+    [Fact]
+    public void SandboxArtifactPreflightRunner_ShouldWriteRunningStatusBeforeLongWork()
+    {
+        var runner = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "SandboxCi.ArtifactPreflight.ps1");
+
+        var runningIndex = runner.IndexOf("RUNNING $RunId", StringComparison.Ordinal);
+        var expandArchiveIndex = runner.IndexOf("Expand-Archive", StringComparison.Ordinal);
+
+        runningIndex.Should().BeGreaterThanOrEqualTo(0);
+        runningIndex.Should().BeLessThan(expandArchiveIndex);
+    }
+
+    [Fact]
     public void InvokeWindowsSandboxArtifactPreflight_ShouldRejectUnsupportedArgumentsBeforeGeneratingConfig()
     {
         var tempRoot = CreateTempRoot();

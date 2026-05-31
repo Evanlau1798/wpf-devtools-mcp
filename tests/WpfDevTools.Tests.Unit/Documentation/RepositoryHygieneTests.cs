@@ -56,6 +56,38 @@ public class RepositoryHygieneTests
     }
 
     [Fact]
+    public void TrackedMarkdownFiles_ShouldStayInsideDocfxOrApprovedRepositoryContracts()
+    {
+        var approvedRootMarkdown = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "AGENTS.md",
+            "AGENT_INSTALL.md",
+            "CODE_SIGNING.md",
+            "CONTRIBUTING.md",
+            "EXAMPLES.md",
+            "README.md",
+            "RELEASING.md",
+            "SECURITY.md"
+        };
+        var approvedNonDocfxMarkdown = new HashSet<string>(approvedRootMarkdown, StringComparer.Ordinal)
+        {
+            "examples/layout-process-and-agent-tips.md",
+            "examples/scene-inspection.md",
+            "examples/state-and-interaction.md",
+            "src/WpfDevTools.Inspector.Sdk/README.md"
+        };
+
+        var forbiddenTrackedMarkdown = RunGitLines("ls-files", "*.md")
+            .Select(path => path.Replace('\\', '/'))
+            .Where(path => !path.StartsWith("docfx/", StringComparison.Ordinal))
+            .Where(path => !approvedNonDocfxMarkdown.Contains(path))
+            .ToArray();
+
+        forbiddenTrackedMarkdown.Should().BeEmpty(
+            "development plans, checklists, docs/ notes, and ad hoc markdown must not be tracked; product documentation markdown belongs under docfx/ or an explicit root contract");
+    }
+
+    [Fact]
     public void GitIgnore_ShouldExplainTrackedAgentsContractException()
     {
         var content = File.ReadAllText(GetRepoFilePath(".gitignore"));

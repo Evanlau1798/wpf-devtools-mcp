@@ -230,19 +230,31 @@ internal static partial class McpToolOutputSchemas
         => ObjectSchema("Recommended follow-up action.", new()
         {
             ["tool"] = String("Recommended MCP tool name."),
-            ["label"] = String("Human-readable action label."),
+            ["params"] = MapOf("Suggested tool arguments.", JsonValue()),
             ["reason"] = String("Why this action is useful."),
-            ["priority"] = String("Priority or ordering hint."),
-            ["args"] = MapOf("Suggested tool arguments.", JsonValue())
+            ["kind"] = Integer("Numeric ToolNextStepKind value."),
+            ["priority"] = Integer("Ordering hint; lower values sort earlier."),
+            ["preconditions"] = ArrayOfString("Conditions to satisfy before using this step."),
+            ["expectedOutcome"] = String("Expected result of the follow-up action."),
+            ["workflowId"] = String("Workflow identifier when this step belongs to a guided loop."),
+            ["prefetchTools"] = ArrayOfString("Useful tools to prefetch before this step."),
+            ["whyNow"] = String("Why this step is relevant now."),
+            ["confidence"] = String("Confidence hint for the recommendation.")
         });
 
     private static object ContextRef()
         => ObjectSchema("Structured reference for a follow-up tool call.", new()
         {
-            ["kind"] = String("Reference kind."),
+            ["type"] = String("Reference type discriminator."),
             ["elementId"] = String("Element id."),
             ["processId"] = Integer("Process id."),
             ["propertyName"] = String("Property name."),
+            ["bindingPath"] = String("Binding path when the reference describes a binding issue."),
+            ["diagnosis"] = String("Diagnostic classification for issue references."),
+            ["snapshotId"] = String("Snapshot id for mutation-session references."),
+            ["workflowId"] = String("Workflow id associated with the reference."),
+            ["sourceTool"] = String("Tool that produced or should consume this context."),
+            ["rootCause"] = String("Visibility or diagnostic root cause summary."),
             ["value"] = JsonValue()
         });
 

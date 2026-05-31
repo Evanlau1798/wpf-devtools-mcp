@@ -46,6 +46,22 @@ public sealed class McpToolOutputSchemaTests
             .TryGetProperty("contextRefs", out var contextRefs)
             .Should().BeTrue();
         contextRefs.GetProperty("type").GetString().Should().Be("array");
+        var contextRefProperties = contextRefs.GetProperty("items").GetProperty("properties");
+        contextRefProperties.TryGetProperty("type", out _).Should().BeTrue();
+        contextRefProperties.TryGetProperty("kind", out _).Should().BeFalse(
+            "ToolNavigationReference serializes its discriminator as type");
+
+        var nextSteps = properties.GetProperty("nextSteps");
+        var nextStepProperties = nextSteps.GetProperty("items").GetProperty("properties");
+        nextStepProperties.TryGetProperty("params", out _).Should().BeTrue(
+            "ToolNextStep serializes suggested call arguments as params");
+        nextStepProperties.TryGetProperty("kind", out _).Should().BeTrue();
+        nextStepProperties.TryGetProperty("preconditions", out _).Should().BeTrue();
+        nextStepProperties.TryGetProperty("expectedOutcome", out _).Should().BeTrue();
+        nextStepProperties.TryGetProperty("workflowId", out _).Should().BeTrue();
+        nextStepProperties.TryGetProperty("prefetchTools", out _).Should().BeTrue();
+        nextStepProperties.TryGetProperty("args", out _).Should().BeFalse(
+            "nextSteps no longer emit the legacy args field");
     }
 
     [Theory]
@@ -391,6 +407,7 @@ public sealed class McpToolOutputSchemaTests
         }
 
         if (schema.TryGetProperty("type", out var type)
+            && type.ValueKind == JsonValueKind.String
             && type.GetString() == "array"
             && schema.TryGetProperty("items", out var items)
             && IsBareObjectSchema(items))

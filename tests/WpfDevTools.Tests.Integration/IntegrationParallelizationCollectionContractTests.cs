@@ -156,25 +156,73 @@ public sealed class IntegrationParallelizationCollectionContractTests
     }
 
     [Fact]
+    public void LiveTestProcessCleanupBehaviorTest_ShouldFailSafeDisposeSpawnedProcess()
+    {
+        var source = File.ReadAllText(ReleasePackagingTestHarness.GetRepoFilePath(
+            "tests/WpfDevTools.Tests.Integration/IntegrationParallelizationCollectionContractTests.cs"));
+        var start = source.LastIndexOf(
+            "public void LiveTestProcessCleanup_StopAndDispose_ShouldKillRunningProcessAndDisposeHandle",
+            StringComparison.Ordinal);
+        var end = source.IndexOf(
+            "public void SecureLiveSession_Dispose_ShouldDeleteCertificateDirectory",
+            start,
+            StringComparison.Ordinal);
+
+        start.Should().BeGreaterThanOrEqualTo(0);
+        end.Should().BeGreaterThan(start);
+        var method = source[start..end];
+        method.Should().Contain("try");
+        method.Should().Contain("finally");
+        method.Should().Contain("process.Kill(entireProcessTree: true)");
+        method.Should().Contain("process.Dispose();");
+    }
+
+    [Fact]
     public void LiveTestProcessCleanup_StopAndDispose_ShouldKillRunningProcessAndDisposeHandle()
     {
-        var process = Process.Start(new ProcessStartInfo
+        Process? process = null;
+        try
         {
-            FileName = "powershell",
-            Arguments = "-NoLogo -NoProfile -Command \"Start-Sleep -Seconds 30\"",
-            CreateNoWindow = true,
-            UseShellExecute = false
-        });
-        process.Should().NotBeNull();
+            process = Process.Start(new ProcessStartInfo
+            {
+                FileName = "powershell",
+                Arguments = "-NoLogo -NoProfile -Command \"Start-Sleep -Seconds 30\"",
+                CreateNoWindow = true,
+                UseShellExecute = false
+            });
+            process.Should().NotBeNull();
 
-        LiveTestProcessCleanup.StopAndDispose(process, timeoutMilliseconds: 5000);
+            LiveTestProcessCleanup.StopAndDispose(process, timeoutMilliseconds: 5000);
+            var disposedProcess = process;
+            process = null;
 
-        Action readDisposedHandle = () => _ = process!.Handle;
-        readDisposedHandle.Should().Throw<Exception>(
-            "live process cleanup must dispose or detach handles even after killing a running TestApp process")
-            .Where(ex =>
-                ex.GetType() == typeof(ObjectDisposedException)
-                || ex.GetType() == typeof(InvalidOperationException));
+            Action readDisposedHandle = () => _ = disposedProcess!.Handle;
+            readDisposedHandle.Should().Throw<Exception>(
+                "live process cleanup must dispose or detach handles even after killing a running TestApp process")
+                .Where(ex =>
+                    ex.GetType() == typeof(ObjectDisposedException)
+                    || ex.GetType() == typeof(InvalidOperationException));
+        }
+        finally
+        {
+            if (process is not null)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+                {
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+        }
     }
 
     [Fact]

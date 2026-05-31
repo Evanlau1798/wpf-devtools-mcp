@@ -5,7 +5,8 @@
 | Target application | Inspector runtime path | Notes |
 | --- | --- | --- |
 | .NET Framework WPF | `net48` inspector path | Requires matching bootstrapper architecture |
-| .NET 6/7/8+ WPF | `net8.0-windows` inspector path | Requires matching bootstrapper architecture |
+| .NET 8+ WPF | `net8.0-windows` inspector path | Requires matching bootstrapper architecture |
+| .NET 6/7 WPF | No shipped raw-injection inspector path | Not currently supported by raw injection; upgrade the target app to .NET 8+ or wait for explicit SDK/inspector target expansion |
 
 ## Architecture compatibility
 
@@ -31,6 +32,7 @@ Architecture matching is mandatory for raw injection/bootstrapper fallback. SDK-
 - Use `get_processes` as the runtime architecture truth source.
 - Treat x86 and x64 as separate deployment targets.
 - When you own the target app, prefer SDK-hosted reuse; raw injection remains the fallback path for zero-instrumentation diagnostics.
+- .NET 6/7 WPF targets do not have a shipped raw-injection inspector path today. Do not assume `net8.0-windows` can be injected into those processes.
 - If single-file packaging blocks raw injection, start the target-side SDK host with `InspectorSdk.Initialize()` and matching transport settings so `connect()` can reuse it.
 - Native AOT remains unsupported; SDK-hosted reuse is not a Native AOT workaround.
 - Validate bootstrapper and inspector selection before calling `connect` in automation.

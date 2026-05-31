@@ -30,4 +30,22 @@ public sealed class ServerDistributionCompatibilityDocumentationTests
         content.Should().Contain("RequiresUnreferencedCode");
         content.Should().Contain("non-AOT");
     }
+
+    [Theory]
+    [InlineData("docfx/production/compatibility-matrix.md")]
+    [InlineData("docfx/zh-tw/production/compatibility-matrix.md")]
+    public void CompatibilityMatrix_ShouldMatchShippedRawInjectionRuntimePaths(string relativePath)
+    {
+        var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(relativePath));
+        var inspectorProject = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(
+            "src/WpfDevTools.Inspector/WpfDevTools.Inspector.csproj"));
+        var runtimeSelector = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(
+            "src/WpfDevTools.Injector/RuntimeSelector.cs"));
+
+        inspectorProject.Should().Contain("<TargetFrameworks>net8.0-windows;net48</TargetFrameworks>");
+        runtimeSelector.Should().Contain("runtime == TargetRuntime.NetFramework ? \"net48\" : \"net8.0-windows\"");
+        content.Should().Contain(".NET 8+ WPF");
+        content.Should().Contain(".NET 6/7 WPF");
+        content.Should().NotContain(".NET 6/7/8+ WPF");
+    }
 }

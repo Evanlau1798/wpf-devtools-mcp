@@ -30,7 +30,7 @@ public sealed class AuthenticationZeroizationContractTests
     [Fact]
     public void InspectorHostAuthentication_ShouldZeroChallengeResponseAndSecretCopies()
     {
-        var source = ReadSource("src/WpfDevTools.Inspector/Host/InspectorHostSecurity.cs");
+        var source = ReadSource("src/WpfDevTools.Inspector/Host/InspectorHost.Security.cs");
 
         source.Should().Contain("CryptographicOperations.ZeroMemory(challenge)");
         source.Should().Contain("CryptographicOperations.ZeroMemory(response)");

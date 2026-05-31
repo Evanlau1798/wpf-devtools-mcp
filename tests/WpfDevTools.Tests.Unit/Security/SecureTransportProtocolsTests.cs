@@ -42,7 +42,7 @@ public class SecureTransportProtocolsTests
         var client = File.ReadAllText(GetRepoFilePath(
             "src/WpfDevTools.Mcp.Server/NamedPipeClient.Transport.cs"));
         var server = File.ReadAllText(GetRepoFilePath(
-            "src/WpfDevTools.Inspector/Host/InspectorHostSecurity.cs"));
+            "src/WpfDevTools.Inspector/Host/InspectorHost.Security.cs"));
 
         client.Should().Contain("SecureTransportProtocols.InspectorTransport");
         server.Should().Contain("SecureTransportProtocols.InspectorTransport");

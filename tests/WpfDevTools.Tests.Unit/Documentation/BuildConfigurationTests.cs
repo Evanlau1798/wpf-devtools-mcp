@@ -100,7 +100,7 @@ public class BuildConfigurationTests
 
     [Theory]
     [InlineData("src/WpfDevTools.Shared/Security/CertificateManager.cs")]
-    [InlineData("src/WpfDevTools.Inspector/Host/InspectorHostSecurity.cs")]
+    [InlineData("src/WpfDevTools.Inspector/Host/InspectorHost.Security.cs")]
     public void Net48TargetedSources_ShouldAvoidModernThrowHelpersUnavailableOnFramework(string relativePath)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));

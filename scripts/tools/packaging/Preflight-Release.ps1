@@ -131,7 +131,12 @@ if (-not $SkipTest) {
     $null = $steps.Add("dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj -c $Configuration --no-build")
 }
 
-$null = $steps.Add("powershell -ExecutionPolicy Bypass -File $publishScript -Configuration $Configuration -Architectures $architecturesLiteral -OutputRoot $packageOutputRoot")
+$publishStep = "powershell -ExecutionPolicy Bypass -File $publishScript -Configuration $Configuration -Architectures $architecturesLiteral -OutputRoot $packageOutputRoot"
+if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
+    $publishStep += " -ExpectedReleaseTag $VersionTag"
+}
+
+$null = $steps.Add($publishStep)
 if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
     $null = $steps.Add("powershell -ExecutionPolicy Bypass -File $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag")
 }
@@ -176,14 +181,29 @@ if (-not $SkipTest) {
 }
 
 $publishCommandDescription = "$publishScript -Configuration $Configuration -Architectures $($resolvedArchitectures -join ',') -OutputRoot $packageOutputRoot"
+if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
+    $publishCommandDescription += " -ExpectedReleaseTag $VersionTag"
+}
+
 Write-StepMessage -Message $publishCommandDescription
 $global:LASTEXITCODE = 0
 if ($OutputJson) {
-    & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot 2>&1 6>&1 |
-        ForEach-Object { [Console]::Error.WriteLine($_.ToString()) }
+    if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
+        & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot -ExpectedReleaseTag $VersionTag 2>&1 6>&1 |
+            ForEach-Object { [Console]::Error.WriteLine($_.ToString()) }
+    }
+    else {
+        & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot 2>&1 6>&1 |
+            ForEach-Object { [Console]::Error.WriteLine($_.ToString()) }
+    }
 }
 else {
-    & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot
+    if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
+        & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot -ExpectedReleaseTag $VersionTag
+    }
+    else {
+        & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot
+    }
 }
 Assert-LastExitCodeSucceeded -CommandDescription $publishCommandDescription
 

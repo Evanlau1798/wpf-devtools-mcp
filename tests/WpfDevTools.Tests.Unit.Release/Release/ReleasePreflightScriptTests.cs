@@ -29,6 +29,7 @@ public sealed class ReleasePreflightScriptTests
             steps.Should().Contain(step => step!.Contains("dotnet build WpfDevTools.sln -c Release", StringComparison.Ordinal));
             steps.Should().Contain(step => step!.Contains("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Release --no-build", StringComparison.Ordinal));
             steps.Should().Contain(step => step!.Contains("Publish-Release.ps1", StringComparison.Ordinal));
+            steps.Should().Contain(step => step!.Contains("-ExpectedReleaseTag v1.2.3", StringComparison.Ordinal));
             steps.Should().Contain(step => step!.Contains("Export-GitHubReleaseAssets.ps1", StringComparison.Ordinal));
         }
         finally
@@ -81,9 +82,10 @@ public sealed class ReleasePreflightScriptTests
                 "param(",
                 "    [string]$Configuration,",
                 "    [string[]]$Architectures,",
+                "    [string]$ExpectedReleaseTag,",
                 "    [string]$OutputRoot",
                 ")",
-                $"Set-Content -Path '{publishLog.Replace("'", "''")}' -Value ($Architectures -join ',') -Encoding UTF8",
+                $"Set-Content -Path '{publishLog.Replace("'", "''")}' -Value (($Architectures -join ',') + '|' + $ExpectedReleaseTag) -Encoding UTF8",
                 "foreach ($architecture in $Architectures) {",
                 "    Set-Content -Path (Join-Path $OutputRoot ('release_1.2.3_win-' + $architecture + '.zip')) -Value $architecture -Encoding UTF8",
                 "}"
@@ -127,7 +129,7 @@ public sealed class ReleasePreflightScriptTests
             var steps = document.RootElement.GetProperty("steps").EnumerateArray().Select(x => x.GetString()).ToArray();
             steps.Should().NotContain(step => step!.Contains("dotnet build", StringComparison.Ordinal));
             steps.Should().NotContain(step => step!.Contains("dotnet test", StringComparison.Ordinal));
-            File.ReadAllText(publishLog).Trim().Should().Be("x64,x86,arm64");
+            File.ReadAllText(publishLog).Trim().Should().Be("x64,x86,arm64|v1.2.3");
         }
         finally
         {

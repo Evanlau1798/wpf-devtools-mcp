@@ -166,6 +166,11 @@ public sealed partial class SessionManager
             // Process has exited
             return null;
         }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // Process exists but identity details are not readable at this privilege level.
+            return null;
+        }
     }
 
 }

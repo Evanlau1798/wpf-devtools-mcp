@@ -30,6 +30,7 @@ public sealed class InstallerTuiHelperPackagingTests
         manifestContent.Should().Contain("Tui.Window.ps1");
         manifestContent.Should().Contain("Tui.Presenters.ps1");
         manifestContent.Should().Contain("Tui.Sections.ps1");
+        manifestContent.Should().Contain("online-installer.release-assets.ps1");
     }
 
     [Fact]
@@ -85,6 +86,7 @@ public sealed class InstallerTuiHelperPackagingTests
             File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Window.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Presenters.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Sections.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", "online-installer.release-assets.ps1")).Should().BeTrue();
         }
         finally
         {

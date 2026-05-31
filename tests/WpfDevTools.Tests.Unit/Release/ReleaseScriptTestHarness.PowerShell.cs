@@ -77,6 +77,12 @@ internal static partial class ReleaseScriptTestHarness
         }
 
         if (string.Equals(startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"], "1", StringComparison.Ordinal) &&
+            !startInfo.Environment.ContainsKey("WPFDEVTOOLS_INSTALLER_SOURCE_ROOT"))
+        {
+            startInfo.Environment["WPFDEVTOOLS_INSTALLER_SOURCE_ROOT"] = GetRepoFilePath(".");
+        }
+
+        if (string.Equals(startInfo.Environment["WPFDEVTOOLS_INSTALLER_TEST_MODE"], "1", StringComparison.Ordinal) &&
             !startInfo.Environment.ContainsKey("WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"))
         {
             startInfo.Environment["WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA"] = "1";

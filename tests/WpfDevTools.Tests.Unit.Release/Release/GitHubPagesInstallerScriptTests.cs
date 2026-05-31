@@ -332,6 +332,12 @@ public sealed partial class GitHubPagesInstallerScriptTests
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
                 scriptPath,
                 overwrite: true);
+            var scriptInstallerRoot = Path.Combine(tempRoot, "installer");
+            Directory.CreateDirectory(scriptInstallerRoot);
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/online-installer.release-assets.ps1"),
+                Path.Combine(scriptInstallerRoot, "online-installer.release-assets.ps1"),
+                overwrite: true);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 scriptPath,

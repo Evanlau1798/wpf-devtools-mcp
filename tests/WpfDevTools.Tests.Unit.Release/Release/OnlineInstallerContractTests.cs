@@ -76,8 +76,10 @@ public sealed class OnlineInstallerContractTests
     [Fact]
     public void OnlineInstallerScript_ShouldDownloadVersionedReleaseArchiveNames()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content =
+            File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1")) +
+            Environment.NewLine +
+            File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/online-installer.release-assets.ps1"));
 
         content.Should().Contain("release_{0}_win-{1}.zip");
         content.Should().Contain("releases/latest/download");

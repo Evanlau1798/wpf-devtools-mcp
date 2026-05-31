@@ -214,6 +214,7 @@ public sealed partial class ReleasePackagingContractTests
             var archivePath = Directory.GetFiles(testRepo.OutputRoot, "release_*_win-x64.zip").Single();
             var entries = ReadArchiveEntries(archivePath);
             entries.Should().Contain("bin/installer/installer-helpers.manifest.json");
+            entries.Should().Contain("bin/installer/online-installer.release-assets.ps1");
             entries.Should().Contain("bin/installer/Installer.Uninstall.ps1");
         }
         finally

@@ -21,6 +21,15 @@ if ($markerIndex -lt 0) { throw 'Main script boundary marker not found.' }
 $sourceScriptRoot = Split-Path -Parent $scriptPath
 $definitionsRoot = Join-Path (Split-Path -Parent $sourceScriptRoot) 'tmp\online-installer-definitions'
 New-Item -ItemType Directory -Force -Path $definitionsRoot | Out-Null
+$definitionsInstallerRoot = Join-Path $definitionsRoot 'installer'
+New-Item -ItemType Directory -Force -Path $definitionsInstallerRoot | Out-Null
+$releaseAssetModuleSource = Join-Path $sourceScriptRoot 'installer\online-installer.release-assets.ps1'
+if (-not (Test-Path -LiteralPath $releaseAssetModuleSource -PathType Leaf)) {
+    $releaseAssetModuleSource = Join-Path (Get-Location).Path 'scripts\installer\online-installer.release-assets.ps1'
+}
+if (Test-Path -LiteralPath $releaseAssetModuleSource -PathType Leaf) {
+    Copy-Item -LiteralPath $releaseAssetModuleSource -Destination (Join-Path $definitionsInstallerRoot 'online-installer.release-assets.ps1') -Force
+}
 $definitionsPath = Join-Path $definitionsRoot ('online-installer-definitions-' + [guid]::NewGuid().ToString('N') + '.ps1')
 $definitions = $scriptContent.Substring(0, $markerIndex)
 {{BuildInternalTestModeReplacementLine(enableInternalTestMode)}}

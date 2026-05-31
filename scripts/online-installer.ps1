@@ -287,8 +287,9 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:4180b38ba2582e54df1d5860e6b2000ea58cfdc45ff963a18115ac1a42c6c1c4'
+$script:InstallerHelperManifestCacheKey = 'sha256:8422b55cd4032a71c1d3a007180f811859a1dba33bf5d0d8144f5be615bab10e'
 $script:InstallerHelperSourcePaths = @(
+    'scripts/installer/online-installer.release-assets.ps1'
     'scripts/installer/Installer.BootstrapUi.ps1'
     'scripts/installer/Tui.Terminal.ps1'
     'scripts/installer/Tui.Layout.ps1', 'scripts/installer/Tui.State.ps1'
@@ -330,6 +331,9 @@ $script:InstallerHelperSourcePaths = @(
     'scripts/installer/Installer.Actions.ps1'
 )
 $script:InstallerHelperRepositoryRelativePath = 'scripts/installer'
+$script:InstallerReleaseAssetModuleLeafName = 'online-installer.release-assets.ps1'
+$script:InstallerReleaseAssetModuleRepositoryRelativePath = 'scripts/installer/online-installer.release-assets.ps1'
+$script:InstallerReleaseAssetModuleSha256 = '88e80e40ed110bbabcb991e3248d3df2adf2d39f6133ee66b165d5cf53106ca6'
 # Shared installer modules own Resolve-InstallerStatePath, Save-InstallerState,
 # installer-state.json handling, Get-AvailableInstallerUpdates, and the rest of
 # the persistent state/update flow.
@@ -376,7 +380,6 @@ $script:GitHubReleaseApiResponseCache = @{}
 $script:GitHubReleaseChecksumRecordCache = @{}
 $script:TuiHelperBootstrapArchive = $null
 $script:TrustedLocalPackageArchivePath = $null
-. (Join-Path $PSScriptRoot 'installer/online-installer.release-assets.ps1')
 function Resolve-InstallerScriptRoot {
     if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
         return $PSScriptRoot
@@ -387,6 +390,128 @@ function Resolve-InstallerScriptRoot {
     }
 
     return $null
+}
+function Resolve-LocalPackageRoot {
+    $scriptRoot = Resolve-InstallerScriptRoot
+    if ([string]::IsNullOrWhiteSpace($scriptRoot)) {
+        return $null
+    }
+
+    $binManifestPath = Join-Path $scriptRoot 'manifest.json'
+    if (Test-Path $binManifestPath) {
+        return (Split-Path -Parent $scriptRoot)
+    }
+
+    $packageManifestPath = Join-Path $scriptRoot 'bin\manifest.json'
+    if (Test-Path $packageManifestPath) {
+        return $scriptRoot
+    }
+
+    return $null
+}
+function Get-InstallerSha256Hex {
+    param([Parameter(Mandatory)] [byte[]]$Bytes)
+
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $hashBytes = $sha256.ComputeHash($Bytes)
+    }
+    finally {
+        $sha256.Dispose()
+    }
+
+    return (($hashBytes | ForEach-Object { $_.ToString('x2') }) -join '')
+}
+function Get-InstallerTextSha256Hex {
+    param([Parameter(Mandatory)] [string]$Content)
+
+    $normalizedContent = $Content.Replace("`r`n", "`n")
+    return (Get-InstallerSha256Hex -Bytes ([System.Text.Encoding]::UTF8.GetBytes($normalizedContent)))
+}
+function Get-InstallerFileSha256Hex {
+    param([Parameter(Mandatory)] [string]$Path)
+
+    return (Get-InstallerTextSha256Hex -Content ([System.IO.File]::ReadAllText($Path)))
+}
+function Get-InstallerReleaseAssetModuleUri {
+    $ref = if (-not [string]::IsNullOrWhiteSpace($Version) -and $Version -ne 'latest') {
+        if ($Version.StartsWith('v')) { $Version } else { "v$Version" }
+    }
+    else {
+        'master'
+    }
+
+    return "https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/$ref/$script:InstallerReleaseAssetModuleRepositoryRelativePath"
+}
+function Import-OnlineInstallerReleaseAssetModule {
+    param([switch]$AllowRemote)
+
+    $candidatePaths = New-Object System.Collections.Generic.List[string]
+    $scriptRoot = Resolve-InstallerScriptRoot
+    if (-not [string]::IsNullOrWhiteSpace($scriptRoot)) {
+        $candidatePaths.Add((Join-Path $scriptRoot "installer/$script:InstallerReleaseAssetModuleLeafName"))
+    }
+
+    if ([bool]$script:WpfDevToolsInstallerTestModeEnabled) {
+        if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY)) {
+            $candidatePaths.Add((Join-Path $env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY $script:InstallerReleaseAssetModuleLeafName))
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_SOURCE_ROOT)) {
+            $candidatePaths.Add((Join-Path $env:WPFDEVTOOLS_INSTALLER_SOURCE_ROOT $script:InstallerReleaseAssetModuleRepositoryRelativePath))
+        }
+
+        $candidatePaths.Add((Join-Path (Get-Location).Path $script:InstallerReleaseAssetModuleRepositoryRelativePath))
+    }
+
+    foreach ($candidatePath in @($candidatePaths.ToArray() | Select-Object -Unique)) {
+        if ([string]::IsNullOrWhiteSpace($candidatePath) -or -not (Test-Path -LiteralPath $candidatePath -PathType Leaf)) {
+            continue
+        }
+
+        $trustedPath = (Resolve-Path -LiteralPath (Assert-InstallerLocalPathTrusted -Path $candidatePath)).Path
+        $actualHash = Get-InstallerFileSha256Hex -Path $trustedPath
+        if (-not [string]::Equals($actualHash, $script:InstallerReleaseAssetModuleSha256, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Installer release asset module integrity verification failed for $trustedPath."
+        }
+
+        return [ordered]@{
+            Path = $trustedPath
+            Content = $null
+        }
+    }
+
+    if (-not $AllowRemote) {
+        return $null
+    }
+
+    if ([bool]$script:WpfDevToolsInstallerTestModeEnabled) {
+        throw "Installer release asset module was not found: $script:InstallerReleaseAssetModuleRepositoryRelativePath"
+    }
+
+    $moduleUri = Get-InstallerReleaseAssetModuleUri
+    $moduleContent = [string](Invoke-WebRequest -Uri $moduleUri -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15).Content
+    $actualRemoteHash = Get-InstallerTextSha256Hex -Content $moduleContent
+    if (-not [string]::Equals($actualRemoteHash, $script:InstallerReleaseAssetModuleSha256, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Installer release asset module integrity verification failed for $moduleUri."
+    }
+
+    return [ordered]@{
+        Path = $null
+        Content = $moduleContent
+    }
+}
+$script:OnlineInstallerReleaseAssetModuleLoaded = $false
+$script:OnlineInstallerReleaseAssetModule = Import-OnlineInstallerReleaseAssetModule
+if ($null -ne $script:OnlineInstallerReleaseAssetModule -and
+    -not [string]::IsNullOrWhiteSpace([string]$script:OnlineInstallerReleaseAssetModule.Path)) {
+    . ([string]$script:OnlineInstallerReleaseAssetModule.Path)
+    $script:OnlineInstallerReleaseAssetModuleLoaded = $true
+}
+elseif ($null -ne $script:OnlineInstallerReleaseAssetModule -and
+    -not [string]::IsNullOrWhiteSpace([string]$script:OnlineInstallerReleaseAssetModule.Content)) {
+    . ([scriptblock]::Create([string]$script:OnlineInstallerReleaseAssetModule.Content))
+    $script:OnlineInstallerReleaseAssetModuleLoaded = $true
 }
 function Get-TuiHelperRuntimeRoot {
     $runtimeRoot = Join-Path (Resolve-AbsoluteDirectory -Path $WorkingRoot) 'tui-helpers'

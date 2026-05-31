@@ -28,6 +28,45 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve release tag
+        id: release-metadata
+        shell: pwsh
+        env:
+          RELEASE_EVENT_NAME: ${{ github.event_name }}
+          RELEASE_EVENT_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          $tag = if ($env:RELEASE_EVENT_NAME -eq 'release') {
+            $env:RELEASE_EVENT_TAG
+          }
+          else {
+            $env:RELEASE_INPUT_TAG
+          }
+
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            throw 'Release tag is required.'
+          }
+
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
+            throw "Release tag '$tag' must be a v-prefixed SemVer tag."
+          }
+
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Checkout tagged revision
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.release-metadata.outputs.tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
+            throw "Release tag '$tag' must be a v-prefixed SemVer tag."
+          }
+
+          git fetch --tags --force
+          git rev-parse --verify --end-of-options "refs/tags/$tag^{commit}" | Out-Null
+          git checkout --detach "refs/tags/$tag"
+
       - name: Setup .NET
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
@@ -70,45 +109,6 @@ jobs:
           if ('${{ vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE }}' -ne 'true') {
             throw 'Public release publishing requires WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE=true and a self-hosted Windows ARM64 runner for runtime validation before upload.'
           }
-
-      - name: Resolve release tag
-        id: release-metadata
-        shell: pwsh
-        env:
-          RELEASE_EVENT_NAME: ${{ github.event_name }}
-          RELEASE_EVENT_TAG: ${{ github.event.release.tag_name }}
-          RELEASE_INPUT_TAG: ${{ inputs.tag }}
-        run: |
-          $tag = if ($env:RELEASE_EVENT_NAME -eq 'release') {
-            $env:RELEASE_EVENT_TAG
-          }
-          else {
-            $env:RELEASE_INPUT_TAG
-          }
-
-          if ([string]::IsNullOrWhiteSpace($tag)) {
-            throw 'Release tag is required.'
-          }
-
-          if ($tag -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
-            throw "Release tag '$tag' must be a v-prefixed SemVer tag."
-          }
-
-          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-
-      - name: Checkout tagged revision
-        shell: pwsh
-        env:
-          RELEASE_TAG: ${{ steps.release-metadata.outputs.tag }}
-        run: |
-          $tag = $env:RELEASE_TAG
-          if ($tag -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
-            throw "Release tag '$tag' must be a v-prefixed SemVer tag."
-          }
-
-          git fetch --tags --force
-          git rev-parse --verify --end-of-options "refs/tags/$tag^{commit}" | Out-Null
-          git checkout --detach "refs/tags/$tag"
 
       - name: Build release packages
         shell: pwsh

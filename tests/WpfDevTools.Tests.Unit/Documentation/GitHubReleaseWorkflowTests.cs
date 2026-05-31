@@ -131,6 +131,21 @@ public sealed class GitHubReleaseWorkflowTests
     }
 
     [Fact]
+    public void ReleaseWorkflow_ShouldCheckoutTaggedRevisionBeforeExposingSigningCertificateSecret()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+        var checkoutTaggedRevision = Array.FindIndex(lines, line =>
+            string.Equals(line, "      - name: Checkout tagged revision", StringComparison.Ordinal));
+        var materializeCertificate = Array.FindIndex(lines, line =>
+            string.Equals(line, "      - name: Materialize signing certificate", StringComparison.Ordinal));
+
+        checkoutTaggedRevision.Should().BeGreaterThanOrEqualTo(0);
+        materializeCertificate.Should().BeGreaterThanOrEqualTo(0);
+        checkoutTaggedRevision.Should().BeLessThan(materializeCertificate,
+            "release signing secrets should only be exposed after the workflow switches to the verified release tag");
+    }
+
+    [Fact]
     public void ReleaseWorkflow_ShouldPassSignerTrustToAssetStagingStep()
     {
         var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));

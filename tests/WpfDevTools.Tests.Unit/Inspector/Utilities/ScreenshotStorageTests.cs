@@ -135,6 +135,20 @@ public sealed class ScreenshotStorageTests
     }
 
     [Fact]
+    public void WritePng_WithServerLeaseDirectoryOutsideTargetTemp_ShouldAllowValidLocalLeaseShape()
+    {
+        using var serverTempRoot = new TemporaryDirectory();
+        using var leaseDirectory = TemporaryDirectory.CreateScreenshotLeaseDirectoryUnder(serverTempRoot.Path);
+
+        var screenshot = ScreenshotStorage.WritePng(new byte[] { 1, 2, 3 }, leaseDirectory.Path);
+
+        File.Exists(screenshot.Path).Should().BeTrue();
+        screenshot.Path.Should().StartWith(
+            Path.GetFullPath(leaseDirectory.Path) + Path.DirectorySeparatorChar,
+            "server-issued lease roots can come from the server profile, not the target process temp root");
+    }
+
+    [Fact]
     public void WritePng_WhenRetentionCountIsFull_ShouldStayWithinRetentionCapAfterWrite()
     {
         using var tempDirectory = new TemporaryDirectory();
@@ -195,6 +209,12 @@ public sealed class ScreenshotStorageTests
         public static TemporaryDirectory CreateScreenshotLeaseDirectory()
             => new(ScreenshotLeasePaths.CreateStorageRootPath(
                 System.IO.Path.GetTempPath(),
+                Environment.ProcessId,
+                Guid.NewGuid().ToString("N")));
+
+        public static TemporaryDirectory CreateScreenshotLeaseDirectoryUnder(string tempRoot)
+            => new(ScreenshotLeasePaths.CreateStorageRootPath(
+                tempRoot,
                 Environment.ProcessId,
                 Guid.NewGuid().ToString("N")));
 

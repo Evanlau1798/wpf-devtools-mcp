@@ -154,7 +154,7 @@ internal static class ScreenshotStorage
             nameof(directoryOverride),
             "Screenshot directory override");
         var processId = System.Diagnostics.Process.GetCurrentProcess().Id;
-        if (!ScreenshotLeasePaths.IsPathWithinProcessRoot(fullPath, Path.GetTempPath(), processId))
+        if (!ScreenshotLeasePaths.IsStorageRootPathForProcess(fullPath, processId))
         {
             throw new ScreenshotDirectoryOverrideException(
                 "Screenshot directory override must be under the MCP server-issued screenshot lease root.");

@@ -347,7 +347,7 @@ function Invoke-UnitDebugTests {
         [int]$UnitDebugShardCount = 1
     )
 
-    $commands = New-UnitDebugShardCommands -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $Configuration -UnitDebugShardCount $UnitDebugShardCount
+    $commands = @(New-UnitDebugShardCommands -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $Configuration -UnitDebugShardCount $UnitDebugShardCount)
     if (($MaxParallelLanes -le 1) -or ($commands.Count -eq 1)) {
         foreach ($command in $commands) {
             Invoke-ExternalWithTimeout $command.Name $command.FilePath $command.Arguments -TimeoutSeconds $command.TimeoutSeconds -OutputRoot $MappedOutputRoot -Timestamp $timestamp

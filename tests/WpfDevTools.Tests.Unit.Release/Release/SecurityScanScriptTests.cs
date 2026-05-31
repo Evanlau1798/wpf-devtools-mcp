@@ -72,8 +72,10 @@ public sealed class SecurityScanScriptTests
             result.ExitCode.Should().Be(0, result.Stdout + result.Stderr);
             var log = File.ReadAllText(logPath);
             log.Should().Contain("Install PowerShell ScriptAnalyzer|powershell.exe|-NoProfile -ExecutionPolicy Bypass -Command");
+            log.Should().Contain("$ConfirmPreference = 'None'");
             log.Should().Contain("Install-PackageProvider -Name NuGet");
             log.Should().Contain("-Scope CurrentUser -Force -Confirm:$false -ErrorAction Stop");
+            log.Should().Contain("Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -Confirm:$false -ErrorAction Stop");
             log.Should().Contain("Install-Module PSScriptAnalyzer");
             log.Should().Contain("-Force -AcceptLicense -Confirm:$false -RequiredVersion 1.25.0 -Repository PSGallery -ErrorAction Stop");
         }

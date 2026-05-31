@@ -26,6 +26,8 @@ internal sealed class SecureLiveSession : IDisposable
 
     public SessionManager SessionManager { get; }
 
+    internal string CertificateDirectoryForTesting => _certificateDirectory;
+
     public static SecureLiveSession Create(string directoryPrefix = "WpfDevTools_SecureLiveSession")
     {
         var secretBytes = RandomNumberGenerator.GetBytes(32);

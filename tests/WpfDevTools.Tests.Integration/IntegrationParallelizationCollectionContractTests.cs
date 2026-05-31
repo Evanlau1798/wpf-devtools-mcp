@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
@@ -152,6 +153,42 @@ public sealed class IntegrationParallelizationCollectionContractTests
         content.Should().Contain("catch (InvalidOperationException)");
         content.Should().Contain("catch (System.ComponentModel.Win32Exception)");
         content.Should().Contain("process.Dispose();");
+    }
+
+    [Fact]
+    public void LiveTestProcessCleanup_StopAndDispose_ShouldKillRunningProcessAndDisposeHandle()
+    {
+        var process = Process.Start(new ProcessStartInfo
+        {
+            FileName = "powershell",
+            Arguments = "-NoLogo -NoProfile -Command \"Start-Sleep -Seconds 30\"",
+            CreateNoWindow = true,
+            UseShellExecute = false
+        });
+        process.Should().NotBeNull();
+
+        LiveTestProcessCleanup.StopAndDispose(process, timeoutMilliseconds: 5000);
+
+        Action readDisposedHandle = () => _ = process!.Handle;
+        readDisposedHandle.Should().Throw<Exception>(
+            "live process cleanup must dispose or detach handles even after killing a running TestApp process")
+            .Where(ex =>
+                ex.GetType() == typeof(ObjectDisposedException)
+                || ex.GetType() == typeof(InvalidOperationException));
+    }
+
+    [Fact]
+    public void SecureLiveSession_Dispose_ShouldDeleteCertificateDirectory()
+    {
+        var session = SecureLiveSession.Create("WpfDevTools_SecureLiveSessionBehavior");
+        var certificateDirectory = session.CertificateDirectoryForTesting;
+        Directory.Exists(certificateDirectory).Should().BeTrue();
+
+        session.Dispose();
+
+        Directory.Exists(certificateDirectory).Should().BeFalse(
+            "secure live sessions should delete their repo tmp certificate directory during cleanup");
+        session.Dispose();
     }
 
     [Theory]

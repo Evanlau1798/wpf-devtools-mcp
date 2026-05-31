@@ -502,7 +502,7 @@ function Import-OnlineInstallerReleaseAssetModule {
     }
 }
 $script:OnlineInstallerReleaseAssetModuleLoaded = $false
-$script:OnlineInstallerReleaseAssetModule = Import-OnlineInstallerReleaseAssetModule
+$script:OnlineInstallerReleaseAssetModule = Import-OnlineInstallerReleaseAssetModule -AllowRemote:($Action -eq 'install')
 if ($null -ne $script:OnlineInstallerReleaseAssetModule -and
     -not [string]::IsNullOrWhiteSpace([string]$script:OnlineInstallerReleaseAssetModule.Path)) {
     . ([string]$script:OnlineInstallerReleaseAssetModule.Path)

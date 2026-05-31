@@ -88,6 +88,61 @@ public sealed class OnlineInstallerContractTests
     }
 
     [Fact]
+    public void OnlineInstallerScript_ShouldLoadPinnedRemoteReleaseAssetModuleWhenStandalone()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var standaloneRoot = Path.Combine(tempRoot, "standalone");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScript = Path.Combine(standaloneRoot, "online-installer.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScript);
+            var modulePath = ReleaseScriptTestHarness.GetRepoFilePath(
+                "scripts/installer/online-installer.release-assets.ps1");
+            var probePath = Path.Combine(tempRoot, "probe.ps1");
+            var command = $$"""
+            $ErrorActionPreference = 'Stop'
+            function Invoke-WebRequest {
+                param([string]$Uri, $Headers, [int]$TimeoutSec)
+                [pscustomobject]@{ Content = [System.IO.File]::ReadAllText('{{EscapePowerShellPath(modulePath)}}') }
+            }
+
+            $scriptPath = '{{EscapePowerShellPath(standaloneScript)}}'
+            $scriptContent = Get-Content -LiteralPath $scriptPath -Raw
+            $marker = '{{TestHelpers.OnlineInstallerDefinitionBoundaryMarker}}'
+            $markerIndex = $scriptContent.IndexOf($marker, [System.StringComparison]::Ordinal)
+            if ($markerIndex -lt 0) { throw 'Main script boundary marker not found.' }
+            $definitionsPath = Join-Path '{{EscapePowerShellPath(tempRoot)}}' 'online-installer-definitions.ps1'
+            Set-Content -LiteralPath $definitionsPath -Value $scriptContent.Substring(0, $markerIndex) -Encoding UTF8
+            . $definitionsPath
+            if (-not $script:OnlineInstallerReleaseAssetModuleLoaded) {
+                throw 'release asset module was not loaded'
+            }
+
+            Get-ReleaseAssetName -ResolvedVersion '1.2.3' -ResolvedArchitecture 'x64'
+            """;
+            File.WriteAllText(probePath, command);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                probePath,
+                [],
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0"
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().EndWith("release_1.2.3_win-x64.zip");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstallerScript_ShouldForceTls12BeforeNetworkCalls()
     {
         var content = File.ReadAllText(
@@ -192,4 +247,7 @@ public sealed class OnlineInstallerContractTests
             }
         }
     }
+
+    private static string EscapePowerShellPath(string path)
+        => path.Replace("'", "''", StringComparison.Ordinal);
 }

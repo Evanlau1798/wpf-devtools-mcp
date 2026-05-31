@@ -501,7 +501,21 @@ function Import-OnlineInstallerReleaseAssetModule {
         Content = $moduleContent
     }
 }
+function Assert-OnlineInstallerTestOnlyOverrides {
+    if ([bool]$script:WpfDevToolsInstallerTestModeEnabled) {
+        return
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY)) {
+        throw 'WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1.'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI)) {
+        throw 'WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1.'
+    }
+}
 $script:OnlineInstallerReleaseAssetModuleLoaded = $false
+Assert-OnlineInstallerTestOnlyOverrides
 $script:OnlineInstallerReleaseAssetModule = Import-OnlineInstallerReleaseAssetModule -AllowRemote:($Action -eq 'install')
 if ($null -ne $script:OnlineInstallerReleaseAssetModule -and
     -not [string]::IsNullOrWhiteSpace([string]$script:OnlineInstallerReleaseAssetModule.Path)) {

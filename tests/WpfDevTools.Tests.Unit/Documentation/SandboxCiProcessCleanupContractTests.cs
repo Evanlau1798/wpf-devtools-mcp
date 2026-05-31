@@ -159,7 +159,7 @@ public sealed partial class SandboxCiScriptContractTests
                 "-Command",
                 $$"""
                 $childCode = '$childMarker = "{{token}}"; Start-Sleep -Seconds 30'
-                Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $childCode) | Out-Null
+                Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $childCode) -WindowStyle Hidden | Out-Null
                 do {
                     Start-Sleep -Milliseconds 100
                     $childMatches = @(Get-CimInstance Win32_Process | Where-Object {
@@ -188,7 +188,7 @@ public sealed partial class SandboxCiScriptContractTests
         {
             var childIdPath = Path.Combine(tempRoot, "child-id.txt");
             parent = StartPowerShellWithoutRedirect("-Command", $$"""
-            $child = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-Command', '$marker = "{{token}}"; Start-Sleep -Seconds 30') -PassThru
+            $child = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-Command', '$marker = "{{token}}"; Start-Sleep -Seconds 30') -WindowStyle Hidden -PassThru
             [System.IO.File]::WriteAllText('{{EscapePowerShellPath(childIdPath)}}', [string]$child.Id)
             Start-Sleep -Seconds 30
             """);

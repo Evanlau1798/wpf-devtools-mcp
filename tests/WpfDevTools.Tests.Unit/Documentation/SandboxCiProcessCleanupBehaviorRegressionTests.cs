@@ -16,7 +16,7 @@ public sealed partial class SandboxCiScriptContractTests
             $ErrorActionPreference = 'Stop'
             try {
                 {{GetSmokeTargetFunctionBootstrap(scriptPath)}}
-                $process = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-Command', 'Start-Sleep -Seconds 30') -PassThru
+                $process = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-Command', 'Start-Sleep -Seconds 30') -WindowStyle Hidden -PassThru
                 try {
                     $snapshot = New-ProcessSnapshotFromProcess -Process $process
                     if ($null -eq $snapshot) { throw 'Process snapshot was not captured.' }

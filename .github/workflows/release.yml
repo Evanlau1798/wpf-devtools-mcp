@@ -46,11 +46,9 @@ jobs:
           }
 
           $certificatePath = Join-Path $env:RUNNER_TEMP 'wpf-devtools-release-signing.pfx'
-          [System.IO.File]::WriteAllBytes(
-            $certificatePath,
-            [System.Convert]::FromBase64String($env:WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64))
-
-          "WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH=$certificatePath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          ./scripts/tools/packaging/Write-ReleaseSigningCertificate.ps1 `
+            -CertificatePath $certificatePath `
+            -GitHubEnvPath $env:GITHUB_ENV
 
       - name: Validate signing secrets
         shell: pwsh

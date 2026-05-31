@@ -139,7 +139,8 @@ function Get-WindowsSandboxProcesses {
         'WindowsSandbox',
         'WindowsSandboxClient',
         'WindowsSandboxRemoteSession',
-        'WindowsSandboxServer'
+        'WindowsSandboxServer',
+        'vmmemWindowsSandbox'
     )
 
     return @(Get-Process -ErrorAction SilentlyContinue |

@@ -458,4 +458,15 @@ public sealed partial class SandboxCiScriptContractTests
             DeleteTempRoot(tempRoot);
         }
     }
+
+    [Fact]
+    public void StopWindowsSandboxHcs_ProcessTableWait_ShouldCoverLaunchGuardProcessNames()
+    {
+        var scriptRoot = Path.Combine(RepoRoot, "scripts", "ci");
+        var cleanup = ReadScript(scriptRoot, "Stop-WindowsSandboxHcs.ps1");
+        var launcher = ReadScript(scriptRoot, "Invoke-WindowsSandboxCi.ps1");
+
+        launcher.Should().Contain("vmmemWindowsSandbox");
+        cleanup.Should().Contain("vmmemWindowsSandbox");
+    }
 }

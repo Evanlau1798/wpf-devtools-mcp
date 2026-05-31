@@ -125,10 +125,10 @@ internal static partial class McpToolOutputSchemas
         => ObjectSchema("Summary of captured DependencyProperty, ViewModel, and focus state.", new()
         {
             ["dependencyPropertyCount"] = Integer("Captured DependencyProperty count."),
+            ["restorableDependencyPropertyCount"] = Integer("Restorable DependencyProperty count."),
+            ["skippedDependencyPropertyCount"] = Integer("Skipped DependencyProperty count."),
             ["viewModelPropertyCount"] = Integer("Captured ViewModel property count."),
-            ["capturedElementCount"] = Integer("Captured element count."),
-            ["focusElementId"] = String("Focused element id when captured."),
-            ["warnings"] = ArrayOfString("Snapshot capture warnings.")
+            ["capturedFocus"] = Boolean("Whether focus was captured.")
         });
 
     private static object SnapshotCompleteness()
@@ -218,7 +218,7 @@ internal static partial class McpToolOutputSchemas
             ["retryAfterSeconds"] = Integer("Recommended retry delay in seconds."),
             ["retryAfter"] = String("Human-readable retry guidance."),
             ["availableTokens"] = Integer("Available rate-limit token count when reported."),
-            ["availableEvents"] = Integer("Available event count when reported."),
+            ["availableEvents"] = ArrayOfString("Available event names when reported."),
             ["retryAfterMs"] = Integer("Recommended retry delay in milliseconds."),
             ["nextTools"] = ArrayOfString("Suggested follow-up tools."),
             ["tool"] = String("Recommended recovery tool."),

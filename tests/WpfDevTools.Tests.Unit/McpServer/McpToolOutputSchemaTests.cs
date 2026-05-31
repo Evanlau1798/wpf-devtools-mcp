@@ -259,6 +259,14 @@ public sealed class McpToolOutputSchemaTests
             "maxInputs",
             "maxCommands",
             "maxStringValueLength");
+        AssertNestedFields("capture_state_snapshot", ["snapshotSummary"],
+            "restorableDependencyPropertyCount",
+            "skippedDependencyPropertyCount",
+            "capturedFocus");
+        AssertPropertyType("restore_state_snapshot", "availableEvents", "array");
+        AssertPropertyType("batch_mutate", "availableEvents", "array");
+        AssertNestedPropertyType("restore_state_snapshot", ["recovery"], "availableEvents", "array");
+        AssertNestedPropertyType("batch_mutate", ["recovery"], "availableEvents", "array");
         AssertTopLevelFields("batch_mutate",
             "executionMode",
             "mutations",
@@ -368,6 +376,17 @@ public sealed class McpToolOutputSchemaTests
     private static void AssertPropertyType(string toolName, string fieldName, string expectedType)
     {
         var properties = CreateToolSchema(toolName).GetProperty("properties");
+        properties.GetProperty(fieldName).GetProperty("type").GetString().Should().Be(expectedType);
+    }
+
+    private static void AssertNestedPropertyType(string toolName, string[] path, string fieldName, string expectedType)
+    {
+        var properties = CreateToolSchema(toolName).GetProperty("properties");
+        foreach (var segment in path)
+        {
+            properties = properties.GetProperty(segment).GetProperty("properties");
+        }
+
         properties.GetProperty(fieldName).GetProperty("type").GetString().Should().Be(expectedType);
     }
 

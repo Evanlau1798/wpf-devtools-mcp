@@ -152,6 +152,8 @@ public sealed class IntegrationParallelizationCollectionContractTests
 
         content.Should().Contain("catch (InvalidOperationException)");
         content.Should().Contain("catch (System.ComponentModel.Win32Exception)");
+        content.Should().Contain("process.Kill(entireProcessTree: true);");
+        content.Should().Contain("if (!process.WaitForExit(timeoutMilliseconds))");
         content.Should().Contain("process.Dispose();");
     }
 

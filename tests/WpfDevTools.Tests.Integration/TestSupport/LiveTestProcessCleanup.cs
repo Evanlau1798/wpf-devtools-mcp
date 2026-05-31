@@ -17,8 +17,12 @@ internal static class LiveTestProcessCleanup
             {
                 try
                 {
-                    process.Kill();
-                    process.WaitForExit(timeoutMilliseconds);
+                    process.Kill(entireProcessTree: true);
+                    if (!process.WaitForExit(timeoutMilliseconds))
+                    {
+                        process.Kill(entireProcessTree: true);
+                        process.WaitForExit(timeoutMilliseconds);
+                    }
                 }
                 catch (InvalidOperationException)
                 {

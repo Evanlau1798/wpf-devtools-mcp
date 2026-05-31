@@ -163,19 +163,31 @@ public sealed class CertificateManager
             DateTimeOffset.UtcNow.AddDays(-1),
             DateTimeOffset.UtcNow.AddYears(1));
 
-        // Generate random password and protect with DPAPI
-        var password = GenerateRandomPassword();
-        SavePassword(passwordPath, password);
-        CertificateStorageSecurity.ApplyFileSecurity(passwordPath);
+        byte[]? pfxBytes = null;
+        try
+        {
+            // Generate random password and protect with DPAPI
+            var password = GenerateRandomPassword();
+            SavePassword(passwordPath, password);
+            CertificateStorageSecurity.ApplyFileSecurity(passwordPath);
 
-        // Persist the encrypted PFX on disk, then re-import with a non-exportable
-        // private key and non-persistent key storage unless compatibility fallback is required.
-        var pfxBytes = cert.Export(X509ContentType.Pfx, password);
-        File.WriteAllBytes(certPath, pfxBytes);
-        CertificateStorageSecurity.ApplyFileSecurity(certPath);
-        cert.Dispose();
+            // Persist the encrypted PFX on disk, then re-import with a non-exportable
+            // private key and non-persistent key storage unless compatibility fallback is required.
+            pfxBytes = cert.Export(X509ContentType.Pfx, password);
+            File.WriteAllBytes(certPath, pfxBytes);
+            CertificateStorageSecurity.ApplyFileSecurity(certPath);
 
-        return LoadCertificateFromFile(certPath, password);
+            return LoadCertificateFromFile(certPath, password);
+        }
+        finally
+        {
+            if (pfxBytes is not null)
+            {
+                CryptographicOperations.ZeroMemory(pfxBytes);
+            }
+
+            cert.Dispose();
+        }
     }
 
     private static bool IsReusableCertificate(X509Certificate2 certificate)
@@ -278,15 +290,22 @@ public sealed class CertificateManager
     private static string GenerateRandomPassword()
     {
         var randomBytes = new byte[PasswordLengthBytes];
-#if NET48
-        using (var rng = RandomNumberGenerator.Create())
+        try
         {
-            rng.GetBytes(randomBytes);
-        }
+#if NET48
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(randomBytes);
+            }
 #else
-        RandomNumberGenerator.Fill(randomBytes);
+            RandomNumberGenerator.Fill(randomBytes);
 #endif
-        return Convert.ToBase64String(randomBytes);
+            return Convert.ToBase64String(randomBytes);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(randomBytes);
+        }
     }
 
     internal static void SavePassword(string passwordPath, string password)

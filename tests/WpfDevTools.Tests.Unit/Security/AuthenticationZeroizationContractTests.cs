@@ -38,6 +38,26 @@ public sealed class AuthenticationZeroizationContractTests
     }
 
     [Fact]
+    public void CertificateManager_ShouldZeroGeneratedPasswordAndExportedPfxBytes()
+    {
+        var source = ReadSource("src/WpfDevTools.Shared/Security/CertificateManager.cs");
+
+        source.Should().Contain("CryptographicOperations.ZeroMemory(randomBytes)",
+            "the temporary random password bytes are converted to a string for the X509 API boundary and should then be wiped");
+        source.Should().Contain("CryptographicOperations.ZeroMemory(pfxBytes)",
+            "the exported encrypted PFX payload should be wiped after it is written to disk");
+    }
+
+    [Fact]
+    public void AuthenticationManager_ShouldZeroRejectedDecodedEnvironmentSecret()
+    {
+        var source = ReadSource("src/WpfDevTools.Shared/Security/AuthenticationManager.cs");
+
+        source.Should().Contain("ClearSecret(decoded)",
+            "decoded environment secret bytes must be wiped before throwing for a short secret");
+    }
+
+    [Fact]
     public void Net48CryptographicOperationsPolyfill_ShouldExposeZeroMemory()
     {
         var source = ReadSource("src/WpfDevTools.Shared/Polyfills/CryptographicOperations.cs");

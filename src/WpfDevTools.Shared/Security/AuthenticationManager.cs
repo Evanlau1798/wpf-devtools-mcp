@@ -79,9 +79,13 @@ public sealed class AuthenticationManager : IDisposable
         {
             var decoded = Convert.FromBase64String(envSecret);
             if (decoded.Length < MinSecretLength)
+            {
+                var providedLength = decoded.Length;
+                ClearSecret(decoded);
                 throw new ArgumentException(
                     $"Shared secret must be at least {MinSecretLength} bytes ({MinSecretLength * 8} bits). " +
-                    $"Provided secret is {decoded.Length} bytes.");
+                    $"Provided secret is {providedLength} bytes.");
+            }
 
             return decoded;
         }
@@ -113,13 +117,18 @@ public sealed class AuthenticationManager : IDisposable
 
         if (_sharedSecret != null)
         {
-#if NET48
-            // Array.Clear is an internal CLR call and not optimized away by the .NET Framework JIT
-            Array.Clear(_sharedSecret, 0, _sharedSecret.Length);
-#else
-            // CryptographicOperations.ZeroMemory is guaranteed not to be optimized away by the JIT
-            CryptographicOperations.ZeroMemory(_sharedSecret);
-#endif
+            ClearSecret(_sharedSecret);
         }
+    }
+
+    private static void ClearSecret(byte[] secret)
+    {
+#if NET48
+        // Array.Clear is an internal CLR call and not optimized away by the .NET Framework JIT
+        Array.Clear(secret, 0, secret.Length);
+#else
+        // CryptographicOperations.ZeroMemory is guaranteed not to be optimized away by the JIT
+        CryptographicOperations.ZeroMemory(secret);
+#endif
     }
 }

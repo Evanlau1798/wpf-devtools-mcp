@@ -105,17 +105,6 @@ function Resolve-InstallResidueScript {
     throw "Install residue script was not found at '$sandboxBootstrapPath' or '$repoFallbackPath'."
 }
 
-function Get-PreflightLogTail {
-    param([Parameter(Mandatory = $true)] [string]$Path)
-
-    if (-not (Test-Path -LiteralPath $Path)) {
-        return ''
-    }
-
-    $lines = @(Get-Content -LiteralPath $Path -Tail 40 -ErrorAction SilentlyContinue)
-    return (($lines -join [Environment]::NewLine).Trim())
-}
-
 function Get-DotNetExecutablePath {
     $localDotNet = Join-Path (Get-DotNetRoot) 'dotnet.exe'
     if (Test-Path -LiteralPath $localDotNet) {
@@ -293,7 +282,21 @@ function Invoke-RuntimeSmoke {
     }
 
     $runtimeSmokeTimeoutSeconds = [Math]::Max(300, $SmokeTargetStartupTimeoutSeconds + 120)
-    Invoke-PowerShellStep -Name $Name -Arguments $runtimeSmokeArguments -TimeoutSeconds $runtimeSmokeTimeoutSeconds
+    $runtimeSmokeSafeName = ($Name -replace '[^A-Za-z0-9_.-]+', '-').Trim('-')
+    if ([string]::IsNullOrWhiteSpace($runtimeSmokeSafeName)) { $runtimeSmokeSafeName = 'runtime-smoke' }
+    $runtimeSmokeTempRoot = Join-Path $outputRootFullPath "logs\runtime-temp\$timestamp-$runtimeSmokeSafeName"
+    New-Item -ItemType Directory -Force -Path $runtimeSmokeTempRoot | Out-Null
+    $previousTemp = $env:TEMP
+    $previousTmp = $env:TMP
+    try {
+        $env:TEMP = $runtimeSmokeTempRoot
+        $env:TMP = $runtimeSmokeTempRoot
+        Invoke-PowerShellStep -Name $Name -Arguments $runtimeSmokeArguments -TimeoutSeconds $runtimeSmokeTimeoutSeconds
+    }
+    finally {
+        $env:TEMP = $previousTemp
+        $env:TMP = $previousTmp
+    }
 }
 
 function Invoke-DefaultTransportStateCorruptionProbe {
@@ -332,10 +335,6 @@ function Assert-NoPreflightProcessesRemain {
 
 function Assert-NoUnexpectedIgnoredArtifacts {
     param([Parameter(Mandatory = $true)] [string]$RootPath)
-    $runtimeLogRoot = Join-Path $RootPath 'profile\Temp'
-    if (Test-Path -LiteralPath $runtimeLogRoot) {
-        Get-ChildItem -LiteralPath $runtimeLogRoot -Force -Filter 'WpfDevTools_McpServer_*.log' -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-    }
     $patterns = @('*.tmp', '*.log', '*.trx', 'coverage.opencover.xml', 'coverage-report.md')
     $unexpected = @()
     foreach ($pattern in $patterns) {

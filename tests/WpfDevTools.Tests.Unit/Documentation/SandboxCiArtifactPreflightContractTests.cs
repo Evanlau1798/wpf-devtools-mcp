@@ -62,9 +62,11 @@ public sealed partial class SandboxCiScriptContractTests
         runner.Should().Contain(".corrupt-");
         runner.Should().Contain("Run install residue validation");
         runner.Should().Contain("Assert-NoUnexpectedIgnoredArtifacts");
-        runner.Should().Contain("'WpfDevTools_McpServer_*.log'");
-        runner.IndexOf("'WpfDevTools_McpServer_*.log'", StringComparison.Ordinal)
-            .Should().BeLessThan(runner.IndexOf("$patterns = @('*.tmp'", StringComparison.Ordinal));
+        runner.Should().Contain(@"logs\runtime-temp");
+        runner.Should().Contain("$previousTemp = $env:TEMP");
+        runner.Should().Contain("$env:TEMP = $runtimeSmokeTempRoot");
+        runner.Should().NotContain("'WpfDevTools_McpServer_*.log'",
+            "runtime smoke logs must be routed under OutputRoot instead of deleted before artifact hygiene assertions");
         runner.Should().Contain("-TargetProcessPath");
         runner.Should().Contain("PASS $RunId");
         runner.Should().Contain("FAIL $RunId");

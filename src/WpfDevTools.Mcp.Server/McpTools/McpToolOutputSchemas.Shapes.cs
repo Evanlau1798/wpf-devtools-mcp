@@ -138,17 +138,6 @@ internal static partial class McpToolOutputSchemas
             ["validationBaselineCaptured"] = Boolean("Whether validation error baseline capture succeeded.")
         });
 
-    private static object StateDiff()
-        => ObjectSchema("State diff payload.", new()
-        {
-            ["changedDependencyPropertyCount"] = Integer("DependencyProperty change count."),
-            ["changedViewModelPropertyCount"] = Integer("ViewModel property change count."),
-            ["focusChanged"] = Boolean("Whether focus changed."),
-            ["changes"] = ArrayOf("Detected state changes.", StateChange()),
-            ["before"] = MapOf("Optional baseline state excerpt.", JsonValue()),
-            ["after"] = MapOf("Optional current state excerpt.", JsonValue())
-        });
-
     private static object RestoredStateEntry()
         => ObjectSchema("Restored state entry.", new()
         {

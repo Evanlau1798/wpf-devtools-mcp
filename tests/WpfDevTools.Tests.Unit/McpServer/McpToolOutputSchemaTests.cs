@@ -277,6 +277,16 @@ public sealed class McpToolOutputSchemaTests
             "retryAfter",
             "availableTokens",
             "availableEvents");
+        AssertNestedFields("batch_mutate", ["stateDiff"],
+            "success",
+            "snapshotId",
+            "trigger",
+            "propertyChanges",
+            "viewModelChanges",
+            "newBindingErrors",
+            "resolvedBindingErrors",
+            "validationChanges",
+            "focusChange");
         AssertTopLevelFields("element_screenshot",
             "format",
             "rendered",

@@ -53,6 +53,31 @@ public sealed class WaitForDpChangeToolTests
     }
 
     [Fact]
+    public async Task Execute_WithTimeoutAboveSafeHostBudget_ShouldReturnInvalidArgumentBeforeSnapshot()
+    {
+        const int processId = 4949;
+        using var connected = await CreateConnectedSessionAsync(processId);
+        var waitTool = new WaitForDpChangeTool(connected.SessionManager);
+
+        var result = await waitTool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId,
+                propertyName = "Text",
+                timeoutMs = 25001,
+                pollIntervalMs = 50,
+                expectedValue = JsonSerializer.SerializeToElement("before")
+            }),
+            CancellationToken.None);
+
+        var resultJson = JsonSerializer.SerializeToElement(result);
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        resultJson.GetProperty("error").GetString().Should().Contain("25000");
+        connected.RequestMethods.Should().BeEmpty("invalid wait budgets must be rejected before touching the inspector pipe");
+    }
+
+    [Fact]
     public async Task Execute_WhenCancelledDuringPollDelay_ShouldNotIssueAdditionalSnapshots()
     {
         const int processId = 4848;

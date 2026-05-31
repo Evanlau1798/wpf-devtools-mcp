@@ -46,6 +46,8 @@
 
 `wait_for_dp_change` 只會對目前 runtime state 做 read-only 的 polling wait，不會修改應用程式。
 
+兩個 wait tools 的 `timeoutMs` 預設為 5000，最高為 25000。這會在 inspector hard request timeout 前保留 host-level headroom，讓正常的 bounded wait 可以回傳結構化 timeout，而不是把流程推進 reconnect 狀態。
+
 如果 serialized STDIO client 需要在單一 bounded request 內先做 mutation 再等待結果，請優先使用 `wait_for_dp_change_after_mutation(triggerMutation=...)`，不要自行拼接手寫 polling loop。這個 tool 才是 destructive workflow，因為 server 會先執行你提供的 mutation 再開始等待。
 
 如果你以前是對 `wait_for_dp_change` 傳 `triggerMutation`，現在應改成 `wait_for_dp_change_after_mutation`。read-only wait tool 的 schema 已不再公開這個 mutation step。

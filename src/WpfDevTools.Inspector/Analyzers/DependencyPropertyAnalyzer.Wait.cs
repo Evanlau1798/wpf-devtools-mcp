@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Windows;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -18,23 +19,22 @@ public sealed partial class DependencyPropertyAnalyzer
         JsonElement? expectedValue = null,
         CancellationToken cancellationToken = default)
     {
-        const int defaultTimeoutMs = 5000;
-        const int defaultPollIntervalMs = 200;
+        var effectiveTimeoutMs = timeoutMs ?? DpChangeWaitLimits.DefaultTimeoutMs;
+        var effectivePollIntervalMs = pollIntervalMs ?? DpChangeWaitLimits.DefaultPollIntervalMs;
 
-        var effectiveTimeoutMs = timeoutMs ?? defaultTimeoutMs;
-        var effectivePollIntervalMs = pollIntervalMs ?? defaultPollIntervalMs;
-
-        if (effectiveTimeoutMs < 1 || effectiveTimeoutMs > 30000)
+        if (effectiveTimeoutMs < DpChangeWaitLimits.MinTimeoutMs ||
+            effectiveTimeoutMs > DpChangeWaitLimits.MaxTimeoutMs)
         {
             return ToolErrorFactory.InvalidArgument(
-                "timeoutMs must be between 1 and 30000.",
+                $"timeoutMs must be between {DpChangeWaitLimits.MinTimeoutMs} and {DpChangeWaitLimits.MaxTimeoutMs}.",
                 "Provide a bounded timeout in milliseconds. Use shorter waits for UI transitions and longer waits only when necessary.");
         }
 
-        if (effectivePollIntervalMs < 50 || effectivePollIntervalMs > 5000)
+        if (effectivePollIntervalMs < DpChangeWaitLimits.MinPollIntervalMs ||
+            effectivePollIntervalMs > DpChangeWaitLimits.MaxPollIntervalMs)
         {
             return ToolErrorFactory.InvalidArgument(
-                "pollIntervalMs must be between 50 and 5000.",
+                $"pollIntervalMs must be between {DpChangeWaitLimits.MinPollIntervalMs} and {DpChangeWaitLimits.MaxPollIntervalMs}.",
                 "Use a polling interval between 50ms and 5000ms to avoid excessive load or excessively slow detection.");
         }
 

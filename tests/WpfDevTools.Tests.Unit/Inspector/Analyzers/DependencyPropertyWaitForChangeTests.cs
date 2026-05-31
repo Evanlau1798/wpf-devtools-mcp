@@ -85,6 +85,27 @@ public sealed class DependencyPropertyWaitForChangeTests
     }
 
     [StaFact]
+    public void WaitForChange_ShouldRejectTimeoutsThatConsumeHostRequestDeadline()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new DependencyPropertyAnalyzer(finder);
+        var button = new Button { Width = 100 };
+        var elementId = finder.GenerateElementId(button);
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.WaitForChange(
+                "Width",
+                elementId,
+                timeoutMs: 25001,
+                pollIntervalMs: 50,
+                expectedValue: JsonSerializer.SerializeToElement(100.0)));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("error").GetString().Should().Contain("25000");
+    }
+
+    [StaFact]
     public void WaitForChange_WhenExpectedValueAlreadyMatches_ShouldReturnImmediatelyWithoutChange()
     {
         var finder = new ElementFinder();

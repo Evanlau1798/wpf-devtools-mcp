@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Diagnostics;
 using System.Threading;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
@@ -53,8 +54,8 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
         if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
             arguments,
             "timeoutMs",
-            1,
-            30000,
+            DpChangeWaitLimits.MinTimeoutMs,
+            DpChangeWaitLimits.MaxTimeoutMs,
             out var timeoutMs,
             out var timeoutMsError))
         {
@@ -64,8 +65,8 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
         if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
             arguments,
             "pollIntervalMs",
-            50,
-            5000,
+            DpChangeWaitLimits.MinPollIntervalMs,
+            DpChangeWaitLimits.MaxPollIntervalMs,
             out var pollIntervalMs,
             out var pollIntervalMsError))
         {
@@ -95,19 +96,19 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
             triggerMutation = parsedTriggerMutation;
         }
 
-        const int defaultTimeoutMs = 5000;
-        const int defaultPollIntervalMs = 200;
-        var effectiveTimeoutMs = timeoutMs ?? defaultTimeoutMs;
-        var effectivePollIntervalMs = pollIntervalMs ?? defaultPollIntervalMs;
+        var effectiveTimeoutMs = timeoutMs ?? DpChangeWaitLimits.DefaultTimeoutMs;
+        var effectivePollIntervalMs = pollIntervalMs ?? DpChangeWaitLimits.DefaultPollIntervalMs;
 
-        if (effectiveTimeoutMs is < 1 or > 30000)
+        if (effectiveTimeoutMs is < DpChangeWaitLimits.MinTimeoutMs or > DpChangeWaitLimits.MaxTimeoutMs)
         {
-            return CreateInvalidParamError("timeoutMs must be between 1 and 30000.");
+            return CreateInvalidParamError(
+                $"timeoutMs must be between {DpChangeWaitLimits.MinTimeoutMs} and {DpChangeWaitLimits.MaxTimeoutMs}.");
         }
 
-        if (effectivePollIntervalMs is < 50 or > 5000)
+        if (effectivePollIntervalMs is < DpChangeWaitLimits.MinPollIntervalMs or > DpChangeWaitLimits.MaxPollIntervalMs)
         {
-            return CreateInvalidParamError("pollIntervalMs must be between 50 and 5000.");
+            return CreateInvalidParamError(
+                $"pollIntervalMs must be between {DpChangeWaitLimits.MinPollIntervalMs} and {DpChangeWaitLimits.MaxPollIntervalMs}.");
         }
 
         var stopwatch = Stopwatch.StartNew();

@@ -6,6 +6,7 @@ using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server.Navigation;
 using WpfDevTools.Mcp.Server.Schema;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.Configuration;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
@@ -29,7 +30,6 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static partial class ToolCallHelper
 {
     private const int WaitForDpChangeTimeoutHeadroomSeconds = 2;
-    private const int WaitForDpChangeDefaultTimeoutMs = 5000;
 
     private static readonly ConcurrentDictionary<string, object> GlobalToolCache = new();
     private static ConditionalWeakTable<SessionManager, ConcurrentDictionary<string, object>> HostToolCaches = new();
@@ -329,7 +329,7 @@ public static partial class ToolCallHelper
         {
             var requestedTimeoutMs = TryGetPositiveIntArg(args, "timeoutMs", out var timeoutMs)
                 ? timeoutMs
-                : WaitForDpChangeDefaultTimeoutMs;
+                : DpChangeWaitLimits.DefaultTimeoutMs;
             var requestedTimeoutSeconds = (int)Math.Ceiling(requestedTimeoutMs / 1000d);
             return Math.Max(
                 McpServerConfiguration.DefaultToolTimeoutSeconds,

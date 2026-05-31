@@ -48,6 +48,8 @@ Use `wait_for_dp_change` when you need a polling-friendly timeout-bounded wait o
 
 `wait_for_dp_change` is a read-only polling wait over current runtime state.
 
+Both wait tools default `timeoutMs` to 5000 and cap it at 25000. This leaves host-level headroom below the inspector hard request timeout, so a normal bounded wait can return a structured timeout instead of forcing a reconnect.
+
 For serialized STDIO clients that need to mutate and then wait inside one bounded request, prefer `wait_for_dp_change_after_mutation(triggerMutation=...)` over improvising a manual polling loop. That tool is the destructive workflow because the server executes the supplied mutation before waiting.
 
 If you previously passed `triggerMutation` to `wait_for_dp_change`, migrate that call to `wait_for_dp_change_after_mutation`. The read-only tool no longer advertises that mutation step in its schema.

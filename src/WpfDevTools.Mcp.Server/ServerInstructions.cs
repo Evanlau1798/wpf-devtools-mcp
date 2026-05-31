@@ -40,7 +40,7 @@ public static class ServerInstructions
         === TIMEOUTS ===
         - connect(): 30 seconds (DLL injection + IPC handshake)
         - ping(): 5 seconds
-        - wait_for_dp_change and wait_for_dp_change_after_mutation: default bounded wait window is 5 seconds; larger timeoutMs values are supported and the server adds a small execution headroom above the requested polling budget
+        - wait_for_dp_change and wait_for_dp_change_after_mutation: default bounded wait window is 5 seconds; timeoutMs is capped at 25000ms and the server adds execution headroom above the requested polling budget
         - All other tools: 5 seconds (UI thread operations)
         - If timeout occurs, process may be frozen or unresponsive
 

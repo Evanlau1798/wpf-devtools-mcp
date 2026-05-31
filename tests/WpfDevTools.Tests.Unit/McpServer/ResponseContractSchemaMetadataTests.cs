@@ -37,9 +37,9 @@ public sealed class ResponseContractSchemaMetadataTests
         using var document = JsonDocument.Parse(CapabilityResources.GetResponseContract());
         var constraints = document.RootElement.GetProperty("parameterConstraints");
 
-        AssertNumericConstraint(constraints, "wait_for_dp_change", "timeoutMs", 5000, 1, 30000);
+        AssertNumericConstraint(constraints, "wait_for_dp_change", "timeoutMs", 5000, 1, 25000);
         AssertNumericConstraint(constraints, "wait_for_dp_change", "pollIntervalMs", 200, 50, 5000);
-        AssertNumericConstraint(constraints, "wait_for_dp_change_after_mutation", "timeoutMs", 5000, 1, 30000);
+        AssertNumericConstraint(constraints, "wait_for_dp_change_after_mutation", "timeoutMs", 5000, 1, 25000);
         AssertNumericConstraint(constraints, "connect", "processId", null, 1, int.MaxValue);
         AssertNumericConstraint(constraints, "get_visual_tree", "depth", null, 0, 100);
         AssertNumericConstraint(constraints, "get_visual_tree", "maxNodes", TreeTraversalDefaults.DefaultMaxNodes, 1, 10000);

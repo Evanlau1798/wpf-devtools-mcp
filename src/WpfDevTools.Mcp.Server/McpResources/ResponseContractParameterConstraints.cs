@@ -9,10 +9,10 @@ internal static class ResponseContractParameterConstraints
     {
         return new object[]
         {
-            Integer("wait_for_dp_change", "timeoutMs", defaultValue: 5000, minimum: 1, maximum: 30000),
-            Integer("wait_for_dp_change", "pollIntervalMs", defaultValue: 200, minimum: 50, maximum: 5000),
-            Integer("wait_for_dp_change_after_mutation", "timeoutMs", defaultValue: 5000, minimum: 1, maximum: 30000),
-            Integer("wait_for_dp_change_after_mutation", "pollIntervalMs", defaultValue: 200, minimum: 50, maximum: 5000),
+            Integer("wait_for_dp_change", "timeoutMs", DpChangeWaitLimits.DefaultTimeoutMs, DpChangeWaitLimits.MinTimeoutMs, DpChangeWaitLimits.MaxTimeoutMs),
+            Integer("wait_for_dp_change", "pollIntervalMs", DpChangeWaitLimits.DefaultPollIntervalMs, DpChangeWaitLimits.MinPollIntervalMs, DpChangeWaitLimits.MaxPollIntervalMs),
+            Integer("wait_for_dp_change_after_mutation", "timeoutMs", DpChangeWaitLimits.DefaultTimeoutMs, DpChangeWaitLimits.MinTimeoutMs, DpChangeWaitLimits.MaxTimeoutMs),
+            Integer("wait_for_dp_change_after_mutation", "pollIntervalMs", DpChangeWaitLimits.DefaultPollIntervalMs, DpChangeWaitLimits.MinPollIntervalMs, DpChangeWaitLimits.MaxPollIntervalMs),
             StringEnum("get_processes", "windowFilter", defaultValue: "visible", "visible", "all", "foreground"),
             Integer("connect", "processId", defaultValue: null, minimum: 1, maximum: int.MaxValue),
             StringEnum("connect", "selectionStrategy", defaultValue: "single_only", "single_only", "largest_working_set"),

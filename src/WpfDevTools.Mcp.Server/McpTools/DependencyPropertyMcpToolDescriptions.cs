@@ -129,6 +129,7 @@ internal static class DependencyPropertyMcpToolDescriptions
         "USE WHEN: You need to wait for a property transition after an interaction, command, or state mutation without implementing your own polling loop.\n" +
         "DO NOT USE: As a real-time push subscription. This tool polls get_dp_value_source-style state until timeout.\n\n" +
         "READ-ONLY MODE: This call only polls existing runtime state and does not mutate the application.\n\n" +
+        "LIMITS: timeoutMs defaults to 5000 and is capped at 25000 so the bounded wait finishes before the inspector host hard request timeout.\n\n" +
         "OPTIONAL MATCHING: Provide `expectedValue` to wait until the property equals a specific value. Omit it to stop on any value change.\n\n" +
         "SERIALIZED-CLIENT WORKFLOW: If your MCP client cannot issue a concurrent mutation while this wait is running, use `wait_for_dp_change_after_mutation` for the destructive mutation-plus-wait workflow instead of overloading this read-only tool.\n\n" +
         "SCHEMA SKETCH (not request JSON):\n" +
@@ -166,6 +167,7 @@ internal static class DependencyPropertyMcpToolDescriptions
         "USE WHEN: Your MCP client must mutate and then wait inside one bounded request without sending a second concurrent tool call.\n" +
         "DO NOT USE: For plain read-only waits. Use wait_for_dp_change when you only need to observe existing runtime state.\n\n" +
         "MUTATION STEP: Provide `triggerMutation` using the same shape as one `batch_mutate` step. The server will execute that mutation first, then wait for the property transition. This workflow is destructive because it mutates live runtime state before waiting.\n\n" +
+        "LIMITS: timeoutMs defaults to 5000 and is capped at 25000 so the mutation-plus-wait request finishes before the inspector host hard request timeout.\n\n" +
         "OPTIONAL MATCHING: Provide `expectedValue` to wait until the property equals a specific value after the mutation. Omit it to stop on any value change.\n\n" +
         "SCHEMA SKETCH (not request JSON):\n" +
         "{\n" +

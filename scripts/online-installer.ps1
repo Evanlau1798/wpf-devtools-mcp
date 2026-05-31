@@ -515,7 +515,9 @@ function Assert-OnlineInstallerTestOnlyOverrides {
     }
 }
 $script:OnlineInstallerReleaseAssetModuleLoaded = $false
-Assert-OnlineInstallerTestOnlyOverrides
+if ($Action -eq 'install') {
+    Assert-OnlineInstallerTestOnlyOverrides
+}
 $script:OnlineInstallerReleaseAssetModule = Import-OnlineInstallerReleaseAssetModule -AllowRemote:($Action -eq 'install')
 if ($null -ne $script:OnlineInstallerReleaseAssetModule -and
     -not [string]::IsNullOrWhiteSpace([string]$script:OnlineInstallerReleaseAssetModule.Path)) {

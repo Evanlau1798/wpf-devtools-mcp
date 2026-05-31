@@ -57,10 +57,48 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
             return maxHeightError!;
         }
 
-        var screenshotDirectory = string.Equals(outputMode, "file", StringComparison.Ordinal)
-            ? _sessionManager.GetOrCreateScreenshotStorageRoot(processId)
-            : null;
-        var result = await SendInspectorRequestAsync(processId, "element_screenshot",
+        var fileOutputMode = string.Equals(outputMode, "file", StringComparison.Ordinal);
+        long? sessionGeneration = null;
+        if (fileOutputMode)
+        {
+            if (!_sessionManager.TryGetSessionGeneration(processId, out var currentGeneration))
+            {
+                return CreateNotConnectedError(processId);
+            }
+
+            sessionGeneration = currentGeneration;
+        }
+
+        string? screenshotDirectory = null;
+        if (fileOutputMode)
+        {
+            try
+            {
+                screenshotDirectory = _sessionManager.GetOrCreateScreenshotStorageRoot(
+                    processId,
+                    sessionGeneration!.Value);
+            }
+            catch (InvalidOperationException)
+            {
+                return CreateNotConnectedError(processId);
+            }
+        }
+
+        var result = fileOutputMode
+            ? await SendInspectorRequestAsync(
+                processId,
+                sessionGeneration!.Value,
+                "element_screenshot",
+                new
+                {
+                    elementId,
+                    outputMode,
+                    maxWidth,
+                    maxHeight,
+                    screenshotDirectory
+                },
+                cancellationToken).ConfigureAwait(false)
+            : await SendInspectorRequestAsync(processId, "element_screenshot",
             new
             {
                 elementId,
@@ -68,19 +106,33 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
                 maxWidth,
                 maxHeight,
                 screenshotDirectory
-            }, cancellationToken);
+            }, cancellationToken).ConfigureAwait(false);
 
-        return outputMode == "file"
-            ? RedactFilePathFromScreenshotResult(processId, result)
+        return fileOutputMode
+            ? RedactFilePathFromScreenshotResult(
+                processId,
+                sessionGeneration!.Value,
+                screenshotDirectory!,
+                result)
             : result;
     }
 
-    private object RedactFilePathFromScreenshotResult(int processId, object result)
+    private object RedactFilePathFromScreenshotResult(
+        int processId,
+        long sessionGeneration,
+        string screenshotDirectory,
+        object result)
     {
         var payload = result is JsonElement jsonElement
             ? jsonElement
             : JsonSerializer.SerializeToElement(result);
         if (payload.ValueKind != JsonValueKind.Object)
+        {
+            return result;
+        }
+
+        if (payload.TryGetProperty("success", out var success) &&
+            success.ValueKind == JsonValueKind.False)
         {
             return result;
         }
@@ -123,16 +175,21 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
                     throw new ArgumentException("File-mode screenshot responses must include a screenshotId.");
                 }
 
-                screenshot = _sessionManager.RegisterScreenshotResource(processId, screenshotId, path, sha256);
+                screenshot = _sessionManager.RegisterScreenshotResource(
+                    processId,
+                    sessionGeneration,
+                    screenshotId,
+                    path,
+                    sha256);
             }
             catch (ArgumentException)
             {
-                _sessionManager.TryDeleteUnregisteredScreenshotFile(processId, path);
+                _sessionManager.TryDeleteUnregisteredScreenshotFile(processId, path, screenshotDirectory);
                 return CreateUnregisteredScreenshotError(processId);
             }
             catch (InvalidOperationException)
             {
-                _sessionManager.TryDeleteUnregisteredScreenshotFile(processId, path);
+                _sessionManager.TryDeleteUnregisteredScreenshotFile(processId, path, screenshotDirectory);
                 return CreateUnregisteredScreenshotError(processId);
             }
         }

@@ -22,11 +22,23 @@ public sealed partial class SessionManager
         set => ScreenshotReparsePointChainDetectorOverrideForTestingState.Value = value;
     }
 
-    internal string GetOrCreateScreenshotStorageRoot(int processId)
+    internal string GetOrCreateScreenshotStorageRoot(int processId) =>
+        GetOrCreateScreenshotStorageRootCore(processId, expectedSessionGeneration: null);
+
+    internal string GetOrCreateScreenshotStorageRoot(int processId, long expectedSessionGeneration) =>
+        GetOrCreateScreenshotStorageRootCore(processId, expectedSessionGeneration);
+
+    private string GetOrCreateScreenshotStorageRootCore(int processId, long? expectedSessionGeneration)
     {
         ThrowIfDisposed();
         lock (_lock)
         {
+            if (expectedSessionGeneration.HasValue &&
+                !IsCurrentSessionGenerationLocked(processId, expectedSessionGeneration.Value))
+            {
+                throw new InvalidOperationException("Screenshot storage root requires the original active session.");
+            }
+
             if (_screenshotStorageRoots.TryGetValue(processId, out var existingRoot))
             {
                 PrepareScreenshotStorageRoot(existingRoot);
@@ -44,6 +56,22 @@ public sealed partial class SessionManager
         int processId,
         string screenshotId,
         string filePath,
+        string? sha256) =>
+        RegisterScreenshotResourceCore(processId, null, screenshotId, filePath, sha256);
+
+    internal StoredScreenshotResource RegisterScreenshotResource(
+        int processId,
+        long expectedSessionGeneration,
+        string screenshotId,
+        string filePath,
+        string? sha256) =>
+        RegisterScreenshotResourceCore(processId, expectedSessionGeneration, screenshotId, filePath, sha256);
+
+    private StoredScreenshotResource RegisterScreenshotResourceCore(
+        int processId,
+        long? expectedSessionGeneration,
+        string screenshotId,
+        string filePath,
         string? sha256)
     {
         ThrowIfDisposed();
@@ -56,7 +84,9 @@ public sealed partial class SessionManager
         }
 
         var fullPath = ResolveAndValidateScreenshotPath(filePath, "Screenshot file");
-        var storageRoot = GetOrCreateScreenshotStorageRootForRegistration(processId);
+        var storageRoot = expectedSessionGeneration.HasValue
+            ? GetExistingScreenshotStorageRootForRegistration(processId, expectedSessionGeneration.Value)
+            : GetOrCreateScreenshotStorageRootForRegistration(processId);
         if (!IsPathWithinRoot(fullPath, storageRoot))
         {
             throw new ArgumentException(
@@ -85,6 +115,14 @@ public sealed partial class SessionManager
 
         lock (_lock)
         {
+            if (expectedSessionGeneration.HasValue &&
+                (!IsCurrentSessionGenerationLocked(processId, expectedSessionGeneration.Value) ||
+                 !_screenshotStorageRoots.TryGetValue(processId, out var currentRoot) ||
+                 !string.Equals(Path.GetFullPath(currentRoot), Path.GetFullPath(storageRoot), StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidOperationException("Screenshot resource registration requires the original active session.");
+            }
+
             TrimExpiredScreenshotResources(registeredAtUtc, retainedScreenshotId: screenshotId);
             if (!_screenshotResources.ContainsKey(screenshotId))
             {
@@ -124,7 +162,10 @@ public sealed partial class SessionManager
         }
     }
 
-    internal bool TryDeleteUnregisteredScreenshotFile(int processId, string filePath)
+    internal bool TryDeleteUnregisteredScreenshotFile(
+        int processId,
+        string filePath,
+        string? storageRootOverride = null)
     {
         ThrowIfDisposed();
         if (string.IsNullOrWhiteSpace(filePath))
@@ -138,6 +179,7 @@ public sealed partial class SessionManager
             _screenshotStorageRoots.TryGetValue(processId, out storageRoot);
         }
 
+        storageRoot ??= storageRootOverride;
         if (string.IsNullOrWhiteSpace(storageRoot))
         {
             return false;
@@ -145,6 +187,7 @@ public sealed partial class SessionManager
 
         try
         {
+            storageRoot = ResolveAndValidateScreenshotPath(storageRoot, "Screenshot storage directory");
             var fullPath = ResolveAndValidateScreenshotPath(filePath, "Screenshot file");
             if (!IsPathWithinRoot(fullPath, storageRoot))
             {
@@ -160,6 +203,7 @@ public sealed partial class SessionManager
             if (File.Exists(fullPath))
             {
                 File.Delete(fullPath);
+                TryDeleteScreenshotDirectory(storageRoot);
                 return true;
             }
         }
@@ -200,6 +244,10 @@ public sealed partial class SessionManager
             TryDeleteScreenshotDirectory(storageRoot);
         }
     }
+
+    private bool IsCurrentSessionGenerationLocked(int processId, long sessionGeneration) =>
+        _sessionGenerations.TryGetValue(processId, out var currentGeneration)
+        && currentGeneration == sessionGeneration;
 
     private void TrimScreenshotResources(string? retainedScreenshotId = null)
     {
@@ -378,6 +426,24 @@ public sealed partial class SessionManager
             PrepareScreenshotStorageRoot(root);
             _screenshotStorageRoots[processId] = root;
             return root;
+        }
+    }
+
+    private string GetExistingScreenshotStorageRootForRegistration(int processId, long expectedSessionGeneration)
+    {
+        lock (_lock)
+        {
+            if (!IsCurrentSessionGenerationLocked(processId, expectedSessionGeneration))
+            {
+                throw new InvalidOperationException("Screenshot resource registration requires the original active session.");
+            }
+
+            if (!_screenshotStorageRoots.TryGetValue(processId, out var existingRoot))
+            {
+                throw new InvalidOperationException("Screenshot storage root is not available for the active session.");
+            }
+
+            return existingRoot;
         }
     }
 

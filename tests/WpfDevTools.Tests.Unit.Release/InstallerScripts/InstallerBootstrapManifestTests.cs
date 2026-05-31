@@ -243,7 +243,7 @@ $null = Ensure-TuiHelpersAvailable
     }
 
     [Fact]
-    public void OnlineInstallerDefinitions_ShouldAcceptArchiveTrustedHelperManifestWithDifferentCacheKey()
+    public void OnlineInstallerDefinitions_ShouldRejectArchiveTrustedHelperManifestWithDifferentCacheKey()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -253,9 +253,12 @@ $null = Ensure-TuiHelpersAvailable
             System.IO.Compression.ZipFile.ExtractToDirectory(archivePath, extractRoot);
 
             var helperRoot = Path.Combine(extractRoot, "bin", "installer");
+            var markerPath = Path.Combine(tempRoot, "archive-helper.marker");
             File.AppendAllText(
                 Path.Combine(helperRoot, "Installer.Actions.ps1"),
-                Environment.NewLine + "# archive-trusted helper version under release metadata" + Environment.NewLine);
+                Environment.NewLine +
+                "Set-Content -LiteralPath $env:WPFDEVTOOLS_ARCHIVE_HELPER_MARKER -Value executed -Encoding UTF8" +
+                Environment.NewLine);
             RewriteHelperManifestForDirectory(helperRoot);
 
             File.Delete(archivePath);
@@ -269,7 +272,10 @@ $null = Ensure-TuiHelpersAvailable
             var command = $$"""
 {{OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action install -Version 1.2.3 -Architecture x64 -Client other -PackageArchivePath '" + archivePath.Replace("'", "''") + "' -TrustedReleaseMetadataDirectory '" + tempRoot.Replace("'", "''") + "' -WorkingRoot '" + workingRoot.Replace("'", "''") + "' -NonInteractive", scriptPath, enableInternalTestMode: false)}}
 $helperRoot = Ensure-TuiHelpersAvailable
-Test-Path -LiteralPath (Join-Path $helperRoot 'Installer.Actions.ps1')
+foreach ($helperPath in @(Import-TuiHelpers)) {
+    . $helperPath
+}
+'loaded'
 """;
 
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(
@@ -279,12 +285,15 @@ Test-Path -LiteralPath (Join-Path $helperRoot 'Installer.Actions.ps1')
                     ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
                     ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
                     ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["WPFDEVTOOLS_ARCHIVE_HELPER_MARKER"] = markerPath,
                     ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0"
                 });
 
-            result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Trim().Should().Be("True",
-                "release-metadata-trusted archives are independently verified before helper extraction");
+            result.ExitCode.Should().NotBe(0);
+            (result.Stdout + Environment.NewLine + result.Stderr)
+                .Should().Contain("pinned installer helper manifest cache key");
+            File.Exists(markerPath).Should().BeFalse(
+                "release archive metadata must not be allowed to self-attest executable helper scripts before an independent helper trust anchor is checked");
         }
         finally
         {

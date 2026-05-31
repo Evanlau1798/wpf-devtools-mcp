@@ -2946,7 +2946,7 @@ function Get-TuiHelperManifest {
         throw "Installer helper manifest was not found after download: $manifestPath"
     }
 
-    Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $script:TuiHelperManifest
+    Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $script:TuiHelperManifest -RequirePinnedCacheKey
     return $script:TuiHelperManifest
 }
 function Ensure-TuiHelpersAvailable {
@@ -3013,7 +3013,7 @@ function Ensure-TuiHelpersAvailable {
         }
 
         $script:TuiHelperManifest = $manifest
-        Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $manifest
+        Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $manifest -RequirePinnedCacheKey
         $script:TuiHelperResolvedRoot = $runtimeRoot
         return $runtimeRoot
     }
@@ -3099,7 +3099,7 @@ function Ensure-TuiHelpersAvailable {
     }
 
     $script:TuiHelperManifest = $manifest
-    Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $manifest
+    Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $manifest -RequirePinnedCacheKey
     Set-Content -LiteralPath $cacheKeyPath -Value (Get-InstallerHelperRuntimeCacheKey -Manifest $manifest) -Encoding UTF8
     $script:TuiHelperBootstrapArchive = [ordered]@{
         ArchivePath = $archivePath

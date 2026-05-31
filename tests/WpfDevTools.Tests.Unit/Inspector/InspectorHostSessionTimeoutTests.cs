@@ -117,7 +117,7 @@ public sealed class InspectorHostSessionTimeoutTests : IDisposable
     }
 
     [Fact]
-    public async Task NonCooperativeHandler_ShouldReturnTimeoutAndAllowNextClient()
+    public async Task NonCooperativeHandler_ShouldReturnTimeoutAndStopHostBeforeNextClient()
     {
         var blocker = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
@@ -161,21 +161,8 @@ public sealed class InspectorHostSessionTimeoutTests : IDisposable
             $"WpfDevTools_{pid}",
             PipeDirection.InOut,
             PipeOptions.Asynchronous);
-        await nextClient.ConnectAsync(3_000);
-
-        await MessageFraming.WriteMessageAsync(nextClient, JsonSerializer.Serialize(new InspectorRequest
-        {
-            Id = "post-timeout-ping",
-            Method = "ping",
-            Params = null
-        }));
-
-        using var pingCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-        var pingJson = await MessageFraming.ReadMessageAsync(nextClient, pingCts.Token);
-        var pingResponse = JsonSerializer.Deserialize<InspectorResponse>(pingJson);
-        pingResponse.Should().NotBeNull();
-        pingResponse!.Id.Should().Be("post-timeout-ping");
-        pingResponse.Error.Should().BeNull();
+        await Assert.ThrowsAnyAsync<Exception>(() => nextClient.ConnectAsync(500));
+        host.IsRunning.Should().BeFalse("hard timeout recovery must stop accepting new work while the timed-out handler may still run");
 
         blocker.TrySetResult(new { success = true });
     }

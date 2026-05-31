@@ -73,6 +73,7 @@ public sealed partial class InspectorHost
 
                 if (response.Error?.Code == ErrorCode.Timeout)
                 {
+                    StopAfterHardTimeout();
                     break;
                 }
             }
@@ -208,6 +209,18 @@ public sealed partial class InspectorHost
             CancellationToken.None,
             TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
+    }
+
+    private void StopAfterHardTimeout()
+    {
+        try
+        {
+            Stop();
+        }
+        catch (Exception ex)
+        {
+            LogError($"Failed to stop InspectorHost after hard timeout: {ex.Message}");
+        }
     }
 
     private async Task SendErrorResponseAsync(

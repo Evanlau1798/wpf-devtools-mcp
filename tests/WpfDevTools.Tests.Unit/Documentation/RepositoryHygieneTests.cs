@@ -236,7 +236,6 @@ public class RepositoryHygieneTests
         {
             "ProcessEnvironment",
             "SecurityState",
-            "TimingSensitive",
             "ToolCallHelperState"
         };
         var testFiles = EnumeratePolicyFiles()
@@ -264,7 +263,9 @@ public class RepositoryHygieneTests
             return true;
         }
 
-        var classNames = Regex.Matches(content, @"\bclass\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)")
+        var classNames = Regex.Matches(
+            content,
+            @"(?m)^(?:public|internal)\s+(?:sealed\s+|abstract\s+|static\s+|partial\s+)*class\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)")
             .Select(match => match.Groups["name"].Value)
             .ToArray();
         return allTestFileContent.Any(candidate =>

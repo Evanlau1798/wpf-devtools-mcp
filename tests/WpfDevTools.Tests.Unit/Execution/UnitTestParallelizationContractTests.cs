@@ -166,6 +166,14 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
+    public void ConnectToolEnvironmentMutationTests_ShouldUseProcessEnvironmentCollection()
+    {
+        GetCollectionName(typeof(ConnectToolTests)).Should().Be("ProcessEnvironment");
+        GetCollectionName(typeof(ConnectToolRawInjectionPolicyTests)).Should().Be("ProcessEnvironment");
+        GetCollectionName(typeof(ConnectToolRawInjectionPolicyErrorCodeTests)).Should().Be("ProcessEnvironment");
+    }
+
+    [Fact]
     public void InspectorSdkInitializationTestClasses_ShouldUseProcessEnvironmentCollection()
     {
         GetCollectionName(typeof(InspectorSdkInitializationConfigurationTests)).Should().Be("ProcessEnvironment");
@@ -308,7 +316,6 @@ public sealed class UnitTestParallelizationContractTests
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.WatchDpChangesToolTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ElementScreenshotToolTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.TraceRoutedEventsToolReplayTests)).Should().Be("TimingSensitive");
-        GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ConnectToolTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ConnectToolConcurrencyTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(WpfDevTools.Tests.Unit.McpServer.Tools.ConnectToolRawInjectionIdentityTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InspectorHostObservabilityTests)).Should().Be("TimingSensitive");

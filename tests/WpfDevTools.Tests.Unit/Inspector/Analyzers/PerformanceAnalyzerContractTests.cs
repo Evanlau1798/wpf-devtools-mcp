@@ -41,6 +41,26 @@ public sealed class PerformanceAnalyzerContractTests
     }
 
     [Fact]
+    public void GetRenderStats_Source_ShouldComputeVisualCountOutsideRenderStatsLock()
+    {
+        var source = File.ReadAllText(Path.Combine(
+            FindSourceRoot(),
+            "src",
+            "WpfDevTools.Inspector",
+            "Analyzers",
+            "PerformanceAnalyzer.cs"));
+        var methodStart = source.IndexOf("public object GetRenderStats", StringComparison.Ordinal);
+        var firstLock = source.IndexOf("lock (_lock)", methodStart, StringComparison.Ordinal);
+        var firstVisualCount = source.IndexOf("GetVisualCountInternal()", methodStart, StringComparison.Ordinal);
+
+        methodStart.Should().BeGreaterThanOrEqualTo(0);
+        firstLock.Should().BeGreaterThan(methodStart);
+        firstVisualCount.Should().BeGreaterThan(methodStart);
+        firstVisualCount.Should().BeLessThan(firstLock,
+            "visual tree traversal must happen before taking the render stats sampling lock");
+    }
+
+    [Fact]
     public async Task FindBindingLeaksAsync_ShouldExposeSuspectsArray()
     {
         var analyzer = new PerformanceAnalyzer();
@@ -130,5 +150,21 @@ public sealed class PerformanceAnalyzerContractTests
         result.GetProperty("count").GetInt32().Should().Be(expectedCount);
         result.GetProperty("visualCountLimit").GetInt32().Should().Be(expectedCount);
         result.GetProperty("visualCountTruncated").GetBoolean().Should().BeFalse();
+    }
+
+    private static string FindSourceRoot()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null)
+        {
+            if (File.Exists(Path.Combine(current.FullName, "WpfDevTools.sln")))
+            {
+                return current.FullName;
+            }
+
+            current = current.Parent;
+        }
+
+        throw new InvalidOperationException("Could not locate repository root.");
     }
 }

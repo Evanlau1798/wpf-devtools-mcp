@@ -74,12 +74,13 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
         // Read stats on UI thread
         return InvokeOnUIThread<object>(() =>
         {
+            var renderVisualCount = GetVisualCountInternal();
+
             lock (_lock)
             {
                 if (_frameTimes.Count == 0)
                 {
                     var (warmupConfidence, warmupGuidance) = PerformanceConfidencePolicy.EvaluateRenderStats(sampleCount: 0, isWarmedUp: false);
-                    var warmupVisualCount = GetVisualCountInternal();
                     return new
                     {
                         success = true,
@@ -100,9 +101,9 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
                         maxFrameTime = 0.0,
                         totalFrames = _frameCount,
                         monitoringDuration = 0.0,
-                        visualCount = warmupVisualCount.Count,
-                        visualCountLimit = warmupVisualCount.Limit,
-                        visualCountTruncated = warmupVisualCount.Truncated
+                        visualCount = renderVisualCount.Count,
+                        visualCountLimit = renderVisualCount.Limit,
+                        visualCountTruncated = renderVisualCount.Truncated
                     };
                 }
 
@@ -112,7 +113,6 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
                 var monitoringDuration = (DateTime.UtcNow - _monitoringStartTime).TotalSeconds;
                 var (statsConfidence, statsGuidance) = PerformanceConfidencePolicy.EvaluateRenderStats(_frameTimes.Count, isWarmedUp: true);
 
-                var statsVisualCount = GetVisualCountInternal();
                 return new
                 {
                     success = true,
@@ -132,9 +132,9 @@ public sealed partial class PerformanceAnalyzer : DispatcherAnalyzerBase
                     maxFrameTime = Math.Round(frameTimesArray.Max(), 2),
                     totalFrames = _frameCount,
                     monitoringDuration = Math.Round(monitoringDuration, 2),
-                    visualCount = statsVisualCount.Count,
-                    visualCountLimit = statsVisualCount.Limit,
-                    visualCountTruncated = statsVisualCount.Truncated
+                    visualCount = renderVisualCount.Count,
+                    visualCountLimit = renderVisualCount.Limit,
+                    visualCountTruncated = renderVisualCount.Truncated
                 };
             }
         });

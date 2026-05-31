@@ -89,13 +89,13 @@ public sealed partial class SandboxCiScriptContractTests
                 [pscustomobject]@{
                     Name = 'parallel lane one'
                     FilePath = 'powershell.exe'
-                    Arguments = @('-NoProfile', '-Command', '[System.IO.File]::WriteAllText($env:LANE_ONE_TIMES, "start=$([DateTime]::UtcNow.Ticks)`n"); Start-Sleep -Seconds 3; [System.IO.File]::AppendAllText($env:LANE_ONE_TIMES, "end=$([DateTime]::UtcNow.Ticks)`n"); Write-Output lane-one')
+                    Arguments = @('-NoProfile', '-Command', '[System.IO.File]::WriteAllText($env:LANE_ONE_TIMES, "start=$([DateTime]::UtcNow.Ticks)`n"); Start-Sleep -Milliseconds 500; [System.IO.File]::AppendAllText($env:LANE_ONE_TIMES, "end=$([DateTime]::UtcNow.Ticks)`n"); Write-Output lane-one')
                     TimeoutSeconds = 30
                 },
                 [pscustomobject]@{
                     Name = 'parallel lane two'
                     FilePath = 'powershell.exe'
-                    Arguments = @('-NoProfile', '-Command', '[System.IO.File]::WriteAllText($env:LANE_TWO_TIMES, "start=$([DateTime]::UtcNow.Ticks)`n"); Start-Sleep -Seconds 3; [System.IO.File]::AppendAllText($env:LANE_TWO_TIMES, "end=$([DateTime]::UtcNow.Ticks)`n"); Write-Output lane-two')
+                    Arguments = @('-NoProfile', '-Command', '[System.IO.File]::WriteAllText($env:LANE_TWO_TIMES, "start=$([DateTime]::UtcNow.Ticks)`n"); Start-Sleep -Milliseconds 500; [System.IO.File]::AppendAllText($env:LANE_TWO_TIMES, "end=$([DateTime]::UtcNow.Ticks)`n"); Write-Output lane-two')
                     TimeoutSeconds = 30
                 }
             )
@@ -165,7 +165,7 @@ public sealed partial class SandboxCiScriptContractTests
                 [pscustomobject]@{
                     Name = 'long peer'
                     FilePath = 'powershell.exe'
-                    Arguments = @('-NoProfile', '-Command', 'Start-Sleep -Seconds 30')
+                    Arguments = @('-NoProfile', '-Command', 'Start-Sleep -Seconds 5')
                     TimeoutSeconds = 30
                 }
             )
@@ -205,7 +205,7 @@ public sealed partial class SandboxCiScriptContractTests
                 [pscustomobject]@{
                     Name = 'timeout lane'
                     FilePath = 'powershell.exe'
-                    Arguments = @('-NoProfile', '-Command', '$token = "{{token}}"; Start-Sleep -Seconds 30')
+                    Arguments = @('-NoProfile', '-Command', '$token = "{{token}}"; Start-Sleep -Seconds 5')
                     TimeoutSeconds = 1
                 }
             )
@@ -245,13 +245,13 @@ public sealed partial class SandboxCiScriptContractTests
                 [pscustomobject]@{
                     Name = 'timeout primary'
                     FilePath = 'powershell.exe'
-                    Arguments = @('-NoProfile', '-Command', '$token = "{{timeoutToken}}"; Start-Sleep -Seconds 30')
+                    Arguments = @('-NoProfile', '-Command', '$token = "{{timeoutToken}}"; Start-Sleep -Seconds 5')
                     TimeoutSeconds = 1
                 },
                 [pscustomobject]@{
                     Name = 'timeout peer'
                     FilePath = 'powershell.exe'
-                    Arguments = @('-NoProfile', '-Command', '$token = "{{peerToken}}"; Start-Sleep -Seconds 30')
+                    Arguments = @('-NoProfile', '-Command', '$token = "{{peerToken}}"; Start-Sleep -Seconds 5')
                     TimeoutSeconds = 30
                 }
             )

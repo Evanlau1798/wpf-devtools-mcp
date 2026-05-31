@@ -57,12 +57,22 @@ public static partial class CapabilityResources
                 textFallbackField = "result.content[0].text",
                 annotationsField = "result.content[0].annotations",
                 automationPreferredField = "result.structuredContent",
+                fullFidelityPayloadField = "result.structuredContent",
                 textFallbackSemantics = "compact-summary-only",
+                textFallbackFidelity = "lossy-compatibility-projection",
                 textFallbackIsFullPayload = false,
                 textFallbackDefaultMode = "compact",
                 textFallbackModes = new[] { "compact", "full" },
                 textFallbackModeEnvironmentVariable = McpServerConfiguration.TextFallbackModeEnvVar,
                 textFallbackFullModeSemantics = "full-json-compatibility-with-large-sensitive-fields-omitted",
+                textFallbackFullModeIsFullFidelity = false,
+                textFallbackFullModeOmittedFieldFamilies = new[]
+                {
+                    "base64-images",
+                    "raw-xaml-or-markup",
+                    "logs-and-traces"
+                },
+                olderTextOnlyClientGuidance = $"Use result.structuredContent for the full-fidelity JSON payload. Set {McpServerConfiguration.TextFallbackModeEnvVar}=full only as a compatibility override for legacy text-only MCP clients; large or sensitive fields remain omitted from content[0].text.",
                 structuredContentPreferred = true
             },
             toolPayload = new

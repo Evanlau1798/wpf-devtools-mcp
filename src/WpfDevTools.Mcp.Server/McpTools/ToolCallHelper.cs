@@ -135,15 +135,11 @@ public static partial class ToolCallHelper
 
         if (!BoundaryParameterValidator.TryValidateStringBoundaries(args, out var boundaryError))
         {
-            var payload = EnsureNavigation(
+            var payload = NormalizeToolPayload(
+                toolName,
+                args,
                 JsonSerializer.SerializeToElement(boundaryError, SerializerOptions),
-                ToolNavigationEnvelope.Empty);
-            if (!includeNavigation)
-            {
-                payload = RemoveTopLevelProperties(payload, "nextSteps", "navigation");
-            }
-
-            payload = NormalizeErrorContract(payload);
+                includeNavigation ? ToolNavigationEnvelope.Empty : null);
             RecordRequestMetrics(metricsCollector, toolName, 0, success: false, payload);
 
             return new CallToolResult()
@@ -165,14 +161,10 @@ public static partial class ToolCallHelper
             var result = await execute(args, cts.Token).ConfigureAwait(false);
             sw.Stop();
             var jsonElement = JsonSerializer.SerializeToElement(result, SerializerOptions);
-            if (includeNavigation)
-            {
-                var navigation = CurrentNavigationPlanner.PlanEnvelope(toolName, jsonElement, args, navigationState);
-                jsonElement = EnsureNavigation(jsonElement, navigation);
-            }
-            jsonElement = ApplyToolSpecificContracts(toolName, args, jsonElement);
-            jsonElement = NormalizeErrorContract(jsonElement);
-            jsonElement = NormalizePendingEventsContract(jsonElement);
+            var navigation = includeNavigation
+                ? CurrentNavigationPlanner.PlanEnvelope(toolName, jsonElement, args, navigationState)
+                : null;
+            jsonElement = NormalizeToolPayload(toolName, args, jsonElement, navigation);
             var isError = IsToolResultError(jsonElement);
 
             RecordRequestMetrics(metricsCollector, toolName, sw.ElapsedMilliseconds, !isError, jsonElement);
@@ -214,14 +206,11 @@ public static partial class ToolCallHelper
                 timeoutPayloadData["processId"] = timedOutProcessId;
             }
 
-            var timeoutPayload = EnsureNavigation(
+            var timeoutPayload = NormalizeToolPayload(
+                toolName,
+                args,
                 JsonSerializer.SerializeToElement(timeoutPayloadData, SerializerOptions),
-                ToolNavigationEnvelope.Empty);
-            if (!includeNavigation)
-            {
-                timeoutPayload = RemoveTopLevelProperties(timeoutPayload, "nextSteps", "navigation");
-            }
-            timeoutPayload = NormalizeErrorContract(timeoutPayload);
+                includeNavigation ? ToolNavigationEnvelope.Empty : null);
             RecordRequestMetrics(metricsCollector, toolName, sw.ElapsedMilliseconds, false, timeoutPayload);
 
             return new CallToolResult()
@@ -238,17 +227,12 @@ public static partial class ToolCallHelper
             // to prevent localized OS text or internal details from leaking to clients
             var (errorCode, sanitizedMessage) = ClassifyException(ex);
 
-            var exceptionPayload = EnsureNavigation(JsonSerializer.SerializeToElement(new
+            var exceptionPayload = NormalizeToolPayload(toolName, args, JsonSerializer.SerializeToElement(new
             {
                 success = false,
                 error = sanitizedMessage,
                 errorCode
-            }, SerializerOptions), ToolNavigationEnvelope.Empty);
-            if (!includeNavigation)
-            {
-                exceptionPayload = RemoveTopLevelProperties(exceptionPayload, "nextSteps", "navigation");
-            }
-            exceptionPayload = NormalizeErrorContract(exceptionPayload);
+            }, SerializerOptions), includeNavigation ? ToolNavigationEnvelope.Empty : null);
             RecordRequestMetrics(metricsCollector, toolName, sw.ElapsedMilliseconds, false, exceptionPayload);
 
             return new CallToolResult()
@@ -313,7 +297,7 @@ public static partial class ToolCallHelper
         string? hint = null,
         string? suggestedAction = null)
     {
-        var payload = EnsureNavigation(JsonSerializer.SerializeToElement(new
+        var payload = NormalizeToolPayload("structured_error", null, JsonSerializer.SerializeToElement(new
         {
             success = false,
             error,
@@ -321,7 +305,6 @@ public static partial class ToolCallHelper
             hint,
             suggestedAction
         }, SerializerOptions), ToolNavigationEnvelope.Empty);
-        payload = NormalizeErrorContract(payload);
 
         return new CallToolResult()
         {

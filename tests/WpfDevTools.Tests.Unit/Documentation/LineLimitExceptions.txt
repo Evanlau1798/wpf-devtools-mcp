@@ -2,4 +2,4 @@
 # Format: repository-relative path | reason
 .github/workflows/ci-cd.yml | Temporary workflow orchestration exception; split into reusable workflow/actions before removing.
 .github/workflows/release.yml | Temporary release workflow orchestration exception; split staging/signing/upload lanes before removing.
-scripts/online-installer.ps1 | Temporary user-requested exception; do not split in this remediation loop.
+scripts/online-installer.ps1 | Temporary installer entrypoint exception; release asset discovery and archive trust helpers are split into scripts/installer/.

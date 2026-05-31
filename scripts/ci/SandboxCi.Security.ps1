@@ -3,12 +3,19 @@ function Invoke-HostedPowerShellScriptAnalyzerGate {
         Where-Object { $_.Version -ge [version]'1.25.0' } |
         Select-Object -First 1
     if ($null -eq $module) {
+        $installScriptAnalyzerCommand = @"
+`$ErrorActionPreference = 'Stop'
+`$ProgressPreference = 'SilentlyContinue'
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Scope CurrentUser -Force -Confirm:`$false -ErrorAction Stop
+Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction Stop
+Install-Module PSScriptAnalyzer -Scope CurrentUser -Force -AcceptLicense -Confirm:`$false -RequiredVersion 1.25.0 -Repository PSGallery -ErrorAction Stop
+"@
         Invoke-External 'Install PowerShell ScriptAnalyzer' 'powershell.exe' @(
             '-NoProfile',
             '-ExecutionPolicy',
             'Bypass',
             '-Command',
-            "Set-PSRepository -Name PSGallery -InstallationPolicy Trusted; Install-Module PSScriptAnalyzer -Scope CurrentUser -Force -RequiredVersion 1.25.0 -Repository PSGallery"
+            $installScriptAnalyzerCommand
         )
     }
 

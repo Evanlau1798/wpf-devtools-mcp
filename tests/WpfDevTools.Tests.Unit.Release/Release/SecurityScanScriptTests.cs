@@ -49,6 +49,39 @@ public sealed class SecurityScanScriptTests
     }
 
     [Fact]
+    public void HostedPowerShellScriptAnalyzerInstall_ShouldBeNonInteractiveInWindowsSandbox()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var logPath = Path.Combine(tempRoot, "script-analyzer-install.log");
+            var command = string.Join(Environment.NewLine, [
+                "$ErrorActionPreference = 'Stop'",
+                ". " + QuotePowerShellString(ReleaseScriptTestHarness.GetRepoFilePath("scripts/ci/SandboxCi.Security.ps1")),
+                "function Get-Module { param([string]$Name, [switch]$ListAvailable) return @() }",
+                "function Invoke-External { param([string]$Name, [string]$FilePath, [string[]]$Arguments) " +
+                "Add-Content -LiteralPath " + QuotePowerShellString(logPath) +
+                " -Value ($Name + '|' + $FilePath + '|' + ($Arguments -join ' ')) }",
+                "Invoke-HostedPowerShellScriptAnalyzerGate"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(20));
+
+            result.ExitCode.Should().Be(0, result.Stdout + result.Stderr);
+            var log = File.ReadAllText(logPath);
+            log.Should().Contain("Install PowerShell ScriptAnalyzer|powershell.exe|-NoProfile -ExecutionPolicy Bypass -Command");
+            log.Should().Contain("Install-PackageProvider -Name NuGet");
+            log.Should().Contain("-Scope CurrentUser -Force -Confirm:$false -ErrorAction Stop");
+            log.Should().Contain("Install-Module PSScriptAnalyzer");
+            log.Should().Contain("-Force -AcceptLicense -Confirm:$false -RequiredVersion 1.25.0 -Repository PSGallery -ErrorAction Stop");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void RepositorySecretScan_ShouldFailOnSyntheticSecretFixture()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

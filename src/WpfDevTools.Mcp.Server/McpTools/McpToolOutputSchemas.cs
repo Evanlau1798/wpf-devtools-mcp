@@ -159,8 +159,7 @@ internal static partial class McpToolOutputSchemas
                 ["newBindingErrors"] = ArrayOf("Binding errors that appeared after the snapshot.", BindingErrorDelta()),
                 ["resolvedBindingErrors"] = ArrayOf("Binding errors that disappeared after the snapshot.", BindingErrorDelta()),
                 ["validationChanges"] = ArrayOf("Validation error changes since the snapshot.", ValidationChange()),
-                ["focusChange"] = FocusChange(),
-                ["diff"] = StateDiff()
+                ["focusChange"] = FocusChange()
             }),
             ["restore_state_snapshot"] = CreateSchema(false, new()
             {
@@ -189,7 +188,6 @@ internal static partial class McpToolOutputSchemas
             {
                 ["executionMode"] = String("Batch execution strategy."),
                 ["mutations"] = ArrayOf("Per-mutation results in execution order.", MutationResult()),
-                ["results"] = ArrayOf("Compatibility alias for per-mutation results in execution order.", MutationResult()),
                 ["mutationCount"] = Integer("Total mutation count."),
                 ["executedMutationCount"] = Integer("Number of mutations that started execution."),
                 ["successfulMutationCount"] = Integer("Number of successful mutations."),
@@ -205,7 +203,6 @@ internal static partial class McpToolOutputSchemas
                 ["availableEvents"] = ArrayOfString("Available event names when reported."),
                 ["snapshotId"] = String("Snapshot captured for the batch when requested."),
                 ["stateDiff"] = StateDiff(),
-                ["diff"] = StateDiff(),
                 ["rollback"] = RollbackInfo(),
                 ["recovery"] = Recovery()
             }),

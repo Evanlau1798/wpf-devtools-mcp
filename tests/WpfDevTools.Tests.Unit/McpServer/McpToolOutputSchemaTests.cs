@@ -19,9 +19,9 @@ public sealed class McpToolOutputSchemaTests
         { "drain_events", ["pendingEventCount", "droppedEventCount", "cleanupIncomplete", "cleanupFailureMessage", "cleanupFailureType", "pendingEvents"] },
         { "get_form_summary", ["formScope", "scopeVisibility", "isCurrentlyVisible", "inputs", "commands", "summary"] },
         { "capture_state_snapshot", ["snapshotId", "snapshotSummary"] },
-        { "get_state_diff", ["snapshotId", "trigger", "diff"] },
+        { "get_state_diff", ["snapshotId", "trigger", "propertyChanges", "viewModelChanges", "focusChange"] },
         { "restore_state_snapshot", ["snapshotId", "restoredDependencyProperties", "restoredViewModelProperties", "skippedDependencyProperties", "skippedViewModelProperties"] },
-        { "batch_mutate", ["results", "mutationCount", "successfulMutationCount", "failedMutationCount", "snapshotId", "diff", "rollback", "recovery"] },
+        { "batch_mutate", ["mutations", "mutationCount", "successfulMutationCount", "failedMutationCount", "snapshotId", "stateDiff", "rollback", "recovery"] },
         { "element_screenshot", ["elementId", "screenshotId", "resourceUri", "expiresAtUtc", "outputMode", "width", "height", "mimeType", "base64Image"] }
     };
 

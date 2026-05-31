@@ -302,8 +302,8 @@ internal static class ResponseContractToolEntries
                 canonicalPayloadField = "result.structuredContent",
                 textFallbackField = "result.content[0].text",
                 contractResource = resourceUri,
-                topLevelFields = new[] { "success", "snapshotId", "trigger", "durationMs", "propertyChanges", "viewModelChanges", "newBindingErrors", "resolvedBindingErrors", "validationChanges", "focusChange", "diff" },
-                nestedResponsePaths = new[] { "propertyChanges[].propertyName", "viewModelChanges[].propertyName", "focusChange.changed", "diff.snapshotId" },
+                topLevelFields = new[] { "success", "snapshotId", "trigger", "durationMs", "propertyChanges", "viewModelChanges", "newBindingErrors", "resolvedBindingErrors", "validationChanges", "focusChange" },
+                nestedResponsePaths = new[] { "propertyChanges[].propertyName", "viewModelChanges[].propertyName", "focusChange.changed" },
                 requestParameters = new[] { "snapshotId", "trigger" }
             },
             new
@@ -324,8 +324,8 @@ internal static class ResponseContractToolEntries
                 canonicalPayloadField = "result.structuredContent",
                 textFallbackField = "result.content[0].text",
                 contractResource = resourceUri,
-                topLevelFields = new[] { "success", "executionMode", "snapshotId", "mutationCount", "executedMutationCount", "successfulMutationCount", "failedMutationCount", "skippedMutationCount", "stateAfterTimeoutUnknown", "requiresReconnect", "processId", "timeoutSeconds", "retryAfterSeconds", "retryAfter", "availableTokens", "availableEvents", "mutations", "results", "stateDiff", "diff", "rollback", "recovery" },
-                nestedResponsePaths = new[] { "mutations[].tool", "mutations[].success", "mutations[].stateAfterTimeoutUnknown", "results[].tool", "results[].success", "stateDiff.snapshotId", "diff.snapshotId", "rollback.params.snapshotId", "recovery.tool", "recovery.retryAfterSeconds" },
+                topLevelFields = new[] { "success", "executionMode", "snapshotId", "mutationCount", "executedMutationCount", "successfulMutationCount", "failedMutationCount", "skippedMutationCount", "stateAfterTimeoutUnknown", "requiresReconnect", "processId", "timeoutSeconds", "retryAfterSeconds", "retryAfter", "availableTokens", "availableEvents", "mutations", "stateDiff", "rollback", "recovery" },
+                nestedResponsePaths = new[] { "mutations[].tool", "mutations[].success", "mutations[].stateAfterTimeoutUnknown", "stateDiff.snapshotId", "rollback.params.snapshotId", "recovery.tool", "recovery.retryAfterSeconds" },
                 requestParameters = new[] { "captureSnapshot", "includeDiff", "mutations", "trigger" }
             },
             new

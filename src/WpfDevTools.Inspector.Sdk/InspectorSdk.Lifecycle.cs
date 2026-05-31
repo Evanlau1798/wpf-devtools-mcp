@@ -58,6 +58,14 @@ public static partial class InspectorSdk
         }
     }
 
+    private static bool IsAlreadyInitialized()
+    {
+        lock (LifecycleLock)
+        {
+            return _isInitialized;
+        }
+    }
+
     private static void ClearStaleDeferredShutdownRequestIfIdle()
     {
         lock (LifecycleLock)

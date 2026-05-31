@@ -65,11 +65,9 @@ public static partial class InspectorSdk
         LastInitializationError = null;
         LastShutdownError = null;
         var pid = options.ProcessId ?? Environment.ProcessId;
-        LastInitializationStatus = CreateInitializingStatus(pid);
 
-        if (_isInitialized)
+        if (IsAlreadyInitialized())
         {
-            LastInitializationStatus = CreateInitializedStatus(pid);
             return;
         }
 
@@ -81,11 +79,12 @@ public static partial class InspectorSdk
 
         try
         {
-            if (_isInitialized)
+            if (IsAlreadyInitialized())
             {
-                LastInitializationStatus = CreateInitializedStatus(pid);
                 return;
             }
+
+            LastInitializationStatus = CreateInitializingStatus(pid);
 
             // Must run on UI thread
             var dispatcher = DispatcherResolver();

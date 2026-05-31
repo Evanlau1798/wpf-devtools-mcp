@@ -47,12 +47,13 @@ internal sealed class ElementSnapshotAggregator : IElementSnapshotAggregator
         JsonElement? @params,
         CancellationToken cancellationToken)
     {
-        var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
-        if (string.IsNullOrWhiteSpace(elementId))
+        var requestedElementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        if (string.IsNullOrWhiteSpace(requestedElementId))
         {
             throw new ArgumentException("Missing required parameter: elementId");
         }
 
+        var elementId = requestedElementId!;
         var propertyNames = BuildPropertyNames(ParameterHelpers.GetStringArrayParam(@params, "propertyNames"));
 
         var identityPayload = await ExecuteStepAsync(

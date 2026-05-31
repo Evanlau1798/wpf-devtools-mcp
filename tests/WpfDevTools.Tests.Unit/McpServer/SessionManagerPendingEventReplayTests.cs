@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentAssertions;
+using System.Collections;
 using System.Reflection;
 using WpfDevTools.Mcp.Server;
 using static WpfDevTools.Tests.Unit.TestHelpers;
@@ -99,13 +100,42 @@ public sealed class SessionManagerPendingEventReplayTests
         }
 
         sessionManager.RemoveSession(processId);
-        GetPendingEventReplayLocks(sessionManager).Should().NotContainKey(processId);
+        GetPendingEventReplayLocks(sessionManager).Contains(processId).Should().BeFalse();
 
         using (await sessionManager.AcquirePendingEventReplayLockAsync(processId, CancellationToken.None))
         {
-            GetPendingEventReplayLocks(sessionManager).Should().NotContainKey(processId,
+            GetPendingEventReplayLocks(sessionManager).Contains(processId).Should().BeFalse(
                 "acquiring a replay lock for a removed session must not recreate retained semaphore state");
         }
+    }
+
+    [Fact]
+    public async Task RemoveSession_ShouldDisposePendingEventReplayLockAfterActiveScopeReleases()
+    {
+        const int processId = 43116;
+        using var sessionManager = new SessionManager();
+        DisableSessionManagerCleanupTimer(sessionManager);
+        sessionManager.AddSession(processId);
+
+        var replayLockScope = await sessionManager.AcquirePendingEventReplayLockAsync(processId, CancellationToken.None);
+        var replaySemaphore = GetPendingEventReplayLock(sessionManager, processId);
+        _ = replaySemaphore.AvailableWaitHandle;
+
+        try
+        {
+            sessionManager.RemoveSession(processId);
+            var readWhileHeld = () => _ = replaySemaphore.AvailableWaitHandle;
+            readWhileHeld.Should().NotThrow<ObjectDisposedException>(
+                "a session removal must not dispose a semaphore while an active replay scope still owns it");
+        }
+        finally
+        {
+            replayLockScope.Dispose();
+        }
+
+        var readAfterRelease = () => _ = replaySemaphore.AvailableWaitHandle;
+        readAfterRelease.Should().Throw<ObjectDisposedException>(
+            "the removed replay lock should be disposed once the active scope releases it");
     }
 
     [Fact]
@@ -150,11 +180,26 @@ public sealed class SessionManagerPendingEventReplayTests
         replayPayload.GetProperty("pendingEvents")[0].TryGetProperty("timestampUtc", out _).Should().BeFalse();
     }
 
-    private static IReadOnlyDictionary<int, SemaphoreSlim> GetPendingEventReplayLocks(SessionManager sessionManager)
+    private static IDictionary GetPendingEventReplayLocks(SessionManager sessionManager)
     {
         var field = typeof(SessionManager).GetField(
             "_pendingEventReplayLocks",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
-        return (IReadOnlyDictionary<int, SemaphoreSlim>)field.GetValue(sessionManager)!;
+        return (IDictionary)field.GetValue(sessionManager)!;
+    }
+
+    private static SemaphoreSlim GetPendingEventReplayLock(SessionManager sessionManager, int processId)
+    {
+        var value = GetPendingEventReplayLocks(sessionManager)[processId];
+        if (value is SemaphoreSlim semaphore)
+        {
+            return semaphore;
+        }
+
+        var semaphoreProperty = value!.GetType().GetProperty(
+            "Semaphore",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        semaphoreProperty.Should().NotBeNull();
+        return (SemaphoreSlim)semaphoreProperty!.GetValue(value)!;
     }
 }

@@ -213,6 +213,7 @@ public sealed partial class SessionManager : IDisposable
     {
         ThrowIfDisposed();
         NamedPipeClient? clientToDispose = null;
+        PendingEventReplayLockState? replayLockToDispose = null;
 
         lock (_lock)
         {
@@ -232,7 +233,7 @@ public sealed partial class SessionManager : IDisposable
 
             _stateSnapshots.Remove(processId);
             _pendingEventReplay.Remove(processId);
-            _pendingEventReplayLocks.Remove(processId);
+            replayLockToDispose = RemovePendingEventReplayLockForSessionLocked(processId);
             RemoveScreenshotResources(processId);
             _sessionGenerations.Remove(processId);
             _navigationStateStore.RemoveProcess(processId);
@@ -247,6 +248,7 @@ public sealed partial class SessionManager : IDisposable
         }
 
         clientToDispose?.Dispose();
+        replayLockToDispose?.Dispose();
         return true;
     }
 
@@ -383,6 +385,7 @@ public sealed partial class SessionManager : IDisposable
         lock (_shutdownGuard)
         {
             List<NamedPipeClient> clientsToDispose;
+            List<PendingEventReplayLockState> replayLocksToDispose;
 
             lock (_lock)
             {
@@ -396,6 +399,7 @@ public sealed partial class SessionManager : IDisposable
                 (_rateLimiter as IDisposable)?.Dispose();
 
                 clientsToDispose = _pipeClients.Values.ToList();
+                replayLocksToDispose = ClearPendingEventReplayLocksLocked();
 
                 foreach (var screenshot in _screenshotResources.Values)
                 {
@@ -427,6 +431,11 @@ public sealed partial class SessionManager : IDisposable
                 {
                     System.Diagnostics.Debug.WriteLine($"SessionManager: Failed to dispose pipe client: {ex.Message}");
                 }
+            }
+
+            foreach (var replayLock in replayLocksToDispose)
+            {
+                replayLock.Dispose();
             }
         }
     }

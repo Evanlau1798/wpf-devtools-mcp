@@ -5,48 +5,43 @@ namespace WpfDevTools.Mcp.Server;
 public sealed partial class SessionManager
 {
     private readonly Dictionary<int, PendingEventReplaySnapshot> _pendingEventReplay = new();
-    private readonly Dictionary<int, SemaphoreSlim> _pendingEventReplayLocks = new();
+    private readonly Dictionary<int, PendingEventReplayLockState> _pendingEventReplayLocks = new();
 
     internal async Task<PendingEventReplayLockScope> AcquirePendingEventReplayLockAsync(int processId, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
 
-        SemaphoreSlim replayLock;
-        bool disposeReplayLock;
+        PendingEventReplayLockState replayLock;
         long sessionGeneration;
         lock (_lock)
         {
             if (!_sessionGenerations.TryGetValue(processId, out sessionGeneration))
             {
-                replayLock = new SemaphoreSlim(1, 1);
-                disposeReplayLock = true;
+                replayLock = PendingEventReplayLockState.CreateTransient();
             }
             else
             {
-                disposeReplayLock = false;
                 if (!_pendingEventReplayLocks.TryGetValue(processId, out replayLock!))
                 {
-                    replayLock = new SemaphoreSlim(1, 1);
+                    replayLock = PendingEventReplayLockState.CreateRetained();
                     _pendingEventReplayLocks[processId] = replayLock;
                 }
             }
+
+            replayLock.AddReference();
         }
 
         try
         {
-            await replayLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await replayLock.Semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         catch
         {
-            if (disposeReplayLock)
-            {
-                replayLock.Dispose();
-            }
-
+            ReleasePendingEventReplayLockReference(replayLock);
             throw;
         }
 
-        return new PendingEventReplayLockScope(replayLock, sessionGeneration, disposeReplayLock);
+        return new PendingEventReplayLockScope(this, replayLock, sessionGeneration);
     }
 
     internal void SavePendingEventReplay(int processId, JsonElement drainPayload)
@@ -209,20 +204,113 @@ public sealed partial class SessionManager
         DateTimeOffset SavedAtUtc,
         long SessionGeneration);
 
-    internal sealed class PendingEventReplayLockScope(
-        SemaphoreSlim replayLock,
-        long sessionGeneration,
-        bool disposeReplayLock) : IDisposable
+    private PendingEventReplayLockState? RemovePendingEventReplayLockForSessionLocked(int processId)
     {
+        if (_pendingEventReplayLocks.Remove(processId, out var replayLock) && replayLock.MarkRemoved())
+        {
+            return replayLock;
+        }
+
+        return null;
+    }
+
+    private List<PendingEventReplayLockState> ClearPendingEventReplayLocksLocked()
+    {
+        var locksToDispose = _pendingEventReplayLocks.Values
+            .Where(static replayLock => replayLock.MarkRemoved())
+            .ToList();
+        _pendingEventReplayLocks.Clear();
+        return locksToDispose;
+    }
+
+    private void ReleasePendingEventReplayLockReference(PendingEventReplayLockState replayLock)
+    {
+        PendingEventReplayLockState? replayLockToDispose = null;
+        lock (_lock)
+        {
+            if (replayLock.ReleaseReference())
+            {
+                replayLockToDispose = replayLock;
+            }
+        }
+
+        replayLockToDispose?.Dispose();
+    }
+
+    internal sealed class PendingEventReplayLockState : IDisposable
+    {
+        private int _referenceCount;
+        private bool _removed;
+        private bool _disposed;
+
+        private PendingEventReplayLockState(bool removed)
+        {
+            _removed = removed;
+        }
+
+        internal SemaphoreSlim Semaphore { get; } = new(1, 1);
+
+        internal static PendingEventReplayLockState CreateRetained() => new(removed: false);
+
+        internal static PendingEventReplayLockState CreateTransient() => new(removed: true);
+
+        internal void AddReference()
+        {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(PendingEventReplayLockState));
+            }
+
+            _referenceCount++;
+        }
+
+        internal bool MarkRemoved()
+        {
+            _removed = true;
+            return _referenceCount == 0;
+        }
+
+        internal bool ReleaseReference()
+        {
+            if (_referenceCount <= 0)
+            {
+                throw new InvalidOperationException("Pending event replay lock reference count is already zero.");
+            }
+
+            _referenceCount--;
+            return _removed && _referenceCount == 0;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            Semaphore.Dispose();
+        }
+    }
+
+    internal sealed class PendingEventReplayLockScope(
+        SessionManager owner,
+        PendingEventReplayLockState replayLock,
+        long sessionGeneration) : IDisposable
+    {
+        private int _disposeState;
+
         internal long SessionGeneration { get; } = sessionGeneration;
 
         public void Dispose()
         {
-            replayLock.Release();
-            if (disposeReplayLock)
+            if (Interlocked.Exchange(ref _disposeState, 1) != 0)
             {
-                replayLock.Dispose();
+                return;
             }
+
+            replayLock.Semaphore.Release();
+            owner.ReleasePendingEventReplayLockReference(replayLock);
         }
     }
 }

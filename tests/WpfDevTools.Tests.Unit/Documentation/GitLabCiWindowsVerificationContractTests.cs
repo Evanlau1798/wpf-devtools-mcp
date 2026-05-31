@@ -170,6 +170,8 @@ public sealed class GitLabCiWindowsVerificationContractTests
         hosted.Should().Contain("src\\WpfDevTools.Shared\\WpfDevTools.Shared.csproj");
         hosted.Should().Contain("src\\WpfDevTools.Inspector.Sdk\\WpfDevTools.Inspector.Sdk.csproj");
         hosted.Should().Contain("'tool', 'run', 'docfx', 'docfx/docfx.json'");
+        hosted.Should().Contain("Test-DocFxDocumentation.ps1");
+        hosted.Should().Contain("Validate DocFX links and parity");
     }
 
     [Fact]

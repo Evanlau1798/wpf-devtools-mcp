@@ -44,6 +44,16 @@ function Invoke-HostedDocsPagesBuild {
     Invoke-External 'Build DocFX site' $DotNetPath @(
         'tool', 'run', 'docfx', 'docfx/docfx.json'
     )
+
+    Invoke-External 'Validate DocFX links and parity' 'powershell.exe' @(
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        'scripts\ci\Test-DocFxDocumentation.ps1',
+        '-RepoRoot',
+        (Get-Location).ProviderPath
+    )
 }
 
 function ConvertTo-HostedSingleQuotedPowerShellLiteral {

@@ -1,3 +1,23 @@
+function Resolve-SandboxSecurityOutputRoot {
+    $mappedOutputRootVariable = Get-Variable -Name MappedOutputRoot -ErrorAction SilentlyContinue
+    if (($null -ne $mappedOutputRootVariable) -and
+        -not [string]::IsNullOrWhiteSpace([string]$mappedOutputRootVariable.Value)) {
+        return [string]$mappedOutputRootVariable.Value
+    }
+
+    return Join-Path (Get-Location).ProviderPath 'tmp\sandbox-ci\output'
+}
+
+function Resolve-SandboxSecurityTimestamp {
+    $timestampVariable = Get-Variable -Name timestamp -ErrorAction SilentlyContinue
+    if (($null -ne $timestampVariable) -and
+        -not [string]::IsNullOrWhiteSpace([string]$timestampVariable.Value)) {
+        return [string]$timestampVariable.Value
+    }
+
+    return Get-Date -Format 'yyyyMMdd-HHmmss'
+}
+
 function Invoke-HostedPowerShellScriptAnalyzerGate {
     $module = Get-Module -ListAvailable PSScriptAnalyzer |
         Where-Object { $_.Version -ge [version]'1.25.0' } |
@@ -10,13 +30,13 @@ Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Scope CurrentUser
 Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction Stop
 Install-Module PSScriptAnalyzer -Scope CurrentUser -Force -AcceptLicense -Confirm:`$false -RequiredVersion 1.25.0 -Repository PSGallery -ErrorAction Stop
 "@
-        Invoke-External 'Install PowerShell ScriptAnalyzer' 'powershell.exe' @(
+        Invoke-ExternalWithTimeout 'Install PowerShell ScriptAnalyzer' 'powershell.exe' @(
             '-NoProfile',
             '-ExecutionPolicy',
             'Bypass',
             '-Command',
             $installScriptAnalyzerCommand
-        )
+        ) -TimeoutSeconds 600 -OutputRoot (Resolve-SandboxSecurityOutputRoot) -Timestamp (Resolve-SandboxSecurityTimestamp)
     }
 
     Invoke-External 'Run PowerShell ScriptAnalyzer' 'powershell.exe' @(

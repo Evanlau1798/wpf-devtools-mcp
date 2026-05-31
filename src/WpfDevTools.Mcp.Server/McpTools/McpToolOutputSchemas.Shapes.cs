@@ -50,42 +50,6 @@ internal static partial class McpToolOutputSchemas
             ["bindingStatus"] = String("Binding status when bound.")
         });
 
-    private static object BindingEntry()
-        => ObjectSchema("WPF binding entry.", new()
-        {
-            ["elementId"] = String("Runtime element id."),
-            ["elementType"] = String("WPF element type."),
-            ["targetProperty"] = String("Bound target property."),
-            ["path"] = String("Binding path."),
-            ["sourceType"] = String("Binding source type."),
-            ["mode"] = String("Binding mode."),
-            ["updateSourceTrigger"] = String("UpdateSourceTrigger value."),
-            ["status"] = String("Binding status."),
-            ["value"] = JsonValue(),
-            ["error"] = String("Binding error when present.")
-        });
-
-    private static object BindingBatchResult()
-        => ObjectSchema("Per-target binding inspection result.", new()
-        {
-            ["elementId"] = String("Requested element id."),
-            ["success"] = Boolean("Whether this target succeeded."),
-            ["error"] = String("Target-specific error message."),
-            ["bindings"] = ArrayOf("Bindings returned for this target.", BindingEntry())
-        });
-
-    private static object BindingErrorEntry()
-        => ObjectSchema("Binding error record.", new()
-        {
-            ["elementId"] = String("Element id associated with the error."),
-            ["elementType"] = String("WPF element type."),
-            ["targetProperty"] = String("Target property."),
-            ["path"] = String("Binding path."),
-            ["message"] = String("Binding error message."),
-            ["trace"] = String("Original binding trace text."),
-            ["source"] = String("Diagnostic source.")
-        });
-
     private static object ValidationError()
         => ObjectSchema("Validation error record.", new()
         {

@@ -101,6 +101,17 @@ public sealed partial class SessionManager
             throw new ArgumentException("Screenshot file name must match screenshotId plus .png.", nameof(filePath));
         }
 
+        string verifiedSha256;
+        try
+        {
+            verifiedSha256 = ValidateScreenshotFileAndSha256(fullPath, sha256);
+        }
+        catch
+        {
+            TryDeleteUnregisteredScreenshotFile(processId, fullPath, storageRoot);
+            throw;
+        }
+
         var registeredAtUtc = _utcNowProvider();
         var resource = new StoredScreenshotResource(
             processId,
@@ -109,7 +120,7 @@ public sealed partial class SessionManager
             fullPath,
             fileName,
             storageRoot,
-            sha256,
+            verifiedSha256,
             registeredAtUtc,
             registeredAtUtc.Add(ScreenshotResourceRetentionWindow));
 
@@ -380,32 +391,6 @@ public sealed partial class SessionManager
             _screenshotResourceOrder.Enqueue(screenshotId);
         }
     }
-
-    private static bool IsValidScreenshotId(string screenshotId)
-    {
-        if (screenshotId.Length != 37 ||
-            !screenshotId.StartsWith("shot_", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        for (var index = 5; index < screenshotId.Length; index++)
-        {
-            var character = screenshotId[index];
-            if ((character < '0' || character > '9') &&
-                (character < 'a' || character > 'f') &&
-                (character < 'A' || character > 'F'))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool IsValidScreenshotFileName(string fileName) =>
-        fileName.EndsWith(ScreenshotFileExtension, StringComparison.OrdinalIgnoreCase)
-        && IsValidScreenshotId(Path.GetFileNameWithoutExtension(fileName));
 
     private static string CreateScreenshotStorageRootPath(int processId)
         => ScreenshotLeasePaths.CreateStorageRootPath(

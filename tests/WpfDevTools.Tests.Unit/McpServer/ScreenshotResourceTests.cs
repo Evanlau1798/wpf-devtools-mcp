@@ -42,11 +42,13 @@ public sealed class ScreenshotResourceTests
         var storageRoot = sessionManager.GetOrCreateScreenshotStorageRoot(processId);
         var filePath = Path.Combine(storageRoot, screenshotId + ".png");
         File.WriteAllBytes(filePath, imageBytes);
+        var sha256 = Convert.ToHexString(SHA256.HashData(imageBytes)).ToLowerInvariant();
         sessionManager.RegisterScreenshotResource(
             processId,
             screenshotId,
             filePath,
-            sha256: new string('0', 64));
+            sha256);
+        File.WriteAllBytes(filePath, new byte[] { 1, 2, 3, 4 });
 
         var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, screenshotId);
 
@@ -178,10 +180,12 @@ public sealed class ScreenshotResourceTests
             var storageRoot = sessionManager.GetOrCreateScreenshotStorageRoot(processId);
             var screenshotId = "shot_0123456789abcdef0123456789abcdef";
             var filePath = Path.Combine(storageRoot, screenshotId + ".png");
-            File.WriteAllBytes(filePath, new byte[] { 137, 80, 78, 71 });
+            var imageBytes = new byte[] { 137, 80, 78, 71 };
+            File.WriteAllBytes(filePath, imageBytes);
+            var sha256 = Convert.ToHexString(SHA256.HashData(imageBytes)).ToLowerInvariant();
             checkedPaths.Clear();
 
-            sessionManager.RegisterScreenshotResource(processId, screenshotId, filePath, sha256: null);
+            sessionManager.RegisterScreenshotResource(processId, screenshotId, filePath, sha256);
 
             checkedPaths.Should().NotContain(Path.GetFullPath(storageRoot),
                 "registering a file under an existing prepared root should not harden the root a second time");
@@ -325,7 +329,7 @@ public sealed class ScreenshotResourceTests
             processId: 12345,
             screenshotId,
             filePath,
-            sha256: null);
+            sha256: Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(filePath))).ToLowerInvariant());
 
         File.Exists(filePath).Should().BeTrue(
             "refreshing a retained handle must not delete the same file path");

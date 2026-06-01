@@ -90,8 +90,7 @@ function Get-ActiveWindowsSandboxProcessSummaries {
         'WindowsSandbox',
         'WindowsSandboxClient',
         'WindowsSandboxRemoteSession',
-        'WindowsSandboxServer',
-        'vmmemWindowsSandbox'
+        'WindowsSandboxServer'
     )
 
     return @(Get-Process -ErrorAction SilentlyContinue |

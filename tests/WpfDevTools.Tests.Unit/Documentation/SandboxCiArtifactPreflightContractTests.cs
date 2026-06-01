@@ -274,7 +274,8 @@ public sealed partial class SandboxCiScriptContractTests
         launcher.Should().Contain("Assert-NoActiveWindowsSandboxProcesses");
         launcher.Should().Contain("WindowsSandboxRemoteSession");
         launcher.Should().Contain("WindowsSandboxServer");
-        launcher.Should().Contain("vmmemWindowsSandbox");
+        launcher.Should().NotContain("vmmemWindowsSandbox",
+            "orphan VM workers can remain after HCS no longer reports an active Windows Sandbox");
         launcher.Should().Contain("Existing Windows Sandbox process");
         launcher.Should().Contain("Stop-WindowsSandboxHcs.ps1");
     }

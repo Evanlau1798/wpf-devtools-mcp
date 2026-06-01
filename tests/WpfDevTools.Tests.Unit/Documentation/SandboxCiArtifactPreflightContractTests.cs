@@ -368,6 +368,24 @@ public sealed partial class SandboxCiScriptContractTests
     }
 
     [Fact]
+    public void SandboxArtifactPreflight_ShouldRestartSmokeTargetAfterTransportStateCorruption()
+    {
+        var runner = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "SandboxCi.ArtifactPreflight.ps1");
+
+        var corruptionIndex = runner.IndexOf("Invoke-DefaultTransportStateCorruptionProbe", StringComparison.Ordinal);
+        var stopIndex = runner.IndexOf("Restart-SmokeTargetAfterTransportStateCorruption", StringComparison.Ordinal);
+        var recoverySmokeIndex = runner.IndexOf(
+            "Invoke-RuntimeSmoke -Name 'Run packaged server runtime smoke after transport state corruption'",
+            StringComparison.Ordinal);
+
+        corruptionIndex.Should().BeGreaterThanOrEqualTo(0);
+        stopIndex.Should().BeGreaterThan(corruptionIndex,
+            "the stale injected Inspector must be removed before proving corrupted transport state recovery");
+        recoverySmokeIndex.Should().BeGreaterThan(stopIndex,
+            "the recovery smoke should attach to a fresh target after secure state is corrupted");
+    }
+
+    [Fact]
     public void ContributorTestingGuide_ShouldDocumentArtifactPreflightWorkflow()
     {
         var english = File.ReadAllText(Path.Combine(RepoRoot, "docfx", "contributors", "testing-and-tdd.md"));

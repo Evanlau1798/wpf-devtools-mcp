@@ -346,7 +346,7 @@ function Assert-NoUnexpectedIgnoredArtifacts {
         throw "Preflight left unexpected ignored artifact(s): $($unexpected.FullName -join ', ')"
     }
 }
-
+function Restart-SmokeTargetAfterTransportStateCorruption { try { Stop-SmokeTarget -Process $script:smokeProcess } finally { $script:smokeProcess = $null }; $script:smokeProcess = Start-SmokeTarget }
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $ascii = [System.Text.Encoding]::ASCII
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -418,8 +418,8 @@ try {
     Invoke-RuntimeSmoke -Name 'Run packaged server runtime smoke first run' -ServerPath $serverPath
     Invoke-RuntimeSmoke -Name 'Run packaged server runtime smoke second run' -ServerPath $serverPath
     Invoke-DefaultTransportStateCorruptionProbe
+    Restart-SmokeTargetAfterTransportStateCorruption
     Invoke-RuntimeSmoke -Name 'Run packaged server runtime smoke after transport state corruption' -ServerPath $serverPath
-
     $installedScript = Join-Path $installRoot "$Architecture\current\bin\install.ps1"
     Assert-RequiredPath -Path $installedScript -Description 'installed package-local installer'
     Invoke-InstallerStep -Name 'Uninstall package-local release' -ScriptPath $installedScript -Parameters @{

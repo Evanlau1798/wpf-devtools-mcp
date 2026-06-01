@@ -87,7 +87,14 @@ function Get-WindowsSandboxComputeSystems {
     $lastId = $null
 
     Write-CleanupLog -Path $LogPath -Message '--- hcsdiag list ---'
-    $lines = Invoke-HcsDiag -Path $HcsDiagPath -Arguments @('list') -LogPath $LogPath
+    try {
+        $lines = Invoke-HcsDiag -Path $HcsDiagPath -Arguments @('list') -LogPath $LogPath
+    }
+    catch {
+        Write-CleanupLog -Path $LogPath -Message "hcsdiag list failed: $($_.Exception.Message)"
+        return $systems
+    }
+
     foreach ($line in $lines) {
         $text = [string]$line
         if ([string]::IsNullOrWhiteSpace($text)) {
@@ -147,6 +154,35 @@ function Get-WindowsSandboxProcesses {
         Where-Object { $sandboxProcessNames -contains $_.ProcessName })
 }
 
+function Stop-WindowsSandboxHostProcesses {
+    param(
+        [Parameter(Mandatory = $true)] [string]$LogPath
+    )
+
+    $stopOrder = @{
+        WindowsSandbox = 0
+        WindowsSandboxClient = 1
+        WindowsSandboxRemoteSession = 2
+        WindowsSandboxServer = 3
+        vmmemWindowsSandbox = 4
+    }
+    $processes = @(Get-WindowsSandboxProcesses | Sort-Object { $stopOrder[$_.ProcessName] })
+    if ($processes.Count -eq 0) {
+        Write-CleanupLog -Path $LogPath -Message 'No Windows Sandbox host processes were found for Force fallback.'
+        return
+    }
+
+    foreach ($process in $processes) {
+        Write-CleanupLog -Path $LogPath -Message "Force-stopping Windows Sandbox host process $($process.ProcessName):$($process.Id)."
+        try {
+            Stop-Process -Id $process.Id -Force -ErrorAction Stop
+        }
+        catch {
+            Write-CleanupLog -Path $LogPath -Message "Failed to stop Windows Sandbox host process $($process.ProcessName):$($process.Id): $($_.Exception.Message)"
+        }
+    }
+}
+
 function Wait-WindowsSandboxProcessesExit {
     param(
         [Parameter(Mandatory = $true)] [string]$LogPath,
@@ -187,6 +223,10 @@ Write-CleanupLog -Path $logPath -Message "hcsdiag path: $HcsDiagPath"
 $sandboxSystems = @(Get-WindowsSandboxComputeSystems -HcsDiagPath $HcsDiagPath -LogPath $logPath)
 if ($sandboxSystems.Count -eq 0) {
     Write-CleanupLog -Path $logPath -Message 'No matching Windows Sandbox HCS compute systems were found.'
+}
+
+if ($sandboxSystems.Count -eq 0 -and -not $WhatIfPreference -and $Force) {
+    Stop-WindowsSandboxHostProcesses -LogPath $logPath
 }
 
 $explicitConfirmFalse = $PSBoundParameters.ContainsKey('Confirm') -and -not [bool]$PSBoundParameters['Confirm']

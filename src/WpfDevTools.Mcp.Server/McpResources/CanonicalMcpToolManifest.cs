@@ -49,6 +49,7 @@ internal static class CanonicalMcpToolManifest
             $"{parameter.name}:{parameter.type}:{parameter.required}:{parameter.defaultValue}:{parameter.description}"));
         var toolName = attribute.Name!;
         var outputSchemaStatus = McpToolOutputSchemas.GetSchemaStatus(toolName);
+        var mutationRestoreRequirementStatus = GetMutationRestoreRequirementStatus(entry);
 
         return new
         {
@@ -57,17 +58,22 @@ internal static class CanonicalMcpToolManifest
             bridgeFile = $"src/WpfDevTools.Mcp.Server/McpTools/{type.Name}.cs",
             method = $"{type.FullName}.{method.Name}",
             category = entry.Category,
+            riskTier = GetRiskTier(entry),
+            policyTags = entry.PolicyCapabilityTags,
             policyCapabilityTags = entry.PolicyCapabilityTags,
             capabilityTags = entry.CapabilityTags,
             parameters,
             requiredParameters,
             inputSchemaHash = Sha256(inputHashSource),
             outputSchemaStatus,
+            responseContractStatus = outputSchemaStatus,
             outputSchemaHash = Sha256(McpToolOutputSchemas.GetSchemaHashSource(toolName)),
             examplesStatus = description.Contains("EXAMPLES:", StringComparison.Ordinal)
                 ? "embedded-description"
                 : "missing-description-examples",
             docsCoverageStatus = "docfx-name-level-covered-by-tests",
+            liveTestCoverageStatus = GetLiveTestCoverageStatus(outputSchemaStatus, mutationRestoreRequirementStatus),
+            mutationRestoreRequirementStatus,
             annotations = new
             {
                 readOnly = attribute.ReadOnly,
@@ -76,6 +82,67 @@ internal static class CanonicalMcpToolManifest
                 openWorld = attribute.OpenWorld
             }
         };
+    }
+
+    private static string GetRiskTier(McpToolCapabilityEntry entry)
+    {
+        var policyTags = entry.PolicyCapabilityTags;
+
+        if (policyTags.Contains(McpToolPolicyTags.Screenshots, StringComparer.Ordinal))
+        {
+            return "controlled-sensitive";
+        }
+
+        var isDestructive = policyTags.Contains(McpToolPolicyTags.DestructiveTools, StringComparer.Ordinal);
+        var hasSensitiveSurface =
+            policyTags.Contains(McpToolPolicyTags.SensitiveReads, StringComparer.Ordinal)
+            || policyTags.Contains(McpToolPolicyTags.ViewModelInspection, StringComparer.Ordinal)
+            || entry.CapabilityTags.Contains("state-consuming", StringComparer.Ordinal);
+
+        if (isDestructive && hasSensitiveSurface)
+        {
+            return "destructive-sensitive";
+        }
+
+        if (isDestructive)
+        {
+            return "destructive";
+        }
+
+        if (hasSensitiveSurface)
+        {
+            return "sensitive-read";
+        }
+
+        return "low";
+    }
+
+    private static string GetLiveTestCoverageStatus(
+        string outputSchemaStatus,
+        string mutationRestoreRequirementStatus)
+    {
+        if (string.Equals(mutationRestoreRequirementStatus, "snapshot-restore-required", StringComparison.Ordinal))
+        {
+            return "live-mutation-restore-covered";
+        }
+
+        return string.Equals(outputSchemaStatus, "exact-tool-output-schema", StringComparison.Ordinal)
+            ? "runtime-parity-covered"
+            : "unit-contract-covered";
+    }
+
+    private static string GetMutationRestoreRequirementStatus(McpToolCapabilityEntry entry)
+    {
+        var toolName = entry.Attribute.Name ?? string.Empty;
+
+        if (toolName is "connect" or "select_active_process")
+        {
+            return "session-state-only";
+        }
+
+        return entry.PolicyCapabilityTags.Contains(McpToolPolicyTags.DestructiveTools, StringComparer.Ordinal)
+            ? "snapshot-restore-required"
+            : "not-mutating";
     }
 
     private static ParameterEntry[] GetParameters(MethodInfo method)

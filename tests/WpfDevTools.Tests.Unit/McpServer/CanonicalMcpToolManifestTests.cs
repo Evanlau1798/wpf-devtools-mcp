@@ -29,15 +29,44 @@ public sealed class CanonicalMcpToolManifestTests
             tool.GetProperty("bridgeFile").GetString().Should().EndWith(".cs");
             tool.GetProperty("method").GetString().Should().NotBeNullOrWhiteSpace();
             tool.GetProperty("category").GetString().Should().NotBeNullOrWhiteSpace();
+            tool.GetProperty("riskTier").GetString().Should().NotBeNullOrWhiteSpace();
+            tool.GetProperty("policyTags").ValueKind.Should().Be(JsonValueKind.Array);
+            tool.GetProperty("responseContractStatus").GetString().Should().NotBeNullOrWhiteSpace();
             tool.GetProperty("inputSchemaHash").GetString().Should().HaveLength(64);
             tool.GetProperty("outputSchemaStatus").GetString().Should().NotBeNullOrWhiteSpace();
             tool.GetProperty("outputSchemaHash").GetString().Should().HaveLength(64);
             tool.GetProperty("examplesStatus").GetString().Should().NotBeNullOrWhiteSpace();
             tool.GetProperty("docsCoverageStatus").GetString().Should().NotBeNullOrWhiteSpace();
+            tool.GetProperty("liveTestCoverageStatus").GetString().Should().NotBeNullOrWhiteSpace();
+            tool.GetProperty("mutationRestoreRequirementStatus").GetString().Should().NotBeNullOrWhiteSpace();
             tool.GetProperty("parameters").ValueKind.Should().Be(JsonValueKind.Array);
             tool.GetProperty("requiredParameters").ValueKind.Should().Be(JsonValueKind.Array);
             tool.GetProperty("capabilityTags").GetArrayLength().Should().BeGreaterThan(0);
             tool.GetProperty("annotations").ValueKind.Should().Be(JsonValueKind.Object);
+        }
+    }
+
+    [Fact]
+    public void ToolManifestResource_ShouldExposeCompleteGovernanceMetadata()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
+        var tools = document.RootElement.GetProperty("tools").EnumerateArray().ToArray();
+
+        AssertGovernance(tools, "get_processes", "low", "not-mutating");
+        AssertGovernance(tools, "get_ui_summary", "sensitive-read", "not-mutating");
+        AssertGovernance(tools, "element_screenshot", "controlled-sensitive", "not-mutating");
+        AssertGovernance(tools, "modify_viewmodel", "destructive-sensitive", "snapshot-restore-required");
+        AssertGovernance(tools, "batch_mutate", "destructive-sensitive", "snapshot-restore-required");
+
+        foreach (var tool in tools)
+        {
+            tool.GetProperty("policyTags").EnumerateArray()
+                .Select(tag => tag.GetString())
+                .Should().BeEquivalentTo(tool.GetProperty("policyCapabilityTags").EnumerateArray().Select(tag => tag.GetString()));
+            tool.GetProperty("responseContractStatus").GetString()
+                .Should().Be(tool.GetProperty("outputSchemaStatus").GetString());
+            tool.GetProperty("liveTestCoverageStatus").GetString()
+                .Should().NotBe("missing");
         }
     }
 
@@ -176,6 +205,22 @@ public sealed class CanonicalMcpToolManifestTests
     }
 
     private static string GetName(JsonElement tool) => tool.GetProperty("name").GetString()!;
+
+    private static void AssertGovernance(
+        JsonElement[] tools,
+        string toolName,
+        string expectedRiskTier,
+        string expectedMutationStatus)
+    {
+        var tool = tools.Single(entry => GetName(entry) == toolName);
+
+        tool.GetProperty("riskTier").GetString().Should().Be(expectedRiskTier);
+        tool.GetProperty("mutationRestoreRequirementStatus").GetString().Should().Be(expectedMutationStatus);
+        tool.GetProperty("responseContractStatus").GetString().Should().NotBeNullOrWhiteSpace();
+        tool.GetProperty("examplesStatus").GetString().Should().NotBe("missing-description-examples");
+        tool.GetProperty("docsCoverageStatus").GetString().Should().NotBe("missing");
+        tool.GetProperty("liveTestCoverageStatus").GetString().Should().NotBe("missing");
+    }
 
     private static void AssertTags(JsonElement[] tools, string toolName, params string[] expectedTags)
     {

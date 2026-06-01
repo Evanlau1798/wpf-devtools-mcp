@@ -186,6 +186,58 @@ public sealed partial class ReleaseReadinessDocumentationTests
             $"{relativePath} should require validation from the final installed location");
     }
 
+    [Fact]
+    public void InstallerDocs_ShouldNotMakeSignerPinConditionalOnSidecarAdjacency()
+    {
+        var violations = GetInstallerTrustDocumentationFiles()
+            .SelectMany(relativePath => SplitParagraphs(File.ReadAllText(GetRepoFilePath(relativePath)))
+                .Where(IsConditionalSignerPinParagraph)
+                .Select(paragraph => $"{relativePath}: {paragraph}"))
+            .ToArray();
+
+        violations.Should().BeEmpty(
+            "production payload signature verification always requires an independent signer thumbprint; adjacent sidecars prove archive provenance but do not replace signer trust");
+    }
+
+    private static IEnumerable<string> GetInstallerTrustDocumentationFiles()
+    {
+        var repoRoot = RepoRoot;
+        var rootMarkdown = new[]
+        {
+            "README.md",
+            "RELEASING.md",
+            "SECURITY.md",
+            "CODE_SIGNING.md",
+            "AGENT_INSTALL.md"
+        };
+        var docfxMarkdown = Directory
+            .EnumerateFiles(Path.Combine(repoRoot, "docfx"), "*.md", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(repoRoot, path).Replace('\\', '/'))
+            .Where(path => !path.Contains("/_site/", StringComparison.Ordinal)
+                           && !path.Contains("/api/", StringComparison.Ordinal)
+                           && !path.Contains("/obj/", StringComparison.Ordinal));
+
+        return rootMarkdown.Concat(docfxMarkdown);
+    }
+
+    private static IEnumerable<string> SplitParagraphs(string content)
+        => Regex.Split(content, @"(?:\r?\n){2,}", RegexOptions.CultureInvariant)
+            .Select(paragraph => Regex.Replace(paragraph, @"\s+", " ").Trim())
+            .Where(paragraph => paragraph.Length > 0);
+
+    private static bool IsConditionalSignerPinParagraph(string paragraph)
+    {
+        if (!paragraph.Contains("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return Regex.IsMatch(
+            paragraph,
+            @"(?i)(if|when|unless|otherwise).{0,180}(sidecars?|sidecar).{0,180}(no longer adjacent|not adjacent|missing|absent).{0,180}WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT|(sidecars?|sidecar).{0,180}(no longer adjacent|not adjacent|missing|absent).{0,180}WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT|WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.{0,180}(if|when|unless|otherwise).{0,180}(sidecars?|sidecar).{0,180}(no longer adjacent|not adjacent|missing|absent)|WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.{0,180}(sidecars?|sidecar).{0,180}(no longer adjacent|not adjacent|missing|absent)|(若|如果|否則).{0,180}(sidecar|相鄰).{0,180}(不再|不在|缺少|沒有).{0,180}WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT|(sidecar|相鄰).{0,180}(不再|不在|缺少|沒有).{0,180}WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
+            RegexOptions.CultureInvariant);
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
 

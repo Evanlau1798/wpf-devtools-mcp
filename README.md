@@ -49,7 +49,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Package
 
 The reviewed installer validates archive integrity before extraction and installs the extracted packaged payload through the reviewed installer/helper flow; omit `-Architecture` unless you intentionally need a different package because the installer detects the system architecture.
 
-Manual package fallback requires `SHA256SUMS.txt` and `release-assets.json` verification before extraction. If those verified sidecars are no longer adjacent when running `run.bat`, provide `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required thumbprint trust root; `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only an additional constraint after the thumbprint is pinned.
+Manual package fallback requires `SHA256SUMS.txt` and `release-assets.json` verification before extraction. Production payload signature verification still requires an independent `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`; adjacent sidecars prove archive provenance but do not replace signer trust. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only an additional constraint after the thumbprint is pinned.
 
 `run.bat` requests elevation when the current shell is not already elevated. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when CLI registration must stay unelevated; for `claude-code` and `codex`, register manually after install if elevated CLI discovery is blocked. For raw injection, the server process architecture must match the target process. Architecture matching is mandatory for raw injection/bootstrapper fallback. SDK-hosted reuse communicates over named pipes and does not require matching process bitness once the target-side host is already running.
 

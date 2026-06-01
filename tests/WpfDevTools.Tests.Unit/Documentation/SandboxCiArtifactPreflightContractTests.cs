@@ -82,6 +82,8 @@ public sealed partial class SandboxCiScriptContractTests
 
         runner.Should().Contain("'windowsdesktop'",
             "the clean Sandbox live smoke target is a WPF app and needs Microsoft.WindowsDesktop.App, not only Microsoft.NETCore.App");
+        runner.Should().Contain("'dotnet', 'windowsdesktop'",
+            "WindowsDesktop runtime provisioning still needs the base .NET runtime in the same portable dotnet root");
         runner.Should().Contain("Microsoft\\.WindowsDesktop\\.App");
     }
 

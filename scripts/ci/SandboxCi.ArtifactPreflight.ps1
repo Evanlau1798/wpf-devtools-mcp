@@ -174,10 +174,10 @@ function Ensure-DotNetRuntime {
     $dotNetInstallScript = Join-Path $localRoot 'dotnet-install.ps1'
     New-Item -ItemType Directory -Force -Path $dotNetRoot | Out-Null
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-
     Write-Host ">>> Download dotnet-install.ps1"
     Invoke-WebRequest -Uri $DotNetInstallScriptUrl -OutFile $dotNetInstallScript -UseBasicParsing
-    Invoke-PowerShellStep -Name 'Install .NET runtime' -Arguments @(
+    foreach ($runtimeName in @('dotnet', 'windowsdesktop')) {
+        Invoke-PowerShellStep -Name "Install .NET $runtimeName runtime" -Arguments @(
         '-NoProfile',
         '-ExecutionPolicy',
         'Bypass',
@@ -186,14 +186,14 @@ function Ensure-DotNetRuntime {
         '-Channel',
         $DotNetChannel,
         '-Runtime',
-        'windowsdesktop',
+        $runtimeName,
         '-Architecture',
         $dotNetRuntimeArchitecture,
         '-InstallDir',
         $dotNetRoot,
         '-NoPath'
     ) -TimeoutSeconds 900
-
+    }
     Use-DotNetRoot -DotNetRoot $dotNetRoot
     if (-not (Test-DotNetRuntimeAvailable)) {
         throw "Failed to provision .NET runtime channel $DotNetChannel into $dotNetRoot."

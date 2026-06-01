@@ -232,7 +232,11 @@ foreach ($script in Get-ChildItem -LiteralPath $scriptRoot -Filter '*.ps1') {
     {
         var runner = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "Start-SandboxCi.ps1");
 
-        runner.Should().Contain("$sandboxLocalWorkRoot = Join-Path $env:SystemDrive 'sandbox-ci-work'");
+        runner.Should().Contain("[string]$LocalWorkRoot = ''");
+        runner.Should().Contain("Join-Path $env:SystemDrive 'sandbox-ci-work'");
+        runner.Should().Contain("[System.IO.Path]::GetFullPath($LocalWorkRoot)");
+        runner.Should().Contain("Mapped Git was not found; using PATH git if available.");
+        runner.Should().NotContain("Mapped Git was not found in Windows Sandbox.");
         runner.Should().Contain("$sandboxRepoWorkRoot = Join-Path $sandboxLocalWorkRoot 'repo'");
         runner.Should().Contain("-WorkRoot $sandboxLocalWorkRoot");
         runner.Should().NotContain("$sandboxRepoWorkRoot = Join-Path $MappedWorkRoot 'repo'",

@@ -117,13 +117,15 @@ jobs:
 
     - name: Run unit tests
       if: matrix.platform == 'x64'
-      run: dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal
+      timeout-minutes: 20
+      run: dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=unit-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/unit
 
     - name: Run release unit tests
       if: matrix.platform == 'x64'
       env:
         WPFDEVTOOLS_TEST_TIMEOUT_SCALE: '4'
-      run: dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal
+      timeout-minutes: 45
+      run: dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=release-unit-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/release-unit
 
     - name: Prepare server runtime output
       if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
@@ -131,7 +133,16 @@ jobs:
 
     - name: Run integration tests
       if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
-      run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal
+      timeout-minutes: 20
+      run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=integration-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/integration
+
+    - name: Upload test diagnostics
+      if: failure() || cancelled()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: test-diagnostics-${{ matrix.configuration }}-${{ matrix.platform }}
+        path: TestResults/
+        if-no-files-found: ignore
 
     - name: Document Release integration test boundary
       if: matrix.configuration == 'Release'

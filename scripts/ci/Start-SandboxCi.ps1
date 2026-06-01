@@ -11,6 +11,8 @@ param(
 
     [string]$MappedOutputRoot = 'C:\Users\WDAGUtilityAccount\Desktop\output',
 
+    [string]$LocalWorkRoot = '',
+
     [ValidatePattern('^[A-Za-z0-9_.-]+$')]
     [string]$RunId = (Get-Date -Format 'yyyyMMdd-HHmmss'),
 
@@ -200,7 +202,7 @@ function Enable-MappedGit {
     $mappedGitCommand = Join-Path $MappedOutputRoot '..\Git\cmd\git.exe'
     $mappedGitCommand = [System.IO.Path]::GetFullPath($mappedGitCommand)
     if (-not (Test-Path -LiteralPath $mappedGitCommand)) {
-        Write-Host 'Mapped Git was not found in Windows Sandbox.'
+        Write-Host 'Mapped Git was not found; using PATH git if available.'
         return
     }
 
@@ -361,7 +363,12 @@ function Write-SandboxResult {
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $logRoot = Join-Path $MappedOutputRoot 'logs'
 $resultsRoot = Join-Path $MappedOutputRoot "TestResults\sandbox\$timestamp"
-$sandboxLocalWorkRoot = Join-Path $env:SystemDrive 'sandbox-ci-work'
+$sandboxLocalWorkRoot = if ([string]::IsNullOrWhiteSpace($LocalWorkRoot)) {
+    Join-Path $env:SystemDrive 'sandbox-ci-work'
+}
+else {
+    [System.IO.Path]::GetFullPath($LocalWorkRoot)
+}
 $sandboxRepoWorkRoot = Join-Path $sandboxLocalWorkRoot 'repo'
 
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null

@@ -230,6 +230,35 @@ public sealed class GitLabCiWindowsVerificationContractTests
     }
 
     [Fact]
+    public void HostedCiEntryPoint_ShouldRunHostedWindowsX64WithoutStartingWindowsSandbox()
+    {
+        var script = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "Invoke-HostedCi.ps1"));
+
+        script.Should().Contain("Start-SandboxCi.ps1");
+        script.Should().Contain("[string]$Mode = 'HostedWindowsX64'");
+        script.Should().Contain("-Mode $Mode");
+        script.Should().Contain("-MappedRepoRoot $repoRootPath");
+        script.Should().Contain("-MappedWorkRoot $workRootPath");
+        script.Should().Contain("-MappedOutputRoot $outputRootPath");
+        script.Should().Contain("-LocalWorkRoot $localWorkRootPath");
+        script.Should().Contain("tmp\\hosted-ci",
+            "the no-VM hosted CI path should keep one-off work and logs under the repository tmp directory");
+        script.Should().NotContain("WindowsSandbox.exe");
+        script.Should().NotContain(".wsb");
+        script.Should().NotContain("Stop-WindowsSandboxHcs.ps1");
+    }
+
+    [Fact]
+    public void SandboxRunner_ShouldAllowHostedEntryPointToUseRepositoryTempLocalWorkRoot()
+    {
+        var runner = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "Start-SandboxCi.ps1"));
+
+        runner.Should().Contain("[string]$LocalWorkRoot = ''");
+        runner.Should().Contain("$sandboxLocalWorkRoot = if ([string]::IsNullOrWhiteSpace($LocalWorkRoot))");
+        runner.Should().Contain("[System.IO.Path]::GetFullPath($LocalWorkRoot)");
+    }
+
+    [Fact]
     public void SandboxManagedScript_ShouldSupportConfiguredManagedTestShards()
     {
         var managed = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Managed.ps1"));

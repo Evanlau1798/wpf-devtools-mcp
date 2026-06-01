@@ -107,14 +107,6 @@ function Assert-NoActiveWindowsSandboxProcesses {
         return
     }
 
-    $blockingSandboxProcesses = @($activeSandboxProcesses | Where-Object {
-        -not $_.StartsWith('vmmemWindowsSandbox:', [System.StringComparison]::OrdinalIgnoreCase)
-    })
-    if ($blockingSandboxProcesses.Count -eq 0) {
-        Write-Host "Only orphaned vmmemWindowsSandbox process(es) remain after cleanup: $($activeSandboxProcesses -join ', '). Continuing launch."
-        return
-    }
-
     $cleanupCommand = ".\scripts\ci\Stop-WindowsSandboxHcs.ps1 -OutputRoot `"$SandboxOutputPath`" -WhatIf"
     throw (
         "Existing Windows Sandbox process(es) were found before launch: $($activeSandboxProcesses -join ', '). " +

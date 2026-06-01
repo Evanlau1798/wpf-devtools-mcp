@@ -213,15 +213,6 @@ public sealed partial class SandboxCiScriptContractTests
     }
 
     [Fact]
-    public void InvokeWindowsSandboxArtifactPreflight_ShouldAllowOrphanedVmmemOnlyAfterCleanup()
-    {
-        var launcher = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "Invoke-WindowsSandboxArtifactPreflight.ps1");
-
-        launcher.Should().Contain("$blockingSandboxProcesses");
-        launcher.Should().Contain("Only orphaned vmmemWindowsSandbox process(es) remain");
-    }
-
-    [Fact]
     public void InvokeWindowsSandboxArtifactPreflight_ShouldBoundGuestStartupWaitSeparatelyFromFullTimeout()
     {
         var launcher = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "Invoke-WindowsSandboxArtifactPreflight.ps1");

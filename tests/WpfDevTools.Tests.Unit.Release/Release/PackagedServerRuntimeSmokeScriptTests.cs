@@ -62,6 +62,8 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
     {
         var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1")
             .Replace("'", "''", StringComparison.Ordinal);
+        var responseTimeoutMilliseconds = (int)Math.Ceiling(
+            ReleaseScriptTestHarness.ScaleTimeout(TimeSpan.FromSeconds(3)).TotalMilliseconds);
 
         var command = $$"""
 $scriptPath = '{{scriptPath}}'
@@ -87,7 +89,7 @@ try {
 
     try {
         if (-not $process.Start()) { throw 'Failed to start fake packaged server.' }
-        Read-McpResponse -Process $process -OperationName 'initialize' -ExpectedResponseId 1 -TimeoutMilliseconds 1000
+        Read-McpResponse -Process $process -OperationName 'initialize' -ExpectedResponseId 1 -TimeoutMilliseconds {{responseTimeoutMilliseconds}}
         throw 'Read-McpResponse unexpectedly accepted non-JSON stdout.'
     }
     catch {

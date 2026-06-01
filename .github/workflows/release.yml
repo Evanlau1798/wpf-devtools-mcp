@@ -164,6 +164,8 @@ jobs:
     runs-on: windows-2022
     env:
       RELEASE_STAGING_ROOT: artifacts/release/github-assets
+      WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
+      WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}
 
     steps:
       - name: Checkout tagged revision
@@ -181,6 +183,13 @@ jobs:
         with:
           name: github-release-assets-${{ needs.publish-release-assets.outputs.release-tag }}
           path: ${{ env.RELEASE_STAGING_ROOT }}/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Verify release validation signer trust
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
+            throw 'Release validation requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+          }
 
       - name: Install staged x64 package smoke test
         shell: pwsh
@@ -283,6 +292,8 @@ jobs:
     runs-on: windows-2022
     env:
       RELEASE_STAGING_ROOT: artifacts/release/github-assets
+      WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
+      WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}
 
     steps:
       - name: Checkout tagged revision
@@ -301,6 +312,13 @@ jobs:
         with:
           name: github-release-assets-${{ needs.publish-release-assets.outputs.release-tag }}
           path: ${{ env.RELEASE_STAGING_ROOT }}/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Verify release validation signer trust
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
+            throw 'Release validation requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+          }
 
       - name: Install staged x86 package smoke test
         shell: pwsh
@@ -404,6 +422,8 @@ jobs:
     runs-on: [self-hosted, Windows, ARM64]
     env:
       RELEASE_STAGING_ROOT: artifacts/release/github-assets
+      WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
+      WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}
 
     steps:
       - name: Checkout tagged revision
@@ -421,6 +441,13 @@ jobs:
         with:
           name: github-release-assets-${{ needs.publish-release-assets.outputs.release-tag }}
           path: ${{ env.RELEASE_STAGING_ROOT }}/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Verify release validation signer trust
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
+            throw 'Release validation requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+          }
 
       - name: Install staged ARM64 package smoke test
         shell: pwsh

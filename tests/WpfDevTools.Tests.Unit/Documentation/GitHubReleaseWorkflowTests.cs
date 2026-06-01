@@ -180,6 +180,61 @@ public sealed class GitHubReleaseWorkflowTests
     }
 
     [Fact]
+    public void ReleaseWorkflow_ShouldPassSignerTrustToPackageLocalValidationSteps()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+
+        foreach (var (jobName, architecture) in GetReleaseValidationJobs())
+        {
+            var job = GetWorkflowJobBlock(lines, jobName);
+            var step = GetNamedStepBlock(job, $"Install staged {architecture} package smoke test");
+
+            step.Should().NotBeEmpty($"the {architecture} validation job should install the staged package before upload");
+            job.ContainSignerTrustEnvironment(
+                $"package-local {architecture} validation installs signed payloads and must inherit independent signer trust");
+        }
+    }
+
+    [Fact]
+    public void ReleaseWorkflow_ShouldPassSignerTrustToOnlineInstallerSmokeSteps()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+
+        foreach (var (jobName, architecture) in GetReleaseValidationJobs())
+        {
+            var job = GetWorkflowJobBlock(lines, jobName);
+            var step = GetNamedStepBlock(job, $"{architecture} online installer smoke test");
+
+            step.Should().NotBeEmpty($"the {architecture} validation job should exercise the online installer before upload");
+            job.ContainSignerTrustEnvironment(
+                $"online-installer {architecture} validation installs signed payloads and must inherit independent signer trust");
+        }
+    }
+
+    [Fact]
+    public void ReleaseWorkflow_ShouldFailFastWhenValidationSignerThumbprintIsMissing()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+
+        foreach (var (jobName, architecture) in GetReleaseValidationJobs())
+        {
+            var job = GetWorkflowJobBlock(lines, jobName);
+            var step = GetNamedStepBlock(job, "Verify release validation signer trust");
+
+            step.Should().Contain(line =>
+                    line.Contains(
+                        "[string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)",
+                        StringComparison.Ordinal),
+                $"the {architecture} validation job should fail before install/smoke work when signer trust is absent");
+            step.Should().Contain(line =>
+                    line.Contains(
+                        "Release validation requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.",
+                        StringComparison.Ordinal),
+                $"the {architecture} validation job should report the missing independent signer trust root clearly");
+        }
+    }
+
+    [Fact]
     public void ReleaseWorkflow_ShouldUploadEveryGeneratedReleaseSidecar()
     {
         var workflowLines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
@@ -270,6 +325,30 @@ public sealed class GitHubReleaseWorkflowTests
             .ToArray();
     }
 
+    private static string[] GetWorkflowJobBlock(string[] lines, string jobName)
+    {
+        var jobHeader = $"  {jobName}:";
+        var jobIndex = Array.FindIndex(lines, line => string.Equals(line, jobHeader, StringComparison.Ordinal));
+        if (jobIndex < 0)
+        {
+            return [];
+        }
+
+        return lines
+            .Skip(jobIndex)
+            .TakeWhile((line, index) => index == 0 ||
+                !Regex.IsMatch(line, @"^  [A-Za-z0-9_-]+:\s*$", RegexOptions.CultureInvariant))
+            .ToArray();
+    }
+
+    private static (string JobName, string Architecture)[] GetReleaseValidationJobs()
+        =>
+        [
+            ("validate-x64-release-assets", "x64"),
+            ("validate-x86-release-assets", "x86"),
+            ("validate-arm64-release-assets", "ARM64"),
+        ];
+
     private static string[] GetGeneratedUploadSidecarNames()
     {
         var exportScript = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"));
@@ -325,5 +404,24 @@ public sealed class GitHubReleaseWorkflowTests
         }
 
         throw new DirectoryNotFoundException("Could not locate repository root from test base directory.");
+    }
+}
+
+file static class ReleaseWorkflowAssertionExtensions
+{
+    public static void ContainSignerTrustEnvironment(this IEnumerable<string> lines, string because)
+    {
+        lines.Should().Contain(line =>
+                string.Equals(
+                    line.Trim(),
+                    "WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}",
+                    StringComparison.Ordinal),
+            because);
+        lines.Should().Contain(line =>
+                string.Equals(
+                    line.Trim(),
+                    "WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}",
+                    StringComparison.Ordinal),
+            because);
     }
 }

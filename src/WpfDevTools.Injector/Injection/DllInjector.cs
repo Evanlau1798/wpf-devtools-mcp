@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
 using System.Text;
 using WpfDevTools.Shared.Enums;
 using WpfDevTools.Shared.Utilities;
@@ -151,7 +152,7 @@ public class DllInjector
 
             // Allocate memory in target process
             var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
-            var invocationResult = _bufferInvoker.Invoke(
+            var invocationResult = InvokeRemoteBufferAndClear(
                 hProcess,
                 loadLibraryAddr,
                 dllPathBytes,
@@ -264,7 +265,7 @@ public class DllInjector
         if (invokeExportTimeout <= TimeSpan.Zero)
             return InjectionMechanismFailure.InvokeBootstrapExportBudgetExhausted;
 
-        var invocationResult = _bufferInvoker.Invoke(
+        var invocationResult = InvokeRemoteBufferAndClear(
             hProcess,
             remoteFuncAddr,
             paramBytes,
@@ -302,7 +303,7 @@ public class DllInjector
             return LoadLibraryRemoteOutcome.Failed;
 
         var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
-        var invocationResult = _bufferInvoker.Invoke(
+        var invocationResult = InvokeRemoteBufferAndClear(
             hProcess,
             loadLibraryAddr,
             dllPathBytes,
@@ -324,6 +325,28 @@ public class DllInjector
                 remoteModuleHandle)
             ? LoadLibraryRemoteOutcome.Succeeded
             : LoadLibraryRemoteOutcome.Failed;
+    }
+
+    private RemoteThreadInvocationResult InvokeRemoteBufferAndClear(
+        IntPtr processHandle,
+        IntPtr startAddress,
+        byte[] parameterBytes,
+        TimeSpan timeout,
+        bool requireExitCode)
+    {
+        try
+        {
+            return _bufferInvoker.Invoke(
+                processHandle,
+                startAddress,
+                parameterBytes,
+                timeout,
+                requireExitCode);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(parameterBytes);
+        }
     }
 
     private string GetErrorMessage(InjectionError error)

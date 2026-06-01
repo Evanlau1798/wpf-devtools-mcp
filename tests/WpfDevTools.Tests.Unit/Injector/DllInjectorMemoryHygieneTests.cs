@@ -40,6 +40,25 @@ public sealed class DllInjectorMemoryHygieneTests
             "all local injection byte buffers should flow through the wrapper that zeroes them in finally");
     }
 
+    [Fact]
+    public void InjectAndCallExport_ShouldCheckExportTimeoutBeforeEncodingBootstrapParameters()
+    {
+        var source = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(
+            "src/WpfDevTools.Injector/Injection/DllInjector.cs"));
+
+        var encodeIndex = source.IndexOf(
+            "Encoding.Unicode.GetBytes(parameters + \"\\0\")",
+            StringComparison.Ordinal);
+        var timeoutIndex = source.IndexOf(
+            "return InjectionMechanismFailure.InvokeBootstrapExportBudgetExhausted",
+            StringComparison.Ordinal);
+
+        encodeIndex.Should().BeGreaterThanOrEqualTo(0);
+        timeoutIndex.Should().BeGreaterThanOrEqualTo(0);
+        timeoutIndex.Should().BeLessThan(encodeIndex,
+            "the export phase budget must be checked before materializing sensitive bootstrap parameter bytes");
+    }
+
     private static string CreateExistingTempFile()
     {
         var filePath = Path.GetTempFileName();

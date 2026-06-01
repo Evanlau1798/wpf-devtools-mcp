@@ -259,12 +259,12 @@ public class DllInjector
         // Compute remote function address
         var remoteFuncAddr = IntPtr.Add(remoteBase, (int)exportRva.Value);
 
-        // Write parameters to target process memory
-        var paramBytes = Encoding.Unicode.GetBytes(parameters + "\0");
         var invokeExportTimeout = GetRemainingBootstrapPhaseTimeout(operationStopwatch.Elapsed, timeout);
         if (invokeExportTimeout <= TimeSpan.Zero)
             return InjectionMechanismFailure.InvokeBootstrapExportBudgetExhausted;
 
+        // Write parameters to target process memory
+        var paramBytes = Encoding.Unicode.GetBytes(parameters + "\0");
         var invocationResult = InvokeRemoteBufferAndClear(
             hProcess,
             remoteFuncAddr,

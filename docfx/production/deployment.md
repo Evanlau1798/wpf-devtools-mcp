@@ -86,6 +86,10 @@ If you do not pass `-InstallRoot`, the installer first reuses the last live inst
 - Run a package-local smoke check from the extracted package with `run.bat`, then verify `get_processes`, `connect`, and `get_ui_summary` before registering that install with user tools.
 - Repeat the smoke check from the final installed path by launching `<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe`.
 
+## Dependency audit cadence
+
+Run `dotnet restore --locked-mode` and `dotnet list package --vulnerable` before promoting a release candidate. The NuGet audit result should be captured with release evidence, and package lock validation must remain enabled in CI. Review `ModelContextProtocol`, `System.Text.Json`, PowerShell packaging dependencies, and GitHub Actions versions against verified advisories. Avoid dependency churn for speculative CVE claims; update when a verified advisory, compatibility requirement, or pinned GitHub Actions runner/action change applies.
+
 ## Production checklist
 
 - Use the architecture that matches the target process.

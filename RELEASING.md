@@ -67,6 +67,10 @@ After a successful preflight run with `-VersionTag`, verify these outputs under 
 - `github-assets/<tag>/release-sbom.spdx.json`
 - `github-assets/<tag>/upload-gh-release.ps1`
 
+## 2.5 Dependency audit cadence
+
+For every release candidate, run `dotnet restore --locked-mode` before build/test and run `dotnet list package --vulnerable` after restore. Keep NuGet audit warnings as release blockers unless the release evidence records a reviewed false positive. Review `ModelContextProtocol`, `System.Text.Json`, PowerShell packaging dependencies, and GitHub Actions versions against verified advisories. Do not churn package pins for speculative CVE claims; update only for verified advisories, compatibility needs, or pinned runner/action requirements.
+
 ## 3. Release prerequisites
 
 Before publishing a public Release channel build, confirm:

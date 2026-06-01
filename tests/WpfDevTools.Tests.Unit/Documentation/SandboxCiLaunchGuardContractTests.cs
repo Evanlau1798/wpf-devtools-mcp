@@ -18,6 +18,15 @@ public sealed class SandboxCiLaunchGuardContractTests
     }
 
     [Fact]
+    public void InvokeWindowsSandboxCi_ShouldAllowOrphanedVmmemOnlyAfterCleanup()
+    {
+        var script = ReadSandboxLauncher();
+
+        script.Should().Contain("$blockingSandboxProcesses");
+        script.Should().Contain("Only orphaned vmmemWindowsSandbox process(es) remain");
+    }
+
+    [Fact]
     public void InvokeWindowsSandboxCi_ShouldBoundGuestStartupWaitSeparatelyFromFullRunTimeout()
     {
         var script = ReadSandboxLauncher();

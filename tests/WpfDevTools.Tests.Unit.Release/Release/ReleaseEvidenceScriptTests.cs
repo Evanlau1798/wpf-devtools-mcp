@@ -50,9 +50,11 @@ public sealed class ReleaseEvidenceScriptTests
             var shaSumsPath = Path.Combine(tempRoot, "SHA256SUMS.txt");
             var releaseAssetsPath = Path.Combine(tempRoot, "release-assets.json");
             var sbomPath = Path.Combine(tempRoot, "release-sbom.spdx.json");
+            var packageSbomPath = Path.Combine(tempRoot, "package-sbom.spdx.json");
             File.WriteAllText(shaSumsPath, "hash  release.zip");
             File.WriteAllText(releaseAssetsPath, """{"assets":[]}""");
             File.WriteAllText(sbomPath, """{"spdxVersion":"SPDX-2.3"}""");
+            File.WriteAllText(packageSbomPath, """{"spdxVersion":"SPDX-2.3","name":"package-sbom"}""");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Write-ReleaseEvidence.ps1"),
@@ -67,6 +69,10 @@ public sealed class ReleaseEvidenceScriptTests
                     "-Sha256SumsPath", shaSumsPath,
                     "-ReleaseAssetsPath", releaseAssetsPath,
                     "-ReleaseSbomPath", sbomPath,
+                    "-PackageSbomPath", packageSbomPath,
+                    "-DotnetSdkVersion", "8.0.999",
+                    "-PowerShellVersion", "7.4.99",
+                    "-WorkflowSha", "fedcba9876543210fedcba9876543210fedcba98",
                     "-ExpectedThumbprintHash", "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                     "-ObservedThumbprintHash", "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
                 ]);
@@ -84,8 +90,17 @@ public sealed class ReleaseEvidenceScriptTests
             root.GetProperty("docfx").GetProperty("brokenLinks").GetInt32().Should().Be(0);
             root.GetProperty("releaseAssets").GetProperty("sha256SumsHash").GetString()
                 .Should().MatchRegex("^[a-f0-9]{64}$");
+            root.GetProperty("releaseAssets").GetProperty("packageSbomHash").GetString()
+                .Should().MatchRegex("^[a-f0-9]{64}$");
             root.GetProperty("signing").GetProperty("expectedThumbprintHash").GetString()
                 .Should().MatchRegex("^[a-f0-9]{64}$");
+            var runner = root.GetProperty("runnerEnvironment");
+            runner.GetProperty("dotnetSdkVersion").GetString().Should().Be("8.0.999");
+            runner.GetProperty("powerShellVersion").GetString().Should().Be("7.4.99");
+            runner.GetProperty("workflowSha").GetString().Should().Be("fedcba9876543210fedcba9876543210fedcba98");
+            runner.GetProperty("pinnedActionCount").GetInt32().Should().BeGreaterThan(0);
+            runner.GetProperty("pinnedActions").EnumerateArray()
+                .Should().OnlyContain(action => action.GetProperty("pinnedToSha").GetBoolean());
         }
         finally
         {

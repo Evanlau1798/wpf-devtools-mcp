@@ -9,6 +9,10 @@ param(
     [Parameter(Mandatory)] [string]$Sha256SumsPath,
     [Parameter(Mandatory)] [string]$ReleaseAssetsPath,
     [Parameter(Mandatory)] [string]$ReleaseSbomPath,
+    [Parameter(Mandatory)] [string]$PackageSbomPath,
+    [string]$DotnetSdkVersion = '',
+    [string]$PowerShellVersion = '',
+    [string]$WorkflowSha = $env:GITHUB_WORKFLOW_SHA,
     [string]$ExpectedThumbprintHash = '',
     [string]$ObservedThumbprintHash = '',
     [string]$TrustedSignerThumbprint = '',
@@ -168,10 +172,73 @@ function Normalize-ThumbprintHash {
     return Get-Sha256HexForString -Value $Value.Trim()
 }
 
+function Resolve-ToolVersion {
+    param(
+        [string]$Value,
+        [Parameter(Mandatory)] [scriptblock]$Command,
+        [Parameter(Mandatory)] [string]$Fallback
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($Value)) {
+        return $Value
+    }
+
+    try {
+        $output = & $Command 2>$null
+        if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace([string]$output)) {
+            return ([string]$output).Trim()
+        }
+    }
+    catch {
+    }
+
+    return $Fallback
+}
+
+function Get-PinnedGitHubActions {
+    $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
+    $workflowRoot = Join-Path $repoRoot '.github\workflows'
+    if (-not (Test-Path -LiteralPath $workflowRoot -PathType Container)) {
+        return @()
+    }
+
+    Get-ChildItem -LiteralPath $workflowRoot -Filter '*.yml' -File |
+        Sort-Object Name |
+        ForEach-Object {
+            $workflow = $_
+            $lineNumber = 0
+            Get-Content -LiteralPath $workflow.FullName | ForEach-Object {
+                $lineNumber++
+                $match = [regex]::Match($_, '^\s*uses:\s*(?<ref>[^\s#]+)')
+                if (-not $match.Success) {
+                    return
+                }
+
+                $reference = $match.Groups['ref'].Value
+                $parts = $reference.Split('@', 2)
+                if ($parts.Count -ne 2) {
+                    return
+                }
+
+                [pscustomobject]@{
+                    workflow = $workflow.Name
+                    line = $lineNumber
+                    action = $parts[0]
+                    reference = $parts[1]
+                    pinnedToSha = $parts[1] -match '^[a-fA-F0-9]{40}$'
+                }
+            }
+        }
+}
+
 $runtimeEvidence = @(Read-RuntimeEvidence -Paths $RuntimeEvidencePath)
 $repositoryValue = if ([string]::IsNullOrWhiteSpace($Repository)) { 'Evanlau1798/wpf-devtools-mcp' } else { $Repository }
 $branchValue = Resolve-GitValue -Value $Branch -FallbackCommand 'branch --show-current'
 $commitShaValue = Resolve-GitValue -Value $CommitSha -FallbackCommand 'rev-parse HEAD'
+$dotnetSdkVersionValue = Resolve-ToolVersion -Value $DotnetSdkVersion -Command { dotnet --version } -Fallback 'unknown'
+$powerShellVersionValue = Resolve-ToolVersion -Value $PowerShellVersion -Command { $PSVersionTable.PSVersion.ToString() } -Fallback 'unknown'
+$workflowShaValue = if ([string]::IsNullOrWhiteSpace($WorkflowSha)) { 'unknown' } else { $WorkflowSha }
+$pinnedActions = @(Get-PinnedGitHubActions)
 $workflowRunIds = @()
 if (-not [string]::IsNullOrWhiteSpace($WorkflowRunId)) {
     $workflowRunIds += [long]$WorkflowRunId
@@ -237,10 +304,18 @@ $evidence = [ordered]@{
         sha256SumsHash = Get-Sha256HexForFile -Path $Sha256SumsPath
         releaseAssetsJsonHash = Get-Sha256HexForFile -Path $ReleaseAssetsPath
         releaseSbomHash = Get-Sha256HexForFile -Path $ReleaseSbomPath
+        packageSbomHash = Get-Sha256HexForFile -Path $PackageSbomPath
     }
     signing = [ordered]@{
         expectedThumbprintHash = $expectedSignerHash
         observedThumbprintHash = $observedSignerHash
+    }
+    runnerEnvironment = [ordered]@{
+        dotnetSdkVersion = $dotnetSdkVersionValue
+        powerShellVersion = $powerShellVersionValue
+        workflowSha = $workflowShaValue
+        pinnedActionCount = $pinnedActions.Count
+        pinnedActions = $pinnedActions
     }
 }
 

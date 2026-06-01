@@ -353,6 +353,10 @@ jobs:
           -Sha256SumsPath 'artifacts/release/SHA256SUMS.txt' `
           -ReleaseAssetsPath 'artifacts/release/release-assets.json' `
           -ReleaseSbomPath 'artifacts/release/release-sbom.spdx.json' `
+          -PackageSbomPath 'artifacts/release/package-sbom.spdx.json' `
+          -DotnetSdkVersion (dotnet --version) `
+          -PowerShellVersion $PSVersionTable.PSVersion.ToString() `
+          -WorkflowSha '${{ github.workflow_sha }}' `
           -UninstallResiduePassed
 
     - name: Upload release evidence summary

@@ -14,6 +14,8 @@ public sealed class ReleaseEvidenceWorkflowTests
         content.Should().Contain("Write-ReleaseEvidence.ps1");
         content.Should().Contain("release-evidence-${{ matrix.architecture }}.json");
         content.Should().Contain("release-evidence-ci-${{ matrix.architecture }}");
+        content.Should().Contain("-PackageSbomPath 'artifacts/release/package-sbom.spdx.json'");
+        content.Should().Contain("-WorkflowSha '${{ github.workflow_sha }}'");
     }
 
     [Fact]
@@ -25,5 +27,8 @@ public sealed class ReleaseEvidenceWorkflowTests
         content.Should().Contain("release-evidence.json");
         content.Should().Contain("release-evidence-${{ needs.publish-release-assets.outputs.release-tag }}");
         content.Should().Contain("upload-release-assets:");
+        content.Should().Contain("/package-sbom.spdx.json");
+        content.Should().Contain("-PackageSbomPath (Join-Path $stagingRoot 'package-sbom.spdx.json')");
+        content.Should().Contain("-WorkflowSha '${{ github.workflow_sha }}'");
     }
 }

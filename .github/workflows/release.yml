@@ -148,6 +148,7 @@ jobs:
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/SHA256SUMS.txt
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release-assets.json
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release-sbom.spdx.json
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/package-sbom.spdx.json
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/upload-gh-release.ps1
 
       - name: Cleanup materialized signing certificate
@@ -619,6 +620,10 @@ jobs:
             -Sha256SumsPath (Join-Path $stagingRoot 'SHA256SUMS.txt') `
             -ReleaseAssetsPath (Join-Path $stagingRoot 'release-assets.json') `
             -ReleaseSbomPath (Join-Path $stagingRoot 'release-sbom.spdx.json') `
+            -PackageSbomPath (Join-Path $stagingRoot 'package-sbom.spdx.json') `
+            -DotnetSdkVersion (dotnet --version) `
+            -PowerShellVersion $PSVersionTable.PSVersion.ToString() `
+            -WorkflowSha '${{ github.workflow_sha }}' `
             -TrustedSignerThumbprint $env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT `
             -UninstallResiduePassed
 

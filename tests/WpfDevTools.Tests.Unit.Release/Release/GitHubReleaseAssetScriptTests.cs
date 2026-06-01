@@ -430,6 +430,54 @@ public sealed class GitHubReleaseAssetScriptTests
         }
     }
 
+    [Fact]
+    public void WriteReleaseSidecars_ShouldReadLockFilesWhenRepositoryRootPathContainsTmpSegment()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var repoRoot = Path.Combine(tempRoot, "outer", "tmp", "repo");
+            var scriptDirectory = Path.Combine(repoRoot, "scripts", "tools", "packaging");
+            var archiveRoot = Path.Combine(tempRoot, "release");
+            var packageDirectory = Path.Combine(tempRoot, "package");
+            Directory.CreateDirectory(scriptDirectory);
+            Directory.CreateDirectory(archiveRoot);
+            Directory.CreateDirectory(Path.Combine(packageDirectory, "bin"));
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Write-ReleaseSidecars.ps1"),
+                Path.Combine(scriptDirectory, "Write-ReleaseSidecars.ps1"));
+            File.WriteAllText(Path.Combine(packageDirectory, "run.bat"), "@echo off");
+            File.WriteAllText(Path.Combine(packageDirectory, "bin", "install.ps1"), "Write-Host install");
+            File.WriteAllText(Path.Combine(repoRoot, "packages.lock.json"), """
+                {
+                  "version": 1,
+                  "dependencies": {
+                    "net8.0": {
+                      "ModelContextProtocol": {
+                        "type": "Direct",
+                        "resolved": "0.3.0"
+                      }
+                    }
+                  }
+                }
+                """);
+            ZipFile.CreateFromDirectory(packageDirectory, Path.Combine(archiveRoot, "release_1.2.3_win-x64.zip"));
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                Path.Combine(scriptDirectory, "Write-ReleaseSidecars.ps1"),
+                new[] { "-ArchiveRoot", archiveRoot, "-Tag", "v1.2.3", "-OutputJson" });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var sbom = JsonDocument.Parse(File.ReadAllText(Path.Combine(archiveRoot, "package-sbom.spdx.json")));
+            sbom.RootElement.GetProperty("packages").EnumerateArray()
+                .Select(package => package.GetProperty("name").GetString())
+                .Should().Contain("ModelContextProtocol");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     private static (string Thumbprint, string? Subject) ReadArchiveSignerMetadata(string archivePath)
     {
         using var archive = ZipFile.OpenRead(archivePath);

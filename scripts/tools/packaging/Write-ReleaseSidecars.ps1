@@ -383,8 +383,17 @@ function Get-NuGetDependencyPackages {
     param([Parameter(Mandatory)] [string]$RepositoryRoot)
 
     $dependencies = [ordered]@{}
+    $repositoryRootPrefix = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
     Get-ChildItem -LiteralPath $RepositoryRoot -Filter 'packages.lock.json' -Recurse -File |
-        Where-Object { $_.FullName -notmatch '\\(bin|obj|tmp)\\' } |
+        Where-Object {
+            $fullName = [System.IO.Path]::GetFullPath($_.FullName)
+            if (-not $fullName.StartsWith($repositoryRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                return $false
+            }
+
+            $relativeSegments = $fullName.Substring($repositoryRootPrefix.Length).Split([char[]]@('\', '/'), [System.StringSplitOptions]::RemoveEmptyEntries)
+            return -not @($relativeSegments | Where-Object { $_ -in @('bin', 'obj', 'tmp') }).Count
+        } |
         Sort-Object FullName |
         ForEach-Object {
             $lock = Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json

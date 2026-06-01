@@ -131,22 +131,44 @@ public sealed class McpToolContractDescriptionTests
     }
 
     [Fact]
-    public void AiFacingResponseShapeSketches_ShouldNotLookLikeCopyPasteJsonExamples()
+    public void AiFacingResponseSummaries_ShouldUseBulletSummariesInsteadOfSchemaSketches()
     {
         var failures = new List<string>();
         foreach (var (name, text) in GetAllAiFacingContractTexts())
         {
             if (text.Contains("RESPONSE FORMAT:", StringComparison.Ordinal))
             {
-                failures.Add($"{name}: uses RESPONSE FORMAT instead of SCHEMA SKETCH");
+                failures.Add($"{name}: uses RESPONSE FORMAT instead of RESPONSE SUMMARY");
             }
 
-            var containsPseudoJson = text.Contains("success: boolean", StringComparison.Ordinal)
-                || text.Contains("{ success:", StringComparison.Ordinal)
-                || text.Contains("processId?:", StringComparison.Ordinal);
-            if (containsPseudoJson && !text.Contains("SCHEMA SKETCH", StringComparison.Ordinal))
+            if (text.Contains("SCHEMA SKETCH", StringComparison.Ordinal))
             {
-                failures.Add($"{name}: pseudo-JSON fields are not explicitly labeled as a schema sketch");
+                failures.Add($"{name}: uses SCHEMA SKETCH instead of RESPONSE SUMMARY or bullet-list prose");
+            }
+
+            if (Regex.IsMatch(text, @"\b[A-Za-z_][A-Za-z0-9_]*\?:", RegexOptions.CultureInvariant))
+            {
+                failures.Add($"{name}: uses TypeScript optional markers");
+            }
+
+            var responseSummary = ExtractHeadingBlock(text, "RESPONSE SUMMARY:");
+            if (!string.IsNullOrWhiteSpace(responseSummary)
+                && Regex.IsMatch(responseSummary, @"(?m)^\s{0,6}(?!- )[A-Za-z_][A-Za-z0-9_]*\s*:",
+                    RegexOptions.CultureInvariant))
+            {
+                failures.Add($"{name}: RESPONSE SUMMARY uses unbulleted pseudo-object fields");
+            }
+
+            if (!string.IsNullOrWhiteSpace(responseSummary)
+                && Regex.IsMatch(responseSummary, @"(?m)^\s*\{", RegexOptions.CultureInvariant))
+            {
+                failures.Add($"{name}: RESPONSE SUMMARY uses object-literal shape lines");
+            }
+
+            if (!string.IsNullOrWhiteSpace(responseSummary)
+                && Regex.IsMatch(responseSummary, @"(?m)^\s*-\s*\{", RegexOptions.CultureInvariant))
+            {
+                failures.Add($"{name}: RESPONSE SUMMARY uses bulleted object-literal shape lines");
             }
         }
 
@@ -154,7 +176,7 @@ public sealed class McpToolContractDescriptionTests
             "server-level response guidance should be prose plus contract-resource references, not JavaScript-like object literals");
         ServerInstructions.Value.Should().NotContain("On error: {",
             "error response guidance should not look like a copy-paste JSON example");
-        failures.Should().BeEmpty("AI-facing response shapes should be labeled as schema sketches, while request examples remain strict JSON");
+        failures.Should().BeEmpty("AI-facing response shapes should be bullet summaries or strict JSON, not TypeScript-like schema sketches");
     }
 
     [Fact]
@@ -375,7 +397,7 @@ public sealed class McpToolContractDescriptionTests
         start += heading.Length;
         var nextHeading = Regex.Match(
             text[start..],
-            @"(?m)^[A-Z][A-Z0-9 /()'-]+:\s*$",
+            @"(?m)^[A-Z][A-Z0-9 /()'-]+:",
             RegexOptions.CultureInvariant);
 
         return nextHeading.Success

@@ -10,12 +10,10 @@ internal static class MvvmMcpToolDescriptions
         "all properties with their current values, and whether INotifyPropertyChanged is implemented.\n\n" +
         "USE WHEN: Need to inspect ViewModel state; verify DataContext is set correctly.\n" +
         "DO NOT USE: For binding path issues (use get_datacontext_chain instead).\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  typeName, implementsINotifyPropertyChanged: boolean,\n" +
-        "  properties: [{ name, value, type, canWrite }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - typeName, implementsINotifyPropertyChanged: boolean,\n" +
+        "  - properties: [{ name, value, type, canWrite }]\n\n" +
         "FILTERING: Optional `propertyNames` lets agents request only the ViewModel properties relevant to the current diagnosis.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -31,13 +29,10 @@ internal static class MvvmMcpToolDescriptions
         "canExecute status, commandType. Use to check why a button is disabled.\n\n" +
         "USE WHEN: Button is disabled; need to check ICommand.CanExecute status.\n" +
         "DO NOT USE: For non-MVVM apps (commands won't exist).\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  commands: [{\n" +
-        "    name, type, canExecute: boolean\n" +
-        "  }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - commands: [{\n" +
+        "    - name, type, canExecute: boolean\n\n" +
         "Empty commands array means no ICommand properties found.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -54,13 +49,11 @@ internal static class MvvmMcpToolDescriptions
         "DO NOT USE: When CanExecute is false (will fail); check with get_commands first.\n\n" +
         "WARNING: This triggers real application logic (saves data, navigates, etc.).\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core command result, use `minimal` for the most concise success confirmation, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  commandName,\n" +
-        "  executed: boolean,\n" +
-        "  canExecute: boolean\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - commandName,\n" +
+        "  - executed: boolean,\n" +
+        "  - canExecute: boolean\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"command not found\" -> verify commandName exists (use get_commands)\n" +
@@ -81,18 +74,15 @@ internal static class MvvmMcpToolDescriptions
         "errors from ALL logical and visual descendant elements are collected recursively (max depth: 50, max errors: 200). " +
         "This includes inactive TabItem content and other subtree content that may not currently be visible in the visual tree. " +
         "Each error includes elementType and elementName to identify the source element.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  errorCount: number,\n" +
-        "  errors: [{\n" +
-        "    errorContent: string,\n" +
-        "    isRuleError: boolean,\n" +
-        "    ruleType: string,\n" +
-        "    elementType: string,  // e.g., 'TextBox' - identifies which descendant has the error\n" +
-        "    elementName: string|null  // x:Name of the element, if set\n" +
-        "  }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - errorCount: number,\n" +
+        "  - errors: [{\n" +
+        "    - errorContent: string,\n" +
+        "    - isRuleError: boolean,\n" +
+        "    - ruleType: string,\n" +
+        "    - elementType: string,  // e.g., 'TextBox' - identifies which descendant has the error\n" +
+        "    - elementName: string|null  // x:Name of the element, if set\n\n" +
         "Empty errors array means no validation errors in the element or its subtree.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -110,11 +100,9 @@ internal static class MvvmMcpToolDescriptions
         "DO NOT USE: For permanent changes (not persisted); when INotifyPropertyChanged is missing (UI won't update).\n\n" +
         "WARNING: This modifies the running app. Changes are NOT persisted.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep the core mutation result, use `minimal` for success/property/newValue confirmation only, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  propertyName, oldValue, newValue, propertyType, canWrite, requestedValueType, convertedValueType\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - propertyName, oldValue, newValue, propertyType, canWrite, requestedValueType, convertedValueType\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"no datacontext\" -> element has no ViewModel\n" +

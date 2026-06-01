@@ -9,17 +9,14 @@ internal static class BindingMcpToolDescriptions
         BindingMetadata + "[Binding] Cross-reference target DependencyProperty types with resolved binding source property types and report deterministic path, type, and nullability mismatches.\n\n" +
         "USE WHEN: A binding looks active but still behaves suspiciously, or you need to catch path/type issues without stitching together get_bindings, get_viewmodel, and get_dp_value_source.\n" +
         "DO NOT USE: For fuzzy guessing. This tool only reports deterministic mismatches and skips unresolved heuristics.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  mismatchCount: integer,\n" +
-        "  mismatches: [{\n" +
-        "    elementId, elementType, elementName, propertyName, bindingPath,\n" +
-        "    targetType, sourceType, converter, origin,\n" +
-        "    diagnosis: 'PathMismatch'|'TypeMismatch'|'TypeMismatchWithConverter'|'NullabilityMismatch',\n" +
-        "    severity: 'Info'|'Warning'\n" +
-        "  }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - mismatchCount: integer,\n" +
+        "  - mismatches: [{\n" +
+        "    - elementId, elementType, elementName, propertyName, bindingPath,\n" +
+        "    - targetType, sourceType, converter, origin,\n" +
+        "    - diagnosis: 'PathMismatch'|'TypeMismatch'|'TypeMismatchWithConverter'|'NullabilityMismatch',\n" +
+        "    - severity: 'Info'|'Warning'\n\n" +
         "DEFAULT BEHAVIOR: Unnamed framework template parts are excluded by default to reduce noise. Set includeFramework=true to include internal/template-generated framework mismatches.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect() or connect(processId) first\n" +
@@ -53,19 +50,17 @@ internal static class BindingMcpToolDescriptions
         "MATCHING: Exact simple binding-path matches remain best-effort. Nested terminal segments such as `Item.SubItem.Name` and explicit `MultiBinding` child paths can return higher confidence when the declaration itself proves the relationship.\n" +
         "SOURCE MODEL: Bindings that can be proven to stay on the element's local or inherited DataContext chain remain in `affectedElements`. ElementName, RelativeSource, explicit Source, or missing-DataContext cases are surfaced separately through `unsupportedElements` instead of being guessed as ViewModel impact.\n" +
         "VERIFICATION: Successful responses include explicit uncertainty metadata and should usually be followed by get_bindings for precise confirmation.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  propertyName: string,\n" +
-        "  viewModelType: string|null,\n" +
-        "  confidence: 'low'|'best-effort'|'high',\n" +
-        "  matchStrategy: 'simple-path-match'|'terminal-path-match'|'multibinding-child-path-match'|'source-excluded',\n" +
-        "  requiresVerification: boolean,\n" +
-        "  affectedCount: integer,\n" +
-        "  unsupportedCount: integer,\n" +
-        "  affectedElements: [{ elementId, elementType, elementName, dataContextType, propertyName, bindingPath, currentValue, status, matchConfidence, sourceClassification }],\n" +
-        "  unsupportedElements: [{ elementId, elementType, elementName, dataContextType, propertyName, bindingPath, currentValue, status, matchConfidence, sourceClassification, unsupportedReason }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - propertyName: string,\n" +
+        "  - viewModelType: string|null,\n" +
+        "  - confidence: 'low'|'best-effort'|'high',\n" +
+        "  - matchStrategy: 'simple-path-match'|'terminal-path-match'|'multibinding-child-path-match'|'source-excluded',\n" +
+        "  - requiresVerification: boolean,\n" +
+        "  - affectedCount: integer,\n" +
+        "  - unsupportedCount: integer,\n" +
+        "  - affectedElements: [{ elementId, elementType, elementName, dataContextType, propertyName, bindingPath, currentValue, status, matchConfidence, sourceClassification }],\n" +
+        "  - unsupportedElements: [{ elementId, elementType, elementName, dataContextType, propertyName, bindingPath, currentValue, status, matchConfidence, sourceClassification, unsupportedReason }]\n\n" +
         "ERRORS:\n" +
         "- \"propertyName required\" -> provide the ViewModel property name you want to match\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -101,17 +96,14 @@ internal static class BindingMcpToolDescriptions
         "Shows each step from source to target including converters, fallback values, and StringFormat.\n\n" +
         "USE WHEN: Binding doesn't error but shows unexpected value; need to trace value transformation.\n" +
         "DO NOT USE: Without propertyName - it's required.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  hasBinding: boolean,\n" +
-        "  propertyName,\n" +
-        "  chainLength: integer,\n" +
-        "  chain: [{\n" +
-        "    step: 'Binding'|'LocalDataContext'|'InheritedDataContext'|'ResolvedSource'|'FinalValue',\n" +
-        "    value, type\n" +
-        "  }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - hasBinding: boolean,\n" +
+        "  - propertyName,\n" +
+        "  - chainLength: integer,\n" +
+        "  - chain: [{\n" +
+        "    - step: 'Binding'|'LocalDataContext'|'InheritedDataContext'|'ResolvedSource'|'FinalValue',\n" +
+        "    - value, type\n\n" +
         "NOTE: Null-DataContext cases include explicit LocalDataContext and ancestor InheritedDataContext diagnostics when available.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -126,13 +118,10 @@ internal static class BindingMcpToolDescriptions
         "Shows each ancestor's DataContext type and value.\n\n" +
         "USE WHEN: Binding path is correct but can't find source; need to understand DataContext inheritance.\n" +
         "DO NOT USE: When binding error already shows the issue (use get_binding_errors first).\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  chain: [{\n" +
-        "    elementId, elementType, dataContextType, dataContextValue, isInherited\n" +
-        "  }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - chain: [{\n" +
+        "    - elementId, elementType, dataContextType, dataContextValue, isInherited\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId is valid\n\n" +
@@ -147,11 +136,9 @@ internal static class BindingMcpToolDescriptions
         "USE WHEN: UI is stale despite source changes; testing UpdateSourceTrigger=Explicit bindings.\n" +
         "DO NOT USE: As a workaround for broken INotifyPropertyChanged (fix the ViewModel instead).\n\n" +
         "WARNING: This modifies the running app. By default, pushes the current UI target value to the binding source (UpdateSource). Specify direction='Target' to pull the current source value back to the UI target (UpdateTarget).\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  updated: boolean\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - updated: boolean\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"no binding\" -> property has no binding\n" +

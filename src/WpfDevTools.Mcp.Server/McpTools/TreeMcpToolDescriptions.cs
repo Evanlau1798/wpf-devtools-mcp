@@ -13,12 +13,12 @@ internal static class TreeMcpToolDescriptions
         "PERFORMANCE: Large trees (depth >5) can return 10,000+ elements. Always set depth=2-4 for initial exploration.\n" +
         "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table. " +
         "maxNodes caps total returned nodes (default 1000), and maxChildrenPerNode caps fan-out per level (default 200).\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "Nested mode:\n" +
-        "{ success, tree, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
-        "- tree: { elementId, type, name?, childCount, children?, omittedChildCount? }\n" +
-        "Summary mode (summaryOnly=true):\n" +
-        "{ success, format: \"flat-summary-v1\", columns, nodes, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
+        "RESPONSE SUMMARY:\n" +
+        "- Nested mode:\n" +
+        "- success, tree, depthSufficiencyHint (optional), returnedNodeCount, omittedNodeCount, truncated, appliedOptions\n" +
+        "- tree: { elementId, type, name (optional), childCount, children (optional), omittedChildCount (optional) }\n" +
+        "- Summary mode (summaryOnly=true):\n" +
+        "- success, format: \"flat-summary-v1\", columns, nodes, depthSufficiencyHint (optional), returnedNodeCount, omittedNodeCount, truncated, appliedOptions\n" +
         "- columns: [elementId, type, name, childCount, depth, parentId]\n\n" +
         "- depthSufficiencyHint: { isSufficient, reasonCode, currentDepth, recommendedDepth, suggestion } when deeper traversal is likely required\n\n" +
         "ERRORS:\n" +
@@ -37,12 +37,12 @@ internal static class TreeMcpToolDescriptions
         "DO NOT USE: When you need to inspect template internals (use get_visual_tree or get_template_tree instead).\n\n" +
         "TOKEN EFFICIENCY: compact=true omits null/empty fields, summaryOnly=true returns a flat-summary-v1 table. " +
         "maxNodes caps total returned nodes (default 1000), and maxChildrenPerNode caps fan-out per level (default 200).\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "Nested mode:\n" +
-        "{ success, tree, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
-        "- tree: { elementId, type, name?, childCount, childCountExact?, hasMoreChildren?, children?, omittedChildCount? }\n" +
-        "Summary mode (summaryOnly=true):\n" +
-        "{ success, format: \"flat-summary-v1\", columns, nodes, depthSufficiencyHint?, returnedNodeCount, omittedNodeCount, truncated, appliedOptions }\n" +
+        "RESPONSE SUMMARY:\n" +
+        "- Nested mode:\n" +
+        "- success, tree, depthSufficiencyHint (optional), returnedNodeCount, omittedNodeCount, truncated, appliedOptions\n" +
+        "- tree: { elementId, type, name (optional), childCount, childCountExact (optional), hasMoreChildren (optional), children (optional), omittedChildCount (optional) }\n" +
+        "- Summary mode (summaryOnly=true):\n" +
+        "- success, format: \"flat-summary-v1\", columns, nodes, depthSufficiencyHint (optional), returnedNodeCount, omittedNodeCount, truncated, appliedOptions\n" +
         "- columns: [elementId, type, name, childCount, depth, parentId, childCountExact, hasMoreChildren]\n" +
         "- For capped logical collections, childCount, omittedChildCount, and omittedNodeCount are lower-bound sentinel counts when childCountExact=false / hasMoreChildren=true.\n" +
         "- hasMoreChildren can mean uninspected raw logical items remain, not necessarily DependencyObject nodes.\n\n" +
@@ -60,11 +60,9 @@ internal static class TreeMcpToolDescriptions
         "Returns the XAML markup string for the element and its children.\n\n" +
         "USE WHEN: You need to understand element structure in markup form or export UI definition.\n" +
         "DO NOT USE: On large subtrees (use elementId to scope to specific element).\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  xaml: string\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - xaml: string\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"serialization failed\" -> element may contain non-serializable properties\n\n" +
@@ -78,16 +76,14 @@ internal static class TreeMcpToolDescriptions
         "Returns all named elements (x:Name) registered in the element's scope.\n\n" +
         "USE WHEN: You need to discover all named elements in a window or UserControl, including names registered for inactive tabs or other logical-only content.\n" +
         "DO NOT USE: For finding elements by type (use get_visual_tree to browse the tree instead).\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  hasNameScope: boolean,\n" +
-        "  namedElementCount: integer,\n" +
-        "  traversalNodeCount: integer,\n" +
-        "  maxTraversalNodes: integer,\n" +
-        "  traversalTruncated: boolean,\n" +
-        "  namedElements: [{ name, elementId, type }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - hasNameScope: boolean,\n" +
+        "  - namedElementCount: integer,\n" +
+        "  - traversalNodeCount: integer,\n" +
+        "  - maxTraversalNodes: integer,\n" +
+        "  - traversalTruncated: boolean,\n" +
+        "  - namedElements: [{ name, elementId, type }]\n\n" +
         "NO NAMESCOPE: If the element is not a namescope root, the response is success=true with hasNameScope=false, namedElementCount=0, traversalNodeCount=0, and traversalTruncated=false. Try the parent window or UserControl when names are expected.\n" +
         "TRUNCATION: traversalTruncated=true only means a namescope root was present and maxNodes stopped name discovery before all descendants were inspected. Omitted maxNodes defaults to 10000 for namescope discovery.\n\n" +
         "ERRORS:\n" +
@@ -102,14 +98,12 @@ internal static class TreeMcpToolDescriptions
         "USE WHEN: You need to inspect how a control renders internally or find template parts.\n" +
         "DO NOT USE: On non-templated elements (will return empty); check element type first.\n\n" +
         "PERFORMANCE: Template traversal applies the same default 1000-node and 200-child fan-out caps as visual/logical tree tools; pass maxNodes or maxChildrenPerNode to narrow large template payloads.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  tree: { elementId, type, name, childCount, children: [...], omittedChildCount? },\n" +
-        "  returnedNodeCount: number,\n" +
-        "  omittedNodeCount: number,\n" +
-        "  truncated: boolean\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - tree: { elementId, type, name, childCount, children: [...], omittedChildCount (optional) },\n" +
+        "  - returnedNodeCount: number,\n" +
+        "  - omittedNodeCount: number,\n" +
+        "  - truncated: boolean\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"no template\" -> element is not a templated control\n" +
@@ -125,12 +119,10 @@ internal static class TreeMcpToolDescriptions
         "(e.g., dialogs, tool windows, child windows). Use the returned elementId as the elementId " +
         "parameter in get_visual_tree, get_logical_tree, and other tools to target that window.\n\n" +
         "DO NOT USE: For single-window apps where the default root is sufficient.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  windowCount: integer,\n" +
-        "  windows: [{ index, title, type, isActive, isVisible, isMainWindow, elementId }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - windowCount: integer,\n" +
+        "  - windows: [{ index, title, type, isActive, isVisible, isMainWindow, elementId }]\n\n" +
         "NOTE: isActive is a point-in-time focus snapshot and may change between calls; use isVisible/isMainWindow to interpret transient focus timing.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -154,17 +146,15 @@ internal static class TreeMcpToolDescriptions
         "- automationId\n" +
         "- propertyName + propertyValue\n" +
         "- matchMode: exact | contains\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  resultCount: integer,\n" +
-        "  truncated: boolean,\n" +
-        "  traversalNodeCount: integer,\n" +
-        "  maxTraversalNodes: integer,\n" +
-        "  traversalTruncated: boolean,\n" +
-        "  truncationReason?: 'maxResults'|'maxTraversalNodes',\n" +
-        "  results: [{ elementId, elementType, elementName, automationId, matchedProperty, matchedValue }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - resultCount: integer,\n" +
+        "  - truncated: boolean,\n" +
+        "  - traversalNodeCount: integer,\n" +
+        "  - maxTraversalNodes: integer,\n" +
+        "  - traversalTruncated: boolean,\n" +
+        "  - truncationReason (optional): 'maxResults'|'maxTraversalNodes',\n" +
+        "  - results: [{ elementId, elementType, elementName, automationId, matchedProperty, matchedValue }]\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify the root elementId before retrying\n" +
@@ -182,14 +172,12 @@ internal static class TreeMcpToolDescriptions
         "USE WHEN: You need to understand which elements are template-generated vs XAML-defined.\n" +
         "DO NOT USE: On large apps without elementId scope (will be slow).\n\n" +
         "PERFORMANCE: Scope with elementId for apps with >1000 elements. Full-tree comparison may exceed the tool timeout on complex UIs.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  visualChildCount: integer,\n" +
-        "  logicalChildCount: integer,\n" +
-        "  differenceCount: integer,\n" +
-        "  differences: [{ type: \"VisualOnly\"|\"LogicalOnly\", elementType, elementId }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - visualChildCount: integer,\n" +
+        "  - logicalChildCount: integer,\n" +
+        "  - differenceCount: integer,\n" +
+        "  - differences: [{ type: \"VisualOnly\"|\"LogicalOnly\", elementType, elementId }]\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +

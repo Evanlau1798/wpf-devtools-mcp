@@ -11,16 +11,14 @@ internal static class EventDrainMcpToolDescriptions
         "USE WHEN: You have active DP watches or routed-event traces and need an explicit read step; you want to filter buffered events by type, element, or time window.\n" +
         "DO NOT USE: As a long-running subscription. This drains a bounded in-memory buffer.\n\n" +
         "REPLAY SEMANTICS: When replay is already buffered, the server performs an uncapped live read internally, then applies maxEvents across the merged replay + live event set. Any replay event that is not returned by the explicit read, and any matching live event that exceeds the caller-visible result cap, remain buffered for the next explicit drain_events call. If that live drain fails before merge completes, the error surfaces errorData.replayPreserved plus errorData.bufferedReplayEventCount so callers can retry without assuming the preserved replay buffer was discarded.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  pendingEventCount: number,\n" +
-        "  droppedEventCount: number,\n" +
-        "  cleanupIncomplete?: boolean,\n" +
-        "  cleanupFailureMessage?: string,\n" +
-        "  cleanupFailureType?: string,\n" +
-        "  pendingEvents?: [{ eventType, elementId, propertyName?, eventName?, timestampUtc }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - pendingEventCount: number,\n" +
+        "  - droppedEventCount: number,\n" +
+        "  - cleanupIncomplete (optional): boolean,\n" +
+        "  - cleanupFailureMessage (optional): string,\n" +
+        "  - cleanupFailureType (optional): string,\n" +
+        "  - pendingEvents (optional): [{ eventType, elementId, propertyName (optional), eventName (optional), timestampUtc }]\n\n" +
         "If post-drain cleanup cannot finish cleanly, the response surfaces cleanupIncomplete plus optional cleanupFailureMessage and cleanupFailureType so callers can quarantine or retry follow-up workflows explicitly.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

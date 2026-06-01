@@ -10,12 +10,10 @@ internal static class StateMcpToolDescriptions
         "USE WHEN: Before mutation-heavy debugging, demos, or regression flows where rollback matters.\n" +
         "DO NOT USE: As durable persistence; snapshots are in-memory and session-scoped only.\n" +
         "RETENTION: The server retains at most 20 snapshots per process for up to 30 minutes; capture a fresh snapshot before long mutation sequences.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  snapshotId: string,\n" +
-        "  snapshotSummary: { dependencyPropertyCount, viewModelPropertyCount, capturedFocus }\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - snapshotId: string,\n" +
+        "  - snapshotSummary: { dependencyPropertyCount, viewModelPropertyCount, capturedFocus }\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"propertyNames / viewModelPropertyNames / includeFocus required\" -> choose at least one capture dimension\n\n" +
@@ -30,20 +28,18 @@ internal static class StateMcpToolDescriptions
         "DO NOT USE: Across disconnected sessions, application restarts, or after the in-memory snapshot has expired.\n" +
         "RETENTION: Snapshots are kept for at most 30 minutes and the oldest snapshots are evicted when a process retains more than 20.\n\n" +
         "EXPRESSION ROLLBACK: Binding-backed DependencyProperty expressions captured in the same session can be restored. When a two-way source property also needs to return to its baseline value, capture that ViewModel property in the same snapshot. Non-Binding expressions are still surfaced through skippedDependencyProperties with explicit reasons.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  restoredDependencyPropertyCount: number,\n" +
-        "  restoredDependencyProperties: [{ propertyName, verified: boolean, expectedValue, currentValue, expectedIsExpression, currentIsExpression, verificationSkippedReason }],\n" +
-        "  skippedDependencyPropertyCount: number,\n" +
-        "  skippedDependencyProperties: [{ propertyName, reason, restoreDisposition, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
-        "  restoredViewModelPropertyCount: number,\n" +
-        "  restoredViewModelProperties: [{ propertyName, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
-        "  skippedViewModelPropertyCount: number,\n" +
-        "  skippedViewModelProperties: [{ propertyName, reason, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
-        "  restoredFocus: boolean,\n" +
-        "  warnings: string[]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - restoredDependencyPropertyCount: number,\n" +
+        "  - restoredDependencyProperties: [{ propertyName, verified: boolean, expectedValue, currentValue, expectedIsExpression, currentIsExpression, verificationSkippedReason }],\n" +
+        "  - skippedDependencyPropertyCount: number,\n" +
+        "  - skippedDependencyProperties: [{ propertyName, reason, restoreDisposition, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
+        "  - restoredViewModelPropertyCount: number,\n" +
+        "  - restoredViewModelProperties: [{ propertyName, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
+        "  - skippedViewModelPropertyCount: number,\n" +
+        "  - skippedViewModelProperties: [{ propertyName, reason, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
+        "  - restoredFocus: boolean,\n" +
+        "  - warnings: string[]\n\n" +
         "ERRORS:\n" +
         "- \"snapshotId\" -> snapshot missing, expired, or created for another process\n" +
         "- \"not connected\" -> reconnect before restore\n\n" +

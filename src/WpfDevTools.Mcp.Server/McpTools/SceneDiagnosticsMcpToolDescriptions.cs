@@ -10,19 +10,17 @@ internal static class SceneDiagnosticsMcpToolDescriptions
         "[Scene] Compute semantic before/after differences for tracked DependencyProperty values, ViewModel properties, focus, binding errors, and validation errors.\n\n" +
         "USE WHEN: After click_element, execute_command, modify_viewmodel, or manual debugging steps when you need to know what changed.\n" +
         "DO NOT USE: As a replacement for capture_state_snapshot; you must capture a snapshot first.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  snapshotId: string,\n" +
-        "  trigger: string|null,\n" +
-        "  durationMs: number,\n" +
-        "  propertyChanges: [],\n" +
-        "  viewModelChanges: [],\n" +
-        "  newBindingErrors: [],\n" +
-        "  resolvedBindingErrors: [],\n" +
-        "  validationChanges: [],\n" +
-        "  focusChange: object|null\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - snapshotId: string,\n" +
+        "  - trigger: string|null,\n" +
+        "  - durationMs: number,\n" +
+        "  - propertyChanges: [],\n" +
+        "  - viewModelChanges: [],\n" +
+        "  - newBindingErrors: [],\n" +
+        "  - resolvedBindingErrors: [],\n" +
+        "  - validationChanges: [],\n" +
+        "  - focusChange: object|null\n\n" +
         "ERRORS:\n" +
         "- \"snapshotId\" -> capture_state_snapshot first or verify the snapshotId before retrying\n" +
         "- \"not connected\" -> reconnect before diffing the stored snapshot\n\n" +
@@ -50,15 +48,13 @@ internal static class SceneDiagnosticsMcpToolDescriptions
         "[Scene] Diagnose visibility blockers such as element or ancestor Visibility, zero Opacity, zero layout size, and clipping.\n\n" +
         "USE WHEN: An element exists in the tree but does not appear on screen, or when you want a structured replacement for screenshot-based visibility debugging.\n" +
         "DO NOT USE: As a generic tree browser; use get_visual_tree/get_logical_tree for structure exploration.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  elementId: string,\n" +
-        "  isUserVisible: boolean,\n" +
-        "  checks: [],\n" +
-        "  rootCause: string|null,\n" +
-        "  suggestedFix: string|null\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - elementId: string,\n" +
+        "  - isUserVisible: boolean,\n" +
+        "  - checks: [],\n" +
+        "  - rootCause: string|null,\n" +
+        "  - suggestedFix: string|null\n\n" +
         "ERRORS:\n" +
         "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree\n" +
         "- \"not connected\" -> reconnect before diagnosing visibility\n\n" +
@@ -72,16 +68,14 @@ internal static class SceneDiagnosticsMcpToolDescriptions
         "[Scene] Aggregate enabled state, visibility, opacity, hit testing, layout size, and ButtonBase ICommand.CanExecute into one interaction readiness verdict.\n\n" +
         "USE WHEN: Before click_element or simulate_keyboard when you need to know whether the target is interactable right now.\n" +
         "DO NOT USE: As a replacement for diagnose_visibility when the question is specifically why something is not visible.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  elementId: string,\n" +
-        "  interactionType: string,\n" +
-        "  isReady: boolean,\n" +
-        "  blockers: [],\n" +
-        "  commandReadiness: { hasCommand: boolean, commandName: string|null, commandNameSource: string, canExecute: boolean|null, sourceElementId: string, commandParameterKind: string, riskNotes: [] },\n" +
-        "  elementState: object\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - elementId: string,\n" +
+        "  - interactionType: string,\n" +
+        "  - isReady: boolean,\n" +
+        "  - blockers: [],\n" +
+        "  - commandReadiness: { hasCommand: boolean, commandName: string|null, commandNameSource: string, canExecute: boolean|null, sourceElementId: string, commandParameterKind: string, riskNotes: [] },\n" +
+        "  - elementState: object\n\n" +
         "COMMAND READINESS: commandReadiness is redacted and does not include command parameter values or arbitrary ViewModel values. Risk notes include CommandParameterValueRedacted when a parameter exists.\n\n" +
         "ERRORS:\n" +
         "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree\n" +

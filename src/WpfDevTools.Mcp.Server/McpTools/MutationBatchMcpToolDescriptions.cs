@@ -27,25 +27,23 @@ internal static class MutationBatchMcpToolDescriptions
         "EXAMPLES:\n" +
         "- { \"processId\": 12345, \"mutations\": [{ \"tool\": \"modify_viewmodel\", \"args\": { \"propertyName\": \"Name\", \"value\": \"Alice\" } }, { \"tool\": \"modify_viewmodel\", \"args\": { \"propertyName\": \"Age\", \"value\": 30 } }] }\n" +
         "- { \"processId\": 12345, \"captureSnapshot\": { \"propertyNames\": [\"Text\"], \"viewModelPropertyNames\": [\"Name\"] }, \"includeDiff\": true, \"mutations\": [{ \"tool\": \"modify_viewmodel\", \"args\": { \"propertyName\": \"Name\", \"value\": \"Batch User\" } }] }\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  error?: string,\n" +
-        "  errorCode?: string,\n" +
-        "  recovery?: { suggestedAction, hint, tool?, params? },\n" +
-        "  executionMode: 'sequential-stop-on-error',\n" +
-        "  mutationCount: number,\n" +
-        "  executedMutationCount: number,\n" +
-        "  successfulMutationCount: number,\n" +
-        "  failedMutationCount: number,\n" +
-        "  skippedMutationCount: number,\n" +
-        "  stateAfterTimeoutUnknown?: boolean,\n" +
-        "  requiresReconnect?: boolean,\n" +
-        "  snapshotId?: string,\n" +
-        "  stateDiff?: object,\n" +
-        "  rollback?: { available: boolean, snapshotId?, tool?, params? },\n" +
-        "  mutations: [{ index: number, tool: string, label?: string, success: boolean, skipped: boolean, error?: string, errorCode?: string, stateAfterTimeoutUnknown?: boolean, result?: object }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - error (optional): string,\n" +
+        "  - errorCode (optional): string,\n" +
+        "  - recovery (optional): { suggestedAction, hint, tool (optional), params (optional) },\n" +
+        "  - executionMode: 'sequential-stop-on-error',\n" +
+        "  - mutationCount: number,\n" +
+        "  - executedMutationCount: number,\n" +
+        "  - successfulMutationCount: number,\n" +
+        "  - failedMutationCount: number,\n" +
+        "  - skippedMutationCount: number,\n" +
+        "  - stateAfterTimeoutUnknown (optional): boolean,\n" +
+        "  - requiresReconnect (optional): boolean,\n" +
+        "  - snapshotId (optional): string,\n" +
+        "  - stateDiff (optional): object,\n" +
+        "  - rollback (optional): { available: boolean, snapshotId (optional), tool (optional), params (optional) },\n" +
+        "  - mutations: [{ index: number, tool: string, label (optional): string, success: boolean, skipped: boolean, error (optional): string, errorCode (optional): string, stateAfterTimeoutUnknown (optional): boolean, result (optional): object }]\n\n" +
         "ERRORS:\n" +
         "- InvalidArgument: mutations array is empty, missing, malformed, or contains unsupported nested processId overrides.\n" +
         "- BatchStepFailed: a mutation step returned success=false; failed/skipped counts identify where execution stopped.\n" +

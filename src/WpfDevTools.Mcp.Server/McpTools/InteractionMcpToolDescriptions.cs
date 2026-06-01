@@ -18,11 +18,9 @@ internal static class InteractionMcpToolDescriptions
         "- For button ICommand testing, both tools work; click_element is preferred for general use\n\n" +
         "WARNING: This triggers real application logic (e.g., button handlers, navigation, data modifications).\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core click result, use `minimal` for the most concise success confirmation, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  clicked: boolean\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - clicked: boolean\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"elementId required\" -> must specify which element to click\n" +
@@ -37,15 +35,13 @@ internal static class InteractionMcpToolDescriptions
         InteractionMetadata + "[Interaction] Get the current logical or keyboard focus snapshot for a window or element scope.\n\n" +
         "USE WHEN: Multi-window workflows, focus-sensitive interactions, or before capturing a restorable state snapshot.\n" +
         "DO NOT USE: As a persistent subscription; this is a point-in-time snapshot only.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  focusKind: 'Logical'|'Keyboard'|'None',\n" +
-        "  focusedElementId: string|null,\n" +
-        "  focusedElementType: string|null,\n" +
-        "  windowElementId: string|null,\n" +
-        "  windowTitle: string\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - focusKind: 'Logical'|'Keyboard'|'None',\n" +
+        "  - focusedElementId: string|null,\n" +
+        "  - focusedElementType: string|null,\n" +
+        "  - windowElementId: string|null,\n" +
+        "  - windowTitle: string\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n\n" +
         "EXAMPLES:\n" +
@@ -57,13 +53,11 @@ internal static class InteractionMcpToolDescriptions
         InteractionMetadata + "[Interaction] Move logical focus to a specific WPF element.\n\n" +
         "USE WHEN: Restoring focus after a mutation sequence, or preparing a keyboard-driven workflow.\n" +
         "DO NOT USE: On elements that cannot receive focus.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  focused: boolean,\n" +
-        "  focusKind: 'Logical'|'Keyboard',\n" +
-        "  focusedElementId: string|null\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - focused: boolean,\n" +
+        "  - focusKind: 'Logical'|'Keyboard',\n" +
+        "  - focusedElementId: string|null\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"elementId required\" -> must specify which element should receive focus\n\n" +
@@ -77,18 +71,15 @@ internal static class InteractionMcpToolDescriptions
         "USE WHEN: Testing drag-drop functionality, reordering items, or file drop handlers.\n" +
         "DO NOT USE: Without verifying both elements exist first.\n\n" +
         "WARNING: This triggers real application logic.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  targetHandlerHints: {\n" +
-        "    targetAllowsDrop: boolean,\n" +
-        "    hasDropHandler: boolean|null,\n" +
-        "    hasDragOverHandler: boolean|null,\n" +
-        "    hasAnyDropOrDragOverHandler: boolean|null,\n" +
-        "    inspectionSupported: boolean,\n" +
-        "    mayBeIncomplete: boolean\n" +
-        "  }\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - targetHandlerHints: {\n" +
+        "    - targetAllowsDrop: boolean,\n" +
+        "    - hasDropHandler: boolean|null,\n" +
+        "    - hasDragOverHandler: boolean|null,\n" +
+        "    - hasAnyDropOrDragOverHandler: boolean|null,\n" +
+        "    - inspectionSupported: boolean,\n" +
+        "    - mayBeIncomplete: boolean\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"source not found\" -> verify sourceElementId\n" +
@@ -104,11 +95,9 @@ internal static class InteractionMcpToolDescriptions
         "Calls BringIntoView() on the element.\n\n" +
         "USE WHEN: Element is off-screen before taking screenshot or clicking; testing scroll behavior.\n" +
         "DO NOT USE: On elements not inside a ScrollViewer (has no effect).\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  scrolled: boolean\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - scrolled: boolean\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +
@@ -127,17 +116,15 @@ internal static class InteractionMcpToolDescriptions
         "Enter/Space activates a Button (triggers OnClick and ICommand), " +
         "Enter/Space toggles a CheckBox, or Up/Down changes ComboBox selection. " +
         "appliedDirectEdit=true when character keys modify TextBox text.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  key,\n" +
-        "  eventType,\n" +
-        "  appliedDirectEdit: boolean,\n" +
-        "  focusChanged: boolean,\n" +
-        "  semanticEffectObserved: boolean,\n" +
-        "  focusedElementIdBefore: string|null,\n" +
-        "  focusedElementIdAfter: string|null\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - key,\n" +
+        "  - eventType,\n" +
+        "  - appliedDirectEdit: boolean,\n" +
+        "  - focusChanged: boolean,\n" +
+        "  - semanticEffectObserved: boolean,\n" +
+        "  - focusedElementIdBefore: string|null,\n" +
+        "  - focusedElementIdAfter: string|null\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +
@@ -155,22 +142,20 @@ internal static class InteractionMcpToolDescriptions
         "DO NOT USE: As a first-pass scene exploration tool (prefer get_ui_summary or get_element_snapshot), or on off-screen elements (use scroll_to_element first).\n\n" +
         "PRIVACY: The MCP screenshot policy gate must be enabled. Use `outputMode: \"file\"` for larger pixel captures; it returns a session-scoped `resourceUri`, redacts local paths, and creates an MCP server-owned retained screenshot resource under a server-issued lease root. `SessionManager` expires it after 24 hours, caps it at 100 resources per MCP server session, deletes retained PNG files when evicted or expired, and purges them on disconnect or server session manager disposal. This lifecycle is owned by `SessionManager`, not by the Inspector default screenshot cache. Inline `base64` is capped for small images only.\n" +
         "PERFORMANCE: The default `metadata` mode does not render or return PNG bytes. Use `outputMode: \"file\"` or explicit `outputMode: \"base64\"` plus `maxWidth` / `maxHeight` when pixels are required.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  base64Image?: string,\n" +
-        "  screenshotId?: string,\n" +
-        "  resourceUri?: string,\n" +
-        "  fileName?: string,\n" +
-        "  expiresAtUtc?: string,\n" +
-        "  localPathRedacted?: boolean,\n" +
-        "  sha256?: string,\n" +
-        "  width: number,\n" +
-        "  height: number,\n" +
-        "  format: 'png',\n" +
-        "  rendered: boolean,\n" +
-        "  byteLength: number\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - base64Image (optional): string,\n" +
+        "  - screenshotId (optional): string,\n" +
+        "  - resourceUri (optional): string,\n" +
+        "  - fileName (optional): string,\n" +
+        "  - expiresAtUtc (optional): string,\n" +
+        "  - localPathRedacted (optional): boolean,\n" +
+        "  - sha256 (optional): string,\n" +
+        "  - width: number,\n" +
+        "  - height: number,\n" +
+        "  - format: 'png',\n" +
+        "  - rendered: boolean,\n" +
+        "  - byteLength: number\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +

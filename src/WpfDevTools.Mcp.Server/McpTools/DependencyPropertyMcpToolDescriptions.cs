@@ -19,13 +19,11 @@ internal static class DependencyPropertyMcpToolDescriptions
         "(e.g., if ReadLocalValue() returns a value, baseValueSource becomes 'LocalValue' " +
         "even when GetValueSource().BaseValueSource reports 'Default'). " +
         "Use baseValueSource for agent decision-making; use rawBaseValueSource only for advanced debugging.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  propertyName, currentValue, baseValueSource: 'Default'|'Inherited'|'Style'|'LocalValue'|'Trigger'|'Animation',\n" +
-        "  rawBaseValueSource, hadLocalValue, localValue,\n" +
-        "  isExpression, isAnimated, isCoerced, isCurrent\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - propertyName, currentValue, baseValueSource: 'Default'|'Inherited'|'Style'|'LocalValue'|'Trigger'|'Animation',\n" +
+        "  - rawBaseValueSource, hadLocalValue, localValue,\n" +
+        "  - isExpression, isAnimated, isCoerced, isCurrent\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n" +
@@ -41,12 +39,10 @@ internal static class DependencyPropertyMcpToolDescriptions
         "inherits flag, affects measure/arrange, and coerce/validation callbacks.\n\n" +
         "USE WHEN: You need to understand property behavior at framework level (inheritance, layout impact).\n" +
         "DO NOT USE: For runtime value inspection (use get_dp_value_source instead).\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  propertyName, defaultValue, inherits, affectsMeasure, affectsArrange,\n" +
-        "  hasCoerceCallback, hasValidationCallback\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - propertyName, defaultValue, inherits, affectsMeasure, affectsArrange,\n" +
+        "  - hasCoerceCallback, hasValidationCallback\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n\n" +
@@ -63,12 +59,10 @@ internal static class DependencyPropertyMcpToolDescriptions
         "WARNING: This modifies the running app. Changes are lost on app restart.\n\n" +
         "EXPRESSION ROLLBACK: If this overwrites a Binding, MultiBinding, or PriorityBinding expression, the response can report `replacedExpression=true` and `capturedRollbackExpression=true`. In the same session, clear_dp_value or restore_state_snapshot can then reapply that captured binding-backed expression. For two-way bindings where source-value rollback also matters, pair this with capture_state_snapshot(viewModelPropertyNames=...) so the source property can be restored deterministically.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep the core mutation result, use `minimal` for success/property/newValue confirmation only, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  propertyName, oldValue, newValue, requestedValue,\n" +
-        "  baseValueSource, valueType\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - propertyName, oldValue, newValue, requestedValue,\n" +
+        "  - baseValueSource, valueType\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is valid\n" +
@@ -88,12 +82,10 @@ internal static class DependencyPropertyMcpToolDescriptions
         "WARNING: This modifies the running app. Changes are NOT persisted.\n\n" +
         "EXPRESSION ROLLBACK: When the current local value came from set_dp_value replacing a captured Binding, MultiBinding, or PriorityBinding, this tool re-applies that binding-backed expression in the same session instead of falling back to plain ClearValue semantics. If you also need the original two-way source value restored, capture that ViewModel property in the snapshot workflow.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep the core mutation result, use `minimal` for success/property/newValue confirmation only, or use `verbose` for requested/effective input + observedEffect; legacy `standard` remains accepted as a compatibility alias.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  propertyName, hadLocalValue, clearedValue, newValue,\n" +
-        "  baseValueSource, valueType, restoredExpression?: boolean, expressionKind?: string\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - propertyName, hadLocalValue, clearedValue, newValue,\n" +
+        "  - baseValueSource, valueType, restoredExpression (optional): boolean, expressionKind (optional): string\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is valid\n\n" +
@@ -107,13 +99,11 @@ internal static class DependencyPropertyMcpToolDescriptions
         "Over STDIO, this is registration-only - events are not pushed, and the registration is intentionally transient so shared-session state does not accumulate stale watchers. Any successful drain_events readback ends that transient watch cycle, even when no DpChange payload is returned.\n\n" +
         "USE WHEN: You are preparing for future push-capable transports, or you explicitly want watch registration state.\n" +
         "DO NOT USE: Expecting real-time event delivery over STDIO or expecting watch state to survive unrelated drain_events reads - use wait_for_dp_change or poll get_dp_value_source instead.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  message: string,\n" +
-        "  propertyName: string,\n" +
-        "  elementId: string|null\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - message: string,\n" +
+        "  - propertyName: string,\n" +
+        "  - elementId: string|null\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is valid\n" +
@@ -132,25 +122,23 @@ internal static class DependencyPropertyMcpToolDescriptions
         "LIMITS: timeoutMs defaults to 5000 and is capped at 25000 so the bounded wait finishes before the inspector host hard request timeout.\n\n" +
         "OPTIONAL MATCHING: Provide `expectedValue` to wait until the property equals a specific value. Omit it to stop on any value change.\n\n" +
         "SERIALIZED-CLIENT WORKFLOW: If your MCP client cannot issue a concurrent mutation while this wait is running, use `wait_for_dp_change_after_mutation` for the destructive mutation-plus-wait workflow instead of overloading this read-only tool.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  changed: boolean,\n" +
-        "  timedOut: boolean,\n" +
-        "  observedChange: boolean,\n" +
-        "  matchedExpectedValueAtStart: boolean,\n" +
-        "  completionReason: 'ExpectedValueAlreadySatisfied'|'ExpectedValueReached'|'ValueChanged'|'TimedOut',\n" +
-        "  stateAfterTimeoutUnknown: boolean,\n" +
-        "  requiresReconnect: boolean,\n" +
-        "  elementId: string|null,\n" +
-        "  propertyName: string,\n" +
-        "  initialValue,\n" +
-        "  initialBaseValueSource,\n" +
-        "  currentValue,\n" +
-        "  baseValueSource,\n" +
-        "  elapsedMs: number,\n" +
-        "  pollCount: number\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - changed: boolean,\n" +
+        "  - timedOut: boolean,\n" +
+        "  - observedChange: boolean,\n" +
+        "  - matchedExpectedValueAtStart: boolean,\n" +
+        "  - completionReason: 'ExpectedValueAlreadySatisfied'|'ExpectedValueReached'|'ValueChanged'|'TimedOut',\n" +
+        "  - stateAfterTimeoutUnknown: boolean,\n" +
+        "  - requiresReconnect: boolean,\n" +
+        "  - elementId: string|null,\n" +
+        "  - propertyName: string,\n" +
+        "  - initialValue,\n" +
+        "  - initialBaseValueSource,\n" +
+        "  - currentValue,\n" +
+        "  - baseValueSource,\n" +
+        "  - elapsedMs: number,\n" +
+        "  - pollCount: number\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"property not found\" -> verify propertyName is a valid DependencyProperty\n" +
@@ -169,25 +157,23 @@ internal static class DependencyPropertyMcpToolDescriptions
         "MUTATION STEP: Provide `triggerMutation` using the same shape as one `batch_mutate` step. The server will execute that mutation first, then wait for the property transition. This workflow is destructive because it mutates live runtime state before waiting.\n\n" +
         "LIMITS: timeoutMs defaults to 5000 and is capped at 25000 so the mutation-plus-wait request finishes before the inspector host hard request timeout.\n\n" +
         "OPTIONAL MATCHING: Provide `expectedValue` to wait until the property equals a specific value after the mutation. Omit it to stop on any value change.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  changed: boolean,\n" +
-        "  timedOut: boolean,\n" +
-        "  observedChange: boolean,\n" +
-        "  matchedExpectedValueAtStart: boolean,\n" +
-        "  completionReason: 'ExpectedValueReached'|'ValueChanged'|'TimedOut'|'TriggerMutationTimedOut',\n" +
-        "  stateAfterTimeoutUnknown: boolean,\n" +
-        "  requiresReconnect: boolean,\n" +
-        "  elementId: string|null,\n" +
-        "  propertyName: string,\n" +
-        "  initialValue,\n" +
-        "  initialBaseValueSource,\n" +
-        "  currentValue,\n" +
-        "  baseValueSource,\n" +
-        "  elapsedMs: number,\n" +
-        "  pollCount: number\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - changed: boolean,\n" +
+        "  - timedOut: boolean,\n" +
+        "  - observedChange: boolean,\n" +
+        "  - matchedExpectedValueAtStart: boolean,\n" +
+        "  - completionReason: 'ExpectedValueReached'|'ValueChanged'|'TimedOut'|'TriggerMutationTimedOut',\n" +
+        "  - stateAfterTimeoutUnknown: boolean,\n" +
+        "  - requiresReconnect: boolean,\n" +
+        "  - elementId: string|null,\n" +
+        "  - propertyName: string,\n" +
+        "  - initialValue,\n" +
+        "  - initialBaseValueSource,\n" +
+        "  - currentValue,\n" +
+        "  - baseValueSource,\n" +
+        "  - elapsedMs: number,\n" +
+        "  - pollCount: number\n\n" +
         "TRIGGER TIMEOUTS: If `triggerMutation` exceeds the remaining timeout budget, the tool returns `completionReason = 'TriggerMutationTimedOut'`, sets `stateAfterTimeoutUnknown = true`, and sets `requiresReconnect = true` because the server resets the pipe to avoid leaving a stale response queued. Reconnect and re-read state before assuming whether the mutation eventually landed.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

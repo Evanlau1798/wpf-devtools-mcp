@@ -14,15 +14,15 @@ internal static class EventMcpToolDescriptions
         "- `capture` (default): start tracing, wait for the capture window to end, then return the collected records\n" +
         "- `start`: start tracing immediately and return without blocking the session\n" +
         "- `get`: return the current buffered trace and tracing status; `eventName` is not required in this mode\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
+        "RESPONSE SUMMARY:\n" +
         "- capture mode:\n" +
-        "  { success, mode: \"capture\", eventName, duration, isTracing, eventCount, events, handlerInvocationCount, cleanupState?, cleanupFailed?, cleanupIncomplete? }\n" +
+        "  - success, mode: \"capture\", eventName, duration, isTracing, eventCount, events, handlerInvocationCount, cleanupState (optional), cleanupFailed (optional), cleanupIncomplete (optional)\n" +
         "- start mode:\n" +
-        "  { success, mode: \"start\", eventName, requestedDuration, effectiveDuration, shortDurationOverrideUsed, isTracing, message }\n" +
-        "  NOTE: effectiveDuration may be higher than requestedDuration (minimum 30s enforced by default for AI agent IPC round-trips). Set `allowShortStartDuration=true` to opt into a shorter explicit window.\n" +
+        "  - success, mode: \"start\", eventName, requestedDuration, effectiveDuration, shortDurationOverrideUsed, isTracing, message\n" +
+        "  - NOTE: effectiveDuration may be higher than requestedDuration (minimum 30s enforced by default for AI agent IPC round-trips). Set `allowShortStartDuration=true` to opt into a shorter explicit window.\n" +
         "- get mode:\n" +
-        "  { success, mode: \"get\", isTracing, eventCount, totalEventCount, returnedEventCount, eventsTruncated, maxEvents, events, handlerInvocationCount, cleanupState?, cleanupFailed?, cleanupIncomplete? }\n" +
-        "  NOTE: Provide maxEvents to cap returned trace records. When capped, totalEventCount preserves the original count and eventsTruncated=true signals that more events were available.\n\n" +
+        "  - success, mode: \"get\", isTracing, eventCount, totalEventCount, returnedEventCount, eventsTruncated, maxEvents, events, handlerInvocationCount, cleanupState (optional), cleanupFailed (optional), cleanupIncomplete (optional)\n" +
+        "  - NOTE: Provide maxEvents to cap returned trace records. When capped, totalEventCount preserves the original count and eventsTruncated=true signals that more events were available.\n\n" +
         "TIP: For AI-driven automation, prefer `mode=\"start\"` + `click_element`/`fire_routed_event` + `mode=\"get\"` so the capture window is not blocked by the current request.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -42,17 +42,14 @@ internal static class EventMcpToolDescriptions
         "Returns handler method names, declaring types, and whether they handle tunneling/bubbling.\n\n" +
         "USE WHEN: Button click does nothing; need to verify event handlers are attached.\n" +
         "DO NOT USE: Without eventName - it's required.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  eventName,\n" +
-        "  handlerCount: number,\n" +
-        "  reflectionSupported: boolean,\n" +
-        "  mayBeIncomplete: boolean,\n" +
-        "  handlers: [{\n" +
-        "    methodName, declaringType, handledEventsToo: boolean\n" +
-        "  }]\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - eventName,\n" +
+        "  - handlerCount: number,\n" +
+        "  - reflectionSupported: boolean,\n" +
+        "  - mayBeIncomplete: boolean,\n" +
+        "  - handlers: [{\n" +
+        "    - methodName, declaringType, handledEventsToo: boolean\n\n" +
         "Empty handlers array means no handlers were visible via reflection. Class handlers, commands, template triggers, and inaccessible internals may not appear.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
@@ -77,13 +74,11 @@ internal static class EventMcpToolDescriptions
         "- click_element: calls OnClick() for ButtonBase descendants, selects TabItem; returns error for other element types\n\n" +
         "WARNING: This triggers real application logic. For ButtonBase+Click, ICommand WILL execute.\n\n" +
         "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core routed-event result while still preserving semantically relevant fallback indicators. Use `minimal` for success/property/newValue confirmation only, `verbose` for requested/effective input + observedEffect, or legacy `standard` as a compatibility alias.\n\n" +
-        "SCHEMA SKETCH (not request JSON):\n" +
-        "{\n" +
-        "  success: boolean,\n" +
-        "  message: string,\n" +
-        "  eventName: string,\n" +
-        "  usedOnClick: boolean  // ONLY present when ButtonBase+Click path was used; absent for other events\n" +
-        "}\n\n" +
+        "RESPONSE SUMMARY:\n" +
+        "  - success: boolean,\n" +
+        "  - message: string,\n" +
+        "  - eventName: string,\n" +
+        "  - usedOnClick: boolean  // ONLY present when ButtonBase+Click path was used; absent for other events\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +

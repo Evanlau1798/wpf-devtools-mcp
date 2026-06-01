@@ -119,13 +119,20 @@ try {
     try {
         Wait-TestAppReady -Process $targetProcess -TimeoutSeconds $StartupTimeoutSeconds
 
-        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 `
-            -ServerPath $ServerPath `
-            -Architecture $Architecture `
-            -TargetProcessId $targetProcess.Id `
-            -TargetProcessPath $targetProcessPath `
-            -EvidenceOutputPath $EvidenceOutputPath `
-            -RequestTimeoutMilliseconds $RequestTimeoutMilliseconds
+        $runtimeSmokeArguments = @(
+            '-ExecutionPolicy', 'Bypass',
+            '-File', 'scripts/tools/packaging/Test-PackagedServerRuntime.ps1',
+            '-ServerPath', $ServerPath,
+            '-Architecture', $Architecture,
+            '-TargetProcessId', $targetProcess.Id,
+            '-TargetProcessPath', $targetProcessPath
+        )
+        if (-not [string]::IsNullOrWhiteSpace($EvidenceOutputPath)) {
+            $runtimeSmokeArguments += @('-EvidenceOutputPath', $EvidenceOutputPath)
+        }
+
+        $runtimeSmokeArguments += @('-RequestTimeoutMilliseconds', $RequestTimeoutMilliseconds)
+        & powershell @runtimeSmokeArguments
         if ($LASTEXITCODE -ne 0) {
             throw "Packaged runtime live smoke failed with exit code $LASTEXITCODE."
         }

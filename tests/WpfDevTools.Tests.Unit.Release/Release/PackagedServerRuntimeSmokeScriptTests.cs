@@ -26,6 +26,18 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
     }
 
     [Fact]
+    public void PackagedRuntimeLiveSmokeHelper_ShouldNotPassEmptyEvidenceOutputPathToRuntimeSmoke()
+    {
+        var script = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1"));
+
+        script.Should().Contain("if (-not [string]::IsNullOrWhiteSpace($EvidenceOutputPath))",
+            "the optional evidence path parameter must only be forwarded when it has a value");
+        script.Should().NotContain("-EvidenceOutputPath $EvidenceOutputPath",
+            "passing an empty value makes PowerShell bind the parameter as missing and aborts the live smoke before runtime validation");
+    }
+
+    [Fact]
     public void TestPackagedServerRuntimeScript_ShouldExerciseBuiltServerProtocolSurface()
     {
         var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1");

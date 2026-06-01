@@ -104,6 +104,10 @@ Remove-Item -LiteralPath "$env:APPDATA\WpfDevTools\certs" -Recurse -Force
 
 This table lists the security-relevant `WPFDEVTOOLS_*` environment variables for transport, certificate, and raw-injection policy.
 
+## Security contact
+
+Report a suspected vulnerability by opening a private GitHub Security Advisory for the repository owner. Include affected version, commit SHA, reproduction steps, and whether a public release artifact is involved. Do not publish exploit details, screenshots, target UI data, certificate material, or auth secrets in public issues before a maintainer has triaged the report.
+
 ## Deployment Guidance
 
 ### Recommended production posture

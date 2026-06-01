@@ -86,7 +86,7 @@
 
 這些值由 runtime MCP contract resources 產生。當 tool 新增或改名、method signature 變更、policy gate 移動，或 response fields 變更時，文件測試會要求同步更新此 snapshot。
 
-- `wpf://contracts/tools` SHA-256: `8e29c6bef545528ed1337ea002624ab3a2d88c2714fa8dfffbe4b564cbdae8fd`
+- `wpf://contracts/tools` SHA-256: `71fe34b41d7aad7bed8cad103d9018a71c8cec13fd5e89bfc3971da3f4060399`
 - `wpf://contracts/response` SHA-256: `155f03c3110a1de5cd71ce58c9105fc3a26a63601db57356ef72526e8387bbb0`
 - Validation scope: `toolCount`、`name`、`title`、`parameters`、`requiredParameters`、`inputSchemaHash`、`outputSchemaHash`、`capabilityTags`、`policyCapabilityTags`、`annotations`、`parameterConstraints`、`parameterVocabularies` 與 `highValueTools`。
 

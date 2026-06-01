@@ -386,6 +386,29 @@ public sealed partial class SandboxCiScriptContractTests
     }
 
     [Fact]
+    public void SandboxArtifactPreflight_ShouldStopSmokeTargetBeforeInstallerMutation()
+    {
+        var runner = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "SandboxCi.ArtifactPreflight.ps1");
+
+        var recoverySmokeIndex = runner.IndexOf(
+            "Invoke-RuntimeSmoke -Name 'Run packaged server runtime smoke after transport state corruption'",
+            StringComparison.Ordinal);
+        var stopIndex = runner.IndexOf(
+            "try { Stop-SmokeTarget -Process $smokeProcess } finally { $smokeProcess = $null }",
+            recoverySmokeIndex,
+            StringComparison.Ordinal);
+        var uninstallIndex = runner.IndexOf(
+            "Invoke-InstallerStep -Name 'Uninstall package-local release'",
+            StringComparison.Ordinal);
+
+        recoverySmokeIndex.Should().BeGreaterThanOrEqualTo(0);
+        stopIndex.Should().BeGreaterThan(recoverySmokeIndex,
+            "installer uninstall/reinstall steps must not mutate installed files while the injected smoke target is still holding package DLLs");
+        uninstallIndex.Should().BeGreaterThan(stopIndex,
+            "the package-local uninstall is the first installer mutation after live smoke recovery");
+    }
+
+    [Fact]
     public void ContributorTestingGuide_ShouldDocumentArtifactPreflightWorkflow()
     {
         var english = File.ReadAllText(Path.Combine(RepoRoot, "docfx", "contributors", "testing-and-tdd.md"));

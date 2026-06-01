@@ -420,6 +420,7 @@ try {
     Invoke-DefaultTransportStateCorruptionProbe
     Restart-SmokeTargetAfterTransportStateCorruption
     Invoke-RuntimeSmoke -Name 'Run packaged server runtime smoke after transport state corruption' -ServerPath $serverPath
+    try { Stop-SmokeTarget -Process $smokeProcess } finally { $smokeProcess = $null }
     $installedScript = Join-Path $installRoot "$Architecture\current\bin\install.ps1"
     Assert-RequiredPath -Path $installedScript -Description 'installed package-local installer'
     Invoke-InstallerStep -Name 'Uninstall package-local release' -ScriptPath $installedScript -Parameters @{
@@ -464,7 +465,6 @@ try {
         $Architecture
     ) -TimeoutSeconds 300
 
-    try { Stop-SmokeTarget -Process $smokeProcess } finally { $smokeProcess = $null }
     Assert-NoPreflightProcessesRemain -RootPath $localRoot
     Assert-NoUnexpectedIgnoredArtifacts -RootPath $localRoot
     Write-PreflightSummary -Status 'PASS' -Message 'Artifact preflight completed successfully.' -PackagePath $resolvedPackagePath -InstallRoot $installRoot

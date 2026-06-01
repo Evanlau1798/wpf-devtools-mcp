@@ -105,17 +105,28 @@ function Invoke-HostedPackagedRuntimeLiveSmoke {
         'online-installed' { "Start target-aware live-injection online-installed runtime smoke test $Architecture" }
     }
 
-    Invoke-ExternalWithTimeout $smokeName 'powershell.exe' @(
-        '-NoProfile',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-File',
-        'scripts\tools\packaging\Invoke-PackagedRuntimeLiveSmoke.ps1',
-        '-ServerPath',
-        $ServerPath,
-        '-Architecture',
-        $Architecture
-    ) -TimeoutSeconds 600 -OutputRoot $OutputRoot -Timestamp $Timestamp
+    $environment = @{}
+    if ($Architecture -eq 'x86') {
+        $x86DotNetRoot = $env:WPFDEVTOOLS_HOSTED_X86_DOTNET_ROOT
+        if ([string]::IsNullOrWhiteSpace($x86DotNetRoot) -or -not (Test-Path -LiteralPath (Join-Path $x86DotNetRoot 'dotnet.exe'))) {
+            throw 'x86 package runtime smoke requires WPFDEVTOOLS_HOSTED_X86_DOTNET_ROOT to point at an x86 dotnet installation.'
+        }
+
+        $environment = @{
+            DOTNET_ROOT = $x86DotNetRoot
+            PATH = "$x86DotNetRoot;$env:PATH"
+        }
+    }
+
+    $scriptLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value 'scripts\tools\packaging\Invoke-PackagedRuntimeLiveSmoke.ps1'
+    $serverPathLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $ServerPath
+    Invoke-HostedPowerShellCommand `
+        -Name $smokeName `
+        -Command "& $scriptLiteral -ServerPath $serverPathLiteral -Architecture '$Architecture'" `
+        -OutputRoot $OutputRoot `
+        -Timestamp $Timestamp `
+        -Environment $environment `
+        -TimeoutSeconds 600
 }
 
 function Invoke-HostedSdkPackageSmoke {

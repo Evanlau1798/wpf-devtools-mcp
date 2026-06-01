@@ -150,6 +150,24 @@ public sealed class GitLabCiWindowsVerificationContractTests
     }
 
     [Fact]
+    public void SandboxHostedWindowsX64Mode_ShouldUseX86DotNetForX86PackageRuntimeSmoke()
+    {
+        var runner = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "Start-SandboxCi.ps1"));
+        var managed = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Managed.ps1"));
+        var hosted = ReadHostedSandboxCiScripts();
+
+        managed.Should().Contain("[ValidateSet('x64', 'x86')] [string]$Architecture = 'x64'");
+        managed.Should().Contain("'.dotnet-x86'");
+        managed.Should().Contain("'-Architecture',");
+        managed.Should().Contain("$Architecture");
+        runner.Should().Contain("Install-DotNetSdk -RepoRoot $sandboxRepoWorkRoot -Architecture 'x86'");
+        runner.Should().Contain("WPFDEVTOOLS_HOSTED_X86_DOTNET_ROOT");
+        hosted.Should().Contain("$env:WPFDEVTOOLS_HOSTED_X86_DOTNET_ROOT");
+        hosted.Should().Contain("DOTNET_ROOT = $x86DotNetRoot");
+        hosted.Should().Contain("PATH = \"$x86DotNetRoot;$env:PATH\"");
+    }
+
+    [Fact]
     public void SandboxHostedWindowsX64Mode_ShouldMirrorArm64CrossCompileJob()
     {
         var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));

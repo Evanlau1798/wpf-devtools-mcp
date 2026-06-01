@@ -416,7 +416,15 @@ try {
     $env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED = '0'
     $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'
 
-    $dotnetPath = Install-DotNetSdk -RepoRoot $sandboxRepoWorkRoot
+    $dotnetPath = Install-DotNetSdk -RepoRoot $sandboxRepoWorkRoot -Architecture 'x64'
+    $x64DotNetRoot = Split-Path -Parent $dotnetPath
+    if ($Mode -eq 'HostedWindowsX64') {
+        $x86DotNetPath = Install-DotNetSdk -RepoRoot $sandboxRepoWorkRoot -Architecture 'x86'
+        $env:WPFDEVTOOLS_HOSTED_X86_DOTNET_ROOT = Split-Path -Parent $x86DotNetPath
+        $env:DOTNET_ROOT = $x64DotNetRoot
+        $env:PATH = "$x64DotNetRoot;$env:PATH"
+    }
+
     Invoke-External 'dotnet --info' $dotnetPath @('--info')
 
     switch ($Mode) {

@@ -1,5 +1,8 @@
 function Install-DotNetSdk {
-    param([Parameter(Mandatory = $true)] [string]$RepoRoot)
+    param(
+        [Parameter(Mandatory = $true)] [string]$RepoRoot,
+        [ValidateSet('x64', 'x86')] [string]$Architecture = 'x64'
+    )
 
     $globalJson = Get-Content -LiteralPath (Join-Path $RepoRoot 'global.json') -Raw | ConvertFrom-Json
     $sdkVersion = [string]$globalJson.sdk.version
@@ -7,7 +10,8 @@ function Install-DotNetSdk {
         throw 'global.json does not declare sdk.version.'
     }
 
-    $dotnetRoot = Join-Path $MappedWorkRoot '.dotnet'
+    $dotnetRootName = if ($Architecture -eq 'x86') { '.dotnet-x86' } else { '.dotnet' }
+    $dotnetRoot = Join-Path $MappedWorkRoot $dotnetRootName
     $dotnetPath = Join-Path $dotnetRoot 'dotnet.exe'
     if (-not (Test-Path -LiteralPath $dotnetPath)) {
         New-Item -ItemType Directory -Force -Path $dotnetRoot | Out-Null
@@ -15,7 +19,7 @@ function Install-DotNetSdk {
         New-Item -ItemType Directory -Force -Path $downloadRoot | Out-Null
         $installScript = Join-Path $downloadRoot 'dotnet-install.ps1'
         Invoke-WebRequest -Uri 'https://dot.net/v1/dotnet-install.ps1' -OutFile $installScript -UseBasicParsing
-        Invoke-External "Install .NET SDK $sdkVersion" 'powershell.exe' @(
+        Invoke-External "Install .NET $Architecture SDK $sdkVersion" 'powershell.exe' @(
             '-NoProfile',
             '-ExecutionPolicy',
             'Bypass',
@@ -23,6 +27,8 @@ function Install-DotNetSdk {
             $installScript,
             '-Version',
             $sdkVersion,
+            '-Architecture',
+            $Architecture,
             '-InstallDir',
             $dotnetRoot,
             '-NoPath'

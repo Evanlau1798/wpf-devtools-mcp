@@ -305,6 +305,11 @@ function Invoke-HostedReleasePackagingSmoke {
         Write-Host "Skipping targetless protocol-only packaged server runtime smoke test for $Architecture; GitHub's hosted x64 lane only install/uninstall smokes non-x64 package layouts."
     }
 
+    if ($Architecture -ne 'arm64') {
+        $serverPath = Join-Path $installSmokeRoot "$Architecture\current\bin\wpf-devtools-$Architecture.exe"
+        Invoke-HostedPackagedRuntimeLiveSmoke -InstallKind 'installed' -ServerPath $serverPath -Architecture $Architecture -OutputRoot $OutputRoot -Timestamp $Timestamp
+    }
+
     $archiveLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $packageArchive.FullName
     $releaseRootLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $releaseRoot
     $bootstrapRootLiteral = ConvertTo-HostedSingleQuotedPowerShellLiteral -Value $bootstrapSmokeRoot
@@ -328,6 +333,11 @@ function Invoke-HostedReleasePackagingSmoke {
     }
     else {
         Write-Host "Skipping targetless protocol-only online-installed runtime smoke test for $Architecture; GitHub's hosted x64 lane only install/uninstall smokes non-x64 package layouts."
+    }
+
+    if ($Architecture -ne 'arm64') {
+        $bootstrapServerPath = Join-Path $bootstrapSmokeRoot "$Architecture\current\bin\wpf-devtools-$Architecture.exe"
+        Invoke-HostedPackagedRuntimeLiveSmoke -InstallKind 'online-installed' -ServerPath $bootstrapServerPath -Architecture $Architecture -OutputRoot $OutputRoot -Timestamp $Timestamp
     }
 
     $installedScript = Join-Path $installSmokeRoot "$Architecture\current\bin\install.ps1"

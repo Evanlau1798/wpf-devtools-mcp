@@ -216,16 +216,16 @@ internal static partial class DllPathValidator
             return true;
         }
 
-        var buildConfiguration = TryGetBuildConfiguration(baseDirectory);
-        if (string.IsNullOrWhiteSpace(buildConfiguration))
-        {
-            return false;
-        }
-
         var hasTrustedRepositoryRoot = RepositoryLayoutLocator.EnumerateSolutionRoots(baseDirectory).Any();
         if (!hasTrustedRepositoryRoot)
         {
             return false;
+        }
+
+        var buildConfiguration = TryGetBuildConfiguration(baseDirectory);
+        if (string.IsNullOrWhiteSpace(buildConfiguration))
+        {
+            return trustedLocalDevelopmentSkipOptIn;
         }
 
         return !string.Equals(buildConfiguration, "Release", StringComparison.OrdinalIgnoreCase)

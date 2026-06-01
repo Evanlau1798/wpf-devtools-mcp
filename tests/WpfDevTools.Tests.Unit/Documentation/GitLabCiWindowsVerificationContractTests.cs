@@ -141,6 +141,10 @@ public sealed class GitLabCiWindowsVerificationContractTests
             "direct package runtime smoke without a launched target must be labelled as protocol-only");
         hosted.Should().Contain("Start targetless protocol-only online-installed runtime smoke test $Architecture",
             "direct online-installed runtime smoke without a launched target must be labelled as protocol-only");
+        hosted.Should().Contain("Invoke-PackagedRuntimeLiveSmoke.ps1",
+            "sandbox hosted CI must mirror GitHub's target-aware package runtime smoke, not only protocol-only startup");
+        hosted.Should().Contain("Start target-aware live-injection installed package runtime smoke test $Architecture");
+        hosted.Should().Contain("Start target-aware live-injection online-installed runtime smoke test $Architecture");
         hosted.Should().Contain("Skipping targetless protocol-only packaged server runtime smoke test for $Architecture",
             "the hosted x64 lane validates non-x64 package install/uninstall layout but skips runtime launch");
     }

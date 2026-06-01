@@ -272,6 +272,11 @@ if ($TargetProcessId -gt 0) {
     $startInfo.Environment['WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS'] = 'true'
     $startInfo.Environment['WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS'] = 'true'
     $startInfo.Environment['WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE'] = 'true'
+
+    if ($env:WPFDEVTOOLS_INSTALLER_TEST_MODE -eq '1' -and
+        [string]::Equals($env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS, 'Valid', [System.StringComparison]::OrdinalIgnoreCase)) {
+        $startInfo.Environment['WPFDEVTOOLS_TEST_TRUST_LOCAL_RELEASE_SIGNATURE_SKIP'] = '1'
+    }
 }
 
 $process = New-Object System.Diagnostics.Process

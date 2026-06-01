@@ -84,6 +84,27 @@ public sealed class SignaturePolicyLocalReleaseTests
         }
     }
 
+    [Fact]
+    public void GetSignatureAction_RepositoryLocalPackagedReleaseSmokeWithExplicitOverride_ShouldSkip()
+    {
+        var baseDirectory = CreateRepositoryLocalPackagedReleaseBaseDirectory();
+        using var releasePolicyScope = UseReleaseBuildPolicy();
+
+        try
+        {
+            var action = DllPathValidator.GetSignatureAction(
+                baseDirectory,
+                trustedLocalDevelopmentSkipOptIn: true);
+
+            action.Should().Be(SignaturePolicy.Action.Skip,
+                "hosted CI package smoke creates unsigned test packages under the checked-out repository and must explicitly opt in before live-injection validation can run");
+        }
+        finally
+        {
+            Directory.Delete(GetTempRoot(baseDirectory), recursive: true);
+        }
+    }
+
     private static string CreateWorkspaceBuildBaseDirectory(string configuration)
     {
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -109,6 +130,16 @@ public sealed class SignaturePolicyLocalReleaseTests
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var baseDirectory = Path.Combine(root, "package", "bin");
         Directory.CreateDirectory(baseDirectory);
+        return baseDirectory;
+    }
+
+    private static string CreateRepositoryLocalPackagedReleaseBaseDirectory()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var repoRoot = Path.Combine(root, "repo");
+        var baseDirectory = Path.Combine(repoRoot, "tmp-release-install-smoke", "x64", "current", "bin");
+        Directory.CreateDirectory(baseDirectory);
+        File.WriteAllText(Path.Combine(repoRoot, "WpfDevTools.sln"), string.Empty);
         return baseDirectory;
     }
 

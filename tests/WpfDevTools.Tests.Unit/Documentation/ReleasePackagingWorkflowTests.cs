@@ -364,6 +364,8 @@ public class ReleasePackagingWorkflowTests
             "hosted-runner local archive smoke installs need the explicit test-only trust hook so they exercise the generated release sidecars instead of falling back to live release metadata lookup");
         content.Should().Contain("WPFDEVTOOLS_TEST_SIGNATURE_STATUS",
             "Publish-Release.ps1 only supports deterministic fake signature validation when the workflow opts into installer test mode");
+        content.Should().Contain("WPFDEVTOOLS_TEST_TRUST_LOCAL_RELEASE_SIGNATURE_SKIP",
+            "target-aware package smoke uses unsigned local Release artifacts and must explicitly opt into the repo-local signature skip before connect");
         content.Should().Contain("Valid",
             "the smoke workflow should force a valid test signature state instead of depending on unsigned runner artifacts");
     }

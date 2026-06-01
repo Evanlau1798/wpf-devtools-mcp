@@ -91,6 +91,33 @@ function Invoke-HostedPowerShellCommand {
     ) -TimeoutSeconds $TimeoutSeconds -OutputRoot $OutputRoot -Timestamp $Timestamp
 }
 
+function Invoke-HostedPackagedRuntimeLiveSmoke {
+    param(
+        [Parameter(Mandatory = $true)] [ValidateSet('installed', 'online-installed')] [string]$InstallKind,
+        [Parameter(Mandatory = $true)] [string]$ServerPath,
+        [Parameter(Mandatory = $true)] [ValidateSet('x64', 'x86', 'arm64')] [string]$Architecture,
+        [Parameter(Mandatory = $true)] [string]$OutputRoot,
+        [Parameter(Mandatory = $true)] [string]$Timestamp
+    )
+
+    $smokeName = switch ($InstallKind) {
+        'installed' { "Start target-aware live-injection installed package runtime smoke test $Architecture" }
+        'online-installed' { "Start target-aware live-injection online-installed runtime smoke test $Architecture" }
+    }
+
+    Invoke-ExternalWithTimeout $smokeName 'powershell.exe' @(
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        'scripts\tools\packaging\Invoke-PackagedRuntimeLiveSmoke.ps1',
+        '-ServerPath',
+        $ServerPath,
+        '-Architecture',
+        $Architecture
+    ) -TimeoutSeconds 600 -OutputRoot $OutputRoot -Timestamp $Timestamp
+}
+
 function Invoke-HostedSdkPackageSmoke {
     param(
         [Parameter(Mandatory = $true)] [string]$DotNetPath,

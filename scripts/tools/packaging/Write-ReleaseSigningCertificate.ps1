@@ -7,7 +7,55 @@ param(
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
-function Set-ReleaseSigningCertificateAcl {
+function Set-ReleaseSigningCertificateFileSecurity {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [Parameter(Mandatory = $true)]
+        [System.Security.AccessControl.FileSecurity]$FileSecurity
+    )
+
+    $fileSetAccessControl = [System.IO.File].GetMethod(
+        'SetAccessControl',
+        [System.Reflection.BindingFlags]::Public -bor [System.Reflection.BindingFlags]::Static,
+        $null,
+        [Type[]]@([string], [System.Security.AccessControl.FileSecurity]),
+        $null)
+    if ($null -ne $fileSetAccessControl) {
+        $fileSetAccessControl.Invoke($null, @($Path, $FileSecurity))
+        return
+    }
+
+    try {
+        [System.Reflection.Assembly]::Load('System.IO.FileSystem.AccessControl') | Out-Null
+    }
+    catch {
+    }
+
+    $extensionType = [Type]::GetType(
+        'System.IO.FileSystemAclExtensions, System.IO.FileSystem.AccessControl',
+        $false)
+    if ($null -ne $extensionType) {
+        $fileInfo = [System.IO.FileInfo]::new($Path)
+        $extensionSetAccessControl = $extensionType.GetMethods(
+            [System.Reflection.BindingFlags]::Public -bor [System.Reflection.BindingFlags]::Static) |
+            Where-Object {
+                $_.Name -eq 'SetAccessControl' -and
+                $_.GetParameters().Count -eq 2 -and
+                $_.GetParameters()[0].ParameterType.FullName -eq 'System.IO.FileInfo'
+            } |
+            Select-Object -First 1
+
+        if ($null -ne $extensionSetAccessControl) {
+            $extensionSetAccessControl.Invoke($null, @($fileInfo, $FileSecurity))
+            return
+        }
+    }
+
+    throw 'Could not locate a .NET file ACL API for release signing certificate hardening.'
+}
+
+function Protect-ReleaseSigningCertificateFile {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Path
@@ -34,7 +82,7 @@ function Set-ReleaseSigningCertificateAcl {
         $fileSecurity.AddAccessRule($rule)
     }
 
-    Set-Acl -LiteralPath $Path -AclObject $fileSecurity
+    Set-ReleaseSigningCertificateFileSecurity -Path $Path -FileSecurity $fileSecurity
 }
 
 if ([string]::IsNullOrWhiteSpace($CertificateBase64)) {
@@ -62,7 +110,7 @@ try {
     }
 
     [System.IO.File]::WriteAllBytes($CertificatePath, $certificateBytes)
-    Set-ReleaseSigningCertificateAcl -Path $CertificatePath
+    Protect-ReleaseSigningCertificateFile -Path $CertificatePath
 
     if (-not [string]::IsNullOrWhiteSpace($GitHubEnvPath)) {
         "WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH=$CertificatePath" |

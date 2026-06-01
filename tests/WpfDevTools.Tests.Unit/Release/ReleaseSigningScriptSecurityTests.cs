@@ -29,8 +29,10 @@ public sealed class ReleaseSigningScriptSecurityTests
             "decoded signing PFX bytes must be wiped after writing");
         source.Should().Contain("SetAccessRuleProtection($true, $false)",
             "the materialized PFX must not inherit broad temp-directory ACLs");
-        source.Should().Contain("Set-Acl -LiteralPath $Path",
-            "the helper must apply the hardened ACL to the materialized certificate file");
+        source.Should().Contain("Set-ReleaseSigningCertificateFileSecurity",
+            "the helper must apply the hardened ACL without depending on Set-Acl cmdlet autoloading");
+        source.Should().NotContain("Set-Acl -LiteralPath $Path",
+            "GitHub hosted runners can fail to autoload Microsoft.PowerShell.Security in isolated test environments");
     }
 
     [Fact]

@@ -21,6 +21,7 @@ param(
         throw 'DotNetInstallScriptUrl must be an absolute HTTPS URI.'
     })]
     [string]$DotNetInstallScriptUrl = 'https://dot.net/v1/dotnet-install.ps1',
+    [string]$TrustedCodeSigningCertificatePath = '',
     [switch]$SkipDotNetProvisioning
 )
 
@@ -28,7 +29,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'SandboxCi.Process.ps1')
 . (Join-Path $PSScriptRoot 'SandboxCi.ProcessCleanup.ps1')
-
+. (Join-Path $PSScriptRoot 'SandboxCi.TrustedSigner.ps1')
 function Write-PreflightResult {
     param(
         [Parameter(Mandatory = $true)] [string]$Value,
@@ -361,10 +362,10 @@ $installRoot = Join-Path $localRoot 'install'
 $smokeProcess = $null
 $resolvedSmokeTargetPath = ''
 $preflightFailureMessage = ''
-
 Start-Transcript -Path $transcriptPath -Force | Out-Null
 Write-PreflightResult -Value "RUNNING $RunId $timestamp ArtifactPreflight" -Encoding $ascii
 try {
+    Import-TrustedCodeSigningCertificate -CertificatePath $TrustedCodeSigningCertificatePath -OutputRoot $outputRootFullPath -Timestamp $timestamp
     Enable-InstallerTestHarness
 
     $resolvedPackagePath = (Resolve-Path -LiteralPath $PackageArchivePath).Path

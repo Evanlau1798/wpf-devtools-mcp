@@ -27,6 +27,7 @@ param(
     [string]$SandboxHostProcessorAffinityHex = '',
     [switch]$SkipSandboxHostScheduling,
     [switch]$SkipDotNetProvisioning,
+    [string]$TrustedCodeSigningCertificatePath = '',
     [switch]$GenerateOnly,
     [switch]$NoWait
 )
@@ -139,6 +140,7 @@ function Copy-PreflightBootstrapFiles {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'SandboxCi.ArtifactPreflight.ps1') -Destination (Join-Path $Destination 'SandboxCi.ArtifactPreflight.ps1') -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'SandboxCi.Process.ps1') -Destination (Join-Path $Destination 'SandboxCi.Process.ps1') -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'SandboxCi.ProcessCleanup.ps1') -Destination (Join-Path $Destination 'SandboxCi.ProcessCleanup.ps1') -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'SandboxCi.TrustedSigner.ps1') -Destination (Join-Path $Destination 'SandboxCi.TrustedSigner.ps1') -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\tools\packaging\Test-PackagedServerRuntime.ps1') -Destination (Join-Path $Destination 'Test-PackagedServerRuntime.ps1') -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\tools\packaging\Test-InstallResidue.ps1') -Destination (Join-Path $Destination 'Test-InstallResidue.ps1') -Force
 }
@@ -196,6 +198,26 @@ if ($SkipDotNetProvisioning) {
     $sandboxCommandArguments += New-SandboxCommandSwitch '-SkipDotNetProvisioning'
 }
 
+$trustedSignerMapping = ''
+$sandboxTrustedSignerCertificate = ''
+if (-not [string]::IsNullOrWhiteSpace($TrustedCodeSigningCertificatePath)) {
+    $resolvedTrustedSignerCertificate = (Resolve-Path -LiteralPath $TrustedCodeSigningCertificatePath).Path
+    $trustedSignerExtension = [System.IO.Path]::GetExtension($resolvedTrustedSignerCertificate)
+    if ($trustedSignerExtension -notin @('.cer', '.crt')) {
+        throw 'TrustedCodeSigningCertificatePath must point to a .cer or .crt public certificate file.'
+    }
+
+    $trustedSignerDirectory = [System.IO.Path]::GetDirectoryName($resolvedTrustedSignerCertificate)
+    $trustedSignerFileName = [System.IO.Path]::GetFileName($resolvedTrustedSignerCertificate)
+    $sandboxTrustedSignerRoot = 'C:\trusted-signer'
+    $sandboxTrustedSignerCertificate = Join-Path $sandboxTrustedSignerRoot $trustedSignerFileName
+    $trustedSignerMapping = New-MappedFolderXml -HostFolder $trustedSignerDirectory -SandboxFolder $sandboxTrustedSignerRoot -ReadOnly $true
+    $sandboxCommandArguments += @(
+        (New-SandboxCommandSwitch '-TrustedCodeSigningCertificatePath'),
+        (New-SandboxCommandValue $sandboxTrustedSignerCertificate)
+    )
+}
+
 $sandboxScriptCommand = '& ' + (($sandboxCommandArguments | ForEach-Object {
             if ($_.IsValue) { Convert-ToPowerShellSingleQuotedLiteral -Value ([string]$_.Text) } else { [string]$_.Text }
         }) -join ' ')
@@ -210,6 +232,7 @@ $(New-MappedFolderXml -HostFolder $packageDirectory -SandboxFolder $sandboxRelea
 $(New-MappedFolderXml -HostFolder $bootstrapRoot -SandboxFolder $sandboxPreflightPath -ReadOnly $true)
 $(New-MappedFolderXml -HostFolder $sandboxOutputPath -SandboxFolder $sandboxOutputMappedPath -ReadOnly $false)
 $smokeTargetMapping
+$trustedSignerMapping
   </MappedFolders>
   <LogonCommand>
     <Command>$(Convert-ToXmlEscapedValue $command)</Command>

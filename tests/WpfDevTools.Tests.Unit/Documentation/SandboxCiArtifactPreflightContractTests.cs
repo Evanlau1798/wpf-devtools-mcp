@@ -11,6 +11,7 @@ public sealed partial class SandboxCiScriptContractTests
         var scriptRoot = Path.Combine(RepoRoot, "scripts", "ci");
         var launcher = ReadScript(scriptRoot, "Invoke-WindowsSandboxArtifactPreflight.ps1");
         var runner = ReadScript(scriptRoot, "SandboxCi.ArtifactPreflight.ps1");
+        var trustedSigner = ReadScript(scriptRoot, "SandboxCi.TrustedSigner.ps1");
         var runtimeSmoke = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "tools", "packaging", "Test-PackagedServerRuntime.ps1"));
 
         launcher.Should().Contain("PackageArchivePath");
@@ -46,6 +47,8 @@ public sealed partial class SandboxCiScriptContractTests
         runner.Should().Contain("-TimeoutSeconds 900");
         runner.Should().Contain("preflight-summary.json");
         runner.Should().Contain("WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA");
+        runner.Should().Contain("TrustedCodeSigningCertificatePath");
+        runner.Should().Contain("Import-TrustedCodeSigningCertificate");
         runner.Should().Contain("$script:WpfDevToolsInstallerTestModeHarnessEnabled = $true");
         runner.Should().Contain("Set-StrictMode -Off");
         runner.Should().Contain("Set-StrictMode -Version Latest");
@@ -73,6 +76,10 @@ public sealed partial class SandboxCiScriptContractTests
 
         runtimeSmoke.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
         runtimeSmoke.Should().Contain("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS");
+        trustedSigner.Should().Contain("certutil.exe");
+        trustedSigner.Should().Contain("-addstore");
+        trustedSigner.Should().Contain("Invoke-ExternalWithTimeout");
+        trustedSigner.Should().Contain("-TimeoutSeconds 30");
     }
 
     [Fact]
@@ -117,6 +124,7 @@ public sealed partial class SandboxCiScriptContractTests
 
             File.Exists(Path.Combine(preflightRoot, "SandboxCi.ArtifactPreflight.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(preflightRoot, "SandboxCi.ProcessCleanup.ps1")).Should().BeTrue();
+            File.Exists(Path.Combine(preflightRoot, "SandboxCi.TrustedSigner.ps1")).Should().BeTrue();
             File.Exists(Path.Combine(preflightRoot, "Test-PackagedServerRuntime.ps1")).Should().BeTrue();
             sandboxFolders.Should().Contain(new[] { @"C:\release", @"C:\preflight", @"C:\preflight-output" });
             document.Descendants("MappedFolder").Should().HaveCount(3);
@@ -129,6 +137,53 @@ public sealed partial class SandboxCiScriptContractTests
             decodedCommand.Should().Contain(@"-PackageArchivePath 'C:\release\release_1.0.0_win-x64.zip'");
             decodedCommand.Should().Contain(@"-OutputRoot 'C:\preflight-output'");
             command.Should().NotContain("Start-SandboxCi.ps1");
+        }
+        finally
+        {
+            DeleteTempRoot(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void InvokeWindowsSandboxArtifactPreflight_WithTrustedSignerCertificate_ShouldMapAndTrustCertificate()
+    {
+        var tempRoot = CreateTempRoot();
+        try
+        {
+            var workRoot = Path.Combine(tempRoot, "work root");
+            var packageRoot = Path.Combine(tempRoot, "release output");
+            var certificateRoot = Path.Combine(tempRoot, "certificates");
+            Directory.CreateDirectory(packageRoot);
+            Directory.CreateDirectory(certificateRoot);
+            var packageArchive = Path.Combine(packageRoot, "release_1.0.0_win-x64.zip");
+            var certificatePath = Path.Combine(certificateRoot, "test-signer.cer");
+            File.WriteAllBytes(packageArchive, []);
+            File.WriteAllBytes(certificatePath, []);
+
+            var scriptPath = Path.Combine(RepoRoot, "scripts", "ci", "Invoke-WindowsSandboxArtifactPreflight.ps1");
+            var result = RunPowerShellFile(
+                scriptPath,
+                "-PackageArchivePath",
+                packageArchive,
+                "-WorkRoot",
+                workRoot,
+                "-TrustedCodeSigningCertificatePath",
+                certificatePath,
+                "-GenerateOnly");
+
+            result.ExitCode.Should().Be(0, result.Output);
+            var configPath = Directory.GetFiles(workRoot, "WpfDevTools-ArtifactPreflight-*.wsb").Should().ContainSingle().Subject;
+            var document = XDocument.Load(configPath);
+            var sandboxFolders = document.Descendants("SandboxFolder").Select(element => element.Value).ToArray();
+            var readOnlyValues = document.Descendants("ReadOnly").Select(element => element.Value).ToArray();
+            var decodedCommand = DecodeSandboxEncodedCommand(document.Descendants("Command").Single().Value);
+
+            sandboxFolders.Should().Contain(@"C:\trusted-signer");
+            readOnlyValues.Should().ContainInOrder("true", "true", "false", "true");
+            decodedCommand.Should().Contain(@"C:\trusted-signer\test-signer.cer");
+            decodedCommand.Should().Contain("-TrustedCodeSigningCertificatePath");
+            decodedCommand.Should().NotContain("certutil.exe",
+                "trust import must run inside the preflight runner after RUNNING is written so failures are logged and bounded");
         }
         finally
         {

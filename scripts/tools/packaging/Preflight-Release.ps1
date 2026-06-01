@@ -120,6 +120,11 @@ if (-not (Test-Path $exportScript)) {
     throw "Export script does not exist: $exportScript"
 }
 
+$trustedSignerThumbprint = ([string]$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT).Trim()
+if (-not [string]::IsNullOrWhiteSpace($VersionTag) -and [string]::IsNullOrWhiteSpace($trustedSignerThumbprint)) {
+    throw 'Release preflight asset staging requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+}
+
 $steps = New-Object System.Collections.ArrayList
 $architecturesLiteral = "@('" + ($resolvedArchitectures -join "', '") + "')"
 if (-not $SkipBuild) {
@@ -138,7 +143,7 @@ if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
 
 $null = $steps.Add($publishStep)
 if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
-    $null = $steps.Add("powershell -ExecutionPolicy Bypass -File $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag")
+    $null = $steps.Add("powershell -ExecutionPolicy Bypass -File $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag -TrustedSignerThumbprint `$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT")
 }
 
 $result = [pscustomobject]@{
@@ -208,15 +213,15 @@ else {
 Assert-LastExitCodeSucceeded -CommandDescription $publishCommandDescription
 
 if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
-    $exportCommandDescription = "$exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag"
+    $exportCommandDescription = "$exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag -TrustedSignerThumbprint `$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT"
     Write-StepMessage -Message $exportCommandDescription
     $global:LASTEXITCODE = 0
     if ($OutputJson) {
-        & $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag 2>&1 6>&1 |
+        & $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag -TrustedSignerThumbprint $trustedSignerThumbprint 2>&1 6>&1 |
             ForEach-Object { [Console]::Error.WriteLine($_.ToString()) }
     }
     else {
-        & $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag
+        & $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag -TrustedSignerThumbprint $trustedSignerThumbprint
     }
     Assert-LastExitCodeSucceeded -CommandDescription $exportCommandDescription
 }

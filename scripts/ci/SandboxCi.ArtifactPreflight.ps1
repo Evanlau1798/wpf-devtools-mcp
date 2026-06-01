@@ -24,7 +24,6 @@ param(
     [string]$TrustedCodeSigningCertificatePath = '',
     [switch]$SkipDotNetProvisioning
 )
-
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'SandboxCi.Process.ps1')

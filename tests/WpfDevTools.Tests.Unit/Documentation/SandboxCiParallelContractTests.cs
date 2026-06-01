@@ -89,13 +89,13 @@ public sealed partial class SandboxCiScriptContractTests
                 [pscustomobject]@{
                     Name = 'parallel lane one'
                     FilePath = 'powershell.exe'
-                    Arguments = @('-NoProfile', '-Command', '[System.IO.File]::WriteAllText($env:LANE_ONE_TIMES, "start=$([DateTime]::UtcNow.Ticks)`n"); Start-Sleep -Milliseconds 500; [System.IO.File]::AppendAllText($env:LANE_ONE_TIMES, "end=$([DateTime]::UtcNow.Ticks)`n"); Write-Output lane-one')
+                    Arguments = @('-NoProfile', '-Command', '[System.IO.File]::WriteAllText($env:LANE_ONE_TIMES, "start=$([DateTime]::UtcNow.Ticks)`n"); $deadline = [DateTime]::UtcNow.AddSeconds(5); while (-not [System.IO.File]::Exists($env:LANE_TWO_TIMES)) { if ([DateTime]::UtcNow -ge $deadline) { throw "lane two did not start before lane one finished" }; Start-Sleep -Milliseconds 50 }; Start-Sleep -Milliseconds 200; [System.IO.File]::AppendAllText($env:LANE_ONE_TIMES, "end=$([DateTime]::UtcNow.Ticks)`n"); Write-Output lane-one')
                     TimeoutSeconds = 30
                 },
                 [pscustomobject]@{
                     Name = 'parallel lane two'
                     FilePath = 'powershell.exe'
-                    Arguments = @('-NoProfile', '-Command', '[System.IO.File]::WriteAllText($env:LANE_TWO_TIMES, "start=$([DateTime]::UtcNow.Ticks)`n"); Start-Sleep -Milliseconds 500; [System.IO.File]::AppendAllText($env:LANE_TWO_TIMES, "end=$([DateTime]::UtcNow.Ticks)`n"); Write-Output lane-two')
+                    Arguments = @('-NoProfile', '-Command', '[System.IO.File]::WriteAllText($env:LANE_TWO_TIMES, "start=$([DateTime]::UtcNow.Ticks)`n"); $deadline = [DateTime]::UtcNow.AddSeconds(5); while (-not [System.IO.File]::Exists($env:LANE_ONE_TIMES)) { if ([DateTime]::UtcNow -ge $deadline) { throw "lane one did not start before lane two finished" }; Start-Sleep -Milliseconds 50 }; Start-Sleep -Milliseconds 200; [System.IO.File]::AppendAllText($env:LANE_TWO_TIMES, "end=$([DateTime]::UtcNow.Ticks)`n"); Write-Output lane-two')
                     TimeoutSeconds = 30
                 }
             )

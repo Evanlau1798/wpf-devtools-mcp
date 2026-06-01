@@ -128,7 +128,7 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
             : JsonSerializer.SerializeToElement(result);
         if (payload.ValueKind != JsonValueKind.Object)
         {
-            return result;
+            return CreateUnregisteredScreenshotError(processId);
         }
 
         if (payload.TryGetProperty("success", out var success) &&
@@ -166,6 +166,11 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
         }
 
         StoredScreenshotResource? screenshot = null;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return CreateUnregisteredScreenshotError(processId);
+        }
+
         if (!string.IsNullOrWhiteSpace(path))
         {
             try

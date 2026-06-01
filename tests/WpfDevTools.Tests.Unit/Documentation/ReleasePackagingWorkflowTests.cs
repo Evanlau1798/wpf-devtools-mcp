@@ -170,8 +170,10 @@ public class ReleasePackagingWorkflowTests
         content.Should().Contain("MainWindowHandle",
             "the live target must be ready before connect/get_ui_summary are attempted");
         content.Should().Contain("Test-PackagedServerRuntime.ps1");
-        content.Should().Contain("-TargetProcessId $targetProcess.Id");
-        content.Should().Contain("-TargetProcessPath $targetProcessPath");
+        content.Should().Contain("'-TargetProcessId', $targetProcess.Id");
+        content.Should().Contain("'-TargetProcessPath', $targetProcessPath");
+        content.Should().Contain("& powershell @runtimeSmokeArguments",
+            "the helper should splat the runtime smoke arguments so optional parameters can be appended only when they have values");
         content.Should().Contain("Resolve-TestAppRunCommand",
             "the helper should resolve the platform-specific TestApp executable instead of assuming a non-platform output path");
         content.Should().Contain("-getProperty:RunCommand",

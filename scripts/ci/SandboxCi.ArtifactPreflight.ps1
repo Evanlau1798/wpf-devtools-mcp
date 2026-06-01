@@ -140,7 +140,7 @@ function Test-DotNetRuntimeAvailable {
     }
 
     $majorVersion = ($DotNetChannel -split '\.')[0]
-    $runtimePattern = '^Microsoft\.NETCore\.App\s+' + [Regex]::Escape($majorVersion) + '\.'
+    $runtimePattern = '^Microsoft\.WindowsDesktop\.App\s+' + [Regex]::Escape($majorVersion) + '\.'
     $runtimes = @(& $dotnetPath --list-runtimes 2>$null)
     return (@($runtimes | Where-Object { $_ -match $runtimePattern }).Count -gt 0)
 }
@@ -186,7 +186,7 @@ function Ensure-DotNetRuntime {
         '-Channel',
         $DotNetChannel,
         '-Runtime',
-        'dotnet',
+        'windowsdesktop',
         '-Architecture',
         $dotNetRuntimeArchitecture,
         '-InstallDir',

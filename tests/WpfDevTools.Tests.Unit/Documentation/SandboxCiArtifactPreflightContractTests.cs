@@ -76,6 +76,16 @@ public sealed partial class SandboxCiScriptContractTests
     }
 
     [Fact]
+    public void SandboxArtifactPreflight_ShouldProvisionWindowsDesktopRuntimeForWpfSmokeTarget()
+    {
+        var runner = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "SandboxCi.ArtifactPreflight.ps1");
+
+        runner.Should().Contain("'windowsdesktop'",
+            "the clean Sandbox live smoke target is a WPF app and needs Microsoft.WindowsDesktop.App, not only Microsoft.NETCore.App");
+        runner.Should().Contain("Microsoft\\.WindowsDesktop\\.App");
+    }
+
+    [Fact]
     public void InvokeWindowsSandboxArtifactPreflight_GenerateOnly_ShouldWriteArtifactOnlySandboxConfig()
     {
         var tempRoot = CreateTempRoot();

@@ -32,7 +32,7 @@ public sealed class BootstrapLoggingPolicyTests : IDisposable
     }
 
     [Fact]
-    public void LogError_WhenTempFileLoggingIsOptedIn_ShouldWriteFileEntry()
+    public void LogError_WhenTempFileLoggingIsOptedIn_ShouldWriteRedactedFileEntry()
     {
         string? entry = null;
         Bootstrap.FileLogOptInEvaluator = static () => true;
@@ -42,7 +42,8 @@ public sealed class BootstrapLoggingPolicyTests : IDisposable
 
         entry.Should().NotBeNull();
         entry.Should().Contain("[ERROR]");
-        entry.Should().Contain("secret-token=abc123");
+        entry.Should().Contain("secret-token=[redacted]");
+        entry.Should().NotContain("abc123");
     }
 
     private static void InvokeLogError(string message)

@@ -62,6 +62,44 @@ public static class WorkflowPrompts
         Prefer navigation.recommended first. Use the remaining tools when the next step still needs clarification across binding source, value chain, or validation state.
         """;
 
+    [McpServerPrompt(Name = "diagnose_style_or_template", Title = "Diagnose Style Or Template")]
+    [Description("Workflow prompt for missing setters, template mismatches, trigger state, and resource lookup issues.")]
+    public static string DiagnoseStyleOrTemplate() =>
+        """
+        Goal: diagnose why an element's style, template, trigger, or resource value is not the expected one.
+
+        Recommended workflow:
+        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before connect() attaches.
+        2. connect()
+        3. get_ui_summary(depthMode='semantic', summaryOnly=true)
+        4. get_element_snapshot(elementId)
+        5. get_applied_styles(elementId)
+        6. get_triggers(elementId)
+        7. get_resource_chain(elementId, resourceKey) when a DynamicResource, StaticResource, or theme resource is suspected
+        8. Follow navigation.recommended before expanding get_template_tree or broader tree tools
+
+        Keep this workflow read-only. Do not call override_style_setter unless the operator explicitly opts into destructive tools and asks for a temporary live override.
+        """;
+
+    [McpServerPrompt(Name = "diagnose_layout_or_visibility", Title = "Diagnose Layout Or Visibility")]
+    [Description("Workflow prompt for collapsed, clipped, overlapped, offscreen, disabled, or hit-test-blocked elements.")]
+    public static string DiagnoseLayoutOrVisibility() =>
+        """
+        Goal: diagnose why an element is not visible, not hit-testable, or not laid out as expected.
+
+        Recommended workflow:
+        1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before connect() attaches.
+        2. connect()
+        3. get_ui_summary(depthMode='semantic', summaryOnly=true)
+        4. get_element_snapshot(elementId)
+        5. diagnose_visibility(elementId)
+        6. get_layout_info(elementId)
+        7. get_interaction_readiness(elementId, interactionType='Click') when the user-visible symptom is click or focus failure
+        8. Follow navigation.recommended before considering get_visual_tree; request element_screenshot only when screenshots are explicitly enabled and visual evidence is needed
+
+        Prefer compact scene diagnostics first. Full trees and screenshots are follow-up evidence, not the default entry point.
+        """;
+
     [McpServerPrompt(Name = "debug_command_or_click", Title = "Debug Command Or Click")]
     [Description("Workflow prompt for disabled buttons, CanExecute issues, click routing, and event-handler inspection.")]
     public static string DebugCommandOrClick() =>

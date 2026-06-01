@@ -97,6 +97,12 @@ public sealed class DiagnoseVisibilityToolTests
             catch (EndOfStreamException)
             {
             }
+            catch (IOException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         });
 
         var sessionManager = new SessionManager();

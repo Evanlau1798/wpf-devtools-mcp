@@ -41,7 +41,8 @@ public sealed partial class ReleasePackagingContractTests
                     "release_1.2.3_win-x64.zip",
                     "SHA256SUMS.txt",
                     "release-assets.json",
-                    "release-sbom.spdx.json"
+                    "release-sbom.spdx.json",
+                    "package-sbom.spdx.json"
                 ]);
         }
         finally

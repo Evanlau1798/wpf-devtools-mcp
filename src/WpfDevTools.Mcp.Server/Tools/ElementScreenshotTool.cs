@@ -192,6 +192,16 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
                 _sessionManager.TryDeleteUnregisteredScreenshotFile(processId, path, screenshotDirectory);
                 return CreateUnregisteredScreenshotError(processId);
             }
+            catch (IOException)
+            {
+                _sessionManager.TryDeleteUnregisteredScreenshotFile(processId, path, screenshotDirectory);
+                return CreateUnregisteredScreenshotError(processId);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                _sessionManager.TryDeleteUnregisteredScreenshotFile(processId, path, screenshotDirectory);
+                return CreateUnregisteredScreenshotError(processId);
+            }
         }
 
         using var stream = new MemoryStream();

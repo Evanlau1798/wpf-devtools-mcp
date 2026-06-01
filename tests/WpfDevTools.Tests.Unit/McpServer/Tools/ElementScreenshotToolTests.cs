@@ -298,6 +298,81 @@ public class ElementScreenshotToolTests
     }
 
     [Fact]
+    public async Task Execute_WithMissingFileModeScreenshot_ShouldReturnSecurityError()
+    {
+        var processId = NextSyntheticProcessId();
+        var pipeName = $"WpfDevTools_Test_ElementScreenshotMissingFile_{Guid.NewGuid():N}";
+        using var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            try
+            {
+                var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson)!;
+                var screenshotDirectory = request.Params!.Value.GetProperty("screenshotDirectory").GetString()!;
+                var missingPath = Path.Combine(screenshotDirectory, "shot_0123456789abcdef0123456789abcdef.png");
+                var response = new InspectorResponse
+                {
+                    Id = request.Id,
+                    CorrelationId = request.CorrelationId,
+                    Result = JsonSerializer.SerializeToElement(new
+                    {
+                        success = true,
+                        screenshotId = "shot_0123456789abcdef0123456789abcdef",
+                        width = 160,
+                        height = 80,
+                        format = "png",
+                        byteLength = 4,
+                        sha256 = ValidSha256For([137, 80, 78, 71]),
+                        path = missingPath
+                    })
+                };
+
+                await MessageFraming.WriteMessageAsync(server, JsonSerializer.Serialize(response), CancellationToken.None);
+            }
+            catch (EndOfStreamException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        });
+
+        using var sessionManager = new SessionManager();
+        DisableSessionManagerCleanupTimer(sessionManager);
+        sessionManager.AddSession(processId);
+        var client = new NamedPipeClient(
+            processId,
+            pipeName,
+            authManager: null,
+            certManager: null,
+            enforceHostCompatibilityValidation: false,
+            requestTimeout: TimeSpan.FromSeconds(5));
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        ReplacePipeClient(sessionManager, processId, client);
+        var tool = new ElementScreenshotTool(sessionManager);
+
+        try
+        {
+            var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+            {
+                processId,
+                outputMode = "file"
+            }), CancellationToken.None));
+
+            result.GetProperty("success").GetBoolean().Should().BeFalse();
+            result.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+        }
+        finally
+        {
+            server.Dispose();
+            await serverTask;
+        }
+    }
+
+    [Fact]
     public async Task Execute_WithoutOutputMode_ShouldDefaultToMetadata()
     {
         var processId = NextSyntheticProcessId();
@@ -367,4 +442,7 @@ public class ElementScreenshotToolTests
     {
         ReplaceSessionManagerPipeClient(sessionManager, processId, replacement);
     }
+
+    private static string ValidSha256For(byte[] imageBytes)
+        => Convert.ToHexString(SHA256.HashData(imageBytes)).ToLowerInvariant();
 }

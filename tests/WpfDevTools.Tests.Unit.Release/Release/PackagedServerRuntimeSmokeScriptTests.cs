@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using Xunit;
 
@@ -55,6 +56,51 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
 
         result.ExitCode.Should().Be(0,
             $"the packaged runtime smoke script should complete against the built server. Stdout: {result.Stdout}; Stderr: {result.Stderr}");
+    }
+
+    [Fact]
+    public void TestPackagedServerRuntimeScript_ShouldWriteRuntimeEvidenceWhenRequested()
+    {
+        var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1");
+#if DEBUG
+        const string configuration = "Debug";
+#else
+        const string configuration = "Release";
+#endif
+        var serverPath = new[]
+        {
+            Path.Combine("src", "WpfDevTools.Mcp.Server", "bin", configuration, "net8.0", "WpfDevTools.Mcp.Server.exe"),
+            Path.Combine("src", "WpfDevTools.Mcp.Server", "bin", configuration, "net8.0", "win-x64", "WpfDevTools.Mcp.Server.exe"),
+            Path.Combine("src", "WpfDevTools.Mcp.Server", "bin", "x64", configuration, "net8.0", "WpfDevTools.Mcp.Server.exe")
+        }
+        .Select(ReleaseScriptTestHarness.GetRepoFilePath)
+        .FirstOrDefault(File.Exists);
+        serverPath.Should().NotBeNull("the built MCP server executable is required for runtime evidence");
+
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var evidencePath = Path.Combine(tempRoot, "runtime-evidence.json");
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                scriptPath,
+                ["-ServerPath", serverPath!, "-EvidenceOutputPath", evidencePath],
+                timeout: TimeSpan.FromSeconds(30));
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var evidence = JsonDocument.Parse(File.ReadAllText(evidencePath));
+            var root = evidence.RootElement;
+            root.GetProperty("toolsList").GetProperty("count").GetInt32().Should().Be(64);
+            root.GetProperty("toolsList").GetProperty("nameSetHash").GetString()
+                .Should().MatchRegex("^[a-f0-9]{64}$");
+            root.GetProperty("toolsList").GetProperty("schemaSnapshotHash").GetString()
+                .Should().MatchRegex("^[a-f0-9]{64}$");
+            root.GetProperty("security").GetProperty("stdoutPurityPassed").GetBoolean().Should().BeTrue();
+            root.GetProperty("liveSmoke").GetProperty("connect").GetBoolean().Should().BeFalse();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
     }
 
     [Fact]

@@ -2,6 +2,7 @@ param(
     [Parameter(Mandatory)] [string]$ServerPath,
     [ValidateSet('x64', 'x86', 'arm64')] [string]$Architecture = 'x64',
     [string]$Configuration = 'Release',
+    [string]$EvidenceOutputPath = '',
     [int]$StartupTimeoutSeconds = 30,
     [int]$RequestTimeoutMilliseconds = 20000
 )
@@ -120,8 +121,10 @@ try {
 
         & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 `
             -ServerPath $ServerPath `
+            -Architecture $Architecture `
             -TargetProcessId $targetProcess.Id `
             -TargetProcessPath $targetProcessPath `
+            -EvidenceOutputPath $EvidenceOutputPath `
             -RequestTimeoutMilliseconds $RequestTimeoutMilliseconds
         if ($LASTEXITCODE -ne 0) {
             throw "Packaged runtime live smoke failed with exit code $LASTEXITCODE."

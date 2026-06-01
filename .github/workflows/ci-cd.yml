@@ -251,7 +251,7 @@ jobs:
           throw "Could not locate installed server executable at $serverPath"
         }
 
-        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture '${{ matrix.architecture }}'
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture '${{ matrix.architecture }}' -EvidenceOutputPath "artifacts/release/runtime-evidence-${{ matrix.architecture }}-installed.json"
 
     - name: Online installer smoke test
       shell: pwsh
@@ -283,7 +283,7 @@ jobs:
           throw "Could not locate online-installed server executable at $serverPath"
         }
 
-        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture '${{ matrix.architecture }}'
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture '${{ matrix.architecture }}' -EvidenceOutputPath "artifacts/release/runtime-evidence-${{ matrix.architecture }}-online.json"
 
     - name: Uninstall published package smoke test
       shell: pwsh
@@ -338,6 +338,28 @@ jobs:
         $script:WpfDevToolsInstallerTestModeEnabled = $true
         . ./scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
         & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}'
+
+    - name: Write release evidence summary
+      shell: pwsh
+      run: |
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Write-ReleaseEvidence.ps1 `
+          -OutputPath "artifacts/release/release-evidence-${{ matrix.architecture }}.json" `
+          -Repository '${{ github.repository }}' `
+          -Branch '${{ github.ref_name }}' `
+          -CommitSha '${{ github.sha }}' `
+          -WorkflowRunId '${{ github.run_id }}' `
+          -RunnerMatrix "windows-${{ matrix.architecture }}" `
+          -RuntimeEvidencePath "artifacts/release/runtime-evidence-${{ matrix.architecture }}-installed.json,artifacts/release/runtime-evidence-${{ matrix.architecture }}-online.json" `
+          -Sha256SumsPath 'artifacts/release/SHA256SUMS.txt' `
+          -ReleaseAssetsPath 'artifacts/release/release-assets.json' `
+          -ReleaseSbomPath 'artifacts/release/release-sbom.spdx.json' `
+          -UninstallResiduePassed
+
+    - name: Upload release evidence summary
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: release-evidence-ci-${{ matrix.architecture }}
+        path: artifacts/release/release-evidence-${{ matrix.architecture }}.json
 
   release-packaging-smoke-arm64:
     if: vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE == 'true'

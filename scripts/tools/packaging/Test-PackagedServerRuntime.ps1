@@ -1,7 +1,9 @@
 param(
     [Parameter(Mandatory)] [string]$ServerPath,
+    [ValidateSet('x64', 'x86', 'arm64')] [string]$Architecture = 'x64',
     [int]$TargetProcessId = 0,
     [string]$TargetProcessPath = '',
+    [string]$EvidenceOutputPath = '',
     [int]$InitializeTimeoutMilliseconds = 10000,
     [int]$RequestTimeoutMilliseconds = 10000
 )
@@ -140,6 +142,71 @@ function Get-JsonProperty {
     }
 
     return $property.Value
+}
+
+function Get-Sha256Hex {
+    param([Parameter(Mandatory)] [string]$Value)
+
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($Value)
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return (($sha256.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) -join '')
+    }
+    finally {
+        $sha256.Dispose()
+    }
+}
+
+function Write-RuntimeEvidence {
+    param(
+        [Parameter(Mandatory)] [string]$Path,
+        [Parameter(Mandatory)] [object]$ToolsResponse,
+        [Parameter(Mandatory)] [bool]$TargetAwareLiveSmokePassed
+    )
+
+    $toolNames = @($ToolsResponse.result.tools | ForEach-Object { [string]$_.name } | Sort-Object)
+    $nameSetHash = Get-Sha256Hex -Value ($toolNames -join "`n")
+    $schemaJson = $ToolsResponse.result.tools | ConvertTo-Json -Compress -Depth 64
+    $schemaSnapshotHash = Get-Sha256Hex -Value $schemaJson
+    $packageSmokeStatus = if ($TargetAwareLiveSmokePassed) { 'passed' } else { 'not-run' }
+    $packageSmoke = [ordered]@{
+        x64PackageLocal = 'passed-or-not-public'
+        x64OnlineInstaller = 'passed-or-not-public'
+        x86PackageLocal = 'passed-or-not-public'
+        x86OnlineInstaller = 'passed-or-not-public'
+        arm64PackageLocal = 'passed-or-not-public'
+        arm64OnlineInstaller = 'passed-or-not-public'
+    }
+    $packageSmoke["$($Architecture)PackageLocal"] = $packageSmokeStatus
+    $packageSmoke["$($Architecture)OnlineInstaller"] = $packageSmokeStatus
+    $runtimeEvidence = [ordered]@{
+        generatedUtc = (Get-Date).ToUniversalTime().ToString('O')
+        mode = $smokeMode
+        serverPathRedacted = $true
+        toolsList = [ordered]@{
+            count = $toolNames.Count
+            nameSetHash = $nameSetHash
+            schemaSnapshotHash = $schemaSnapshotHash
+        }
+        security = [ordered]@{
+            mitmMatrixPassed = $false
+            stdoutPurityPassed = $true
+            screenshotIntegrityPassed = $false
+        }
+        packageSmoke = $packageSmoke
+        liveSmoke = [ordered]@{
+            connect = $TargetAwareLiveSmokePassed
+            ping = $TargetAwareLiveSmokePassed
+            getUiSummary = $TargetAwareLiveSmokePassed
+            safeRead = $TargetAwareLiveSmokePassed
+            mutationRestore = $TargetAwareLiveSmokePassed
+            uninstallResidue = $false
+        }
+    }
+
+    $directory = Split-Path -Parent ([System.IO.Path]::GetFullPath($Path))
+    New-Item -ItemType Directory -Force -Path $directory | Out-Null
+    $runtimeEvidence | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
 function Get-McpToolResult {
@@ -325,6 +392,7 @@ try {
         windowFilter = 'visible'
     } | Out-Null
 
+    $targetAwareLiveSmokePassed = $false
     if ($TargetProcessId -gt 0) {
         Invoke-McpTool -Process $process -Id 6 -Name 'connect' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
             processId = $TargetProcessId
@@ -398,6 +466,15 @@ try {
         if ($restoredValue -ne $baselineValue) {
             throw "Packaged runtime smoke restore_state_snapshot did not restore Text. Expected '$baselineValue', got '$restoredValue'."
         }
+
+        $targetAwareLiveSmokePassed = $true
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($EvidenceOutputPath)) {
+        Write-RuntimeEvidence `
+            -Path $EvidenceOutputPath `
+            -ToolsResponse $toolsResponse `
+            -TargetAwareLiveSmokePassed $targetAwareLiveSmokePassed
     }
 }
 finally {

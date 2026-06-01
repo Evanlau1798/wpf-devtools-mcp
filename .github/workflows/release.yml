@@ -223,7 +223,7 @@ jobs:
             throw "Could not locate staged installed x64 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x64'
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x64' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x64-installed.json'
 
       - name: x64 online installer smoke test
         shell: pwsh
@@ -251,7 +251,7 @@ jobs:
             throw "Could not locate staged online-installed x64 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x64'
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x64' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x64-online.json'
 
       - name: Uninstall staged installed x64 package smoke test
         shell: pwsh
@@ -286,6 +286,12 @@ jobs:
         run: |
           & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
           & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x64'
+
+      - name: Upload x64 runtime evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-runtime-evidence-${{ needs.publish-release-assets.outputs.release-tag }}-x64
+          path: artifacts/release/runtime-evidence-x64-*.json
 
   validate-x86-release-assets:
     needs: publish-release-assets
@@ -352,7 +358,7 @@ jobs:
             throw "Could not locate staged installed x86 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x86'
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x86' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x86-installed.json'
 
       - name: x86 online installer smoke test
         shell: pwsh
@@ -380,7 +386,7 @@ jobs:
             throw "Could not locate staged online-installed x86 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x86'
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x86' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x86-online.json'
 
       - name: Uninstall staged installed x86 package smoke test
         shell: pwsh
@@ -415,6 +421,12 @@ jobs:
         run: |
           & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x86' -Client other -NonInteractive -OutputJson
           & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x86'
+
+      - name: Upload x86 runtime evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-runtime-evidence-${{ needs.publish-release-assets.outputs.release-tag }}-x86
+          path: artifacts/release/runtime-evidence-x86-*.json
 
   validate-arm64-release-assets:
     if: vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE == 'true'
@@ -481,7 +493,7 @@ jobs:
             throw "Could not locate staged installed ARM64 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64'
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-installed.json'
 
       - name: ARM64 online installer smoke test
         shell: pwsh
@@ -509,7 +521,7 @@ jobs:
             throw "Could not locate staged online-installed ARM64 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64'
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-online.json'
 
       - name: Uninstall staged installed ARM64 package smoke test
         shell: pwsh
@@ -545,6 +557,12 @@ jobs:
           & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
           & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64'
 
+      - name: Upload ARM64 runtime evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-runtime-evidence-${{ needs.publish-release-assets.outputs.release-tag }}-arm64
+          path: artifacts/release/runtime-evidence-arm64-*.json
+
   upload-release-assets:
     needs:
       - publish-release-assets
@@ -568,6 +586,47 @@ jobs:
         with:
           name: github-release-assets-${{ needs.publish-release-assets.outputs.release-tag }}
           path: ${{ env.RELEASE_STAGING_ROOT }}/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Download runtime evidence artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: release-runtime-evidence-${{ needs.publish-release-assets.outputs.release-tag }}-*
+          path: artifacts/release/runtime-evidence
+          merge-multiple: true
+
+      - name: Write release evidence summary
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+          WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
+          $runtimeEvidence = @(Get-ChildItem 'artifacts/release/runtime-evidence' -File -Filter 'runtime-evidence-*.json' | Sort-Object Name | ForEach-Object { $_.FullName })
+          if ($runtimeEvidence.Count -eq 0) {
+            throw 'No runtime evidence artifacts were downloaded for release evidence summary.'
+          }
+          $runtimeEvidenceCsv = $runtimeEvidence -join ','
+
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Write-ReleaseEvidence.ps1 `
+            -OutputPath (Join-Path $stagingRoot 'release-evidence.json') `
+            -Repository '${{ github.repository }}' `
+            -Branch $tag `
+            -CommitSha '${{ github.sha }}' `
+            -WorkflowRunId '${{ github.run_id }}' `
+            -RunnerMatrix 'windows-x64,windows-x86,windows-arm64' `
+            -RuntimeEvidencePath $runtimeEvidenceCsv `
+            -Sha256SumsPath (Join-Path $stagingRoot 'SHA256SUMS.txt') `
+            -ReleaseAssetsPath (Join-Path $stagingRoot 'release-assets.json') `
+            -ReleaseSbomPath (Join-Path $stagingRoot 'release-sbom.spdx.json') `
+            -TrustedSignerThumbprint $env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT `
+            -UninstallResiduePassed
+
+      - name: Upload release evidence artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-evidence-${{ needs.publish-release-assets.outputs.release-tag }}
+          path: ${{ env.RELEASE_STAGING_ROOT }}/${{ needs.publish-release-assets.outputs.release-tag }}/release-evidence.json
 
       - name: Ensure GitHub Release exists for manual dispatch
         if: github.event_name == 'workflow_dispatch'

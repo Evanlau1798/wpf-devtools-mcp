@@ -1,4 +1,5 @@
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Injector.Discovery;
 
@@ -76,7 +77,7 @@ public static class PeArchitectureReader
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine(
-                $"PeArchitectureReader: Failed to read PE header for '{dllPath}': {ex.Message}");
+                $"PeArchitectureReader: Failed to read PE header for '{SensitiveLogRedactor.Redact(dllPath)}': {SensitiveLogRedactor.Redact(ex.Message)}");
             return ProcessArchitecture.Unknown;
         }
     }

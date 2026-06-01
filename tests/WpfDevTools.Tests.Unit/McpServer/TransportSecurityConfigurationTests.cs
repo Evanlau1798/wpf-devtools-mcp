@@ -25,6 +25,7 @@ public sealed class TransportSecurityConfigurationTests
             configuration.CertificateManager.CertificateDirectory.Should().Contain(Path.Combine("WpfDevTools", "certs"));
             configuration.GetAuthenticationLogMessage().Should().Contain("persisted default shared secret");
             configuration.GetEncryptionLogMessage().Should().Contain("default certificate directory");
+            configuration.GetEncryptionLogMessage().Should().NotContain(configuration.CertificateManager.CertificateDirectory);
         }
         finally
         {
@@ -54,7 +55,8 @@ public sealed class TransportSecurityConfigurationTests
             configuration.AuthenticationManager.GetSharedSecret().Should().Equal(expectedSecret);
             configuration.CertificateManager.CertificateDirectory.Should().Be(certDirectory);
             configuration.GetAuthenticationLogMessage().Should().Contain("WPFDEVTOOLS_AUTH_SECRET");
-            configuration.GetEncryptionLogMessage().Should().Contain(certDirectory);
+            configuration.GetEncryptionLogMessage().Should().Contain("WPFDEVTOOLS_CERT_DIR");
+            configuration.GetEncryptionLogMessage().Should().NotContain(certDirectory);
         }
         finally
         {

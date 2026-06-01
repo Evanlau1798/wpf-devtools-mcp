@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Markup;
 using System.Xml;
 using WpfDevTools.Shared.Serialization;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Inspector.Utilities;
 
@@ -60,7 +61,8 @@ public class XamlSerializer
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"XamlSerializer: Failed to serialize element: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine(
+                $"XamlSerializer: Failed to serialize element: {SensitiveLogRedactor.Redact(ex.Message)}");
             return $"<!-- Failed to serialize element to XAML: {ex.GetType().Name} -->";
         }
     }

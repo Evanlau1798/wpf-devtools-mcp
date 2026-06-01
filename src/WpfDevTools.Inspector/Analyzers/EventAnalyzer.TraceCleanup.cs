@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Threading;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -325,13 +326,16 @@ public sealed partial class EventAnalyzer
         switch (exception)
         {
             case TimeoutException timeoutException:
-                System.Diagnostics.Trace.TraceWarning($"Timed out while removing routed event trace handlers: {timeoutException.Message}");
+                System.Diagnostics.Trace.TraceWarning(
+                    $"Timed out while removing routed event trace handlers: {SensitiveLogRedactor.Redact(timeoutException.Message)}");
                 break;
             case InvalidOperationException invalidOperationException:
-                System.Diagnostics.Trace.TraceWarning($"Skipped routed event trace handler removal because the dispatcher was unavailable during teardown: {invalidOperationException.Message}");
+                System.Diagnostics.Trace.TraceWarning(
+                    $"Skipped routed event trace handler removal because the dispatcher was unavailable during teardown: {SensitiveLogRedactor.Redact(invalidOperationException.Message)}");
                 break;
             default:
-                System.Diagnostics.Trace.TraceError($"Unexpected failure while removing routed event trace handlers during teardown: {exception}");
+                System.Diagnostics.Trace.TraceError(
+                    $"Unexpected failure while removing routed event trace handlers during teardown: {SensitiveLogRedactor.Redact(exception.ToString())}");
                 break;
         }
     }

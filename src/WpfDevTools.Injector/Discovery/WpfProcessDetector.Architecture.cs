@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Injector.Discovery;
 
@@ -32,7 +33,8 @@ public partial class WpfProcessDetector
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Failed to detect architecture: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine(
+                $"WpfProcessDetector: Failed to detect architecture: {SensitiveLogRedactor.Redact(ex.Message)}");
         }
 
         return ProcessArchitecture.Unknown;

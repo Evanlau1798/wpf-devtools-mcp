@@ -4,6 +4,7 @@ using System.Windows.Threading;
 using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
 using WpfDevTools.Shared.Configuration;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -235,7 +236,8 @@ public sealed partial class DependencyPropertyAnalyzer
 
                 if (cleanupFailure != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"DependencyPropertyAnalyzer: {cleanupFailure.Message}");
+                    System.Diagnostics.Debug.WriteLine(
+                        $"DependencyPropertyAnalyzer: {SensitiveLogRedactor.Redact(cleanupFailure.Message)}");
                 }
             });
 
@@ -259,7 +261,8 @@ public sealed partial class DependencyPropertyAnalyzer
             if (!TryDetachWatcher(kvp.Key, kvp.Value, out var cleanupFailure) && cleanupFailure != null)
             {
                 failedWatchKeys.Add(kvp.Key);
-                System.Diagnostics.Debug.WriteLine($"DependencyPropertyAnalyzer: Failed to cleanup watcher '{kvp.Key}': {cleanupFailure.Message}");
+                System.Diagnostics.Debug.WriteLine(
+                    $"DependencyPropertyAnalyzer: Failed to cleanup watcher '{SensitiveLogRedactor.Redact(kvp.Key)}': {SensitiveLogRedactor.Redact(cleanupFailure.Message)}");
             }
         }
 
@@ -270,7 +273,7 @@ public sealed partial class DependencyPropertyAnalyzer
         if (failedWatchKeys.Count > 0)
         {
             System.Diagnostics.Debug.WriteLine(
-                $"DependencyPropertyAnalyzer: {failedWatchKeys.Count} watcher(s) remain registered for retry: {string.Join(", ", failedWatchKeys)}");
+                $"DependencyPropertyAnalyzer: {failedWatchKeys.Count} watcher(s) remain registered for retry: {SensitiveLogRedactor.Redact(string.Join(", ", failedWatchKeys))}");
         }
     }
 

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Mcp.Server;
 
@@ -32,7 +33,8 @@ public sealed partial class SessionManager
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine($"SessionManager: Cleanup error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine(
+                    $"SessionManager: Cleanup error: {SensitiveLogRedactor.Redact(ex.Message)}");
             }
         }
         finally

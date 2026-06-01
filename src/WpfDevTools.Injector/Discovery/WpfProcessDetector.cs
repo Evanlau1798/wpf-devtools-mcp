@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Injector.Discovery;
 
@@ -49,7 +50,8 @@ public partial class WpfProcessDetector
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Failed to inspect process: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine(
+                    $"WpfProcessDetector: Failed to inspect process: {SensitiveLogRedactor.Redact(ex.Message)}");
             }
             finally
             {
@@ -100,7 +102,8 @@ public partial class WpfProcessDetector
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Error getting process info for PID {processId}: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine(
+                $"WpfProcessDetector: Error getting process info for PID {processId}: {SensitiveLogRedactor.Redact(ex.Message)}");
             return null;
         }
     }
@@ -257,7 +260,7 @@ public partial class WpfProcessDetector
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine(
-                $"WpfProcessDetector: Module enumeration failed, falling back to window class check: {ex.Message}");
+                $"WpfProcessDetector: Module enumeration failed, falling back to window class check: {SensitiveLogRedactor.Redact(ex.Message)}");
             return null;
         }
     }
@@ -319,7 +322,8 @@ public partial class WpfProcessDetector
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Failed to check WPF window class: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine(
+                $"WpfProcessDetector: Failed to check WPF window class: {SensitiveLogRedactor.Redact(ex.Message)}");
         }
 
         return false;
@@ -391,7 +395,8 @@ public partial class WpfProcessDetector
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"WpfProcessDetector: Failed to get executable path: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine(
+                $"WpfProcessDetector: Failed to get executable path: {SensitiveLogRedactor.Redact(ex.Message)}");
             return null;
         }
     }

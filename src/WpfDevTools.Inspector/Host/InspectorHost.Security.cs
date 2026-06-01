@@ -7,6 +7,7 @@ using System.Security.Principal;
 using System.Security.AccessControl;
 using WpfDevTools.Shared.Configuration;
 using WpfDevTools.Shared.Security;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Inspector.Host;
 
@@ -187,7 +188,8 @@ public sealed partial class InspectorHost
         catch (Exception ex)
         {
             // Best effort - client may have already disconnected
-            System.Diagnostics.Debug.WriteLine($"InspectorHost: Failed to send auth result: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine(
+                $"InspectorHost: Failed to send auth result: {SensitiveLogRedactor.Redact(ex.Message)}");
         }
     }
 

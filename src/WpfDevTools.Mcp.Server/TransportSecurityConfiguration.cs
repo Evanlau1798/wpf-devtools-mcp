@@ -109,8 +109,8 @@ internal sealed class TransportSecurityConfiguration
     public string GetEncryptionLogMessage()
     {
         return UsesExplicitCertificateDirectory
-            ? $"TLS encryption enabled via WPFDEVTOOLS_CERT_DIR: {CertificateManager.CertificateDirectory}"
-            : $"TLS encryption enabled with the default certificate directory: {CertificateManager.CertificateDirectory}";
+            ? "TLS encryption enabled via WPFDEVTOOLS_CERT_DIR (path redacted)"
+            : "TLS encryption enabled with the default certificate directory (path redacted)";
     }
 
     private static string ResolveExplicitCertificateDirectory(string certificateDirectory)

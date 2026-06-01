@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using WpfDevTools.Inspector.Events;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -117,7 +118,8 @@ public sealed partial class EventAnalyzer
         }
         catch (Exception ex)
         {
-            Trace.TraceWarning($"EventAnalyzer failed to rollback partial routed-event trace registrations: {ex}");
+            Trace.TraceWarning(
+                $"EventAnalyzer failed to rollback partial routed-event trace registrations: {SensitiveLogRedactor.Redact(ex.ToString())}");
         }
     }
 

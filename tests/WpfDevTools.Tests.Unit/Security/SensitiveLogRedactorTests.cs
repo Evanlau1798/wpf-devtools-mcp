@@ -47,4 +47,20 @@ public sealed class SensitiveLogRedactorTests
         redacted.Should().NotContain("screenshot_abcdef");
         redacted.Should().Contain(SensitiveLogRedactor.RedactedValue);
     }
+
+    [Fact]
+    public void Redact_ShouldRemoveLocalPathsWithSpaces()
+    {
+        var message =
+            @"Denied target path C:\Users\Dev User\AppData\Local\Secret App\ForzaMusicOverlay.exe " +
+            @"and screenshot C:\Users\Dev User\Pictures\WPF Captures\shot_1234.png";
+
+        var redacted = SensitiveLogRedactor.Redact(message);
+
+        redacted.Should().NotContain("Dev User");
+        redacted.Should().NotContain("Secret App");
+        redacted.Should().NotContain("ForzaMusicOverlay.exe");
+        redacted.Should().NotContain("WPF Captures");
+        redacted.Should().NotContain("shot_1234.png");
+    }
 }

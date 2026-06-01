@@ -376,7 +376,7 @@ internal static class RawInjectionTargetPolicy
         catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
         {
             Trace.TraceWarning(
-                $"RawInjectionTargetPolicy drive type detection failed: {ex.GetType().Name}");
+                $"RawInjectionTargetPolicy drive type detection failed: {SensitiveLogRedactor.Redact(ex.GetType().Name)}");
             return true;
         }
     }

@@ -2,6 +2,7 @@
 using System.IO;
 using Microsoft.Extensions.Logging;
 using WpfDevTools.Shared.Security;
+using WpfDevTools.Shared.Utilities;
 using WpfDevTools.Mcp.Server.State;
 
 namespace WpfDevTools.Mcp.Server;
@@ -429,7 +430,8 @@ public sealed partial class SessionManager : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"SessionManager: Failed to dispose pipe client: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine(
+                        $"SessionManager: Failed to dispose pipe client: {SensitiveLogRedactor.Redact(ex.Message)}");
                 }
             }
 

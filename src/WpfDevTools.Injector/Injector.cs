@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using WpfDevTools.Injector.Discovery;
 using WpfDevTools.Injector.Injection;
 using WpfDevTools.Shared.Enums;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Injector;
 
@@ -297,7 +298,8 @@ public class ProcessInjector : IProcessInjector
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Injector: Process {processId} validation failed: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine(
+                $"Injector: Process {processId} validation failed: {SensitiveLogRedactor.Redact(ex.Message)}");
             return InjectionError.ProcessNotFound;
         }
 

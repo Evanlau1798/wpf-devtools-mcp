@@ -1,3 +1,5 @@
+using WpfDevTools.Shared.Utilities;
+
 namespace WpfDevTools.Mcp.Server;
 
 /// <summary>
@@ -231,7 +233,7 @@ public sealed class RateLimiterManager : IRateLimiterManager, IRateLimiterStatus
                 Volatile.Read(ref _disposeState) != 0,
                 cleanupAction: () => RemoveStaleEntries(TimeSpan.FromMinutes(30)),
                 onError: ex => System.Diagnostics.Debug.WriteLine(
-                    $"RateLimiterManager cleanup failed: {ex.Message}")),
+                    $"RateLimiterManager cleanup failed: {SensitiveLogRedactor.Redact(ex.Message)}")),
             null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
     }
 

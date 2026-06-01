@@ -6,6 +6,7 @@ using System.IO;
 using System.Threading.Tasks;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Shared.Configuration;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Inspector;
 
@@ -143,7 +144,7 @@ public static partial class Bootstrap
                 }
                 catch (Exception assemblyEx)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Bootstrap: Failed to search assembly for Application type: {assemblyEx.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Bootstrap: Failed to search assembly for Application type: {SensitiveLogRedactor.Redact(assemblyEx.Message)}");
                 }
             }
 #endif
@@ -250,7 +251,7 @@ public static partial class Bootstrap
             catch (Exception cleanupError)
             {
                 ex.Data["CleanupFailure"] = cleanupError;
-                System.Diagnostics.Trace.TraceError($"Bootstrap cleanup after initialization failure also failed: {cleanupError}");
+                System.Diagnostics.Trace.TraceError($"Bootstrap cleanup after initialization failure also failed: {SensitiveLogRedactor.Redact(cleanupError.ToString())}");
             }
 
             throw;
@@ -377,15 +378,15 @@ public static partial class Bootstrap
         {
             if (!FileLogOptInEvaluator())
             {
-                System.Diagnostics.Debug.WriteLine($"Bootstrap: {message}");
+                System.Diagnostics.Debug.WriteLine($"Bootstrap: {SensitiveLogRedactor.Redact(message)}");
                 return;
             }
 
-            FileLogAppendAction($"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} {message}{Environment.NewLine}");
+            FileLogAppendAction($"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} {SensitiveLogRedactor.Redact(message)}{Environment.NewLine}");
         }
         catch (Exception logEx)
         {
-            System.Diagnostics.Debug.WriteLine($"Bootstrap: Failed to write log file: {logEx.Message}");
+            System.Diagnostics.Debug.WriteLine($"Bootstrap: Failed to write log file: {SensitiveLogRedactor.Redact(logEx.Message)}");
         }
     }
 

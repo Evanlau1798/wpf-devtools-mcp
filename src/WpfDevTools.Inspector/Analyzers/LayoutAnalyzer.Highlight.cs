@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -93,7 +94,8 @@ public sealed partial class LayoutAnalyzer
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"LayoutAnalyzer: Invalid color '{color}', falling back to Red: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine(
+                $"LayoutAnalyzer: Invalid color '{SensitiveLogRedactor.Redact(color)}', falling back to Red: {SensitiveLogRedactor.Redact(ex.Message)}");
             return new SolidColorBrush(Colors.Red);
         }
     }

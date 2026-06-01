@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -196,7 +197,8 @@ public sealed class BindingErrorTraceListener : TraceListener
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"BindingErrorTraceListener: Failed to remove listener (may not be available in test contexts): {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine(
+                        $"BindingErrorTraceListener: Failed to remove listener (may not be available in test contexts): {SensitiveLogRedactor.Redact(ex.Message)}");
                 }
             }
 

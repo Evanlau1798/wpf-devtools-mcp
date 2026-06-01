@@ -38,6 +38,17 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
     }
 
     [Fact]
+    public void TestPackagedServerRuntimeScript_ShouldMakeExistingHostReuseSkipOptIn()
+    {
+        var script = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));
+
+        script.Should().Contain("[switch]$SkipExistingHostReuse");
+        script.Should().Contain("if ($SkipExistingHostReuse)");
+        script.Should().Contain("$startInfo.Environment['WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE'] = 'true'");
+    }
+
+    [Fact]
     public void PackagedRuntimeLiveSmokeHelper_ShouldNotPassEmptyEvidenceOutputPathToRuntimeSmoke()
     {
         var script = File.ReadAllText(

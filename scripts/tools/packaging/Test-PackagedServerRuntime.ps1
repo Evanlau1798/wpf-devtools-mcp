@@ -5,12 +5,11 @@ param(
     [string]$TargetProcessPath = '',
     [string]$EvidenceOutputPath = '',
     [int]$InitializeTimeoutMilliseconds = 10000,
-    [int]$RequestTimeoutMilliseconds = 10000
+    [int]$RequestTimeoutMilliseconds = 10000,
+    [switch]$SkipExistingHostReuse
 )
-
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-
 function Get-ProcessDiagnostics {
     param([Parameter(Mandatory)] [System.Diagnostics.Process]$Process)
 
@@ -338,7 +337,9 @@ if ($TargetProcessId -gt 0) {
     $startInfo.Environment['WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS'] = $resolvedTargetProcessPath
     $startInfo.Environment['WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS'] = 'true'
     $startInfo.Environment['WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS'] = 'true'
-    $startInfo.Environment['WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE'] = 'true'
+    if ($SkipExistingHostReuse) {
+        $startInfo.Environment['WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE'] = 'true'
+    }
 
     if ($env:WPFDEVTOOLS_INSTALLER_TEST_MODE -eq '1' -and
         [string]::Equals($env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS, 'Valid', [System.StringComparison]::OrdinalIgnoreCase)) {

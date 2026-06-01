@@ -64,11 +64,13 @@ param(
 $assetBlock
 )
 
+`$missingAssets = @(`$assets | Where-Object { -not (Test-Path -LiteralPath `$_ -PathType Leaf) })
+if (`$missingAssets.Count -gt 0) {
+    throw "Generated release upload script references missing staged release asset(s): `$(`$missingAssets -join ', ')"
+}
+
 # Upload assets staged next to this script.
-& gh release upload `
-    `$ReleaseTag `
-    @assets `
-    --clobber
+& gh release upload `$ReleaseTag `$assets --clobber
 "@
 }
 

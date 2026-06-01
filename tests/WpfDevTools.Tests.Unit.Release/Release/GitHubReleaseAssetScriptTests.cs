@@ -120,6 +120,43 @@ public sealed class GitHubReleaseAssetScriptTests
         }
     }
 
+    [Theory]
+    [InlineData("release_1.2.3_win-x64.zip")]
+    [InlineData("SHA256SUMS.txt")]
+    [InlineData("release-assets.json")]
+    [InlineData("release-sbom.spdx.json")]
+    public void ExportGitHubReleaseAssets_UploadScriptShouldFailBeforeGhWhenStagedAssetIsMissing(
+        string missingAssetName)
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var inputRoot = Path.Combine(tempRoot, "release-input");
+            var outputRoot = Path.Combine(tempRoot, "release-output");
+            Directory.CreateDirectory(inputRoot);
+            File.WriteAllText(Path.Combine(inputRoot, "release_1.2.3_win-x64.zip"), "x64-asset");
+
+            var exportResult = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"),
+                new[] { "-InputRoot", inputRoot, "-OutputRoot", outputRoot, "-Tag", "v1.2.3", "-OutputJson" });
+            exportResult.ExitCode.Should().Be(0, exportResult.Stderr);
+
+            var stagedRoot = Path.Combine(outputRoot, "v1.2.3");
+            File.Delete(Path.Combine(stagedRoot, missingAssetName));
+            var uploadResult = ReleaseScriptTestHarness.RunPowerShellScript(
+                Path.Combine(stagedRoot, "upload-gh-release.ps1"),
+                new[] { "-ReleaseTag", "v1.2.3" });
+
+            uploadResult.ExitCode.Should().NotBe(0);
+            (uploadResult.Stdout + Environment.NewLine + uploadResult.Stderr)
+                .Should().Contain("missing staged release asset");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     [Fact]
     public void ExportGitHubReleaseAssets_ShouldRejectUnsafeReleaseTags()
     {

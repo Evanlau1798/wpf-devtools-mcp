@@ -26,6 +26,18 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
     }
 
     [Fact]
+    public void TestPackagedServerRuntimeScript_ShouldRetryTransientNotWpfApplicationConnectFailures()
+    {
+        var script = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));
+
+        script.Should().Contain("for ($connectAttempt = 1; ; $connectAttempt++)");
+        script.Should().Contain("NotWpfApplication");
+        script.Should().Contain("$connectAttempt -ge 20");
+        script.Should().Contain("Retrying packaged server connect after transient target-readiness error");
+    }
+
+    [Fact]
     public void PackagedRuntimeLiveSmokeHelper_ShouldNotPassEmptyEvidenceOutputPathToRuntimeSmoke()
     {
         var script = File.ReadAllText(

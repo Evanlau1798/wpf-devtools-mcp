@@ -394,9 +394,18 @@ try {
 
     $targetAwareLiveSmokePassed = $false
     if ($TargetProcessId -gt 0) {
-        Invoke-McpTool -Process $process -Id 6 -Name 'connect' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
-            processId = $TargetProcessId
-        } | Out-Null
+        for ($connectAttempt = 1; ; $connectAttempt++) {
+            try {
+                Invoke-McpTool -Process $process -Id 6 -Name 'connect' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{ processId = $TargetProcessId } | Out-Null
+                break
+            }
+            catch {
+                $targetStillStarting = $_.Exception.Message -match '(?:"|\\")errorCode(?:"|\\")\s*:\s*(?:"|\\")NotWpfApplication(?:"|\\")'
+                if (-not $targetStillStarting -or $connectAttempt -ge 20) { throw }
+                Write-Host "Retrying packaged server connect after transient target-readiness error ($connectAttempt/20)."
+                Start-Sleep -Milliseconds 500
+            }
+        }
 
         Invoke-McpTool -Process $process -Id 7 -Name 'ping' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
             processId = $TargetProcessId

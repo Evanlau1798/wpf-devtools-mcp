@@ -366,6 +366,10 @@ public class ReleasePackagingWorkflowTests
             "Publish-Release.ps1 only supports deterministic fake signature validation when the workflow opts into installer test mode");
         content.Should().Contain("WPFDEVTOOLS_TEST_TRUST_LOCAL_RELEASE_SIGNATURE_SKIP",
             "target-aware package smoke uses unsigned local Release artifacts and must explicitly opt into the repo-local signature skip before connect");
+        content.Should().Contain("tmp-release-user-smoke\\install\\AppData\\Roaming",
+            "package-local smoke state must not be overwritten by the online-installer smoke in the same job");
+        content.Should().Contain("tmp-release-user-smoke\\bootstrap\\AppData\\Roaming",
+            "online-installer smoke needs isolated installer state so residue checks inspect the intended install root");
         content.Should().Contain("Valid",
             "the smoke workflow should force a valid test signature state instead of depending on unsigned runner artifacts");
     }

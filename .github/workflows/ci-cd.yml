@@ -206,6 +206,9 @@ jobs:
 
     - name: Install published package smoke test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
       run: |
         $packageArchive = Get-ChildItem 'artifacts/release' -File -Filter "release_*_win-${{ matrix.architecture }}.zip" |
           Sort-Object Name -Descending |
@@ -227,6 +230,9 @@ jobs:
 
     - name: Start installed package runtime smoke test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
       run: |
         $serverPath = Join-Path (Resolve-Path './tmp-release-install-smoke').Path '${{ matrix.architecture }}\current\bin\wpf-devtools-${{ matrix.architecture }}.exe'
 
@@ -238,6 +244,9 @@ jobs:
 
     - name: Online installer smoke test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
       run: |
         $packageArchive = Get-ChildItem 'artifacts/release' -File -Filter "release_*_win-${{ matrix.architecture }}.zip" |
           Sort-Object Name -Descending |
@@ -253,6 +262,9 @@ jobs:
 
     - name: Start online-installed runtime smoke test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
       run: |
         $serverPath = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path '${{ matrix.architecture }}\current\bin\wpf-devtools-${{ matrix.architecture }}.exe'
 
@@ -264,6 +276,9 @@ jobs:
 
     - name: Uninstall published package smoke test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
       run: |
         $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path '${{ matrix.architecture }}\current\bin\install.ps1'
 
@@ -277,6 +292,9 @@ jobs:
 
     - name: Full uninstall published package residue test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
       run: |
         $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
         $script:WpfDevToolsInstallerTestModeEnabled = $true
@@ -285,6 +303,9 @@ jobs:
 
     - name: Uninstall online installer smoke test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
       run: |
         $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path '${{ matrix.architecture }}\current\bin\install.ps1'
 
@@ -298,6 +319,9 @@ jobs:
 
     - name: Full uninstall online installer residue test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
       run: |
         $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
         $script:WpfDevToolsInstallerTestModeEnabled = $true
@@ -332,6 +356,9 @@ jobs:
 
     - name: Install published ARM64 package smoke test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
       run: |
         $packageArchive = Get-ChildItem 'artifacts/release' -File -Filter 'release_*_win-arm64.zip' |
           Sort-Object Name -Descending |
@@ -353,6 +380,9 @@ jobs:
 
     - name: Start installed ARM64 runtime smoke test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
       run: |
         $serverPath = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'arm64\current\bin\wpf-devtools-arm64.exe'
 
@@ -364,6 +394,9 @@ jobs:
 
     - name: ARM64 online installer smoke test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
       run: |
         $packageArchive = Get-ChildItem 'artifacts/release' -File -Filter 'release_*_win-arm64.zip' |
           Sort-Object Name -Descending |
@@ -379,6 +412,9 @@ jobs:
 
     - name: Start online-installed ARM64 runtime smoke test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
       run: |
         $serverPath = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'arm64\current\bin\wpf-devtools-arm64.exe'
 
@@ -390,6 +426,9 @@ jobs:
 
     - name: Uninstall published ARM64 package smoke test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
       run: |
         $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'arm64\current\bin\install.ps1'
 
@@ -403,6 +442,9 @@ jobs:
 
     - name: Full uninstall published ARM64 package residue test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
       run: |
         $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
         $script:WpfDevToolsInstallerTestModeEnabled = $true
@@ -411,6 +453,9 @@ jobs:
 
     - name: Uninstall ARM64 online installer smoke test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
       run: |
         $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'arm64\current\bin\install.ps1'
 
@@ -424,6 +469,9 @@ jobs:
 
     - name: Full uninstall ARM64 online installer residue test
       shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
       run: |
         $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
         $script:WpfDevToolsInstallerTestModeEnabled = $true

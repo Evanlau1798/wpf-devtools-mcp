@@ -127,7 +127,7 @@ foreach ($script in Get-ChildItem -LiteralPath $scriptRoot -Filter '*.ps1') {
         stepBlock.Should().Contain("Invoke-ExternalWithTimeout");
         stepBlock.Should().Contain("-TimeoutSeconds $TimeoutSeconds");
         stepBlock.Should().Contain("Process logs:");
-        preflight.Should().Contain("Invoke-PowerShellStep -Name 'Install .NET runtime'").And.Contain("-TimeoutSeconds 900");
+        preflight.Should().Contain("Install .NET $runtimeName runtime").And.Contain("-TimeoutSeconds 900");
         preflight.Should().Contain("$runtimeSmokeTimeoutSeconds");
         preflight.Should().Contain("function Invoke-RuntimeSmoke");
         preflight.Should().Contain("Invoke-PowerShellStep -Name $Name -Arguments $runtimeSmokeArguments -TimeoutSeconds $runtimeSmokeTimeoutSeconds");

@@ -133,7 +133,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Structured logging failed: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Structured logging failed: {SensitiveLogRedactor.Redact(ex.Message)}");
         }
     }
 
@@ -171,7 +171,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Logging failed: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Logging failed: {SensitiveLogRedactor.Redact(ex.Message)}");
         }
     }
 
@@ -230,7 +230,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Logging failed: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"Logging failed: {SensitiveLogRedactor.Redact(ex.Message)}");
                     }
                 }
             }
@@ -248,7 +248,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Logging failed: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Logging failed: {SensitiveLogRedactor.Redact(ex.Message)}");
                 }
             }
 #endif
@@ -350,7 +350,7 @@ public sealed class FileLogger : IDisposable, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Log rotation failed: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Log rotation failed: {SensitiveLogRedactor.Redact(ex.Message)}");
         }
     }
 

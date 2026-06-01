@@ -33,6 +33,10 @@ public sealed class SensitiveTraceLoggingContractTests
         "src/WpfDevTools.Injector/Injection/DllInjector.cs",
         "SensitiveLogRedactor.Redact(diagnosticMessage)",
         "SensitiveLogRedactor.Redact(exception.ToString())")]
+    [InlineData(
+        "src/WpfDevTools.Shared/Utilities/FileLogger.cs",
+        "SensitiveLogRedactor.Redact(ex.Message)",
+        "SensitiveLogRedactor.Redact(shutdownError.Message)")]
     public void ProductionTraceDiagnostics_ShouldRedactSensitiveMessages(
         string relativePath,
         string firstExpectedRedaction,

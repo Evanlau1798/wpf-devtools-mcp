@@ -114,7 +114,8 @@ $uploadScriptPath = Join-Path $stagingRoot 'upload-gh-release.ps1'
 $uploadAssetNames = @($manifest.assets | ForEach-Object { [string]$_.name }) +
     'SHA256SUMS.txt' +
     'release-assets.json' +
-    'release-sbom.spdx.json'
+    'release-sbom.spdx.json' +
+    'package-sbom.spdx.json'
 New-UploadScriptContent -ReleaseTag $Tag -AssetNames ([string[]]$uploadAssetNames) | Set-Content -Path $uploadScriptPath -Encoding UTF8
 
 if ($OutputJson) {

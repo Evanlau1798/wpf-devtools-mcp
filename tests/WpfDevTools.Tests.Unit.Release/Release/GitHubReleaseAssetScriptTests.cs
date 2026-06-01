@@ -125,6 +125,7 @@ public sealed class GitHubReleaseAssetScriptTests
     [InlineData("SHA256SUMS.txt")]
     [InlineData("release-assets.json")]
     [InlineData("release-sbom.spdx.json")]
+    [InlineData("package-sbom.spdx.json")]
     public void ExportGitHubReleaseAssets_UploadScriptShouldFailBeforeGhWhenStagedAssetIsMissing(
         string missingAssetName)
     {
@@ -362,6 +363,66 @@ public sealed class GitHubReleaseAssetScriptTests
                 checksum.GetProperty("checksumValue").GetString()
                     .Should().Be(manifestAssets[packageName].GetProperty("sha256").GetString());
             }
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void ExportGitHubReleaseAssets_ShouldWriteFullPackageDependencySbom()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var inputRoot = Path.Combine(tempRoot, "release-input");
+            var outputRoot = Path.Combine(tempRoot, "release-output");
+            Directory.CreateDirectory(inputRoot);
+
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(
+                tempRoot,
+                "x64",
+                useSignedPayload: false,
+                isolateArchiveContents: true);
+            File.Copy(archivePath, Path.Combine(inputRoot, Path.GetFileName(archivePath)), overwrite: true);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"),
+                new[] { "-InputRoot", inputRoot, "-OutputRoot", outputRoot, "-Tag", "v1.2.3", "-OutputJson" });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            var stagedRoot = Path.Combine(outputRoot, "v1.2.3");
+            var packageSbomPath = Path.Combine(stagedRoot, "package-sbom.spdx.json");
+            File.Exists(packageSbomPath).Should().BeTrue();
+
+            using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(stagedRoot, "release-assets.json")));
+            var packageSidecar = manifest.RootElement.GetProperty("sidecars")
+                .EnumerateArray()
+                .Single(sidecar => sidecar.GetProperty("name").GetString() == "package-sbom.spdx.json");
+            packageSidecar.GetProperty("role").GetString().Should().Be("package-dependency-spdx-sbom");
+            packageSidecar.GetProperty("sha256").GetString().Should().Be(ComputeSha256(packageSbomPath));
+
+            var uploadScript = File.ReadAllText(Path.Combine(stagedRoot, "upload-gh-release.ps1"));
+            uploadScript.Should().Contain("package-sbom.spdx.json");
+
+            using var sbom = JsonDocument.Parse(File.ReadAllText(packageSbomPath));
+            sbom.RootElement.GetProperty("documentComment").GetString()
+                .Should().Contain("full package/dependency SBOM");
+            sbom.RootElement.GetProperty("packages").EnumerateArray()
+                .Select(package => package.GetProperty("name").GetString())
+                .Should().Contain("ModelContextProtocol");
+
+            var files = sbom.RootElement.GetProperty("files").EnumerateArray().ToArray();
+            files.Select(file => file.GetProperty("fileName").GetString()).Should().Contain(
+                "release_1.2.3_win-x64.zip!/bin/install.ps1",
+                "release_1.2.3_win-x64.zip!/run.bat",
+                "release_1.2.3_win-x64.zip!/bin/wpf-devtools-x64.exe",
+                "release_1.2.3_win-x64.zip!/bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll",
+                "release_1.2.3_win-x64.zip!/bin/bootstrapper/x64/WpfDevTools.Bootstrapper.x64.dll",
+                "scripts/online-installer.ps1");
+            files.Should().OnlyContain(file =>
+                file.GetProperty("checksums")[0].GetProperty("checksumValue").GetString()!.Length == 64);
         }
         finally
         {

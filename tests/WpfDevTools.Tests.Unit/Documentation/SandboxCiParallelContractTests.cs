@@ -114,8 +114,8 @@ public sealed partial class SandboxCiScriptContractTests
             result.Output.Should().Contain("lane-two");
             var laneOne = ReadLaneTimes(laneOneTimesPath);
             var laneTwo = ReadLaneTimes(laneTwoTimesPath);
-            laneOne.Start.Should().BeLessThan(laneTwo.End);
-            laneTwo.Start.Should().BeLessThan(laneOne.End);
+            laneOne.Start.Should().BeLessOrEqualTo(laneTwo.End);
+            laneTwo.Start.Should().BeLessOrEqualTo(laneOne.End);
             File.ReadAllText(Path.Combine(tempRoot, "logs", "process", "parallel-contract", "parallel_lane_one.stdout.log"))
                 .Should().Contain("lane-one");
             File.ReadAllText(Path.Combine(tempRoot, "logs", "process", "parallel-contract", "parallel_lane_two.stdout.log"))

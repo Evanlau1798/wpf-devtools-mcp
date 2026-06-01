@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Security.Cryptography;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
@@ -134,6 +135,8 @@ public class ElementScreenshotToolTests
                 var screenshotPath = Path.Combine(
                     screenshotDirectory ?? Path.GetTempPath(),
                     screenshotId + ".png");
+                var screenshotBytes = new byte[] { 137, 80, 78, 71 };
+                await File.WriteAllBytesAsync(screenshotPath, screenshotBytes);
                 var response = new InspectorResponse
                 {
                     Id = request.Id,
@@ -145,8 +148,8 @@ public class ElementScreenshotToolTests
                         width = 160,
                         height = 80,
                         format = "png",
-                        byteLength = 256,
-                        sha256 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                        byteLength = screenshotBytes.Length,
+                        sha256 = Convert.ToHexString(SHA256.HashData(screenshotBytes)).ToLowerInvariant(),
                         path = screenshotPath
                     })
                 };

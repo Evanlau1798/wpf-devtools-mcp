@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Tests.Unit.TestSupport;
 
@@ -75,6 +76,30 @@ public sealed class DocfxValidationScriptTests
     }
 
     [Fact]
+    public void Script_ShouldWriteDocFxEvidenceJson()
+    {
+        var fixture = CreateFixture();
+        try
+        {
+            WriteValidDocumentationFixture(fixture);
+            var evidencePath = Path.Combine(fixture, "artifacts", "docfx-evidence.json");
+
+            var result = RunValidationScript(fixture, evidencePath);
+
+            result.ExitCode.Should().Be(0, result.CombinedOutput);
+            File.Exists(evidencePath).Should().BeTrue();
+            using var evidence = JsonDocument.Parse(File.ReadAllText(evidencePath));
+            evidence.RootElement.GetProperty("englishParity").GetBoolean().Should().BeTrue();
+            evidence.RootElement.GetProperty("zhTwParity").GetBoolean().Should().BeTrue();
+            evidence.RootElement.GetProperty("brokenLinks").GetInt32().Should().Be(0);
+        }
+        finally
+        {
+            DeleteFixture(fixture);
+        }
+    }
+
+    [Fact]
     public void Script_ShouldUsePortableRelativePathJoins()
     {
         var content = File.ReadAllText(ScriptPath);
@@ -119,7 +144,7 @@ public sealed class DocfxValidationScriptTests
         File.WriteAllText(path, content);
     }
 
-    private static ScriptResult RunValidationScript(string repoRoot)
+    private static ScriptResult RunValidationScript(string repoRoot, string? evidenceOutputPath = null)
     {
         var startInfo = new ProcessStartInfo("powershell.exe")
         {
@@ -134,6 +159,11 @@ public sealed class DocfxValidationScriptTests
         startInfo.ArgumentList.Add(ScriptPath);
         startInfo.ArgumentList.Add("-RepoRoot");
         startInfo.ArgumentList.Add(repoRoot);
+        if (!string.IsNullOrWhiteSpace(evidenceOutputPath))
+        {
+            startInfo.ArgumentList.Add("-EvidenceOutputPath");
+            startInfo.ArgumentList.Add(evidenceOutputPath);
+        }
 
         using var process = Process.Start(startInfo)!;
         var output = process.StandardOutput.ReadToEnd();

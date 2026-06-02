@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$RepoRoot
+    [string]$RepoRoot,
+    [string]$EvidenceOutputPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -20,6 +21,41 @@ function Add-ValidationFailure {
     param([Parameter(Mandatory = $true)] [string]$Message)
 
     [void]$script:Failures.Add($Message)
+}
+
+function Write-DocFxEvidence {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return
+    }
+
+    $englishParityFailures = @($script:Failures | Where-Object {
+            $_.StartsWith('Missing English DocFX page', [System.StringComparison]::Ordinal) -or
+            $_.StartsWith('Missing generated English tool reference', [System.StringComparison]::Ordinal)
+        })
+    $zhTwParityFailures = @($script:Failures | Where-Object {
+            $_.StartsWith('Missing zh-TW DocFX page', [System.StringComparison]::Ordinal) -or
+            $_.StartsWith('Missing generated zh-TW tool reference', [System.StringComparison]::Ordinal)
+        })
+    $brokenLinks = @($script:Failures | Where-Object {
+            $_.StartsWith('Broken internal link', [System.StringComparison]::Ordinal)
+        })
+
+    $evidence = [ordered]@{
+        generatedUtc = (Get-Date).ToUniversalTime().ToString('O')
+        englishParity = $englishParityFailures.Count -eq 0
+        zhTwParity = $zhTwParityFailures.Count -eq 0
+        brokenLinks = [int]$brokenLinks.Count
+        failureCount = [int]$script:Failures.Count
+    }
+
+    $directory = Split-Path -Parent ([System.IO.Path]::GetFullPath($Path))
+    if (-not [string]::IsNullOrWhiteSpace($directory)) {
+        New-Item -ItemType Directory -Force -Path $directory | Out-Null
+    }
+
+    $evidence | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
 function Join-PathMany {
@@ -326,6 +362,7 @@ if ($script:Failures.Count -eq 0) {
 }
 
 if ($script:Failures.Count -gt 0) {
+    Write-DocFxEvidence -Path $EvidenceOutputPath
     foreach ($failure in $script:Failures) {
         Write-Host "ERROR: $failure"
     }
@@ -333,4 +370,5 @@ if ($script:Failures.Count -gt 0) {
     exit 1
 }
 
+Write-DocFxEvidence -Path $EvidenceOutputPath
 Write-Host 'DocFX documentation validation passed.'

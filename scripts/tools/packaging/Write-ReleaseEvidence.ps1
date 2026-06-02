@@ -6,6 +6,7 @@ param(
     [string]$WorkflowRunId = $env:GITHUB_RUN_ID,
     [string[]]$RunnerMatrix = @(),
     [Parameter(Mandatory)] [string[]]$RuntimeEvidencePath,
+    [Parameter(Mandatory)] [string]$DocFxEvidencePath,
     [Parameter(Mandatory)] [string]$Sha256SumsPath,
     [Parameter(Mandatory)] [string]$ReleaseAssetsPath,
     [Parameter(Mandatory)] [string]$ReleaseSbomPath,
@@ -86,6 +87,36 @@ function Read-RuntimeEvidence {
         }
 
         Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+    }
+}
+
+function Get-RequiredJsonProperty {
+    param(
+        [Parameter(Mandatory)] [object]$Object,
+        [Parameter(Mandatory)] [string]$Name,
+        [Parameter(Mandatory)] [string]$Source
+    )
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        throw "$Source is missing required property '$Name'."
+    }
+
+    return $property.Value
+}
+
+function Read-DocFxEvidence {
+    param([Parameter(Mandatory)] [string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "DocFX evidence JSON is missing: $Path"
+    }
+
+    $source = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    return [ordered]@{
+        englishParity = [bool](Get-RequiredJsonProperty -Object $source -Name 'englishParity' -Source 'DocFX evidence')
+        zhTwParity = [bool](Get-RequiredJsonProperty -Object $source -Name 'zhTwParity' -Source 'DocFX evidence')
+        brokenLinks = [int](Get-RequiredJsonProperty -Object $source -Name 'brokenLinks' -Source 'DocFX evidence')
     }
 }
 
@@ -232,6 +263,7 @@ function Get-PinnedGitHubActions {
 }
 
 $runtimeEvidence = @(Read-RuntimeEvidence -Paths $RuntimeEvidencePath)
+$docFxEvidence = Read-DocFxEvidence -Path $DocFxEvidencePath
 $repositoryValue = if ([string]::IsNullOrWhiteSpace($Repository)) { 'Evanlau1798/wpf-devtools-mcp' } else { $Repository }
 $branchValue = Resolve-GitValue -Value $Branch -FallbackCommand 'branch --show-current'
 $commitShaValue = Resolve-GitValue -Value $CommitSha -FallbackCommand 'rev-parse HEAD'
@@ -274,11 +306,7 @@ $evidence = [ordered]@{
         nameSetHash = [string](Get-FirstValue -Evidence $runtimeEvidence -Section 'toolsList' -Property 'nameSetHash')
         schemaSnapshotHash = [string](Get-FirstValue -Evidence $runtimeEvidence -Section 'toolsList' -Property 'schemaSnapshotHash')
     }
-    docfx = [ordered]@{
-        englishParity = $true
-        zhTwParity = $true
-        brokenLinks = 0
-    }
+    docfx = $docFxEvidence
     security = [ordered]@{
         mitmMatrixPassed = Test-AllTrue -Evidence $runtimeEvidence -Section 'security' -Property 'mitmMatrixPassed'
         stdoutPurityPassed = Test-AllTrue -Evidence $runtimeEvidence -Section 'security' -Property 'stdoutPurityPassed'

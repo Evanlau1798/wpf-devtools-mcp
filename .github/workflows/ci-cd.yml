@@ -40,7 +40,13 @@ jobs:
 
     - name: Validate DocFX links and parity
       shell: pwsh
-      run: ./scripts/ci/Test-DocFxDocumentation.ps1 -RepoRoot $PWD
+      run: ./scripts/ci/Test-DocFxDocumentation.ps1 -RepoRoot $PWD -EvidenceOutputPath artifacts/release/docfx-evidence.json
+
+    - name: Upload DocFX evidence
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: docfx-evidence
+        path: artifacts/release/docfx-evidence.json
 
   build-and-test:
     runs-on: windows-2022
@@ -180,6 +186,7 @@ jobs:
       run: dotnet build --configuration Release -p:Platform=ARM64 -m:1 -nodeReuse:false -p:UseSharedCompilation=false
 
   release-packaging-smoke:
+    needs: docs-validation
     runs-on: windows-2022
     env:
       WPFDEVTOOLS_INSTALLER_TEST_MODE: '1'
@@ -209,6 +216,12 @@ jobs:
 
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
+
+    - name: Download DocFX evidence
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      with:
+        name: docfx-evidence
+        path: artifacts/release
 
     - name: Run release packaging smoke test
       shell: pwsh
@@ -350,6 +363,7 @@ jobs:
           -WorkflowRunId '${{ github.run_id }}' `
           -RunnerMatrix "windows-${{ matrix.architecture }}" `
           -RuntimeEvidencePath "artifacts/release/runtime-evidence-${{ matrix.architecture }}-installed.json,artifacts/release/runtime-evidence-${{ matrix.architecture }}-online.json" `
+          -DocFxEvidencePath 'artifacts/release/docfx-evidence.json' `
           -Sha256SumsPath 'artifacts/release/SHA256SUMS.txt' `
           -ReleaseAssetsPath 'artifacts/release/release-assets.json' `
           -ReleaseSbomPath 'artifacts/release/release-sbom.spdx.json' `

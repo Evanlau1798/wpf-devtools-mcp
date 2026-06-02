@@ -82,6 +82,25 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
 
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Restore project dependencies
+        run: dotnet restore WpfDevTools.sln --locked-mode
+
+      - name: Build shared assembly for API docs
+        run: dotnet build src/WpfDevTools.Shared/WpfDevTools.Shared.csproj -c Debug -f net8.0
+
+      - name: Build SDK assembly for API docs
+        run: dotnet build src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj -c Debug -f net8.0-windows
+
+      - name: Build DocFX site
+        run: dotnet tool run docfx docfx/docfx.json
+
+      - name: Validate DocFX links and parity
+        shell: pwsh
+        run: ./scripts/ci/Test-DocFxDocumentation.ps1 -RepoRoot $PWD -EvidenceOutputPath artifacts/release/docfx-evidence.json
+
       - name: Materialize signing certificate
         shell: pwsh
         env:
@@ -143,6 +162,8 @@ jobs:
             -Tag $env:RELEASE_TAG `
             -TrustedSignerThumbprint $env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT `
             -OutputJson
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $env:RELEASE_TAG
+          Copy-Item -LiteralPath 'artifacts/release/docfx-evidence.json' -Destination (Join-Path $stagingRoot 'docfx-evidence.json') -Force
 
       - name: Upload staged release bundle artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -156,6 +177,7 @@ jobs:
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release-assets.json
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release-sbom.spdx.json
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/package-sbom.spdx.json
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/docfx-evidence.json
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/upload-gh-release.ps1
 
       - name: Cleanup materialized signing certificate
@@ -624,6 +646,7 @@ jobs:
             -WorkflowRunId '${{ github.run_id }}' `
             -RunnerMatrix 'windows-x64,windows-x86,windows-arm64' `
             -RuntimeEvidencePath $runtimeEvidenceCsv `
+            -DocFxEvidencePath (Join-Path $stagingRoot 'docfx-evidence.json') `
             -Sha256SumsPath (Join-Path $stagingRoot 'SHA256SUMS.txt') `
             -ReleaseAssetsPath (Join-Path $stagingRoot 'release-assets.json') `
             -ReleaseSbomPath (Join-Path $stagingRoot 'release-sbom.spdx.json') `

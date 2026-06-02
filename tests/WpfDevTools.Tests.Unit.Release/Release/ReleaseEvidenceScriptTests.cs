@@ -14,6 +14,7 @@ public sealed class ReleaseEvidenceScriptTests
         {
             var outputPath = Path.Combine(tempRoot, "release-evidence.json");
             var runtimeEvidencePath = Path.Combine(tempRoot, "runtime-evidence.json");
+            var docFxEvidencePath = Path.Combine(tempRoot, "docfx-evidence.json");
             File.WriteAllText(
                 runtimeEvidencePath,
                 """
@@ -46,6 +47,15 @@ public sealed class ReleaseEvidenceScriptTests
                   }
                 }
                 """);
+            File.WriteAllText(
+                docFxEvidencePath,
+                """
+                {
+                  "englishParity": true,
+                  "zhTwParity": true,
+                  "brokenLinks": 0
+                }
+                """);
 
             var shaSumsPath = Path.Combine(tempRoot, "SHA256SUMS.txt");
             var releaseAssetsPath = Path.Combine(tempRoot, "release-assets.json");
@@ -66,6 +76,7 @@ public sealed class ReleaseEvidenceScriptTests
                     "-WorkflowRunId", "123456789",
                     "-RunnerMatrix", "windows-x64,windows-x86,windows-arm64-or-not-public",
                     "-RuntimeEvidencePath", runtimeEvidencePath + "," + runtimeEvidencePath,
+                    "-DocFxEvidencePath", docFxEvidencePath,
                     "-Sha256SumsPath", shaSumsPath,
                     "-ReleaseAssetsPath", releaseAssetsPath,
                     "-ReleaseSbomPath", sbomPath,

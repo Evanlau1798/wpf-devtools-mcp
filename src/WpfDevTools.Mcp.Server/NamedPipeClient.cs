@@ -31,7 +31,7 @@ internal enum NamedPipeConnectFailure
 public sealed partial class NamedPipeClient : IDisposable
 {
     private const string InspectorCertificateSubject = "CN=WpfDevTools-Inspector";
-    private static readonly TimeSpan DisposeSemaphoreWaitTimeout = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan DisposeInFlightRequestGraceTimeout = TimeSpan.FromSeconds(2);
 
     private static readonly JsonSerializerOptions IpcSerializerOptions = new()
     {

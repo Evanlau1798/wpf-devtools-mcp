@@ -303,7 +303,7 @@ public class NamedPipeClientTimeoutBudgetTests : IDisposable
         var disposeTask = Task.Run(client.Dispose);
         var completedBeforeTimeout = await Task.WhenAny(
             disposeTask,
-            Task.Delay(TimeSpan.FromSeconds(2))) == disposeTask;
+            Task.Delay(TimeSpan.FromSeconds(3))) == disposeTask;
 
         requestLifetime.Cancel();
         server.Dispose();
@@ -312,7 +312,7 @@ public class NamedPipeClientTimeoutBudgetTests : IDisposable
         await disposeTask.WaitAsync(TimeSpan.FromSeconds(2));
 
         completedBeforeTimeout.Should().BeTrue(
-            "Dispose should close the pipe and use a bounded semaphore wait instead of blocking until the request timeout");
+            "Dispose should close the pipe after a bounded grace window instead of blocking until the request timeout");
     }
 
     private static async Task RunSilentPipeServerAsync(

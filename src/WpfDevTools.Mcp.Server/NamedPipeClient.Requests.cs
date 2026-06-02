@@ -158,7 +158,7 @@ public sealed partial class NamedPipeClient
             return;
         }
 
-        if (_pipeSemaphore.Wait(DisposeSemaphoreWaitTimeout))
+        if (_pipeSemaphore.Wait(DisposeInFlightRequestGraceTimeout))
         {
             try
             {

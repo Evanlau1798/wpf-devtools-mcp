@@ -261,6 +261,9 @@ public sealed class GitLabCiWindowsVerificationContractTests
         script.Should().Contain("-LocalWorkRoot $localWorkRootPath");
         script.Should().Contain("tmp\\hosted-ci",
             "the no-VM hosted CI path should keep one-off work and logs under the repository tmp directory");
+        script.Should().Contain("[int]$MaxParallelLanes = 4");
+        script.Should().Contain("[int]$UnitDebugShardCount = 4");
+        script.Should().Contain("[int]$ReleaseUnitShardCount = 8");
         script.Should().NotContain("WindowsSandbox.exe");
         script.Should().NotContain(".wsb");
         script.Should().NotContain("Stop-WindowsSandboxHcs.ps1");

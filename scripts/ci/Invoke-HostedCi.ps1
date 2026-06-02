@@ -10,7 +10,7 @@ param(
     [int]$Repeat = 1,
 
     [ValidateRange(1, 8)]
-    [int]$MaxParallelLanes = 1,
+    [int]$MaxParallelLanes = 4,
 
     [ValidateScript({
         if ($_ -eq 1 -or $_ -eq 4) {
@@ -19,7 +19,7 @@ param(
 
         throw 'UnitDebugShardCount currently supports 1 or 4.'
     })]
-    [int]$UnitDebugShardCount = 1,
+    [int]$UnitDebugShardCount = 4,
 
     [ValidateScript({
         if ($_ -eq 1 -or $_ -eq 4 -or $_ -eq 8) {
@@ -28,7 +28,7 @@ param(
 
         throw 'ReleaseUnitShardCount currently supports 1, 4, or 8.'
     })]
-    [int]$ReleaseUnitShardCount = 1
+    [int]$ReleaseUnitShardCount = 8
 )
 
 $ErrorActionPreference = 'Stop'

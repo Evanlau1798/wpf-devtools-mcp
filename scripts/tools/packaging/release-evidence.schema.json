@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Evanlau1798/wpf-devtools-mcp/schemas/release-evidence.schema.json",
+  "title": "WPF DevTools MCP release evidence",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "repository",
+    "branch",
+    "commitSha",
+    "workflowRunIds",
+    "runnerMatrix",
+    "toolsList",
+    "docfx",
+    "security",
+    "packageSmoke",
+    "liveSmoke",
+    "releaseAssets",
+    "signing",
+    "runnerEnvironment"
+  ],
+  "properties": {
+    "repository": { "type": "string" },
+    "branch": { "type": "string" },
+    "commitSha": { "type": "string" },
+    "workflowRunIds": { "type": "array", "items": { "type": "integer" } },
+    "runnerMatrix": { "type": "array", "items": { "type": "string" } },
+    "toolsList": {
+      "type": "object",
+      "required": [ "count", "nameSetHash", "schemaSnapshotHash" ],
+      "properties": {
+        "count": { "type": "integer" },
+        "nameSetHash": { "type": "string" },
+        "schemaSnapshotHash": { "type": "string" }
+      }
+    },
+    "docfx": {
+      "type": "object",
+      "required": [ "englishParity", "zhTwParity", "brokenLinks" ],
+      "properties": {
+        "englishParity": { "type": "boolean" },
+        "zhTwParity": { "type": "boolean" },
+        "brokenLinks": { "type": "integer" }
+      }
+    },
+    "security": {
+      "type": "object",
+      "required": [ "mitmMatrixPassed", "stdoutPurityPassed", "screenshotIntegrityPassed" ],
+      "properties": {
+        "mitmMatrixPassed": { "type": "boolean" },
+        "stdoutPurityPassed": { "type": "boolean" },
+        "screenshotIntegrityPassed": { "type": "boolean" }
+      }
+    },
+    "packageSmoke": {
+      "type": "object",
+      "required": [
+        "x64PackageLocal",
+        "x64OnlineInstaller",
+        "x86PackageLocal",
+        "x86OnlineInstaller",
+        "arm64PackageLocal",
+        "arm64OnlineInstaller"
+      ],
+      "properties": {
+        "x64PackageLocal": { "type": "string" },
+        "x64OnlineInstaller": { "type": "string" },
+        "x86PackageLocal": { "type": "string" },
+        "x86OnlineInstaller": { "type": "string" },
+        "arm64PackageLocal": { "type": "string" },
+        "arm64OnlineInstaller": { "type": "string" }
+      }
+    },
+    "liveSmoke": {
+      "type": "object",
+      "required": [ "connect", "ping", "getUiSummary", "safeRead", "mutationRestore", "uninstallResidue" ],
+      "properties": {
+        "connect": { "type": "boolean" },
+        "ping": { "type": "boolean" },
+        "getUiSummary": { "type": "boolean" },
+        "safeRead": { "type": "boolean" },
+        "mutationRestore": { "type": "boolean" },
+        "uninstallResidue": { "type": "boolean" }
+      }
+    },
+    "releaseAssets": {
+      "type": "object",
+      "required": [ "sha256SumsHash", "releaseAssetsJsonHash", "releaseSbomHash", "packageSbomHash" ],
+      "properties": {
+        "sha256SumsHash": { "type": "string" },
+        "releaseAssetsJsonHash": { "type": "string" },
+        "releaseSbomHash": { "type": "string" },
+        "packageSbomHash": { "type": "string" }
+      }
+    },
+    "signing": {
+      "type": "object",
+      "required": [ "expectedThumbprintHash", "observedThumbprintHash" ],
+      "properties": {
+        "expectedThumbprintHash": { "type": [ "string", "null" ] },
+        "observedThumbprintHash": { "type": [ "string", "null" ] }
+      }
+    },
+    "runnerEnvironment": {
+      "type": "object",
+      "required": [ "dotnetSdkVersion", "powerShellVersion", "workflowSha", "pinnedActionCount", "pinnedActions" ],
+      "properties": {
+        "dotnetSdkVersion": { "type": "string" },
+        "powerShellVersion": { "type": "string" },
+        "workflowSha": { "type": "string" },
+        "pinnedActionCount": { "type": "integer" },
+        "pinnedActions": { "type": "array" }
+      }
+    }
+  }
+}

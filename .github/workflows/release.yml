@@ -665,6 +665,9 @@ jobs:
             -UninstallResiduePassed `
             -PublicReleaseStrict
 
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-ReleaseEvidenceSchema.ps1 `
+            -EvidencePath (Join-Path $stagingRoot 'release-evidence.json')
+
       - name: Upload release evidence artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

@@ -18,6 +18,7 @@ public sealed class ReleaseEvidenceWorkflowTests
         content.Should().Contain("-DocFxEvidencePath 'artifacts/release/docfx-evidence.json'");
         content.Should().Contain("-PackageSbomPath 'artifacts/release/package-sbom.spdx.json'");
         content.Should().Contain("-WorkflowSha '${{ github.workflow_sha }}'");
+        content.Should().Contain("-EvidencePath \"artifacts/release/release-evidence-${{ matrix.architecture }}.json\"");
     }
 
     [Fact]
@@ -41,6 +42,7 @@ public sealed class ReleaseEvidenceWorkflowTests
         content.Should().Contain("/package-sbom.spdx.json");
         content.Should().Contain("-PackageSbomPath (Join-Path $stagingRoot 'package-sbom.spdx.json')");
         content.Should().Contain("-WorkflowSha '${{ github.workflow_sha }}'");
+        content.Should().Contain("-EvidencePath (Join-Path $stagingRoot 'release-evidence.json')");
     }
 
     [Fact]
@@ -66,6 +68,7 @@ public sealed class ReleaseEvidenceWorkflowTests
         content.Should().Contain("-EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-online.json'");
         content.Should().Contain("-OutputPath 'artifacts/release/release-evidence-arm64.json'");
         content.Should().Contain("-RuntimeEvidencePath 'artifacts/release/runtime-evidence-arm64-installed.json,artifacts/release/runtime-evidence-arm64-online.json'");
+        content.Should().Contain("-EvidencePath 'artifacts/release/release-evidence-arm64.json'");
         content.Should().Contain("path: artifacts/release/release-evidence-arm64.json");
     }
 }

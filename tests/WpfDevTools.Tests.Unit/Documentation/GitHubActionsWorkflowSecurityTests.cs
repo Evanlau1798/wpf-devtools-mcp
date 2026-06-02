@@ -99,6 +99,8 @@ public sealed class GitHubActionsWorkflowSecurityTests
         workflow.Should().Contain("github/codeql-action/analyze@");
         workflow.Should().Contain("security-events: write",
             "CodeQL needs permission to publish code scanning results");
+        workflow.Should().Contain("actions: read",
+            "CodeQL post-processing reads workflow run metadata before uploading SARIF, and the default token must allow that API call");
         workflow.Should().Contain("language: csharp",
             "managed MCP server and Inspector code must be part of the SAST baseline");
         workflow.Should().Contain("language: c-cpp",

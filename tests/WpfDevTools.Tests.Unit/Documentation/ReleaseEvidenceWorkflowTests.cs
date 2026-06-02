@@ -54,4 +54,18 @@ public sealed class ReleaseEvidenceWorkflowTests
         releaseWorkflow.Should().Contain("-SmokeInstallMode 'package-local'");
         releaseWorkflow.Should().Contain("-SmokeInstallMode 'online-installer'");
     }
+
+    [Fact]
+    public void CiWorkflow_ShouldWriteArm64ReleaseEvidenceWhenArm64SmokeIsEnabled()
+    {
+        var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(".github/workflows/ci-cd.yml"));
+
+        content.Should().Contain("release-packaging-smoke-arm64:");
+        content.Should().Contain("release-evidence-ci-arm64");
+        content.Should().Contain("-EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-installed.json'");
+        content.Should().Contain("-EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-online.json'");
+        content.Should().Contain("-OutputPath 'artifacts/release/release-evidence-arm64.json'");
+        content.Should().Contain("-RuntimeEvidencePath 'artifacts/release/runtime-evidence-arm64-installed.json,artifacts/release/runtime-evidence-arm64-online.json'");
+        content.Should().Contain("path: artifacts/release/release-evidence-arm64.json");
+    }
 }

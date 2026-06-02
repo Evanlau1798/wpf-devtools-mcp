@@ -381,6 +381,7 @@ jobs:
 
   release-packaging-smoke-arm64:
     if: vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE == 'true'
+    needs: docs-validation
     runs-on: [self-hosted, Windows, ARM64]
     env:
       WPFDEVTOOLS_INSTALLER_TEST_MODE: '1'
@@ -399,6 +400,12 @@ jobs:
 
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
+
+    - name: Download DocFX evidence
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      with:
+        name: docfx-evidence
+        path: artifacts/release
 
     - name: Run ARM64 release packaging smoke test
       shell: pwsh
@@ -441,7 +448,7 @@ jobs:
           throw "Could not locate installed ARM64 server executable at $serverPath"
         }
 
-        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'package-local'
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-installed.json'
 
     - name: ARM64 online installer smoke test
       shell: pwsh
@@ -473,7 +480,7 @@ jobs:
           throw "Could not locate online-installed ARM64 server executable at $serverPath"
         }
 
-        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'online-installer'
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-online.json'
 
     - name: Uninstall published ARM64 package smoke test
       shell: pwsh
@@ -528,6 +535,34 @@ jobs:
         $script:WpfDevToolsInstallerTestModeEnabled = $true
         . ./scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
         & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64'
+
+    - name: Write ARM64 release evidence summary
+      shell: pwsh
+      run: |
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Write-ReleaseEvidence.ps1 `
+          -OutputPath 'artifacts/release/release-evidence-arm64.json' `
+          -Repository '${{ github.repository }}' `
+          -Branch '${{ github.ref_name }}' `
+          -CommitSha '${{ github.sha }}' `
+          -WorkflowRunId '${{ github.run_id }}' `
+          -RunnerMatrix 'windows-arm64' `
+          -RuntimeEvidencePath 'artifacts/release/runtime-evidence-arm64-installed.json,artifacts/release/runtime-evidence-arm64-online.json' `
+          -DocFxEvidencePath 'artifacts/release/docfx-evidence.json' `
+          -Sha256SumsPath 'artifacts/release/SHA256SUMS.txt' `
+          -ReleaseAssetsPath 'artifacts/release/release-assets.json' `
+          -ReleaseSbomPath 'artifacts/release/release-sbom.spdx.json' `
+          -PackageSbomPath 'artifacts/release/package-sbom.spdx.json' `
+          -DotnetSdkVersion (dotnet --version) `
+          -PowerShellVersion $PSVersionTable.PSVersion.ToString() `
+          -WorkflowSha '${{ github.workflow_sha }}' `
+          -UninstallResiduePassed
+
+    - name: Upload ARM64 release evidence summary
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: release-evidence-ci-arm64
+        path: artifacts/release/release-evidence-arm64.json
+
   code-coverage:
     runs-on: windows-2022
 

@@ -159,6 +159,192 @@ function Get-InstallerVerificationCommandBlockedMessage {
     return "Automatic $Command verification is blocked while the installer is elevated because resolving '$Command' from PATH is unsafe."
 }
 
+function Initialize-InstallerVerificationProcessSnapshotInterop {
+    if ('InstallerVerificationProcessSnapshotInterop' -as [type]) {
+        return $true
+    }
+
+    $typeDefinition = @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+
+public static class InstallerVerificationProcessSnapshotInterop
+{
+    private const uint TH32CS_SNAPPROCESS = 0x00000002;
+    private static readonly IntPtr InvalidHandleValue = new IntPtr(-1);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessID);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ProcessEntry32
+    {
+        public uint dwSize;
+        public uint cntUsage;
+        public uint th32ProcessID;
+        public IntPtr th32DefaultHeapID;
+        public uint th32ModuleID;
+        public uint cntThreads;
+        public uint th32ParentProcessID;
+        public int pcPriClassBase;
+        public uint dwFlags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+        public string szExeFile;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool Process32First(IntPtr hSnapshot, ref ProcessEntry32 lppe);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool Process32Next(IntPtr hSnapshot, ref ProcessEntry32 lppe);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(IntPtr hObject);
+
+    public static int[] GetDescendantProcessIds(int rootProcessId)
+    {
+        var snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if (snapshot == IntPtr.Zero || snapshot == InvalidHandleValue)
+        {
+            return new int[0];
+        }
+
+        try
+        {
+            var parentByProcessId = new Dictionary<int, int>();
+            var entry = new ProcessEntry32();
+            entry.dwSize = (uint)Marshal.SizeOf(typeof(ProcessEntry32));
+            if (Process32First(snapshot, ref entry))
+            {
+                do
+                {
+                    parentByProcessId[(int)entry.th32ProcessID] = (int)entry.th32ParentProcessID;
+                    entry.dwSize = (uint)Marshal.SizeOf(typeof(ProcessEntry32));
+                }
+                while (Process32Next(snapshot, ref entry));
+            }
+
+            var descendants = new List<int>();
+            foreach (var pair in parentByProcessId)
+            {
+                var currentParent = pair.Value;
+                var visited = new HashSet<int>();
+                while (currentParent > 0 && visited.Add(currentParent))
+                {
+                    if (currentParent == rootProcessId)
+                    {
+                        descendants.Add(pair.Key);
+                        break;
+                    }
+
+                    if (!parentByProcessId.TryGetValue(currentParent, out currentParent))
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return descendants.ToArray();
+        }
+        finally
+        {
+            CloseHandle(snapshot);
+        }
+    }
+}
+'@
+
+    try {
+        Add-Type -TypeDefinition $typeDefinition -ErrorAction Stop
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+
+function Get-InstallerVerificationDescendantProcessIds {
+    param([Parameter(Mandatory)] [int]$ParentProcessId)
+
+    try {
+        if (Initialize-InstallerVerificationProcessSnapshotInterop) {
+            return @([InstallerVerificationProcessSnapshotInterop]::GetDescendantProcessIds($ParentProcessId))
+        }
+    }
+    catch {
+    }
+
+    return @()
+}
+
+function Stop-InstallerVerificationProcessId {
+    param([Parameter(Mandatory)] [int]$ProcessId)
+
+    if ($ProcessId -le 0) {
+        return
+    }
+
+    try {
+        $taskKillStartInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $taskKillStartInfo.FileName = 'taskkill.exe'
+        $taskKillStartInfo.Arguments = "/PID $ProcessId /T /F"
+        $taskKillStartInfo.UseShellExecute = $false
+        $taskKillStartInfo.RedirectStandardOutput = $true
+        $taskKillStartInfo.RedirectStandardError = $true
+        $taskKillStartInfo.CreateNoWindow = $true
+        $taskKill = New-Object System.Diagnostics.Process
+        $taskKill.StartInfo = $taskKillStartInfo
+        try {
+            $null = $taskKill.Start()
+            if (-not $taskKill.WaitForExit(2000)) {
+                $taskKill.Kill()
+            }
+        }
+        finally {
+            $taskKill.Dispose()
+        }
+    }
+    catch {
+    }
+
+    try {
+        Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    catch {
+    }
+}
+
+function Stop-InstallerVerificationProcessTree {
+    param([Parameter(Mandatory)] $Process)
+
+    $rootProcessId = [int]$Process.Id
+    $descendantIds = @(Get-InstallerVerificationDescendantProcessIds -ParentProcessId $rootProcessId)
+    foreach ($processId in @($descendantIds | Sort-Object -Descending)) {
+        Stop-InstallerVerificationProcessId -ProcessId $processId
+    }
+
+    Stop-InstallerVerificationProcessId -ProcessId $rootProcessId
+
+    try {
+        $Process.Refresh()
+        if (-not $Process.HasExited) {
+            $Process.Kill($true)
+        }
+    }
+    catch {
+        try {
+            $Process.Kill()
+        }
+        catch {
+        }
+    }
+
+    foreach ($processId in @(Get-InstallerVerificationDescendantProcessIds -ParentProcessId $rootProcessId)) {
+        Stop-InstallerVerificationProcessId -ProcessId $processId
+    }
+}
+
 function Invoke-VerificationCommand {
     param(
         [Parameter(Mandatory)] [string]$Command,
@@ -228,6 +414,7 @@ function Invoke-VerificationCommand {
     $process = $null
     $exitCode = -3
     try {
+        [void](Initialize-InstallerVerificationProcessSnapshotInterop)
         $startInfo.FileName = $filePath
         $startInfo.Arguments = $argumentText
         $process = New-Object System.Diagnostics.Process
@@ -236,25 +423,7 @@ function Invoke-VerificationCommand {
         $stdoutTask = $process.StandardOutput.ReadToEndAsync()
         $stderrTask = $process.StandardError.ReadToEndAsync()
         if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
-            try {
-                & taskkill.exe /PID $process.Id /T /F *> $null
-            }
-            catch {
-            }
-
-            try {
-                $process.Refresh()
-                if (-not $process.HasExited) {
-                    $process.Kill($true)
-                }
-            }
-            catch {
-                try {
-                    $process.Kill()
-                }
-                catch {
-                }
-            }
+            Stop-InstallerVerificationProcessTree -Process $process
 
             $timeoutDrainMs = 1000
             try {

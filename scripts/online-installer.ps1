@@ -1,4 +1,4 @@
-param(
+﻿param(
     [ValidateSet('install', 'uninstall', 'full-uninstall', 'plan')]
     [string]$Action = 'install',
 
@@ -287,7 +287,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:c72e1856679d11f29540bf829685ead43bcc08aa6fe37b4ad6f8b4cc9925f1bf'
+$script:InstallerHelperManifestCacheKey = 'sha256:78edc501141195ac688d3f4e1d07f7c37a28663e61fb298cb746cf169c073972'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/online-installer.release-assets.ps1'
     'scripts/installer/Installer.BootstrapUi.ps1'

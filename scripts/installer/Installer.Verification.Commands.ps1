@@ -237,22 +237,26 @@ function Invoke-VerificationCommand {
         $stderrTask = $process.StandardError.ReadToEndAsync()
         if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
             try {
-                $process.Kill($true)
+                & taskkill.exe /PID $process.Id /T /F *> $null
+            }
+            catch {
+            }
+
+            try {
+                $process.Refresh()
+                if (-not $process.HasExited) {
+                    $process.Kill($true)
+                }
             }
             catch {
                 try {
-                    & taskkill.exe /PID $process.Id /T /F *> $null
+                    $process.Kill()
                 }
                 catch {
-                    try {
-                        $process.Kill()
-                    }
-                    catch {
-                    }
                 }
             }
 
-            $timeoutDrainMs = 250
+            $timeoutDrainMs = 1000
             try {
                 $null = $process.WaitForExit($timeoutDrainMs)
             }

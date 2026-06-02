@@ -72,6 +72,7 @@ public sealed class InspectorHostSessionTimeoutTests : IDisposable
     public async Task PartialFrameConnection_ShouldBeReapedAfterSessionReadTimeout_AndAllowNextClient()
     {
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var sessionReadTimeout = TimeSpan.FromSeconds(1);
         using var host = new InspectorHost(
             pid,
             $"WpfDevTools_{pid}",
@@ -79,7 +80,7 @@ public sealed class InspectorHostSessionTimeoutTests : IDisposable
             certManager: null,
             FileLogLevel.Warning,
             startupTimeout: TimeSpan.FromSeconds(2),
-            sessionReadTimeout: TimeSpan.FromMilliseconds(250));
+            sessionReadTimeout: sessionReadTimeout);
         host.Start();
 
         using var stalledClient = new NamedPipeClientStream(
@@ -90,7 +91,7 @@ public sealed class InspectorHostSessionTimeoutTests : IDisposable
         await stalledClient.ConnectAsync(5_000);
         await SendPartialFrameAsync(stalledClient, declaredPayloadLength: 32, payloadBytes: new byte[] { 0x7B, 0x22 });
 
-        await Task.Delay(600);
+        await Task.Delay(sessionReadTimeout + TimeSpan.FromMilliseconds(500));
 
         using var activeClient = new NamedPipeClientStream(
             ".",
@@ -170,8 +171,10 @@ public sealed class InspectorHostSessionTimeoutTests : IDisposable
     private static async Task SendPartialFrameAsync(NamedPipeClientStream client, int declaredPayloadLength, byte[] payloadBytes)
     {
         var lengthPrefix = BitConverter.GetBytes(declaredPayloadLength);
-        await client.WriteAsync(lengthPrefix, 0, lengthPrefix.Length);
-        await client.WriteAsync(payloadBytes, 0, payloadBytes.Length);
+        var partialFrame = new byte[lengthPrefix.Length + payloadBytes.Length];
+        Buffer.BlockCopy(lengthPrefix, 0, partialFrame, 0, lengthPrefix.Length);
+        Buffer.BlockCopy(payloadBytes, 0, partialFrame, lengthPrefix.Length, payloadBytes.Length);
+        await client.WriteAsync(partialFrame, 0, partialFrame.Length);
         await client.FlushAsync();
     }
 }

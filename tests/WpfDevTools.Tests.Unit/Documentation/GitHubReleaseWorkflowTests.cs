@@ -146,6 +146,26 @@ public sealed class GitHubReleaseWorkflowTests
     }
 
     [Fact]
+    public void ReleaseWorkflow_ShouldUseCheckedOutTagCommitShaForReleaseEvidence()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+        var content = string.Join(Environment.NewLine, lines);
+        var checkoutStep = GetNamedStepBlock(lines, "Checkout tagged revision");
+        var evidenceStep = GetNamedStepBlock(lines, "Write release evidence summary");
+
+        content.Should().Contain("tag-commit-sha: ${{ steps.tag-checkout.outputs.tag-commit-sha }}",
+            "workflow_dispatch can run from a different branch SHA than the checked-out release tag");
+        checkoutStep.Should().Contain(line => string.Equals(line.Trim(), "id: tag-checkout", StringComparison.Ordinal));
+        checkoutStep.Should().Contain(line => line.Contains("git rev-parse HEAD", StringComparison.Ordinal));
+        checkoutStep.Should().Contain(line => line.Contains("tag-commit-sha=$tagCommit", StringComparison.Ordinal));
+        evidenceStep.Should().Contain(line =>
+            line.Trim().Equals(
+                "-CommitSha '${{ needs.publish-release-assets.outputs.tag-commit-sha }}' `",
+                StringComparison.Ordinal));
+        evidenceStep.Should().NotContain(line => line.Contains("-CommitSha '${{ github.sha }}'", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ReleaseWorkflow_ShouldPassSignerTrustToAssetStagingStep()
     {
         var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));

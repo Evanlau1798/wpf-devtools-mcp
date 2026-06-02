@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('FocusedFlakes', 'UnitDebug', 'UnitRelease', 'FullManaged', 'NativeSmoke', 'NativeFull', 'HostedWindowsX64')]
+    [ValidateSet('FocusedFlakes', 'UnitDebug', 'UnitRelease', 'FullManaged', 'NativeSmoke', 'NativeFull', 'HostedWindowsX64', 'HostedWindowsX64Fast')]
     [string]$Mode = 'FocusedFlakes',
 
     [ValidateRange(1, 100)]

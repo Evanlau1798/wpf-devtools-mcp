@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('FocusedFlakes', 'UnitDebug', 'UnitRelease', 'FullManaged', 'NativeSmoke', 'NativeFull', 'HostedWindowsX64')]
+    [ValidateSet('FocusedFlakes', 'UnitDebug', 'UnitRelease', 'FullManaged', 'NativeSmoke', 'NativeFull', 'HostedWindowsX64', 'HostedWindowsX64Fast')]
     [string]$Mode = 'HostedWindowsX64',
 
     [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,

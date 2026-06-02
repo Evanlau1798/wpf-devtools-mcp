@@ -294,6 +294,33 @@ public sealed class GitLabCiWindowsVerificationContractTests
     }
 
     [Fact]
+    public void HostedCiEntryPoint_ShouldExposeFastHostedWindowsX64Gate()
+    {
+        var hostedEntryPoint = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "Invoke-HostedCi.ps1"));
+        var sandboxEntryPoint = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "Invoke-WindowsSandboxCi.ps1"));
+        var runner = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "Start-SandboxCi.ps1"));
+        var hosted = ReadHostedSandboxCiScripts();
+        var fastGate = ExtractFunctionBlock(hosted, "Invoke-HostedWindowsX64FastVerification");
+
+        hostedEntryPoint.Should().Contain("'HostedWindowsX64Fast'");
+        sandboxEntryPoint.Should().Contain("'HostedWindowsX64Fast'");
+        runner.Should().Contain("'HostedWindowsX64Fast'");
+        runner.Should().Contain("Invoke-HostedWindowsX64FastVerification");
+        fastGate.Should().Contain("Invoke-HostedSecurityScanEquivalence");
+        fastGate.Should().Contain("Invoke-HostedNativeBootstrapperBuild -Configuration 'Debug' -Platform 'x64'");
+        fastGate.Should().Contain("Build solution Debug x64");
+        fastGate.Should().Contain("Invoke-UnitDebugTests");
+        fastGate.Should().Contain("Invoke-ManagedTestLanes");
+        fastGate.Should().Contain("Invoke-HostedServerRuntimeBuild -DotNetPath $DotNetPath -Configuration 'Debug'");
+        fastGate.Should().Contain("Run integration tests Debug");
+        fastGate.Should().NotContain("Invoke-HostedCoverageVerification");
+        fastGate.Should().NotContain("Invoke-HostedReleasePackagingSmoke");
+        fastGate.Should().NotContain("Invoke-HostedNuGetPack");
+        fastGate.Should().NotContain("Invoke-HostedArm64Build");
+        fastGate.Should().NotContain("Invoke-HostedDocsPagesBuild");
+    }
+
+    [Fact]
     public void SandboxRunner_ShouldAllowHostedEntryPointToUseRepositoryTempLocalWorkRoot()
     {
         var runner = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "Start-SandboxCi.ps1"));
@@ -337,5 +364,14 @@ public sealed class GitLabCiWindowsVerificationContractTests
         var hosted = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.ps1"));
         var extras = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.Extras.ps1"));
         return hosted + Environment.NewLine + extras;
+    }
+
+    private static string ExtractFunctionBlock(string source, string functionName)
+    {
+        var startToken = $"function {functionName}";
+        var start = source.IndexOf(startToken, StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0, $"{functionName} should be defined");
+        var next = source.IndexOf("\nfunction ", start + startToken.Length, StringComparison.Ordinal);
+        return next < 0 ? source[start..] : source[start..next];
     }
 }

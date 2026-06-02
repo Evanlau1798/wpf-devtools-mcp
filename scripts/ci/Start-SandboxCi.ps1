@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('FocusedFlakes', 'UnitDebug', 'UnitRelease', 'FullManaged', 'NativeSmoke', 'NativeFull', 'HostedWindowsX64')]
+    [ValidateSet('FocusedFlakes', 'UnitDebug', 'UnitRelease', 'FullManaged', 'NativeSmoke', 'NativeFull', 'HostedWindowsX64', 'HostedWindowsX64Fast')]
     [string]$Mode = 'FocusedFlakes',
 
     [ValidateRange(1, 100)]
@@ -457,6 +457,9 @@ try {
         }
         'HostedWindowsX64' {
             Invoke-HostedWindowsX64Verification -DotNetPath $dotnetPath -ResultsRoot $resultsRoot -OutputRoot $MappedOutputRoot -Timestamp $timestamp -MaxParallelLanes $MaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount -ReleaseUnitShardCount $ReleaseUnitShardCount
+        }
+        'HostedWindowsX64Fast' {
+            Invoke-HostedWindowsX64FastVerification -DotNetPath $dotnetPath -ResultsRoot $resultsRoot -OutputRoot $MappedOutputRoot -Timestamp $timestamp -MaxParallelLanes $MaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount -ReleaseUnitShardCount $ReleaseUnitShardCount
         }
         'NativeFull' {
             Invoke-DotNetRestore -DotNetPath $dotnetPath

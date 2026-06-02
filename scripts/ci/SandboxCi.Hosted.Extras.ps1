@@ -12,6 +12,79 @@ function Invoke-HostedArm64Build {
     )
 }
 
+function Invoke-HostedWindowsX64FastVerification {
+    param(
+        [Parameter(Mandatory = $true)] [string]$DotNetPath,
+        [Parameter(Mandatory = $true)] [string]$ResultsRoot,
+        [Parameter(Mandatory = $true)] [string]$OutputRoot,
+        [Parameter(Mandatory = $true)] [string]$Timestamp,
+        [ValidateRange(1, 8)] [int]$MaxParallelLanes = 4,
+        [ValidateScript({
+            if ($_ -eq 1 -or $_ -eq 4) {
+                return $true
+            }
+
+            throw 'UnitDebugShardCount currently supports 1 or 4.'
+        })]
+        [int]$UnitDebugShardCount = 1,
+        [ValidateScript({
+            if ($_ -eq 1 -or $_ -eq 4 -or $_ -eq 8) {
+                return $true
+            }
+
+            throw 'ReleaseUnitShardCount currently supports 1, 4, or 8.'
+        })]
+        [int]$ReleaseUnitShardCount = 8
+    )
+
+    $previousTimeoutScale = $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE
+    $hostedManagedMaxParallelLanes = [Math]::Min($MaxParallelLanes, 4)
+    $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'
+    try {
+        Invoke-External 'dotnet restore --locked-mode' $DotNetPath @('restore', '--locked-mode', '-p:NuGetAudit=true')
+        Invoke-External 'Restore server runtime dependencies win-x64' $DotNetPath @(
+            'restore',
+            'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj',
+            '--locked-mode',
+            '-r',
+            'win-x64',
+            '-p:NuGetAudit=true'
+        )
+        Invoke-HostedSecurityScanEquivalence -DotNetPath $DotNetPath
+        Invoke-HostedNativeBootstrapperBuild -Configuration 'Debug' -Platform 'x64'
+        Invoke-External 'Build solution Debug x64' $DotNetPath @(
+            'build',
+            '--configuration', 'Debug',
+            '--no-restore',
+            '-m:1',
+            '-p:Platform=x64',
+            '-nodeReuse:false',
+            '-p:UseSharedCompilation=false'
+        )
+        Invoke-UnitDebugTests -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration 'Debug' -MaxParallelLanes $hostedManagedMaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount
+        Invoke-ManagedTestLanes -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration 'Debug' -MaxParallelLanes $hostedManagedMaxParallelLanes -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeReleaseUnit
+        Invoke-HostedServerRuntimeBuild -DotNetPath $DotNetPath -Configuration 'Debug'
+        Invoke-External 'Run integration tests Debug' $DotNetPath @(
+            'test',
+            'tests\WpfDevTools.Tests.Integration\WpfDevTools.Tests.Integration.csproj',
+            '--configuration', 'Debug',
+            '--no-build',
+            '--verbosity', 'normal',
+            '--blame-hang-timeout', '10m',
+            '--logger', 'trx;LogFileName=integration-debug.trx',
+            '--results-directory', (Join-Path $ResultsRoot 'Debug\integration')
+        )
+    }
+    finally {
+        if ($null -eq $previousTimeoutScale) {
+            Remove-Item Env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = $previousTimeoutScale
+        }
+    }
+}
+
 function Invoke-HostedDocsPagesBuild {
     param([Parameter(Mandatory = $true)] [string]$DotNetPath)
 

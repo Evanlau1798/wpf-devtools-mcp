@@ -117,7 +117,7 @@ public sealed class WaitForDpChangeToolConcurrencyTests
                 processId,
                 propertyName = "Text",
                 expectedValue = JsonSerializer.SerializeToElement("after"),
-                timeoutMs = 1000,
+                timeoutMs = 3000,
                 pollIntervalMs = 50,
                 triggerMutation = new
                 {

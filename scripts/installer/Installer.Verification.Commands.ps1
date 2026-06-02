@@ -172,6 +172,7 @@ using System.Runtime.InteropServices;
 public static class InstallerVerificationProcessSnapshotInterop
 {
     private const uint TH32CS_SNAPPROCESS = 0x00000002;
+    private const uint PROCESS_TERMINATE = 0x0001;
     private static readonly IntPtr InvalidHandleValue = new IntPtr(-1);
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -199,8 +200,18 @@ public static class InstallerVerificationProcessSnapshotInterop
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool Process32Next(IntPtr hSnapshot, ref ProcessEntry32 lppe);
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool CloseHandle(IntPtr hObject);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr OpenProcess(uint access, bool inheritHandle, int processId);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern bool TerminateProcess(IntPtr process, uint exitCode);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern bool CloseHandle(IntPtr hObject);
+
+    public static bool TerminateProcessId(int processId)
+    {
+        var process = OpenProcess(PROCESS_TERMINATE, false, processId);
+        if (process == IntPtr.Zero || process == InvalidHandleValue) { return false; }
+
+        try { return TerminateProcess(process, 1); }
+        finally { CloseHandle(process); }
+    }
 
     public static int[] GetDescendantProcessIds(int rootProcessId)
     {
@@ -286,23 +297,8 @@ function Stop-InstallerVerificationProcessId {
     }
 
     try {
-        $taskKillStartInfo = New-Object System.Diagnostics.ProcessStartInfo
-        $taskKillStartInfo.FileName = 'taskkill.exe'
-        $taskKillStartInfo.Arguments = "/PID $ProcessId /T /F"
-        $taskKillStartInfo.UseShellExecute = $false
-        $taskKillStartInfo.RedirectStandardOutput = $true
-        $taskKillStartInfo.RedirectStandardError = $true
-        $taskKillStartInfo.CreateNoWindow = $true
-        $taskKill = New-Object System.Diagnostics.Process
-        $taskKill.StartInfo = $taskKillStartInfo
-        try {
-            $null = $taskKill.Start()
-            if (-not $taskKill.WaitForExit(2000)) {
-                $taskKill.Kill()
-            }
-        }
-        finally {
-            $taskKill.Dispose()
+        if (Initialize-InstallerVerificationProcessSnapshotInterop) {
+            [void]([InstallerVerificationProcessSnapshotInterop]::TerminateProcessId($ProcessId))
         }
     }
     catch {
@@ -319,12 +315,15 @@ function Stop-InstallerVerificationProcessTree {
     param([Parameter(Mandatory)] $Process)
 
     $rootProcessId = [int]$Process.Id
-    $descendantIds = @(Get-InstallerVerificationDescendantProcessIds -ParentProcessId $rootProcessId)
-    foreach ($processId in @($descendantIds | Sort-Object -Descending)) {
-        Stop-InstallerVerificationProcessId -ProcessId $processId
-    }
+    for ($attempt = 0; $attempt -lt 3; $attempt++) {
+        Stop-InstallerVerificationProcessId -ProcessId $rootProcessId
+        $processIds = @(Get-InstallerVerificationDescendantProcessIds -ParentProcessId $rootProcessId)
+        foreach ($processId in @($processIds | Sort-Object -Descending -Unique)) {
+            Stop-InstallerVerificationProcessId -ProcessId $processId
+        }
 
-    Stop-InstallerVerificationProcessId -ProcessId $rootProcessId
+        Start-Sleep -Milliseconds 100
+    }
 
     try {
         $Process.Refresh()

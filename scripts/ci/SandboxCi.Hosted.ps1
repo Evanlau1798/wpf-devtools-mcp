@@ -443,8 +443,7 @@ function Invoke-HostedWindowsX64Verification {
                 }
 
                 try {
-                    Invoke-UnitDebugTests -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $configuration -MaxParallelLanes 1 -UnitDebugShardCount $UnitDebugShardCount
-                    Invoke-ManagedTestLanes -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $configuration -MaxParallelLanes $MaxParallelLanes -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeReleaseUnit
+                    Invoke-ManagedTestLanes -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $configuration -MaxParallelLanes $MaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeUnitDebug -IncludeReleaseUnit
                 }
                 catch {
                     throw "Managed test lanes $configuration failed: $($_.Exception.Message)"

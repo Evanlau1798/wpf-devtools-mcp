@@ -107,6 +107,13 @@ public sealed class GitHubActionsWorkflowSecurityTests
             "native bootstrapper code must be part of the SAST baseline");
         workflow.Should().Contain("build-mode: manual",
             "compiled-language CodeQL should trace the same explicit builds used by release validation");
+        workflow.Should().Contain("upload: never",
+            "repositories without code scanning enabled must still complete CodeQL analysis and preserve SARIF evidence");
+        workflow.Should().Contain("output: codeql-results",
+            "the workflow should preserve machine-readable CodeQL evidence even when code scanning upload is disabled");
+        workflow.Should().Contain("actions/upload-artifact@");
+        workflow.Should().Contain("codeql-sarif-${{ matrix.language }}");
+        workflow.Should().Contain("path: codeql-results");
         workflow.Should().Contain("dotnet build WpfDevTools.sln");
         workflow.Should().Contain("WpfDevTools.Bootstrapper.vcxproj");
         workflow.Should().Contain("+security-extended,security-and-quality");

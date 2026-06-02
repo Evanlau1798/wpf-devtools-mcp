@@ -98,3 +98,13 @@ jobs:
       uses: github/codeql-action/analyze@dc73d59c2d7bd4f8194098a91219eeee6d8a1719 # v4
       with:
         category: "/language:${{ matrix.language }}"
+        upload: never
+        output: codeql-results
+
+    - name: Upload CodeQL SARIF artifact
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: codeql-sarif-${{ matrix.language }}
+        path: codeql-results
+        if-no-files-found: error

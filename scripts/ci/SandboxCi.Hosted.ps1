@@ -410,6 +410,7 @@ function Invoke-HostedWindowsX64Verification {
     )
 
     $previousTimeoutScale = $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE
+    $hostedManagedMaxParallelLanes = [Math]::Min($MaxParallelLanes, 4)
     $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'
     try {
         Invoke-External 'dotnet restore --locked-mode' $DotNetPath @('restore', '--locked-mode', '-p:NuGetAudit=true')
@@ -447,14 +448,14 @@ function Invoke-HostedWindowsX64Verification {
                         -DotNetPath $DotNetPath `
                         -ResultsRoot $ResultsRoot `
                         -Configuration $configuration `
-                        -MaxParallelLanes $MaxParallelLanes `
+                        -MaxParallelLanes $hostedManagedMaxParallelLanes `
                         -UnitDebugShardCount $UnitDebugShardCount
 
                     Invoke-ManagedTestLanes `
                         -DotNetPath $DotNetPath `
                         -ResultsRoot $ResultsRoot `
                         -Configuration $configuration `
-                        -MaxParallelLanes $MaxParallelLanes `
+                        -MaxParallelLanes $hostedManagedMaxParallelLanes `
                         -ReleaseUnitShardCount $ReleaseUnitShardCount `
                         -IncludeReleaseUnit
                 }

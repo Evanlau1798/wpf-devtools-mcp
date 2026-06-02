@@ -111,6 +111,16 @@ public sealed class GitLabCiWindowsVerificationContractTests
     }
 
     [Fact]
+    public void SandboxHostedWindowsX64Mode_ShouldCapManagedParallelismAtStableLaneCount()
+    {
+        var hosted = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.Hosted.ps1"));
+
+        hosted.Should().Contain("$hostedManagedMaxParallelLanes = [Math]::Min($MaxParallelLanes, 4)",
+            "release installer smoke tests can time out under eight concurrent release-unit shards on local hosted runners");
+        hosted.Should().Contain("-MaxParallelLanes $hostedManagedMaxParallelLanes");
+    }
+
+    [Fact]
     public void SandboxHostedWindowsX64Mode_ShouldMirrorCoveragePackagingSmokeAndNuGetJobs()
     {
         var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));

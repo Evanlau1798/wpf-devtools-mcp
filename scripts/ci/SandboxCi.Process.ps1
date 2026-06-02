@@ -358,7 +358,15 @@ function KillProcessTree {
 
     # This only cleans up timed-out child commands inside the sandbox runner.
     # Windows Sandbox VM cleanup must use Stop-WindowsSandboxHcs.ps1.
-    & taskkill.exe /F /T /PID $ProcessId 2>&1 | ForEach-Object { Write-Host $_ }
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & taskkill.exe /F /T /PID $ProcessId 2>&1 | ForEach-Object { Write-Host $_ }
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
     if ($LASTEXITCODE -ne 0) {
         Write-Host "taskkill.exe exited with code $LASTEXITCODE while cleaning up timed-out PID $ProcessId."
     }

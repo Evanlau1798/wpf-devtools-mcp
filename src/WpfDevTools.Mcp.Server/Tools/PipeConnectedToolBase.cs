@@ -10,7 +10,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 public abstract partial class PipeConnectedToolBase
 {
     private const int DefaultPiggybackMaxEvents = 25;
-    private static readonly TimeSpan PiggybackTimeout = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan PiggybackTimeout = TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// Session manager for tracking connected processes

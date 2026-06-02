@@ -232,10 +232,11 @@ public sealed partial class SandboxCiScriptContractTests
         File.WriteAllText(
             Path.Combine(projectRoot, "Program.cs"),
             $$"""
-            var childCode = "$childMarker = " + {{markerLiteral}} + "; Start-Sleep -Seconds 30";
+            var childCode = "$childMarker = " + {{markerLiteral}} + "; Start-Sleep -Seconds 120";
             var startInfo = new System.Diagnostics.ProcessStartInfo("powershell.exe")
             {
                 UseShellExecute = false,
+                CreateNoWindow = true,
             };
             startInfo.ArgumentList.Add("-NoProfile");
             startInfo.ArgumentList.Add("-ExecutionPolicy");
@@ -244,7 +245,7 @@ public sealed partial class SandboxCiScriptContractTests
             startInfo.ArgumentList.Add(childCode);
             System.Diagnostics.Process.Start(startInfo);
             System.IO.File.WriteAllText({{childStartedPathLiteral}}, "started");
-            Thread.Sleep(TimeSpan.FromSeconds(30));
+            Thread.Sleep(TimeSpan.FromSeconds(120));
             """);
 
         var publishRoot = Path.Combine(projectRoot, "publish");

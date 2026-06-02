@@ -28,17 +28,12 @@ function Start-SmokeTarget {
             }
 
             $process.Refresh()
-            if ($null -eq $rootSnapshot) {
-                $rootSnapshot = New-ProcessSnapshot -ProcessId $process.Id
+            if ($process.HasExited) {
+                throw "Smoke target exited before its main window was ready: $script:resolvedSmokeTargetPath"
             }
 
-            $startupSnapshots = @(Merge-ProcessSnapshots -Snapshots @(
-                $startupSnapshots + @(Get-DescendantProcessSnapshots -ParentProcessId $process.Id -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))))
-            if ($null -ne $rootSnapshot) {
-                $startupSnapshots = @(Expand-ProcessSnapshots -Snapshots $startupSnapshots -ScanRoots @($rootSnapshot))
-            }
-            else {
-                $startupSnapshots = @(Expand-ProcessSnapshots -Snapshots $startupSnapshots)
+            if ($null -eq $rootSnapshot) {
+                $rootSnapshot = New-ProcessSnapshot -ProcessId $process.Id
             }
 
             if ($process.MainWindowHandle -ne [IntPtr]::Zero) {
@@ -132,7 +127,7 @@ function New-ProcessSnapshot {
         return $null
     }
 
-    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction SilentlyContinue
+    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -OperationTimeoutSec 5 -ErrorAction SilentlyContinue
     if ($null -eq $process) {
         return $null
     }
@@ -240,7 +235,7 @@ function Get-DescendantProcessSnapshots {
     $visited = @($VisitedProcessIds + $ParentProcessId)
     $snapshots = @()
     $creationStartUtcTicks = $CreationStartUtcTicks - [TimeSpan]::FromMilliseconds(1).Ticks
-    foreach ($child in @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $ParentProcessId" -ErrorAction SilentlyContinue)) {
+    foreach ($child in @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $ParentProcessId" -OperationTimeoutSec 5 -ErrorAction SilentlyContinue)) {
         $childId = [int]$child.ProcessId
         $childTicks = ([datetime]$child.CreationDate).ToUniversalTime().Ticks
         if ($childTicks -lt $creationStartUtcTicks -or $childTicks -gt $CreationCutoffUtcTicks) {
@@ -263,7 +258,7 @@ function Test-ProcessSnapshotExists {
         return $false
     }
 
-    $current = Get-CimInstance Win32_Process -Filter "ProcessId = $($Snapshot.ProcessId)" -ErrorAction SilentlyContinue
+    $current = Get-CimInstance Win32_Process -Filter "ProcessId = $($Snapshot.ProcessId)" -OperationTimeoutSec 5 -ErrorAction SilentlyContinue
     if ($null -eq $current) {
         return $false
     }
@@ -450,7 +445,7 @@ function Stop-SmokeTarget {
 
                 if (-not $Process.HasExited) {
                     $descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))
-                    $Process.Kill()
+                    & taskkill.exe /F /T /PID $processId 2>$null | Out-Null; if (-not $Process.HasExited) { $Process.Kill() }
                     if (-not $Process.WaitForExit(5000)) {
                         throw "Smoke target did not exit after force kill: $processId"
                     }

@@ -60,6 +60,28 @@ The unit and integration suites enable collection-level parallelization with CPU
 - avoid setting `DisableParallelization = true` unless a collection must not run beside any other collection
 - avoid moving unrelated slow tests into a broad serial lane when a smaller collection can preserve isolation and still allow other lanes to run concurrently
 
+## No-VM hosted CI entrypoints
+
+Use the `scripts/tests` hosted CI wrappers when Windows Sandbox is unavailable, too slow for the current iteration, or blocked by local VM state. These scripts do not launch Windows Sandbox. They reuse `scripts/ci/Invoke-HostedCi.ps1` directly on the host and keep disposable state under `tmp/hosted-ci*` by default.
+
+Fast pre-push gate:
+
+```powershell
+.\scripts\tests\Invoke-HostedWindowsX64FastCi.ps1
+```
+
+`Invoke-HostedWindowsX64FastCi.ps1` runs `HostedWindowsX64Fast`: restore, security-scan equivalence, Debug x64 native bootstrapper build, Debug x64 solution build, Debug unit tests, Release unit shards, Debug server runtime output, and Debug integration tests. It intentionally skips coverage, release packaging smoke, NuGet package smoke, ARM64 cross-build, and DocFX Pages build steps so it can provide faster feedback before a push.
+
+Full no-VM hosted shape:
+
+```powershell
+.\scripts\tests\Invoke-HostedWindowsX64Ci.ps1
+```
+
+`Invoke-HostedWindowsX64Ci.ps1` runs `HostedWindowsX64`: the fuller hosted Windows x64 shape, including coverage, x64/x86/arm64 package smoke coverage where the x64 host can execute it, NuGet pack and package consumer smoke, ARM64 cross-build, and the local DocFX Pages build. It is closer to GitHub CI/CD than the fast gate, but it still does not emulate GitHub artifact upload/download boundaries, Pages deployment, signed public release publication, or hosted runner image drift.
+
+Both wrappers default to `-MaxParallelLanes 8`, `-ReleaseUnitShardCount 8`, and `-UnitDebugShardCount 1`. The hosted managed lane implementation still caps process-heavy managed concurrency internally where needed for stability.
+
 ## Windows Sandbox local preflight
 
 Use the Windows Sandbox harness before spending hosted CI minutes on release or native verification changes. This is a local preflight, not a GitHub Actions parity guarantee. The sandbox runner maps the repository read-only, writes disposable state under `tmp/sandbox-ci`, and runs CI-shaped PowerShell entrypoints that mirror the important command groups while the hosted workflow remains the final source of truth.

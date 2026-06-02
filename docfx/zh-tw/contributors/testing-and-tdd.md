@@ -60,6 +60,28 @@ Unit 與 integration suites 會啟用 collection-level parallelization，並用 
 - 除非某個 collection 不能和任何其他 collection 同時執行，否則避免設定 `DisableParallelization = true`
 - 避免把不相關的慢測試放進過寬的 serial lane；如果較小的 collection 就能保留隔離性，應讓其他 lanes 可以同時執行
 
+## 非 VM hosted CI 入口
+
+當 Windows Sandbox 不可用、對目前迭代過慢，或被本機 VM 狀態卡住時，請使用 `scripts/tests` 內的 hosted CI 包裝入口。這些 scripts 不會啟動 Windows Sandbox，而是直接在 host 上重用 `scripts/ci/Invoke-HostedCi.ps1`，並預設把一次性狀態放在 `tmp/hosted-ci*`。
+
+快速推送前 gate：
+
+```powershell
+.\scripts\tests\Invoke-HostedWindowsX64FastCi.ps1
+```
+
+`Invoke-HostedWindowsX64FastCi.ps1` 會執行 `HostedWindowsX64Fast`：restore、security-scan equivalence、Debug x64 native bootstrapper build、Debug x64 solution build、Debug unit tests、Release unit shards、Debug server runtime output，以及 Debug integration tests。它刻意略過 coverage、release packaging smoke、NuGet package smoke、ARM64 cross-build，以及 DocFX Pages build steps，以便在 push 前更快取得回饋。
+
+完整非 VM hosted 形狀：
+
+```powershell
+.\scripts\tests\Invoke-HostedWindowsX64Ci.ps1
+```
+
+`Invoke-HostedWindowsX64Ci.ps1` 會執行 `HostedWindowsX64`：較完整的 hosted Windows x64 形狀，包含 coverage、x64/x86/arm64 package smoke 中 x64 host 可執行的覆蓋、NuGet pack 與 package consumer smoke、ARM64 cross-build，以及本機 DocFX Pages build。它比 fast gate 更接近 GitHub CI/CD，但仍不模擬 GitHub artifact upload/download 邊界、Pages deployment、已簽章 public release publication，或 hosted runner image drift。
+
+兩個包裝入口預設使用 `-MaxParallelLanes 8`、`-ReleaseUnitShardCount 8` 與 `-UnitDebugShardCount 1`。Hosted managed lane 實作仍會在需要時對 process-heavy managed concurrency 做內部上限控管，以維持穩定性。
+
 ## Windows Sandbox 本機 preflight
 
 在 release 或 native verification 相關變更消耗 hosted CI 時數前，優先使用 Windows Sandbox harness 進行本機驗證。這是 local preflight，不等同 GitHub Actions parity 保證。Sandbox runner 會以唯讀方式映射 repository，把一次性狀態寫到 `tmp/sandbox-ci`，並執行接近 CI command groups 的 PowerShell 入口；hosted workflow 仍是最後 truth。

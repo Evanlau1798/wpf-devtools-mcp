@@ -116,7 +116,9 @@ $uploadAssetNames = @($manifest.assets | ForEach-Object { [string]$_.name }) +
     'release-assets.json' +
     'release-sbom.spdx.json' +
     'package-sbom.spdx.json'
-New-UploadScriptContent -ReleaseTag $Tag -AssetNames ([string[]]$uploadAssetNames) | Set-Content -Path $uploadScriptPath -Encoding UTF8
+$lateBoundUploadAssetNames = @("release-evidence.json")
+$allUploadAssetNames = @($uploadAssetNames + $lateBoundUploadAssetNames)
+New-UploadScriptContent -ReleaseTag $Tag -AssetNames ([string[]]$allUploadAssetNames) | Set-Content -Path $uploadScriptPath -Encoding UTF8
 
 if ($OutputJson) {
     $manifest | ConvertTo-Json -Depth 5

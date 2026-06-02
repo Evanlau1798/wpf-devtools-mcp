@@ -287,7 +287,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:8c524085f02657d1a1a3624e0b5b9a7ca606e900ef42f79a8930e722c557a35b'
+$script:InstallerHelperManifestCacheKey = 'sha256:49cdc0e8a05cb20445261666a28880230f1532d2bfef17587c75939a9437d7fb'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/online-installer.release-assets.ps1'
     'scripts/installer/Installer.BootstrapUi.ps1'

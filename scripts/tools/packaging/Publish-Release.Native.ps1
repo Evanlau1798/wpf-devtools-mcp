@@ -412,7 +412,7 @@ function Get-NativeBootstrapperBuildProperties {
         -ExistingValue $env:INCLUDE
     $libraryPath = ConvertTo-NativeBuildPathProperty `
         -PathSegments (@($requiredVcLibraryDirectory) + $requiredSdkLibraryDirectories + $sdkLibraryDirectories) `
-        -ExistingValue $env:LIB
+        -ExistingValue ''
     $executablePath = ConvertTo-NativeBuildPathProperty `
         -PathSegments (@($requiredVcExecutableDirectory, $requiredVcLinkerDirectory) + $vcExecutableDirectories + @($requiredSdkExecutableDirectory) + $sdkExecutableDirectories) `
         -ExistingValue $env:PATH

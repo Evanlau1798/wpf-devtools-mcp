@@ -104,6 +104,40 @@ public sealed class PublishReleaseNativeBootstrapperContractTests
     }
 
     [Fact]
+    public void GetNativeBootstrapperBuildProperties_Win32_ShouldNotInheritX64LibraryPath()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var sdkDirectory = CreateFakeWindowsSdk(tempRoot, "10.0.26100.0", "x86");
+            var msbuildPath = CreateFakeVisualStudioToolchain(tempRoot, "14.44.35207", "x86");
+            var inheritedX64LibraryPath = Path.Combine(tempRoot, "VS", "VC", "Tools", "MSVC", "14.44.35207", "lib", "x64");
+            Directory.CreateDirectory(inheritedX64LibraryPath);
+            var functionOnlyScript = CreateFunctionOnlyPublishReleaseScript(tempRoot);
+            var command = $$"""
+            {{ResetNativeToolchainEnvironmentCommand()}}
+            $env:LIB = '{{EscapePowerShellPath(inheritedX64LibraryPath)}}'
+            . '{{EscapePowerShellPath(functionOnlyScript)}}'
+            $actual = Get-NativeBootstrapperBuildProperties -BootstrapperPlatform 'Win32' -ResolvedMsBuildPath '{{EscapePowerShellPath(msbuildPath)}}' -WindowsSdkDirectory '{{EscapePowerShellPath(sdkDirectory)}}' -WindowsSdkVersion '10.0.26100.0'
+            if ($actual.LibraryPath -like '*\lib\x64*') {
+                throw "Expected Win32 LibraryPath not to inherit x64 LIB entries but was '$($actual.LibraryPath)'."
+            }
+            if ($actual.LibraryPath -notlike '*\lib\x86*') {
+                throw "Expected Win32 LibraryPath to retain x86 library entries but was '$($actual.LibraryPath)'."
+            }
+            """;
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr + result.Stdout);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void GetNativeBootstrapperBuildProperties_ShouldResolveVisualStudioRootFromAmd64MSBuildPath()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

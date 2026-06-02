@@ -139,6 +139,56 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
     }
 
     [Fact]
+    public void TestPackagedServerRuntimeScript_ShouldWriteInstallModeSpecificRuntimeEvidence()
+    {
+        var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1");
+        var serverPath = ResolveBuiltServerPath();
+        serverPath.Should().NotBeNull("the built MCP server executable is required for runtime evidence");
+
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var packageLocalEvidencePath = Path.Combine(tempRoot, "runtime-evidence-package-local.json");
+            var packageLocalResult = ReleaseScriptTestHarness.RunPowerShellScript(
+                scriptPath,
+                [
+                    "-ServerPath", serverPath!,
+                    "-EvidenceOutputPath", packageLocalEvidencePath,
+                    "-SmokeInstallMode", "package-local"
+                ],
+                timeout: TimeSpan.FromSeconds(30));
+
+            packageLocalResult.ExitCode.Should().Be(0, packageLocalResult.Stderr);
+            using var packageLocalEvidence = JsonDocument.Parse(File.ReadAllText(packageLocalEvidencePath));
+            var packageLocalRoot = packageLocalEvidence.RootElement;
+            packageLocalRoot.GetProperty("installMode").GetString().Should().Be("package-local");
+            packageLocalRoot.GetProperty("packageSmoke").GetProperty("x64PackageLocal").GetString().Should().Be("not-run");
+            packageLocalRoot.GetProperty("packageSmoke").GetProperty("x64OnlineInstaller").GetString().Should().Be("passed-or-not-public");
+
+            var onlineEvidencePath = Path.Combine(tempRoot, "runtime-evidence-online.json");
+            var onlineResult = ReleaseScriptTestHarness.RunPowerShellScript(
+                scriptPath,
+                [
+                    "-ServerPath", serverPath!,
+                    "-EvidenceOutputPath", onlineEvidencePath,
+                    "-SmokeInstallMode", "online-installer"
+                ],
+                timeout: TimeSpan.FromSeconds(30));
+
+            onlineResult.ExitCode.Should().Be(0, onlineResult.Stderr);
+            using var onlineEvidence = JsonDocument.Parse(File.ReadAllText(onlineEvidencePath));
+            var onlineRoot = onlineEvidence.RootElement;
+            onlineRoot.GetProperty("installMode").GetString().Should().Be("online-installer");
+            onlineRoot.GetProperty("packageSmoke").GetProperty("x64PackageLocal").GetString().Should().Be("passed-or-not-public");
+            onlineRoot.GetProperty("packageSmoke").GetProperty("x64OnlineInstaller").GetString().Should().Be("not-run");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void TestPackagedServerRuntimeScript_ShouldFailFastOnNonJsonStdoutFromLiveProcess()
     {
         var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1")
@@ -193,5 +243,22 @@ finally {
 
         result.ExitCode.Should().Be(0, $"stdout: {result.Stdout}; stderr: {result.Stderr}");
         result.Stdout.Should().Contain("non-json stdout failed fast");
+    }
+
+    private static string? ResolveBuiltServerPath()
+    {
+#if DEBUG
+        const string configuration = "Debug";
+#else
+        const string configuration = "Release";
+#endif
+        return new[]
+            {
+                Path.Combine("src", "WpfDevTools.Mcp.Server", "bin", configuration, "net8.0", "WpfDevTools.Mcp.Server.exe"),
+                Path.Combine("src", "WpfDevTools.Mcp.Server", "bin", configuration, "net8.0", "win-x64", "WpfDevTools.Mcp.Server.exe"),
+                Path.Combine("src", "WpfDevTools.Mcp.Server", "bin", "x64", configuration, "net8.0", "WpfDevTools.Mcp.Server.exe")
+            }
+            .Select(ReleaseScriptTestHarness.GetRepoFilePath)
+            .FirstOrDefault(File.Exists);
     }
 }

@@ -42,4 +42,16 @@ public sealed class ReleaseEvidenceWorkflowTests
         content.Should().Contain("-PackageSbomPath (Join-Path $stagingRoot 'package-sbom.spdx.json')");
         content.Should().Contain("-WorkflowSha '${{ github.workflow_sha }}'");
     }
+
+    [Fact]
+    public void Workflows_ShouldPassDistinctRuntimeSmokeInstallModes()
+    {
+        var ciWorkflow = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(".github/workflows/ci-cd.yml"));
+        var releaseWorkflow = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(".github/workflows/release.yml"));
+
+        ciWorkflow.Should().Contain("-SmokeInstallMode 'package-local'");
+        ciWorkflow.Should().Contain("-SmokeInstallMode 'online-installer'");
+        releaseWorkflow.Should().Contain("-SmokeInstallMode 'package-local'");
+        releaseWorkflow.Should().Contain("-SmokeInstallMode 'online-installer'");
+    }
 }

@@ -4,6 +4,7 @@ param(
     [int]$TargetProcessId = 0,
     [string]$TargetProcessPath = '',
     [string]$EvidenceOutputPath = '',
+    [ValidateSet('package-local', 'online-installer')] [string]$SmokeInstallMode = 'package-local',
     [int]$InitializeTimeoutMilliseconds = 10000,
     [int]$RequestTimeoutMilliseconds = 10000,
     [switch]$SkipExistingHostReuse
@@ -12,13 +13,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 function Get-ProcessDiagnostics {
     param([Parameter(Mandatory)] [System.Diagnostics.Process]$Process)
-
     try {
         $output = $Process.StandardError.ReadToEnd()
         if ($null -eq $output) {
             return ''
         }
-
         return $output.Trim()
     }
     catch {
@@ -28,7 +27,6 @@ function Get-ProcessDiagnostics {
 
 function Stop-PackagedServerProcess {
     param([Parameter(Mandatory)] [System.Diagnostics.Process]$Process)
-
     if (-not $Process.HasExited) {
         $Process.Kill()
         $Process.WaitForExit(5000) | Out-Null
@@ -43,7 +41,6 @@ function Read-McpResponse {
         [Parameter(Mandatory)] [int]$TimeoutMilliseconds,
         [bool]$AllowError = $false
     )
-
     $responseTask = $Process.StandardOutput.ReadLineAsync()
     if (-not $responseTask.Wait($TimeoutMilliseconds)) {
         Stop-PackagedServerProcess -Process $Process
@@ -176,11 +173,15 @@ function Write-RuntimeEvidence {
         arm64PackageLocal = 'passed-or-not-public'
         arm64OnlineInstaller = 'passed-or-not-public'
     }
-    $packageSmoke["$($Architecture)PackageLocal"] = $packageSmokeStatus
-    $packageSmoke["$($Architecture)OnlineInstaller"] = $packageSmokeStatus
+    $packageSmokeKey = switch ($SmokeInstallMode) {
+        'package-local' { "$($Architecture)PackageLocal" }
+        'online-installer' { "$($Architecture)OnlineInstaller" }
+    }
+    $packageSmoke[$packageSmokeKey] = $packageSmokeStatus
     $runtimeEvidence = [ordered]@{
         generatedUtc = (Get-Date).ToUniversalTime().ToString('O')
         mode = $smokeMode
+        installMode = $SmokeInstallMode
         serverPathRedacted = $true
         toolsList = [ordered]@{
             count = $toolNames.Count

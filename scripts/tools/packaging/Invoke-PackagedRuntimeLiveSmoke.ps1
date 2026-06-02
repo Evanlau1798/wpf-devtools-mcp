@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)] [string]$ServerPath,
     [ValidateSet('x64', 'x86', 'arm64')] [string]$Architecture = 'x64',
+    [ValidateSet('package-local', 'online-installer')] [string]$SmokeInstallMode = 'package-local',
     [string]$Configuration = 'Release',
     [string]$EvidenceOutputPath = '',
     [int]$StartupTimeoutSeconds = 30,
@@ -124,6 +125,7 @@ try {
             '-File', 'scripts/tools/packaging/Test-PackagedServerRuntime.ps1',
             '-ServerPath', $ServerPath,
             '-Architecture', $Architecture,
+            '-SmokeInstallMode', $SmokeInstallMode,
             '-TargetProcessId', $targetProcess.Id,
             '-TargetProcessPath', $targetProcessPath
         )

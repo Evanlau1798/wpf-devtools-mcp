@@ -7,6 +7,7 @@ param(
     [string[]]$RunnerMatrix = @(),
     [Parameter(Mandatory)] [string[]]$RuntimeEvidencePath,
     [Parameter(Mandatory)] [string]$DocFxEvidencePath,
+    [string[]]$SecurityEvidencePath = @(),
     [Parameter(Mandatory)] [string]$Sha256SumsPath,
     [Parameter(Mandatory)] [string]$ReleaseAssetsPath,
     [Parameter(Mandatory)] [string]$ReleaseSbomPath,
@@ -17,7 +18,8 @@ param(
     [string]$ExpectedThumbprintHash = '',
     [string]$ObservedThumbprintHash = '',
     [string]$TrustedSignerThumbprint = '',
-    [switch]$UninstallResiduePassed
+    [switch]$UninstallResiduePassed,
+    [switch]$PublicReleaseStrict
 )
 
 Set-StrictMode -Version Latest
@@ -120,6 +122,23 @@ function Read-DocFxEvidence {
     }
 }
 
+function Read-SecurityEvidence {
+    param([string[]]$Paths = @())
+
+    $expandedPaths = @($Paths |
+        ForEach-Object { [string]$_ -split ',' } |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+
+    foreach ($path in $expandedPaths) {
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "Security evidence JSON is missing: $path"
+        }
+
+        Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+    }
+}
+
 function Test-AllTrue {
     param(
         [Parameter(Mandatory)] [object[]]$Evidence,
@@ -128,8 +147,18 @@ function Test-AllTrue {
     )
 
     foreach ($item in $Evidence) {
-        $sectionValue = $item.PSObject.Properties[$Section].Value
-        if ($null -eq $sectionValue -or $sectionValue.PSObject.Properties[$Property].Value -ne $true) {
+        $sectionProperty = $item.PSObject.Properties[$Section]
+        if ($null -eq $sectionProperty) {
+            return $false
+        }
+
+        $sectionValue = $sectionProperty.Value
+        if ($null -eq $sectionValue) {
+            return $false
+        }
+
+        $valueProperty = $sectionValue.PSObject.Properties[$Property]
+        if ($null -eq $valueProperty -or $valueProperty.Value -ne $true) {
             return $false
         }
     }
@@ -145,11 +174,16 @@ function Get-FirstValue {
     )
 
     foreach ($item in $Evidence) {
-        $sectionValue = $item.PSObject.Properties[$Section].Value
+        $sectionProperty = $item.PSObject.Properties[$Section]
+        if ($null -eq $sectionProperty) {
+            continue
+        }
+
+        $sectionValue = $sectionProperty.Value
         if ($null -ne $sectionValue) {
-            $propertyValue = $sectionValue.PSObject.Properties[$Property].Value
-            if ($null -ne $propertyValue) {
-                return $propertyValue
+            $valueProperty = $sectionValue.PSObject.Properties[$Property]
+            if ($null -ne $valueProperty -and $null -ne $valueProperty.Value) {
+                return $valueProperty.Value
             }
         }
     }
@@ -165,11 +199,16 @@ function Get-MergedStatus {
 
     $values = @()
     foreach ($item in $Evidence) {
-        $packageSmoke = $item.PSObject.Properties['packageSmoke'].Value
+        $packageSmokeProperty = $item.PSObject.Properties['packageSmoke']
+        if ($null -eq $packageSmokeProperty) {
+            continue
+        }
+
+        $packageSmoke = $packageSmokeProperty.Value
         if ($null -ne $packageSmoke) {
-            $value = $packageSmoke.PSObject.Properties[$Property].Value
-            if ($null -ne $value) {
-                $values += [string]$value
+            $valueProperty = $packageSmoke.PSObject.Properties[$Property]
+            if ($null -ne $valueProperty -and $null -ne $valueProperty.Value) {
+                $values += [string]$valueProperty.Value
             }
         }
     }
@@ -187,6 +226,63 @@ function Get-MergedStatus {
     }
 
     return 'passed-or-not-public'
+}
+
+function Assert-PublicReleaseStrictEvidence {
+    param(
+        [Parameter(Mandatory)] [System.Collections.Specialized.OrderedDictionary]$Evidence,
+        [Parameter(Mandatory)] [string[]]$Runners
+    )
+
+    $failures = @()
+    $docfx = $Evidence['docfx']
+    $security = $Evidence['security']
+    $packageSmoke = $Evidence['packageSmoke']
+    $liveSmoke = $Evidence['liveSmoke']
+
+    if ($docfx['englishParity'] -ne $true) {
+        $failures += 'docfx.englishParity'
+    }
+    if ($docfx['zhTwParity'] -ne $true) {
+        $failures += 'docfx.zhTwParity'
+    }
+    if ([int]$docfx['brokenLinks'] -ne 0) {
+        $failures += 'docfx.brokenLinks'
+    }
+
+    foreach ($property in @('mitmMatrixPassed', 'stdoutPurityPassed', 'screenshotIntegrityPassed')) {
+        if ($security[$property] -ne $true) {
+            $failures += "security.$property"
+        }
+    }
+
+    foreach ($property in @('connect', 'ping', 'getUiSummary', 'safeRead', 'mutationRestore', 'uninstallResidue')) {
+        if ($liveSmoke[$property] -ne $true) {
+            $failures += "liveSmoke.$property"
+        }
+    }
+
+    $requiredPackageSmoke = [ordered]@{
+        'windows-x64' = @('x64PackageLocal', 'x64OnlineInstaller')
+        'windows-x86' = @('x86PackageLocal', 'x86OnlineInstaller')
+        'windows-arm64' = @('arm64PackageLocal', 'arm64OnlineInstaller')
+    }
+
+    foreach ($runner in $Runners) {
+        if (-not $requiredPackageSmoke.Contains($runner)) {
+            continue
+        }
+
+        foreach ($property in $requiredPackageSmoke[$runner]) {
+            if ([string]$packageSmoke[$property] -ne 'passed') {
+                $failures += "packageSmoke.$property"
+            }
+        }
+    }
+
+    if ($failures.Count -gt 0) {
+        throw "Public release evidence strict mode failed: $($failures -join ', ')"
+    }
 }
 
 function Normalize-ThumbprintHash {
@@ -264,6 +360,7 @@ function Get-PinnedGitHubActions {
 
 $runtimeEvidence = @(Read-RuntimeEvidence -Paths $RuntimeEvidencePath)
 $docFxEvidence = Read-DocFxEvidence -Path $DocFxEvidencePath
+$securityEvidence = @(Read-SecurityEvidence -Paths $SecurityEvidencePath)
 $repositoryValue = if ([string]::IsNullOrWhiteSpace($Repository)) { 'Evanlau1798/wpf-devtools-mcp' } else { $Repository }
 $branchValue = Resolve-GitValue -Value $Branch -FallbackCommand 'branch --show-current'
 $commitShaValue = Resolve-GitValue -Value $CommitSha -FallbackCommand 'rev-parse HEAD'
@@ -295,6 +392,20 @@ if ($null -eq $observedSignerHash) {
     $observedSignerHash = $signerHash
 }
 
+$mitmMatrixPassed = if ($securityEvidence.Count -gt 0) {
+    Test-AllTrue -Evidence $securityEvidence -Section 'security' -Property 'mitmMatrixPassed'
+}
+else {
+    Test-AllTrue -Evidence $runtimeEvidence -Section 'security' -Property 'mitmMatrixPassed'
+}
+
+$screenshotIntegrityPassed = if ($securityEvidence.Count -gt 0) {
+    Test-AllTrue -Evidence $securityEvidence -Section 'security' -Property 'screenshotIntegrityPassed'
+}
+else {
+    Test-AllTrue -Evidence $runtimeEvidence -Section 'security' -Property 'screenshotIntegrityPassed'
+}
+
 $evidence = [ordered]@{
     repository = $repositoryValue
     branch = $branchValue
@@ -308,9 +419,9 @@ $evidence = [ordered]@{
     }
     docfx = $docFxEvidence
     security = [ordered]@{
-        mitmMatrixPassed = Test-AllTrue -Evidence $runtimeEvidence -Section 'security' -Property 'mitmMatrixPassed'
+        mitmMatrixPassed = $mitmMatrixPassed
         stdoutPurityPassed = Test-AllTrue -Evidence $runtimeEvidence -Section 'security' -Property 'stdoutPurityPassed'
-        screenshotIntegrityPassed = Test-AllTrue -Evidence $runtimeEvidence -Section 'security' -Property 'screenshotIntegrityPassed'
+        screenshotIntegrityPassed = $screenshotIntegrityPassed
     }
     packageSmoke = [ordered]@{
         x64PackageLocal = Get-MergedStatus -Evidence $runtimeEvidence -Property 'x64PackageLocal'
@@ -345,6 +456,10 @@ $evidence = [ordered]@{
         pinnedActionCount = $pinnedActions.Count
         pinnedActions = $pinnedActions
     }
+}
+
+if ($PublicReleaseStrict) {
+    Assert-PublicReleaseStrictEvidence -Evidence $evidence -Runners $runnerValues
 }
 
 $outputDirectory = Split-Path -Parent ([System.IO.Path]::GetFullPath($OutputPath))

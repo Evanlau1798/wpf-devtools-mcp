@@ -30,8 +30,14 @@ public sealed class ReleaseEvidenceWorkflowTests
         content.Should().Contain("release-evidence-${{ needs.publish-release-assets.outputs.release-tag }}");
         content.Should().Contain("upload-release-assets:");
         content.Should().Contain("Copy-Item -LiteralPath 'artifacts/release/docfx-evidence.json'");
+        content.Should().Contain("Write-ReleaseSecurityEvidence.ps1");
+        content.Should().Contain("security-evidence.json");
+        content.Should().Contain("Copy-Item -LiteralPath 'artifacts/release/security-evidence.json'");
         content.Should().Contain("/docfx-evidence.json");
+        content.Should().Contain("/security-evidence.json");
         content.Should().Contain("-DocFxEvidencePath (Join-Path $stagingRoot 'docfx-evidence.json')");
+        content.Should().Contain("-SecurityEvidencePath (Join-Path $stagingRoot 'security-evidence.json')");
+        content.Should().Contain("-PublicReleaseStrict");
         content.Should().Contain("/package-sbom.spdx.json");
         content.Should().Contain("-PackageSbomPath (Join-Path $stagingRoot 'package-sbom.spdx.json')");
         content.Should().Contain("-WorkflowSha '${{ github.workflow_sha }}'");

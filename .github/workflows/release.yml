@@ -101,6 +101,10 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/Test-DocFxDocumentation.ps1 -RepoRoot $PWD -EvidenceOutputPath artifacts/release/docfx-evidence.json
 
+      - name: Write release security evidence
+        shell: pwsh
+        run: ./scripts/tools/packaging/Write-ReleaseSecurityEvidence.ps1 -OutputPath artifacts/release/security-evidence.json -Configuration Release
+
       - name: Materialize signing certificate
         shell: pwsh
         env:
@@ -164,6 +168,7 @@ jobs:
             -OutputJson
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $env:RELEASE_TAG
           Copy-Item -LiteralPath 'artifacts/release/docfx-evidence.json' -Destination (Join-Path $stagingRoot 'docfx-evidence.json') -Force
+          Copy-Item -LiteralPath 'artifacts/release/security-evidence.json' -Destination (Join-Path $stagingRoot 'security-evidence.json') -Force
 
       - name: Upload staged release bundle artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -178,6 +183,7 @@ jobs:
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release-sbom.spdx.json
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/package-sbom.spdx.json
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/docfx-evidence.json
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/security-evidence.json
             ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/upload-gh-release.ps1
 
       - name: Cleanup materialized signing certificate
@@ -647,6 +653,7 @@ jobs:
             -RunnerMatrix 'windows-x64,windows-x86,windows-arm64' `
             -RuntimeEvidencePath $runtimeEvidenceCsv `
             -DocFxEvidencePath (Join-Path $stagingRoot 'docfx-evidence.json') `
+            -SecurityEvidencePath (Join-Path $stagingRoot 'security-evidence.json') `
             -Sha256SumsPath (Join-Path $stagingRoot 'SHA256SUMS.txt') `
             -ReleaseAssetsPath (Join-Path $stagingRoot 'release-assets.json') `
             -ReleaseSbomPath (Join-Path $stagingRoot 'release-sbom.spdx.json') `
@@ -655,7 +662,8 @@ jobs:
             -PowerShellVersion $PSVersionTable.PSVersion.ToString() `
             -WorkflowSha '${{ github.workflow_sha }}' `
             -TrustedSignerThumbprint $env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT `
-            -UninstallResiduePassed
+            -UninstallResiduePassed `
+            -PublicReleaseStrict
 
       - name: Upload release evidence artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

@@ -1,4 +1,4 @@
-﻿param(
+param(
     [ValidateSet('install', 'uninstall', 'full-uninstall', 'plan')]
     [string]$Action = 'install',
 

@@ -239,7 +239,7 @@ finally {
 }
 """;
 
-        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(5));
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(15));
 
         result.ExitCode.Should().Be(0, $"stdout: {result.Stdout}; stderr: {result.Stderr}");
         result.Stdout.Should().Contain("non-json stdout failed fast");

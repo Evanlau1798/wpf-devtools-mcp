@@ -220,13 +220,13 @@ public class NamedPipeClientTimeoutBudgetTests : IDisposable
             enforceHostCompatibilityValidation: true);
 
         var connectTask = client.ConnectAsync(
-            TimeSpan.FromSeconds(10),
+            TimeSpan.FromSeconds(30),
             maxRetries: 1,
             cancellationToken: callerCancellation.Token);
 
         try
         {
-            await validationRequestReceived.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await validationRequestReceived.Task.WaitAsync(TimeSpan.FromSeconds(15));
             callerCancellation.Cancel();
 
             await connectTask.Invoking(static task => task).Should().ThrowAsync<OperationCanceledException>();

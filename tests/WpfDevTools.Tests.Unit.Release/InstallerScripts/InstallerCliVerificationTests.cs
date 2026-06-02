@@ -101,6 +101,7 @@ public sealed partial class InstallerScriptTests
             [
                 "function Get-InstallerTimeoutSeconds { param([string]$EnvironmentVariable, [int]$DefaultValue, [int]$MinimumValue = 1, [int]$MaximumValue = 120) $rawValue = [Environment]::GetEnvironmentVariable($EnvironmentVariable); if ([string]::IsNullOrWhiteSpace($rawValue)) { return $DefaultValue }; $parsedValue = 0; if (-not [int]::TryParse($rawValue, [ref]$parsedValue)) { return $DefaultValue }; return [Math]::Min($MaximumValue, [Math]::Max($MinimumValue, $parsedValue)) }",
                 "function Get-InstallerVerificationTimeoutSeconds { return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC' -DefaultValue 2 -MinimumValue 1 -MaximumValue 30) }",
+                "function Test-InstallerRunningElevated { return $false }",
                 ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Verification.Commands.ps1").Replace("'", "''") + "'",
                 "$env:PATH='" + BuildShimOnlyPath(fakeBin).Replace("'", "''") + "'",
                 "$env:WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC='1'",

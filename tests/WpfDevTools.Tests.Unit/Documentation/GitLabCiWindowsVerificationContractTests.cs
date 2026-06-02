@@ -76,9 +76,21 @@ public sealed class GitLabCiWindowsVerificationContractTests
         hosted.Should().Contain("-nodeReuse:false");
         hosted.Should().Contain("-p:UseSharedCompilation=false");
         hosted.Should().Contain("Invoke-ManagedTestLanes");
-        hosted.Should().Contain("-Configuration $configuration -MaxParallelLanes $MaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeUnitDebug -IncludeReleaseUnit");
-        hosted.Should().NotContain("Invoke-UnitDebugTests -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $configuration",
-            "HostedWindowsX64 should run unit and release-unit projects in one bounded batch to keep the no-VM CI path close to hosted matrix wall-clock behavior without skipping coverage");
+        hosted.Should().Contain("Invoke-UnitDebugTests `");
+        hosted.Should().Contain("-UnitDebugShardCount $UnitDebugShardCount");
+        hosted.Should().Contain("-ReleaseUnitShardCount $ReleaseUnitShardCount `");
+        hosted.Should().Contain("-IncludeReleaseUnit");
+        hosted.Should().NotContain("-IncludeUnitDebug -IncludeReleaseUnit",
+            "HostedWindowsX64 should mirror GitHub's sequential unit then release-unit steps instead of co-scheduling process-heavy test projects in one worktree");
+        var unitTestsIndex = hosted.IndexOf(
+            "Invoke-UnitDebugTests `",
+            StringComparison.Ordinal);
+        var releaseUnitTestsIndex = hosted.IndexOf(
+            "Invoke-ManagedTestLanes `",
+            StringComparison.Ordinal);
+        unitTestsIndex.Should().BeGreaterThan(0);
+        releaseUnitTestsIndex.Should().BeGreaterThan(unitTestsIndex,
+            "GitHub runs unit tests before release-unit tests, and local hosted CI should preserve that ordering to avoid shared process cleanup races");
         hosted.Should().Contain("Run integration tests Debug");
         hosted.Should().Contain("tests\\WpfDevTools.Tests.Integration\\WpfDevTools.Tests.Integration.csproj");
         hosted.Should().NotContain("Run integration tests Release");

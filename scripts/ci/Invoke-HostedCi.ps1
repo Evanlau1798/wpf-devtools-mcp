@@ -19,7 +19,7 @@ param(
 
         throw 'UnitDebugShardCount currently supports 1 or 4.'
     })]
-    [int]$UnitDebugShardCount = 4,
+    [int]$UnitDebugShardCount = 1,
 
     [ValidateScript({
         if ($_ -eq 1 -or $_ -eq 4 -or $_ -eq 8) {

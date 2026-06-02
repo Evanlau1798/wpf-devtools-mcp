@@ -222,6 +222,8 @@ public sealed class GitLabCiWindowsVerificationContractTests
             .Should().BeLessThan(hosted.IndexOf("Run integration tests Debug", StringComparison.Ordinal));
         runtimeBuildBlock.Should().NotContain("'-p:Platform=x64'",
             "the runtime-specific server output must land under bin/<Configuration>/net8.0/win-x64 for release packaging -SkipBuild");
+        hosted.Should().Contain("[int]$UnitDebugShardCount = 1",
+            "the default no-VM hosted path should keep process/window-heavy unit tests unsharded while release-unit tests carry the parallel speedup");
     }
 
     [Fact]
@@ -262,7 +264,7 @@ public sealed class GitLabCiWindowsVerificationContractTests
         script.Should().Contain("tmp\\hosted-ci",
             "the no-VM hosted CI path should keep one-off work and logs under the repository tmp directory");
         script.Should().Contain("[int]$MaxParallelLanes = 4");
-        script.Should().Contain("[int]$UnitDebugShardCount = 4");
+        script.Should().Contain("[int]$UnitDebugShardCount = 1");
         script.Should().Contain("[int]$ReleaseUnitShardCount = 8");
         script.Should().NotContain("WindowsSandbox.exe");
         script.Should().NotContain(".wsb");

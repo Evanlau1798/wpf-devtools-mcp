@@ -198,7 +198,12 @@ public sealed partial class NamedPipeClient : IDisposable
 
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                     cts.CancelAfter(remainingTimeout);
-                    await WaitForConnectPhaseAsync(localClient.ConnectAsync(cts.Token), cts.Token).ConfigureAwait(false);
+                    var connectTimeoutMs = remainingTimeout.TotalMilliseconds >= int.MaxValue
+                        ? int.MaxValue
+                        : Math.Max(1, (int)Math.Ceiling(remainingTimeout.TotalMilliseconds));
+                    await WaitForConnectPhaseAsync(
+                        localClient.ConnectAsync(connectTimeoutMs, cts.Token),
+                        cts.Token).ConfigureAwait(false);
 
                     if (_authManager != null && _authManager.IsAuthenticationEnabled)
                     {

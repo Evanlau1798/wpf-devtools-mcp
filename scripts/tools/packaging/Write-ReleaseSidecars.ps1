@@ -371,7 +371,7 @@ function Get-RepositoryScriptFiles {
     }
 
     Get-ChildItem -LiteralPath $scriptRoot -Recurse -File |
-        Where-Object { $_.Extension -in @('.ps1', '.psm1', '.bat', '.cmd', '.json') } |
+        Where-Object { $_.Extension -in @('.ps1', '.psm1', '.bat', '.cmd', '.json') -and $_.Name -notmatch '\.test-[0-9a-f]{32}\.ps1$' } |
         Sort-Object FullName |
         ForEach-Object {
             $relativeName = $_.FullName.Substring($RepositoryRoot.TrimEnd('\').Length + 1).Replace('\', '/')

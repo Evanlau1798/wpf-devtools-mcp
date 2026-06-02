@@ -27,7 +27,6 @@ $ErrorActionPreference = 'Stop'
 
 function Get-Sha256HexForBytes {
     param([Parameter(Mandatory)] [byte[]]$Bytes)
-
     $sha256 = [System.Security.Cryptography.SHA256]::Create()
     try {
         return (($sha256.ComputeHash($Bytes) | ForEach-Object { $_.ToString('x2') }) -join '')
@@ -231,6 +230,7 @@ function Get-MergedStatus {
 function Assert-PublicReleaseStrictEvidence {
     param(
         [Parameter(Mandatory)] [System.Collections.Specialized.OrderedDictionary]$Evidence,
+        [Parameter(Mandatory)] [object[]]$RuntimeEvidence,
         [Parameter(Mandatory)] [string[]]$Runners
     )
 
@@ -262,20 +262,26 @@ function Assert-PublicReleaseStrictEvidence {
         }
     }
 
-    $requiredPackageSmoke = [ordered]@{
-        'windows-x64' = @('x64PackageLocal', 'x64OnlineInstaller')
-        'windows-x86' = @('x86PackageLocal', 'x86OnlineInstaller')
-        'windows-arm64' = @('arm64PackageLocal', 'arm64OnlineInstaller')
+    $requiredPackageSmoke = @{
+        'windows-x64' = @{ architecture = 'x64'; modes = @{ 'package-local' = 'x64PackageLocal'; 'online-installer' = 'x64OnlineInstaller' } }
+        'windows-x86' = @{ architecture = 'x86'; modes = @{ 'package-local' = 'x86PackageLocal'; 'online-installer' = 'x86OnlineInstaller' } }
+        'windows-arm64' = @{ architecture = 'arm64'; modes = @{ 'package-local' = 'arm64PackageLocal'; 'online-installer' = 'arm64OnlineInstaller' } }
     }
 
     foreach ($runner in $Runners) {
-        if (-not $requiredPackageSmoke.Contains($runner)) {
+        if (-not $requiredPackageSmoke.ContainsKey($runner)) {
             continue
         }
 
-        foreach ($property in $requiredPackageSmoke[$runner]) {
+        $requirement = $requiredPackageSmoke[$runner]
+        foreach ($mode in $requirement.modes.Keys) {
+            $property = $requirement.modes[$mode]
             if ([string]$packageSmoke[$property] -ne 'passed') {
                 $failures += "packageSmoke.$property"
+            }
+
+            if (-not (Test-RuntimeEvidenceHasInstallMode -Evidence $RuntimeEvidence -InstallMode $mode -PackageSmokeName $property)) {
+                $failures += "runtimeEvidence.$runner.$mode"
             }
         }
     }
@@ -458,8 +464,35 @@ $evidence = [ordered]@{
     }
 }
 
+function Test-RuntimeEvidenceHasInstallMode {
+    param(
+        [Parameter(Mandatory)] [object[]]$Evidence,
+        [Parameter(Mandatory)] [string]$InstallMode,
+        [Parameter(Mandatory)] [string]$PackageSmokeName
+    )
+
+    foreach ($item in $Evidence) {
+        $installModeProperty = $item.PSObject.Properties['installMode']
+        if ($null -eq $installModeProperty -or [string]$installModeProperty.Value -ne $InstallMode) {
+            continue
+        }
+
+        $packageSmokeSectionProperty = $item.PSObject.Properties['packageSmoke']
+        if ($null -eq $packageSmokeSectionProperty -or $null -eq $packageSmokeSectionProperty.Value) {
+            continue
+        }
+
+        $valueProperty = $packageSmokeSectionProperty.Value.PSObject.Properties[$PackageSmokeName]
+        if ($null -ne $valueProperty -and [string]$valueProperty.Value -eq 'passed') {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 if ($PublicReleaseStrict) {
-    Assert-PublicReleaseStrictEvidence -Evidence $evidence -Runners $runnerValues
+    Assert-PublicReleaseStrictEvidence -Evidence $evidence -RuntimeEvidence $runtimeEvidence -Runners $runnerValues
 }
 
 $outputDirectory = Split-Path -Parent ([System.IO.Path]::GetFullPath($OutputPath))

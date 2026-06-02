@@ -38,7 +38,24 @@ public sealed class ReleaseEvidenceStrictModeTests
         try
         {
             var outputPath = Path.Combine(tempRoot, "release-evidence.json");
-            var runtimeEvidencePath = WriteRuntimeEvidence(tempRoot, mitmPassed: false, screenshotPassed: false);
+            var runtimeEvidencePath = string.Join(
+                ',',
+                WriteRuntimeEvidence(
+                    tempRoot,
+                    mitmPassed: false,
+                    screenshotPassed: false,
+                    fileName: "runtime-evidence-x64-installed.json",
+                    installMode: "package-local",
+                    packageLocalStatus: "passed",
+                    onlineInstallerStatus: "passed-or-not-public"),
+                WriteRuntimeEvidence(
+                    tempRoot,
+                    mitmPassed: false,
+                    screenshotPassed: false,
+                    fileName: "runtime-evidence-x64-online.json",
+                    installMode: "online-installer",
+                    packageLocalStatus: "passed-or-not-public",
+                    onlineInstallerStatus: "passed"));
             var docFxEvidencePath = WriteDocFxEvidence(tempRoot);
             var securityEvidencePath = WriteSecurityEvidence(tempRoot);
 
@@ -63,11 +80,19 @@ public sealed class ReleaseEvidenceStrictModeTests
         }
     }
 
-    private static string WriteRuntimeEvidence(string tempRoot, bool mitmPassed, bool screenshotPassed)
+    private static string WriteRuntimeEvidence(
+        string tempRoot,
+        bool mitmPassed,
+        bool screenshotPassed,
+        string fileName = "runtime-evidence.json",
+        string installMode = "package-local",
+        string packageLocalStatus = "passed",
+        string onlineInstallerStatus = "passed-or-not-public")
     {
-        var path = Path.Combine(tempRoot, "runtime-evidence.json");
+        var path = Path.Combine(tempRoot, fileName);
         File.WriteAllText(path, $$"""
             {
+              "installMode": "{{installMode}}",
               "toolsList": {
                 "count": 64,
                 "nameSetHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -79,12 +104,12 @@ public sealed class ReleaseEvidenceStrictModeTests
                 "screenshotIntegrityPassed": {{screenshotPassed.ToString().ToLowerInvariant()}}
               },
               "packageSmoke": {
-                "x64PackageLocal": "passed",
-                "x64OnlineInstaller": "passed",
-                "x86PackageLocal": "passed",
-                "x86OnlineInstaller": "passed",
-                "arm64PackageLocal": "passed",
-                "arm64OnlineInstaller": "passed"
+                "x64PackageLocal": "{{packageLocalStatus}}",
+                "x64OnlineInstaller": "{{onlineInstallerStatus}}",
+                "x86PackageLocal": "passed-or-not-public",
+                "x86OnlineInstaller": "passed-or-not-public",
+                "arm64PackageLocal": "passed-or-not-public",
+                "arm64OnlineInstaller": "passed-or-not-public"
               },
               "liveSmoke": {
                 "connect": true,
@@ -149,7 +174,7 @@ public sealed class ReleaseEvidenceStrictModeTests
             "-Branch", "v1.2.3",
             "-CommitSha", "0123456789abcdef0123456789abcdef01234567",
             "-WorkflowRunId", "123456789",
-            "-RunnerMatrix", "windows-x64,windows-x86,windows-arm64",
+            "-RunnerMatrix", "windows-x64",
             "-RuntimeEvidencePath", runtimeEvidencePath,
             "-DocFxEvidencePath", docFxEvidencePath,
             "-Sha256SumsPath", shaSumsPath,

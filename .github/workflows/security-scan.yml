@@ -50,7 +50,15 @@ jobs:
       run: dotnet restore --locked-mode
 
     - name: Run .NET analyzer gate
-      run: dotnet format WpfDevTools.sln analyzers --verify-no-changes --severity error --no-restore
+      shell: pwsh
+      run: |
+        $env:PATH = "$env:DOTNET_ROOT;$env:PATH"
+        $dotnet = Join-Path $env:DOTNET_ROOT 'dotnet.exe'
+        if (-not (Test-Path -LiteralPath $dotnet)) {
+          $dotnet = (Get-Command dotnet -ErrorAction Stop).Source
+        }
+
+        & $dotnet format WpfDevTools.sln analyzers --verify-no-changes --severity error --no-restore
 
     - name: Run PowerShell ScriptAnalyzer
       shell: pwsh

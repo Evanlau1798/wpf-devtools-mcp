@@ -297,6 +297,7 @@ public sealed partial class NamedPipeClient : IDisposable
         }
         finally
         {
+            ResetConnectionStateIfDisposed();
             _pipeSemaphore.Release();
         }
     }

@@ -316,7 +316,7 @@ public class NamedPipeClientProtocolTests
     }
 
     [Fact]
-    public async Task Dispose_WhenInFlightResponseCompletesAfterOriginalDisposeGrace_ShouldStillWaitForResponse()
+    public async Task Dispose_WhenInFlightResponseCompletesAfterDisposeGrace_ShouldStillAllowResponse()
     {
         var processId = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
@@ -361,7 +361,7 @@ public class NamedPipeClientProtocolTests
             authManager: null,
             certManager: null,
             enforceHostCompatibilityValidation: false,
-            requestTimeout: TimeSpan.FromSeconds(3));
+            requestTimeout: TimeSpan.FromSeconds(4));
         (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
 
         var sendTask = client.SendRequestAsync(
@@ -373,7 +373,7 @@ public class NamedPipeClientProtocolTests
         await requestReceived.Task;
 
         var disposeTask = Task.Run(client.Dispose);
-        await Task.Delay(TimeSpan.FromMilliseconds(1_300));
+        await Task.Delay(TimeSpan.FromMilliseconds(2_300));
         allowServerCompletion.SetResult();
 
         var response = await sendTask;

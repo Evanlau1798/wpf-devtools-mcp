@@ -26,7 +26,7 @@ public sealed class ConnectedWaitSessionBuilderTests
     }
 
     [Fact]
-    public async Task Dispose_WhenClientDisconnectsBeforePendingServerResponse_ShouldNotThrow()
+    public async Task Dispose_WhenClientIsDisposedBeforePendingServerResponse_ShouldNotThrow()
     {
         const int processId = 7631;
         var requestSeen = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -53,10 +53,8 @@ public sealed class ConnectedWaitSessionBuilderTests
         client.Dispose();
         releaseResponse.SetResult();
 
-        await requestTask
-            .Awaiting(task => task.WaitAsync(TimeSpan.FromSeconds(5)))
-            .Should()
-            .ThrowAsync<Exception>();
+        var response = await requestTask.WaitAsync(TimeSpan.FromSeconds(5));
+        response.Error.Should().BeNull();
 
         var dispose = connected.Dispose;
         dispose.Should().NotThrow();

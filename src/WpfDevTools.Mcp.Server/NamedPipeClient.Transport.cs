@@ -61,6 +61,14 @@ public sealed partial class NamedPipeClient
         try { pipeToDispose?.Dispose(); } catch (IOException) { }
     }
 
+    private void ResetConnectionStateIfDisposed()
+    {
+        if (Volatile.Read(ref _disposeState) != 0)
+        {
+            ResetConnectionState();
+        }
+    }
+
     private async Task<SslStream?> CreateClientSslStreamAsync(
         NamedPipeClientStream pipe,
         CancellationToken cancellationToken,

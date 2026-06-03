@@ -44,6 +44,7 @@ public sealed partial class NamedPipeClient
         {
             if (lockAcquired)
             {
+                ResetConnectionStateIfDisposed();
                 _pipeSemaphore.Release();
             }
         }
@@ -171,7 +172,8 @@ public sealed partial class NamedPipeClient
         }
         else
         {
-            ResetConnectionState();
+            // The active connect/request owns the pipe. Let it finish or time out,
+            // then close the transport before releasing the semaphore.
         }
 
         // NOTE: _pipeSemaphore is intentionally NOT disposed here.

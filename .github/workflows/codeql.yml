@@ -76,6 +76,7 @@ jobs:
           dotnet build WpfDevTools.sln `
             --configuration Release `
             --no-restore `
+            -m:1 `
             -p:Platform=x64 `
             -nodeReuse:false `
             -p:UseSharedCompilation=false

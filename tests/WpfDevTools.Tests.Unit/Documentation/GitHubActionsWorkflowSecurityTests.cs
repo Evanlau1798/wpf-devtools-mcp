@@ -115,6 +115,8 @@ public sealed class GitHubActionsWorkflowSecurityTests
         workflow.Should().Contain("codeql-sarif-${{ matrix.language }}");
         workflow.Should().Contain("path: codeql-results");
         workflow.Should().Contain("dotnet build WpfDevTools.sln");
+        workflow.Should().Contain("-m:1",
+            "CodeQL C# manual builds should be serialized to avoid transient obj/bin file locks on hosted runners");
         workflow.Should().Contain("WpfDevTools.Bootstrapper.vcxproj");
         workflow.Should().Contain("+security-extended,security-and-quality");
     }

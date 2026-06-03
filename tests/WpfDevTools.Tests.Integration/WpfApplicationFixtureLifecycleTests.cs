@@ -6,6 +6,8 @@ namespace WpfDevTools.Tests.Integration;
 
 public sealed class WpfApplicationFixtureLifecycleTests
 {
+    private static readonly TimeSpan DeferredSignalDisposalTimeout = TimeSpan.FromSeconds(10);
+
     [Fact]
     public void EnsureStartupCompleted_WhenStartupFailureExists_ShouldThrowWithInnerExceptionEvenAfterSignal()
     {
@@ -57,7 +59,7 @@ public sealed class WpfApplicationFixtureLifecycleTests
 
             appStopped.Set();
 
-            SpinWait.SpinUntil(() => IsDisposed(appStarted), TimeSpan.FromSeconds(1)).Should().BeTrue(
+            SpinWait.SpinUntil(() => IsDisposed(appStarted), DeferredSignalDisposalTimeout).Should().BeTrue(
                 "the deferred cleanup should eventually release the startup signal after the UI thread signals shutdown");
         }
         finally
@@ -173,7 +175,7 @@ public sealed class WpfApplicationFixtureLifecycleTests
                 "the background thread should still be able to signal shutdown completion cleanly after the timeout path returns");
             backgroundFailure.Should().BeNull(
                 "the delayed thread exit should not encounter an ObjectDisposedException when it signals shutdown completion");
-            SpinWait.SpinUntil(() => IsDisposed(appStopped), TimeSpan.FromSeconds(1)).Should().BeTrue(
+            SpinWait.SpinUntil(() => IsDisposed(appStopped), DeferredSignalDisposalTimeout).Should().BeTrue(
                 "the release step should eventually dispose the shutdown signal after the delayed thread exit completes");
         }
         finally

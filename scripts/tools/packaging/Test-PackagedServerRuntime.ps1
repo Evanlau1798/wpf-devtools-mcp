@@ -42,12 +42,15 @@ function Read-McpResponse {
         [bool]$AllowError = $false
     )
     $responseTask = $Process.StandardOutput.ReadLineAsync()
-    if (-not $responseTask.Wait($TimeoutMilliseconds)) {
+    $deadline = [DateTimeOffset]::UtcNow.AddMilliseconds($TimeoutMilliseconds)
+    while (-not $responseTask.Wait(50) -and -not $Process.HasExited -and [DateTimeOffset]::UtcNow -lt $deadline) { }
+    if (-not $responseTask.IsCompleted) {
+        $exitedBeforeResponse = $Process.HasExited
         Stop-PackagedServerProcess -Process $Process
         $stderr = Get-ProcessDiagnostics -Process $Process
+        if ($exitedBeforeResponse) { throw "Packaged server closed stdout before returning $OperationName response. Stderr: $stderr" }
         throw "Timed out waiting for $OperationName response from packaged server. Stderr: $stderr"
     }
-
     $responseLine = $responseTask.Result
     if ([string]::IsNullOrWhiteSpace($responseLine)) {
         Stop-PackagedServerProcess -Process $Process
@@ -77,12 +80,10 @@ function Read-McpResponse {
     if ($responseId -ne $ExpectedResponseId) {
         throw "Packaged server $OperationName returned response id $responseId, expected $ExpectedResponseId. Response: $responseLine"
     }
-
     $errorPayload = Get-JsonProperty -Object $response -Name 'error'
     if ($null -ne $errorPayload -and -not $AllowError) {
         throw "Packaged server $OperationName returned an error: $($errorPayload | ConvertTo-Json -Compress -Depth 8)"
     }
-
     return $response
 }
 
@@ -102,10 +103,8 @@ function Invoke-McpRequest {
         method = $Method
         params = $Params
     } | ConvertTo-Json -Compress -Depth 12
-
     $Process.StandardInput.WriteLine($request)
     $Process.StandardInput.Flush()
-
     return Read-McpResponse -Process $Process -OperationName $Method -ExpectedResponseId $Id -TimeoutMilliseconds $TimeoutMilliseconds -AllowError:$AllowError
 }
 

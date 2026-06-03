@@ -43,6 +43,37 @@ public sealed class GitHubCiHangDiagnosticsContractTests
         step.Should().Contain("if-no-files-found: ignore");
     }
 
+    [Fact]
+    public void CodeCoverageWorkflow_TestStep_ShouldFailFastAndAvoidReleaseHeavyRetest()
+    {
+        var lines = File.ReadAllLines(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
+
+        var step = string.Join(Environment.NewLine, GetNamedStepBlock(lines, "Run tests with coverage"));
+
+        step.Should().Contain("timeout-minutes: 20");
+        step.Should().Contain("--blame-hang-timeout 10m",
+            "coverage test hangs need VSTest diagnostics instead of waiting for the job timeout");
+        step.Should().Contain("--logger \"trx;LogFileName=coverage-debug.trx\"",
+            "coverage failures should leave a structured TRX file for hosted CI and GitHub artifacts");
+        step.Should().Contain("--results-directory ./TestResults/coverage");
+        step.Should().Contain("--filter \"FullyQualifiedName!~WpfDevTools.Tests.Unit.Release\"",
+            "release and installer script tests already run in dedicated shards and make coverage jobs slow and brittle");
+    }
+
+    [Fact]
+    public void CodeCoverageWorkflow_ShouldUploadCoverageDiagnosticsWhenTestsFailOrAreCancelled()
+    {
+        var lines = File.ReadAllLines(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
+
+        var step = string.Join(Environment.NewLine, GetNamedStepBlock(lines, "Upload coverage test diagnostics"));
+
+        step.Should().Contain("if: failure() || cancelled()");
+        step.Should().Contain("actions/upload-artifact@");
+        step.Should().Contain("name: coverage-test-diagnostics");
+        step.Should().Contain("path: TestResults/");
+        step.Should().Contain("if-no-files-found: ignore");
+    }
+
     private static List<string> GetNamedStepBlock(string[] lines, string stepName)
     {
         var start = Array.FindIndex(lines, line => line.Trim() == $"- name: {stepName}");

@@ -229,14 +229,14 @@ function Invoke-HostedCoverageVerification {
     Invoke-ExternalWithTimeout 'Run tests with coverage' $DotNetPath @(
         'test',
         'tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj',
-        '-c',
-        'Debug',
+        '-c', 'Debug',
         '--no-build',
         '--settings', 'coverlet.runsettings',
-        '--collect',
-        'XPlat Code Coverage',
-        '--results-directory',
-        (Join-Path $ResultsRoot 'coverage'),
+        '--collect', 'XPlat Code Coverage',
+        '--blame-hang-timeout', '10m',
+        '--logger', 'trx;LogFileName=coverage-debug.trx',
+        '--results-directory', (Join-Path $ResultsRoot 'coverage'),
+        '--filter', 'FullyQualifiedName!~WpfDevTools.Tests.Unit.Release',
         '-nodeReuse:false',
         '-p:UseSharedCompilation=false'
     ) -TimeoutSeconds 3600 -OutputRoot $OutputRoot -Timestamp $Timestamp

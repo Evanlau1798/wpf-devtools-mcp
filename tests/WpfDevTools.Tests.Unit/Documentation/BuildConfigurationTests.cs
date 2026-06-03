@@ -68,12 +68,17 @@ public class BuildConfigurationTests
     [Fact]
     public void CoverageWorkflow_ShouldBuildUnitTestsBeforeRunningNoBuildCoverageStep()
     {
-        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/ci-cd.yml"));
+        var content = string.Join('\n', lines);
+        var coverageTestStep = string.Join('\n', GetNamedStepBlock(lines, "Run tests with coverage"));
 
         content.Should().Contain("dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug --no-restore",
             "coverage CI should compile the unit test project before invoking dotnet test to avoid implicit rebuilds");
-        content.Should().Contain("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug --no-build --settings coverlet.runsettings",
+        coverageTestStep.Should().Contain("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj",
             "coverage CI should use a no-build test invocation after the explicit build step");
+        coverageTestStep.Should().Contain("-c Debug");
+        coverageTestStep.Should().Contain("--no-build");
+        coverageTestStep.Should().Contain("--settings coverlet.runsettings");
     }
 
     [Fact]

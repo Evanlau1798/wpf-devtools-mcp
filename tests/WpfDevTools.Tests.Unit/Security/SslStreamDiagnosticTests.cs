@@ -8,11 +8,14 @@ using WpfDevTools.Shared.Security;
 using WpfDevTools.Tests.Unit.Inspector;
 using Xunit;
 using Xunit.Abstractions;
+using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.Security;
 
+[Collection("TimingSensitive")]
 public class SslStreamDiagnosticTests
 {
+    private static readonly TimeSpan HostStartupTimeout = TimeSpan.FromSeconds(15);
     private readonly ITestOutputHelper _output;
 
     public SslStreamDiagnosticTests(ITestOutputHelper output)
@@ -25,19 +28,25 @@ public class SslStreamDiagnosticTests
     {
         // Test InspectorHost with SslStream using raw client
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
+        var pipeName = CreateUniquePipeName();
         var tempDir = Path.Combine(Path.GetTempPath(), "SslTest_" + Guid.NewGuid());
         Directory.CreateDirectory(tempDir);
 
         try
         {
             var certManager = new WpfDevTools.Shared.Security.CertificateManager(tempDir);
-            using var host = new WpfDevTools.Inspector.Host.InspectorHost(pid, null, certManager);
+            using var host = new WpfDevTools.Inspector.Host.InspectorHost(
+                pid,
+                pipeName,
+                authManager: null,
+                certManager,
+                startupTimeout: HostStartupTimeout);
             using var plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
             host.Start();
             _output.WriteLine("Host started");
 
             using var client = new NamedPipeClientStream(
-                ".", $"WpfDevTools_{pid}", PipeDirection.InOut, PipeOptions.Asynchronous);
+                ".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
             await client.ConnectAsync(5000);
             _output.WriteLine("Pipe connected");
 

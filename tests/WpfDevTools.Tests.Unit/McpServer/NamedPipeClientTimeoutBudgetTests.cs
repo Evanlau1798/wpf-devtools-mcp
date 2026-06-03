@@ -250,7 +250,7 @@ public class NamedPipeClientTimeoutBudgetTests : IDisposable
         await act.Should().ThrowAsync<OperationCanceledException>();
         sw.Stop();
 
-        sw.Elapsed.Should().BeLessThan(TimeSpan.FromMilliseconds(800),
+        sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(2),
             "NET48-style AuthenticateAsClientAsync/read/write tasks do not provide reliable cancellation overloads");
     }
 

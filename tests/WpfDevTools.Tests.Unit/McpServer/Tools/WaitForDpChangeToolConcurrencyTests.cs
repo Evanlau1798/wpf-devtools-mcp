@@ -378,7 +378,7 @@ public sealed class WaitForDpChangeToolConcurrencyTests
             connected.SessionManager,
             async (_, cancellationToken) =>
             {
-                await Task.Delay(250, cancellationToken);
+                await Task.Delay(2000, cancellationToken);
                 return new { success = true };
             },
             triggerMutationTimeoutRequiresReconnect: false);
@@ -389,7 +389,7 @@ public sealed class WaitForDpChangeToolConcurrencyTests
                 processId,
                 propertyName = "Text",
                 expectedValue = JsonSerializer.SerializeToElement("after"),
-                timeoutMs = 100,
+                timeoutMs = 500,
                 pollIntervalMs = 50,
                 triggerMutation = new
                 {

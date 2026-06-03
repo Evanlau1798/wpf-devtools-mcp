@@ -10,7 +10,10 @@ namespace WpfDevTools.Tests.Unit;
 /// </summary>
 public static class TestHelpers
 {
-    private static int s_nextSyntheticProcessId = 1_500_000_000;
+    private const int SyntheticProcessIdBase = 100_000_000;
+    private const int SyntheticProcessIdBlockSize = 50_000;
+    private const int SyntheticProcessIdBlockCount = 40_000;
+    private static int s_nextSyntheticProcessId = CreateSyntheticProcessIdSeed();
     public const string OnlineInstallerDefinitionBoundaryMarker = "# TEST_BOUNDARY_MARKER: definition-only loading stops before the main entrypoint.";
 
     /// <summary>
@@ -24,6 +27,14 @@ public static class TestHelpers
 
     public static int NextSyntheticProcessId() =>
         System.Threading.Interlocked.Increment(ref s_nextSyntheticProcessId);
+
+    private static int CreateSyntheticProcessIdSeed()
+    {
+        // Parallel dotnet test shards run in separate processes; include the host
+        // process id so real named-pipe tests do not reuse the same WpfDevTools_{pid}.
+        var processBlock = Environment.ProcessId % SyntheticProcessIdBlockCount;
+        return SyntheticProcessIdBase + (processBlock * SyntheticProcessIdBlockSize);
+    }
 
     public static string CreateUniquePipeName(string prefix = "WpfDevTools_Test") =>
         $"{prefix}_{Guid.NewGuid():N}";

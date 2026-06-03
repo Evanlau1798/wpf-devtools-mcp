@@ -13,8 +13,10 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
+[Collection("TimingSensitive")]
 public class NamedPipeClientAuthTests : IDisposable
 {
+    private static readonly TimeSpan HostStartupTimeout = TimeSpan.FromSeconds(15);
     private readonly IDisposable _plaintextPolicy = UnsafePlaintextInspectorHostTestEnvironment.BeginScope();
 
     public void Dispose()
@@ -33,7 +35,7 @@ public class NamedPipeClientAuthTests : IDisposable
         var authManager = new AuthenticationManager(
             envSecretProvider: () => Convert.ToBase64String(secret));
 
-        using var host = new InspectorHost(pid, pipeName, authManager, null);
+        using var host = new InspectorHost(pid, pipeName, authManager, null, startupTimeout: HostStartupTimeout);
         host.Start();
 
         using var client = new NamedPipeClient(pid, pipeName, authManager, null);
@@ -65,7 +67,7 @@ public class NamedPipeClientAuthTests : IDisposable
         var clientAuth = new AuthenticationManager(
             envSecretProvider: () => Convert.ToBase64String(clientSecret));
 
-        using var host = new InspectorHost(pid, pipeName, serverAuth, null);
+        using var host = new InspectorHost(pid, pipeName, serverAuth, null, startupTimeout: HostStartupTimeout);
         host.Start();
 
         using var client = new NamedPipeClient(pid, pipeName, clientAuth, null);
@@ -89,7 +91,7 @@ public class NamedPipeClientAuthTests : IDisposable
         var authManager = new AuthenticationManager(
             envSecretProvider: () => Convert.ToBase64String(secret));
 
-        using var host = new InspectorHost(pid, pipeName, authManager, null);
+        using var host = new InspectorHost(pid, pipeName, authManager, null, startupTimeout: HostStartupTimeout);
         host.Start();
 
         using var client = new NamedPipeClient(pid, pipeName, authManager, null);
@@ -111,7 +113,11 @@ public class NamedPipeClientAuthTests : IDisposable
     {
         // Arrange - both sides without auth
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
-        using var host = new InspectorHost(pid);
+        using var host = new InspectorHost(
+            pid,
+            authManager: null,
+            certManager: null,
+            startupTimeout: HostStartupTimeout);
         host.Start();
 
         using var client = new NamedPipeClient(pid);

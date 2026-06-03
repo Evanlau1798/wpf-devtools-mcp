@@ -13,10 +13,13 @@
 | `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | Enables or disables `element_screenshot` | Same boolean values as above; unset, invalid, or false values fail closed for screenshot calls |
 | `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS` | Enables or disables sensitive runtime read tools | Covers target UI text, DependencyProperty and binding values, routed-event payloads, tree/scene summaries, and state snapshots; same boolean values as above; unset, invalid, or false values fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | Enables or disables ViewModel inspection tools | Same boolean values as above; unset, invalid, or false values block `get_viewmodel`, `get_commands`, `modify_viewmodel`, and `execute_command` |
+| `WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE` | Skips the existing SDK-hosted Inspector reuse probe during `connect()` | Diagnostics only; leave unset for normal production usage so SDK-hosted reuse remains the preferred path |
 | `WPFDEVTOOLS_RATE_LIMIT_RPM` | Overrides the MCP server request rate limit | Positive integer requests per minute; default is 300; values above 10000 are clamped to 10000 |
 | `WPFDEVTOOLS_TEXT_FALLBACK_MODE` | Controls MCP `content[0].text` fallback verbosity | Set to `full` only for legacy text-only clients; large or sensitive payload fields such as base64 screenshots and log dumps remain omitted from the text fallback. Unset uses the compact fallback |
 
 The internal per-process rate limiter cache is capped at 1000 entries and evicts the least recently used entries when full. This cache capacity is not externally configurable.
+
+`WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE` is intended for diagnosing SDK-host reuse behavior. Do not set it in normal onboarding or production deployment unless you are intentionally validating the raw-injection fallback.
 
 ## Installer and package variables
 

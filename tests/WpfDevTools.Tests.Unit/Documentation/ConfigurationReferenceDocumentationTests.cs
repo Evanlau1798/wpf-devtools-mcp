@@ -20,6 +20,7 @@ public sealed class ConfigurationReferenceDocumentationTests
             "WPFDEVTOOLS_CERT_DIR",
             "WPFDEVTOOLS_CERT_THUMBPRINT",
             "WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS",
+            "WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE",
             "WPFDEVTOOLS_RATE_LIMIT_RPM",
             "WPFDEVTOOLS_TEXT_FALLBACK_MODE",
             "WPFDEVTOOLS_SKIP_ELEVATION",

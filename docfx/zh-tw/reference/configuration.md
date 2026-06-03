@@ -13,10 +13,13 @@
 | `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | 啟用或停用 `element_screenshot` | boolean 值同上；未設定、無效或 false 會讓 screenshot call fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS` | 啟用或停用 sensitive runtime read tools | 涵蓋 target UI text、DependencyProperty 與 binding values、routed-event payloads、tree/scene summaries 與 state snapshots；boolean 值同上；未設定、無效或 false 會 fail closed |
 | `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | 啟用或停用 ViewModel inspection tool | boolean 值同上；未設定、無效或 false 會擋下 `get_viewmodel`、`get_commands`、`modify_viewmodel` 與 `execute_command` |
+| `WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE` | 在 `connect()` 中略過既有 SDK-hosted Inspector reuse probe | 僅供診斷；正常 production usage 請保持 unset，讓 SDK-hosted reuse 維持 preferred path |
 | `WPFDEVTOOLS_RATE_LIMIT_RPM` | 覆寫 MCP server request rate limit | 每分鐘 request 數，必須是正整數；預設值為 300；超過 10000 的值會被 clamp 為 10000 |
 | `WPFDEVTOOLS_TEXT_FALLBACK_MODE` | 控制 MCP `content[0].text` fallback 詳細程度 | 只有 legacy text-only client 才設定為 `full`；base64 screenshots、log dumps 等大型或敏感 payload 欄位仍會從 text fallback 省略。未設定時使用 compact fallback |
 
 internal per-process rate limiter cache 上限為 1000 筆；滿額時會淘汰 least recently used entry。這個 cache capacity 目前不能透過環境變數調整。
+
+`WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE` 只應用於診斷 SDK-host reuse 行為。除非你刻意驗證 raw-injection fallback，否則不要在一般 onboarding 或 production deployment 中設定。
 
 ## Installer 與 package 變數
 

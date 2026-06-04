@@ -21,9 +21,30 @@ SDK-hosted reuse 透過 named pipes 通訊；target-side host 已啟動後，不
 
 ## Step 1：選擇安裝路徑
 
-### 已審查的本機 package 安裝
+### GitHub Release assets 存在後的公開 HTTPS installer
 
-> **公開端點狀態：** Public release endpoints are not yet anonymously reachable。GitHub repository、Releases、latest-release API、raw installer URL 與 installer alias 都通過匿名 smoke check 前，請使用本機產生且已驗證的 release package 或 source checkout，不要執行遠端一行安裝命令。
+待該版本的 GitHub Release assets 與 sidecar 都已上傳後，可使用公開一行安裝命令：
+
+```powershell
+irm https://wpf-mcptools.evanlau1798.com | iex
+```
+
+這個 HTTPS alias 會解析到已審查的 `scripts/online-installer.ps1` entrypoint。升級為公開安裝入口前，必須先有對應的 GitHub Release assets：`release_<version>_win-<arch>.zip`、`SHA256SUMS.txt`、`release-assets.json`、`release-sbom.spdx.json` 與 `release-evidence.json`。
+
+### Pre-release E2E source package path
+
+在第一個公開 release assets 存在前，請先驗證 source checkout 與本機 package feed：
+
+```powershell
+git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
+cd wpf-devtools-mcp
+dotnet pack --configuration Release --output ./artifacts/package
+dotnet tool install --tool-path ./.tools --add-source ./artifacts/package <PackageId>
+```
+
+`<PackageId>` 必須對應本次要驗證的 package。這條 pre-release E2E 路徑用於證明 source checkout 與本機 feed，通過後才將公開 installer 視為正式 onboarding 路徑。
+
+### 已審查的本機 package 安裝
 
 請先審查 `scripts/online-installer.ps1` 作為正式來源。這支 installer 可安裝本機 package archive、在解壓前驗證 archive integrity，然後透過已審查的 installer/helper flow 安裝解壓出的 packaged payload。
 

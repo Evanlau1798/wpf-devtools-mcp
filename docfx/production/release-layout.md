@@ -11,7 +11,13 @@ The documentation below describes the output of those scripts. It does not repla
 
 ## Public release assets
 
-> **Public endpoint status:** Public release endpoints are not yet anonymously reachable. Until the GitHub repository, Releases page, latest-release API, raw installer URL, and installer alias all pass anonymous smoke checks, treat the release names below as the package layout contract for locally generated artifacts.
+Published-release command after GitHub Release assets exist:
+
+```powershell
+irm https://wpf-mcptools.evanlau1798.com | iex
+```
+
+The HTTPS alias resolves `scripts/online-installer.ps1`. Until the selected version has GitHub Release assets and sidecars, treat the release names below as the package layout contract for locally generated artifacts.
 
 The current release archives are named:
 
@@ -19,7 +25,7 @@ The current release archives are named:
 - `release_<version>_win-x86.zip`
 - `release_<version>_win-arm64.zip`
 
-After public endpoint smoke checks pass, download them from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases).
+After GitHub Release assets exist, download them from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
 
 ## Extracted package layout
 

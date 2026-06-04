@@ -1,13 +1,14 @@
 # Agent 輔助安裝
 
-當 AI agent 協助使用者安裝 WPF DevTools MCP 時，請使用這份規格。Agent 必須先規劃、在使用者確認前避免副作用、驗證 release provenance，並且只呼叫已審查的本機 installer entrypoint。
+當 AI agent 協助使用者安裝 WPF DevTools MCP 時，請使用這份規格。Agent 必須先規劃、在使用者確認前避免副作用、驗證 release provenance，並且只呼叫已審查的 installer entrypoint。
 
 ## Agent 契約
 
 - 先讀這份 guide 或 `AGENT_INSTALL.md`。
 - 尚未安裝。
 - 先提出 plan 並取得明確同意；任何修改前必須取得使用者確認。
-- Public endpoint smoke check 完成前，不要執行 moving-branch raw script 或遠端一行安裝命令。
+- 只有在使用者確認 plan 且對應 GitHub Release assets 已存在後，才使用公開 online installer。
+- 不要執行 moving-branch raw script 或未審查的遠端安裝命令。
 - 不可要求 private key、PFX password、GitHub secrets 或 signing secrets。
 - 不可儲存、列印、上傳或轉送 secrets。
 
@@ -102,8 +103,26 @@ release_<version>_win-<arch>.zip
 - `SHA256SUMS.txt`
 - `release-assets.json`
 - `release-sbom.spdx.json`
+- `release-evidence.json`
 
-Public endpoint smoke check 通過前，請優先使用本機產生的 package 或已下載的 release asset，不要提供遠端一行安裝命令。
+對應 GitHub Release assets 存在後，公開 HTTPS installer entrypoint 是：
+
+```powershell
+irm https://wpf-mcptools.evanlau1798.com | iex
+```
+
+這個 alias 會解析到 published release 對應的已審查 `scripts/online-installer.ps1` entrypoint。
+
+在 GitHub Release assets 存在前，pre-release E2E 請改為驗證 source checkout 與本機 package feed：
+
+```powershell
+git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
+cd wpf-devtools-mcp
+dotnet pack --configuration Release --output ./artifacts/package
+dotnet tool install --tool-path ./.tools --add-source ./artifacts/package <PackageId>
+```
+
+`<PackageId>` 必須對應本次要驗證的 package。不要在 release asset smoke gate 通過前，把這條 pre-release E2E 路徑替換成公開一行安裝。
 
 ## 來源驗證
 
@@ -120,7 +139,7 @@ Agent 應回報 signer pin policy 與驗證結果，不應回報 certificate sec
 
 ## 確認後安裝命令
 
-使用者確認 plan 與來源驗證後，使用這類已審查的本機命令形狀：
+使用者確認 plan 與來源驗證後，只有在對應 GitHub Release assets 已存在時才使用公開 HTTPS alias；否則使用這類已審查的本機命令形狀：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 `
@@ -136,7 +155,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 `
 
 ## Client registration
 
-取得確認後，才呼叫已審查的本機 `scripts/online-installer.ps1` 或 package-local `run.bat`。`<InstallRoot>\<arch>\client-registration\` 底下產生的 registration artifact 是唯一真源。
+取得確認後，根據通過驗證的 release acquisition path，呼叫已審查的公開 HTTPS alias、本機 `scripts/online-installer.ps1`，或 package-local `run.bat`。`<InstallRoot>\<arch>\client-registration\` 底下產生的 registration artifact 是唯一真源。
 
 檢查選定 client 的 artifact：
 
@@ -170,5 +189,5 @@ Release signing helper path：
 ## 可複製 Agent prompt
 
 ```text
-Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Run powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, then present a plan that includes version, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, release-sbom.spdx.json, and signer pin policy. Ask for confirmation before mutation. After approval, run only the reviewed local installer or package-local run.bat, inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
+Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Run powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, then present a plan that includes version, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, release-sbom.spdx.json, release-evidence.json, and signer pin policy. Ask for confirmation before mutation. After approval, use irm https://wpf-mcptools.evanlau1798.com | iex only when the matching GitHub Release assets exist; otherwise use the pre-release E2E source package path or a reviewed local package fallback. Inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
 ```

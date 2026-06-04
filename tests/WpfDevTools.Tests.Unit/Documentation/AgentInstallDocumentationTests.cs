@@ -174,12 +174,17 @@ public sealed class AgentInstallDocumentationTests
         foreach (var file in AgentInstallFiles)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().NotContain("Invoke-Expression");
-            content.Should().NotContain("iex ");
-            content.Should().NotContain("raw.githubusercontent.com");
-            content.Should().NotContain("releases/latest/download/install.ps1");
-            content.Should().NotContain("| powershell");
-            content.Should().NotContain("| pwsh");
+            var withoutReviewedHttpsAlias = content.Replace(
+                "irm https://wpf-mcptools.evanlau1798.com | iex",
+                string.Empty,
+                StringComparison.Ordinal);
+
+            withoutReviewedHttpsAlias.Should().NotContain("Invoke-Expression");
+            withoutReviewedHttpsAlias.Should().NotContain("iex ");
+            withoutReviewedHttpsAlias.Should().NotContain("raw.githubusercontent.com");
+            withoutReviewedHttpsAlias.Should().NotContain("releases/latest/download/install.ps1");
+            withoutReviewedHttpsAlias.Should().NotContain("| powershell");
+            withoutReviewedHttpsAlias.Should().NotContain("| pwsh");
         }
     }
 

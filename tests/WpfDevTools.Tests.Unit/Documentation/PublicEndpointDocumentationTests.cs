@@ -5,26 +5,28 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 
 public sealed class PublicEndpointDocumentationTests
 {
-    private const string PublicEndpointPendingText =
-        "Public release endpoints are not yet anonymously reachable";
     private const string PublicInstallerAlias =
         "irm https://wpf-mcptools.evanlau1798.com";
+    private const string InsecurePublicInstallerAlias =
+        "irm http://wpf-mcptools.evanlau1798.com";
     private const string GitHubBlobSourcePrefix =
         "https://github.com/Evanlau1798/wpf-devtools-mcp/blob/master/";
 
     [Fact]
-    public void PublicInstallerDocs_ShouldNotAdvertiseUnverifiedAnonymousInstallerAlias()
+    public void PublicInstallerDocs_ShouldUseHttpsAliasWithReleaseAssetGate()
     {
         foreach (var file in PublicInstallerDocs())
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
 
-            content.Should().Contain(PublicEndpointPendingText,
-                $"{file} should warn readers before public release endpoints pass anonymous smoke checks");
-            content.Should().NotContain(PublicInstallerAlias,
-                $"{file} should not advertise a one-line public installer while the alias returns 404 anonymously");
+            content.Should().Contain(PublicInstallerAlias,
+                $"{file} should publish the HTTPS installer alias for release-candidate docs");
+            content.Should().Contain("GitHub Release assets",
+                $"{file} should explain that first-public-release install requires uploaded assets");
+            content.Should().NotContain(InsecurePublicInstallerAlias,
+                $"{file} should not advertise the retired HTTP installer alias");
             content.Should().NotContain(GitHubBlobSourcePrefix,
-                $"{file} should not link to source paths through the unpublished public GitHub repository");
+                $"{file} should not link readers to blob source paths instead of release artifacts");
         }
     }
 

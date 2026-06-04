@@ -37,11 +37,18 @@ Planned public releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releas
 
 ## Install In Short
 
-> **Public endpoint status:** Public release endpoints are not yet anonymously reachable. Until the GitHub repository, Releases page, latest-release API, raw installer URL, and installer alias all pass anonymous smoke checks, do not use remote one-line install commands from this documentation.
+The published release install command, after the versioned GitHub Release assets and sidecars are uploaded: `irm https://wpf-mcptools.evanlau1798.com | iex`. The HTTPS alias resolves the reviewed `scripts/online-installer.ps1` entrypoint and requires `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
 
-For first-time setup, prefer a published release or a locally generated package over source-tree startup. Review `scripts/online-installer.ps1`, then install a verified local package archive with machine-readable output:
+For pre-release E2E, validate the source checkout and local package feed instead of depending on GitHub Release assets:
 
-When an AI agent is driving setup, start with the read-only plan flow in [AGENT_INSTALL.md](AGENT_INSTALL.md) or [docfx/guides/agent-assisted-install.md](docfx/guides/agent-assisted-install.md). The agent should run `-Action plan -OutputJson`, summarize the plan JSON, and wait for user confirmation before any filesystem mutation.
+```powershell
+git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
+cd wpf-devtools-mcp
+dotnet pack --configuration Release --output ./artifacts/package
+dotnet tool install --tool-path ./.tools --add-source ./artifacts/package <PackageId>
+```
+
+Keep `<PackageId>` tied to the package under test. Do not replace this with the public one-line install until the release asset smoke gate has passed. For first-time setup from a staged release archive, review `scripts/online-installer.ps1`, then install a verified local package archive with machine-readable output. When an AI agent drives setup, start with [AGENT_INSTALL.md](AGENT_INSTALL.md) or [docfx/guides/agent-assisted-install.md](docfx/guides/agent-assisted-install.md), run `-Action plan -OutputJson`, and wait for user confirmation before mutation.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -NonInteractive -Force -OutputJson

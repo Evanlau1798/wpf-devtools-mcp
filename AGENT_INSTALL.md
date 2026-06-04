@@ -65,11 +65,27 @@ Supported client ids must stay synchronized with the installer:
 3. Detect available MCP clients without writing files.
 4. Ask the user to confirm version, architecture, install root, and client registration target.
 5. Acquire the versioned release archive and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json`.
-6. Verify the archive hash against `SHA256SUMS.txt`.
-7. Verify canonical metadata from `release-assets.json`.
-8. Verify `release-sbom.spdx.json` as the release asset SBOM sidecar. It is an asset-level release archive inventory, not a full package/dependency SBOM.
-9. Enforce signer pin policy with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required thumbprint trust root. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only a certificate subject additional constraint after the thumbprint is pinned. Report the signer pin that was checked.
-10. Only after confirmation, call the reviewed local `scripts/online-installer.ps1` or package-local `run.bat`.
+6. Acquire `release-evidence.json` for published-release installs.
+7. Verify the archive hash against `SHA256SUMS.txt`.
+8. Verify canonical metadata from `release-assets.json`.
+9. Verify `release-sbom.spdx.json` as the release asset SBOM sidecar. It is an asset-level release archive inventory, not a full package/dependency SBOM.
+10. Enforce signer pin policy with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required thumbprint trust root. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only a certificate subject additional constraint after the thumbprint is pinned. Report the signer pin that was checked.
+11. Only after confirmation, call the reviewed HTTPS alias, reviewed local `scripts/online-installer.ps1`, or package-local `run.bat`.
+
+   Public HTTPS alias after GitHub Release assets exist:
+
+   ```powershell
+   irm https://wpf-mcptools.evanlau1798.com | iex
+   ```
+
+   Pre-release E2E source package path before GitHub Release assets exist:
+
+   ```powershell
+   git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
+   cd wpf-devtools-mcp
+   dotnet pack --configuration Release --output ./artifacts/package
+   dotnet tool install --tool-path ./.tools --add-source ./artifacts/package <PackageId>
+   ```
 
    Reviewed local command shape after confirmation:
 
@@ -83,12 +99,12 @@ Supported client ids must stay synchronized with the installer:
      -NonInteractive -Force -OutputJson
    ```
 
-11. Inspect generated `client-registration` artifacts and verify the installed executable path.
-12. Report changed files or registrations without printing secrets.
+12. Inspect generated `client-registration` artifacts and verify the installed executable path.
+13. Report changed files or registrations without printing secrets.
 
 ## Prohibited
 
-- Do not execute remote install commands while public endpoint smoke checks are incomplete.
+- Do not execute remote install commands before the matching GitHub Release assets exist and the user approves the plan.
 - Do not modify client configuration before the user confirms the plan.
 - Do not ask for private keys, PFX password values, GitHub secrets, or signing secrets.
 - Do not store, print, upload, or forward secrets.

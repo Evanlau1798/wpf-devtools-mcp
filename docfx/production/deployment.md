@@ -16,9 +16,17 @@ Installer and packaging behavior are defined in `scripts/`, not in the documenta
 
 ## Recommended install modes
 
-### Reviewed local package install
+### Public HTTPS installer after release assets exist
 
-> **Public endpoint status:** Public release endpoints are not yet anonymously reachable. Until the GitHub repository, Releases page, latest-release API, raw installer URL, and installer alias all pass anonymous smoke checks, use a locally generated release package or a source checkout instead of remote one-line install commands.
+Use the public installer after the matching GitHub Release assets exist:
+
+```powershell
+irm https://wpf-mcptools.evanlau1798.com | iex
+```
+
+The HTTPS alias resolves the reviewed `scripts/online-installer.ps1` entrypoint. The promotion gate is the release asset set for the selected version: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
+
+### Reviewed local package install
 
 Review `scripts/online-installer.ps1` as the maintainer source first. The reviewed installer can install a local package archive, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow.
 
@@ -38,7 +46,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Package
 
 ### Public release package fallback
 
-1. Use a locally generated package, or after public endpoint smoke checks pass, download the architecture-matched `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json`.
+1. Use a locally generated package, or after the GitHub Release assets exist, download the architecture-matched `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
 2. Verify the archive with `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json` before extraction. Retain `release-sbom.spdx.json` as the published release asset SBOM. It is an asset-level SPDX inventory for the release archives, not a full package/dependency SBOM.
 3. Extract the package.
 4. Run `run.bat`.

@@ -11,7 +11,13 @@ If an AI agent is helping with installation, use the side-effect-safe [Agent-Ass
 - Planned public releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
 - Online installer source: `scripts/online-installer.ps1` (maintainer source; compare it with the version-matched `bin/install.ps1` inside the release package you actually execute)
 
-> **Public endpoint status:** Public release endpoints are not yet anonymously reachable. Until the GitHub repository, Releases page, latest-release API, raw installer URL, and installer alias all pass anonymous smoke checks, use a locally generated release package or a source checkout instead of remote one-line install commands.
+Published-release command after GitHub Release assets exist:
+
+```powershell
+irm https://wpf-mcptools.evanlau1798.com | iex
+```
+
+The HTTPS alias resolves `scripts/online-installer.ps1`; promote it only after the selected version has GitHub Release assets and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
 
 Recommended local package path:
 
@@ -29,7 +35,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Package
 
 Manual package alternative:
 
-1. Use a locally generated package, or after public endpoint smoke checks pass, download `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json`.
+1. Use a locally generated package, or after GitHub Release assets exist, download `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
 2. Verify the archive with `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json` before extraction.
 3. Extract the package.
 4. Run `run.bat`.

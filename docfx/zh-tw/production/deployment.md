@@ -16,9 +16,17 @@ installer 與 packaging 行為定義在 `scripts/`，而不是文件站台本身
 
 ## 建議安裝模式
 
-### 已審查的本機 package 安裝
+### GitHub Release assets 存在後的公開 HTTPS installer
 
-> **公開端點狀態：** Public release endpoints are not yet anonymously reachable。GitHub repository、Releases、latest-release API、raw installer URL 與 installer alias 都通過匿名 smoke check 前，請使用本機產生且已驗證的 release package 或 source checkout，不要執行遠端一行安裝命令。
+對應的 GitHub Release assets 存在後，可使用公開 installer：
+
+```powershell
+irm https://wpf-mcptools.evanlau1798.com | iex
+```
+
+這個 HTTPS alias 會解析到已審查的 `scripts/online-installer.ps1` entrypoint。升級為公開安裝入口前，該版本必須先具備 release asset set：`release_<version>_win-<arch>.zip`、`SHA256SUMS.txt`、`release-assets.json`、`release-sbom.spdx.json` 與 `release-evidence.json`。
+
+### 已審查的本機 package 安裝
 
 請先審查 `scripts/online-installer.ps1` 作為維護者來源。這支已審查的 installer 可安裝本機 package archive、在解壓前驗證 archive integrity，然後透過已審查的 installer/helper flow 安裝解壓出的 packaged payload。
 
@@ -38,7 +46,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Package
 
 ### 公開 release package 備援路徑
 
-1. 使用本機產生的 package，或等 public endpoint smoke check 通過後，再從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載符合架構的 `release_<version>_win-<arch>.zip`、`SHA256SUMS.txt`、`release-assets.json` 與 `release-sbom.spdx.json`。
+1. 使用本機產生的 package，或等 GitHub Release assets 存在後，再從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載符合架構的 `release_<version>_win-<arch>.zip`、`SHA256SUMS.txt`、`release-assets.json`、`release-sbom.spdx.json` 與 `release-evidence.json`。
 2. 解壓前，先用 `SHA256SUMS.txt`、`release-assets.json` 與 `release-sbom.spdx.json` 驗證 archive。保留 `release-sbom.spdx.json` 作為 published release asset SBOM。它是 release archive 的 asset-level SPDX inventory，not a full package/dependency SBOM。
 3. 解壓縮套件。
 4. 執行 `run.bat`。

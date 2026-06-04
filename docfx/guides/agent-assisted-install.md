@@ -1,13 +1,14 @@
 # Agent-Assisted Install
 
-Use this page when an AI agent helps a user install WPF DevTools MCP. The agent must plan first, avoid side effects before confirmation, verify release provenance, and call only reviewed local installer entrypoints.
+Use this page when an AI agent helps a user install WPF DevTools MCP. The agent must plan first, avoid side effects before confirmation, verify release provenance, and call only reviewed installer entrypoints.
 
 ## Agent contract
 
 - Read this guide or `AGENT_INSTALL.md` before proposing commands.
 - Do not install yet.
 - Present a plan and get explicit approval; the flow requires user confirmation before mutation.
-- Never execute a moving-branch raw script or remote one-line install command while public endpoint smoke checks are incomplete.
+- Use the public online installer only after the user approves the plan and the matching GitHub Release assets exist.
+- Never execute a moving-branch raw script or an unreviewed remote install command.
 - Never ask for private keys, PFX password values, GitHub secrets, or signing secrets.
 - Never store, print, upload, or forward secrets.
 
@@ -102,8 +103,26 @@ Acquire the matching sidecars:
 - `SHA256SUMS.txt`
 - `release-assets.json`
 - `release-sbom.spdx.json`
+- `release-evidence.json`
 
-Until public endpoint smoke checks pass, prefer a locally generated package or already downloaded release asset. Do not provide a remote one-line install command.
+After the matching GitHub Release assets exist, the public HTTPS installer entrypoint is:
+
+```powershell
+irm https://wpf-mcptools.evanlau1798.com | iex
+```
+
+The alias resolves the reviewed `scripts/online-installer.ps1` entrypoint for the published release.
+
+For pre-release E2E before GitHub Release assets exist, validate the source checkout and local package feed instead:
+
+```powershell
+git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
+cd wpf-devtools-mcp
+dotnet pack --configuration Release --output ./artifacts/package
+dotnet tool install --tool-path ./.tools --add-source ./artifacts/package <PackageId>
+```
+
+Keep `<PackageId>` tied to the package under test. Do not replace this pre-release E2E path with the public one-line install until the release asset smoke gate has passed.
 
 ## Provenance verification
 
@@ -120,7 +139,7 @@ The agent should report the signer pin policy and verification result, not certi
 
 ## Post-confirmation install command
 
-After the user confirms the plan and provenance checks, use a reviewed local command shape like this:
+After the user confirms the plan and provenance checks, use the public HTTPS alias only when the matching GitHub Release assets exist. Otherwise use a reviewed local command shape like this:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 `
@@ -136,7 +155,7 @@ Use concrete values from the approved plan. Keep `-Force` only when the user app
 
 ## Client registration
 
-After confirmation, call the reviewed local `scripts/online-installer.ps1` or the package-local `run.bat`. The generated registration artifacts under `<InstallRoot>\<arch>\client-registration\` are the source of truth.
+After confirmation, call the reviewed public HTTPS alias, the reviewed local `scripts/online-installer.ps1`, or the package-local `run.bat` depending on which release acquisition path passed verification. The generated registration artifacts under `<InstallRoot>\<arch>\client-registration\` are the source of truth.
 
 Inspect the artifact for the selected client:
 
@@ -170,5 +189,5 @@ Release signing helper path:
 ## Copyable agent prompt
 
 ```text
-Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Run powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, then present a plan that includes version, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, release-sbom.spdx.json, and signer pin policy. Ask for confirmation before mutation. After approval, run only the reviewed local installer or package-local run.bat, inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
+Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Run powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, then present a plan that includes version, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, release-sbom.spdx.json, release-evidence.json, and signer pin policy. Ask for confirmation before mutation. After approval, use irm https://wpf-mcptools.evanlau1798.com | iex only when the matching GitHub Release assets exist; otherwise use the pre-release E2E source package path or a reviewed local package fallback. Inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
 ```

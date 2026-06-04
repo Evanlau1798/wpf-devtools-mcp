@@ -17,9 +17,17 @@ WPF DevTools MCP Server is a Windows-only Model Context Protocol server for insp
 
 ## Install paths
 
-### Verified local package path
+### Public HTTPS installer after release assets exist
 
-> **Public endpoint status:** Public release endpoints are not yet anonymously reachable. Until the GitHub repository, Releases page, latest-release API, raw installer URL, and installer alias all pass anonymous smoke checks, use a locally generated release package or a source checkout instead of remote one-line install commands.
+Use the public one-line installer only after the versioned GitHub Release assets and sidecars exist for the release under test:
+
+```powershell
+irm https://wpf-mcptools.evanlau1798.com | iex
+```
+
+The HTTPS alias resolves the reviewed `scripts/online-installer.ps1` entrypoint. The promotion gate is the GitHub Release assets set: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
+
+### Verified local package path
 
 Review the canonical maintainer source first: `scripts/online-installer.ps1`. The reviewed installer can install a local package archive, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow.
 

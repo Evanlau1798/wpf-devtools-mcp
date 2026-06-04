@@ -4,7 +4,13 @@ Cursor、VS Code 與 Visual Studio 最適合直接套用 installer 產生的 JSO
 
 ## 1. 安裝 WPF DevTools
 
-> **公開端點狀態：** Public release endpoints are not yet anonymously reachable。GitHub repository、Releases、latest-release API、raw installer URL 與 installer alias 都通過匿名 smoke check 前，請使用本機產生且已驗證的 release package 或 source checkout，不要執行遠端一行安裝命令。
+GitHub Release assets 存在後的公開安裝命令：
+
+```powershell
+irm https://wpf-mcptools.evanlau1798.com | iex
+```
+
+這個 HTTPS alias 會解析到 `scripts/online-installer.ps1`；只有在該版本已具備 GitHub Release assets 與 sidecar 後才提升為公開 onboarding 路徑：`release_<version>_win-<arch>.zip`、`SHA256SUMS.txt`、`release-assets.json`、`release-sbom.spdx.json` 與 `release-evidence.json`。
 
 建議的本機 package 安裝路徑：
 
@@ -19,7 +25,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Package
 
 package-local 回退路徑：
 
-1. 使用本機產生的 package，或等 public endpoint smoke check 通過後，再從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載對應架構的 `release_<version>_win-<arch>.zip`、`SHA256SUMS.txt`、`release-assets.json` 與 `release-sbom.spdx.json`。
+1. 使用本機產生的 package，或等 GitHub Release assets 存在後，再從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載對應架構的 `release_<version>_win-<arch>.zip`、`SHA256SUMS.txt`、`release-assets.json`、`release-sbom.spdx.json` 與 `release-evidence.json`。
 2. 解壓前，先用 `SHA256SUMS.txt`、`release-assets.json` 與 `release-sbom.spdx.json` 驗證 archive。
 3. 解壓縮套件。
 4. 執行 `run.bat`。

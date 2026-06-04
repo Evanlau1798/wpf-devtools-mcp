@@ -10,7 +10,13 @@ npm install -g @openai/codex
 
 ## 2. Install WPF DevTools
 
-> **Public endpoint status:** Public release endpoints are not yet anonymously reachable. Until the GitHub repository, Releases page, latest-release API, raw installer URL, and installer alias all pass anonymous smoke checks, use a locally generated release package or a source checkout instead of remote one-line install commands.
+Published-release command after GitHub Release assets exist:
+
+```powershell
+irm https://wpf-mcptools.evanlau1798.com | iex
+```
+
+The HTTPS alias resolves `scripts/online-installer.ps1`; promote it only after the selected version has GitHub Release assets and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
 
 Preferred local package path:
 
@@ -25,7 +31,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Package
 
 Package-local fallback:
 
-1. Use a locally generated package, or after public endpoint smoke checks pass, download the matching `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json`.
+1. Use a locally generated package, or after GitHub Release assets exist, download the matching `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
 2. Verify the archive with `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json` before extraction.
 3. Extract the package.
 4. Run `run.bat`.

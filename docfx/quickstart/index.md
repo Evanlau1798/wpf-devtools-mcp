@@ -21,9 +21,30 @@ SDK-hosted reuse communicates over named pipes and does not require matching pro
 
 ## Step 1: Choose an install path
 
-### Reviewed local package installer
+### Public HTTPS installer after release assets exist
 
-> **Public endpoint status:** Public release endpoints are not yet anonymously reachable. Until the GitHub repository, Releases page, latest-release API, raw installer URL, and installer alias all pass anonymous smoke checks, use a locally generated release package or a source checkout instead of remote one-line install commands.
+Use the public installer after the versioned GitHub Release assets and sidecars exist for the release under test:
+
+```powershell
+irm https://wpf-mcptools.evanlau1798.com | iex
+```
+
+The HTTPS alias resolves the reviewed `scripts/online-installer.ps1` entrypoint. It requires the matching GitHub Release assets set: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
+
+### Pre-release E2E source package path
+
+Before the first public release assets exist, validate the source checkout and a local package feed:
+
+```powershell
+git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
+cd wpf-devtools-mcp
+dotnet pack --configuration Release --output ./artifacts/package
+dotnet tool install --tool-path ./.tools --add-source ./artifacts/package <PackageId>
+```
+
+Keep `<PackageId>` tied to the package being validated. This pre-release E2E path proves the source checkout and local feed before the public installer is promoted.
+
+### Reviewed local package installer
 
 Review `scripts/online-installer.ps1` as the canonical source first. That installer can install a local package archive, validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow.
 

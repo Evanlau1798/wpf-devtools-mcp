@@ -1,0 +1,83 @@
+<Window x:Class="WpfDevTools.Tests.TestApp.ModernShellWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Modern Shell Window"
+        Width="720"
+        Height="420"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        Background="Transparent">
+    <Border x:Name="ShellRoot"
+            Background="{DynamicResource ModernSurfaceBrush}"
+            BorderBrush="{DynamicResource ModernAccentBrush}"
+            BorderThickness="1"
+            CornerRadius="18">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid x:Name="ModernShellTitleBar"
+                  Grid.Row="0"
+                  Background="{DynamicResource ModernCardBrush}"
+                  MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Margin="16,12"
+                           Text="Modern Shell Window"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource ModernForegroundBrush}"/>
+
+                <Button Grid.Column="1"
+                        Margin="0,8,8,8"
+                        Padding="12,6"
+                        Content="Close"
+                        Click="CloseButton_Click"/>
+            </Grid>
+
+            <StackPanel Grid.Row="1" Margin="20">
+                <TextBlock Text="Window-level diagnostics"
+                           FontSize="16"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource ModernForegroundBrush}"/>
+
+                <UniformGrid Columns="2" Margin="0,16,0,16">
+                    <TextBlock Text="Backdrop Mode" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                    <TextBlock x:Name="BackdropModeText" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                    <TextBlock Text="Backdrop Supported" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                    <TextBlock x:Name="BackdropSupportedText" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                    <TextBlock Text="Theme Mode" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                    <TextBlock x:Name="ThemeModeText" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                </UniformGrid>
+
+                <Border Padding="16"
+                        Background="{DynamicResource ModernCardBrush}"
+                        CornerRadius="16">
+                    <StackPanel>
+                        <TextBlock Text="This window validates custom chrome, rounded corners, and fallback backdrop behavior."
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource ModernForegroundBrush}"/>
+                        <TextBox x:Name="ModernShellInputTextBox"
+                                 Margin="0,16,0,0"
+                                 Width="220"
+                                 Text="Secondary window input"
+                                 Foreground="{DynamicResource ModernForegroundBrush}"/>
+                        <Button x:Name="ModernPrimaryActionButton"
+                                Margin="0,16,0,0"
+                                Padding="14,8"
+                                Width="180"
+                                HorizontalAlignment="Left"
+                                Background="{DynamicResource ModernAccentBrush}"
+                                Foreground="White"
+                                Content="Modern Primary Action"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

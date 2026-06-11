@@ -1,0 +1,460 @@
+using System.Text.Json;
+using System.Windows;
+using System.Windows.Controls;
+using FluentAssertions;
+using WpfDevTools.Inspector.Analyzers;
+using WpfDevTools.Inspector.Utilities;
+
+namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
+
+public sealed class UiSummaryAnalyzerTests
+{
+    [StaFact]
+    public void GetUiSummary_ShouldSuppressLayoutNodesAndKeepSemanticControls()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new StackPanel
+        {
+            Name = "RootPanel",
+            Children =
+            {
+                new Grid
+                {
+                    Children =
+                    {
+                        new TextBox { Name = "NameBox", Text = "Ada" },
+                        new Button { Name = "SaveButton", Content = "Save", IsEnabled = false }
+                    }
+                },
+                new TextBlock { Name = "StatusText", Text = "Ready" }
+            }
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 3));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("semanticNodeCount").GetInt32().Should().Be(3);
+        result.GetProperty("summaryText").GetString().Should().Contain("TextBox NameBox");
+        result.GetProperty("summaryText").GetString().Should().Contain("Button SaveButton");
+        result.GetProperty("summaryText").GetString().Should().NotContain("Grid");
+    }
+
+    [StaFact]
+    public void GetUiSummary_ShouldRespectDepthLimit()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var nested = new StackPanel
+        {
+            Name = "OuterPanel",
+            Children =
+            {
+                new Button { Name = "TopButton", Content = "Top" },
+                new Border
+                {
+                    Child = new StackPanel
+                    {
+                        Children =
+                        {
+                            new TextBox { Name = "DeepBox", Text = "Too deep" }
+                        }
+                    }
+                }
+            }
+        };
+        var elementId = finder.GenerateElementId(nested);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 1, depthMode: "visual"));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("depthMode").GetString().Should().Be("visual");
+        result.GetProperty("summaryText").GetString().Should().Contain("TopButton");
+        result.GetProperty("summaryText").GetString().Should().NotContain("DeepBox");
+    }
+
+    [StaFact]
+    public void GetUiSummary_WhenRootElementIsSemantic_ShouldIncludeRootNode()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new Button
+        {
+            Name = "SaveButton",
+            Content = "Save",
+            IsEnabled = false
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 0));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("semanticNodeCount").GetInt32().Should().Be(1);
+        result.GetProperty("summaryText").GetString().Should().Contain("Button SaveButton");
+        result.GetProperty("nodes")[0].GetProperty("elementId").GetString().Should().Be(elementId);
+    }
+
+    [StaFact]
+    public void GetUiSummary_WhenSemanticContentIsLogicalOnly_ShouldIncludeInactiveTabContent()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var hiddenTabBox = new TextBox
+        {
+            Name = "HiddenTabBox",
+            Text = "Hidden"
+        };
+        var tabs = new TabControl
+        {
+            Name = "MainTabs",
+            Items =
+            {
+                new TabItem
+                {
+                    Header = "Visible",
+                    Content = new TextBlock
+                    {
+                        Name = "VisibleStatus",
+                        Text = "Ready"
+                    }
+                },
+                new TabItem
+                {
+                    Header = "Hidden",
+                    Content = hiddenTabBox
+                }
+            }
+        };
+        tabs.SelectedIndex = 0;
+        var elementId = finder.GenerateElementId(tabs);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 3));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("summaryText").GetString().Should().Contain("HiddenTabBox");
+        result.GetProperty("semanticNodeCount").GetInt32().Should().BeGreaterThan(1);
+    }
+
+    [StaFact]
+    public void GetUiSummary_WhenScopedToInactiveTabContent_ShouldExposeInactiveTabScopeMetadata()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var hiddenTabBox = new TextBox
+        {
+            Name = "HiddenTabBox",
+            Text = "Hidden"
+        };
+        var tabs = new TabControl
+        {
+            Name = "MainTabs",
+            Items =
+            {
+                new TabItem
+                {
+                    Header = "Visible",
+                    Content = new TextBlock { Text = "Ready" }
+                },
+                new TabItem
+                {
+                    Header = "Hidden",
+                    Content = hiddenTabBox
+                }
+            },
+            SelectedIndex = 0
+        };
+        finder.GenerateElementId(tabs);
+        var hiddenElementId = finder.GenerateElementId(hiddenTabBox);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(hiddenElementId, depth: 1));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("scopeVisibility").GetString().Should().Be("InactiveTab");
+        result.GetProperty("isCurrentlyVisible").GetBoolean().Should().BeFalse();
+    }
+
+    [StaFact]
+    public void GetUiSummary_WhenRootContainsTemplatedTabs_ShouldNotDuplicateSemanticNodes()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var window = new Window();
+        var tabs = new TabControl
+        {
+            Name = "RootTabs",
+            Items =
+            {
+                new TabItem
+                {
+                    Header = "Profile",
+                    Content = new StackPanel
+                    {
+                        Children =
+                        {
+                            new TextBox { Name = "FirstNameBox", Text = "Edge" },
+                            new TextBox { Name = "LastNameBox", Text = "Case" },
+                            new Button { Name = "SaveButton", Content = "Save" }
+                        }
+                    }
+                }
+            }
+        };
+        window.Content = tabs;
+        window.Show();
+        try
+        {
+            window.ApplyTemplate();
+            tabs.ApplyTemplate();
+            window.UpdateLayout();
+            var elementId = finder.GenerateElementId(window);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 6));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("nodes")
+                .EnumerateArray()
+                .Select(node => node.GetProperty("elementId").GetString())
+                .Should()
+                .OnlyHaveUniqueItems();
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void GetUiSummary_WithSemanticDepthMode_ShouldSkipWrapperOnlyLevels()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new Grid
+        {
+            Name = "RootGrid",
+            Children =
+            {
+                new Border
+                {
+                    Child = new Grid
+                    {
+                        Children =
+                        {
+                            new Border
+                            {
+                                Child = new TextBox
+                                {
+                                    Name = "DeepSemanticBox",
+                                    Text = "Reached"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var visualResult = JsonSerializer.SerializeToElement(
+            analyzer.GetUiSummary(elementId, depth: 1, depthMode: "visual"));
+        var semanticResult = JsonSerializer.SerializeToElement(
+            analyzer.GetUiSummary(elementId, depth: 1, depthMode: "semantic"));
+
+        visualResult.GetProperty("summaryText").GetString().Should().NotContain("DeepSemanticBox");
+        semanticResult.GetProperty("summaryText").GetString().Should().Contain("DeepSemanticBox");
+        semanticResult.GetProperty("depthMode").GetString().Should().Be("semantic");
+    }
+
+    [StaFact]
+    public void GetUiSummary_WithoutExplicitDepthMode_ShouldDefaultToSemantic()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new Grid
+        {
+            Name = "RootGrid",
+            Children =
+            {
+                new Border
+                {
+                    Child = new Grid
+                    {
+                        Children =
+                        {
+                            new TextBox
+                            {
+                                Name = "SemanticDefaultBox",
+                                Text = "Reached"
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetUiSummary(elementId, depth: 1));
+
+        result.GetProperty("depthMode").GetString().Should().Be("semantic");
+        result.GetProperty("summaryText").GetString().Should().Contain("SemanticDefaultBox");
+    }
+
+    [StaFact]
+    public void GetUiSummary_WithInvalidDepthMode_ShouldReferenceSemanticDefaultInGuidance()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new StackPanel();
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetUiSummary(elementId, depth: 1, depthMode: "invalid"));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("hint").GetString().Should().Contain("default semantic",
+            "invalid depthMode guidance should match the runtime default instead of pointing callers back to visual semantics");
+        result.GetProperty("hint").GetString().Should().Contain("omit the parameter",
+            "callers should be told the simplest recovery path when they want the default semantic behavior");
+        result.GetProperty("hint").GetString().Should().NotContain("visual depth semantics");
+    }
+
+    [StaFact]
+    public void GetUiSummary_ShouldOmitEmptyTextBlocksThatCarryNoSignal()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new StackPanel
+        {
+            Name = "SummaryRoot",
+            Children =
+            {
+                new TextBlock { Name = "EmptyTemplateText", Text = string.Empty },
+                new TextBlock { Name = "WhitespaceTemplateText", Text = "   " },
+                new TextBlock { Name = "StatusText", Text = "Ready" }
+            }
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 2));
+        var summaryText = result.GetProperty("summaryText").GetString();
+
+        summaryText.Should().Contain("StatusText");
+        summaryText.Should().NotContain("EmptyTemplateText");
+        summaryText.Should().NotContain("WhitespaceTemplateText");
+    }
+
+    [StaFact]
+    public void GetUiSummary_WithSummaryOnly_ShouldOmitNodesAndPreserveSemanticSummary()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new StackPanel
+        {
+            Name = "SummaryRoot",
+            Children =
+            {
+                new TextBox { Name = "NameBox", Text = "Ada" },
+                new Button { Name = "SaveButton", Content = "Save" }
+            }
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 2, summaryOnly: true));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("semanticNodeCount").GetInt32().Should().Be(2);
+        result.GetProperty("summaryText").GetString().Should().Contain("NameBox");
+        result.GetProperty("summaryText").GetString().Should().Contain("SaveButton");
+        result.TryGetProperty("nodes", out _).Should().BeFalse();
+    }
+
+    [StaFact]
+    public void GetUiSummary_WithSummaryOnly_ShouldEmitLightweightNavigationNodesForAnnotatedElements()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new StackPanel
+        {
+            Name = "SummaryRoot",
+            Children =
+            {
+                new Button { Name = "DisabledSaveButton", Content = "Save", IsEnabled = false }
+            }
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 2, summaryOnly: true));
+
+        result.TryGetProperty("nodes", out _).Should().BeFalse();
+        result.TryGetProperty("navigationNodes", out var navigationNodes).Should().BeTrue();
+        navigationNodes.ValueKind.Should().Be(JsonValueKind.Array);
+        navigationNodes.GetArrayLength().Should().Be(1);
+
+        var navigationNode = navigationNodes[0];
+        navigationNode.GetProperty("elementType").GetString().Should().Be("Button");
+        navigationNode.GetProperty("annotations")[0].GetString().Should().Be("disabled");
+        navigationNode.TryGetProperty("text", out _).Should().BeFalse();
+        navigationNode.TryGetProperty("currentValue", out _).Should().BeFalse();
+    }
+
+    [StaFact]
+    public void GetUiSummary_ShouldOmitFrameworkObjectDisplayTextNoise()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new StackPanel
+        {
+            Children =
+            {
+                new Button { Content = new StackPanel() },
+                new TextBlock { Name = "StatusText", Text = "Ready" }
+            }
+        };
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetUiSummary(elementId, depth: 2));
+        var summaryText = result.GetProperty("summaryText").GetString();
+
+        summaryText.Should().Contain("StatusText");
+        summaryText.Should().NotContain("System.Windows");
+    }
+
+    [StaFact]
+    public void GetUiSummary_WhenSceneExceedsPayloadBudget_ShouldTruncateAndReportMetadata()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new UiSummaryAnalyzer(finder);
+        var root = new StackPanel { Name = "LargeSceneRoot" };
+        for (var index = 0; index < 160; index++)
+        {
+            root.Children.Add(new TextBox
+            {
+                Name = $"Field{index:000}",
+                Text = new string('x', 80)
+            });
+        }
+
+        var elementId = finder.GenerateElementId(root);
+
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetUiSummary(elementId, depth: 1, depthMode: "visual"));
+        var semanticNodeCount = result.GetProperty("semanticNodeCount").GetInt32();
+        var limits = result.GetProperty("payloadLimits");
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("truncated").GetBoolean().Should().BeTrue();
+        result.GetProperty("nodes").GetArrayLength().Should().Be(semanticNodeCount);
+        semanticNodeCount.Should().Be(limits.GetProperty("maxSemanticNodes").GetInt32());
+        result.GetProperty("omittedNodeCount").GetInt32().Should().BeGreaterThan(0);
+        result.GetProperty("truncationReasons")
+            .EnumerateArray()
+            .Select(reason => reason.GetString())
+            .Should()
+            .Contain("SemanticNodeLimit");
+        result.GetProperty("summaryText").GetString()!.Length
+            .Should()
+            .BeLessOrEqualTo(limits.GetProperty("maxSummaryTextLength").GetInt32());
+    }
+}

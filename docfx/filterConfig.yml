@@ -1,0 +1,16 @@
+apiRules:
+- include:
+    uidRegex: ^WpfDevTools\.(Shared|Inspector\.Sdk)(\.|$)
+- exclude:
+    uidRegex: ^WpfDevTools\.Inspector(\.|$)
+- exclude:
+    uidRegex: ^System\.
+- exclude:
+    uidRegex: ^Microsoft\.
+- exclude:
+    uidRegex: ^MS\.Internal\.
+- exclude:
+    uidRegex: ^<Module>$
+- exclude:
+    hasAttribute:
+      uid: System.Runtime.CompilerServices.CompilerGeneratedAttribute

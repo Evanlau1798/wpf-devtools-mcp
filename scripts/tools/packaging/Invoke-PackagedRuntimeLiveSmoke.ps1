@@ -1,0 +1,159 @@
+param(
+    [Parameter(Mandatory)] [string]$ServerPath,
+    [ValidateSet('x64', 'x86', 'arm64')] [string]$Architecture = 'x64',
+    [ValidateSet('package-local', 'online-installer')] [string]$SmokeInstallMode = 'package-local',
+    [string]$Configuration = 'Release',
+    [string]$EvidenceOutputPath = '',
+    [int]$StartupTimeoutSeconds = 30,
+    [int]$RequestTimeoutMilliseconds = 20000
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+function Get-RepoRoot {
+    $current = $PSScriptRoot
+    while (-not [string]::IsNullOrWhiteSpace($current)) {
+        if (Test-Path (Join-Path $current 'WpfDevTools.sln')) {
+            return $current
+        }
+
+        $parent = Split-Path -Parent $current
+        if ($parent -eq $current) {
+            break
+        }
+
+        $current = $parent
+    }
+
+    throw 'Could not locate repository root from packaging script path.'
+}
+
+function ConvertTo-TestAppPlatform {
+    param([Parameter(Mandatory)] [string]$Value)
+
+    switch ($Value) {
+        'x64' { return 'x64' }
+        'x86' { return 'x86' }
+        'arm64' { return 'ARM64' }
+        default { throw "Unsupported architecture: $Value" }
+    }
+}
+
+function Resolve-TestAppRunCommand {
+    param(
+        [Parameter(Mandatory)] [string]$ProjectPath,
+        [Parameter(Mandatory)] [string]$Configuration,
+        [Parameter(Mandatory)] [string]$Platform
+    )
+
+    $runCommandOutput = & dotnet msbuild $ProjectPath `
+        "-property:Configuration=$Configuration" `
+        "-property:Platform=$Platform" `
+        -getProperty:RunCommand
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to resolve TestApp RunCommand for $Platform."
+    }
+
+    $runCommand = @($runCommandOutput |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Last 1)
+    if ([string]::IsNullOrWhiteSpace([string]$runCommand)) {
+        throw "MSBuild did not return a TestApp RunCommand for $Platform."
+    }
+
+    if ([System.IO.Path]::IsPathRooted([string]$runCommand)) {
+        return [System.IO.Path]::GetFullPath([string]$runCommand)
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path ([string]$runCommand)))
+}
+
+function Wait-TestAppReady {
+    param(
+        [Parameter(Mandatory)] [System.Diagnostics.Process]$Process,
+        [Parameter(Mandatory)] [int]$TimeoutSeconds
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        $Process.Refresh()
+        if ($Process.HasExited) {
+            throw "TestApp exited before its main window appeared. Exit code: $($Process.ExitCode)"
+        }
+
+        if ($Process.MainWindowHandle -ne [System.IntPtr]::Zero) {
+            return
+        }
+
+        Start-Sleep -Milliseconds 250
+    } while ((Get-Date) -lt $deadline)
+
+    throw "TestApp main window did not appear within $TimeoutSeconds seconds."
+}
+
+$repoRoot = Get-RepoRoot
+$platform = ConvertTo-TestAppPlatform -Value $Architecture
+$testAppProject = 'tests/WpfDevTools.Tests.TestApp/WpfDevTools.Tests.TestApp.csproj'
+
+Push-Location $repoRoot
+try {
+    & dotnet build $testAppProject `
+        --configuration $Configuration `
+        -m:1 `
+        "-p:Platform=$platform" `
+        -nodeReuse:false `
+        -p:UseSharedCompilation=false
+    if ($LASTEXITCODE -ne 0) {
+        throw "TestApp build failed for $Architecture."
+    }
+
+    $targetProcessPath = Resolve-TestAppRunCommand `
+        -ProjectPath $testAppProject `
+        -Configuration $Configuration `
+        -Platform $platform
+    if (-not (Test-Path $targetProcessPath)) {
+        throw "Could not locate built TestApp executable at $targetProcessPath."
+    }
+
+    $targetProcess = Start-Process -FilePath $targetProcessPath -PassThru
+    try {
+        Wait-TestAppReady -Process $targetProcess -TimeoutSeconds $StartupTimeoutSeconds
+
+        $runtimeSmokeArguments = @(
+            '-ExecutionPolicy', 'Bypass',
+            '-File', 'scripts/tools/packaging/Test-PackagedServerRuntime.ps1',
+            '-ServerPath', $ServerPath,
+            '-Architecture', $Architecture,
+            '-SmokeInstallMode', $SmokeInstallMode,
+            '-TargetProcessId', $targetProcess.Id,
+            '-TargetProcessPath', $targetProcessPath
+        )
+        if (-not [string]::IsNullOrWhiteSpace($EvidenceOutputPath)) {
+            $runtimeSmokeArguments += @('-EvidenceOutputPath', $EvidenceOutputPath)
+        }
+
+        $runtimeSmokeArguments += @('-RequestTimeoutMilliseconds', $RequestTimeoutMilliseconds)
+        & powershell @runtimeSmokeArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "Packaged runtime live smoke failed with exit code $LASTEXITCODE."
+        }
+    }
+    finally {
+        if ($null -ne $targetProcess) {
+            try {
+                $targetProcess.Refresh()
+                if (-not $targetProcess.HasExited) {
+                    Stop-Process -Id $targetProcess.Id -Force
+                    $targetProcess.WaitForExit(30000) | Out-Null
+                }
+            }
+            finally {
+                $targetProcess.Dispose()
+            }
+        }
+    }
+}
+finally {
+    Pop-Location
+}

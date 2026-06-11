@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\WpfDevTools.Shared\WpfDevTools.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <ProjectReference Update="..\WpfDevTools.Shared\WpfDevTools.Shared.csproj">
+      <SetTargetFramework>TargetFramework=net8.0;NoWarn=NU1900;WarningsNotAsErrors=NU1900</SetTargetFramework>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <ProjectReference Update="..\WpfDevTools.Shared\WpfDevTools.Shared.csproj">
+      <SetTargetFramework>TargetFramework=net48;NoWarn=NU1900;WarningsNotAsErrors=NU1900</SetTargetFramework>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="WpfDevTools.Tests.Unit" />
+  </ItemGroup>
+
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net48</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <Platforms>AnyCPU;x86;x64;ARM64</Platforms>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn)</NoWarn>
+  </PropertyGroup>
+
+</Project>

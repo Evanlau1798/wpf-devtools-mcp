@@ -1,0 +1,698 @@
+name: Publish Release Assets
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Git tag to package and upload
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish-release-assets:
+    runs-on: windows-2022
+    outputs:
+      release-tag: ${{ steps.release-metadata.outputs.tag }}
+      tag-commit-sha: ${{ steps.tag-checkout.outputs.tag-commit-sha }}
+    env:
+      RELEASE_OUTPUT_ROOT: artifacts/release/github-release
+      RELEASE_STAGING_ROOT: artifacts/release/github-assets
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        id: release-metadata
+        shell: pwsh
+        env:
+          RELEASE_EVENT_NAME: ${{ github.event_name }}
+          RELEASE_EVENT_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          $tag = if ($env:RELEASE_EVENT_NAME -eq 'release') {
+            $env:RELEASE_EVENT_TAG
+          }
+          else {
+            $env:RELEASE_INPUT_TAG
+          }
+
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            throw 'Release tag is required.'
+          }
+
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
+            throw "Release tag '$tag' must be a v-prefixed SemVer tag."
+          }
+
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Checkout tagged revision
+        id: tag-checkout
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.release-metadata.outputs.tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
+            throw "Release tag '$tag' must be a v-prefixed SemVer tag."
+          }
+
+          git fetch --tags --force
+          git rev-parse --verify --end-of-options "refs/tags/$tag^{commit}" | Out-Null
+          git checkout --detach "refs/tags/$tag"
+          $tagCommit = (git rev-parse HEAD).Trim()
+          if ($tagCommit -notmatch '^[0-9a-f]{40}$') {
+            throw "Checked-out release tag resolved to an invalid commit SHA: $tagCommit"
+          }
+          "tag-commit-sha=$tagCommit" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
+
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Restore project dependencies
+        run: dotnet restore WpfDevTools.sln --locked-mode
+
+      - name: Build shared assembly for API docs
+        run: dotnet build src/WpfDevTools.Shared/WpfDevTools.Shared.csproj -c Debug -f net8.0
+
+      - name: Build SDK assembly for API docs
+        run: dotnet build src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj -c Debug -f net8.0-windows
+
+      - name: Build DocFX site
+        run: dotnet tool run docfx docfx/docfx.json
+
+      - name: Validate DocFX links and parity
+        shell: pwsh
+        run: ./scripts/ci/Test-DocFxDocumentation.ps1 -RepoRoot $PWD -EvidenceOutputPath artifacts/release/docfx-evidence.json
+
+      - name: Write release security evidence
+        shell: pwsh
+        run: ./scripts/tools/packaging/Write-ReleaseSecurityEvidence.ps1 -OutputPath artifacts/release/security-evidence.json -Configuration Release
+
+      - name: Materialize signing certificate
+        shell: pwsh
+        env:
+          WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64: ${{ secrets.WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64)) {
+            throw 'GitHub Release packaging requires WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64.'
+          }
+
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'wpf-devtools-release-signing.pfx'
+          ./scripts/tools/packaging/Write-ReleaseSigningCertificate.ps1 `
+            -CertificatePath $certificatePath `
+            -GitHubEnvPath $env:GITHUB_ENV
+
+      - name: Validate signing secrets
+        shell: pwsh
+        env:
+          WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
+          WPFDEVTOOLS_PFX_PASSWORD: ${{ secrets.WPFDEVTOOLS_PFX_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
+            throw 'GitHub Release packaging requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_PFX_PASSWORD)) {
+            throw 'GitHub Release packaging requires WPFDEVTOOLS_PFX_PASSWORD.'
+          }
+
+      - name: Validate ARM64 runtime smoke lane configuration
+        shell: pwsh
+        run: |
+          if ('${{ vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE }}' -ne 'true') {
+            throw 'Public release publishing requires WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE=true and a self-hosted Windows ARM64 runner for runtime validation before upload.'
+          }
+
+      - name: Build release packages
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.release-metadata.outputs.tag }}
+          WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
+          WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}
+          WPFDEVTOOLS_PFX_PASSWORD: ${{ secrets.WPFDEVTOOLS_PFX_PASSWORD }}
+        run: |
+          ./scripts/tools/packaging/Publish-Release.ps1 `
+            -Configuration Release `
+            -Architectures @('x64', 'x86', 'arm64') `
+            -ExpectedReleaseTag $env:RELEASE_TAG `
+            -OutputRoot '${{ env.RELEASE_OUTPUT_ROOT }}'
+
+      - name: Stage GitHub Release assets
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.release-metadata.outputs.tag }}
+          WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
+        run: |
+          ./scripts/tools/packaging/Export-GitHubReleaseAssets.ps1 `
+            -InputRoot '${{ env.RELEASE_OUTPUT_ROOT }}' `
+            -OutputRoot '${{ env.RELEASE_STAGING_ROOT }}' `
+            -Tag $env:RELEASE_TAG `
+            -TrustedSignerThumbprint $env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT `
+            -OutputJson
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $env:RELEASE_TAG
+          Copy-Item -LiteralPath 'artifacts/release/docfx-evidence.json' -Destination (Join-Path $stagingRoot 'docfx-evidence.json') -Force
+          Copy-Item -LiteralPath 'artifacts/release/security-evidence.json' -Destination (Join-Path $stagingRoot 'security-evidence.json') -Force
+
+      - name: Upload staged release bundle artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: github-release-assets-${{ steps.release-metadata.outputs.tag }}
+          path: |
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release_*_win-x64.zip
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release_*_win-x86.zip
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release_*_win-arm64.zip
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/SHA256SUMS.txt
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release-assets.json
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/release-sbom.spdx.json
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/package-sbom.spdx.json
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/docfx-evidence.json
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/security-evidence.json
+            ${{ env.RELEASE_STAGING_ROOT }}/${{ steps.release-metadata.outputs.tag }}/upload-gh-release.ps1
+
+      - name: Cleanup materialized signing certificate
+        if: always()
+        shell: pwsh
+        run: |
+          if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH) -and
+              (Test-Path $env:WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH)) {
+            Remove-Item -LiteralPath $env:WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH -Force
+          }
+
+  validate-x64-release-assets:
+    needs: publish-release-assets
+    runs-on: windows-2022
+    env:
+      RELEASE_STAGING_ROOT: artifacts/release/github-assets
+      WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
+      WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}
+
+    steps:
+      - name: Checkout tagged revision
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: refs/tags/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Download staged release bundle artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: github-release-assets-${{ needs.publish-release-assets.outputs.release-tag }}
+          path: ${{ env.RELEASE_STAGING_ROOT }}/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Verify release validation signer trust
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
+            throw 'Release validation requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+          }
+
+      - name: Install staged x64 package smoke test
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
+          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x64.zip' |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+
+          if ($null -eq $packageArchive) {
+            throw 'Could not locate staged x64 release archive for runtime validation.'
+          }
+
+          $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
+          if (Test-Path $packageDir) {
+            Remove-Item -LiteralPath $packageDir -Recurse -Force
+          }
+
+          Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
+          & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+
+      - name: Start staged installed x64 runtime live smoke test
+        shell: pwsh
+        run: |
+          $serverPath = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'x64\current\bin\wpf-devtools-x64.exe'
+
+          if (-not (Test-Path $serverPath)) {
+            throw "Could not locate staged installed x64 server executable at $serverPath"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x64' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x64-installed.json'
+
+      - name: x64 online installer smoke test
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
+          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x64.zip' |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+
+          if ($null -eq $packageArchive) {
+            throw 'Could not locate staged x64 release archive for online installer validation.'
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory $stagingRoot -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
+
+      - name: Start staged online-installed x64 runtime live smoke test
+        shell: pwsh
+        run: |
+          $serverPath = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'x64\current\bin\wpf-devtools-x64.exe'
+
+          if (-not (Test-Path $serverPath)) {
+            throw "Could not locate staged online-installed x64 server executable at $serverPath"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x64' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x64-online.json'
+
+      - name: Uninstall staged installed x64 package smoke test
+        shell: pwsh
+        run: |
+          $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'x64\current\bin\install.ps1'
+
+          if (-not (Test-Path $installedScript)) {
+            throw "Could not locate installed package-local installer at $installedScript"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
+
+      - name: Full uninstall staged installed x64 package residue test
+        shell: pwsh
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture 'x64'
+
+      - name: Uninstall staged x64 online installer smoke test
+        shell: pwsh
+        run: |
+          $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'x64\current\bin\install.ps1'
+
+          if (-not (Test-Path $installedScript)) {
+            throw "Could not locate installed online-installer payload at $installedScript"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
+
+      - name: Full uninstall staged x64 online installer residue test
+        shell: pwsh
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x64'
+
+      - name: Upload x64 runtime evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-runtime-evidence-${{ needs.publish-release-assets.outputs.release-tag }}-x64
+          path: artifacts/release/runtime-evidence-x64-*.json
+
+  validate-x86-release-assets:
+    needs: publish-release-assets
+    runs-on: windows-2022
+    env:
+      RELEASE_STAGING_ROOT: artifacts/release/github-assets
+      WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
+      WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}
+
+    steps:
+      - name: Checkout tagged revision
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: refs/tags/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '8.0.x'
+          architecture: x86
+
+      - name: Download staged release bundle artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: github-release-assets-${{ needs.publish-release-assets.outputs.release-tag }}
+          path: ${{ env.RELEASE_STAGING_ROOT }}/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Verify release validation signer trust
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
+            throw 'Release validation requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+          }
+
+      - name: Install staged x86 package smoke test
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
+          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x86.zip' |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+
+          if ($null -eq $packageArchive) {
+            throw 'Could not locate staged x86 release archive for runtime validation.'
+          }
+
+          $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
+          if (Test-Path $packageDir) {
+            Remove-Item -LiteralPath $packageDir -Recurse -Force
+          }
+
+          Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
+          & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+
+      - name: Start staged installed x86 runtime live smoke test
+        shell: pwsh
+        run: |
+          $serverPath = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'x86\current\bin\wpf-devtools-x86.exe'
+
+          if (-not (Test-Path $serverPath)) {
+            throw "Could not locate staged installed x86 server executable at $serverPath"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x86' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x86-installed.json'
+
+      - name: x86 online installer smoke test
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
+          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x86.zip' |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+
+          if ($null -eq $packageArchive) {
+            throw 'Could not locate staged x86 release archive for online installer validation.'
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory $stagingRoot -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
+
+      - name: Start staged online-installed x86 runtime live smoke test
+        shell: pwsh
+        run: |
+          $serverPath = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'x86\current\bin\wpf-devtools-x86.exe'
+
+          if (-not (Test-Path $serverPath)) {
+            throw "Could not locate staged online-installed x86 server executable at $serverPath"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x86' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x86-online.json'
+
+      - name: Uninstall staged installed x86 package smoke test
+        shell: pwsh
+        run: |
+          $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'x86\current\bin\install.ps1'
+
+          if (-not (Test-Path $installedScript)) {
+            throw "Could not locate installed package-local installer at $installedScript"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'x86' -Client other -NonInteractive -OutputJson
+
+      - name: Full uninstall staged installed x86 package residue test
+        shell: pwsh
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'x86' -Client other -NonInteractive -OutputJson
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture 'x86'
+
+      - name: Uninstall staged x86 online installer smoke test
+        shell: pwsh
+        run: |
+          $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'x86\current\bin\install.ps1'
+
+          if (-not (Test-Path $installedScript)) {
+            throw "Could not locate installed online-installer payload at $installedScript"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x86' -Client other -NonInteractive -OutputJson
+
+      - name: Full uninstall staged x86 online installer residue test
+        shell: pwsh
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x86' -Client other -NonInteractive -OutputJson
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x86'
+
+      - name: Upload x86 runtime evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-runtime-evidence-${{ needs.publish-release-assets.outputs.release-tag }}-x86
+          path: artifacts/release/runtime-evidence-x86-*.json
+
+  validate-arm64-release-assets:
+    if: vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE == 'true'
+    needs: publish-release-assets
+    runs-on: [self-hosted, Windows, ARM64]
+    env:
+      RELEASE_STAGING_ROOT: artifacts/release/github-assets
+      WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
+      WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}
+
+    steps:
+      - name: Checkout tagged revision
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: refs/tags/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Download staged release bundle artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: github-release-assets-${{ needs.publish-release-assets.outputs.release-tag }}
+          path: ${{ env.RELEASE_STAGING_ROOT }}/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Verify release validation signer trust
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
+            throw 'Release validation requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+          }
+
+      - name: Install staged ARM64 package smoke test
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
+          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-arm64.zip' |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+
+          if ($null -eq $packageArchive) {
+            throw 'Could not locate staged ARM64 release archive for runtime validation.'
+          }
+
+          $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
+          if (Test-Path $packageDir) {
+            Remove-Item -LiteralPath $packageDir -Recurse -Force
+          }
+
+          Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
+          & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+
+      - name: Start staged installed ARM64 runtime smoke test
+        shell: pwsh
+        run: |
+          $serverPath = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'arm64\current\bin\wpf-devtools-arm64.exe'
+
+          if (-not (Test-Path $serverPath)) {
+            throw "Could not locate staged installed ARM64 server executable at $serverPath"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-installed.json'
+
+      - name: ARM64 online installer smoke test
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
+          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-arm64.zip' |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+
+          if ($null -eq $packageArchive) {
+            throw 'Could not locate staged ARM64 release archive for online installer validation.'
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory $stagingRoot -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
+
+      - name: Start staged online-installed ARM64 runtime smoke test
+        shell: pwsh
+        run: |
+          $serverPath = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'arm64\current\bin\wpf-devtools-arm64.exe'
+
+          if (-not (Test-Path $serverPath)) {
+            throw "Could not locate staged online-installed ARM64 server executable at $serverPath"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-online.json'
+
+      - name: Uninstall staged installed ARM64 package smoke test
+        shell: pwsh
+        run: |
+          $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'arm64\current\bin\install.ps1'
+
+          if (-not (Test-Path $installedScript)) {
+            throw "Could not locate installed package-local installer at $installedScript"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+
+      - name: Full uninstall staged installed ARM64 package residue test
+        shell: pwsh
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64'
+
+      - name: Uninstall staged ARM64 online installer smoke test
+        shell: pwsh
+        run: |
+          $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'arm64\current\bin\install.ps1'
+
+          if (-not (Test-Path $installedScript)) {
+            throw "Could not locate installed online-installer payload at $installedScript"
+          }
+
+          & powershell -ExecutionPolicy Bypass -File $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+
+      - name: Full uninstall staged ARM64 online installer residue test
+        shell: pwsh
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64'
+
+      - name: Upload ARM64 runtime evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-runtime-evidence-${{ needs.publish-release-assets.outputs.release-tag }}-arm64
+          path: artifacts/release/runtime-evidence-arm64-*.json
+
+  upload-release-assets:
+    needs:
+      - publish-release-assets
+      - validate-x64-release-assets
+      - validate-x86-release-assets
+      - validate-arm64-release-assets
+    permissions:
+      contents: write
+    runs-on: windows-2022
+    env:
+      RELEASE_STAGING_ROOT: artifacts/release/github-assets
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+
+      - name: Download staged release bundle artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: github-release-assets-${{ needs.publish-release-assets.outputs.release-tag }}
+          path: ${{ env.RELEASE_STAGING_ROOT }}/${{ needs.publish-release-assets.outputs.release-tag }}
+
+      - name: Download runtime evidence artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: release-runtime-evidence-${{ needs.publish-release-assets.outputs.release-tag }}-*
+          path: artifacts/release/runtime-evidence
+          merge-multiple: true
+
+      - name: Write release evidence summary
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+          WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
+          $runtimeEvidence = @(Get-ChildItem 'artifacts/release/runtime-evidence' -File -Filter 'runtime-evidence-*.json' | Sort-Object Name | ForEach-Object { $_.FullName })
+          if ($runtimeEvidence.Count -eq 0) {
+            throw 'No runtime evidence artifacts were downloaded for release evidence summary.'
+          }
+          $runtimeEvidenceCsv = $runtimeEvidence -join ','
+
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Write-ReleaseEvidence.ps1 `
+            -OutputPath (Join-Path $stagingRoot 'release-evidence.json') `
+            -Repository '${{ github.repository }}' `
+            -Branch $tag `
+            -CommitSha '${{ needs.publish-release-assets.outputs.tag-commit-sha }}' `
+            -WorkflowRunId '${{ github.run_id }}' `
+            -RunnerMatrix 'windows-x64,windows-x86,windows-arm64' `
+            -RuntimeEvidencePath $runtimeEvidenceCsv `
+            -DocFxEvidencePath (Join-Path $stagingRoot 'docfx-evidence.json') `
+            -SecurityEvidencePath (Join-Path $stagingRoot 'security-evidence.json') `
+            -Sha256SumsPath (Join-Path $stagingRoot 'SHA256SUMS.txt') `
+            -ReleaseAssetsPath (Join-Path $stagingRoot 'release-assets.json') `
+            -ReleaseSbomPath (Join-Path $stagingRoot 'release-sbom.spdx.json') `
+            -PackageSbomPath (Join-Path $stagingRoot 'package-sbom.spdx.json') `
+            -DotnetSdkVersion (dotnet --version) `
+            -PowerShellVersion $PSVersionTable.PSVersion.ToString() `
+            -WorkflowSha '${{ github.workflow_sha }}' `
+            -TrustedSignerThumbprint $env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT `
+            -UninstallResiduePassed `
+            -PublicReleaseStrict
+
+          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-ReleaseEvidenceSchema.ps1 `
+            -EvidencePath (Join-Path $stagingRoot 'release-evidence.json')
+
+      - name: Upload release evidence artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-evidence-${{ needs.publish-release-assets.outputs.release-tag }}
+          path: ${{ env.RELEASE_STAGING_ROOT }}/${{ needs.publish-release-assets.outputs.release-tag }}/release-evidence.json
+
+      - name: Ensure GitHub Release exists for manual dispatch
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title $tag --notes "Automated release asset upload for $tag."
+          }
+
+      - name: Upload staged assets to GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          Set-Location (Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag)
+          ./upload-gh-release.ps1 -ReleaseTag $tag

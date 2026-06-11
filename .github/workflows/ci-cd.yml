@@ -1,0 +1,678 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs-validation:
+    runs-on: windows-2022
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore local tools
+      run: dotnet tool restore
+
+    - name: Restore project dependencies
+      run: dotnet restore WpfDevTools.sln --locked-mode
+
+    - name: Build shared assembly for API docs
+      run: dotnet build src/WpfDevTools.Shared/WpfDevTools.Shared.csproj -c Debug -f net8.0
+
+    - name: Build SDK assembly for API docs
+      run: dotnet build src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj -c Debug -f net8.0-windows
+
+    - name: Build DocFX site
+      run: dotnet tool run docfx docfx/docfx.json
+
+    - name: Validate DocFX links and parity
+      shell: pwsh
+      run: ./scripts/ci/Test-DocFxDocumentation.ps1 -RepoRoot $PWD -EvidenceOutputPath artifacts/release/docfx-evidence.json
+
+    - name: Upload DocFX evidence
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: docfx-evidence
+        path: artifacts/release/docfx-evidence.json
+
+  build-and-test:
+    runs-on: windows-2022
+
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+        platform: [x64, x86]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
+
+    - name: Resolve native host SDK paths
+      shell: pwsh
+      run: |
+        $rid = switch ('${{ matrix.platform }}') {
+          'x64' { 'win-x64' }
+          'x86' { 'win-x86' }
+          default { throw "Unsupported bootstrapper platform: ${{ matrix.platform }}" }
+        }
+
+        $packRoot = Join-Path $env:ProgramFiles 'dotnet\packs'
+        $packDir = Get-ChildItem (Join-Path $packRoot "Microsoft.NETCore.App.Host.$rid") -Directory |
+          Sort-Object { [version]$_.Name } -Descending |
+          Select-Object -First 1
+
+        if (-not $packDir) {
+          throw "Could not locate Microsoft.NETCore.App.Host pack for $rid"
+        }
+
+        $nativeDir = Join-Path $packDir.FullName "runtimes\$rid\native"
+        if (-not (Test-Path $nativeDir)) {
+          throw "Could not locate native host directory: $nativeDir"
+        }
+
+        "BOOTSTRAPPER_NATIVE_DIR=$nativeDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+    - name: Restore dependencies
+      run: dotnet restore --locked-mode
+
+    - name: Restore server runtime dependencies
+      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
+      run: dotnet restore src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj --locked-mode -r win-x64
+
+    - name: Build native bootstrapper
+      shell: pwsh
+      run: |
+        $platform = switch ('${{ matrix.platform }}') {
+          'x86' { 'Win32' }
+          'x64' { 'x64' }
+          default { throw "Unsupported bootstrapper platform: ${{ matrix.platform }}" }
+        }
+
+        & msbuild src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj `
+          /m `
+          /nologo `
+          "/p:Configuration=${{ matrix.configuration }}" `
+          "/p:Platform=$platform" `
+          "/p:LinkIncremental=false" `
+          "/p:NetHostIncludeDir=$env:BOOTSTRAPPER_NATIVE_DIR" `
+          "/p:NetHostLibDir=$env:BOOTSTRAPPER_NATIVE_DIR"
+
+    - name: Build
+      run: dotnet build --configuration ${{ matrix.configuration }} --no-restore -m:1 -p:Platform=${{ matrix.platform }} -nodeReuse:false -p:UseSharedCompilation=false
+
+    - name: Run unit tests
+      if: matrix.platform == 'x64'
+      timeout-minutes: 20
+      run: dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=unit-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/unit
+
+    - name: Run release unit tests
+      if: matrix.platform == 'x64'
+      env:
+        WPFDEVTOOLS_TEST_TIMEOUT_SCALE: '4'
+      timeout-minutes: 45
+      run: dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=release-unit-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/release-unit
+
+    - name: Prepare server runtime output
+      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
+      run: dotnet build src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj --configuration ${{ matrix.configuration }} --runtime win-x64 --self-contained false --no-restore -nodeReuse:false -p:UseSharedCompilation=false
+
+    - name: Run integration tests
+      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
+      timeout-minutes: 20
+      run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=integration-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/integration
+
+    - name: Upload test diagnostics
+      if: failure() || cancelled()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: test-diagnostics-${{ matrix.configuration }}-${{ matrix.platform }}
+        path: TestResults/
+        if-no-files-found: ignore
+
+    - name: Document Release integration test boundary
+      if: matrix.configuration == 'Release'
+      shell: pwsh
+      run: |
+        Write-Host 'Release live-injection integration tests require Authenticode-signed inspector and bootstrapper payloads.'
+        Write-Host 'This unsigned CI matrix still builds Release on x64/x86, runs tests on x64, and leaves signed payload validation to release.yml.'
+
+    - name: Upload build artifacts
+      if: matrix.configuration == 'Release'
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: wpf-devtools-mcp-${{ matrix.platform }}
+        path: |
+          src/WpfDevTools.Mcp.Server/bin/Release/net8.0/
+          src/WpfDevTools.Inspector/bin/Release/net8.0-windows/
+          src/WpfDevTools.Inspector.Sdk/bin/Release/net8.0-windows/
+
+  build-arm64:
+    runs-on: windows-2022
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore --locked-mode
+
+    - name: Build ARM64 (cross-compile, no test - no ARM64 runner available)
+      run: dotnet build --configuration Release -p:Platform=ARM64 -m:1 -nodeReuse:false -p:UseSharedCompilation=false
+
+  release-packaging-smoke:
+    needs: docs-validation
+    runs-on: windows-2022
+    env:
+      WPFDEVTOOLS_INSTALLER_TEST_MODE: '1'
+      WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA: '1'
+      WPFDEVTOOLS_TEST_SIGNATURE_STATUS: 'Valid'
+      WPFDEVTOOLS_TEST_TRUST_LOCAL_RELEASE_SIGNATURE_SKIP: '1'
+
+    strategy:
+      matrix:
+        architecture: [x64, x86]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Setup .NET x86 SDK
+      if: matrix.architecture == 'x86'
+      uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+      with:
+        dotnet-version: '8.0.x'
+        architecture: x86
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
+
+    - name: Download DocFX evidence
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      with:
+        name: docfx-evidence
+        path: artifacts/release
+
+    - name: Run release packaging smoke test
+      shell: pwsh
+      run: |
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Publish-Release.ps1 -Architectures '${{ matrix.architecture }}' -OutputRoot 'artifacts/release'
+
+    - name: Install published package smoke test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
+      run: |
+        $packageArchive = Get-ChildItem 'artifacts/release' -File -Filter "release_*_win-${{ matrix.architecture }}.zip" |
+          Sort-Object Name -Descending |
+          Select-Object -First 1
+
+        if ($null -eq $packageArchive) {
+          throw "Could not locate packaged release archive for architecture ${{ matrix.architecture }}"
+        }
+
+        $packageDir = Join-Path 'artifacts/release' $packageArchive.BaseName
+        if (Test-Path $packageDir) {
+          Remove-Item -LiteralPath $packageDir -Recurse -Force
+        }
+
+        Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+
+    - name: Start installed package runtime smoke test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
+      run: |
+        $serverPath = Join-Path (Resolve-Path './tmp-release-install-smoke').Path '${{ matrix.architecture }}\current\bin\wpf-devtools-${{ matrix.architecture }}.exe'
+
+        if (-not (Test-Path $serverPath)) {
+          throw "Could not locate installed server executable at $serverPath"
+        }
+
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture '${{ matrix.architecture }}' -SmokeInstallMode 'package-local' -EvidenceOutputPath "artifacts/release/runtime-evidence-${{ matrix.architecture }}-installed.json"
+
+    - name: Online installer smoke test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
+      run: |
+        $packageArchive = Get-ChildItem 'artifacts/release' -File -Filter "release_*_win-${{ matrix.architecture }}.zip" |
+          Sort-Object Name -Descending |
+          Select-Object -First 1
+
+        if ($null -eq $packageArchive) {
+          throw "Could not locate packaged release archive for architecture ${{ matrix.architecture }}"
+        }
+
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . ./scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory 'artifacts/release' -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
+
+    - name: Start online-installed runtime smoke test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
+      run: |
+        $serverPath = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path '${{ matrix.architecture }}\current\bin\wpf-devtools-${{ matrix.architecture }}.exe'
+
+        if (-not (Test-Path $serverPath)) {
+          throw "Could not locate online-installed server executable at $serverPath"
+        }
+
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture '${{ matrix.architecture }}' -SmokeInstallMode 'online-installer' -EvidenceOutputPath "artifacts/release/runtime-evidence-${{ matrix.architecture }}-online.json"
+
+    - name: Uninstall published package smoke test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
+      run: |
+        $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path '${{ matrix.architecture }}\current\bin\install.ps1'
+
+        if (-not (Test-Path $installedScript)) {
+          throw "Could not locate installed package-local installer at $installedScript"
+        }
+
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
+
+    - name: Full uninstall published package residue test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
+      run: |
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . ./scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture '${{ matrix.architecture }}'
+
+    - name: Uninstall online installer smoke test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
+      run: |
+        $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path '${{ matrix.architecture }}\current\bin\install.ps1'
+
+        if (-not (Test-Path $installedScript)) {
+          throw "Could not locate installed online-installer payload at $installedScript"
+        }
+
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
+
+    - name: Full uninstall online installer residue test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
+      run: |
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . ./scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}' -Client other -NonInteractive -OutputJson
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture '${{ matrix.architecture }}'
+
+    - name: Write release evidence summary
+      shell: pwsh
+      run: |
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Write-ReleaseEvidence.ps1 `
+          -OutputPath "artifacts/release/release-evidence-${{ matrix.architecture }}.json" `
+          -Repository '${{ github.repository }}' `
+          -Branch '${{ github.ref_name }}' `
+          -CommitSha '${{ github.sha }}' `
+          -WorkflowRunId '${{ github.run_id }}' `
+          -RunnerMatrix "windows-${{ matrix.architecture }}" `
+          -RuntimeEvidencePath "artifacts/release/runtime-evidence-${{ matrix.architecture }}-installed.json,artifacts/release/runtime-evidence-${{ matrix.architecture }}-online.json" `
+          -DocFxEvidencePath 'artifacts/release/docfx-evidence.json' `
+          -Sha256SumsPath 'artifacts/release/SHA256SUMS.txt' `
+          -ReleaseAssetsPath 'artifacts/release/release-assets.json' `
+          -ReleaseSbomPath 'artifacts/release/release-sbom.spdx.json' `
+          -PackageSbomPath 'artifacts/release/package-sbom.spdx.json' `
+          -DotnetSdkVersion (dotnet --version) `
+          -PowerShellVersion $PSVersionTable.PSVersion.ToString() `
+          -WorkflowSha '${{ github.workflow_sha }}' `
+          -UninstallResiduePassed
+
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-ReleaseEvidenceSchema.ps1 `
+          -EvidencePath "artifacts/release/release-evidence-${{ matrix.architecture }}.json"
+
+    - name: Upload release evidence summary
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: release-evidence-ci-${{ matrix.architecture }}
+        path: artifacts/release/release-evidence-${{ matrix.architecture }}.json
+
+  release-packaging-smoke-arm64:
+    if: vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE == 'true'
+    needs: docs-validation
+    runs-on: [self-hosted, Windows, ARM64]
+    env:
+      WPFDEVTOOLS_INSTALLER_TEST_MODE: '1'
+      WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA: '1'
+      WPFDEVTOOLS_TEST_SIGNATURE_STATUS: 'Valid'
+      WPFDEVTOOLS_TEST_TRUST_LOCAL_RELEASE_SIGNATURE_SKIP: '1'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
+
+    - name: Download DocFX evidence
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      with:
+        name: docfx-evidence
+        path: artifacts/release
+
+    - name: Run ARM64 release packaging smoke test
+      shell: pwsh
+      run: |
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Publish-Release.ps1 -Architectures 'arm64' -OutputRoot 'artifacts/release'
+
+    - name: Install published ARM64 package smoke test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
+      run: |
+        $packageArchive = Get-ChildItem 'artifacts/release' -File -Filter 'release_*_win-arm64.zip' |
+          Sort-Object Name -Descending |
+          Select-Object -First 1
+
+        if ($null -eq $packageArchive) {
+          throw 'Could not locate packaged release archive for architecture arm64'
+        }
+
+        $packageDir = Join-Path 'artifacts/release' $packageArchive.BaseName
+        if (Test-Path $packageDir) {
+          Remove-Item -LiteralPath $packageDir -Recurse -Force
+        }
+
+        Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+
+    - name: Start installed ARM64 runtime smoke test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
+      run: |
+        $serverPath = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'arm64\current\bin\wpf-devtools-arm64.exe'
+
+        if (-not (Test-Path $serverPath)) {
+          throw "Could not locate installed ARM64 server executable at $serverPath"
+        }
+
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-installed.json'
+
+    - name: ARM64 online installer smoke test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
+      run: |
+        $packageArchive = Get-ChildItem 'artifacts/release' -File -Filter 'release_*_win-arm64.zip' |
+          Sort-Object Name -Descending |
+          Select-Object -First 1
+
+        if ($null -eq $packageArchive) {
+          throw 'Could not locate packaged release archive for architecture arm64'
+        }
+
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . ./scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory 'artifacts/release' -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
+
+    - name: Start online-installed ARM64 runtime smoke test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
+      run: |
+        $serverPath = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'arm64\current\bin\wpf-devtools-arm64.exe'
+
+        if (-not (Test-Path $serverPath)) {
+          throw "Could not locate online-installed ARM64 server executable at $serverPath"
+        }
+
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-online.json'
+
+    - name: Uninstall published ARM64 package smoke test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
+      run: |
+        $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'arm64\current\bin\install.ps1'
+
+        if (-not (Test-Path $installedScript)) {
+          throw "Could not locate installed package-local installer at $installedScript"
+        }
+
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . $installedScript -Action uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+
+    - name: Full uninstall published ARM64 package residue test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
+      run: |
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . ./scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64'
+
+    - name: Uninstall ARM64 online installer smoke test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
+      run: |
+        $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'arm64\current\bin\install.ps1'
+
+        if (-not (Test-Path $installedScript)) {
+          throw "Could not locate installed online-installer payload at $installedScript"
+        }
+
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . $installedScript -Action uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+
+    - name: Full uninstall ARM64 online installer residue test
+      shell: pwsh
+      env:
+        APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+        LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
+      run: |
+        $script:WpfDevToolsInstallerTestModeHarnessEnabled = $true
+        $script:WpfDevToolsInstallerTestModeEnabled = $true
+        . ./scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64'
+
+    - name: Write ARM64 release evidence summary
+      shell: pwsh
+      run: |
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Write-ReleaseEvidence.ps1 `
+          -OutputPath 'artifacts/release/release-evidence-arm64.json' `
+          -Repository '${{ github.repository }}' `
+          -Branch '${{ github.ref_name }}' `
+          -CommitSha '${{ github.sha }}' `
+          -WorkflowRunId '${{ github.run_id }}' `
+          -RunnerMatrix 'windows-arm64' `
+          -RuntimeEvidencePath 'artifacts/release/runtime-evidence-arm64-installed.json,artifacts/release/runtime-evidence-arm64-online.json' `
+          -DocFxEvidencePath 'artifacts/release/docfx-evidence.json' `
+          -Sha256SumsPath 'artifacts/release/SHA256SUMS.txt' `
+          -ReleaseAssetsPath 'artifacts/release/release-assets.json' `
+          -ReleaseSbomPath 'artifacts/release/release-sbom.spdx.json' `
+          -PackageSbomPath 'artifacts/release/package-sbom.spdx.json' `
+          -DotnetSdkVersion (dotnet --version) `
+          -PowerShellVersion $PSVersionTable.PSVersion.ToString() `
+          -WorkflowSha '${{ github.workflow_sha }}' `
+          -UninstallResiduePassed
+
+        & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-ReleaseEvidenceSchema.ps1 `
+          -EvidencePath 'artifacts/release/release-evidence-arm64.json'
+
+    - name: Upload ARM64 release evidence summary
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: release-evidence-ci-arm64
+        path: artifacts/release/release-evidence-arm64.json
+
+  code-coverage:
+    runs-on: windows-2022
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
+
+    - name: Resolve native host SDK paths
+      shell: pwsh
+      run: |
+        $rid = 'win-x64'
+        $packRoot = Join-Path $env:ProgramFiles 'dotnet\packs'
+        $packDir = Get-ChildItem (Join-Path $packRoot "Microsoft.NETCore.App.Host.$rid") -Directory |
+          Sort-Object { [version]$_.Name } -Descending |
+          Select-Object -First 1
+
+        if (-not $packDir) {
+          throw "Could not locate Microsoft.NETCore.App.Host pack for $rid"
+        }
+
+        $nativeDir = Join-Path $packDir.FullName "runtimes\$rid\native"
+        if (-not (Test-Path $nativeDir)) {
+          throw "Could not locate native host directory: $nativeDir"
+        }
+
+        "BOOTSTRAPPER_NATIVE_DIR=$nativeDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+    - name: Restore dependencies
+      run: dotnet restore --locked-mode
+
+    - name: Build native bootstrapper
+      shell: pwsh
+      run: |
+        & msbuild src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj `
+          /m `
+          /nologo `
+          "/p:Configuration=Debug" `
+          "/p:Platform=x64" `
+          "/p:LinkIncremental=false" `
+          "/p:NetHostIncludeDir=$env:BOOTSTRAPPER_NATIVE_DIR" `
+          "/p:NetHostLibDir=$env:BOOTSTRAPPER_NATIVE_DIR"
+
+    - name: Build unit tests for coverage
+      run: dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug --no-restore -m:1 -nodeReuse:false -p:UseSharedCompilation=false
+
+    - name: Run tests with coverage
+      timeout-minutes: 20
+      run: >
+        dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj
+        -c Debug
+        --no-build
+        --settings coverlet.runsettings
+        --collect:"XPlat Code Coverage"
+        --blame-hang-timeout 10m
+        --logger "trx;LogFileName=coverage-debug.trx"
+        --results-directory ./TestResults/coverage
+        --filter "FullyQualifiedName!~WpfDevTools.Tests.Unit.Release"
+        -nodeReuse:false
+        -p:UseSharedCompilation=false
+
+    - name: Upload coverage test diagnostics
+      if: failure() || cancelled()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: coverage-test-diagnostics
+        path: TestResults/
+        if-no-files-found: ignore
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
+      with:
+        directory: ./TestResults
+        flags: unittests
+        name: codecov-wpf-devtools
+
+  build-nuget:
+    runs-on: windows-2022
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore --locked-mode
+
+    - name: Build SDK package
+      run: dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --configuration Release --output ./nupkg -p:GeneratePackageOnBuild=false
+
+    - name: Upload NuGet package
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: nuget-package
+        path: ./nupkg/*.nupkg

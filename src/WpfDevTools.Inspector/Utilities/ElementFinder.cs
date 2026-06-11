@@ -1,0 +1,339 @@
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Threading;
+using WpfDevTools.Inspector.Analyzers;
+using WpfDevTools.Shared.Configuration;
+
+namespace WpfDevTools.Inspector.Utilities;
+
+/// <summary>
+/// Utility for finding and tracking WPF elements by ID
+/// </summary>
+public sealed class ElementFinder : IDisposable
+{
+    // Static to ensure unique IDs across all ElementFinder instances.
+    // Multiple analyzers may share the same instance, but if separate instances
+    // are created (e.g., in tests), static guarantees no ID collisions.
+    private static int _nextId = 0;
+    private readonly ConditionalWeakTable<DependencyObject, string> _objectToIdCache = new();
+    private readonly ConcurrentDictionary<string, WeakReference<DependencyObject>> _elementCache = new();
+    private readonly System.Threading.Timer _cleanupTimer;
+    private const int CleanupIntervalSeconds = 30;
+
+    /// <summary>
+    /// Create a new ElementFinder instance with timer-based cleanup
+    /// </summary>
+    public ElementFinder()
+    {
+        // CRITICAL FIX: Use timer-based cleanup instead of count-based
+        // This prevents GC pressure spikes in large UIs with rapid element creation
+        _cleanupTimer = new System.Threading.Timer(
+            callback: _ => CleanupDeadReferences(),
+            state: null,
+            dueTime: TimeSpan.FromSeconds(CleanupIntervalSeconds),
+            period: TimeSpan.FromSeconds(CleanupIntervalSeconds));
+    }
+
+    /// <summary>
+    /// Get the root element of the WPF application (defaults to MainWindow)
+    /// </summary>
+    /// <returns>Root DependencyObject (typically MainWindow), or null if not available</returns>
+    public DependencyObject? GetRootElement()
+    {
+        return GetRootElement(windowIndex: null);
+    }
+
+    /// <summary>
+    /// Get the root element for a specific window by index.
+    /// Index 0 or null returns MainWindow.
+    /// </summary>
+    /// <param name="windowIndex">Zero-based window index, or null for MainWindow</param>
+    /// <returns>Root DependencyObject (Window), or null if not available or out of range</returns>
+    public DependencyObject? GetRootElement(int? windowIndex)
+    {
+        var application = Application.Current;
+        if (application == null)
+        {
+            return null;
+        }
+
+        if (windowIndex is < 0)
+        {
+            return null;
+        }
+
+        return InvokeOnDispatcher(application.Dispatcher, () =>
+        {
+            if (windowIndex == null)
+            {
+                return application.MainWindow;
+            }
+
+            var windows = application.Windows;
+            if (windowIndex.Value >= windows.Count)
+            {
+                return null;
+            }
+
+            return windows[windowIndex.Value];
+        });
+    }
+
+    /// <summary>
+    /// Enumerate all open windows in the WPF application
+    /// </summary>
+    /// <returns>List of WindowInfo for each open window</returns>
+    public IReadOnlyList<WindowInfo> GetWindows()
+    {
+        var application = Application.Current;
+        if (application == null)
+        {
+            return Array.Empty<WindowInfo>();
+        }
+
+        return InvokeOnDispatcher(application.Dispatcher, () =>
+        {
+            var windows = application.Windows;
+            var result = new List<WindowInfo>(windows.Count);
+
+            for (var i = 0; i < windows.Count; i++)
+            {
+                var window = windows[i];
+                result.Add(new WindowInfo
+                {
+                    Index = i,
+                    Title = window.Title ?? string.Empty,
+                    Type = window.GetType().Name,
+                    IsActive = window.IsActive,
+                    IsVisible = window.IsVisible,
+                    IsMainWindow = ReferenceEquals(window, application.MainWindow),
+                    ElementId = GenerateElementId(window)
+                });
+            }
+
+            return result;
+        });
+    }
+
+    /// <summary>
+    /// Generate a unique ID for a WPF element
+    /// </summary>
+    /// <param name="element">Element to generate ID for</param>
+    /// <returns>Unique element ID string</returns>
+    public string GenerateElementId(DependencyObject element)
+    {
+        var elementId = _objectToIdCache.GetValue(element, e =>
+        {
+            var id = Interlocked.Increment(ref _nextId);
+            var typeName = e.GetType().Name;
+            return $"{typeName}_{id}";
+        });
+
+        // Cache the element with WeakReference
+        _elementCache[elementId] = new WeakReference<DependencyObject>(element);
+
+        // CRITICAL FIX: Removed count-based cleanup trigger
+        // Cleanup now runs on a timer (every 30 seconds) to prevent GC pressure spikes
+
+        return elementId;
+    }
+
+    /// <summary>
+    /// Remove dead WeakReferences from _elementCache to prevent memory leaks.
+    /// _objectToIdCache uses ConditionalWeakTable which automatically releases
+    /// entries when keys are garbage collected - no manual cleanup needed.
+    /// </summary>
+    public void CleanupDeadReferences()
+    {
+        var deadKeys = new List<string>();
+
+        foreach (var kvp in _elementCache)
+        {
+            if (!kvp.Value.TryGetTarget(out _))
+            {
+                deadKeys.Add(kvp.Key);
+            }
+        }
+
+        foreach (var key in deadKeys)
+        {
+            _elementCache.TryRemove(key, out _);
+        }
+    }
+
+    internal IReadOnlyList<DependencyObject> GetTrackedElements()
+    {
+        var elements = new List<DependencyObject>();
+        foreach (var weakRef in _elementCache.Values)
+        {
+            if (weakRef.TryGetTarget(out var element))
+            {
+                elements.Add(element);
+            }
+        }
+
+        return elements;
+    }
+
+    internal bool TryRemoveCachedElement(string elementId)
+    {
+        return _elementCache.TryRemove(elementId, out _);
+    }
+
+    internal static void ResetIdsForTests()
+    {
+        Interlocked.Exchange(ref _nextId, 0);
+    }
+
+    /// <summary>
+    /// Find element by ID in the Visual Tree
+    /// </summary>
+    /// <param name="elementId">Element ID to search for. If null or empty, returns root element.</param>
+    /// <param name="root">Root element to start search from. If null, uses application root.</param>
+    /// <param name="maxTraversalNodes">Optional maximum number of nodes to inspect during cache-miss fallback search.</param>
+    /// <returns>Found DependencyObject, or null if not found</returns>
+    public DependencyObject? FindById(string? elementId, DependencyObject? root = null, int? maxTraversalNodes = null)
+    {
+        if (string.IsNullOrEmpty(elementId))
+        {
+            return GetRootElement();
+        }
+
+        if (elementId!.Length > 256)
+            return null;
+
+        // Try to find in cache first
+        if (_elementCache.TryGetValue(elementId!, out var weakRef))
+        {
+            if (weakRef.TryGetTarget(out var element))
+            {
+                return element;
+            }
+            else
+            {
+                // Element was garbage collected, remove from cache
+                _elementCache.TryRemove(elementId!, out _);
+            }
+        }
+
+        // Fall back to visual tree search across all windows
+        var searchRoot = root ?? GetRootElement();
+        if (searchRoot == null)
+        {
+            return null;
+        }
+
+        return InvokeOnDispatcher(searchRoot.Dispatcher, () =>
+        {
+            var searchRoots = new List<DependencyObject> { searchRoot };
+
+            // If not found, search other windows (only when no explicit root was provided)
+            if (root == null && Application.Current is { } application)
+            {
+                var windows = application.Windows;
+                for (var i = 0; i < windows.Count; i++)
+                {
+                    var window = windows[i];
+                    if (ReferenceEquals(window, searchRoot))
+                    {
+                        continue;
+                    }
+
+                    searchRoots.Add(window);
+                }
+            }
+
+            return FindByIdAcrossRoots(elementId!, searchRoots, maxTraversalNodes);
+        });
+    }
+
+    internal DependencyObject? FindByIdAcrossRoots(
+        string elementId,
+        IEnumerable<DependencyObject> roots,
+        int? maxTraversalNodes)
+    {
+        var budget = new TraversalBudget(NormalizeTraversalLimit(maxTraversalNodes));
+        foreach (var candidateRoot in roots)
+        {
+            if (budget.IsExhausted)
+            {
+                return null;
+            }
+
+            var found = SearchTree(candidateRoot, elementId, budget);
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    internal static T InvokeOnDispatcher<T>(
+        Dispatcher? dispatcher,
+        Func<T> action,
+        TimeSpan? timeout = null,
+        CancellationToken? cancellationToken = null)
+    {
+        if (dispatcher == null || dispatcher.CheckAccess())
+        {
+            return action();
+        }
+
+        var actualTimeout = timeout ?? InspectorConfig.UIThreadTimeout;
+        var effectiveCancellationToken = cancellationToken ?? DispatcherRequestContext.CancellationToken;
+        effectiveCancellationToken.ThrowIfCancellationRequested();
+
+        return dispatcher.Invoke(
+            action,
+            DispatcherPriority.Normal,
+            effectiveCancellationToken,
+            actualTimeout);
+    }
+
+    private DependencyObject? SearchTree(DependencyObject element, string targetId, TraversalBudget budget)
+    {
+        var visitedNodeCount = 0;
+        foreach (var current in DependencyObjectTraversal.EnumerateDescendantsAndSelf(element, maxNodes: budget.Remaining))
+        {
+            visitedNodeCount++;
+            if (!_objectToIdCache.TryGetValue(current, out var id) || id != targetId)
+            {
+                continue;
+            }
+
+            _elementCache[targetId] = new WeakReference<DependencyObject>(current);
+            budget.Consume(visitedNodeCount);
+            return current;
+        }
+
+        budget.Consume(visitedNodeCount);
+        return null;
+    }
+
+    private static int NormalizeTraversalLimit(int? maxTraversalNodes)
+        => Math.Max(1, Math.Min(maxTraversalNodes ?? TreeTraversalDefaults.DefaultElementLookupMaxNodes, TreeTraversalDefaults.MaxNodesLimit));
+
+    private sealed class TraversalBudget(int initialBudget)
+    {
+        public int Remaining { get; private set; } = initialBudget;
+
+        public bool IsExhausted => Remaining <= 0;
+
+        public void Consume(int nodeCount)
+        {
+            Remaining = Math.Max(0, Remaining - nodeCount);
+        }
+    }
+
+    /// <summary>
+    /// Dispose resources (cleanup timer)
+    /// </summary>
+    public void Dispose()
+    {
+        _cleanupTimer?.Dispose();
+    }
+}

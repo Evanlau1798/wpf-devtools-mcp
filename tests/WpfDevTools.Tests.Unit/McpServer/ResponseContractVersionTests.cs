@@ -1,0 +1,73 @@
+using FluentAssertions;
+using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpResources;
+using WpfDevTools.Mcp.Server.Schema;
+using Xunit;
+
+namespace WpfDevTools.Tests.Unit.McpServer;
+
+public sealed class ResponseContractVersionTests
+{
+    [Fact]
+    public void Current_ShouldExposeStableResponseContractVersion()
+    {
+        ResponseContractVersion.Current.Should().NotBeNullOrWhiteSpace();
+        ResponseContractVersion.DeprecatedAliases.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void CapabilitiesResource_ShouldDescribeResponseContractVersionAndCompatibilityAliases()
+    {
+        var content = CapabilityResources.GetCapabilities();
+
+        content.Should().Contain(ResponseContractVersion.Current);
+        content.Should().Contain("Compatibility aliases");
+        content.Should().Contain("currentValue -> effectiveValue");
+        content.Should().Contain("typeName -> viewModelType");
+        content.Should().Contain("avgRenderTime -> averageFrameTime");
+        content.Should().Contain("detail=compact");
+        content.Should().Contain("detail=minimal");
+        content.Should().Contain("detail=verbose");
+        content.Should().Contain("standard");
+        content.Should().Contain("wpf://contracts/response");
+        content.Should().Contain("nextSteps");
+        content.Should().Contain("preconditions");
+        content.Should().Contain("whyNow");
+        content.Should().Contain("confidence");
+        content.Should().Contain("prefetchTools");
+        content.Should().Contain("navigation");
+        content.Should().Contain("contextRefs");
+        content.Should().Contain("navigation=false");
+        content.Should().Contain("get_binding_errors");
+        content.Should().Contain("explicit opt-out");
+        content.Should().Contain("advertised in the tool schema today");
+        content.Should().Contain("additive");
+        content.Should().Contain("descriptive JSON");
+    }
+
+    [Fact]
+    public void ServerInstructions_ShouldDescribeCompatibilityAliasesAndCompactMode()
+    {
+        ServerInstructions.Value.Should().Contain("RESPONSE CONTRACT VERSION");
+        ServerInstructions.Value.Should().Contain(ResponseContractVersion.Current);
+        ServerInstructions.Value.Should().Contain("Compatibility aliases");
+        ServerInstructions.Value.Should().Contain("detail=compact");
+        ServerInstructions.Value.Should().Contain("detail=minimal");
+        ServerInstructions.Value.Should().Contain("detail=verbose");
+        ServerInstructions.Value.Should().Contain("standard");
+        ServerInstructions.Value.Should().Contain("wpf://contracts/response");
+        ServerInstructions.Value.Should().Contain("nextSteps");
+        ServerInstructions.Value.Should().Contain("preconditions");
+        ServerInstructions.Value.Should().Contain("workflowId");
+        ServerInstructions.Value.Should().Contain("prefetchTools");
+        ServerInstructions.Value.Should().Contain("navigation");
+        ServerInstructions.Value.Should().Contain("contextRefs");
+        ServerInstructions.Value.Should().Contain("navigation=false");
+        ServerInstructions.Value.Should().Contain("get_binding_errors");
+        ServerInstructions.Value.Should().Contain("explicit opt-out");
+        ServerInstructions.Value.Should().Contain("advertised in the tool schema today");
+        ServerInstructions.Value.Should().Contain("additive");
+        ServerInstructions.Value.Should().Contain("compatibility field");
+        ServerInstructions.Value.Should().Contain("descriptive JSON");
+    }
+}

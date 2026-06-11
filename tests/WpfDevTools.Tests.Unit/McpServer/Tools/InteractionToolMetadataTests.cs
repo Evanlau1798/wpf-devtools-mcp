@@ -1,0 +1,450 @@
+using System.Text.Json;
+using FluentAssertions;
+using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.Navigation;
+using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Mcp.Server.Tools;
+using static WpfDevTools.Tests.Unit.TestHelpers;
+
+namespace WpfDevTools.Tests.Unit.McpServer.Tools;
+
+[Collection("ToolCallHelperState")]
+public sealed class InteractionToolMetadataTests : IDisposable
+{
+    private readonly IDisposable _toolCallHelperScope = ToolCallHelper.BeginTestScope();
+
+    public void Dispose()
+    {
+        _toolCallHelperScope.Dispose();
+    }
+
+    [Fact]
+    public void ExecuteCommand_WhenDetailOmitted_ShouldReturnCompactCoreFields()
+    {
+        var result = InteractionMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                commandName = "SaveCommand",
+                executed = true,
+                canExecute = true
+            },
+            new
+            {
+                elementId = "SaveButton",
+                commandName = "SaveCommand",
+                parameter = "Document-1"
+            },
+            null,
+            "Triggers real application logic. Confirm the observedEffect before assuming navigation, save, or side effects completed.");
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("commandName").GetString().Should().Be("SaveCommand");
+        json.GetProperty("executed").GetBoolean().Should().BeTrue();
+        json.TryGetProperty("requestedInput", out _).Should().BeFalse();
+        json.TryGetProperty("effectiveInput", out _).Should().BeFalse();
+        json.TryGetProperty("observedEffect", out _).Should().BeFalse();
+        json.TryGetProperty("notes", out _).Should().BeFalse();
+        json.TryGetProperty("usedFallback", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ExecuteCommand_WithDetailVerbose_ShouldIncludeRequestedInputAndObservedEffectMetadata()
+    {
+        var result = InteractionMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                commandName = "SaveCommand",
+                executed = true,
+                canExecute = true
+            },
+            new
+            {
+                elementId = "SaveButton",
+                commandName = "SaveCommand",
+                parameter = "Document-1"
+            },
+            ToJsonElement(new { detail = "verbose" }),
+            "Triggers real application logic. Confirm the observedEffect before assuming navigation, save, or side effects completed.");
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("requestedInput").GetProperty("commandName").GetString().Should().Be("SaveCommand");
+        json.GetProperty("effectiveInput").GetProperty("parameter").GetString().Should().Be("Document-1");
+        json.GetProperty("observedEffect").GetProperty("executed").GetBoolean().Should().BeTrue();
+        json.GetProperty("usedFallback").GetBoolean().Should().BeFalse();
+        json.GetProperty("notes").GetString().Should().Contain("real application logic");
+    }
+
+    [Fact]
+    public void ClickElement_WithDetailVerbose_ShouldIncludeRequestedInputAndObservedEffectMetadata()
+    {
+        var result = InteractionMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                clicked = true
+            },
+            new
+            {
+                elementId = "SaveButton"
+            },
+            ToJsonElement(new { detail = "verbose" }),
+            "Triggers real application logic through the control click pipeline. Verify the observedEffect before continuing the workflow.");
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("requestedInput").GetProperty("elementId").GetString().Should().Be("SaveButton");
+        json.GetProperty("observedEffect").GetProperty("clicked").GetBoolean().Should().BeTrue();
+        json.GetProperty("usedFallback").GetBoolean().Should().BeFalse();
+        json.GetProperty("notes").GetString().Should().Contain("real application logic");
+    }
+
+    [Fact]
+    public void FireRoutedEvent_WithDetailVerbose_ShouldIncludeRequestedInputAndFallbackMetadata()
+    {
+        var result = InteractionMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                eventName = "Click",
+                message = "Invoked OnClick path",
+                usedOnClick = true
+            },
+            new
+            {
+                elementId = "SaveButton",
+                eventName = "Click"
+            },
+            ToJsonElement(new { detail = "verbose" }),
+            "Routed-event execution may use the ButtonBase OnClick path when applicable. Inspect usedFallback and observedEffect before assuming the event path used.",
+            usedFallback: true);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("requestedInput").GetProperty("eventName").GetString().Should().Be("Click");
+        json.GetProperty("observedEffect").GetProperty("usedOnClick").GetBoolean().Should().BeTrue();
+        json.GetProperty("usedFallback").GetBoolean().Should().BeTrue();
+        json.GetProperty("notes").GetString().Should().Contain("OnClick");
+    }
+
+    [Fact]
+    public void ModifyViewModel_WithDetailVerbose_ShouldIncludeRequestedInputAndObservedEffectMetadata()
+    {
+        var result = InteractionMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                propertyName = "Name",
+                oldValue = "Alice",
+                newValue = "Bob"
+            },
+            new
+            {
+                elementId = "NameTextBox",
+                propertyName = "Name",
+                value = "Bob"
+            },
+            ToJsonElement(new { detail = "verbose" }),
+            "Runtime-only ViewModel mutation. UI refresh still depends on INotifyPropertyChanged and any binding-side validation.");
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("requestedInput").GetProperty("propertyName").GetString().Should().Be("Name");
+        json.GetProperty("observedEffect").GetProperty("newValue").GetString().Should().Be("Bob");
+        json.GetProperty("usedFallback").GetBoolean().Should().BeFalse();
+        json.GetProperty("notes").GetString().Should().Contain("INotifyPropertyChanged");
+    }
+
+    [Fact]
+    public void ClickElement_WithDetailCompact_ShouldOmitVerboseMetadataAndKeepCoreFields()
+    {
+        var result = InteractionMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                clicked = true
+            },
+            new
+            {
+                elementId = "SaveButton"
+            },
+            ToJsonElement(new { detail = "compact" }),
+            "Triggers real application logic through the control click pipeline. Verify the observedEffect before continuing the workflow.");
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("clicked").GetBoolean().Should().BeTrue();
+        json.TryGetProperty("requestedInput", out _).Should().BeFalse();
+        json.TryGetProperty("effectiveInput", out _).Should().BeFalse();
+        json.TryGetProperty("observedEffect", out _).Should().BeFalse();
+        json.TryGetProperty("notes", out _).Should().BeFalse();
+        json.TryGetProperty("usedFallback", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ClickElement_CompactPayload_ShouldBeLessThanFortyPercentOfVerbosePayload()
+    {
+        var verbose = InteractionMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                clicked = true
+            },
+            new
+            {
+                elementId = "SaveButton"
+            },
+            ToJsonElement(new { detail = "verbose" }),
+            "Triggers real application logic through the control click pipeline. Verify the observedEffect before continuing the workflow.");
+
+        var compact = InteractionMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                clicked = true
+            },
+            new
+            {
+                elementId = "SaveButton"
+            },
+            null,
+            "Triggers real application logic through the control click pipeline. Verify the observedEffect before continuing the workflow.");
+
+        var verboseJson = JsonSerializer.Serialize(verbose);
+        var compactJson = JsonSerializer.Serialize(compact);
+
+        compactJson.Length.Should().BeLessThan((int)(verboseJson.Length * 0.4));
+    }
+
+    [Fact]
+    public void FireRoutedEvent_WithDetailCompact_ShouldKeepSemanticallyRelevantUsedFallback()
+    {
+        var result = InteractionMetadataProbe.Apply(
+            new
+            {
+                success = true,
+                eventName = "Click",
+                message = "Invoked OnClick path",
+                usedOnClick = true
+            },
+            new
+            {
+                elementId = "SaveButton",
+                eventName = "Click"
+            },
+            ToJsonElement(new { detail = "compact" }),
+            "Routed-event execution may use the ButtonBase OnClick path when applicable. Inspect usedFallback and observedEffect before assuming the event path used.",
+            usedFallback: true);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        json.GetProperty("usedOnClick").GetBoolean().Should().BeTrue();
+        json.GetProperty("usedFallback").GetBoolean().Should().BeTrue();
+        json.TryGetProperty("requestedInput", out _).Should().BeFalse();
+        json.TryGetProperty("effectiveInput", out _).Should().BeFalse();
+        json.TryGetProperty("observedEffect", out _).Should().BeFalse();
+        json.TryGetProperty("notes", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ClickElementTool_WithInvalidDetail_ShouldReturnStructuredError()
+    {
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(51007);
+        var tool = new ClickElementTool(sessionManager);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId = 51007,
+            elementId = "SaveButton",
+            detail = "full"
+        }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        json.GetProperty("error").GetString().Should().Contain("detail");
+    }
+
+    [Fact]
+    public async Task ClickElement_Navigation_ShouldRecommendUiSummaryVerification()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true, clicked = true }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton")),
+            CancellationToken.None,
+            toolName: "click_element");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_ui_summary");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+    }
+
+    [Fact]
+    public async Task ClickElement_Navigation_WithActiveSnapshot_ShouldRecommendStateDiffWorkflow()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new { success = true, clicked = true }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState("snapshot_123", null),
+            toolName: "click_element");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_state_diff");
+        nextSteps[0].GetProperty("workflowId").GetString().Should().Be("safe-mutation-loop");
+        nextSteps[0].GetProperty("prefetchTools")[0].GetString().Should().Be("restore_state_snapshot");
+    }
+
+    [Fact]
+    public async Task ExecuteCommand_Navigation_ShouldRecommendUiSummaryAndNotTraceRoutedEvents()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                commandName = "SaveCommand",
+                executed = true,
+                canExecute = true
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton"), ("commandName", "SaveCommand")),
+            CancellationToken.None,
+            toolName: "execute_command");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps.GetArrayLength().Should().Be(1);
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_ui_summary");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+        nextSteps.EnumerateArray().Select(item => item.GetProperty("tool").GetString()).Should().NotContain("trace_routed_events");
+    }
+
+    [Fact]
+    public async Task FireRoutedEvent_Navigation_WithActiveTrace_ShouldPreferDrainEvents()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                eventName = "Click",
+                message = "Invoked OnClick path",
+                usedOnClick = true
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton"), ("eventName", "Click")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState(null, new ActiveTraceNavigationState("Click", "SaveButton", DateTimeOffset.UtcNow)),
+            toolName: "fire_routed_event");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("drain_events");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+        nextSteps[0].GetProperty("params").GetProperty("eventTypes")[0].GetString().Should().Be("RoutedEvent");
+        nextSteps[0].GetProperty("preconditions")[0].GetString().Should().Be("activeTrace");
+    }
+
+    [Fact]
+    public async Task FireRoutedEvent_Navigation_WithoutActiveTrace_ShouldNotSuggestTraceRetrieval()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                eventName = "Click",
+                message = "Invoked OnClick path",
+                usedOnClick = true
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton"), ("eventName", "Click")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState(null, null),
+            toolName: "fire_routed_event");
+
+        result.StructuredContent!.Value.GetProperty("nextSteps")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("tool").GetString())
+            .Should()
+            .NotContain("trace_routed_events");
+        result.StructuredContent!.Value.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("get_ui_summary");
+        result.StructuredContent!.Value.GetProperty("nextSteps")[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+    }
+
+    [Fact]
+    public async Task FireRoutedEvent_Navigation_WithExpiredActiveTrace_ShouldNotSuggestTraceRetrieval()
+    {
+        var expiredTrace = new ActiveTraceNavigationState(
+            "Click",
+            "SaveButton",
+            DateTimeOffset.UtcNow.AddMinutes(-1),
+            TimeSpan.FromSeconds(5));
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                eventName = "Click",
+                message = "Invoked OnClick path",
+                usedOnClick = true
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton"), ("eventName", "Click")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState(null, expiredTrace),
+            toolName: "fire_routed_event");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_ui_summary");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("SaveButton");
+        nextSteps.EnumerateArray().Select(item => item.GetProperty("tool").GetString()).Should().NotContain("trace_routed_events");
+    }
+
+    [Fact]
+    public async Task FireRoutedEvent_Navigation_WithFrozenCleanupFailedTrace_ShouldNotSuggestTraceRetrieval()
+    {
+        var frozenTrace = new ActiveTraceNavigationState(
+            "Click",
+            "SaveButton",
+            DateTimeOffset.UtcNow,
+            TimeSpan.FromMilliseconds(150),
+            SessionId: "trace-cleanup-failed",
+            IgnoreExpiry: true,
+            FollowUpExpiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(2));
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                eventName = "Click",
+                message = "Invoked OnClick path",
+                usedOnClick = true
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("elementId", "SaveButton"), ("eventName", "Click")),
+            CancellationToken.None,
+            navigationState: new NavigationSessionState(null, frozenTrace),
+            toolName: "fire_routed_event");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_ui_summary");
+        nextSteps.EnumerateArray().Select(item => item.GetProperty("tool").GetString()).Should().NotContain("trace_routed_events");
+    }
+
+    private sealed class InteractionMetadataProbe : PipeConnectedToolBase
+    {
+        private InteractionMetadataProbe() : base(new SessionManager())
+        {
+        }
+
+        public static object Apply(
+            object result,
+            object requestedInput,
+            JsonElement? arguments,
+            string notes,
+            bool usedFallback = false)
+        {
+            var (_, error) = ParseMutationDetailMode(arguments);
+            if (error != null)
+            {
+                return error;
+            }
+
+            var (mode, _) = ParseMutationDetailMode(arguments);
+            return AddSuccessMetadata(result, requestedInput, notes, usedFallback, mode);
+        }
+    }
+}

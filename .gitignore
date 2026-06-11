@@ -1,0 +1,85 @@
+# Build outputs
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.lscache
+release/
+!tests/**/Release/
+!tests/**/Release/**
+
+#docs
+docs/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# Test results
+TestResults/
+coverage/
+*.trx
+coverage.opencover.xml
+coverage-report/
+coverage-report.md
+
+# Temporary files
+*.tmp
+*.log
+build-output.txt
+test-output.txt
+unit-test-output.txt
+tmp/
+plan/
+artifacts/
+src/WpfDevTools.Bootstrapper/Debug/
+src/WpfDevTools.Bootstrapper/Release/
+
+# Secrets and local certificates
+.env
+.env.*
+!.env.example
+*.pfx
+*.pwd
+*.key
+*.secret
+cert/
+todo/
+release/s
+docfx/agent-feedback/*.md
+!docfx/agent-feedback/index.md
+!docfx/agent-feedback/template.md
+docfx/zh-tw/agent-feedback/*.md
+!docfx/zh-tw/agent-feedback/index.md
+!docfx/zh-tw/agent-feedback/template.md
+
+# Worktrees
+.worktree/
+.worktrees/
+.dotnet-home/
+
+#claude
+.claude/coverage-report/
+.claude/settings.local.json
+.claude/
+CLAUDE.md
+# AGENTS.md is a private local workflow file and must remain untracked.
+AGENTS.md
+CHANGELOG.md
+
+# DocFX outputs
+docfx/_site/
+docfx/api/
+docfx/obj/
+docfx/.xrefmap
+docfx/xrefmap.yml
+
+# Stray environment artifacts (PowerShell/NuGet cache dirs accidentally
+# created in the repo root when HOME/APPDATA env vars are restricted)
+/Microsoft/
+/NuGet/
+**/NuGet/Migrations/
+**/Microsoft/Windows/PowerShell/ModuleAnalysisCache
+.codegraph/.gitignore

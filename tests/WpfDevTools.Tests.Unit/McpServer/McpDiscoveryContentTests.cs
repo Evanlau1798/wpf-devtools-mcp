@@ -1,0 +1,132 @@
+using System.Reflection;
+using FluentAssertions;
+using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpPrompts;
+using WpfDevTools.Mcp.Server.McpResources;
+
+namespace WpfDevTools.Tests.Unit.McpServer;
+
+public class McpDiscoveryContentTests
+{
+    [Fact]
+    public void CapabilitiesResource_ShouldExposeVersionTransportAndWorkflowHints()
+    {
+        var content = CapabilityResources.GetCapabilities();
+
+        content.Should().Contain("wpf-devtools-mcp");
+        content.Should().Contain(ServerMetadata.GetDisplayVersion());
+        content.Should().Contain(ServerMetadata.GetSchemaVersion());
+        content.Should().Contain("stdio");
+        content.Should().Contain("slash commands");
+        content.Should().Contain("@resource");
+        content.Should().Contain("portable discovery contract");
+        content.Should().Contain("stateSnapshots");
+        content.Should().Contain("wpf://contracts/response");
+        content.Should().Contain("wpf://contracts/tools");
+        content.Should().Contain("response contract JSON");
+        content.Should().Contain("canonical tool manifest JSON");
+        content.Should().Contain("performance profiling");
+        content.Should().Contain("runtime state safety notes");
+        content.Should().Contain("cleanupIncomplete");
+        content.Should().Contain("cleanupFailureMessage");
+        content.Should().Contain("cleanupFailureType");
+        content.Should().Contain("uncapped live read internally");
+        content.Should().Contain("any replay event that is not returned by the explicit read");
+        content.Should().Contain("matching live event that exceeds the caller-visible result cap");
+        content.Should().Contain("remain buffered for the next explicit `drain_events` read");
+        content.Should().Contain("errorData.replayPreserved=true");
+        content.Should().Contain("errorData.bufferedReplayEventCount");
+    }
+
+    [Fact]
+    public void LimitationResources_ShouldDocumentElevatedTargetsWindowFocusAndStateSafety()
+    {
+        CapabilityResources.GetElevatedTargetLimitations().Should().Contain("administrator");
+        CapabilityResources.GetElevatedTargetLimitations().Should().Contain("stdio");
+        CapabilityResources.GetElevatedTargetLimitations().Should().Contain("allowlisted elevated WPF process");
+        CapabilityResources.GetInjectionFailureLimitations().Should().Contain("architecture mismatch");
+        CapabilityResources.GetInjectionFailureLimitations().Should().Contain("SDK mode");
+
+        CapabilityResources.GetWindowFocusLimitations().Should().Contain("Application.MainWindow");
+        CapabilityResources.GetWindowFocusLimitations().Should().Contain("get_windows");
+
+        CapabilityResources.GetStateSafetyNotes().Should().Contain("Snapshot/restore");
+        CapabilityResources.GetStateSafetyNotes().Should().Contain("capture_state_snapshot");
+        CapabilityResources.GetStateSafetyNotes().Should().Contain("Binding-backed DependencyProperties captured in the same session can be restored");
+        CapabilityResources.GetStateSafetyNotes().Should().Contain("non-Binding expressions are still surfaced as skipped capability boundaries");
+        typeof(CapabilityResources)
+            .GetMethod(nameof(CapabilityResources.GetStateSafetyNotes))!
+            .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
+            .Cast<System.ComponentModel.DescriptionAttribute>()
+            .Single()
+            .Description
+            .Should().NotContain("until snapshot/restore helpers exist",
+                "resource descriptions should not advertise outdated pre-snapshot wording");
+    }
+
+    [Fact]
+    public void WorkflowPrompts_ShouldCoverBindingCommandAndSecondaryWindowScenarios()
+    {
+        WorkflowPrompts.DebugBindingIssue().Should().Contain("get_binding_errors");
+        WorkflowPrompts.DebugBindingIssue().Should().Contain("get_element_snapshot");
+        WorkflowPrompts.DebugBindingIssue().Should().Contain("navigation.recommended");
+        WorkflowPrompts.DebugBindingIssue().Should().Contain("Prefer navigation.recommended first");
+        WorkflowPrompts.DebugCommandOrClick().Should().Contain("click_element");
+        WorkflowPrompts.DebugCommandOrClick().Should().Contain("get_interaction_readiness");
+        WorkflowPrompts.DebugCommandOrClick().Should().Contain("drain_events(eventTypes=['RoutedEvent'], elementId)");
+        WorkflowPrompts.DebugCommandOrClick().Should().NotContain("trace_routed_events(mode='get')");
+        WorkflowPrompts.ProfilePerformance().Should().Contain("get_render_stats");
+        WorkflowPrompts.ProfilePerformance().Should().Contain("measure_element_render_time");
+        WorkflowPrompts.ConnectAndListWindows().Should().Contain("get_windows");
+        WorkflowPrompts.ConnectAndListWindows().Should().Contain("connect()");
+        WorkflowPrompts.ConnectAndListWindows().Should().Contain("windowFilter");
+        WorkflowPrompts.ConnectAndListWindows().Should().Contain("Do not call get_processes");
+        WorkflowPrompts.InspectSecondaryWindow().Should().Contain("Application.MainWindow");
+        WorkflowPrompts.InspectSecondaryWindow().Should().Contain("connect()");
+    }
+
+    [Fact]
+    public void ElevatedTargetPrompt_ShouldConfirmAllowlistBeforeProcessDiscovery()
+    {
+        var prompt = WorkflowPrompts.DiagnoseElevatedTarget();
+
+        var allowlistIndex = prompt.IndexOf("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal);
+        var getProcessesIndex = prompt.IndexOf("get_processes", StringComparison.Ordinal);
+
+        allowlistIndex.Should().BeGreaterThanOrEqualTo(0);
+        getProcessesIndex.Should().BeGreaterThanOrEqualTo(0);
+        allowlistIndex.Should().BeLessThan(getProcessesIndex);
+    }
+
+    [Fact]
+    public void CapabilityResources_ShouldPreferConnectFirstAndSceneFirstGuidance()
+    {
+        var capabilities = CapabilityResources.GetCapabilities();
+        var bindingWorkflow = CapabilityResources.GetBindingWorkflow();
+
+        capabilities.Should().Contain("connect()");
+        capabilities.Should().Contain("get_ui_summary");
+        capabilities.Should().Contain("navigation.recommended");
+        capabilities.Should().Contain("compatibility `nextSteps`");
+        capabilities.Should().Contain("portable discovery contract");
+        capabilities.Should().NotContain("nextSteps / `navigation` guidance",
+            "capability guidance should explicitly prefer navigation.recommended over the compatibility field");
+        bindingWorkflow.Should().Contain("connect()");
+        bindingWorkflow.Should().Contain("get_processes(windowFilter)");
+        bindingWorkflow.Should().Contain("navigation.recommended");
+        bindingWorkflow.Should().Contain("get_element_snapshot");
+        bindingWorkflow.Should().NotContain("get_visual_tree or get_logical_tree",
+            "binding workflow should not recommend tree expansion before scene-level diagnostics");
+    }
+
+    [Fact]
+    public void CapabilityResources_ShouldKeepSnapshotSummaryAlignedWithStateSafetyNotes()
+    {
+        var capabilities = CapabilityResources.GetCapabilities();
+        var stateSafety = CapabilityResources.GetStateSafetyNotes();
+
+        capabilities.Should().Contain("Binding-backed DependencyProperties captured in the same session",
+            "the summary resource should not understate rollback support compared with the detailed state-safety note");
+        stateSafety.Should().Contain("Binding-backed DependencyProperties captured in the same session");
+    }
+}

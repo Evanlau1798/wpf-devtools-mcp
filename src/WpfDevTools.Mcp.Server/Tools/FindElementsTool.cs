@@ -1,0 +1,44 @@
+using System.Text.Json;
+
+namespace WpfDevTools.Mcp.Server.Tools;
+
+public sealed class FindElementsTool : PipeConnectedToolBase
+{
+    public FindElementsTool(SessionManager sessionManager) : base(sessionManager)
+    {
+    }
+
+    public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    {
+        var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
+        if (error != null) return error;
+
+        var typeName = ParseStringParam(arguments, "typeName");
+        var typeNames = ParseStringArrayParam(arguments, "typeNames");
+        var elementName = ParseStringParam(arguments, "elementName");
+        var automationId = ParseStringParam(arguments, "automationId");
+        var propertyName = ParseStringParam(arguments, "propertyName");
+        var propertyValue = ParseStringParam(arguments, "propertyValue");
+        var maxResults = ParseIntParam(arguments, "maxResults");
+        var maxTraversalNodes = ParseIntParam(arguments, "maxTraversalNodes");
+        var matchMode = ParseStringParam(arguments, "matchMode");
+
+        return await SendInspectorRequestAsync(
+            processId,
+            "find_elements",
+            new
+            {
+                elementId,
+                typeName,
+                typeNames,
+                elementName,
+                automationId,
+                propertyName,
+                propertyValue,
+                maxResults,
+                maxTraversalNodes,
+                matchMode
+            },
+            cancellationToken);
+    }
+}

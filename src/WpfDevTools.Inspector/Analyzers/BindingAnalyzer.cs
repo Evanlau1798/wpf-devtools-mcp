@@ -1,0 +1,454 @@
+using System.Globalization;
+using System.Windows;
+using System.Windows.Data;
+using WpfDevTools.Inspector.Events;
+using WpfDevTools.Inspector.Utilities;
+
+namespace WpfDevTools.Inspector.Analyzers;
+
+/// <summary>
+/// Analyzes WPF Bindings
+/// </summary>
+public sealed partial class BindingAnalyzer : DispatcherAnalyzerBase, IDisposable
+{
+    private static readonly string[] SinceTimestampFormats =
+    {
+        "O",
+        "yyyy-MM-dd'T'HH:mm:ssK",
+        "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK"
+    };
+
+    private readonly ElementFinder _elementFinder;
+    private readonly BindingErrorTraceListener _bindingErrorTraceListener;
+    private readonly bool _usesSharedBindingErrorTraceListener;
+
+    internal BindingAnalyzer() : this(new ElementFinder(), null, null)
+    {
+    }
+
+    /// <summary>
+    /// Create a new BindingAnalyzer instance
+    /// </summary>
+    /// <param name="elementFinder">Element finder for locating WPF elements</param>
+    public BindingAnalyzer(ElementFinder elementFinder)
+        : this(elementFinder, null, null)
+    {
+    }
+
+    internal BindingAnalyzer(
+        ElementFinder elementFinder,
+        WatchEventBuffer? watchEventBuffer)
+        : this(elementFinder, watchEventBuffer, null)
+    {
+    }
+
+    internal BindingAnalyzer(
+        ElementFinder elementFinder,
+        WatchEventBuffer? watchEventBuffer,
+        BindingErrorTraceListener? bindingErrorTraceListener)
+        : base(elementFinder)
+    {
+        _elementFinder = elementFinder;
+        _watchEventBuffer = watchEventBuffer;
+        _bindingErrorTraceListener = bindingErrorTraceListener ?? BindingErrorTraceListener.Instance;
+        _usesSharedBindingErrorTraceListener = ReferenceEquals(_bindingErrorTraceListener, BindingErrorTraceListener.Instance);
+        ConfigureBindingEventBridge();
+    }
+
+    /// <summary>
+    /// Get all bindings for an element
+    /// </summary>
+    /// <param name="elementId">Element ID to get bindings for. If null, uses root element.</param>
+    /// <param name="recursive">When true, also collect bindings from all descendant elements.</param>
+    /// <param name="statusFilter">Optional status category filter: All, Active, or Error.</param>
+    /// <param name="maxTraversalNodes">Optional recursive traversal node budget.</param>
+    /// <param name="maxResults">Optional result budget.</param>
+    /// <returns>Result object containing success status and list of bindings</returns>
+    public object GetBindings(
+        string? elementId = null,
+        bool recursive = false,
+        string? statusFilter = null,
+        int? maxTraversalNodes = null,
+        int? maxResults = null)
+    {
+        return InvokeOnUIThread<object>(() =>
+        {
+            if (!TryValidatePositiveLimit(maxTraversalNodes, nameof(maxTraversalNodes), out var traversalLimitError))
+            {
+                return traversalLimitError!;
+            }
+
+            if (!TryValidatePositiveLimit(maxResults, nameof(maxResults), out var resultLimitError))
+            {
+                return resultLimitError!;
+            }
+
+            var element = ResolveElement(elementId);
+
+            if (element == null)
+            {
+                return ToolErrorFactory.ElementNotFound(elementId);
+            }
+
+            var budget = new BindingScanBudget(
+                ResolveLimit(maxTraversalNodes, DefaultBindingTraversalNodeLimit),
+                ResolveLimit(maxResults, DefaultBindingResultLimit),
+                "TraversalNodeLimit",
+                "ResultLimit");
+            var bindings = recursive
+                ? CollectBindingsRecursive(element, budget)
+                : CollectBindingsForElement(element, budget);
+
+            var filterError = ApplyStatusFilter(bindings, statusFilter, out var filteredBindings);
+            if (filterError is not null)
+            {
+                return filterError;
+            }
+
+            return new
+            {
+                success = true,
+                bindingCount = filteredBindings.Count,
+                bindings = filteredBindings,
+                truncated = budget.Truncated,
+                truncationMetadata = budget.ToContract(filteredBindings.Count)
+            };
+        });
+    }
+
+    /// <summary>
+    /// Get binding errors captured by PresentationTraceSources.
+    /// Installs the trace listener if not already installed.
+    /// </summary>
+    /// <param name="maxErrors">Optional maximum number of binding errors to return after filtering.</param>
+    /// <param name="sinceTimestamp">Optional ISO-8601 timestamp filter.</param>
+    /// <param name="clearAfterRead">If true, clears error list after reading</param>
+    /// <param name="compact">If true, omit the verbose free-form message while preserving structured correlation fields.</param>
+    /// <param name="maxLiveScanNodes">Optional live BindingExpression scan traversal node budget.</param>
+    /// <param name="maxLiveErrors">Optional live BindingExpression error result budget.</param>
+    /// <returns>Result object containing success status, error count, and list of binding errors</returns>
+    public object GetBindingErrors(
+        int? maxErrors = null,
+        string? sinceTimestamp = null,
+        bool clearAfterRead = false,
+        bool compact = false,
+        int? maxLiveScanNodes = null,
+        int? maxLiveErrors = null)
+    {
+        return InvokeOnUIThread<object>(() =>
+        {
+            if (maxErrors is <= 0)
+            {
+                return ToolErrorFactory.InvalidArgument(
+                    "maxErrors must be a positive integer when provided",
+                    "Provide maxErrors > 0 or omit it to return the full filtered error list.");
+            }
+
+            if (!TryValidatePositiveLimit(maxLiveScanNodes, nameof(maxLiveScanNodes), out var liveScanLimitError))
+            {
+                return liveScanLimitError!;
+            }
+
+            if (!TryValidatePositiveLimit(maxLiveErrors, nameof(maxLiveErrors), out var liveErrorLimitError))
+            {
+                return liveErrorLimitError!;
+            }
+
+            DateTime? sinceUtc = null;
+            if (!string.IsNullOrWhiteSpace(sinceTimestamp))
+            {
+                var timestamp = sinceTimestamp!.Trim();
+                if (!TryParseSinceTimestamp(timestamp, out var parsed))
+                {
+                    return ToolErrorFactory.InvalidArgument(
+                    "sinceTimestamp must be an ISO-8601 timestamp with an explicit timezone",
+                    "Use UTC with Z, such as 2026-03-11T12:00:00Z, or include an explicit offset such as 2026-03-11T12:00:00+05:00.");
+                }
+
+                sinceUtc = parsed.UtcDateTime;
+            }
+
+            var liveScan = GetLiveBindingErrors(maxLiveScanNodes, maxLiveErrors);
+            var liveErrors = liveScan.Errors;
+
+            // Ensure trace listener is installed
+            if (_usesSharedBindingErrorTraceListener)
+            {
+                BindingErrorTraceListener.Install();
+            }
+
+            var traceErrors = _bindingErrorTraceListener.GetErrors();
+            IReadOnlyList<BindingErrorInfo> errors = MergeBindingErrors(traceErrors, liveErrors);
+
+            var filteredErrors = FilterOutValidationErrors(errors);
+            EnqueueBindingErrors(filteredErrors);
+            if (sinceUtc.HasValue)
+            {
+                filteredErrors = filteredErrors
+                    .Where(error => error.Timestamp >= sinceUtc.Value)
+                    .ToList();
+            }
+
+            var totalResultCount = filteredErrors.Count;
+            var truncationReasons = new HashSet<string>(liveScan.Budget.Reasons, StringComparer.Ordinal);
+            if (maxErrors.HasValue && filteredErrors.Count > maxErrors.Value)
+            {
+                var skipCount = filteredErrors.Count - maxErrors.Value;
+                filteredErrors = filteredErrors
+                    .OrderBy(error => error.Timestamp)
+                    .Skip(skipCount)
+                    .ToList();
+                truncationReasons.Add("ResultLimit");
+            }
+
+            var result = new
+            {
+                success = true,
+                errorCount = filteredErrors.Count,
+                totalErrorCount = totalResultCount,
+                truncated = truncationReasons.Count > 0,
+                truncationMetadata = new
+                {
+                    reasons = truncationReasons.ToArray(),
+                    maxResults = maxErrors,
+                    totalResultCount,
+                    returnedResultCount = filteredErrors.Count,
+                    liveScan = liveScan.Budget.ToContract(liveErrors.Count)
+                },
+                errors = filteredErrors.Select(e => BuildBindingErrorPayload(e, liveErrors, compact)).ToList()
+            };
+
+            if (clearAfterRead)
+            {
+                _bindingErrorTraceListener.ClearErrors();
+            }
+
+            return result;
+        });
+    }
+
+    private static bool TryParseSinceTimestamp(string sinceTimestamp, out DateTimeOffset parsed)
+    {
+        parsed = default;
+        return HasExplicitTimeZoneDesignator(sinceTimestamp)
+               && DateTimeOffset.TryParseExact(
+                   sinceTimestamp,
+                   SinceTimestampFormats,
+                   CultureInfo.InvariantCulture,
+                   DateTimeStyles.None,
+                   out parsed);
+    }
+
+    private static bool HasExplicitTimeZoneDesignator(string value)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.EndsWith("Z", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (trimmed.Length < 6)
+        {
+            return false;
+        }
+
+        var offsetStart = trimmed.Length - 6;
+        return (trimmed[offsetStart] is '+' or '-')
+               && trimmed[offsetStart + 3] == ':'
+               && char.IsDigit(trimmed[offsetStart + 1])
+               && char.IsDigit(trimmed[offsetStart + 2])
+               && char.IsDigit(trimmed[offsetStart + 4])
+               && char.IsDigit(trimmed[offsetStart + 5]);
+    }
+
+    /// <summary>
+    /// Get DataContext chain for an element
+    /// </summary>
+    /// <param name="elementId">Element ID to get DataContext chain for. If null, uses root element.</param>
+    /// <returns>Result object containing success status and DataContext chain from element to root</returns>
+    public object GetDataContextChain(string? elementId = null)
+    {
+        return InvokeOnUIThread<object>(() =>
+        {
+            var element = ResolveElement(elementId);
+
+            if (element == null)
+            {
+                return ToolErrorFactory.ElementNotFound(elementId);
+            }
+
+            var chain = new List<object>();
+
+            // Walk up the tree collecting DataContext
+            if (element is FrameworkElement fe)
+            {
+                var current = fe;
+                while (current != null)
+                {
+                    var dataContext = current.DataContext;
+                    var hasLocalValue = current.ReadLocalValue(FrameworkElement.DataContextProperty) != DependencyProperty.UnsetValue;
+                    chain.Add(new
+                    {
+                        diagnosticKind = "DataContextScope",
+                        elementId = _elementFinder.GenerateElementId(current),
+                        elementType = current.GetType().Name,
+                        elementName = current.Name,
+                        dataContextType = dataContext?.GetType().Name,
+                        hasDataContext = dataContext != null,
+                        sourceKind = dataContext == null
+                            ? "None"
+                            : hasLocalValue ? "LocalDataContext" : "InheritedDataContext",
+                        isInherited = dataContext != null && !hasLocalValue
+                    });
+
+                    current = current.Parent as FrameworkElement;
+                }
+            }
+
+            return new { success = true, chain };
+        });
+    }
+
+    /// <summary>
+    /// Get binding value resolution chain from source to target
+    /// </summary>
+    /// <param name="element">DependencyObject to analyze</param>
+    /// <param name="propertyName">Name of property to get binding chain for</param>
+    /// <returns>Result object containing binding resolution chain details</returns>
+    public object GetBindingValueChain(DependencyObject element, string propertyName)
+    {
+        return InvokeOnUIThread<object>(() => GetBindingValueChainCore(element, propertyName));
+    }
+
+    /// <summary>
+    /// Force binding to update source or target
+    /// </summary>
+    /// <param name="element">DependencyObject containing the binding</param>
+    /// <param name="propertyName">Name of property with binding to update</param>
+    /// <param name="direction">Update direction: "source" or "target"</param>
+    /// <returns>Result object containing success status and update details</returns>
+    public object ForceBindingUpdate(DependencyObject element, string propertyName, string direction)
+    {
+        return InvokeOnUIThread<object>(() => ForceBindingUpdateCore(element, propertyName, direction));
+    }
+
+    /// <summary>
+    /// Get binding value chain by elementId (resolves element on UI thread)
+    /// </summary>
+    /// <param name="elementId">Element ID to analyze. If null, uses root element.</param>
+    /// <param name="propertyName">Name of property to get binding chain for</param>
+    /// <returns>Result object containing binding resolution chain details</returns>
+    public object GetBindingValueChain(string? elementId, string propertyName)
+    {
+        return InvokeOnUIThread<object>(() =>
+        {
+            var element = ResolveElement(elementId);
+
+            if (element == null)
+            {
+                return ToolErrorFactory.ElementNotFound(elementId);
+            }
+
+            return GetBindingValueChainCore(element, propertyName);
+        });
+    }
+
+    /// <summary>
+    /// Force binding update by elementId (resolves element on UI thread)
+    /// </summary>
+    /// <param name="elementId">Element ID containing the binding. If null, uses root element.</param>
+    /// <param name="propertyName">Name of property with binding to update</param>
+    /// <param name="direction">Update direction: "source" or "target"</param>
+    /// <returns>Result object containing success status and update details</returns>
+    public object ForceBindingUpdate(string? elementId, string propertyName, string direction)
+    {
+        return InvokeOnUIThread<object>(() =>
+        {
+            var element = ResolveElement(elementId);
+
+            if (element == null)
+            {
+                return ToolErrorFactory.ElementNotFound(elementId);
+            }
+
+            return ForceBindingUpdateCore(element, propertyName, direction);
+        });
+    }
+
+    /// <summary>
+    /// Core implementation for ForceBindingUpdate. Must be called on the UI thread.
+    /// </summary>
+    /// <param name="element">DependencyObject containing the binding</param>
+    /// <param name="propertyName">Name of property with binding to update</param>
+    /// <param name="direction">Update direction: "source" or "target"</param>
+    /// <returns>Result object containing success status and update details</returns>
+    private object ForceBindingUpdateCore(DependencyObject element, string propertyName, string direction)
+    {
+        if (element == null)
+        {
+            return ToolErrorFactory.ElementNotFound();
+        }
+
+        if (string.IsNullOrEmpty(propertyName))
+        {
+            return ToolErrorFactory.InvalidArgument(
+                "propertyName is required",
+                "Provide propertyName to update a specific binding.");
+        }
+
+        // Find DependencyProperty
+        var dp = FindDependencyProperty(element, propertyName);
+        if (dp == null)
+        {
+            return ToolErrorFactory.PropertyNotFound(propertyName, element.GetType().Name);
+        }
+
+        // Get binding expression
+        var bindingExpr = BindingOperations.GetBindingExpression(element, dp);
+        if (bindingExpr == null)
+        {
+            return ToolErrorFactory.InvalidArgument(
+                "No binding on this property",
+                "Call get_bindings first to confirm the target property has an active binding.");
+        }
+
+        try
+        {
+            if (string.Equals(direction, "source", StringComparison.OrdinalIgnoreCase))
+            {
+                bindingExpr.UpdateSource();
+                return new
+                {
+                    success = true,
+                    message = "Binding source updated",
+                    direction = "Source",
+                    propertyName
+                };
+            }
+            else if (string.Equals(direction, "target", StringComparison.OrdinalIgnoreCase))
+            {
+                bindingExpr.UpdateTarget();
+                return new
+                {
+                    success = true,
+                    message = "Binding target updated",
+                    direction = "Target",
+                    propertyName
+                };
+            }
+            else
+            {
+                return ToolErrorFactory.InvalidArgument(
+                    "Invalid direction. Use 'Source' or 'Target'",
+                    "Set direction to 'Source' or 'Target' when calling force_binding_update.");
+            }
+        }
+        catch (Exception ex)
+        {
+            return ToolErrorFactory.InvalidArgument(
+                $"Failed to update binding: {ex.Message}",
+                "Inspect the binding with get_bindings or get_binding_value_chain before retrying.");
+        }
+    }
+
+}

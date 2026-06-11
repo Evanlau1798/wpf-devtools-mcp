@@ -1,0 +1,499 @@
+﻿<Window x:Class="WpfDevTools.Tests.TestApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WpfDevTools.Tests.TestApp"
+        mc:Ignorable="d"
+        Title="WPF DevTools Test App" Height="600" Width="900">
+    <Window.Resources>
+        <ResourceDictionary Source="MainWindow.Resources.xaml"/>
+    </Window.Resources>
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="WPF DevTools MCP Server - Test Application"
+                       FontSize="20"
+                       FontWeight="Bold"/>
+            <TextBlock x:Name="AutomationStatusTextBlock"
+                       Margin="0,6,0,0"
+                       Foreground="DarkSlateGray"/>
+        </StackPanel>
+
+        <TabControl x:Name="MainTabControl" Grid.Row="1">
+            <TabItem x:Name="BasicControlsTab" Header="Basic Controls">
+                <ScrollViewer>
+                    <StackPanel x:Name="BasicControlsStackPanel" Margin="10">
+                        <TextBlock Text="Valid Bindings" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Name:" Margin="5"/>
+                            <TextBox Grid.Row="0" Grid.Column="1"
+                                     x:Name="NameTextBox"
+                                     Text="{Binding Name, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
+                                     Margin="5"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Age:" Margin="5"/>
+                            <TextBox Grid.Row="1" Grid.Column="1"
+                                     x:Name="AgeTextBox"
+                                     Text="{Binding Age, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
+                                     Margin="5"/>
+
+                            <CheckBox Grid.Row="2" Grid.Column="1"
+                                      x:Name="EnabledCheckBox"
+                                      Content="Enabled"
+                                      IsChecked="{Binding IsEnabled}"
+                                      Margin="5"/>
+                        </Grid>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Intentional Binding Errors" FontWeight="Bold" Foreground="Red" Margin="0,0,0,10"/>
+
+                        <!-- Binding Error 1: Wrong property name -->
+                        <TextBlock Text="Wrong Property Name:" Margin="5"/>
+                        <TextBox x:Name="ErrorTextBox1"
+                                 Text="{Binding InvalidPropertyName}"
+                                 Margin="5,0,5,10"/>
+
+                        <!-- Binding Error 2: Wrong path -->
+                        <TextBlock Text="Wrong Path:" Margin="5"/>
+                        <TextBox x:Name="ErrorTextBox2"
+                                 Text="{Binding Path=NonExistent.Property}"
+                                 Margin="5,0,5,10"/>
+
+                        <!-- Binding Error 3: Missing DataContext -->
+                        <Border BorderBrush="Gray" BorderThickness="1" Padding="10" Margin="5">
+                            <StackPanel DataContext="{x:Null}">
+                                <TextBlock Text="Null DataContext:" Margin="0,0,0,5"/>
+                                <TextBox x:Name="ErrorTextBox3"
+                                         Text="{Binding Name}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="Type Mismatch:" Margin="5"/>
+                        <Button x:Name="BrushMismatchButton"
+                                Content="Brush mismatch"
+                                Background="{Binding IsEnabled}"
+                                Margin="5,0,5,10"/>
+
+                        <TextBlock Text="Dynamic Detail Context" FontWeight="Bold" Foreground="DarkOrange" Margin="5,10,5,5"/>
+                        <CheckBox x:Name="BrokenDetailContextCheckBox"
+                                  Content="Use broken detail context"
+                                  IsChecked="{Binding UseBrokenDetailContext}"
+                                  Margin="5,0,5,5"/>
+                        <ContentControl x:Name="DynamicDetailHost"
+                                        Margin="5,0,5,10"
+                                        DataContext="{Binding CurrentDetailContext}">
+                            <TextBox x:Name="DetailContextTextBox"
+                                     Text="{Binding DetailName}"
+                                     Margin="0"/>
+                        </ContentControl>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Commands" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="SaveButton"
+                                    Content="Save"
+                                    Command="{Binding SaveCommand}"
+                                    Width="100"
+                                    Margin="5"/>
+                            <Button x:Name="ClearButton"
+                                    Content="Clear"
+                                    Command="{Binding ClearCommand}"
+                                    Width="100"
+                                    Margin="5"/>
+                        </StackPanel>
+                        <Separator Margin="0,20,0,20"/>
+                        <TextBlock Text="Focus Workflow" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBox x:Name="FocusStartTextBox"
+                                 Margin="5"
+                                 Text="Focus start"
+                                 GotFocus="FocusWorkflowElement_GotFocus"/>
+                        <TextBox x:Name="FocusNextTextBox"
+                                 Margin="5"
+                                 Text="Focus next"
+                                 GotFocus="FocusWorkflowElement_GotFocus"/>
+                        <Button x:Name="FocusActionButton"
+                                Margin="5"
+                                Width="120"
+                                Content="Focus Action"
+                                IsDefault="True"
+                                GotFocus="FocusWorkflowElement_GotFocus"
+                                Click="FocusActionButton_Click"/>
+                        <TextBlock x:Name="FocusStatusTextBlock" Margin="5" Foreground="SlateBlue" Text="Focus workflow ready"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 2: Nested Visual Tree -->
+            <TabItem Header="Nested Tree">
+                <ScrollViewer>
+                    <Border BorderBrush="Blue" BorderThickness="2" Padding="10" Margin="10">
+                        <StackPanel>
+                            <TextBlock Text="Level 1" FontWeight="Bold"/>
+                            <Border BorderBrush="Green" BorderThickness="2" Padding="10" Margin="5">
+                                <StackPanel>
+                                    <TextBlock Text="Level 2" FontWeight="Bold"/>
+                                    <Border BorderBrush="Orange" BorderThickness="2" Padding="10" Margin="5">
+                                        <StackPanel>
+                                            <TextBlock Text="Level 3" FontWeight="Bold"/>
+                                            <Border BorderBrush="Red" BorderThickness="2" Padding="10" Margin="5">
+                                                <StackPanel>
+                                                    <TextBlock Text="Level 4 (Deep nesting)" FontWeight="Bold"/>
+                                                    <Button Content="Deep Button" Margin="5"/>
+                                                    <TextBox Text="{Binding Name}" Margin="5"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 3: Various Controls -->
+            <TabItem Header="Control Types">
+                <ScrollViewer>
+                    <StackPanel Margin="10">
+                        <TextBlock Text="ListBox" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <ListBox Height="100" Margin="5">
+                            <ListBoxItem Content="Item 1"/>
+                            <ListBoxItem Content="Item 2"/>
+                            <ListBoxItem Content="Item 3"/>
+                        </ListBox>
+
+                        <TextBlock Text="ComboBox" FontWeight="Bold" Margin="0,10,0,5"/>
+                        <ComboBox Margin="5">
+                            <ComboBoxItem Content="Option 1"/>
+                            <ComboBoxItem Content="Option 2"/>
+                            <ComboBoxItem Content="Option 3"/>
+                        </ComboBox>
+
+                        <TextBlock Text="Slider" FontWeight="Bold" Margin="0,10,0,5"/>
+                        <Slider Minimum="0" Maximum="100" Value="50" Margin="5"/>
+
+                        <TextBlock Text="ProgressBar" FontWeight="Bold" Margin="0,10,0,5"/>
+                        <ProgressBar Value="75" Height="20" Margin="5"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem x:Name="StylesTemplatesTab" Header="Styles &amp; Templates">
+                <TabItem.Resources>
+                    <!-- Base Style -->
+                    <Style x:Key="BaseButtonStyle" TargetType="Button">
+                        <Setter Property="Padding" Value="10,5"/>
+                        <Setter Property="Margin" Value="5"/>
+                        <Setter Property="Background" Value="LightGray"/>
+                    </Style>
+
+                    <!-- Derived Style -->
+                    <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+                        <Setter Property="Background" Value="DodgerBlue"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="RoyalBlue"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+
+                    <!-- ControlTemplate -->
+                    <ControlTemplate x:Key="RoundButtonTemplate" TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="2"
+                                CornerRadius="15"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </TabItem.Resources>
+
+                <ScrollViewer>
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Style Inheritance" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <Button x:Name="BaseStyleButton" Content="Base Style" Style="{StaticResource BaseButtonStyle}"/>
+                        <Button x:Name="PrimaryStyleButton" Content="Primary Style" Style="{StaticResource PrimaryButtonStyle}"/>
+                        <Button x:Name="PrimaryDisabledButton" Content="Primary Disabled" Style="{StaticResource PrimaryButtonStyle}" IsEnabled="False"/>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Control Template" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <Button x:Name="RoundTemplateButton"
+                                Content="Round Button"
+                                Template="{StaticResource RoundButtonTemplate}"
+                                Background="LightGreen"
+                                Padding="20,10"
+                                Margin="5"/>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Data Trigger" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <StackPanel>
+                            <CheckBox x:Name="EnableHighlightCheckBox" Content="Enable Highlight" Margin="5"/>
+                            <TextBlock x:Name="HighlightTextBlock" Text="Watch me change color!" Margin="5">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="Black"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsChecked, ElementName=EnableHighlightCheckBox}" Value="True">
+                                                <Setter Property="Foreground" Value="Red"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 5: Custom Controls -->
+            <TabItem Header="Custom Controls">
+                <ScrollViewer>
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Custom DependencyProperty" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <local:CustomTextBox x:Name="CustomTextBox1"
+                                            Watermark="Enter your name"
+                                            Width="200"
+                                            Margin="5"/>
+                        <local:CustomTextBox x:Name="CustomTextBox2"
+                                            Watermark=""
+                                            Width="200"
+                                            Margin="5"/>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Attached Property" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBox x:Name="AttachedPropTextBox"
+                                local:CustomTextBox.HighlightColor="LightYellow"
+                                Text="I have an attached property"
+                                Margin="5"/>
+
+                        <Separator Margin="0,20,0,20"/>
+
+                        <TextBlock Text="Custom RoutedEvent" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <local:CustomButton x:Name="CustomButton1"
+                                           Content="Click Me (Custom Event)"
+                                           Margin="5"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 6: Layout &amp; Transforms -->
+            <TabItem x:Name="LayoutTransformsTab" Header="Layout &amp; Transforms">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0"
+                            Width="240"
+                            Height="80"
+                            Margin="10,10,10,0"
+                            BorderBrush="DarkGray"
+                            BorderThickness="1"
+                            ClipToBounds="False">
+                        <Grid>
+                            <TextBlock Text="RenderTransform Off-Screen" FontWeight="Bold" Margin="8,6,8,0" VerticalAlignment="Top"/>
+                            <Button x:Name="OffscreenTranslatedButtonSample"
+                                    Width="150"
+                                    Margin="8,28,0,0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Content="Translated Off-Screen">
+                                <Button.RenderTransform>
+                                    <TranslateTransform X="1200"/>
+                                </Button.RenderTransform>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer Grid.Row="1">
+                        <StackPanel Margin="10">
+                            <TextBlock Text="Hidden By Ancestor" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <StackPanel x:Name="HiddenByAncestorPanel" Visibility="Collapsed" Margin="5">
+                                <TextBlock x:Name="HiddenByAncestorText" Text="You should not see me"/>
+                            </StackPanel>
+
+                            <Separator Margin="0,20,0,20"/>
+
+                            <TextBlock Text="Clipping" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <Border x:Name="ClippingBorderSample" Width="150" Height="50" BorderBrush="Black" BorderThickness="1" ClipToBounds="True" Margin="5">
+                                <TextBlock x:Name="ClippingTextSample" Text="This text is very long and will be clipped by the border because ClipToBounds is True"
+                                          TextWrapping="Wrap"/>
+                            </Border>
+
+                            <Separator Margin="0,20,0,20"/>
+
+                            <TextBlock Text="Render Transform" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <Button x:Name="RotatedButtonSample" Content="Rotated Button" Margin="5">
+                                <Button.RenderTransform>
+                                    <RotateTransform Angle="15"/>
+                                </Button.RenderTransform>
+                            </Button>
+
+                            <Button x:Name="ScaledButtonSample" Content="Scaled Button" Margin="5">
+                                <Button.RenderTransform>
+                                    <ScaleTransform ScaleX="1.2" ScaleY="1.2"/>
+                                </Button.RenderTransform>
+                            </Button>
+
+                            <Separator Margin="0,20,0,20"/>
+
+                            <TextBlock Text="Layout Transform" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <Button x:Name="LayoutRotatedButtonSample" Content="Layout Rotated" Margin="5">
+                                <Button.LayoutTransform>
+                                    <RotateTransform Angle="45"/>
+                                </Button.LayoutTransform>
+                            </Button>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- Tab 7: Drag &amp; Drop -->
+            <TabItem Header="Drag &amp; Drop">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Drag &amp; Drop Test" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                    <Border Grid.Row="1" BorderBrush="Blue" BorderThickness="2" Margin="5" Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="Drag Source" FontWeight="Bold" Margin="0,0,0,5"/>
+                            <TextBox x:Name="DragSourceTextBox"
+                                    Text="Drag me!"
+                                    AllowDrop="False"
+                                    Margin="5"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="2" BorderBrush="Green" BorderThickness="2" Margin="5" Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="Drop Target" FontWeight="Bold" Margin="0,0,0,5"/>
+                            <TextBox x:Name="DropTargetTextBox"
+                                    Text="Drop here"
+                                    AllowDrop="True"
+                                    Margin="5"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem x:Name="PerformanceTab" Header="Performance">
+                <ScrollViewer x:Name="PerformanceScrollViewer">
+                    <StackPanel x:Name="PerformanceStackPanel" Margin="10">
+                        <TextBlock Text="Large Visual Tree (100 elements)" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <Border x:Name="PerformanceBottomSentinel" BorderBrush="DarkSlateBlue" BorderThickness="1" Margin="0,12,0,0" Padding="8">
+                            <TextBlock Text="Performance sentinel"/>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 9: Modern Theme -->
+            <TabItem x:Name="ModernThemeTab" Header="Modern Theme">
+                <TabItem.Resources>
+                    <Style x:Key="ModernPrimaryButtonStyle" TargetType="Button">
+                        <Setter Property="Padding" Value="14,8"/>
+                        <Setter Property="Margin" Value="0,0,8,0"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="Background" Value="{DynamicResource ModernAccentBrush}"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </TabItem.Resources>
+                <ScrollViewer>
+                    <StackPanel Margin="12">
+                        <TextBlock Text="Modern Theme Diagnostics" FontSize="16" FontWeight="Bold" Margin="0,0,0,12"/>
+                        <WrapPanel Margin="0,0,0,12">
+                            <StackPanel Margin="0,0,24,0">
+                                <TextBlock Text="Theme Mode" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                <ComboBox x:Name="ThemeModeSelector" Width="140" SelectionChanged="ThemeModeSelector_SelectionChanged">
+                                    <ComboBoxItem Content="Light"/>
+                                    <ComboBoxItem Content="Dark"/>
+                                    <ComboBoxItem Content="System"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Accent" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                <ComboBox x:Name="AccentSelector" Width="140" SelectionChanged="AccentSelector_SelectionChanged">
+                                    <ComboBoxItem Content="Blue"/>
+                                    <ComboBoxItem Content="Purple"/>
+                                    <ComboBoxItem Content="Emerald"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </WrapPanel>
+
+                        <Border Padding="16" Background="{DynamicResource ModernSurfaceBrush}" CornerRadius="{DynamicResource ModernCornerRadius}">
+                            <StackPanel>
+                                <UniformGrid Columns="2" Margin="0,0,0,16">
+                                    <TextBlock Text="Current Theme Mode" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                    <TextBlock x:Name="CurrentThemeModeText" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                    <TextBlock Text="Current Accent" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                    <TextBlock x:Name="CurrentAccentValueText" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                    <TextBlock Text="Accent Hex" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                    <TextBlock x:Name="CurrentAccentHexText" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                    <TextBlock Text="Corner Radius" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                    <TextBlock x:Name="CurrentCornerRadiusText" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                    <TextBlock Text="Backdrop Supported" Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                    <TextBlock x:Name="BackdropSupportText" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                </UniformGrid>
+
+                                <Border Padding="16" Background="{DynamicResource ModernCardBrush}" CornerRadius="16">
+                                    <StackPanel>
+                                        <TextBlock Text="Modern card sample" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                        <TextBlock Text="This area validates dynamic resources, rounded corners, and style-trigger-friendly controls."
+                                                   Margin="0,8,0,16"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource ModernMutedForegroundBrush}"/>
+                                        <WrapPanel>
+                                            <Button x:Name="ModernPrimaryButton" Style="{StaticResource ModernPrimaryButtonStyle}" Content="Primary Button"/>
+                                            <Button x:Name="ModernSubtleButton" Padding="14,8" Margin="0,0,8,0" Content="Subtle Button" Background="{DynamicResource ModernCardBrush}" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                            <Button x:Name="OpenModernWindowButton" Padding="14,8" Content="Open Modern Window" Click="OpenModernWindowButton_Click"/>
+                                        </WrapPanel>
+                                        <TextBox x:Name="ModernInputTextBox" Margin="0,16,0,8" Width="260" Text="Modern input surface" Foreground="{DynamicResource ModernForegroundBrush}" Background="{DynamicResource ModernSurfaceBrush}"/>
+                                        <CheckBox x:Name="ModernRoundedToggle" Margin="0,4,0,0" Content="Rounded toggle sample" Foreground="{DynamicResource ModernForegroundBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>

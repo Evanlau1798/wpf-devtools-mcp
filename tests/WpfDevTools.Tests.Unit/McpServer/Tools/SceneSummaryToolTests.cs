@@ -1,0 +1,430 @@
+using System.IO.Pipes;
+using System.Text.Json;
+using FluentAssertions;
+using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.Messages;
+using WpfDevTools.Shared.Serialization;
+using static WpfDevTools.Tests.Unit.TestHelpers;
+
+namespace WpfDevTools.Tests.Unit.McpServer.Tools;
+
+[Collection("ToolCallHelperState")]
+public sealed class SceneSummaryToolTests : IDisposable
+{
+    private readonly IDisposable _toolCallHelperScope = ToolCallHelper.BeginTestScope();
+
+    public void Dispose()
+    {
+        _toolCallHelperScope.Dispose();
+    }
+
+    [Fact]
+    public async Task GetUiSummaryTool_ShouldPassThroughStructuredSummaryPayload()
+    {
+        const int processId = 60210;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            """{"success":true,"rootElementId":"Window_1","semanticNodeCount":2,"summaryText":"- Button SaveButton","nodes":[{"elementId":"Button_1"}]}""");
+
+        var tool = new GetUiSummaryTool(connected.SessionManager);
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            depth = 2
+        }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("semanticNodeCount").GetInt32().Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetUiSummaryTool_ShouldNormalizeDepthModeBeforeForwardingInspectorRequest()
+    {
+        const int processId = 60212;
+        const string pipeName = "WpfDevTools_Test_SceneDepthMode";
+        using var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        var requestCompletion = new TaskCompletionSource<InspectorRequest>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            try
+            {
+                var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+                requestCompletion.TrySetResult(request!);
+
+                var response = new InspectorResponse
+                {
+                    Id = request!.Id,
+                    CorrelationId = request.CorrelationId,
+                    Result = JsonSerializer.Deserialize<JsonElement>("""{"success":true,"rootElementId":"Window_1","semanticNodeCount":1,"summaryText":"- TextBox Box","nodes":[{"elementId":"TextBox_1"}]}""")
+                };
+
+                await MessageFraming.WriteMessageAsync(server, JsonSerializer.Serialize(response), CancellationToken.None);
+            }
+            catch (EndOfStreamException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        });
+
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(processId);
+        var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        ReplacePipeClient(sessionManager, processId, client);
+
+        try
+        {
+            var tool = new GetUiSummaryTool(sessionManager);
+            var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+            {
+                processId,
+                depth = 2,
+                depthMode = " ViSuAl "
+            }), CancellationToken.None));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            var request = await requestCompletion.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            request.Params.Should().NotBeNull();
+            request.Params!.Value.TryGetProperty("depthMode", out var depthMode).Should().BeTrue();
+            depthMode.GetString().Should().Be("visual");
+        }
+        finally
+        {
+            sessionManager.Dispose();
+            server.Dispose();
+            await serverTask;
+        }
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(101)]
+    public async Task GetUiSummaryTool_WithDepthOutsideSupportedRange_ShouldReturnInvalidArgument(int depth)
+    {
+        var tool = new GetUiSummaryTool(new SessionManager());
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId = 60214,
+            depth
+        }), CancellationToken.None));
+
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("error").GetString().Should().Contain("depth");
+    }
+
+    [Fact]
+    public async Task GetUiSummaryTool_WithInvalidDepthMode_ShouldReturnInvalidArgument()
+    {
+        var tool = new GetUiSummaryTool(new SessionManager());
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId = 60215,
+            depthMode = "flat"
+        }), CancellationToken.None));
+
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("error").GetString().Should().Contain("depthMode");
+    }
+
+    [Fact]
+    public async Task GetUiSummaryTool_WithNonIntegerDepth_ShouldReturnInvalidArgument()
+    {
+        var tool = new GetUiSummaryTool(new SessionManager());
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId = 60216,
+            depth = "abc"
+        }), CancellationToken.None));
+
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("error").GetString().Should().Contain("depth");
+    }
+
+    [Fact]
+    public async Task GetUiSummaryTool_WithNumericStringDepth_ShouldReturnInvalidArgument()
+    {
+        var tool = new GetUiSummaryTool(new SessionManager());
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId = 60218,
+            depth = "2"
+        }), CancellationToken.None));
+
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("error").GetString().Should().Contain("depth");
+    }
+
+    [Fact]
+    public async Task GetUiSummaryTool_WithNonStringDepthMode_ShouldReturnInvalidArgument()
+    {
+        var tool = new GetUiSummaryTool(new SessionManager());
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId = 60217,
+            depthMode = true
+        }), CancellationToken.None));
+
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("error").GetString().Should().Contain("depthMode");
+    }
+
+    [Fact]
+    public async Task GetUiSummaryTool_WithSummaryOnly_ShouldForwardSummaryOnlyAndReturnNavigationTrimmedResponse()
+    {
+        const int processId = 60213;
+        const string pipeName = "WpfDevTools_Test_SceneSummaryOnly";
+        using var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        var requestCompletion = new TaskCompletionSource<InspectorRequest>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            try
+            {
+                var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+                requestCompletion.TrySetResult(request!);
+
+                var response = new InspectorResponse
+                {
+                    Id = request!.Id,
+                    CorrelationId = request.CorrelationId,
+                    Result = JsonSerializer.Deserialize<JsonElement>("""{"success":true,"rootElementId":"Window_1","semanticNodeCount":1,"summaryText":"- Button SaveButton [disabled]","navigationNodes":[{"elementId":"Button_1","elementType":"Button","annotations":["disabled"]}]}""")
+                };
+
+                await MessageFraming.WriteMessageAsync(server, JsonSerializer.Serialize(response), CancellationToken.None);
+            }
+            catch (EndOfStreamException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        });
+
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(processId);
+        var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        ReplacePipeClient(sessionManager, processId, client);
+
+        try
+        {
+            var result = await ToolCallHelper.ExecuteAndWrapAsync(
+                (args, ct) => new GetUiSummaryTool(sessionManager).ExecuteAsync(args, ct),
+                ToolCallHelper.BuildJsonArgs(("processId", processId), ("summaryOnly", true)),
+                CancellationToken.None,
+                toolName: "get_ui_summary");
+
+            var payload = result.StructuredContent!.Value;
+            payload.GetProperty("success").GetBoolean().Should().BeTrue();
+            payload.TryGetProperty("nodes", out _).Should().BeFalse();
+            payload.TryGetProperty("navigationNodes", out _).Should().BeFalse();
+            payload.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("get_interaction_readiness");
+            var request = await requestCompletion.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            request.Params.Should().NotBeNull();
+            request.Params!.Value.TryGetProperty("summaryOnly", out var summaryOnly).Should().BeTrue();
+            summaryOnly.GetBoolean().Should().BeTrue();
+        }
+        finally
+        {
+            sessionManager.Dispose();
+            server.Dispose();
+            await serverTask;
+        }
+    }
+
+    [Fact]
+    public async Task GetFormSummaryTool_ShouldPassThroughStructuredSummaryPayload()
+    {
+        const int processId = 60211;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            """{"success":true,"formScope":"StackPanel_1","summary":{"totalInputs":2,"emptyInputs":1,"errorCount":1,"isSubmittable":false},"inputs":[],"commands":[]}""");
+
+        var tool = new GetFormSummaryTool(connected.SessionManager);
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId
+        }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("summary").GetProperty("totalInputs").GetInt32().Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetUiSummary_Navigation_ShouldRouteDisabledNodeToInteractionReadiness()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                rootElementId = "Window_1",
+                summaryText = "- Button SaveButton [disabled]",
+                nodes = new[]
+                {
+                    new { elementId = "Button_1", elementType = "Button", annotations = new[] { "disabled" } }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345)),
+            CancellationToken.None,
+            toolName: "get_ui_summary");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("get_interaction_readiness");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("Button_1");
+    }
+
+    [Fact]
+    public async Task GetUiSummary_Navigation_ShouldRouteVisibilityCueToDiagnoseVisibility()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                rootElementId = "Window_1",
+                summaryText = "- Text HiddenText [visibility:Collapsed]",
+                nodes = new[]
+                {
+                    new { elementId = "Text_1", elementType = "TextBlock", annotations = new[] { "visibility:Collapsed" } }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345)),
+            CancellationToken.None,
+            toolName: "get_ui_summary");
+
+        var nextSteps = result.StructuredContent!.Value.GetProperty("nextSteps");
+        nextSteps[0].GetProperty("tool").GetString().Should().Be("diagnose_visibility");
+        nextSteps[0].GetProperty("params").GetProperty("elementId").GetString().Should().Be("Text_1");
+    }
+
+    [Fact]
+    public async Task GetUiSummary_Navigation_ShouldRouteBindingCueToBindingErrors()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                rootElementId = "Window_1",
+                summaryText = "- TextBox NameTextBox [binding issue]",
+                nodes = new[]
+                {
+                    new { elementId = "TextBox_1", elementType = "TextBox", annotations = Array.Empty<string>() }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345)),
+            CancellationToken.None,
+            toolName: "get_ui_summary");
+
+        result.StructuredContent!.Value.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("get_binding_errors");
+    }
+
+    [Fact]
+    public async Task GetUiSummary_WithSummaryOnly_ShouldStripNodesAfterNavigationPlanning()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                rootElementId = "Window_1",
+                summaryText = "- Button SaveButton [disabled]",
+                nodes = new[]
+                {
+                    new { elementId = "Button_1", elementType = "Button", annotations = new[] { "disabled" } }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345), ("summaryOnly", true)),
+            CancellationToken.None,
+            toolName: "get_ui_summary");
+
+        var payload = result.StructuredContent!.Value;
+        payload.TryGetProperty("nodes", out _).Should().BeFalse();
+        payload.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("get_interaction_readiness");
+        payload.GetProperty("navigation").GetProperty("recommended")[0].GetProperty("tool").GetString().Should().Be("get_interaction_readiness");
+    }
+
+    private static async Task<ConnectedSceneSummarySession> CreateConnectedSessionAsync(int processId, string responseJson)
+    {
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+
+        var serverTask = Task.Run(async () =>
+        {
+            await server.WaitForConnectionAsync();
+            try
+            {
+                while (server.IsConnected)
+                {
+                    var requestJson = await MessageFraming.ReadMessageAsync(server, CancellationToken.None);
+                    var request = JsonSerializer.Deserialize<InspectorRequest>(requestJson);
+                    request.Should().NotBeNull();
+                    if (request is null)
+                    {
+                        throw new InvalidOperationException("Expected a valid InspectorRequest payload.");
+                    }
+
+                    var response = new InspectorResponse
+                    {
+                        Id = request.Id,
+                        CorrelationId = request.CorrelationId,
+                        Result = JsonSerializer.Deserialize<JsonElement>(responseJson),
+                        Error = null
+                    };
+
+                    await MessageFraming.WriteMessageAsync(server, JsonSerializer.Serialize(response), CancellationToken.None);
+                }
+            }
+            catch (EndOfStreamException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        });
+
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(processId);
+        var client = new NamedPipeClient(processId, pipeName);
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        ReplacePipeClient(sessionManager, processId, client);
+
+        return new ConnectedSceneSummarySession(sessionManager, server, serverTask);
+    }
+
+    private static void ReplacePipeClient(SessionManager sessionManager, int processId, NamedPipeClient replacement)
+    {
+        ReplaceSessionManagerPipeClient(sessionManager, processId, replacement);
+    }
+
+    private sealed class ConnectedSceneSummarySession(SessionManager sessionManager, NamedPipeServerStream server, Task serverTask) : IDisposable
+    {
+        public SessionManager SessionManager { get; } = sessionManager;
+
+        public void Dispose()
+        {
+            try
+            {
+                SessionManager.Dispose();
+                server.Dispose();
+                serverTask.GetAwaiter().GetResult();
+            }
+            finally
+            {
+                SessionManager.Dispose();
+                server.Dispose();
+            }
+        }
+    }
+}

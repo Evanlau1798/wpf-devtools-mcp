@@ -1,0 +1,238 @@
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - when: never
+
+stages:
+  - verify
+
+windows_x64_build_and_test:
+  stage: verify
+  tags:
+    - saas-windows-medium-amd64
+  timeout: 90m
+  interruptible: true
+  variables:
+    DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    DOTNET_NOLOGO: "1"
+    WPFDEVTOOLS_INSTALLER_TEST_MODE: "1"
+    WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA: "1"
+    WPFDEVTOOLS_TEST_SIGNATURE_STATUS: "Valid"
+    WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED: "0"
+  script:
+    - |
+      $ErrorActionPreference = 'Stop'
+      Set-StrictMode -Version Latest
+      trap {
+          [Console]::Error.WriteLine($_.ToString())
+          exit 1
+      }
+
+      function Stop-CI {
+          param(
+              [Parameter(Mandatory = $true)] [string]$Message,
+              [int]$ExitCode = 1
+          )
+
+          [Console]::Error.WriteLine($Message)
+          exit $ExitCode
+      }
+
+      function Invoke-External {
+          param(
+              [Parameter(Mandatory = $true)] [string]$Name,
+              [Parameter(Mandatory = $true)] [string]$FilePath,
+              [Parameter(Mandatory = $true)] [string[]]$Arguments
+          )
+
+          Write-Host ""
+          Write-Host ">>> $Name"
+          & $FilePath @Arguments
+          if ($LASTEXITCODE -ne 0) {
+              Stop-CI "$Name failed with exit code $LASTEXITCODE." $LASTEXITCODE
+          }
+      }
+
+      function Install-DotNetSdk {
+          $globalJson = Get-Content -Path 'global.json' -Raw | ConvertFrom-Json
+          $sdkVersion = [string]$globalJson.sdk.version
+          if ([string]::IsNullOrWhiteSpace($sdkVersion)) {
+              throw 'global.json does not declare sdk.version.'
+          }
+
+          $dotnetRoot = Join-Path $env:CI_PROJECT_DIR '.dotnet'
+          New-Item -ItemType Directory -Force -Path $dotnetRoot | Out-Null
+          $installScript = Join-Path $env:TEMP 'dotnet-install.ps1'
+          Invoke-WebRequest -Uri 'https://dot.net/v1/dotnet-install.ps1' -OutFile $installScript -UseBasicParsing
+          & powershell -NoProfile -ExecutionPolicy Bypass -File $installScript -Version $sdkVersion -InstallDir $dotnetRoot -NoPath |
+              ForEach-Object { Write-Host $_.ToString() }
+          if ($LASTEXITCODE -ne 0) {
+              throw "dotnet-install.ps1 failed with exit code $LASTEXITCODE."
+          }
+
+          $dotnetPath = Join-Path $dotnetRoot 'dotnet.exe'
+          if (-not (Test-Path $dotnetPath)) {
+              throw "dotnet.exe was not installed at expected path: $dotnetPath"
+          }
+
+          $env:DOTNET_ROOT = $dotnetRoot
+          $env:PATH = "$dotnetRoot;$env:PATH"
+          return [string]$dotnetPath
+      }
+
+      function Resolve-MSBuildPath {
+          $vswherePath = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (Test-Path $vswherePath) {
+              $msbuildPaths = @(& $vswherePath -latest -products * -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe')
+              if ($msbuildPaths.Count -gt 0 -and (Test-Path $msbuildPaths[0])) {
+                  return $msbuildPaths[0]
+              }
+          }
+
+          $msbuildCommand = Get-Command 'msbuild.exe' -ErrorAction SilentlyContinue
+          if ($null -ne $msbuildCommand -and (Test-Path $msbuildCommand.Source)) {
+              return $msbuildCommand.Source
+          }
+
+          throw 'MSBuild.exe was not found. Install Visual Studio Build Tools with the C++ workload on the GitLab Windows runner.'
+      }
+
+      function Resolve-NativeHostDirectory {
+          param([Parameter(Mandatory = $true)] [string]$RuntimeId)
+
+          $dotnetCommand = Get-Command 'dotnet.exe' -ErrorAction SilentlyContinue
+          $candidateRoots = @(
+              [string]$env:DOTNET_ROOT,
+              $(if ($null -ne $dotnetCommand) { Split-Path $dotnetCommand.Source -Parent }),
+              $(Join-Path $env:ProgramFiles 'dotnet')
+          ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+
+          foreach ($dotnetRoot in $candidateRoots) {
+              $packRoot = Join-Path $dotnetRoot 'packs'
+              $hostPackRoot = Join-Path $packRoot "Microsoft.NETCore.App.Host.$RuntimeId"
+              if (-not (Test-Path $hostPackRoot)) {
+                  continue
+              }
+
+              $packDir = Get-ChildItem $hostPackRoot -Directory |
+                  Sort-Object { [version]$_.Name } -Descending |
+                  Select-Object -First 1
+
+              if ($null -eq $packDir) {
+                  continue
+              }
+
+              $nativeDir = Join-Path $packDir.FullName "runtimes\$RuntimeId\native"
+              if (Test-Path $nativeDir) {
+                  return $nativeDir
+              }
+          }
+
+          throw "Could not locate native host directory for $RuntimeId under: $($candidateRoots -join '; ')"
+      }
+
+      $dotnetInstallResult = @(Install-DotNetSdk)
+      if ($dotnetInstallResult.Count -ne 1) {
+          throw "Install-DotNetSdk returned $($dotnetInstallResult.Count) values; expected exactly one dotnet.exe path."
+      }
+
+      $dotnetPath = [string]$dotnetInstallResult[0]
+      $msbuildPath = Resolve-MSBuildPath
+      $nativeHostDirectory = Resolve-NativeHostDirectory -RuntimeId 'win-x64'
+      Write-Host "dotnet: $dotnetPath"
+      Write-Host "MSBuild: $msbuildPath"
+      Write-Host "Native host: $nativeHostDirectory"
+
+      $script:MappedWorkRoot = $env:CI_PROJECT_DIR
+      $script:MappedOutputRoot = Join-Path $env:CI_PROJECT_DIR 'TestResults\gitlab'
+      $script:timestamp = "gitlab-$([DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss'))"
+      $script:Repeat = 1
+      $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'
+      . (Join-Path $env:CI_PROJECT_DIR 'scripts\ci\SandboxCi.Process.ps1')
+      . (Join-Path $env:CI_PROJECT_DIR 'scripts\ci\SandboxCi.Managed.ps1')
+
+      Invoke-External 'dotnet --info' $dotnetPath @('--info')
+      Invoke-External 'dotnet restore --locked-mode' $dotnetPath @('restore', '--locked-mode', '-p:NuGetAudit=true')
+      Invoke-External 'Restore server runtime dependencies win-x64' $dotnetPath @(
+          'restore',
+          'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj',
+          '--locked-mode',
+          '-r',
+          'win-x64',
+          '-p:NuGetAudit=true'
+      )
+
+      foreach ($configuration in @('Debug', 'Release')) {
+          Invoke-External "Build native bootstrapper $configuration x64" $msbuildPath @(
+              'src\WpfDevTools.Bootstrapper\WpfDevTools.Bootstrapper.vcxproj',
+              '/m',
+              '/nologo',
+              "/p:Configuration=$configuration",
+              '/p:Platform=x64',
+              '/p:LinkIncremental=false',
+              "/p:NetHostIncludeDir=$nativeHostDirectory",
+              "/p:NetHostLibDir=$nativeHostDirectory"
+          )
+
+          Invoke-External "Build solution $configuration x64" $dotnetPath @(
+              'build',
+              '--configuration', $configuration,
+              '--no-restore',
+              '-m:1',
+              '-p:Platform=x64',
+              '-nodeReuse:false',
+              '-p:UseSharedCompilation=false'
+          )
+
+          try {
+              Invoke-UnitDebugTests `
+                  -DotNetPath $dotnetPath `
+                  -ResultsRoot $script:MappedOutputRoot `
+                  -Configuration $configuration `
+                  -MaxParallelLanes 1 `
+                  -UnitDebugShardCount 4
+
+              Invoke-ManagedTestLanes `
+                  -DotNetPath $dotnetPath `
+                  -ResultsRoot $script:MappedOutputRoot `
+                  -Configuration $configuration `
+                  -MaxParallelLanes 4 `
+                  -ReleaseUnitShardCount 8 `
+                  -IncludeReleaseUnit
+          }
+          catch {
+              Stop-CI "Managed test lanes $configuration failed: $($_.Exception.Message)" 1
+          }
+
+              if ($configuration -eq 'Debug') {
+                  Invoke-External 'Prepare server runtime output $configuration win-x64' $dotnetPath @(
+                      'build',
+                      'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj',
+                      '--configuration', $configuration,
+                      '--runtime', 'win-x64',
+                      '--self-contained', 'false',
+                      '--no-restore',
+                      '-nodeReuse:false',
+                      '-p:UseSharedCompilation=false'
+                  )
+
+                  Invoke-External 'Run integration tests Debug' $dotnetPath @(
+                      'test',
+                  'tests\WpfDevTools.Tests.Integration\WpfDevTools.Tests.Integration.csproj',
+                  '--configuration', $configuration,
+                  '--no-build',
+                  '--verbosity', 'normal',
+                  '--blame-hang-timeout', '10m',
+                  '--logger', 'trx;LogFileName=integration-debug.trx',
+                  '--results-directory', 'TestResults\gitlab\Debug\integration'
+              )
+          }
+      }
+
+      Write-Host 'GitLab Windows x64 verification completed successfully.'
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - TestResults/gitlab/

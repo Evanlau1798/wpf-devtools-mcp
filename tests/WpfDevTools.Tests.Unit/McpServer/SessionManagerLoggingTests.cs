@@ -1,0 +1,141 @@
+using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using WpfDevTools.Mcp.Server;
+using WpfDevTools.Shared.Security;
+
+namespace WpfDevTools.Tests.Unit.McpServer;
+
+/// <summary>
+/// Tests for SessionManager logging integration.
+/// Validates that cleanup errors are routed through ILogger
+/// instead of direct file writes.
+/// </summary>
+public class SessionManagerLoggingTests : IDisposable
+{
+    private readonly FakeLogger _logger = new();
+
+    public void Dispose()
+    {
+        _logger.Dispose();
+    }
+
+    [Fact]
+    public void Constructor_ShouldAcceptILogger()
+    {
+        // SessionManager should accept an optional ILogger parameter
+        using var sm = new SessionManager(
+            new RateLimiterManager(100),
+            authManager: null,
+            certManager: null,
+            logger: _logger);
+
+        sm.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Constructor_ShouldAcceptNullLogger()
+    {
+        // Null logger should be accepted (backward compatibility)
+        using var sm = new SessionManager(
+            new RateLimiterManager(100),
+            authManager: null,
+            certManager: null,
+            logger: null);
+
+        sm.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void BackwardCompatConstructor_ShouldStillWork()
+    {
+        // Existing constructor signatures must remain valid
+        using var sm = new SessionManager(maxRequestsPerMinute: 100);
+        sm.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void PublicConstructorSignatures_ShouldRemainAvailable()
+    {
+        typeof(SessionManager)
+            .GetConstructor(new[]
+            {
+                typeof(IRateLimiterManager),
+                typeof(AuthenticationManager),
+                typeof(CertificateManager),
+                typeof(ILogger<SessionManager>)
+            })
+            .Should().NotBeNull();
+
+        typeof(SessionManager)
+            .GetConstructor(new[]
+            {
+                typeof(int),
+                typeof(AuthenticationManager),
+                typeof(CertificateManager)
+            })
+            .Should().NotBeNull();
+    }
+
+    [Fact]
+    public void PerformCleanup_WhenCleanupFails_ShouldLogErrorViaLogger()
+    {
+        // Arrange: Create SessionManager with a rate limiter that throws on RemoveSession
+        var throwingRateLimiter = new ThrowingRateLimiterManager();
+        using var sm = new SessionManager(
+            throwingRateLimiter,
+            authManager: null,
+            certManager: null,
+            logger: _logger);
+
+        // Add a session for a PID that doesn't exist (will be detected as dead)
+        sm.AddSession(99999999);
+
+        // Act: Trigger cleanup directly (will find the dead session and try to remove it)
+        sm.PerformCleanup();
+
+        // Assert: Logger should have captured the cleanup error
+        _logger.Messages.Should().Contain(m =>
+            m.Contains("Error") && m.Contains("Session cleanup failed"));
+    }
+
+    /// <summary>
+    /// Fake logger that captures log messages for test assertions.
+    /// </summary>
+    private sealed class FakeLogger : ILogger<SessionManager>, IDisposable
+    {
+        private readonly List<string> _messages = new();
+
+        public IReadOnlyList<string> Messages => _messages;
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            _messages.Add($"[{logLevel}] {formatter(state, exception)}");
+        }
+
+        public void Dispose() { }
+    }
+
+    /// <summary>
+    /// Fake rate limiter that throws on RemoveSession to simulate cleanup failure.
+    /// </summary>
+    private sealed class ThrowingRateLimiterManager : IRateLimiterManager
+    {
+        public bool TryAcquire(int processId) => true;
+
+        public void RemoveSession(int processId)
+            => throw new InvalidOperationException("Simulated rate limiter failure");
+
+        public int GetAvailableTokens(int processId) => 100;
+
+        public TimeSpan GetRetryAfter(int processId) => TimeSpan.Zero;
+    }
+}

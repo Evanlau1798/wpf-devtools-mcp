@@ -1,0 +1,98 @@
+- name: 繁體中文首頁
+  href: index.md
+- name: 快速開始
+  items:
+    - name: 5 分鐘快速開始
+      href: quickstart/index.md
+    - name: AI Agent Client 總覽
+      href: quickstart/ai-agent-clients.md
+    - name: SDK-Hosted Inspector 快速開始
+      href: quickstart/sdk-hosted-inspector.md
+    - name: Claude Code 快速開始
+      href: quickstart/claude-code.md
+    - name: OpenAI Codex 與 Codex CLI 快速開始
+      href: quickstart/openai-codex.md
+    - name: Claude Desktop 快速開始
+      href: quickstart/claude-desktop.md
+    - name: VS Code 與 Visual Studio 快速開始
+      href: quickstart/cursor-vscode.md
+- name: 使用指南
+  items:
+    - name: AI Agent 使用指南
+      href: guides/ai-agent-guide.md
+    - name: Agent 輔助安裝
+      href: guides/agent-assisted-install.md
+    - name: 常見工作流程
+      href: guides/common-workflows.md
+    - name: 疑難排解
+      href: guides/troubleshooting.md
+- name: Agent 使用心得
+  items:
+    - name: 總覽
+      href: agent-feedback/index.md
+- name: 生產環境
+  items:
+    - name: 安全模型
+      href: production/security.md
+    - name: Threat Model
+      href: production/threat-model.md
+    - name: 部署指南
+      href: production/deployment.md
+    - name: Release Layout
+      href: production/release-layout.md
+    - name: 相容性矩陣
+      href: production/compatibility-matrix.md
+    - name: Bootstrap 與 Injection
+      href: production/bootstrap-and-injection.md
+- name: 參考資料
+  items:
+    - name: 工具總覽
+      href: reference/tools/index.md
+    - name: Process 與 Connection 工具
+      href: reference/tools/process-and-connection.md
+    - name: Tree 與 XAML 工具
+      href: reference/tools/tree-and-xaml.md
+    - name: Binding 與 Dependency Property 工具
+      href: reference/tools/binding-and-dp.md
+    - name: Style 與 Template 工具
+      href: reference/tools/style-and-template.md
+    - name: Scene 與 State 診斷工具
+      href: reference/tools/scene-and-state.md
+    - name: Interaction、Event、Layout 與 Performance 工具
+      href: reference/tools/interaction-events-layout.md
+    - name: 設定參考
+      href: reference/configuration.md
+    - name: 錯誤模型
+      href: reference/error-model.md
+    - name: API 參考
+      href: ../api/toc.yml
+- name: 架構
+  items:
+    - name: 架構總覽
+      href: architecture/overview.md
+    - name: IPC 與通訊協定
+      href: architecture/ipc.md
+    - name: Injection 與 Runtime 選擇
+      href: architecture/injection.md
+    - name: ADR 索引
+      href: architecture/adrs/index.md
+    - name: ADR-001 Named Pipes for IPC
+      href: architecture/adrs/adr-001-named-pipes.md
+    - name: ADR-002 In-Process Injection
+      href: architecture/adrs/adr-002-in-process-injection.md
+    - name: ADR-003 Length-Prefix Framing
+      href: architecture/adrs/adr-003-length-prefix-framing.md
+    - name: ADR-005 Multi-Targeting Strategy
+      href: architecture/adrs/adr-005-multi-targeting.md
+    - name: ADR-006 STDIO Session State
+      href: architecture/adrs/adr-006-stdio-session-state.md
+- name: 貢獻者
+  items:
+    - name: 貢獻指南
+      href: contributors/index.md
+    - name: 開發環境設定
+      href: contributors/development-setup.md
+    - name: 測試與 TDD
+      href: contributors/testing-and-tdd.md
+    - name: 文件風格
+      href: contributors/documentation-style.md

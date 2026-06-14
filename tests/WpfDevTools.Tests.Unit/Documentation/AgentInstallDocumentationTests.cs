@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using WpfDevTools.Tests.Unit.TestSupport;
 using Xunit;
 
@@ -89,6 +89,26 @@ public sealed class AgentInstallDocumentationTests
     }
 
     [Fact]
+    public void AgentInstallDocs_ShouldProvideExternalE2eValidationChecklist()
+    {
+        foreach (var file in AgentInstallFiles)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+
+            content.Should().Contain("External E2E validation checklist",
+                $"{file} should give GitHub-clone validation agents a stable checklist outside ignored docs/");
+            content.Should().Contain("clone from GitHub",
+                $"{file} should keep external validation independent from the caller's local worktree");
+            content.Should().Contain("packaged MCP server",
+                $"{file} should require installed packaged server validation, not only source-tree launch");
+            content.Should().Contain("64 tools",
+                $"{file} should make the complete tools/list contract explicit");
+            content.Should().Contain("P0/P1",
+                $"{file} should tell E2E agents how to classify blocking findings");
+        }
+    }
+
+    [Fact]
     public void AgentInstallDocs_ShouldRequireReleaseProvenanceAndSignerPinning()
     {
         foreach (var file in AgentInstallFiles)
@@ -175,7 +195,7 @@ public sealed class AgentInstallDocumentationTests
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
             var withoutReviewedHttpsAlias = content.Replace(
-                "irm https://wpf-mcptools.evanlau1798.com | iex",
+                "irm https://installer.wpf-mcptools.evanlau1798.com | iex",
                 string.Empty,
                 StringComparison.Ordinal);
 

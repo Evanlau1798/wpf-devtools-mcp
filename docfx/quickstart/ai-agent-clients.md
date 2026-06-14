@@ -1,4 +1,4 @@
-# AI Agent Client Quickstart
+﻿# AI Agent Client Quickstart
 
 Install WPF DevTools first, then register the installed executable with your preferred client.
 
@@ -14,7 +14,7 @@ If an AI agent is helping with installation, use the side-effect-safe [Agent-Ass
 Published-release command after GitHub Release assets exist:
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
 The HTTPS alias resolves `scripts/online-installer.ps1`; promote it only after the selected version has GitHub Release assets and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.

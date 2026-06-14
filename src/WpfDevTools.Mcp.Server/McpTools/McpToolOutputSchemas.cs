@@ -50,6 +50,7 @@ internal static partial class McpToolOutputSchemas
                 ["processName"] = String("Selected process name."),
                 ["windowTitle"] = String("Selected WPF window title."),
                 ["reusedExistingHost"] = Boolean("Whether connect reused an existing Inspector host instead of injecting a new one."),
+                ["connectionSource"] = String("Connection source: active-session, sdk-hosted-inspector, or raw-injection."),
                 ["targetIsElevated"] = Boolean("Whether the requested target process is elevated."),
                 ["requiresExplicitTargetOptIn"] = Boolean("Whether target policy requires an explicit allowlist entry before retrying."),
                 ["autoDiscovered"] = Boolean("Whether connect selected an allowlisted target automatically."),

@@ -1,4 +1,4 @@
-# 5-Minute Setup
+﻿# 5-Minute Setup
 
 This quickstart is optimized for the pre-publication distribution model: use a locally generated and verified release package, register the installed executable with your MCP client, and verify the first live WPF session with a scene-first workflow.
 
@@ -26,23 +26,47 @@ SDK-hosted reuse communicates over named pipes and does not require matching pro
 Use the public installer after the versioned GitHub Release assets and sidecars exist for the release under test:
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
 The HTTPS alias resolves the reviewed `scripts/online-installer.ps1` entrypoint. It requires the matching GitHub Release assets set: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
 
-### Pre-release E2E source package path
+### GitHub pre-release E2E online installer path
 
-Before the first public release assets exist, validate the source checkout and a local package feed:
+For external E2E before a public release is promoted, download the reviewed online installer from the public installer alias and install the latest GitHub pre-release without cloning the repository:
 
 ```powershell
-git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
-cd wpf-devtools-mcp
-dotnet pack --configuration Release --output ./artifacts/package
-dotnet tool install --tool-path ./.tools --add-source ./artifacts/package <PackageId>
+$e2eRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'wpf-devtools-mcp-e2e'
+New-Item -ItemType Directory -Force -Path $e2eRoot | Out-Null
+$installerPath = Join-Path $e2eRoot 'online-installer.ps1'
+$installerDownload = @{
+    Uri = 'https://installer.wpf-mcptools.evanlau1798.com/'
+    OutFile = $installerPath
+}
+if ((Get-Command Invoke-WebRequest).Parameters.ContainsKey('UseBasicParsing')) {
+    $installerDownload.UseBasicParsing = $true
+}
+Invoke-WebRequest @installerDownload
+$installRoot = Join-Path $e2eRoot 'installed-wpf-devtools'
+$workingRoot = Join-Path $e2eRoot 'installer-work'
+powershell -ExecutionPolicy Bypass -File $installerPath -Version latest -Prerelease -Architecture x64 -Client other -InstallRoot $installRoot -WorkingRoot $workingRoot -NonInteractive -Force -OutputJson
 ```
 
-Keep `<PackageId>` tied to the package being validated. This pre-release E2E path proves the source checkout and local feed before the public installer is promoted.
+Pre-release E2E requires the GitHub pre-release to contain the matching package archive and sidecars, including `release-assets.json`, `SHA256SUMS.txt`, `release-sbom.spdx.json`, and `release-evidence.json`. Signed `Release` packaging still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`. The validation snippet uses `-Client other` so automation writes artifact-only registration instead of changing a real MCP client configuration.
+
+For real local `connect()` E2E, launch the installed packaged executable under `<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe`. Running the server directly from the source tree can verify `initialize`, `tools/list`, resources, and STDIO framing, but it does not prove the packaged `bin\inspectors` and `bin\bootstrapper` sidecar layout required by raw injection. Exhaustive 64-tool validation should either pace requests under the default 300 requests/minute limit or set `WPFDEVTOOLS_RATE_LIMIT_RPM=10000` for that local E2E session.
+
+If you run a direct MCP STDIO smoke test, send one newline-delimited JSON (NDJSON) JSON-RPC message per line. Do not use `Content-Length` framed messages with this server's STDIO transport. The large `tools/list` schema payload requires a real JSON parser such as Python, PowerShell 7, or .NET.
+
+Minimal NDJSON smoke sequence:
+
+```jsonl
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"external-e2e","version":"1.0"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"connect","arguments":{}}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_ui_summary","arguments":{"depthMode":"semantic"}}}
+```
 
 ### Reviewed local package installer
 
@@ -94,6 +118,8 @@ The installer writes ready-to-copy registration artifacts under:
 
 If you omit `-InstallRoot`, the installer first reuses the last live install root when possible and falls back to `%APPDATA%\WpfDevToolsMcp` only when no reusable install root is available. Use the generated `client-registration` artifacts as the source of truth for the resolved path.
 
+If you pass `-InstallRoot`, payloads and registration artifacts are written under that root, but installer state tracking remains under `%APPDATA%\WpfDevToolsMcp\installer-state.json`. That state file records the last live install evidence and may be reused by later installer runs.
+
 If you register manually, always point your client at the installed `wpf-devtools-<arch>.exe` selected by the generated `client-registration` artifacts, not a source-tree `dotnet run` command.
 
 ## Step 4: Start or keep your WPF target running
@@ -103,6 +129,17 @@ The server only inspects live WPF processes. Start the app first, then launch th
 If you own the target app source code, prefer the [SDK-hosted Inspector quickstart](sdk-hosted-inspector.md) before relying on raw injection; raw injection remains the fallback path for zero-instrumentation diagnostics.
 
 ## Step 5: Verify the first session
+
+Before the first `connect()` attempt, make the policy profile explicit for the current diagnostic session:
+
+```powershell
+$targetExe = 'C:\Path\To\YourApp.exe'
+$env:WPFDEVTOOLS_MCP_ALLOWED_TARGETS = $targetExe
+$env:WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS = $targetExe
+$env:WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS = 'true'
+```
+
+`WPFDEVTOOLS_MCP_ALLOWED_TARGETS` controls which process metadata and connection targets are visible. `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` is also required when the session must use raw injection instead of an already-running SDK-hosted Inspector. `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` is required before scene, form, tree, binding, DP, or state reads can return target UI text or runtime values.
 
 Use this sequence in your MCP client:
 
@@ -114,6 +151,19 @@ Use this sequence in your MCP client:
 6. `ping` only if you want an explicit health check
 7. After each diagnostic, interaction, or mutation, follow `navigation.recommended` first; use `nextSteps` as the compatibility fallback for clients that do not surface navigation yet
 
+Minimal valid rollback guard before an interaction or mutation:
+
+```powershell
+$env:WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS = 'true'
+
+tools/call capture_state_snapshot @{
+    includeFocus = $true
+    snapshotName = 'first-session-focus'
+}
+```
+
+`capture_state_snapshot` intentionally requires at least `propertyNames`, `viewModelPropertyNames`, or `includeFocus`; an empty argument object returns a structured `MissingRequiredParameter` error.
+
 Healthy first-run signs:
 
 - `connect()` succeeds when the target is allowlisted, either injection-compatible or already exposing an SDK-hosted Inspector, and there is only one visible WPF target
@@ -123,7 +173,7 @@ Healthy first-run signs:
 ## Fast useful prompt for an AI client
 
 ```text
-After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact local absolute executable path, connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
+After WPFDEVTOOLS_MCP_ALLOWED_TARGETS and WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS include the running WPF app's exact local absolute executable path, and WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true is set for scene reads, connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
 ```
 
 ## Need deeper installation details?

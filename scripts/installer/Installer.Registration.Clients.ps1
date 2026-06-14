@@ -1,3 +1,110 @@
+function New-ManualCliArtifactRegistration {
+    param(
+        [Parameter(Mandatory)] [string]$ClientName,
+        [Parameter(Mandatory)] [string]$InstallBase,
+        [Parameter(Mandatory)] [string]$ArtifactFileName,
+        [Parameter(Mandatory)] [string]$ErrorMessage
+    )
+
+    $artifactPath = Assert-InstallerLocalPathTrusted -Path (Join-Path $InstallBase "client-registration\$ArtifactFileName")
+    if (-not (Test-Path -LiteralPath $artifactPath)) {
+        throw "Automatic $ClientName registration failed and the manual registration artifact is missing: $artifactPath. Original error: $ErrorMessage"
+    }
+
+    return [ordered]@{
+        client = $ClientName
+        mode = 'manual-cli-artifact'
+        target = $artifactPath
+        backupPath = $null
+        applied = $false
+        manualRegistrationRequired = $true
+        registrationError = $ErrorMessage
+    }
+}
+
+function Invoke-CliRegistrationWithManualArtifactFallback {
+    param(
+        [Parameter(Mandatory)] [string]$Command,
+        [Parameter(Mandatory)] [string[]]$Arguments,
+        [Parameter(Mandatory)] [string]$ClientName,
+        [Parameter(Mandatory)] [string]$InstallBase,
+        [Parameter(Mandatory)] [string]$ArtifactFileName
+    )
+
+    try {
+        return (Invoke-RegistrationCommand -Command $Command -Arguments $Arguments -ClientName $ClientName)
+    }
+    catch {
+        $failureMessage = [string]$_.Exception.Message
+        if (-not (Test-ManualCliArtifactFallbackEligible `
+                    -Command $Command `
+                    -ClientName $ClientName `
+                    -FailureMessage $failureMessage)) {
+            throw
+        }
+
+        $global:LASTEXITCODE = 0
+        return (New-ManualCliArtifactRegistration `
+                -ClientName $ClientName `
+                -InstallBase $InstallBase `
+                -ArtifactFileName $ArtifactFileName `
+                -ErrorMessage $failureMessage)
+    }
+}
+
+function Test-ManualCliArtifactFallbackEligible {
+    param(
+        [Parameter(Mandatory)] [string]$Command,
+        [Parameter(Mandatory)] [string]$ClientName,
+        [Parameter(Mandatory)] [string]$FailureMessage
+    )
+
+    $expectedExecutionFailurePrefix = "$Command registration failed for $ClientName"
+    if ($FailureMessage.IndexOf($expectedExecutionFailurePrefix, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+        return $true
+    }
+
+    $envVarName = Get-TrustedCliCommandPathEnvVarName -Command $Command
+    return -not [string]::IsNullOrWhiteSpace($envVarName) -and
+        $FailureMessage.IndexOf("$envVarName cannot be used while the installer is elevated.", [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+}
+
+function Remove-ManualCliArtifactRegistration {
+    param(
+        [Parameter(Mandatory)] [string]$ClientName,
+        $RegistrationRecord
+    )
+
+    $targetPath = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('target', 'RegistrationTarget')
+    if ([string]::IsNullOrWhiteSpace($targetPath)) {
+        return [ordered]@{
+            client = $ClientName
+            mode = 'manual-cli-artifact'
+            target = $null
+            backupPath = $null
+            applied = $false
+        }
+    }
+
+    $trustedTargetPath = Assert-InstallerLocalPathTrusted -Path $targetPath
+    $backupPath = $null
+    $applied = $false
+    if (Test-Path -LiteralPath $trustedTargetPath) {
+        $backupPath = Assert-InstallerLocalPathTrusted -Path "$trustedTargetPath.bak-$([guid]::NewGuid().ToString('N'))"
+        Copy-Item -LiteralPath $trustedTargetPath -Destination $backupPath -Force
+        Remove-PathIfExists -Path $trustedTargetPath
+        $applied = $true
+    }
+
+    return [ordered]@{
+        client = $ClientName
+        mode = 'manual-cli-artifact'
+        target = $trustedTargetPath
+        backupPath = $backupPath
+        applied = $applied
+    }
+}
+
 function Invoke-ClientRegistration {
     param(
         [Parameter(Mandatory)] [string]$SelectedClient,
@@ -8,10 +115,20 @@ function Invoke-ClientRegistration {
     $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
     switch ($clientBaseId) {
         'claude-code' {
-            return @(Invoke-RegistrationCommand -Command 'claude' -Arguments @('mcp', 'add', '--transport', 'stdio', 'wpf-devtools', '--', $InstalledExecutable) -ClientName $clientBaseId)
+            return @(Invoke-CliRegistrationWithManualArtifactFallback `
+                    -Command 'claude' `
+                    -Arguments @('mcp', 'add', '--transport', 'stdio', 'wpf-devtools', '--', $InstalledExecutable) `
+                    -ClientName $clientBaseId `
+                    -InstallBase $InstallBase `
+                    -ArtifactFileName 'claude-code.txt')
         }
         'codex' {
-            return @(Invoke-RegistrationCommand -Command 'codex' -Arguments @('mcp', 'add', 'wpf-devtools', '--', $InstalledExecutable) -ClientName $clientBaseId)
+            return @(Invoke-CliRegistrationWithManualArtifactFallback `
+                    -Command 'codex' `
+                    -Arguments @('mcp', 'add', 'wpf-devtools', '--', $InstalledExecutable) `
+                    -ClientName $clientBaseId `
+                    -InstallBase $InstallBase `
+                    -ArtifactFileName 'codex.txt')
         }
         'cursor' {
             $cursorProfile = Resolve-CursorRegistrationProfile -SelectedClient $SelectedClient -PromptIfNeeded
@@ -49,6 +166,11 @@ function Invoke-ClientUnregistration {
 
     $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
     $recordedTarget = Get-TrustedRecordedRegistrationTarget -ClientBaseId $clientBaseId -RegistrationRecord $RegistrationRecord
+    $recordedMode = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('mode', 'RegistrationMode')
+    if ([string]::Equals($recordedMode, 'manual-cli-artifact', [System.StringComparison]::OrdinalIgnoreCase)) {
+        return @(Remove-ManualCliArtifactRegistration -ClientName $clientBaseId -RegistrationRecord $RegistrationRecord)
+    }
+
     switch ($clientBaseId) {
         'claude-code' {
             return @(Invoke-OptionalRemovalCommand -Command 'claude' -Arguments @('mcp', 'remove', 'wpf-devtools') -ClientName $clientBaseId)

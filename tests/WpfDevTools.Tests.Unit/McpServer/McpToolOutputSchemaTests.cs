@@ -213,6 +213,7 @@ public sealed class McpToolOutputSchemaTests
         AssertTopLevelFields("connect",
             "hint",
             "reusedExistingHost",
+            "connectionSource",
             "targetIsElevated",
             "requiresExplicitTargetOptIn");
         AssertProcessSummaryFields(

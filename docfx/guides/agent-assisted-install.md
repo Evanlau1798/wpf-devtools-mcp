@@ -1,4 +1,4 @@
-# Agent-Assisted Install
+﻿# Agent-Assisted Install
 
 Use this page when an AI agent helps a user install WPF DevTools MCP. The agent must plan first, avoid side effects before confirmation, verify release provenance, and call only reviewed installer entrypoints.
 
@@ -108,21 +108,43 @@ Acquire the matching sidecars:
 After the matching GitHub Release assets exist, the public HTTPS installer entrypoint is:
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
 The alias resolves the reviewed `scripts/online-installer.ps1` entrypoint for the published release.
 
-For pre-release E2E before GitHub Release assets exist, validate the source checkout and local package feed instead:
+For pre-release E2E before a public release is promoted, download the reviewed online installer from the public installer alias and install the latest GitHub pre-release without cloning the repository:
 
 ```powershell
-git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
-cd wpf-devtools-mcp
-dotnet pack --configuration Release --output ./artifacts/package
-dotnet tool install --tool-path ./.tools --add-source ./artifacts/package <PackageId>
+$e2eRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'wpf-devtools-mcp-e2e'
+New-Item -ItemType Directory -Force -Path $e2eRoot | Out-Null
+$installerPath = Join-Path $e2eRoot 'online-installer.ps1'
+$installerDownload = @{
+    Uri = 'https://installer.wpf-mcptools.evanlau1798.com/'
+    OutFile = $installerPath
+}
+if ((Get-Command Invoke-WebRequest).Parameters.ContainsKey('UseBasicParsing')) {
+    $installerDownload.UseBasicParsing = $true
+}
+Invoke-WebRequest @installerDownload
+$installRoot = Join-Path $e2eRoot 'installed-wpf-devtools'
+$workingRoot = Join-Path $e2eRoot 'installer-work'
+powershell -ExecutionPolicy Bypass -File $installerPath -Version latest -Prerelease -Architecture x64 -Client other -InstallRoot $installRoot -WorkingRoot $workingRoot -NonInteractive -Force -OutputJson
 ```
 
-Keep `<PackageId>` tied to the package under test. Do not replace this pre-release E2E path with the public one-line install until the release asset smoke gate has passed.
+Pre-release E2E requires the GitHub pre-release to contain the matching package archive and sidecars, including `release-assets.json`, `SHA256SUMS.txt`, `release-sbom.spdx.json`, and `release-evidence.json`. Signed `Release` packaging still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`. Use `-Client other` for validation-only E2E so the installer writes registration artifacts without updating a real MCP client.
+
+Direct MCP STDIO smoke tests must send one newline-delimited JSON (NDJSON) JSON-RPC message per line. Do not use `Content-Length` framed messages with this server's STDIO transport. The large `tools/list` schema payload requires a real JSON parser such as Python, PowerShell 7, or .NET.
+
+Minimal NDJSON smoke sequence:
+
+```jsonl
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"external-e2e","version":"1.0"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"connect","arguments":{}}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_ui_summary","arguments":{"depthMode":"semantic"}}}
+```
 
 ## Provenance verification
 
@@ -177,6 +199,17 @@ Release signing helper path:
 - self-signed certificates are only for local/dev/test and are not production-trusted.
 - After signing local artifacts, regenerate `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json`.
 
+## External E2E validation checklist
+
+- Start from a fresh clone from GitHub, not the caller's local worktree.
+- Read this guide plus `AGENT_INSTALL.md` before installing.
+- Install the latest GitHub pre-release package with `-Version latest -Prerelease` plus explicit `-InstallRoot` and `-WorkingRoot`.
+- Start the golden WPF TestApp from the clone.
+- Launch the installed packaged MCP server over STDIO and send real JSON-RPC requests.
+- Verify `tools/list` reports 64 tools.
+- Verify `connect`, `get_active_process`, `get_ui_summary`, and one safe read tool.
+- Report P0/P1 blockers separately from P2/P3 documentation or polish findings.
+
 ## Troubleshooting
 
 - If the OS is not Windows, stop and report that the server is Windows-only.
@@ -189,5 +222,5 @@ Release signing helper path:
 ## Copyable agent prompt
 
 ```text
-Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Run powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, then present a plan that includes version, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, release-sbom.spdx.json, release-evidence.json, and signer pin policy. Ask for confirmation before mutation. After approval, use irm https://wpf-mcptools.evanlau1798.com | iex only when the matching GitHub Release assets exist; otherwise use the pre-release E2E source package path or a reviewed local package fallback. Inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
+Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Run powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, then present a plan that includes version, releaseChannel, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, release-sbom.spdx.json, release-evidence.json, and signer pin policy. Ask for confirmation before mutation. After approval, use irm https://installer.wpf-mcptools.evanlau1798.com | iex only when the matching GitHub Release assets exist; otherwise use the GitHub pre-release online-installer E2E path or a reviewed local package fallback. Inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
 ```

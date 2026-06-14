@@ -65,7 +65,7 @@ docfx/zh-tw/agent-feedback/*.md
 .claude/settings.local.json
 .claude/
 CLAUDE.md
-# AGENTS.md remains a tracked repository contract; this ignore rule only blocks local overlay copies from becoming newly tracked.
+# AGENTS.md is a private local workflow file and must remain untracked.
 AGENTS.md
 CHANGELOG.md
 

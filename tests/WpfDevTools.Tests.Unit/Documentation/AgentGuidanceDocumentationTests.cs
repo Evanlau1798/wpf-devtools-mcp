@@ -122,31 +122,25 @@ public sealed class AgentGuidanceDocumentationTests
     }
 
     [Fact]
-    public void RepoAgentsGuide_ShouldBeRequiredAndTrackCurrentToolCount()
+    public void PrivateAgentsGuide_ShouldRemainLocalOnly()
     {
-        var agentGuidePath = GetRepoFilePath("AGENTS.md");
-        File.Exists(agentGuidePath).Should().BeTrue(
-            "AGENTS.md is the repository-local operating contract for coding agents and should not be optional");
+        var content = File.ReadAllText(GetRepoFilePath(".gitignore"));
 
-        var content = File.ReadAllText(agentGuidePath);
-
-        content.Should().Contain("64 MCP tools",
-            "AGENTS.md is local agent-facing guidance and should match the current public tool count when present");
-        content.Should().NotContain("63 MCP tools",
-            "AGENTS.md should not preserve the stale pre-64 tool count");
-        content.Should().Contain("Do not commit any files under `docs/`",
-            "the agent contract should preserve repository-specific file hygiene rules");
-        content.Should().Contain("Build and Test Commands",
-            "the agent contract should preserve local verification commands");
+        content.Should().Contain("AGENTS.md is a private local workflow file and must remain untracked",
+            "AGENTS.md is personal agent workflow guidance, not a public repository contract");
+        content.Should().Contain("AGENTS.md",
+            "private local agent guidance must remain ignored when present on a maintainer machine");
+        content.Should().NotContain("AGENTS.md remains a tracked repository contract",
+            "AGENTS.md must not be described as a tracked public contract");
     }
 
     [Fact]
-    public void SandboxCiCopy_ShouldNotExcludeTrackedAgentsGuide()
+    public void SandboxCiCopy_ShouldExcludePrivateAgentsGuide()
     {
         var content = File.ReadAllText(GetRepoFilePath("scripts/ci/Start-SandboxCi.ps1"));
 
-        content.Should().NotContain("'AGENTS.md'",
-            "sandbox CI must copy the tracked repository agent contract so sandbox tests validate the same source surface as GitHub CI");
+        content.Should().Contain("'AGENTS.md'",
+            "sandbox CI mirrors a public checkout and must not copy maintainer-private local agent guidance");
     }
 
     private static string ExtractSection(string content, string heading)

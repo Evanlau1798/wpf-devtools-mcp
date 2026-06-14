@@ -151,6 +151,7 @@ public partial class ConnectToolTests
                 var resultJson = JsonSerializer.Deserialize<JsonElement>(resultPayload);
                 resultJson.GetProperty("success").GetBoolean().Should().BeTrue(resultPayload);
                 resultJson.GetProperty("reusedExistingHost").GetBoolean().Should().BeTrue();
+                resultJson.GetProperty("connectionSource").GetString().Should().Be("sdk-hosted-inspector");
                 injector.InjectWithBootstrapCallCount.Should().Be(0);
             }
             finally
@@ -214,6 +215,7 @@ public partial class ConnectToolTests
                 var resultJson = JsonSerializer.Deserialize<JsonElement>(resultPayload);
                 resultJson.GetProperty("success").GetBoolean().Should().BeTrue(resultPayload);
                 resultJson.GetProperty("reusedExistingHost").GetBoolean().Should().BeTrue();
+                resultJson.GetProperty("connectionSource").GetString().Should().Be("sdk-hosted-inspector");
                 injector.InjectWithBootstrapCallCount.Should().Be(0);
             }
             finally
@@ -251,6 +253,7 @@ public partial class ConnectToolTests
         var resultJson = JsonSerializer.Deserialize<JsonElement>(payload);
         resultJson.GetProperty("success").GetBoolean().Should().BeTrue(payload);
         resultJson.TryGetProperty("reusedExistingHost", out _).Should().BeFalse();
+        resultJson.GetProperty("connectionSource").GetString().Should().Be("raw-injection");
         injector.InjectWithBootstrapCallCount.Should().Be(1);
     }
 

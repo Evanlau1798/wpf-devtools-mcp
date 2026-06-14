@@ -1,4 +1,4 @@
-# WPF DevTools MCP Server
+﻿# WPF DevTools MCP Server
 
 Looking for Traditional Chinese docs? Start at [繁體中文文件](zh-tw/index.md).
 
@@ -22,7 +22,7 @@ WPF DevTools MCP Server is a Windows-only Model Context Protocol server for insp
 Use the public one-line installer only after the versioned GitHub Release assets and sidecars exist for the release under test:
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
 The HTTPS alias resolves the reviewed `scripts/online-installer.ps1` entrypoint. The promotion gate is the GitHub Release assets set: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.

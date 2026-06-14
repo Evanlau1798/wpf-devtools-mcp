@@ -1,4 +1,4 @@
-# Claude Desktop Setup
+﻿# Claude Desktop Setup
 
 Claude Desktop uses a static JSON file, so the cleanest setup is to copy the generated JSON from the installed package output.
 
@@ -7,7 +7,7 @@ Claude Desktop uses a static JSON file, so the cleanest setup is to copy the gen
 Published-release command after GitHub Release assets exist:
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
 The HTTPS alias resolves `scripts/online-installer.ps1`; promote it only after the selected version has GitHub Release assets and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.

@@ -52,7 +52,7 @@
 
 - `elementId`：必填。
 - `processId`：選好 active process 後可省略。
-- `includeProperties`：可選，會附加額外 DependencyProperty probes，不會取代預設集合。
+- `includeProperties`：可選。可用 `true` 作為 agent-compatible shorthand 來要求預設 property probes；也可傳入字串陣列，把額外 DependencyProperty probes 附加到預設集合。
 
 輸出欄位包含 identity、selected properties、bindings、validation errors、style summary、layout summary 與 DataContext type。這是 `get_ui_summary` 或 `find_elements` 之後最常用的 drill-down。
 
@@ -60,6 +60,12 @@
 
 ```json
 { "elementId": "SaveButton_7", "includeProperties": ["IsEnabled", "Visibility"] }
+```
+
+Boolean shorthand：
+
+```json
+{ "elementId": "SaveButton_7", "includeProperties": true }
 ```
 
 復原路徑：如果特定值仍不清楚，接著使用 `get_dp_value_source`、`get_bindings`、`get_applied_styles` 或 `get_triggers`。

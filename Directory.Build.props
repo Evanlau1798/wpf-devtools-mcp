@@ -13,5 +13,9 @@
     <NuGetAuditLevel>low</NuGetAuditLevel>
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900</WarningsNotAsErrors>
     <WarningsAsErrors>$(WarningsAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsAsErrors>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Evanlau1798/wpf-devtools-mcp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Evanlau1798/wpf-devtools-mcp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 </Project>

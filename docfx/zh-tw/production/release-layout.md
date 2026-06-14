@@ -1,4 +1,4 @@
-# Release Layout
+﻿# Release Layout
 
 此頁說明公開 release asset、解壓後 package，以及安裝後目錄的穩定結構契約。
 
@@ -14,7 +14,7 @@
 GitHub Release assets 存在後的公開安裝命令：
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
 這個 HTTPS alias 會解析到 `scripts/online-installer.ps1`。在該版本具備 GitHub Release assets 與 sidecar 前，請先把下列 release 名稱視為本機產生 artifact 的 package layout 契約。

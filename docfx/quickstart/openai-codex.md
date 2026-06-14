@@ -1,4 +1,4 @@
-# OpenAI Codex and Codex CLI Setup
+﻿# OpenAI Codex and Codex CLI Setup
 
 Use this guide when you want the installed WPF DevTools server to be available from Codex workflows.
 
@@ -13,7 +13,7 @@ npm install -g @openai/codex
 Published-release command after GitHub Release assets exist:
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
 The HTTPS alias resolves `scripts/online-installer.ps1`; promote it only after the selected version has GitHub Release assets and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.

@@ -1,15 +1,11 @@
-# WPF DevTools MCP Server
+﻿# WPF DevTools MCP Server
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple)](https://dotnet.microsoft.com/)
 [![MCP](https://img.shields.io/badge/MCP-SDK%20v1.0-blue)](https://modelcontextprotocol.io/)
 [![Coverage](https://codecov.io/gh/Evanlau1798/wpf-devtools-mcp/branch/master/graph/badge.svg)](https://codecov.io/gh/Evanlau1798/wpf-devtools-mcp)
 
-`wpf-devtools-mcp` is a Windows-only Model Context Protocol server for inspecting and interacting with running WPF applications. It gives AI clients WPF-native visibility into visual trees, bindings, dependency properties, routed events, MVVM state, layout, screenshots, and controlled runtime mutation.
-
-Canonical source repository: this checkout.
-Planned public repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
-Planned public releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
+`wpf-devtools-mcp` is a Windows-only Model Context Protocol server for inspecting and interacting with running WPF applications. The canonical repository is [Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp), and it gives AI clients WPF-native visibility into visual trees, bindings, dependency properties, routed events, MVVM state, layout, screenshots, and controlled runtime mutation.
 
 ## Current State
 
@@ -19,36 +15,41 @@ Planned public releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releas
 - Use `wpf://contracts/response` for machine-readable response contracts.
 - `structuredContent`, `navigation.recommended`, and compatibility `nextSteps` are the primary agent-facing response surfaces; failures may include `errorCode` and `errorData`.
 - HTTP/SSE is planned, not included in the current server binary.
-- The server ships 64 MCP tools; the full catalog lives in [docfx/reference/tools/index.md](docfx/reference/tools/index.md).
+- The server ships 64 MCP tools; the full catalog lives in the [DocFX tool reference](https://wpf-mcptools.evanlau1798.com/reference/tools/).
 
 ## Start Here
 
 | Need | Canonical page |
 | --- | --- |
-| Full documentation entrypoint | [docfx/index.md](docfx/index.md) |
-| First setup flow | [docfx/quickstart/index.md](docfx/quickstart/index.md) |
-| AI client registration matrix | [docfx/quickstart/ai-agent-clients.md](docfx/quickstart/ai-agent-clients.md) |
-| SDK-hosted app integration | [docfx/quickstart/sdk-hosted-inspector.md](docfx/quickstart/sdk-hosted-inspector.md) |
-| Deployment and package layout | [docfx/production/deployment.md](docfx/production/deployment.md) |
-| Security model | [docfx/production/security.md](docfx/production/security.md) |
-| Compatibility constraints | [docfx/production/compatibility-matrix.md](docfx/production/compatibility-matrix.md) |
+| Full documentation entrypoint | [DocFX home](https://wpf-mcptools.evanlau1798.com/) |
+| First setup flow | [Quickstart](https://wpf-mcptools.evanlau1798.com/quickstart/) |
+| AI client registration matrix | [AI agent clients](https://wpf-mcptools.evanlau1798.com/quickstart/ai-agent-clients.html) |
+| SDK-hosted app integration | [SDK-hosted inspector](https://wpf-mcptools.evanlau1798.com/quickstart/sdk-hosted-inspector.html) |
+| Deployment and package layout | [Deployment](https://wpf-mcptools.evanlau1798.com/production/deployment.html) |
+| Security model | [Security](https://wpf-mcptools.evanlau1798.com/production/security.html) |
+| Compatibility constraints | [Compatibility matrix](https://wpf-mcptools.evanlau1798.com/production/compatibility-matrix.html) |
 | Examples | [EXAMPLES.md](EXAMPLES.md) |
 | Maintainer release flow | [RELEASING.md](RELEASING.md) |
 
 ## Install In Short
 
-The published release install command, after the versioned GitHub Release assets and sidecars are uploaded: `irm https://wpf-mcptools.evanlau1798.com | iex`. The HTTPS alias resolves the reviewed `scripts/online-installer.ps1` entrypoint and requires `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
+The published release install command, after the versioned GitHub Release assets and sidecars are uploaded: `irm https://installer.wpf-mcptools.evanlau1798.com | iex`. The HTTPS alias is the installer redirect; the DocFX site is hosted at `https://wpf-mcptools.evanlau1798.com/`. The installer alias resolves the reviewed `scripts/online-installer.ps1` entrypoint and requires `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
 
-For pre-release E2E, validate the source checkout and local package feed instead of depending on GitHub Release assets:
+For GitHub pre-release E2E, download the reviewed online installer from the public installer alias and install the selected pre-release assets without cloning the repository:
 
 ```powershell
-git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
-cd wpf-devtools-mcp
-dotnet pack --configuration Release --output ./artifacts/package
-dotnet tool install --tool-path ./.tools --add-source ./artifacts/package <PackageId>
+$e2eRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'wpf-devtools-mcp-e2e'; New-Item -ItemType Directory -Force -Path $e2eRoot | Out-Null
+$installerPath = Join-Path $e2eRoot 'online-installer.ps1'
+$installerDownload = @{ Uri = 'https://installer.wpf-mcptools.evanlau1798.com/'; OutFile = $installerPath }; if ((Get-Command Invoke-WebRequest).Parameters.ContainsKey('UseBasicParsing')) { $installerDownload.UseBasicParsing = $true }; Invoke-WebRequest @installerDownload
+$installRoot = Join-Path $e2eRoot 'installed-wpf-devtools'; $workingRoot = Join-Path $e2eRoot 'installer-work'
+powershell -ExecutionPolicy Bypass -File $installerPath -Version latest -Prerelease -Architecture x64 -Client other -InstallRoot $installRoot -WorkingRoot $workingRoot -NonInteractive -Force -OutputJson
 ```
 
-Keep `<PackageId>` tied to the package under test. Do not replace this with the public one-line install until the release asset smoke gate has passed. For first-time setup from a staged release archive, review `scripts/online-installer.ps1`, then install a verified local package archive with machine-readable output. When an AI agent drives setup, start with [AGENT_INSTALL.md](AGENT_INSTALL.md) or [docfx/guides/agent-assisted-install.md](docfx/guides/agent-assisted-install.md), run `-Action plan -OutputJson`, and wait for user confirmation before mutation.
+Pre-release E2E still requires the GitHub pre-release to contain the matching archive and sidecars. For first-time setup from a staged archive, review `scripts/online-installer.ps1`, then install a verified local package archive with machine-readable output. When an AI agent drives setup, start with [AGENT_INSTALL.md](AGENT_INSTALL.md) or the [agent-assisted install guide](https://wpf-mcptools.evanlau1798.com/guides/agent-assisted-install.html), run `-Action plan -OutputJson`, and wait for user confirmation before mutation.
+
+For real local `connect()` E2E, launch the packaged executable under `<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe`; a source-tree server launch can prove `tools/list`, but it does not provide the packaged `bin\inspectors` and `bin\bootstrapper` sidecar layout needed for raw-injection E2E. Exhaustive 64-tool automation should either pace requests or set `WPFDEVTOOLS_RATE_LIMIT_RPM=10000` for that local test session. When `-InstallRoot` is overridden, payloads and registration artifacts go under that root, but installer state tracking remains in `%APPDATA%\WpfDevToolsMcp\installer-state.json`.
+
+If you run a direct MCP STDIO smoke test, send one newline-delimited JSON (NDJSON) JSON-RPC message per line. Do not use `Content-Length` framed messages with this server's STDIO transport; use [AGENT_INSTALL.md](AGENT_INSTALL.md) or the [DocFX quickstart](https://wpf-mcptools.evanlau1798.com/quickstart/) for the full raw smoke sequence.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -NonInteractive -Force -OutputJson
@@ -82,9 +83,9 @@ The injection-based transport is hardened by default. Key runtime gates:
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` gates `element_screenshot`.
 - `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS` gates target UI text, DependencyProperty and binding values, event payloads, tree/scene summaries, and runtime state snapshots.
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` gates ViewModel inspection tools.
-- `WPFDEVTOOLS_AUTH_SECRET`, `WPFDEVTOOLS_CERT_DIR`, and `WPFDEVTOOLS_CERT_THUMBPRINT` coordinate authenticated and encrypted named-pipe transport.
+- `WPFDEVTOOLS_AUTH_SECRET`, `WPFDEVTOOLS_CERT_DIR`, and `WPFDEVTOOLS_CERT_THUMBPRINT` coordinate authenticated and encrypted named-pipe transport; explicit auth secrets must be base64 encoded and at least 32 decoded bytes (256 bits).
 
-Detailed environment-variable behavior lives in [SECURITY.md](SECURITY.md), [docfx/production/security.md](docfx/production/security.md), and [docfx/reference/configuration.md](docfx/reference/configuration.md).
+Detailed environment-variable behavior lives in [SECURITY.md](SECURITY.md), [DocFX security](https://wpf-mcptools.evanlau1798.com/production/security.html), and [DocFX configuration](https://wpf-mcptools.evanlau1798.com/reference/configuration.html).
 
 ## Operator Checklist
 
@@ -132,4 +133,8 @@ This validates the Release build, unit tests, package layout, and staged GitHub 
 
 ## License
 
-MIT. DLL injection code includes Snoop-based components under Ms-PL attribution.
+WPF DevTools MCP Server is licensed under the Apache License, Version 2.0. Commercial use, proprietary integration, modification, redistribution, and sale are permitted under Apache-2.0.
+
+When distributing this project or derivative works, preserve the Apache-2.0 license text, copyright notices, and the attribution notices in [NOTICE](NOTICE). Attribution may appear wherever third-party software notices are normally displayed; it does not need to appear in the main UI, homepage, or marketing materials.
+
+Project names, logos, and related brand identifiers may not be used to imply official endorsement, partnership, certification, or sponsorship without prior written permission; see [TRADEMARK.md](TRADEMARK.md). DLL injection code includes Snoop-based components under Ms-PL attribution; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

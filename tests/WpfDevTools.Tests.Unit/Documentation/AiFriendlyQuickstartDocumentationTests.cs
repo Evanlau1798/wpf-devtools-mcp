@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
@@ -172,7 +172,7 @@ public sealed class AiFriendlyQuickstartDocumentationTests
 
             content.Should().NotContain("raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1",
                 $"{file} should not tell users to execute the moving master branch installer directly");
-            content.Should().Contain("irm https://wpf-mcptools.evanlau1798.com | iex",
+            content.Should().Contain("irm https://installer.wpf-mcptools.evanlau1798.com | iex",
                 $"{file} should publish the reviewed HTTPS installer alias for release-candidate docs");
             content.Should().Contain("GitHub Release assets",
                 $"{file} should gate the public installer command on uploaded release assets");

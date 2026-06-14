@@ -1,3 +1,11 @@
+function Write-InstallerActionProgress {
+    param([Parameter(Mandatory)] [string]$Message)
+
+    if (Get-Command Write-InstallerMessage -ErrorAction SilentlyContinue) {
+        Write-InstallerMessage $Message
+    }
+}
+
 function Invoke-InstallerActionCore {
     param(
         [Parameter(Mandatory)] [ValidateSet('install', 'uninstall', 'full-uninstall')] [string]$ResolvedAction,
@@ -164,6 +172,7 @@ function Invoke-InstallerActionCore {
     }
 
     $mode = if ($UseLatestRelease) { 'online' } else { Resolve-InstallerMode }
+    Write-InstallerActionProgress "[1/4] Resolving package for $ResolvedArchitecture."
     $session = Resolve-PackageSession -Mode $mode -ResolvedVersion $RequestedVersion -ResolvedArchitecture $ResolvedArchitecture
     $installResult = $null
     $registrations = @()
@@ -201,6 +210,7 @@ function Invoke-InstallerActionCore {
             [string]$session.DownloadUri
         }
 
+        Write-InstallerActionProgress "[2/4] Installing payload into $ResolvedInstallRoot."
         $installResult = Install-PackagePayload `
             -PackageDirectory $session.PackageDirectory `
             -PackageManifest $packageManifest `
@@ -210,7 +220,9 @@ function Invoke-InstallerActionCore {
             -TrustedSignerThumbprint ([string]$session.TrustedSignerThumbprint) `
             -TrustedSignerSubject ([string]$session.TrustedSignerSubject) `
             -TrustedArchiveManifestPolicy:([bool]$session.TrustedArchiveManifestPolicy)
+        Write-InstallerActionProgress "[3/4] Registering client $ResolvedClient."
         $registrations = @(Invoke-ClientRegistration -SelectedClient $ResolvedClient -InstalledExecutable $installResult.installedExecutable -InstallBase $installResult.installBase)
+        Write-InstallerActionProgress '[4/4] Verifying installation.'
         $verification = Invoke-InstallVerification -SelectedClient $ResolvedClient -ResolvedVersion $resolvedVersion -InstalledExecutable $installResult.installedExecutable -Registration $registrations[0]
         if (-not $verification.Succeeded) {
             throw $verification.VerificationMessage

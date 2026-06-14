@@ -38,21 +38,15 @@ public class RepositoryHygieneTests
     [Fact]
     public void GitIgnoredMarkdownFiles_ShouldNotBeTracked()
     {
-        var intentionalTrackedIgnoredMarkdown = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "AGENTS.md"
-        };
-
         var trackedIgnoredMarkdown = RunGitLines(
             "ls-files",
             "-ci",
             "--exclude-standard",
             "*.md")
-            .Where(path => !intentionalTrackedIgnoredMarkdown.Contains(path.Replace('\\', '/')))
             .ToArray();
 
         trackedIgnoredMarkdown.Should().BeEmpty(
-            "non-DocFX local documentation markdown that is ignored by .gitignore must not stay tracked unless it is an explicitly tracked repository contract");
+            "local documentation markdown that is ignored by .gitignore, including AGENTS.md, must not stay tracked");
     }
 
     [Fact]
@@ -60,14 +54,15 @@ public class RepositoryHygieneTests
     {
         var approvedRootMarkdown = new HashSet<string>(StringComparer.Ordinal)
         {
-            "AGENTS.md",
             "AGENT_INSTALL.md",
             "CODE_SIGNING.md",
             "CONTRIBUTING.md",
             "EXAMPLES.md",
             "README.md",
             "RELEASING.md",
-            "SECURITY.md"
+            "SECURITY.md",
+            "THIRD_PARTY_NOTICES.md",
+            "TRADEMARK.md"
         };
         var approvedNonDocfxMarkdown = new HashSet<string>(approvedRootMarkdown, StringComparer.Ordinal)
         {
@@ -88,12 +83,14 @@ public class RepositoryHygieneTests
     }
 
     [Fact]
-    public void GitIgnore_ShouldExplainTrackedAgentsContractException()
+    public void GitIgnore_ShouldExplainPrivateAgentsGuide()
     {
         var content = File.ReadAllText(GetRepoFilePath(".gitignore"));
 
-        content.Should().Contain("AGENTS.md remains a tracked repository contract",
-            ".gitignore still ignores local agent overlays, but the tracked repository contract should be explicit");
+        content.Should().Contain("AGENTS.md is a private local workflow file and must remain untracked",
+            ".gitignore should explicitly document why AGENTS.md is local-only");
+        content.Should().NotContain("AGENTS.md remains a tracked repository contract",
+            "AGENTS.md is not a public repository contract");
     }
 
     [Theory]

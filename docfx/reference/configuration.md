@@ -4,7 +4,7 @@
 
 | Variable | Purpose | Notes |
 | --- | --- | --- |
-| `WPFDEVTOOLS_AUTH_SECRET` | Overrides the persisted/default HMAC authentication secret | Must be base64 encoded; injection sessions are authenticated by default |
+| `WPFDEVTOOLS_AUTH_SECRET` | Overrides the persisted/default HMAC authentication secret | Must be base64 encoded and at least 32 decoded bytes (256 bits); injection sessions are authenticated by default |
 | `WPFDEVTOOLS_CERT_DIR` | Overrides the default TLS certificate directory | Use a protected local directory; injection sessions use TLS by default |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected certificate thumbprint | Optional but useful in locked-down deployments |
 | `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Allowlists raw-injection target executables | Semicolon-separated exact local absolute executable paths; malformed configured entries fail with `InvalidPolicyConfiguration`; prefer SDK-hosted reuse first |

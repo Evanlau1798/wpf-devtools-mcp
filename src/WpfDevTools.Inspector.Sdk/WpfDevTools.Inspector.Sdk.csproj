@@ -13,7 +13,10 @@
     <Description>Opt-in SDK for WPF DevTools MCP Server - enables inspection without DLL injection</Description>
     <PackageTags>wpf;devtools;mcp;debugging;inspection</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Evanlau1798/wpf-devtools-mcp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Evanlau1798/wpf-devtools-mcp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeProjectReferencesInPackage</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>
 
@@ -24,6 +27,9 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+    <None Include="..\..\NOTICE" Pack="true" PackagePath="\" />
+    <None Include="..\..\THIRD_PARTY_NOTICES.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <Target Name="IncludeProjectReferencesInPackage" DependsOnTargets="ResolveReferences">

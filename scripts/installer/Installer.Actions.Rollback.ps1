@@ -228,7 +228,8 @@ function Restore-RegistrationArtifact {
     $targetPath = [string]$Registration.target
     $backupPath = [string]$Registration.backupPath
     if (-not [string]::Equals([string]$Registration.mode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase) -and
-        -not [string]::Equals([string]$Registration.mode, 'artifact-only', [System.StringComparison]::OrdinalIgnoreCase)) {
+        -not [string]::Equals([string]$Registration.mode, 'artifact-only', [System.StringComparison]::OrdinalIgnoreCase) -and
+        -not [string]::Equals([string]$Registration.mode, 'manual-cli-artifact', [System.StringComparison]::OrdinalIgnoreCase)) {
         return
     }
 
@@ -280,7 +281,8 @@ function Undo-ClientRegistrationChanges {
 
         $mode = [string]$registration.mode
         if ([string]::Equals($mode, 'json-file', [System.StringComparison]::OrdinalIgnoreCase) -or
-            [string]::Equals($mode, 'artifact-only', [System.StringComparison]::OrdinalIgnoreCase)) {
+            [string]::Equals($mode, 'artifact-only', [System.StringComparison]::OrdinalIgnoreCase) -or
+            [string]::Equals($mode, 'manual-cli-artifact', [System.StringComparison]::OrdinalIgnoreCase)) {
             Restore-RegistrationArtifact -Registration $registration -RemoveTargetWhenNoBackup:($RollbackMode -eq 'install')
             continue
         }

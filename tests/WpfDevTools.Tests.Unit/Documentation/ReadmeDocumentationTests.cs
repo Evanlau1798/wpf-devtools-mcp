@@ -1,4 +1,4 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.Text;
 using System.Text.RegularExpressions;
 using FluentAssertions;
@@ -18,17 +18,30 @@ public class ReadmeDocumentationTests
     }
 
     [Fact]
-    public void Readme_ShouldDelegateDetailedContractsToDocfx()
+    public void Readme_ShouldDelegateDetailedContractsToDocfxSite()
     {
         var content = File.ReadAllText(GetRepoFilePath("README.md"));
 
-        content.Should().Contain("docfx/index.md");
-        content.Should().Contain("docfx/quickstart/index.md");
-        content.Should().Contain("docfx/quickstart/ai-agent-clients.md");
-        content.Should().Contain("docfx/production/deployment.md");
-        content.Should().Contain("docfx/production/security.md");
-        content.Should().Contain("docfx/production/compatibility-matrix.md");
-        content.Should().Contain("docfx/reference/tools/index.md");
+        content.Should().Contain("https://wpf-mcptools.evanlau1798.com/");
+        content.Should().Contain("https://wpf-mcptools.evanlau1798.com/quickstart/");
+        content.Should().Contain("https://wpf-mcptools.evanlau1798.com/quickstart/ai-agent-clients.html");
+        content.Should().Contain("https://wpf-mcptools.evanlau1798.com/quickstart/sdk-hosted-inspector.html");
+        content.Should().Contain("https://wpf-mcptools.evanlau1798.com/production/deployment.html");
+        content.Should().Contain("https://wpf-mcptools.evanlau1798.com/production/security.html");
+        content.Should().Contain("https://wpf-mcptools.evanlau1798.com/production/compatibility-matrix.html");
+        content.Should().Contain("https://wpf-mcptools.evanlau1798.com/reference/tools/");
+
+        content.Should().NotContain("[DocFX home](https://installer.wpf-mcptools.evanlau1798.com/",
+            "the installer host must not be used as the DocFX endpoint");
+        content.Should().NotContain("[Quickstart](https://installer.wpf-mcptools.evanlau1798.com/",
+            "the installer host must not be used as the DocFX endpoint");
+        content.Should().NotContain("docfx/index.md");
+        content.Should().NotContain("docfx/quickstart/index.md");
+        content.Should().NotContain("docfx/quickstart/ai-agent-clients.md");
+        content.Should().NotContain("docfx/production/deployment.md");
+        content.Should().NotContain("docfx/production/security.md");
+        content.Should().NotContain("docfx/production/compatibility-matrix.md");
+        content.Should().NotContain("docfx/reference/tools/index.md");
 
         content.Should().NotContain("## MCP Client Configuration");
         content.Should().NotContain("## Tool Categories");

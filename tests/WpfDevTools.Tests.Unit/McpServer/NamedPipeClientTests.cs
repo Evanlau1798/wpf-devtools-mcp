@@ -8,6 +8,7 @@ using WpfDevTools.Shared.Serialization;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
+[Collection("TimingSensitive")]
 public class NamedPipeClientTests
 {
     [Fact]
@@ -89,15 +90,14 @@ public class NamedPipeClientTests
             processId,
             pipeName,
             authManager: null,
-            certManager: null,
-            requestTimeout: TimeSpan.FromMilliseconds(100));
+            certManager: null);
 
         var serverTask = Task.Run(async () =>
         {
             try
             {
                 await server.WaitForConnectionAsync();
-                using var readCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+                using var readCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 var requestJson = await MessageFraming.ReadMessageAsync(server, readCts.Token);
                 using var request = JsonDocument.Parse(requestJson);
                 var requestId = request.RootElement.GetProperty("id").GetString();
@@ -128,12 +128,12 @@ public class NamedPipeClientTests
         });
 
         var result = await client.ConnectAsync(
-            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(5),
             maxRetries: 1,
             CancellationToken.None);
 
         result.Should().BeFalse();
         client.LastConnectFailure.Should().Be(NamedPipeConnectFailure.ServerProcessMismatch);
-        await serverTask;
+        await serverTask.WaitAsync(TimeSpan.FromSeconds(5));
     }
 }

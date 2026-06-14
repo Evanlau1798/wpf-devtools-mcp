@@ -97,6 +97,88 @@ public sealed class SetupWizardScriptTests
     }
 
     [Fact]
+    public void OnlineInstaller_NonJsonInstall_ShouldShowConciseProgressStages()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var fakeBin = Path.Combine(tempRoot, "bin");
+            var codexLog = Path.Combine(tempRoot, "codex.log");
+            var codexCommandPath = ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "codex", codexLog);
+            var environment = CreateInstallerEnvironment(tempRoot, fakeBin);
+            environment["WPFDEVTOOLS_CODEX_COMMAND_PATH"] = codexCommandPath;
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                new[]
+                {
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "codex",
+                    "-NonInteractive",
+                    "-Force"
+                },
+                environment);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("[1/4] Resolving package");
+            result.Stdout.Should().Contain("[2/4] Installing payload");
+            result.Stdout.Should().Contain("[3/4] Registering client codex");
+            result.Stdout.Should().Contain("[4/4] Verifying installation");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstaller_NonJsonManualCliFallback_ShouldShowManualRegistrationGuidance()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var fakeBin = Path.Combine(tempRoot, "bin");
+            var commandPath = Path.Combine(fakeBin, "codex.cmd");
+            Directory.CreateDirectory(fakeBin);
+            File.WriteAllText(
+                commandPath,
+                "@echo off" + Environment.NewLine +
+                "if /I \"%1 %2\"==\"mcp add\" echo Access is denied. 1>&2" + Environment.NewLine +
+                "if /I \"%1 %2\"==\"mcp add\" exit /b 5" + Environment.NewLine +
+                "exit /b 0" + Environment.NewLine);
+
+            var environment = CreateInstallerEnvironment(tempRoot, fakeBin);
+            environment["WPFDEVTOOLS_CODEX_COMMAND_PATH"] = commandPath;
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                new[]
+                {
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "codex",
+                    "-NonInteractive",
+                    "-Force"
+                },
+                environment);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("Manual registration required");
+            result.Stdout.Should().Contain(Path.Combine("client-registration", "codex.txt"));
+            result.Stdout.Should().Contain("codex mcp add wpf-devtools");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstaller_ShouldRejectElevatedCliRegistrationWithoutTrustedAbsolutePath()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

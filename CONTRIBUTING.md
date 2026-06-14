@@ -62,6 +62,12 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`
 7. Submit pull request with clear description
 8. Address review feedback
 
+## Contribution Licensing
+
+Unless explicitly stated otherwise, any contribution intentionally submitted for inclusion in this project is submitted under the Apache License, Version 2.0.
+
+By opening a pull request, issue patch, or other contribution, you represent that you have the right to submit the contribution and agree that it may be licensed under Apache-2.0 as part of this project.
+
 ## Code Review Checklist
 
 Before submitting your pull request, ensure:

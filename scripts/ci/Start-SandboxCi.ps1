@@ -181,6 +181,7 @@ function Copy-RepositoryToWorkRoot {
         'test-output.txt',
         'unit-test-output.txt',
         'coverage-report.md',
+        'AGENTS.md',
         'CHANGELOG.md',
         '.env',
         '.env.*',

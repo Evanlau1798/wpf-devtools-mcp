@@ -1,4 +1,4 @@
-# Release Layout
+﻿# Release Layout
 
 This page documents the stable public folder contract for published release assets, extracted packages, and installed copies.
 
@@ -14,7 +14,7 @@ The documentation below describes the output of those scripts. It does not repla
 Published-release command after GitHub Release assets exist:
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
 The HTTPS alias resolves `scripts/online-installer.ps1`. Until the selected version has GitHub Release assets and sidecars, treat the release names below as the package layout contract for locally generated artifacts.

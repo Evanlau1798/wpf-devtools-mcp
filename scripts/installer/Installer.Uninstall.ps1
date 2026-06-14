@@ -52,6 +52,9 @@ function Invoke-InstallerFullUninstallCore {
             elseif ([string]::Equals([string]$registration.RegistrationMode, 'artifact-only', [System.StringComparison]::OrdinalIgnoreCase)) {
                 $trustedBackupTarget = Resolve-TrustedOtherRegistrationArtifactPath -RegistrationRecord $registration
             }
+            elseif ([string]::Equals([string]$registration.RegistrationMode, 'manual-cli-artifact', [System.StringComparison]::OrdinalIgnoreCase)) {
+                $trustedBackupTarget = Get-TrustedRecordedRegistrationTarget -ClientBaseId $clientBaseId -RegistrationRecord $registration
+            }
 
             if (-not [string]::IsNullOrWhiteSpace($trustedBackupTarget) -and (Test-Path -LiteralPath $trustedBackupTarget)) {
                 $backupPath = "{0}.rollback-{1}" -f $trustedBackupTarget, ([guid]::NewGuid().ToString('N'))

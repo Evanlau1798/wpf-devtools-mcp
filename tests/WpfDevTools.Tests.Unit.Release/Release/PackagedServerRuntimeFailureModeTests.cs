@@ -37,6 +37,8 @@ public sealed class PackagedServerRuntimeFailureModeTests
 
         $process = Start-FakePowerShellProcess "exit 0"
         try {
+            $process.WaitForExit(5000) | Out-Null
+            if (-not $process.HasExited) { throw 'Fake packaged server did not exit before closed-stdout test.' }
             Read-McpResponse -Process $process -OperationName 'initialize' -ExpectedResponseId 1 -TimeoutMilliseconds 1000
             throw 'Read-McpResponse unexpectedly accepted closed stdout.'
         }

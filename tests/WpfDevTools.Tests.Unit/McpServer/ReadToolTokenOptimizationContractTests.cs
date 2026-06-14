@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.McpTools;
 using Xunit;
@@ -75,13 +76,13 @@ public class ReadToolTokenOptimizationContractTests
     }
 
     [Fact]
-    public void GetElementSnapshot_ShouldExposeOptionalIncludePropertiesFilter()
+    public void GetElementSnapshot_ShouldExposeOptionalIncludePropertiesJsonParameter()
     {
         AssertOptionalParameter(
             typeof(SceneDiagnosticsMcpTools),
             nameof(SceneDiagnosticsMcpTools.GetElementSnapshot),
             "includeProperties",
-            typeof(string[]),
+            typeof(JsonElement?),
             null);
     }
 

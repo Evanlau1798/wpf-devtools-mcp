@@ -1,6 +1,6 @@
 // Portions of this code are derived from Snoop WPF (https://github.com/snoopwpf/snoopwpf)
 // Licensed under Microsoft Public License (Ms-PL)
-// See LICENSE file for full Ms-PL license text
+// See THIRD_PARTY_NOTICES.md for full Ms-PL license text.
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;

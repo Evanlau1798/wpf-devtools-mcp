@@ -72,7 +72,7 @@ Use these profiles as deployment templates for production or shared test worksta
 
 Injection-based `connect` sessions use HMAC challenge-response authentication by default.
 
-- The secret must be base64 encoded.
+- The secret must be base64 encoded and decode to at least 32 decoded bytes (256 bits).
 - When `WPFDEVTOOLS_AUTH_SECRET` is not set, the server generates a default secret once and reuses it across server restarts for the current user profile.
 - Set `WPFDEVTOOLS_AUTH_SECRET` when you need to override the generated secret with a deterministic shared value.
 - During injection-based bootstrap, the server writes the short-lived auth-secret handoff file as a DPAPI-protected payload and the native bootstrapper deletes it after loading. This prevents direct plaintext disclosure from the temp file, but code already running as the same Windows user remains inside the local trust boundary.

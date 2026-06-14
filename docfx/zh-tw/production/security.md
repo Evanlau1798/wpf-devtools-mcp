@@ -72,7 +72,7 @@ IPC payload size 會在 framing layer 受限制。`MessageFraming.MaxMessageSize
 
 以 injection 為基礎的 `connect` session 預設就會使用 HMAC challenge-response 驗證。
 
-- 這個 secret 必須是 base64 編碼。
+- 這個 secret 必須是 base64 編碼，且解碼後至少要有 32 decoded bytes (256 bits)。
 - 若未設定 `WPFDEVTOOLS_AUTH_SECRET`，server 會先產生一組預設 secret，之後在同一個使用者 profile 下跨 server restart 重用。
 - 若需要 deterministic 的 shared secret，可設定 `WPFDEVTOOLS_AUTH_SECRET` 來覆寫 server 產生的預設 secret。
 - 在 injection-based bootstrap 期間，server 會把短生命週期的 auth-secret handoff file 寫成 DPAPI-protected payload，native bootstrapper 讀取後會刪除該檔案。這可以避免 temp file 直接暴露 plaintext secret，但已經以同一 Windows 使用者執行的本機程式仍屬於 local trust boundary。

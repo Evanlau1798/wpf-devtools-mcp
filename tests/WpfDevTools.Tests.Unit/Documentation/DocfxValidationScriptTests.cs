@@ -110,6 +110,43 @@ public sealed class DocfxValidationScriptTests
             "relative paths that may contain separators should be joined segment-by-segment");
     }
 
+    [Fact]
+    public async Task DeleteFixture_WhenGeneratedSiteDirectoryIsTemporarilyLocked_ShouldRetry()
+    {
+        var fixture = CreateFixture();
+        var lockedDirectory = Path.Combine(fixture, "docfx", "_site", "reference");
+        Directory.CreateDirectory(lockedDirectory);
+        var lockedFile = Path.Combine(lockedDirectory, "locked.txt");
+
+        using var stream = new FileStream(
+            lockedFile,
+            FileMode.Create,
+            FileAccess.ReadWrite,
+            FileShare.None);
+        var releaseTask = Task.Run(async () =>
+        {
+            await Task.Delay(250);
+            stream.Dispose();
+        });
+
+        try
+        {
+            var act = () => DeleteFixture(fixture);
+
+            act.Should().NotThrow();
+            Directory.Exists(fixture).Should().BeFalse();
+        }
+        finally
+        {
+            stream.Dispose();
+            await releaseTask.WaitAsync(TimeSpan.FromSeconds(5));
+            if (Directory.Exists(fixture))
+            {
+                Directory.Delete(fixture, recursive: true);
+            }
+        }
+    }
+
     private static string CreateFixture()
         => Path.Combine(Path.GetTempPath(), $"wpf-devtools-docfx-validation-{Guid.NewGuid():N}");
 
@@ -174,11 +211,28 @@ public sealed class DocfxValidationScriptTests
 
     private static void DeleteFixture(string root)
     {
-        if (Directory.Exists(root))
+        if (!Directory.Exists(root))
         {
-            Directory.Delete(root, recursive: true);
+            return;
+        }
+
+        const int maxAttempts = 10;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                Directory.Delete(root, recursive: true);
+                return;
+            }
+            catch (Exception ex) when (IsTransientDeleteFailure(ex) && attempt < maxAttempts)
+            {
+                System.Threading.Thread.Sleep(TimeSpan.FromMilliseconds(100 * attempt));
+            }
         }
     }
+
+    private static bool IsTransientDeleteFailure(Exception exception)
+        => exception is IOException or UnauthorizedAccessException;
 
     private sealed record ScriptResult(int ExitCode, string CombinedOutput);
 }

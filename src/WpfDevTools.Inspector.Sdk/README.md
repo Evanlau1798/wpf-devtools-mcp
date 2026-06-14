@@ -145,4 +145,4 @@ If initialization fails because the security environment variables are malformed
 
 ## License
 
-MIT License
+WPF DevTools Inspector SDK is licensed under the Apache License, Version 2.0.

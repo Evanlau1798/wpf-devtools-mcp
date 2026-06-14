@@ -52,7 +52,7 @@ Do not treat this as a blanket input-validation gap for tool execution. The proj
 ### 2. Named pipe authentication
 
 - Injection-based `connect` sessions use HMAC challenge-response authentication by default.
-- The shared secret must be base64 encoded.
+- The shared secret must be base64 encoded and decode to at least 32 decoded bytes (256 bits).
 - When `WPFDEVTOOLS_AUTH_SECRET` is not set, the server generates a default secret once and reuses it across server restarts for the current user profile.
 - Set `WPFDEVTOOLS_AUTH_SECRET` when you need to override the generated secret with a deterministic shared value.
 - During injection-based bootstrap, the server writes the short-lived auth-secret handoff file as a DPAPI-protected payload and the native bootstrapper deletes it after loading. This prevents direct plaintext disclosure from the temp file, but code already running as the same Windows user remains inside the local trust boundary.
@@ -92,7 +92,7 @@ Remove-Item -LiteralPath "$env:APPDATA\WpfDevTools\certs" -Recurse -Force
 
 | Variable | Effect | Recommended usage |
 | --- | --- | --- |
-| `WPFDEVTOOLS_AUTH_SECRET` | Overrides the generated HMAC authentication secret | Set in production when you need deterministic secret rotation or SDK-mode coordination |
+| `WPFDEVTOOLS_AUTH_SECRET` | Overrides the generated HMAC authentication secret | Must be base64 encoded and at least 32 decoded bytes (256 bits); set in production when you need deterministic secret rotation or SDK-mode coordination |
 | `WPFDEVTOOLS_CERT_DIR` | Overrides the default TLS certificate directory | Use a shared local absolute directory with restricted filesystem permissions when certificate storage must be pinned or shared with SDK mode; network paths are not allowed |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | Pins the expected certificate thumbprint | Use when you need deterministic certificate selection |
 | `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Explicitly allowlists raw-injection targets | Use a semicolon-separated list of exact local absolute executable paths only when SDK-hosted reuse is not feasible; malformed configured entries fail with `InvalidPolicyConfiguration` |

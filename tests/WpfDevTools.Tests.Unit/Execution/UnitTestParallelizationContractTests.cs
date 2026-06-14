@@ -304,6 +304,7 @@ public sealed class UnitTestParallelizationContractTests
         GetCollectionName(typeof(EventAnalyzerHandledEventRegressionTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(EventHandlerTraceModeTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InspectorHostTests)).Should().Be("TimingSensitive");
+        GetCollectionName(typeof(NamedPipeClientTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(NamedPipeClientProtocolTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(NamedPipeClientTimeoutBudgetTests)).Should().Be("TimingSensitive");
         GetCollectionName(typeof(InspectorHostAuthTests)).Should().Be("TimingSensitive");

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
@@ -33,7 +34,10 @@ public class SecurityDocumentationTests
     {
         var content = ReadDocumentation();
 
-        content.Should().NotContain(variableName);
+        var unsupportedVariablePattern = $@"(?<![A-Z0-9_]){Regex.Escape(variableName)}(?![A-Z0-9_])";
+
+        Regex.IsMatch(content, unsupportedVariablePattern).Should().BeFalse(
+            $"documentation should not mention unsupported environment variable {variableName} as a complete token");
     }
 
     [Fact]

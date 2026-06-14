@@ -8,6 +8,10 @@ namespace WpfDevTools.Mcp.Server.Tools;
 
 public sealed partial class ConnectTool
 {
+    private const string ConnectionSourceActiveSession = "active-session";
+    private const string ConnectionSourceSdkHostedInspector = "sdk-hosted-inspector";
+    private const string ConnectionSourceRawInjection = "raw-injection";
+
     private static object CreateConnectResponse(
         object connectResult,
         int processId,
@@ -58,6 +62,7 @@ public sealed partial class ConnectTool
                 success = true,
                 message,
                 processId,
+                connectionSource = ConnectionSourceActiveSession,
                 processName = candidate.ProcessName,
                 windowTitle = candidate.WindowTitle,
                 autoDiscovered = true,
@@ -76,7 +81,8 @@ public sealed partial class ConnectTool
         {
             success = true,
             message,
-            processId
+            processId,
+            connectionSource = ConnectionSourceActiveSession
         };
     }
 
@@ -101,6 +107,7 @@ public sealed partial class ConnectTool
                     success = true,
                     message,
                     processId,
+                    connectionSource = ConnectionSourceSdkHostedInspector,
                     processName = candidate.ProcessName,
                     windowTitle = candidate.WindowTitle,
                     autoDiscovered = true,
@@ -121,6 +128,7 @@ public sealed partial class ConnectTool
                 success = true,
                 message,
                 processId,
+                connectionSource = ConnectionSourceRawInjection,
                 processName = candidate.ProcessName,
                 windowTitle = candidate.WindowTitle,
                 autoDiscovered = true,
@@ -142,6 +150,7 @@ public sealed partial class ConnectTool
                 success = true,
                 message,
                 processId,
+                connectionSource = ConnectionSourceSdkHostedInspector,
                 reusedExistingHost = true
             };
         }
@@ -150,7 +159,8 @@ public sealed partial class ConnectTool
         {
             success = true,
             message,
-            processId
+            processId,
+            connectionSource = ConnectionSourceRawInjection
         };
     }
 

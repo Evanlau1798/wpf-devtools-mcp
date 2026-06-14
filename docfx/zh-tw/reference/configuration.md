@@ -4,7 +4,7 @@
 
 | 變數 | 用途 | 備註 |
 | --- | --- | --- |
-| `WPFDEVTOOLS_AUTH_SECRET` | 覆寫 persisted/default HMAC 驗證 secret | 必須是 base64 編碼；injection session 預設會啟用驗證 |
+| `WPFDEVTOOLS_AUTH_SECRET` | 覆寫 persisted/default HMAC 驗證 secret | 必須是 base64 編碼，且至少 32 decoded bytes (256 bits)；injection session 預設會啟用驗證 |
 | `WPFDEVTOOLS_CERT_DIR` | 覆寫預設 TLS certificate directory | 請使用受保護的本機目錄；injection session 預設使用 TLS |
 | `WPFDEVTOOLS_CERT_THUMBPRINT` | pin 預期憑證的 thumbprint | 在高限制部署中很有幫助 |
 | `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | allowlist raw-injection target executable | 以分號分隔的 exact local absolute executable path；malformed entry 會回 `InvalidPolicyConfiguration`；優先使用 SDK-hosted reuse |

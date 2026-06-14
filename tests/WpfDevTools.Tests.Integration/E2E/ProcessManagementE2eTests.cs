@@ -29,7 +29,7 @@ public sealed class ProcessManagementE2eTests
 
         var result = await _fixture.Client.CallToolAsync(
             "get_processes",
-            new { nameFilter = "WpfDevTools.Tests.TestApp" });
+            new { nameFilter = "WpfDevTools.Tests.TestApp", windowFilter = "all" });
 
         _output.WriteLine($"get_processes result: {result.GetRawText()}");
 
@@ -52,7 +52,9 @@ public sealed class ProcessManagementE2eTests
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
 
-        var result = await _fixture.Client.CallToolAsync("get_processes");
+        var result = await _fixture.Client.CallToolAsync(
+            "get_processes",
+            new { windowFilter = "all" });
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("processes").GetArrayLength().Should().BeGreaterOrEqualTo(1,

@@ -1,4 +1,4 @@
-# Agent 輔助安裝
+﻿# Agent 輔助安裝
 
 當 AI agent 協助使用者安裝 WPF DevTools MCP 時，請使用這份規格。Agent 必須先規劃、在使用者確認前避免副作用、驗證 release provenance，並且只呼叫已審查的 installer entrypoint。
 
@@ -108,21 +108,43 @@ release_<version>_win-<arch>.zip
 對應 GitHub Release assets 存在後，公開 HTTPS installer entrypoint 是：
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
 這個 alias 會解析到 published release 對應的已審查 `scripts/online-installer.ps1` entrypoint。
 
-在 GitHub Release assets 存在前，pre-release E2E 請改為驗證 source checkout 與本機 package feed：
+正式公開 release 前的 pre-release E2E，請從公開 installer alias 下載已審查的 online installer，並在不 clone repository 的情況下安裝最新 GitHub pre-release：
 
 ```powershell
-git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
-cd wpf-devtools-mcp
-dotnet pack --configuration Release --output ./artifacts/package
-dotnet tool install --tool-path ./.tools --add-source ./artifacts/package <PackageId>
+$e2eRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'wpf-devtools-mcp-e2e'
+New-Item -ItemType Directory -Force -Path $e2eRoot | Out-Null
+$installerPath = Join-Path $e2eRoot 'online-installer.ps1'
+$installerDownload = @{
+    Uri = 'https://installer.wpf-mcptools.evanlau1798.com/'
+    OutFile = $installerPath
+}
+if ((Get-Command Invoke-WebRequest).Parameters.ContainsKey('UseBasicParsing')) {
+    $installerDownload.UseBasicParsing = $true
+}
+Invoke-WebRequest @installerDownload
+$installRoot = Join-Path $e2eRoot 'installed-wpf-devtools'
+$workingRoot = Join-Path $e2eRoot 'installer-work'
+powershell -ExecutionPolicy Bypass -File $installerPath -Version latest -Prerelease -Architecture x64 -Client other -InstallRoot $installRoot -WorkingRoot $workingRoot -NonInteractive -Force -OutputJson
 ```
 
-`<PackageId>` 必須對應本次要驗證的 package。不要在 release asset smoke gate 通過前，把這條 pre-release E2E 路徑替換成公開一行安裝。
+Pre-release E2E 需要 GitHub pre-release 內含對應 package archive 與 sidecars，包含 `release-assets.json`、`SHA256SUMS.txt`、`release-sbom.spdx.json` 與 `release-evidence.json`。signed `Release` packaging 仍需要 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。validation-only E2E 請使用 `-Client other`，讓 installer 只輸出 artifact-only registration，不修改真實 MCP client 設定。
+
+Direct MCP STDIO smoke tests 必須每行送出一個 newline-delimited JSON (NDJSON) JSON-RPC message。不要對此 server 的 STDIO transport 使用 `Content-Length` framed messages。large `tools/list` schema payload 很大，請使用 Python、PowerShell 7 或 .NET 等真正 JSON parser，不要使用 regex 或固定行長假設。
+
+Minimal NDJSON smoke sequence:
+
+```jsonl
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"external-e2e","version":"1.0"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"connect","arguments":{}}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_ui_summary","arguments":{"depthMode":"semantic"}}}
+```
 
 ## 來源驗證
 
@@ -177,6 +199,17 @@ Release signing helper path：
 - self-signed certificate 只適用 local/dev/test，不具 production trust。
 - 本機 artifact 簽章後，重新產生 `SHA256SUMS.txt`、`release-assets.json` 與 `release-sbom.spdx.json`。
 
+## External E2E validation checklist
+
+- 從 fresh clone from GitHub 開始，不要使用呼叫者的 local worktree。
+- 安裝前先閱讀這份 guide 與 `AGENT_INSTALL.md`。
+- 使用 `-Version latest -Prerelease` 搭配明確 `-InstallRoot` 與 `-WorkingRoot` 安裝最新 GitHub pre-release package。
+- 從 clone 啟動 golden WPF TestApp。
+- 透過 STDIO 啟動安裝後的 packaged MCP server，並送出 real JSON-RPC requests。
+- 驗證 `tools/list` 回報 64 tools。
+- 驗證 `connect`、`get_active_process`、`get_ui_summary` 與一個 safe read tool。
+- 將 P0/P1 blockers 與 P2/P3 documentation 或 polish findings 分開回報。
+
 ## 疑難排解
 
 - 如果 OS 不是 Windows，停止並回報 server 僅支援 Windows。
@@ -189,5 +222,5 @@ Release signing helper path：
 ## 可複製 Agent prompt
 
 ```text
-Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Run powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, then present a plan that includes version, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, release-sbom.spdx.json, release-evidence.json, and signer pin policy. Ask for confirmation before mutation. After approval, use irm https://wpf-mcptools.evanlau1798.com | iex only when the matching GitHub Release assets exist; otherwise use the pre-release E2E source package path or a reviewed local package fallback. Inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
+Read AGENT_INSTALL.md or docfx/guides/agent-assisted-install.md. Do not install yet. Run powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, then present a plan that includes version, releaseChannel, architecture, install root, client id, release archive, SHA256SUMS.txt, release-assets.json, release-sbom.spdx.json, release-evidence.json, and signer pin policy. Ask for confirmation before mutation. After approval, use irm https://installer.wpf-mcptools.evanlau1798.com | iex only when the matching GitHub Release assets exist; otherwise use the GitHub pre-release online-installer E2E path or a reviewed local package fallback. Inspect generated client-registration artifacts, verify the installed executable, and report results without secrets.
 ```

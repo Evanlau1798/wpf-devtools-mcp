@@ -4,6 +4,8 @@ param(
 
     [string]$Version = 'latest',
 
+    [switch]$Prerelease,
+
     [ValidateSet('x64', 'x86', 'arm64')]
     [string]$Architecture,
 
@@ -34,6 +36,37 @@ $script:InstallRootWasSpecified = $PSBoundParameters.ContainsKey('InstallRoot')
 $script:PackageArchivePathWasSpecified = $PSBoundParameters.ContainsKey('PackageArchivePath')
 $script:TrustedReleaseMetadataDirectoryWasSpecified = $PSBoundParameters.ContainsKey('TrustedReleaseMetadataDirectory')
 $script:InstallerTestResponses = New-Object System.Collections.Generic.Queue[string]
+
+function Invoke-InstallerWebRequest {
+    param(
+        [Parameter(Mandatory)] [string]$Uri,
+        [string]$OutFile,
+        [hashtable]$Headers,
+        [int]$TimeoutSec
+    )
+
+    $parameters = @{
+        Uri = $Uri
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($OutFile)) {
+        $parameters['OutFile'] = $OutFile
+    }
+
+    if ($null -ne $Headers) {
+        $parameters['Headers'] = $Headers
+    }
+
+    if ($TimeoutSec -gt 0) {
+        $parameters['TimeoutSec'] = $TimeoutSec
+    }
+
+    if ((Get-Command Invoke-WebRequest).Parameters.ContainsKey('UseBasicParsing')) {
+        $parameters['UseBasicParsing'] = $true
+    }
+
+    return Invoke-WebRequest @parameters
+}
 
 if ($Action -ne 'plan' -and $script:TrustedReleaseMetadataDirectoryWasSpecified) {
     if ([string]::IsNullOrWhiteSpace($TrustedReleaseMetadataDirectory)) {
@@ -287,7 +320,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:49cdc0e8a05cb20445261666a28880230f1532d2bfef17587c75939a9437d7fb'
+$script:InstallerHelperManifestCacheKey = 'sha256:08dfdd41ba90f46d8cf17e4f3851f3f73f68c6b65e63309dab3245295a6382bd'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/online-installer.release-assets.ps1'
     'scripts/installer/Installer.BootstrapUi.ps1'
@@ -333,7 +366,7 @@ $script:InstallerHelperSourcePaths = @(
 $script:InstallerHelperRepositoryRelativePath = 'scripts/installer'
 $script:InstallerReleaseAssetModuleLeafName = 'online-installer.release-assets.ps1'
 $script:InstallerReleaseAssetModuleRepositoryRelativePath = 'scripts/installer/online-installer.release-assets.ps1'
-$script:InstallerReleaseAssetModuleSha256 = '88e80e40ed110bbabcb991e3248d3df2adf2d39f6133ee66b165d5cf53106ca6'
+$script:InstallerReleaseAssetModuleSha256 = '5e71a68fae23d7cc90bab58eb5487ea9841b24dd3096758ec7740e11bb20bd61'
 # Shared installer modules own Resolve-InstallerStatePath, Save-InstallerState,
 # installer-state.json handling, Get-AvailableInstallerUpdates, and the rest of
 # the persistent state/update flow.
@@ -380,6 +413,7 @@ $script:GitHubReleaseApiResponseCache = @{}
 $script:GitHubReleaseChecksumRecordCache = @{}
 $script:TuiHelperBootstrapArchive = $null
 $script:TrustedLocalPackageArchivePath = $null
+$script:InstallerSharedModulePathsCache = $null
 function Resolve-InstallerScriptRoot {
     if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
         return $PSScriptRoot
@@ -490,7 +524,7 @@ function Import-OnlineInstallerReleaseAssetModule {
     }
 
     $moduleUri = Get-InstallerReleaseAssetModuleUri
-    $moduleContent = [string](Invoke-WebRequest -Uri $moduleUri -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15).Content
+    $moduleContent = [string](Invoke-InstallerWebRequest -Uri $moduleUri -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15).Content
     $actualRemoteHash = Get-InstallerTextSha256Hex -Content $moduleContent
     if (-not [string]::Equals($actualRemoteHash, $script:InstallerReleaseAssetModuleSha256, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Installer release asset module integrity verification failed for $moduleUri."
@@ -3057,7 +3091,7 @@ function Get-TuiHelperManifest {
         return $manifest
     }
 
-    if (Resolve-InstallerMode -ne 'online') {
+    if ((Resolve-InstallerMode) -ne 'online') {
         return $null
     }
 
@@ -3075,7 +3109,7 @@ function Get-TuiHelperManifest {
         if (-not $SuppressBootstrapOutput) {
             Write-TuiBootstrapScreen 'Preparing installer UI... (manifest)' | Out-Host
         }
-        Invoke-WebRequest -Uri $manifestUri -OutFile $temporaryManifestPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec (Get-TuiHelperRequestTimeoutSeconds)
+        Invoke-InstallerWebRequest -Uri $manifestUri -OutFile $temporaryManifestPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec (Get-TuiHelperRequestTimeoutSeconds)
         Move-StandalonePathWithRetry -SourcePath $temporaryManifestPath -DestinationPath $manifestPath
     }
     catch {
@@ -3130,7 +3164,7 @@ function Ensure-TuiHelpersAvailable {
         }
     }
 
-    if (Resolve-InstallerMode -eq 'offline' -and (Test-PackageArchiveRequested)) {
+    if ((Resolve-InstallerMode) -eq 'offline' -and (Test-PackageArchiveRequested)) {
         $runtimeRoot = Get-TuiHelperRuntimeRoot
         $helperFiles = @(Get-HelperLeafNames)
         $archivePath = [string]$PackageArchivePath
@@ -3160,7 +3194,7 @@ function Ensure-TuiHelpersAvailable {
         return $runtimeRoot
     }
 
-    if (Resolve-InstallerMode -ne 'online') {
+    if ((Resolve-InstallerMode) -ne 'online') {
         return $null
     }
 
@@ -3199,7 +3233,7 @@ function Ensure-TuiHelpersAvailable {
             $downloadUri = "$downloadBaseUri/$helperFile"
             $temporaryPath = Assert-InstallerLocalPathTrusted -Path "$destinationPath.download"
             try {
-                Invoke-WebRequest -Uri $downloadUri -OutFile $temporaryPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec $requestTimeoutSeconds
+                Invoke-InstallerWebRequest -Uri $downloadUri -OutFile $temporaryPath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec $requestTimeoutSeconds
                 if ($helperRecordMap.ContainsKey($helperFile)) {
                     Assert-InstallerHelperFileRecord -HelperPath $temporaryPath -HelperRecord $helperRecordMap[$helperFile]
                 }
@@ -3224,7 +3258,7 @@ function Ensure-TuiHelpersAvailable {
             Write-TuiBootstrapScreen 'Preparing installer UI... (archive)' | Out-Host
         }
 
-        Invoke-WebRequest -Uri ([string]$archiveDownload.DownloadUri) -OutFile $temporaryArchivePath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec (Get-TuiHelperRequestTimeoutSeconds)
+        Invoke-InstallerWebRequest -Uri ([string]$archiveDownload.DownloadUri) -OutFile $temporaryArchivePath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec (Get-TuiHelperRequestTimeoutSeconds)
         Move-StandalonePathWithRetry -SourcePath $temporaryArchivePath -DestinationPath $archivePath
         Assert-TuiHelperArchiveIntegrity -ArchivePath $archivePath -DownloadDetails $archiveDownload
         Copy-InstallerHelperBundleFromArchive -ArchivePath $archivePath -DestinationRoot $runtimeRoot -HelperFiles $helperFiles
@@ -3256,6 +3290,10 @@ function Ensure-TuiHelpersAvailable {
 function Get-InstallerSharedModulePaths {
     param([switch]$AllowMissing)
 
+    if ($null -ne $script:InstallerSharedModulePathsCache) {
+        return @($script:InstallerSharedModulePathsCache)
+    }
+
     try {
         $helperRoot = Ensure-TuiHelpersAvailable -SuppressBootstrapOutput
     }
@@ -3285,7 +3323,8 @@ function Get-InstallerSharedModulePaths {
         $helperPaths.Add($helperPath)
     }
 
-    return @($helperPaths)
+    $script:InstallerSharedModulePathsCache = @($helperPaths.ToArray())
+    return @($script:InstallerSharedModulePathsCache)
 }
 function Import-TuiHelpers {
     $helperRoot = Ensure-TuiHelpersAvailable
@@ -3644,6 +3683,7 @@ function Get-InstallerPlan {
         contractVersion = 1
         platform = 'windows'
         version = [string]$Version
+        releaseChannel = Get-InstallerReleaseChannel
         architecture = [string]$resolvedArchitecture
         client = [string]$resolvedClient
         installRootDefault = [string]$installRootPlan.InstallRootDefault
@@ -3659,8 +3699,41 @@ function Get-InstallerPlan {
         mutationBoundary = 'read-only discovery only; no download, install, registration, or filesystem mutation before user confirmation'
     }
 }
+function Get-InstallerReleaseChannel {
+    if ($Prerelease) {
+        return 'prerelease'
+    }
+
+    return 'stable'
+}
+function Get-GitHubReleaseListApiUri {
+    return 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases?per_page=20'
+}
+function Select-LatestInstallerPrereleaseVersion {
+    param($Releases)
+
+    foreach ($release in @($Releases)) {
+        if ($null -eq $release) {
+            continue
+        }
+
+        $propertyNames = @($release.PSObject.Properties.Name)
+        $isDraft = $propertyNames -contains 'draft' -and [bool]$release.draft
+        $isPrerelease = $propertyNames -contains 'prerelease' -and [bool]$release.prerelease
+        $tagName = if ($propertyNames -contains 'tag_name') { [string]$release.tag_name } else { $null }
+        if (-not $isDraft -and $isPrerelease -and -not [string]::IsNullOrWhiteSpace($tagName)) {
+            return $tagName.TrimStart('v', 'V')
+        }
+    }
+
+    return $null
+}
 function Resolve-LatestVersionCachePath {
-    param([switch]$CreateRoot)
+    param(
+        [switch]$CreateRoot,
+        [ValidateSet('stable', 'prerelease')]
+        [string]$ReleaseChannel = (Get-InstallerReleaseChannel)
+    )
 
     $stateRoot = Assert-InstallerLocalPathTrusted -Path (Join-Path $env:APPDATA 'WpfDevToolsMcp')
     if ($CreateRoot) {
@@ -3668,10 +3741,16 @@ function Resolve-LatestVersionCachePath {
         Assert-InstallerLocalPathTrusted -Path $stateRoot | Out-Null
     }
 
-    return (Join-Path $stateRoot 'latest-release-cache.json')
+    $cacheFileName = if ($ReleaseChannel -eq 'prerelease') { 'latest-prerelease-release-cache.json' } else { 'latest-release-cache.json' }
+    return (Join-Path $stateRoot $cacheFileName)
 }
 function Get-CachedLatestInstallerVersion {
-    $cachePath = Resolve-LatestVersionCachePath
+    param(
+        [ValidateSet('stable', 'prerelease')]
+        [string]$ReleaseChannel = (Get-InstallerReleaseChannel)
+    )
+
+    $cachePath = Resolve-LatestVersionCachePath -ReleaseChannel $ReleaseChannel
     if (-not (Test-Path -LiteralPath $cachePath)) {
         return $null
     }
@@ -3685,16 +3764,21 @@ function Get-CachedLatestInstallerVersion {
     }
 }
 function Save-LatestInstallerVersionCache {
-    param([Parameter(Mandatory)] [string]$VersionValue)
+    param(
+        [Parameter(Mandatory)] [string]$VersionValue,
+        [ValidateSet('stable', 'prerelease')]
+        [string]$ReleaseChannel = (Get-InstallerReleaseChannel)
+    )
 
     if ([string]::IsNullOrWhiteSpace($VersionValue)) {
         return
     }
 
-    $cachePath = Resolve-LatestVersionCachePath -CreateRoot
+    $cachePath = Resolve-LatestVersionCachePath -CreateRoot -ReleaseChannel $ReleaseChannel
     Assert-InstallerLocalPathTrusted -Path $cachePath -RejectHardLinks | Out-Null
     [ordered]@{
         version = $VersionValue
+        releaseChannel = $ReleaseChannel
         refreshedUtc = [DateTime]::UtcNow.ToString('o')
     } | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $cachePath -Encoding UTF8
 }
@@ -3812,7 +3896,7 @@ function Resolve-PackageSession {
     }
     else {
         $archivePath = Join-Path $sessionRoot ([string]$downloadDetails.AssetName)
-        Invoke-WebRequest -Uri ([string]$downloadDetails.DownloadUri) -OutFile $archivePath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec (Get-ReleaseArchiveDownloadTimeoutSeconds)
+        Invoke-InstallerWebRequest -Uri ([string]$downloadDetails.DownloadUri) -OutFile $archivePath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec (Get-ReleaseArchiveDownloadTimeoutSeconds)
     }
 
     $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'github-release' -ResolvedVersion ([string]$downloadDetails.ResolvedVersion) -ResolvedArchitecture $ResolvedArchitecture
@@ -3961,19 +4045,30 @@ function Get-CliSelection {
 function Get-LatestInstallerVersion {
     param([switch]$UseCacheOnly)
 
-    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION)) {
+    $releaseChannel = Get-InstallerReleaseChannel
+    if ($releaseChannel -eq 'prerelease' -and -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_PRERELEASE_VERSION)) {
+        return $env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_PRERELEASE_VERSION
+    }
+
+    if ($releaseChannel -eq 'stable' -and -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION)) {
         return $env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION
     }
 
-    $cachedVersion = Get-CachedLatestInstallerVersion
+    $cachedVersion = Get-CachedLatestInstallerVersion -ReleaseChannel $releaseChannel
     if ($UseCacheOnly) {
         return $cachedVersion
     }
 
     try {
-        $latestVersion = [string](Invoke-RestMethod -Uri (Get-GitHubReleaseApiUri -ResolvedVersion 'latest') -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10).tag_name.TrimStart('v')
+        $latestVersion = if ($releaseChannel -eq 'prerelease') {
+            Select-LatestInstallerPrereleaseVersion -Releases (Invoke-RestMethod -Uri (Get-GitHubReleaseListApiUri) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10)
+        }
+        else {
+            [string](Invoke-RestMethod -Uri (Get-GitHubReleaseApiUri -ResolvedVersion 'latest') -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10).tag_name.TrimStart('v')
+        }
+
         if (-not [string]::IsNullOrWhiteSpace($latestVersion)) {
-            Save-LatestInstallerVersionCache -VersionValue $latestVersion
+            Save-LatestInstallerVersionCache -VersionValue $latestVersion -ReleaseChannel $releaseChannel
             return $latestVersion
         }
     }
@@ -3983,7 +4078,15 @@ function Get-LatestInstallerVersion {
     return $cachedVersion
 }
 function Start-LatestInstallerVersionRefresh {
-    if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_VERSION)) {
+    $releaseChannel = Get-InstallerReleaseChannel
+    if ($releaseChannel -eq 'prerelease' -and -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_PRERELEASE_VERSION)) {
+        return [ordered]@{
+            Mode = 'test'
+            Version = $env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_PRERELEASE_VERSION
+        }
+    }
+
+    if ($releaseChannel -eq 'stable' -and -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_VERSION)) {
         return [ordered]@{
             Mode = 'test'
             Version = $env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_VERSION
@@ -3992,12 +4095,30 @@ function Start-LatestInstallerVersionRefresh {
 
     $refreshDirectory = Resolve-AbsoluteDirectory -Path (Join-Path $env:TEMP 'wpf-devtools-online-installer\latest-version-refresh')
     Assert-InstallerLocalPathTrusted -Path $refreshDirectory | Out-Null
-    $releaseApiUri = Get-GitHubReleaseApiUri -ResolvedVersion 'latest'
+    $releaseApiUri = if ($releaseChannel -eq 'prerelease') { Get-GitHubReleaseListApiUri } else { Get-GitHubReleaseApiUri -ResolvedVersion 'latest' }
     $escapedReleaseApiUri = ConvertTo-SingleQuotedPowerShellLiteral -Value $releaseApiUri
+    $prereleaseLiteral = if ($releaseChannel -eq 'prerelease') { '$true' } else { '$false' }
     $encodedCommand = ConvertTo-PowerShellEncodedCommand -CommandText @"
 \$ProgressPreference = 'SilentlyContinue'
 try {
-    \$latestVersion = [string](Invoke-RestMethod -Uri '$escapedReleaseApiUri' -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10).tag_name.TrimStart('v')
+    \$latestVersion = \$null
+    if ($prereleaseLiteral) {
+        \$releases = @(Invoke-RestMethod -Uri '$escapedReleaseApiUri' -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10)
+        foreach (\$release in \$releases) {
+            if (\$null -eq \$release) { continue }
+            \$propertyNames = @(\$release.PSObject.Properties.Name)
+            \$isDraft = \$propertyNames -contains 'draft' -and [bool]\$release.draft
+            \$isPrerelease = \$propertyNames -contains 'prerelease' -and [bool]\$release.prerelease
+            \$tagName = if (\$propertyNames -contains 'tag_name') { [string]\$release.tag_name } else { \$null }
+            if (-not \$isDraft -and \$isPrerelease -and -not [string]::IsNullOrWhiteSpace(\$tagName)) {
+                \$latestVersion = \$tagName.TrimStart('v', 'V')
+                break
+            }
+        }
+    }
+    else {
+        \$latestVersion = [string](Invoke-RestMethod -Uri '$escapedReleaseApiUri' -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 10).tag_name.TrimStart('v')
+    }
     if (-not [string]::IsNullOrWhiteSpace(\$latestVersion)) {
         [ordered]@{ version = \$latestVersion; error = \$null; exitCode = 0 } | ConvertTo-Json -Depth 3 -Compress
         exit 0
@@ -4086,7 +4207,7 @@ function Receive-LatestInstallerVersionRefresh {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($resolvedVersion)) {
-        Save-LatestInstallerVersionCache -VersionValue $resolvedVersion
+        Save-LatestInstallerVersionCache -VersionValue $resolvedVersion -ReleaseChannel (Get-InstallerReleaseChannel)
     }
     elseif ([string]::IsNullOrWhiteSpace($errorMessage) -and $exitCode -ne 0) {
         $errorMessage = "Background metadata refresh exited with code $exitCode."
@@ -4154,7 +4275,7 @@ function Test-TuiSupport {
     }
     catch {
         $script:LastTuiBootstrapFailureReason = $_.Exception.Message
-        if (Resolve-InstallerMode -eq 'offline') {
+        if ((Resolve-InstallerMode) -eq 'offline') {
             Close-TuiBootstrapScreen
             throw "The installer runtime bundled with this package failed integrity or bootstrap validation. $script:LastTuiBootstrapFailureReason"
         }
@@ -4234,6 +4355,22 @@ function Assert-InstallerHelperRuntimeAvailable {
         throw "The installer runtime required for $ResolvedAction is unavailable. Re-run the installer with network access or use a full offline package."
     }
 }
+function Add-InstallerReleaseChannelToResult {
+    param($Result)
+
+    if ($null -eq $Result) {
+        return $Result
+    }
+
+    $releaseChannel = Get-InstallerReleaseChannel
+    if ($Result -is [System.Collections.IDictionary]) {
+        $Result['releaseChannel'] = $releaseChannel
+        return $Result
+    }
+
+    $Result | Add-Member -NotePropertyName 'releaseChannel' -NotePropertyValue $releaseChannel -Force
+    return $Result
+}
 function Invoke-InstallerAction {
     param(
         [Parameter(Mandatory)] [ValidateSet('install', 'uninstall', 'full-uninstall')] [string]$ResolvedAction,
@@ -4258,22 +4395,24 @@ function Invoke-InstallerAction {
     }
 
     if ($shouldUseStandaloneFallback) {
-        return (Invoke-StandaloneInstallerActionCore `
+        $standaloneResult = Invoke-StandaloneInstallerActionCore `
                 -ResolvedAction $ResolvedAction `
                 -ResolvedArchitecture $ResolvedArchitecture `
                 -ResolvedClient $ResolvedClient `
                 -ResolvedInstallRoot $ResolvedInstallRoot `
                 -RequestedVersion $RequestedVersion `
-                -UseLatestRelease:$UseLatestRelease)
+                -UseLatestRelease:$UseLatestRelease
+        return (Add-InstallerReleaseChannelToResult -Result $standaloneResult)
     }
 
-    return (Invoke-InstallerActionCore `
+    $actionResult = Invoke-InstallerActionCore `
             -ResolvedAction $ResolvedAction `
             -ResolvedArchitecture $ResolvedArchitecture `
             -ResolvedClient $ResolvedClient `
             -ResolvedInstallRoot $ResolvedInstallRoot `
             -RequestedVersion $RequestedVersion `
-            -UseLatestRelease:$UseLatestRelease)
+            -UseLatestRelease:$UseLatestRelease
+    return (Add-InstallerReleaseChannelToResult -Result $actionResult)
 }
 function Start-TuiInstaller {
     param(
@@ -4419,5 +4558,24 @@ else {
     }
     if (-not [string]::IsNullOrWhiteSpace($versionHint)) {
         Write-InstallerMessage $versionHint
+    }
+
+    $manualRegistration = @($result.registrations | Where-Object {
+            $null -ne $_ -and
+            $_.Contains('mode') -and
+            [string]::Equals([string]$_.mode, 'manual-cli-artifact', [System.StringComparison]::OrdinalIgnoreCase)
+        } | Select-Object -First 1)
+    if ($manualRegistration.Count -gt 0) {
+        $manualTarget = [string]$manualRegistration[0].target
+        Write-InstallerMessage "Manual registration required. Review the generated command file: $manualTarget"
+        try {
+            $manualCommand = @(Get-Content -LiteralPath $manualTarget | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1)
+            if ($manualCommand.Count -gt 0) {
+                Write-InstallerMessage "Manual command: $([string]$manualCommand[0])"
+            }
+        }
+        catch {
+            Write-InstallerMessage 'Manual command could not be read from the generated artifact.'
+        }
     }
 }

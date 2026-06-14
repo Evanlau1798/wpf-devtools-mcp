@@ -53,6 +53,23 @@ public sealed class ConfigurationReferenceDocumentationTests
         content.Should().Contain("Overrides the default TLS certificate directory");
     }
 
+    [Theory]
+    [InlineData("README.md")]
+    [InlineData("SECURITY.md")]
+    [InlineData("docfx/reference/configuration.md")]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/reference/configuration.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
+    public void Documentation_ShouldDescribeAuthenticationSecretMinimumDecodedLength(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("32 decoded bytes",
+            $"{relativePath} should prevent deterministic E2E harnesses from using too-short base64 secrets");
+        content.Should().Contain("256 bits",
+            $"{relativePath} should tie the HMAC secret requirement to the enforced security boundary");
+    }
+
     [Fact]
     public void EnglishConfigurationReference_ShouldDocumentRateLimitBounds()
     {

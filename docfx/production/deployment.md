@@ -1,4 +1,4 @@
-# Deployment Guide
+﻿# Deployment Guide
 
 ## Deployment model
 
@@ -21,10 +21,35 @@ Installer and packaging behavior are defined in `scripts/`, not in the documenta
 Use the public installer after the matching GitHub Release assets exist:
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
 The HTTPS alias resolves the reviewed `scripts/online-installer.ps1` entrypoint. The promotion gate is the release asset set for the selected version: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
+
+### GitHub pre-release E2E install
+
+For pre-release E2E before a public release is promoted, download the reviewed online installer from the public installer alias and install the latest GitHub pre-release without cloning the repository:
+
+```powershell
+$e2eRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'wpf-devtools-mcp-e2e'
+New-Item -ItemType Directory -Force -Path $e2eRoot | Out-Null
+$installerPath = Join-Path $e2eRoot 'online-installer.ps1'
+$installerDownload = @{
+    Uri = 'https://installer.wpf-mcptools.evanlau1798.com/'
+    OutFile = $installerPath
+}
+if ((Get-Command Invoke-WebRequest).Parameters.ContainsKey('UseBasicParsing')) {
+    $installerDownload.UseBasicParsing = $true
+}
+Invoke-WebRequest @installerDownload
+$installRoot = Join-Path $e2eRoot 'installed-wpf-devtools'
+$workingRoot = Join-Path $e2eRoot 'installer-work'
+powershell -ExecutionPolicy Bypass -File $installerPath -Version latest -Prerelease -Architecture x64 -Client other -InstallRoot $installRoot -WorkingRoot $workingRoot -NonInteractive -Force -OutputJson
+```
+
+Pre-release E2E requires the GitHub pre-release to contain the matching package archive and sidecars, including `release-assets.json`, `SHA256SUMS.txt`, `release-sbom.spdx.json`, and `release-evidence.json`. Signed `Release` packaging still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`. Use `-Client other` for validation-only E2E so the installer writes registration artifacts without updating a real MCP client.
+
+For a real local `connect()` E2E, install the archive and launch `<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe`. A source-tree server launch is useful for `tools/list` and resource discovery, but it does not validate the packaged `bin\inspectors` and `bin\bootstrapper` sidecar layout required for raw injection. Exhaustive 64-tool validation should either pace calls below the default rate limit or set `WPFDEVTOOLS_RATE_LIMIT_RPM=10000` only for that local test session.
 
 ### Reviewed local package install
 
@@ -86,6 +111,8 @@ The MCP client should launch the resolved installed `wpf-devtools-<arch>.exe` un
 ```
 
 If you do not pass `-InstallRoot`, the installer first reuses the last live install root when possible. Only when no reusable install root exists does it fall back to `%APPDATA%\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe`.
+
+When `-InstallRoot` is provided, payloads and generated client registration artifacts are written under that explicit root. The installer state file still lives at `%APPDATA%\WpfDevToolsMcp\installer-state.json`; it is current-user state used to remember live install evidence across installer runs, not a payload directory override.
 
 ## Signed payload provenance checklist
 

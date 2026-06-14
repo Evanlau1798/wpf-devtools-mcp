@@ -13,6 +13,8 @@ dotnet add <your-wpf-app.csproj> package WpfDevTools.Inspector.Sdk --source .\nu
 
 The local SDK package includes the repository-internal `WpfDevTools.Inspector` and `WpfDevTools.Shared` assemblies, so consumers do not need unpublished sibling packages.
 
+If the target app uses `PackageSourceMapping`, add an app-local `NuGet.config` entry that maps `WpfDevTools.Inspector.Sdk` to the local package source. If the app uses Central Package Management through `Directory.Packages.props`, add or override the SDK package version there instead of passing an untracked version only on the command line. Keep these restore settings in the target app repository, not in the WPF DevTools MCP checkout.
+
 Current target framework: `net8.0-windows`. .NET Framework WPF apps should keep using the raw injection path unless and until SDK target expansion is implemented.
 
 ## Required transport settings

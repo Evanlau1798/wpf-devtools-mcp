@@ -1,4 +1,4 @@
-# Claude Code 快速開始
+﻿# Claude Code 快速開始
 
 Claude Code 適合需要在終端機內以 agent workflow 使用 WPF DevTools 的情境。
 
@@ -22,7 +22,7 @@ Get-Content $installer | Select-Object -First 60   # 審查後再執行
 GitHub Release assets 存在後的公開安裝命令：
 
 ```powershell
-irm https://wpf-mcptools.evanlau1798.com | iex
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
 這個 HTTPS alias 會解析到 `scripts/online-installer.ps1`；只有在該版本已具備 GitHub Release assets 與 sidecar 後才提升為公開 onboarding 路徑：`release_<version>_win-<arch>.zip`、`SHA256SUMS.txt`、`release-assets.json`、`release-sbom.spdx.json` 與 `release-evidence.json`。

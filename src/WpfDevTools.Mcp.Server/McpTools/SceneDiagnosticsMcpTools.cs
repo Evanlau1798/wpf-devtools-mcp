@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.Tools;
@@ -42,7 +43,7 @@ public static class SceneDiagnosticsMcpTools
         SessionManager sessionManager,
         [Description("Runtime element ID to inspect.")] string elementId,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
-        [Description("Optional extra DependencyProperty names to append after the default snapshot property probes. Duplicates are ignored and defaults are always kept.")] string[]? includeProperties = null,
+        [Description("Optional boolean true for the default property probes, or an array of extra DependencyProperty names to append after the defaults. Duplicates are ignored and defaults are always kept.")] JsonElement? includeProperties = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

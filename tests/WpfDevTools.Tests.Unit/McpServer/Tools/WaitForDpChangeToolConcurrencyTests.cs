@@ -73,7 +73,7 @@ public sealed class WaitForDpChangeToolConcurrencyTests
             beforePollDelayCalls++;
             if (beforePollDelayCalls == 1)
             {
-                await Task.Delay(30);
+                await Task.Delay(120);
             }
         };
 
@@ -85,8 +85,8 @@ public sealed class WaitForDpChangeToolConcurrencyTests
                     processId,
                     propertyName = "Text",
                     expectedValue = JsonSerializer.SerializeToElement("after"),
-                    timeoutMs = 60,
-                    pollIntervalMs = 50
+                    timeoutMs = 1000,
+                    pollIntervalMs = 950
                 }),
                 CancellationToken.None);
 
@@ -97,6 +97,8 @@ public sealed class WaitForDpChangeToolConcurrencyTests
             waitJson.GetProperty("timedOut").GetBoolean().Should().BeFalse();
             waitJson.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
             waitJson.GetProperty("currentValue").GetString().Should().Be("after");
+            waitJson.GetProperty("pollCount").GetInt32().Should().Be(1);
+            connected.RequestMethods.Count(method => method == "get_dp_value_source").Should().Be(3);
         }
         finally
         {

@@ -243,4 +243,78 @@ $session = Resolve-PackageSession -Mode online -ResolvedVersion latest -Resolved
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+
+    [Fact]
+    public void OnlineInstallerScript_FunctionDefinitions_WithPrereleaseLatest_ShouldResolvePrereleaseTagForHelperArchiveAndPackagePayload()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
+            var userProfile = Path.Combine(tempRoot, "UserProfile");
+            var workingRoot = Path.Combine(tempRoot, "working");
+            Directory.CreateDirectory(appData);
+            Directory.CreateDirectory(localAppData);
+            Directory.CreateDirectory(userProfile);
+            Directory.CreateDirectory(workingRoot);
+
+            var command = $$"""
+$env:APPDATA='{{appData.Replace("'", "''")}}'
+$env:LOCALAPPDATA='{{localAppData.Replace("'", "''")}}'
+$env:USERPROFILE='{{userProfile.Replace("'", "''")}}'
+$env:TEMP='{{tempRoot.Replace("'", "''")}}'
+$env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY='{{ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer").Replace("'", "''")}}'
+{{OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action install -Version latest -Prerelease -Architecture x64 -Client other -InstallRoot '" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "' -WorkingRoot '" + workingRoot.Replace("'", "''") + "' -NonInteractive")}}
+function Invoke-RestMethod {
+    param([string]$Uri, $Headers, [int]$TimeoutSec)
+    if ($Uri -like '*/releases?per_page=20') {
+        return @(
+            [pscustomobject]@{ tag_name = 'v9.9.9'; prerelease = $false; draft = $false; assets = @() },
+            [pscustomobject]@{ tag_name = 'v2.0.0-preview.1'; prerelease = $true; draft = $false; assets = @() },
+            [pscustomobject]@{ tag_name = 'v2.0.0-preview.2'; prerelease = $true; draft = $true; assets = @() }
+        )
+    }
+
+    if ($Uri -like '*/tags/v2.0.0-preview.1') {
+        return [pscustomobject]@{
+            tag_name = 'v2.0.0-preview.1'
+            assets = @(
+                [pscustomobject]@{
+                    name = 'release_2.0.0-preview.1_win-x64.zip'
+                    browser_download_url = 'https://example.invalid/release_2.0.0-preview.1_win-x64.zip'
+                }
+            )
+        }
+    }
+
+    throw "Unexpected Invoke-RestMethod URI: $Uri"
+}
+$helperDownload = Get-TuiHelperArchiveDownloadDetails
+$packageDownloadVersion = Resolve-RequestedReleaseVersion -RequestedVersion latest
+$packageDownload = Get-ReleaseAssetDownloadDetails -ResolvedVersion $packageDownloadVersion -ResolvedArchitecture x64
+[ordered]@{
+    helperDownloadUri = [string]$helperDownload.DownloadUri
+    helperResolvedVersion = [string]$helperDownload.ResolvedVersion
+    packageDownloadUri = [string]$packageDownload.DownloadUri
+    packageResolvedVersion = [string]$packageDownload.ResolvedVersion
+    releaseChannel = Get-InstallerReleaseChannel
+} | ConvertTo-Json -Depth 3
+""";
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var payload = JsonDocument.Parse(result.Stdout);
+            payload.RootElement.GetProperty("helperDownloadUri").GetString().Should().Contain("release_2.0.0-preview.1_win-x64.zip");
+            payload.RootElement.GetProperty("helperResolvedVersion").GetString().Should().Be("2.0.0-preview.1");
+            payload.RootElement.GetProperty("packageDownloadUri").GetString().Should().Contain("release_2.0.0-preview.1_win-x64.zip");
+            payload.RootElement.GetProperty("packageResolvedVersion").GetString().Should().Be("2.0.0-preview.1");
+            payload.RootElement.GetProperty("releaseChannel").GetString().Should().Be("prerelease");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
 }

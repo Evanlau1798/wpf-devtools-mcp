@@ -21,6 +21,17 @@ public sealed class GetElementSnapshotToolTests : IDisposable
     }
 
     [Fact]
+    public void GetElementSnapshot_McpWrapper_ShouldAcceptRawJsonIncludeProperties()
+    {
+        var method = typeof(SceneDiagnosticsMcpTools).GetMethod(nameof(SceneDiagnosticsMcpTools.GetElementSnapshot));
+        method.Should().NotBeNull();
+
+        var includeProperties = method!.GetParameters().Single(parameter => parameter.Name == "includeProperties");
+        includeProperties.ParameterType.Should().Be(typeof(JsonElement?),
+            "agents may pass includeProperties as boolean true or as an array, and binding errors must not bypass structured tool responses");
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ShouldAggregateElementDiagnosticsIntoSingleSnapshot()
     {
         const int processId = 51030;

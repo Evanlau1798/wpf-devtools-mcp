@@ -1,4 +1,4 @@
-# Releasing WPF DevTools MCP
+﻿# Releasing WPF DevTools MCP
 
 This guide is for maintainers preparing a public release package and GitHub Release entry.
 It covers local validation without uploading to GitHub, then explains how the automation takes over once you are ready.
@@ -87,7 +87,7 @@ Before publishing a public Release channel build, confirm:
   - `https://github.com/Evanlau1798/wpf-devtools-mcp/releases`
   - `https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases/latest`
   - `https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1`
-  - `https://wpf-mcptools.evanlau1798.com`
+  - `https://installer.wpf-mcptools.evanlau1798.com`
 
 ## 4. GitHub automation
 

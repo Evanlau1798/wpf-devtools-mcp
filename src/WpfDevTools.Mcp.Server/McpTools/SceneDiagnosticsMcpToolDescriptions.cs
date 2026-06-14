@@ -33,14 +33,15 @@ internal static class SceneDiagnosticsMcpToolDescriptions
         SceneMetadata +
         "[Scene] Gather element identity, selected DependencyProperty values, bindings, validation errors, style summary, layout summary, and DataContext type in one call.\n\n" +
         "USE WHEN: Before falling back to screenshots, or when you need one element-centric snapshot instead of multiple diagnostic calls.\n" +
-        "PROPERTY PROBES: The default snapshot includes a stable baseline property set. Provide `includeProperties` to append extra DependencyProperty probes such as `IsChecked` or `SelectedIndex` without replacing the defaults.\n" +
+        "PROPERTY PROBES: The default snapshot includes a stable baseline property set. `includeProperties: true` is accepted as a compatibility shorthand for the defaults. Provide `includeProperties` as an array to append extra DependencyProperty probes such as `IsChecked` or `SelectedIndex` without replacing the defaults.\n" +
         "DO NOT USE: As a full-tree replacement; use get_visual_tree/get_logical_tree for broad structural inspection.\n\n" +
         ToolDescriptionFragments.ContractGuidance +
         "RESPONSE FIELDS: elementId, elementType, elementName, dataContextType, properties, bindings, validationErrors, style, and layout.\n" +
-        "REQUEST OPTIONS: includeProperties appends extra DependencyProperty probes to the default snapshot set.\n\n" +
+        "REQUEST OPTIONS: includeProperties may be true or an array; arrays append extra DependencyProperty probes to the default snapshot set.\n\n" +
         "EXAMPLES:\n" +
         "- { \"processId\": 12345, \"elementId\": \"TextBox_42\" }\n" +
-        "- { \"elementId\": \"SaveButton_7\" }";
+        "- { \"elementId\": \"SaveButton_7\", \"includeProperties\": true }\n" +
+        "- { \"elementId\": \"SaveButton_7\", \"includeProperties\": [\"IsEnabled\", \"Visibility\"] }";
 
     public const string DiagnoseVisibility =
         "Use this tool to explain why a WPF runtime element is or is not user-visible without relying on screenshots.\n\n" +

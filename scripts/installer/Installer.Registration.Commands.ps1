@@ -1,4 +1,4 @@
-function Invoke-RegistrationCommand {
+﻿function Invoke-RegistrationCommand {
     param(
         [Parameter(Mandatory)] [string]$Command,
         [Parameter(Mandatory)] [string[]]$Arguments,
@@ -15,7 +15,13 @@ function Invoke-RegistrationCommand {
         throw "$Command is not installed. Cannot register $ClientName automatically."
     }
 
-    & $resolvedCommandPath @Arguments | Out-Null
+    try {
+        & $resolvedCommandPath @Arguments | Out-Null
+    }
+    catch {
+        throw "$Command registration failed for $ClientName after resolving $resolvedCommandPath. $($_.Exception.Message)"
+    }
+
     if ($LASTEXITCODE -ne 0) {
         throw "$Command registration failed for $ClientName with exit code $LASTEXITCODE."
     }
@@ -102,7 +108,7 @@ function Invoke-OptionalRemovalCommand {
 }
 
 function Invoke-DocsHomepage {
-    $uri = 'https://wpf-mcptools.evanlau1798.com'
+    $uri = 'https://installer.wpf-mcptools.evanlau1798.com'
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_OPEN_BROWSER_COMMAND)) {
         & $env:WPFDEVTOOLS_INSTALLER_OPEN_BROWSER_COMMAND $uri | Out-Null
         return

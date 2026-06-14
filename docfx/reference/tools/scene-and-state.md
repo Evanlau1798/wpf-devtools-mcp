@@ -52,7 +52,7 @@ Parameters:
 
 - `elementId` required.
 - `processId` optional after an active process is selected.
-- `includeProperties` optional extra DependencyProperty probes appended to the default property set.
+- `includeProperties` optional. Use `true` as an agent-compatible shorthand for the default property probes, or pass a string array of extra DependencyProperty probes appended to the default property set.
 
 Output fields include identity, selected properties, bindings, validation errors, style summary, layout summary, and DataContext type. This is the preferred drill-down after `get_ui_summary` or `find_elements`.
 
@@ -60,6 +60,12 @@ Example:
 
 ```json
 { "elementId": "SaveButton_7", "includeProperties": ["IsEnabled", "Visibility"] }
+```
+
+Boolean shorthand:
+
+```json
+{ "elementId": "SaveButton_7", "includeProperties": true }
 ```
 
 Recovery path: if a specific value is still unclear, follow with `get_dp_value_source`, `get_bindings`, `get_applied_styles`, or `get_triggers`.

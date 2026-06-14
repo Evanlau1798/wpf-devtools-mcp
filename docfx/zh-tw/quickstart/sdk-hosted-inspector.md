@@ -13,6 +13,8 @@ dotnet add <your-wpf-app.csproj> package WpfDevTools.Inspector.Sdk --source .\nu
 
 Local SDK package 會包含 repository-internal `WpfDevTools.Inspector` 與 `WpfDevTools.Shared` assemblies，因此 consumer 不需要 unpublished sibling packages。
 
+如果 target app 使用 `PackageSourceMapping`，請在該 app 內加入 app-local `NuGet.config`，把 `WpfDevTools.Inspector.Sdk` 對應到本機 package source。如果該 app 使用 `Directory.Packages.props` 的 Central Package Management，請在該檔案加入或覆寫 SDK package version，而不是只在命令列傳入未追蹤的版本。這些 restore 設定應留在 target app repo，不要寫回 WPF DevTools MCP checkout。
+
 目前 target framework 是 `net8.0-windows`。在 SDK target expansion 完成前，.NET Framework WPF app 應維持使用 raw injection path。
 
 ## 必要 transport settings

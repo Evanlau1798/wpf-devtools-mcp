@@ -248,6 +248,25 @@ function Get-InstalledClientLabel {
     return "$clientLabel (Installed v$resolvedVersion)"
 }
 
+function Test-ManualCliArtifactRegistrationMatchesExecutable {
+    param(
+        [Parameter(Mandatory)] [string]$ArtifactPath,
+        [Parameter(Mandatory)] [string]$InstalledExecutable
+    )
+
+    try {
+        $trustedArtifactPath = Assert-InstallerLocalPathTrusted -Path $ArtifactPath
+        if (-not (Test-Path -LiteralPath $trustedArtifactPath)) { return $false }
+        $content = Get-Content -LiteralPath $trustedArtifactPath -Raw
+        return $content.IndexOf('mcp add', [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -and
+            $content.IndexOf('wpf-devtools', [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -and
+            $content.IndexOf($InstalledExecutable, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+    }
+    catch {
+        return $false
+    }
+}
+
 function Invoke-InstallVerification {
     param(
         [Parameter(Mandatory)] [string]$SelectedClient,
@@ -269,14 +288,30 @@ function Invoke-InstallVerification {
 
     switch ($clientBaseId) {
         'claude-code' {
-            $verification = Test-CliRegistrationMatchesExecutable -Command 'claude' -InstalledExecutable $InstalledExecutable
-            $verificationSucceeded = ($verification.Succeeded -and -not [string]::IsNullOrWhiteSpace($trustedInstalledExecutable) -and (Test-Path -LiteralPath $trustedInstalledExecutable))
-            $verificationMessage = if ($verificationSucceeded) { 'Verified with claude mcp list.' } else { "Claude verification failed: $($verification.Output)" }
+            if ([string]::Equals([string]$Registration.mode, 'manual-cli-artifact', [System.StringComparison]::OrdinalIgnoreCase)) {
+                $verificationSucceeded = (Test-ManualCliArtifactRegistrationMatchesExecutable -ArtifactPath ([string]$Registration.target) -InstalledExecutable $InstalledExecutable) -and
+                    -not [string]::IsNullOrWhiteSpace($trustedInstalledExecutable) -and
+                    (Test-Path -LiteralPath $trustedInstalledExecutable)
+                $verificationMessage = if ($verificationSucceeded) { "Manual Claude Code registration artifact verified at $([string]$Registration.target)." } else { 'Manual Claude Code registration artifact verification failed.' }
+            }
+            else {
+                $verification = Test-CliRegistrationMatchesExecutable -Command 'claude' -InstalledExecutable $InstalledExecutable
+                $verificationSucceeded = ($verification.Succeeded -and -not [string]::IsNullOrWhiteSpace($trustedInstalledExecutable) -and (Test-Path -LiteralPath $trustedInstalledExecutable))
+                $verificationMessage = if ($verificationSucceeded) { 'Verified with claude mcp list.' } else { "Claude verification failed: $($verification.Output)" }
+            }
         }
         'codex' {
-            $verification = Test-CliRegistrationMatchesExecutable -Command 'codex' -InstalledExecutable $InstalledExecutable
-            $verificationSucceeded = ($verification.Succeeded -and -not [string]::IsNullOrWhiteSpace($trustedInstalledExecutable) -and (Test-Path -LiteralPath $trustedInstalledExecutable))
-            $verificationMessage = if ($verificationSucceeded) { 'Verified with codex mcp list.' } else { "Codex verification failed: $($verification.Output)" }
+            if ([string]::Equals([string]$Registration.mode, 'manual-cli-artifact', [System.StringComparison]::OrdinalIgnoreCase)) {
+                $verificationSucceeded = (Test-ManualCliArtifactRegistrationMatchesExecutable -ArtifactPath ([string]$Registration.target) -InstalledExecutable $InstalledExecutable) -and
+                    -not [string]::IsNullOrWhiteSpace($trustedInstalledExecutable) -and
+                    (Test-Path -LiteralPath $trustedInstalledExecutable)
+                $verificationMessage = if ($verificationSucceeded) { "Manual Codex registration artifact verified at $([string]$Registration.target)." } else { 'Manual Codex registration artifact verification failed.' }
+            }
+            else {
+                $verification = Test-CliRegistrationMatchesExecutable -Command 'codex' -InstalledExecutable $InstalledExecutable
+                $verificationSucceeded = ($verification.Succeeded -and -not [string]::IsNullOrWhiteSpace($trustedInstalledExecutable) -and (Test-Path -LiteralPath $trustedInstalledExecutable))
+                $verificationMessage = if ($verificationSucceeded) { 'Verified with codex mcp list.' } else { "Codex verification failed: $($verification.Output)" }
+            }
         }
         'cursor' {
             $verificationSucceeded = Test-JsonConfigRegistrationMatchesExecutable -CollectionName 'mcpServers' -ConfigPath ([string]$Registration.target) -InstalledExecutable $InstalledExecutable
@@ -317,6 +352,30 @@ function Invoke-UninstallVerification {
 
     $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
     $recordedTarget = Get-TrustedRecordedRegistrationTarget -ClientBaseId $clientBaseId -RegistrationRecord $RegistrationRecord
+    $recordedMode = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('mode', 'RegistrationMode')
+    if ([string]::Equals($recordedMode, 'manual-cli-artifact', [System.StringComparison]::OrdinalIgnoreCase)) {
+        $manualTargets = New-Object System.Collections.Generic.List[string]
+        foreach ($registrationChange in @($RegistrationChanges)) {
+            if ($null -ne $registrationChange -and $registrationChange.Contains('target') -and -not [string]::IsNullOrWhiteSpace([string]$registrationChange.target)) {
+                $manualTargets.Add([string]$registrationChange.target)
+            }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($recordedTarget)) {
+            $manualTargets.Add($recordedTarget)
+        }
+
+        $remainingTargets = @($manualTargets | Where-Object {
+            try { Test-Path -LiteralPath (Assert-InstallerLocalPathTrusted -Path ([string]$_)) }
+            catch { $false }
+        })
+
+        return [ordered]@{
+            Succeeded = ($remainingTargets.Count -eq 0)
+            VerificationMessage = if ($remainingTargets.Count -eq 0) { 'Verified manual CLI registration artifact removal.' } else { 'Manual CLI registration artifact still exists.' }
+        }
+    }
+
     $registrationTargets = New-Object System.Collections.Generic.List[string]
     foreach ($registrationChange in @($RegistrationChanges)) {
         if ($null -eq $registrationChange) {

@@ -24,6 +24,7 @@ internal static class ResponseContractToolEntries
                     "processName",
                     "windowTitle",
                     "reusedExistingHost",
+                    "connectionSource",
                     "targetIsElevated",
                     "requiresExplicitTargetOptIn",
                     "autoDiscovered",

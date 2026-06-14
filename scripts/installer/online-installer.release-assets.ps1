@@ -1,3 +1,4 @@
+function Invoke-InstallerWebRequest { param([Parameter(Mandatory)] [string]$Uri, [string]$OutFile, [hashtable]$Headers, [int]$TimeoutSec) $parameters = @{ Uri = $Uri }; if (-not [string]::IsNullOrWhiteSpace($OutFile)) { $parameters['OutFile'] = $OutFile }; if ($null -ne $Headers) { $parameters['Headers'] = $Headers }; if ($TimeoutSec -gt 0) { $parameters['TimeoutSec'] = $TimeoutSec }; if ((Get-Command Invoke-WebRequest).Parameters.ContainsKey('UseBasicParsing')) { $parameters['UseBasicParsing'] = $true }; return Invoke-WebRequest @parameters }
 function Get-ReleaseAssetName {
     param(
         [Parameter(Mandatory)] [string]$ResolvedVersion,
@@ -87,7 +88,9 @@ function Get-ReleaseRawContentBaseUri {
     return "https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/$tagRef/$normalizedPath"
 }
 function Resolve-TuiHelperDownloadBaseUri {
-    return (Get-TuiHelperOverrideDownloadBaseUri)
+    $override = Get-TuiHelperOverrideDownloadBaseUri
+    if (-not [string]::IsNullOrWhiteSpace($override)) { return $override }
+    return "https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/$script:InstallerHelperRepositoryRelativePath"
 }
 function Resolve-TuiHelperBootstrapArchitecture {
     if ([string]::IsNullOrWhiteSpace($Architecture)) {
@@ -113,15 +116,42 @@ function Get-GitHubReleaseApiResponse {
         return $null
     }
 }
+function Remove-TuiHelperReleaseTextPreamble {
+    param([AllowEmptyString()] [string]$Content)
+
+    if ($null -eq $Content) {
+        return ''
+    }
+
+    $text = [string]$Content
+    $prefixes = @([string][char]0xFEFF, (-join ([char[]](0x00EF, 0x00BB, 0x00BF))))
+    foreach ($prefix in $prefixes) {
+        if ($text.StartsWith($prefix, [System.StringComparison]::Ordinal)) {
+            return $text.Substring($prefix.Length)
+        }
+    }
+
+    return $text
+}
 function Get-TuiHelperReleaseAssetRecordsFromManifestObject {
     param($ManifestObject)
 
     $records = @()
-    if ($null -eq $ManifestObject -or $null -eq $ManifestObject.assets) {
+    $manifest = $ManifestObject
+    if ($manifest -is [string]) {
+        try {
+            $manifest = (Remove-TuiHelperReleaseTextPreamble -Content ([string]$manifest)) | ConvertFrom-Json
+        }
+        catch {
+            return $records
+        }
+    }
+
+    if ($null -eq $manifest -or $null -eq $manifest.assets) {
         return $records
     }
 
-    foreach ($asset in @($ManifestObject.assets)) {
+    foreach ($asset in @($manifest.assets)) {
         $assetName = [string]$asset.name
         $sha256 = [string]$asset.sha256
         if ([string]::IsNullOrWhiteSpace($assetName) -or [string]::IsNullOrWhiteSpace($sha256)) {
@@ -141,7 +171,7 @@ function Get-TuiHelperReleaseAssetRecordsFromChecksumContent {
 
     $records = @()
     foreach ($rawLine in ($Content -split "`r?`n")) {
-        $line = [string]$rawLine
+        $line = Remove-TuiHelperReleaseTextPreamble -Content ([string]$rawLine)
         if ([string]::IsNullOrWhiteSpace($line)) {
             continue
         }
@@ -184,7 +214,7 @@ function Get-TuiHelperReleaseAssetRecordsFromGitHub {
             $checksumAsset = @($release.assets) | Where-Object { $_.name -eq 'SHA256SUMS.txt' } | Select-Object -First 1
             if ($null -ne $checksumAsset) {
                 try {
-                    $checksumResponse = Invoke-WebRequest -Uri ([string]$checksumAsset.browser_download_url) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
+                    $checksumResponse = Invoke-InstallerWebRequest -Uri ([string]$checksumAsset.browser_download_url) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
                     $records = @(Get-TuiHelperReleaseAssetRecordsFromChecksumContent -Content ([string]$checksumResponse.Content))
                 }
                 catch {

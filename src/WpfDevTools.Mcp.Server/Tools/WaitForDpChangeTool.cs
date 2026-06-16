@@ -113,7 +113,12 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
         }
 
         var stopwatch = Stopwatch.StartNew();
-        var initialSnapshot = await ReadSnapshotAsync(processId, elementId, propertyName, cancellationToken).ConfigureAwait(false);
+        var initialSnapshot = await ReadSnapshotAsync(
+            processId,
+            elementId,
+            propertyName,
+            cancellationToken,
+            countAgainstRateLimit: true).ConfigureAwait(false);
         if (initialSnapshot.Error != null)
         {
             return initialSnapshot.Error;
@@ -171,7 +176,12 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
                     requiresReconnect: triggerResult.RequiresReconnect);
             }
 
-            var afterTriggerSnapshot = await ReadSnapshotAsync(processId, elementId, propertyName, cancellationToken).ConfigureAwait(false);
+            var afterTriggerSnapshot = await ReadSnapshotAsync(
+                processId,
+                elementId,
+                propertyName,
+                cancellationToken,
+                countAgainstRateLimit: false).ConfigureAwait(false);
             if (afterTriggerSnapshot.Error != null)
             {
                 return afterTriggerSnapshot.Error;
@@ -232,7 +242,12 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
             await Task.Delay(Math.Min(effectivePollIntervalMs, remainingDelay), cancellationToken).ConfigureAwait(false);
             pollCount++;
 
-            var currentSnapshot = await ReadSnapshotAsync(processId, elementId, propertyName, cancellationToken).ConfigureAwait(false);
+            var currentSnapshot = await ReadSnapshotAsync(
+                processId,
+                elementId,
+                propertyName,
+                cancellationToken,
+                countAgainstRateLimit: false).ConfigureAwait(false);
             if (currentSnapshot.Error != null)
             {
                 return currentSnapshot.Error;

@@ -19,7 +19,8 @@ public sealed partial class WaitForDpChangeTool
                 processId,
                 elementId,
                 propertyName,
-                finalReadCts.Token).ConfigureAwait(false);
+                finalReadCts.Token,
+                countAgainstRateLimit: false).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -31,19 +32,27 @@ public sealed partial class WaitForDpChangeTool
         int processId,
         string? elementId,
         string propertyName,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool countAgainstRateLimit)
     {
-        var result = await SendInspectorRequestWithoutPiggybackAsync(
-            processId,
-            "get_dp_value_source",
-            new
-            {
-                elementId,
-                propertyName,
-                compact = true,
-                settleBindings = true
-            },
-            cancellationToken).ConfigureAwait(false);
+        var parameters = new
+        {
+            elementId,
+            propertyName,
+            compact = true,
+            settleBindings = true
+        };
+        var result = countAgainstRateLimit
+            ? await SendInspectorRequestWithoutPiggybackAsync(
+                processId,
+                "get_dp_value_source",
+                parameters,
+                cancellationToken).ConfigureAwait(false)
+            : await SendInternalInspectorRequestWithoutPiggybackAsync(
+                processId,
+                "get_dp_value_source",
+                parameters,
+                cancellationToken).ConfigureAwait(false);
 
         var payload = result is JsonElement jsonElement
             ? jsonElement

@@ -152,11 +152,12 @@ public sealed class DocfxValidationScriptTests
 
     private static void WriteValidDocumentationFixture(string root)
     {
-        WriteFile(root, "docfx/index.md", "# Home\n\n[Quickstart](quickstart/index.md#setup)\n");
-        WriteFile(root, "docfx/quickstart/index.md", "# Quickstart\n\n## Setup\n");
+        const string sidecars = "`SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, `package-sbom.spdx.json`, and `release-evidence.json`";
+        WriteFile(root, "docfx/index.md", $"# Home\n\n{sidecars}\n\n[Quickstart](quickstart/index.md#setup)\n");
+        WriteFile(root, "docfx/quickstart/index.md", $"# Quickstart\n\n{sidecars}\n\n## Setup\n");
         WriteFile(root, "docfx/reference/tools/index.md", "# Tools\n\n- `connect`\n");
-        WriteFile(root, "docfx/zh-tw/index.md", "# 首頁\n\n[快速開始](quickstart/index.md#setup)\n");
-        WriteFile(root, "docfx/zh-tw/quickstart/index.md", "# 快速開始\n\n## Setup\n");
+        WriteFile(root, "docfx/zh-tw/index.md", $"# 首頁\n\n{sidecars}\n\n[快速開始](quickstart/index.md#setup)\n");
+        WriteFile(root, "docfx/zh-tw/quickstart/index.md", $"# 快速開始\n\n{sidecars}\n\n## Setup\n");
         WriteFile(root, "docfx/zh-tw/reference/tools/index.md", "# Tools\n\n- `connect`\n");
         WriteFile(root, "docfx/_site/index.html",
             """<html><body><h1 id="home">Home</h1><a href="quickstart/index.html#setup">quickstart</a></body></html>""");

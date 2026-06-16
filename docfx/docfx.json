@@ -1,4 +1,4 @@
-﻿{
+{
   "metadata": [
     {
       "src": [
@@ -6,12 +6,12 @@
           "src": "..",
           "files": [
             "src/WpfDevTools.Shared/WpfDevTools.Shared.csproj",
-            "src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj",
-            "src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj"
+            "src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj"
           ]
         }
       ],
-      "dest": "api"
+      "dest": "api",
+      "filter": "filterConfig.yml"
     }
   ],
   "build": {
@@ -38,7 +38,9 @@
       }
     ],
     "dest": "_site",
-    "template": ["default"],
+    "template": [
+      "default"
+    ],
     "globalMetadata": {
       "_appTitle": "WPF DevTools MCP Server",
       "_appName": "WPF DevTools MCP Server",

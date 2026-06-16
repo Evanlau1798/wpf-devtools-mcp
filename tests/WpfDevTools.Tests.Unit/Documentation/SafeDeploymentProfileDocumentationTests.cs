@@ -16,7 +16,7 @@ public sealed class SafeDeploymentProfileDocumentationTests
         content.Should().Contain("Read-only diagnostics");
         content.Should().Contain("Screenshot-enabled diagnostics");
         content.Should().Contain("ViewModel-enabled diagnostics");
-        content.Should().Contain("Mutation-enabled test session");
+        content.Should().Contain("Mutation-enabled diagnostics");
         content.Should().Contain("Raw-injection emergency diagnostics");
     }
 

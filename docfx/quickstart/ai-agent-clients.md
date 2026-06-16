@@ -1,102 +1,34 @@
-﻿# AI Agent Client Quickstart
+# AI Agent Client Quickstart
 
-Install WPF DevTools first, then register the installed executable with your preferred client.
+Install WPF DevTools first, then register the installed executable with your preferred MCP client. The canonical installation flow is [5-Minute Setup](index.md); this page only compares client registration paths.
 
-If an AI agent is helping with installation, use the side-effect-safe [Agent-Assisted Install](../guides/agent-assisted-install.md) contract before running an installer.
+## Installed executable
 
-## Install source of truth
-
-- Canonical source repository: this checkout
-- Planned public repository: [https://github.com/Evanlau1798/wpf-devtools-mcp](https://github.com/Evanlau1798/wpf-devtools-mcp)
-- Planned public releases: [https://github.com/Evanlau1798/wpf-devtools-mcp/releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases)
-- Online installer source: `scripts/online-installer.ps1` (maintainer source; compare it with the version-matched `bin/install.ps1` inside the release package you actually execute)
-
-Published-release command after GitHub Release assets exist:
-
-```powershell
-irm https://installer.wpf-mcptools.evanlau1798.com | iex
-```
-
-The HTTPS alias resolves `scripts/online-installer.ps1`; promote it only after the selected version has GitHub Release assets and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
-
-Recommended local package path:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -NonInteractive -Force -OutputJson
-```
-
-That reviewed installer validates archive integrity before extraction, and then installs the extracted packaged payload through the reviewed installer/helper flow.
-
-Client-specific example:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -Client claude-code -NonInteractive -Force -OutputJson
-```
-
-Manual package alternative:
-
-1. Use a locally generated package, or after GitHub Release assets exist, download `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
-2. Verify the archive with `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json` before extraction.
-3. Extract the package.
-4. Run `run.bat`.
-
-Before trusting the extracted package, keep the verified release sidecars beside the archive: `SHA256SUMS.txt` for the checksum, `release-assets.json` for the canonical release metadata, and `release-sbom.spdx.json` for the release asset SBOM. The SBOM sidecar is an asset-level release archive inventory, not a full package/dependency SBOM. Production payload signature verification still requires an independent `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`; adjacent sidecars prove archive provenance but do not replace signer trust. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only an additional constraint after the thumbprint is pinned.
-
-`run.bat` requests elevation when the current shell is not already elevated and then launches the packaged `bin/install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
-
-Package-local fallback:
+Use the generated `client-registration` artifact as the source of truth. The executable normally resolves to:
 
 ```text
-Download the matching release_<version>_win-<arch>.zip, extract it, and run run.bat.
+<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
 
-Every supported setup path should eventually launch the installed executable, not a source-tree command.
+## Supported clients
 
-Fallback installed path example when no previous live install root is reused:
-
-```text
-%APPDATA%\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe
-```
-
-The online installer and manual package setup both generate client-specific registration snippets under:
-
-```text
-<InstallRoot>\<arch>\client-registration\
-```
-
-If you omit `-InstallRoot`, the installer first reuses the last live install root when possible and falls back to `%APPDATA%\WpfDevToolsMcp` only when no reusable install root is available. Treat the generated `client-registration` artifacts as the source of truth for the resolved output path.
-
-Before the first connection, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before `connect` attaches.
-
-## Recommended paths
-
-| Client | Best fit | Registration style | Guide |
-| --- | --- | --- | --- |
-| Claude Code | Terminal-first agent workflow | Command generated by installer | [Claude Code](claude-code.md) |
-| OpenAI Codex / Codex CLI | OpenAI CLI and agent workflow | Command generated by installer | [OpenAI Codex and Codex CLI](openai-codex.md) |
-| Cursor | Editor or Cursor CLI workflow | JSON generated by installer | [Cursor, VS Code, and Visual Studio](cursor-vscode.md) |
-| Claude Desktop | Desktop chat workflow | JSON config generated by installer | [Claude Desktop](claude-desktop.md) |
-| VS Code / Visual Studio | Editor-first workflow | JSON config generated by installer | [VS Code and Visual Studio](cursor-vscode.md) |
+| Client | Registration style | Guide |
+| --- | --- | --- |
+| Claude Code | CLI command generated by installer | [Claude Code](claude-code.md) |
+| OpenAI Codex / Codex CLI | CLI command generated by installer | [OpenAI Codex and Codex CLI](openai-codex.md) |
+| Claude Desktop | JSON config generated by installer | [Claude Desktop](claude-desktop.md) |
+| Cursor | `mcpServers` JSON generated by installer | [Cursor, VS Code, and Visual Studio](cursor-vscode.md) |
+| VS Code | `servers` JSON generated by installer | [Cursor, VS Code, and Visual Studio](cursor-vscode.md) |
+| Visual Studio | `servers` JSON generated by installer | [Cursor, VS Code, and Visual Studio](cursor-vscode.md) |
+| Other | Artifact-only JSON | Use `<InstallRoot>\<arch>\client-registration\other.mcpServers.json` |
 
 ## First verification flow
 
-No matter which client you choose, verify the first connection in this order:
+Before the first connection, set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact local absolute executable path.
 
 1. `connect`
-2. If auto-discovery reports multiple candidates, `get_processes(windowFilter)` and retry `connect(processId)`
+2. `get_active_process`
 3. `get_ui_summary(depthMode: "semantic")`
-4. `get_visual_tree`, or `get_element_snapshot(elementId)` after a concrete elementId is known, only if the summary is insufficient
-5. `ping` only if you want an explicit liveness check
-6. After a diagnostic, interaction, or mutation, follow `navigation.recommended` first and treat `nextSteps` as the compatibility field for older clients
+4. A focused diagnostic tool from `navigation.recommended`
 
-## WPF-specific reminders
-
-- Keep the MCP server on Windows.
-- Keep `stdout` clean because the transport is STDIO.
-- Match the server and bootstrapper bitness to the target process.
-- Configure `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` with exact local absolute executable paths for reviewed targets before calling `connect`.
-- Treat the generated `client-registration` artifacts as the source of truth for copy-paste setup.
-- Prefer scene-level tools before tree dumps or screenshots.
-- When a tool response already includes `navigation.recommended` or `nextSteps`, use that runtime guidance before inventing another follow-up.
-
-Next: pick your client-specific guide.
+Prefer scene-level summaries before visual-tree dumps or screenshots.

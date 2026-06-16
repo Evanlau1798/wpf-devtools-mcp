@@ -8,3 +8,16 @@
 table code {
   white-space: nowrap;
 }
+/* Keep long locale navigation usable in narrow DocFX layouts. */
+.toc,
+.sideaffix,
+.affix ul {
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+.toc .nav > li > a,
+.sideaffix a {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

@@ -8,10 +8,17 @@ on:
       - '.config/dotnet-tools.json'
       - 'docfx/**'
       - 'README.md'
+      - 'AGENT_INSTALL.md'
       - 'SECURITY.md'
       - 'EXAMPLES.md'
+      - 'RELEASING.md'
+      - 'CODE_SIGNING.md'
       - 'src/WpfDevTools.Shared/**'
       - 'src/WpfDevTools.Inspector.Sdk/**'
+      - 'src/WpfDevTools.Mcp.Server/**'
+      - 'scripts/online-installer.ps1'
+      - 'scripts/installer/**'
+      - 'scripts/tools/packaging/**'
   workflow_dispatch:
 
 permissions:

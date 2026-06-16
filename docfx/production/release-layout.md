@@ -1,23 +1,23 @@
-﻿# Release Layout
+# Release Layout
 
 This page documents the stable public folder contract for published release assets, extracted packages, and installed copies.
 
 ## Canonical generation sources
 
 - Packaging source: `scripts/tools/packaging/Publish-Release.ps1`
+- Sidecar source: `scripts/tools/packaging/Write-ReleaseSidecars.ps1`
+- Upload source: `scripts/tools/packaging/Export-GitHubReleaseAssets.ps1`
 - Online installer source: `scripts/online-installer.ps1`
 
 The documentation below describes the output of those scripts. It does not replace them.
 
 ## Public release assets
 
-Published-release command after GitHub Release assets exist:
+Published release command:
 
 ```powershell
 irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
-
-The HTTPS alias resolves `scripts/online-installer.ps1`. Until the selected version has GitHub Release assets and sidecars, treat the release names below as the package layout contract for locally generated artifacts.
 
 The current release archives are named:
 
@@ -25,7 +25,17 @@ The current release archives are named:
 - `release_<version>_win-x86.zip`
 - `release_<version>_win-arm64.zip`
 
-After GitHub Release assets exist, download them from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
+Keep the archive adjacent to these sidecars for production review:
+
+| File | Meaning |
+| --- | --- |
+| `SHA256SUMS.txt` | Archive checksum verification |
+| `release-assets.json` | Canonical asset metadata and sidecar hashes |
+| `release-sbom.spdx.json` | Release asset/archive inventory |
+| `package-sbom.spdx.json` | Package, dependency, script, assembly, and payload SBOM |
+| `release-evidence.json` | Release evidence and audit bundle |
+
+`release-sbom.spdx.json` and `package-sbom.spdx.json` are intentionally separate. Neither replaces signer trust; Release payload signature verification still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
 
 ## Extracted package layout
 
@@ -69,10 +79,6 @@ release_<version>_win-x64/
       inspectors/
       bootstrapper/
       installer/
-        installer-helpers.manifest.json
-        Installer.Actions.ps1
-        Installer.Uninstall.ps1
-        Tui.Flow.ps1
   client-registration/
     claude-code.txt
     codex.txt
@@ -88,17 +94,14 @@ release_<version>_win-x64/
 ## Contract notes
 
 - MCP clients should register `bin/wpf-devtools-<arch>.exe`.
-- `bin/inspectors` and `bin/bootstrapper` are sidecar folders and must remain adjacent to the installed server content.
-- `bin/installer` is the integrity-checked helper bundle used by the packaged installer and standalone recovery flows; keep it adjacent to the packaged or installed server content.
+- `bin/inspectors` and `bin/bootstrapper` must remain adjacent to the installed server content.
+- `bin/installer` is the integrity-checked helper bundle used by package and recovery flows.
 - `run.bat` is the package-root entrypoint for users who do not want to invoke PowerShell directly.
-- `bin/install.ps1` is the packaged copy of the canonical TUI-first installer script with CLI fallback.
-- `client-registration` is generated at install time and is the public copy-paste source for AI client setup.
-- If `-InstallRoot` is omitted, the installer reuses the last live install root when possible; `%APPDATA%\WpfDevToolsMcp` is only the fallback root when no reusable install root exists.
+- `client-registration` is generated at install time and is the public copy-paste source for MCP client setup.
+- If `-InstallRoot` is omitted, the installer reuses the last live install root when possible; `%APPDATA%\WpfDevToolsMcp` is the fallback root only when no reusable install root exists.
 
-## Online installer source exception
+## Online installer source-size exception
 
-`scripts/online-installer.ps1` is currently maintained as the canonical single-file release artifact source so public install instructions, packaged `bin/install.ps1`, and recovery flows stay byte-for-byte aligned.
-This is an explicit temporary exception to the normal source-file size target; do not split it inside the current production remediation loop.
+`scripts/online-installer.ps1` is intentionally kept as a thin source entrypoint that can also be packaged as a generated single-file release artifact. This is a temporary exception to the normal source-file size target: do not split it during the current production remediation loop unless the generated single-file release artifact and public installer alias are validated together.
 
-Post-remediation, schedule a packaging refactor that keeps a thin source entrypoint and composes a generated single-file release artifact for publication.
-That follow-up should preserve the public `scripts/online-installer.ps1` contract while moving reusable implementation into smaller helper modules covered by the existing release packaging smoke tests.
+Post-remediation, revisit the exception and split helper logic only when the release pipeline can prove the source entrypoint, generated single-file release artifact, and installer alias still produce the same package verification behavior.

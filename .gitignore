@@ -54,6 +54,7 @@ docfx/agent-feedback/*.md
 docfx/zh-tw/agent-feedback/*.md
 !docfx/zh-tw/agent-feedback/index.md
 !docfx/zh-tw/agent-feedback/template.md
+E2E-Test/
 
 # Worktrees
 .worktree/

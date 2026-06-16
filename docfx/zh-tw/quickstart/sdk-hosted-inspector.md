@@ -1,10 +1,10 @@
 # SDK-Hosted Inspector 快速開始
 
-當你擁有 target application source code 時，prefer SDK-hosted reuse with `WpfDevTools.Inspector.Sdk`。當你需要對無法修改的 app 做 zero-instrumentation diagnostics 時，raw injection remains the fallback path。
+當你擁有 target application source code 時，請優先使用 `WpfDevTools.Inspector.Sdk` 的 SDK-hosted reuse。當你需要對無法修改的 app 做 zero-instrumentation diagnostics 時，raw injection 仍是 fallback path。
 
 ## Package status
 
-The NuGet package is not yet publicly published。公開前，請從 repository 建立 local pack：
+在 SDK package 正式發布到 NuGet 前，請使用 release/build pipeline 產生的 repository-local package。不要把未來的 NuGet install command 放進 production onboarding。Local development 可先從 repository 建立 local pack：
 
 ```powershell
 dotnet pack src\WpfDevTools.Inspector.Sdk\WpfDevTools.Inspector.Sdk.csproj -c Release -o .\nupkg -p:GeneratePackageOnBuild=false
@@ -26,10 +26,10 @@ Local SDK package 會包含 repository-internal `WpfDevTools.Inspector` 與 `Wpf
 
 `WPFDEVTOOLS_CERT_DIR` 必須是 local absolute directory，且兩邊必須相同。SDK plaintext mode 預設不支援。
 
-兩個 shell 都要使用相同值。Auth secret 必須可解碼成剛好 32 bytes：
+兩個 shell 都要使用相同值。`WPFDEVTOOLS_AUTH_SECRET` 必須是 base64 encoded，且解碼後至少 32 bytes。除非 deployment policy 要求更長 material，否則使用 32 bytes 即可：
 
 ```powershell
-$env:WPFDEVTOOLS_AUTH_SECRET = "base64-encoded-32-byte-secret"
+$env:WPFDEVTOOLS_AUTH_SECRET = "base64-encoded-at-least-32-byte-secret"
 $env:WPFDEVTOOLS_CERT_DIR = "C:\wpf-devtools-certs"
 ```
 
@@ -69,7 +69,7 @@ public partial class App : Application
 如果 target process 不想直接依賴 `WPFDEVTOOLS_*` environment variables，而是已經有自己的 diagnostics config source，可以傳入 `InspectorSdkOptions`：
 
 ```csharp
-string authSecretBase64 = "...base64-encoded-32-byte-secret...";
+string authSecretBase64 = "...base64-encoded-at-least-32-byte-secret...";
 string certificateDirectory = @"C:\absolute\wpf-devtools-certs";
 
 InspectorSdk.InitializeWithOptions(new InspectorSdkOptions
@@ -80,7 +80,7 @@ InspectorSdk.InitializeWithOptions(new InspectorSdkOptions
 });
 ```
 
-Partial explicit SDK transport configuration is rejected and not mixed with environment variables。`AuthenticationSecretBase64` 與 `CertificateDirectory` 必須一起提供，且 `CertificateDirectory` 必須是 local absolute directory。The MCP server must use the same secret and certificate directory；不要在 target app 內獨立產生另一組 secret。
+Partial explicit SDK transport configuration 會被拒絕，且不會與 environment variables 混用。`AuthenticationSecretBase64` 與 `CertificateDirectory` 必須一起提供，且 `CertificateDirectory` 必須是 local absolute directory。MCP server 必須使用相同的 secret 與 certificate directory；不要在 target app 內獨立產生另一組 secret。
 
 App 執行後，從 MCP client 呼叫 `connect()`。Server 會先探測 compatible SDK-hosted Inspector，並在 security settings 相符時重用它。
 
@@ -92,7 +92,7 @@ App 執行後，從 MCP client 呼叫 `connect()`。Server 會先探測 compatib
 - app 使用 single-file publish mode，導致 raw injection 不可用。
 - app 使用 trimmed publish mode，且你接受 SDK-host startup 是 preferred fallback rather than a guarantee。
 
-Native AOT targets are not supported today. SDK-hosted reuse is not a Native AOT workaround.
+目前不支援 Native AOT targets。SDK-hosted reuse 不是 Native AOT workaround。
 
 ## 何時保留 raw injection fallback
 
@@ -107,4 +107,4 @@ Native AOT targets are not supported today. SDK-hosted reuse is not a Native AOT
 - 如果 `connect()` 沒有重用 SDK host，確認兩個 process 使用相同的 `WPFDEVTOOLS_AUTH_SECRET` 與 `WPFDEVTOOLS_CERT_DIR` local absolute directory。
 - 如果 packaging 是 single-file，優先使用 SDK-hosted mode，並只把 raw injection 當成 fallback。
 - 如果 packaging 是 trimmed，優先使用 SDK-hosted mode，但需要驗證 startup，因為 trimming 可能移除必要 inspector types。
-- Native AOT targets are not supported today；SDK-hosted reuse is not a Native AOT workaround。
+- 目前不支援 Native AOT targets；SDK-hosted reuse 不是 Native AOT workaround。

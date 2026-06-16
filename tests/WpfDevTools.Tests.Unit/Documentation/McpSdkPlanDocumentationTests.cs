@@ -5,21 +5,21 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public class McpSdkPlanDocumentationTests
 {
     [Fact]
-    public void Readme_ShouldDocumentCreateEmptyApplicationBuilder()
+    public void Program_ShouldUseEmptyApplicationBuilderForStdio()
     {
-        var readmeContent = File.ReadAllText(GetRepoFilePath("README.md"));
+        var programContent = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/Program.cs"));
 
-        readmeContent.Should().Contain("Host.CreateEmptyApplicationBuilder");
-        readmeContent.Should().NotContain("Host.CreateApplicationBuilder(args)");
+        programContent.Should().Contain("Host.CreateEmptyApplicationBuilder");
+        programContent.Should().NotContain("Host.CreateApplicationBuilder(args)");
     }
 
     [Fact]
-    public void Readme_ShouldExplainWhyEmptyBuilderIsUsedForStdio()
+    public void Program_ShouldExplainWhyEmptyBuilderIsUsedForStdio()
     {
-        var readmeContent = File.ReadAllText(GetRepoFilePath("README.md"));
+        var programContent = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/Program.cs"));
 
-        readmeContent.Should().Contain("stdout");
-        readmeContent.Should().Contain("STDIO");
+        programContent.Should().Contain("stdout");
+        programContent.Should().Contain("STDIO");
     }
 
     private static string GetRepoFilePath(string relativePath)

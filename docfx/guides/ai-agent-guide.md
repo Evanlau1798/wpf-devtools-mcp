@@ -103,6 +103,7 @@ Also use MCP discovery surfaces instead of relying on memory:
 
 - prompts such as `debug_binding_issue`
 - resources such as `wpf://capabilities`
+- contract resources such as `wpf://contracts/tools`
 
 Some clients may render these as client-specific shortcuts such as `/mcp__wpf-devtools__debug_binding_issue` or `@wpf-devtools:capabilities`, but the standard prompt name and resource URI are the portable contract.
 

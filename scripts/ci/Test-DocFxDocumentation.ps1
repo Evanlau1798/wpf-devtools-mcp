@@ -342,11 +342,132 @@ function Test-ToolReferenceCoverage {
         }
     }
 }
+function Test-ProductionDocumentationGuards {
+    param([Parameter(Mandatory = $true)] [string]$RepoRoot)
+    $productionDocs = @(
+        'README.md',
+        'AGENT_INSTALL.md',
+        'docfx/index.md',
+        'docfx/guides/agent-assisted-install.md',
+        'docfx/quickstart',
+        'docfx/production/deployment.md',
+        'docfx/production/release-layout.md', 'docfx/production/security.md',
+        'docfx/zh-tw/index.md',
+        'docfx/zh-tw/guides/agent-assisted-install.md',
+        'docfx/zh-tw/quickstart',
+        'docfx/zh-tw/production/deployment.md',
+        'docfx/zh-tw/production/release-layout.md', 'docfx/zh-tw/production/security.md'
+    )
+    $blockedProductionTerms = @(
+        '-ExecutionPolicy Bypass',
+        'GitHub pre-release E2E',
+        'validation-only',
+        '64-tool',
+        '.e2e',
+        'NDJSON smoke',
+        'package-local smoke'
+    )
+    foreach ($relative in $productionDocs) {
+        $path = Join-RelativePath -Root $RepoRoot -RelativePath $relative
+        if (-not (Test-Path -LiteralPath $path)) {
+            continue
+        }
+        $files = if (Test-Path -LiteralPath $path -PathType Container) {
+            Get-ChildItem -LiteralPath $path -Recurse -File -Filter '*.md'
+        }
+        else {
+            @(Get-Item -LiteralPath $path)
+        }
+        foreach ($file in $files) {
+            $content = Get-Content -LiteralPath $file.FullName -Raw
+            foreach ($term in $blockedProductionTerms) {
+                if ($content.IndexOf($term, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                    $displayPath = Get-RelativePath -BasePath $RepoRoot -Path $file.FullName
+                    Add-ValidationFailure "Production doc contains blocked term '$term': $displayPath"
+                }
+            }
+        }
+    }
+}
+
+function Test-LocaleTocIsolation {
+    param([Parameter(Mandatory = $true)] [string]$DocfxRoot)
+    $tocPath = Join-Path $DocfxRoot 'toc.yml'
+    if (Test-Path -LiteralPath $tocPath -PathType Leaf) {
+        $toc = Get-Content -LiteralPath $tocPath -Raw
+        if ($toc.IndexOf('zh-tw/toc.yml', [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            Add-ValidationFailure 'Root DocFX TOC must link to zh-tw/index.md, not import zh-tw/toc.yml.'
+        }
+    }
+}
+
+function Test-ReleaseSidecarDocumentation {
+    param([Parameter(Mandatory = $true)] [string]$RepoRoot)
+    $requiredSidecars = @(
+        'SHA256SUMS.txt',
+        'release-assets.json',
+        'release-sbom.spdx.json',
+        'package-sbom.spdx.json',
+        'release-evidence.json'
+    )
+    $docs = @(
+        'README.md',
+        'AGENT_INSTALL.md',
+        'docfx/index.md',
+        'docfx/quickstart/index.md',
+        'docfx/production/deployment.md',
+        'docfx/production/release-layout.md',
+        'docfx/zh-tw/index.md',
+        'docfx/zh-tw/quickstart/index.md',
+        'docfx/zh-tw/production/deployment.md',
+        'docfx/zh-tw/production/release-layout.md'
+    )
+    foreach ($relative in $docs) {
+        $path = Join-RelativePath -Root $RepoRoot -RelativePath $relative
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            continue
+        }
+        $content = Get-Content -LiteralPath $path -Raw
+        foreach ($sidecar in $requiredSidecars) {
+            if ($content.IndexOf($sidecar, [System.StringComparison]::Ordinal) -lt 0) {
+                Add-ValidationFailure "Release sidecar '$sidecar' is missing from $relative"
+            }
+        }
+    }
+}
+
+function Test-ViewModelPolicyDocumentation {
+    param([Parameter(Mandatory = $true)] [string]$RepoRoot)
+    $requiredTerms = @(
+        'get_datacontext_chain',
+        'capture_state_snapshot',
+        'batch_mutate',
+        'wait_for_dp_change_after_mutation'
+    )
+    $docs = @(
+        'README.md',
+        'docfx/reference/configuration.md',
+        'docfx/production/security.md',
+        'docfx/zh-tw/reference/configuration.md',
+        'docfx/zh-tw/production/security.md'
+    )
+    foreach ($relative in $docs) {
+        $path = Join-RelativePath -Root $RepoRoot -RelativePath $relative
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            continue
+        }
+        $content = Get-Content -LiteralPath $path -Raw
+        foreach ($term in $requiredTerms) {
+            if ($content.IndexOf($term, [System.StringComparison]::Ordinal) -lt 0) {
+                Add-ValidationFailure "ViewModel policy documentation term '$term' is missing from $relative"
+            }
+        }
+    }
+}
 
 $repoRootFull = [System.IO.Path]::GetFullPath($RepoRoot)
 $docfxRoot = Join-Path $repoRootFull 'docfx'
 $siteRoot = Join-Path $docfxRoot '_site'
-
 if (-not (Test-Path -LiteralPath $docfxRoot -PathType Container)) {
     Add-ValidationFailure "DocFX root does not exist: $docfxRoot"
 }
@@ -355,20 +476,23 @@ if (-not (Test-Path -LiteralPath $siteRoot -PathType Container)) {
 }
 
 if ($script:Failures.Count -eq 0) {
+    Test-ProductionDocumentationGuards -RepoRoot $repoRootFull
+    Test-LocaleTocIsolation -DocfxRoot $docfxRoot
+    Test-ReleaseSidecarDocumentation -RepoRoot $repoRootFull
+    Test-ViewModelPolicyDocumentation -RepoRoot $repoRootFull
+}
+if ($script:Failures.Count -eq 0) {
     Test-ZhTwParity -DocfxRoot $docfxRoot
     Test-GeneratedPages -DocfxRoot $docfxRoot -SiteRoot $siteRoot
     Test-GeneratedLinks -SiteRoot $siteRoot
     Test-ToolReferenceCoverage -DocfxRoot $docfxRoot -SiteRoot $siteRoot -ToolNames (Get-RegisteredToolNames -RepoRoot $repoRootFull)
 }
-
 if ($script:Failures.Count -gt 0) {
     Write-DocFxEvidence -Path $EvidenceOutputPath
     foreach ($failure in $script:Failures) {
         Write-Host "ERROR: $failure"
     }
-
     exit 1
 }
-
 Write-DocFxEvidence -Path $EvidenceOutputPath
 Write-Host 'DocFX documentation validation passed.'

@@ -1,5 +1,7 @@
 # Process and Connection Tools
 
+Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact local absolute executable path before calling `connect`; unset or malformed values fail closed.
+
 ## Most important tools
 
 - `get_processes`

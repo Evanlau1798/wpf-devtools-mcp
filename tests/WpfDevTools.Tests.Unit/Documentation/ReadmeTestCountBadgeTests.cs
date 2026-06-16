@@ -13,8 +13,8 @@ public sealed class ReadmeTestCountBadgeTests
             "test-count badges must come from generated/current data, not a stale hand-written lower bound");
         readme.Should().NotMatchRegex(@"(?im)\btests[- ]\d",
             "README should not publish badge-like exact or lower-bound test-count claims without a generated manifest");
-        readme.Should().Contain("large automated test suite");
-        readme.Should().Contain("dotnet test --no-build --list-tests");
+        readme.Should().Contain("RELEASING.md");
+        readme.Should().Contain("AGENT_INSTALL.md");
     }
 
     [Fact]

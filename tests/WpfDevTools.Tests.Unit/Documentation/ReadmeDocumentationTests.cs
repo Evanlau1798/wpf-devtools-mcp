@@ -1,6 +1,5 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System.Text;
-using System.Text.RegularExpressions;
 using FluentAssertions;
 using WpfDevTools.Shared.Serialization;
 using Xunit;
@@ -10,11 +9,11 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public class ReadmeDocumentationTests
 {
     [Fact]
-    public void Readme_ShouldStayConcisePublicEntrypoint()
+    public void Readme_ShouldStayConciseProductionEntrypoint()
     {
         var lines = File.ReadAllLines(GetRepoFilePath("README.md"));
 
-        lines.Length.Should().BeInRange(90, 140);
+        lines.Length.Should().BeInRange(35, 90);
     }
 
     [Fact]
@@ -28,37 +27,51 @@ public class ReadmeDocumentationTests
         content.Should().Contain("https://wpf-mcptools.evanlau1798.com/quickstart/sdk-hosted-inspector.html");
         content.Should().Contain("https://wpf-mcptools.evanlau1798.com/production/deployment.html");
         content.Should().Contain("https://wpf-mcptools.evanlau1798.com/production/security.html");
-        content.Should().Contain("https://wpf-mcptools.evanlau1798.com/production/compatibility-matrix.html");
+        content.Should().Contain("https://wpf-mcptools.evanlau1798.com/production/release-layout.html");
         content.Should().Contain("https://wpf-mcptools.evanlau1798.com/reference/tools/");
 
-        content.Should().NotContain("[DocFX home](https://installer.wpf-mcptools.evanlau1798.com/",
-            "the installer host must not be used as the DocFX endpoint");
-        content.Should().NotContain("[Quickstart](https://installer.wpf-mcptools.evanlau1798.com/",
-            "the installer host must not be used as the DocFX endpoint");
         content.Should().NotContain("docfx/index.md");
         content.Should().NotContain("docfx/quickstart/index.md");
-        content.Should().NotContain("docfx/quickstart/ai-agent-clients.md");
-        content.Should().NotContain("docfx/production/deployment.md");
-        content.Should().NotContain("docfx/production/security.md");
-        content.Should().NotContain("docfx/production/compatibility-matrix.md");
-        content.Should().NotContain("docfx/reference/tools/index.md");
-
         content.Should().NotContain("## MCP Client Configuration");
         content.Should().NotContain("## Tool Categories");
-        content.Should().NotContain("## Architecture");
-        content.Should().NotContain("## Repository Layout");
         content.Should().NotContain("```json");
-        content.Should().NotContain("<details>");
     }
 
     [Fact]
-    public void Readme_ShouldDescribeCurrentStdioOnlyState()
+    public void Readme_ShouldDescribeCurrentPublicSurfaceAndSecurityDefaults()
     {
         var content = File.ReadAllText(GetRepoFilePath("README.md"));
 
         content.Should().Contain("STDIO");
-        content.Should().Contain("WithStdioServerTransport");
+        content.Should().Contain("64 MCP tools");
+        content.Should().Contain("Security defaults fail closed");
+        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
+        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS");
+        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION");
+        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS");
+        content.Should().Contain("WPFDEVTOOLS_AUTH_SECRET");
+        content.Should().Contain("WPFDEVTOOLS_CERT_DIR");
         content.Should().NotContain("HTTP+SSE currently available");
+    }
+
+    [Fact]
+    public void Readme_ShouldDescribePublishedInstallArtifactsWithoutE2eRunbookResidue()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain("irm https://installer.wpf-mcptools.evanlau1798.com | iex");
+        content.Should().Contain("release_<version>_win-<arch>.zip");
+        content.Should().Contain("SHA256SUMS.txt");
+        content.Should().Contain("release-assets.json");
+        content.Should().Contain("release-sbom.spdx.json");
+        content.Should().Contain("package-sbom.spdx.json");
+        content.Should().Contain("release-evidence.json");
+        content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
+        content.Should().Contain("run.bat");
+        content.Should().NotContain("GitHub pre-release E2E");
+        content.Should().NotContain("validation-only");
+        content.Should().NotContain("NDJSON smoke");
+        content.Should().NotContain("-ExecutionPolicy Bypass");
     }
 
     [Fact]
@@ -102,48 +115,11 @@ public class ReadmeDocumentationTests
     {
         var content = File.ReadAllText(GetRepoFilePath("README.md"));
 
-        content.Should().Contain("SECURITY.md");
-        content.Should().Contain("EXAMPLES.md");
+        content.Should().Contain("LICENSE");
+        content.Should().Contain("RELEASING.md");
+        content.Should().Contain("AGENT_INSTALL.md");
         content.Should().NotContain("docs/current-state.md");
         content.Should().NotContain("docs/mcp-sdk-plan/README.md");
-        content.Should().NotContain("docs/development-plan/README.md");
-        content.Should().NotContain("docs/architecture/");
-    }
-
-    [Fact]
-    public void Readme_ShouldDocumentStructuredInspectorErrors()
-    {
-        var content = File.ReadAllText(GetRepoFilePath("README.md"));
-
-        content.Should().Contain("errorCode");
-        content.Should().Contain("errorData");
-    }
-
-    [Fact]
-    public void Readme_ShouldIncludeSecurityFirstOperatorChecklist()
-    {
-        var content = File.ReadAllText(GetRepoFilePath("README.md"));
-
-        content.Should().Contain("## Operator Checklist");
-        var section = content
-            .Split("## Operator Checklist", 2, StringSplitOptions.None)[1]
-            .Split("\n## ", 2, StringSplitOptions.None)[0];
-        var numberedSteps = section
-            .Split('\n')
-            .Where(line => Regex.IsMatch(line, @"^\d+\. "))
-            .ToArray();
-        var lowerSection = section.ToLowerInvariant();
-
-        numberedSteps.Should().HaveCount(8);
-        lowerSection.Should().Contain("signed release");
-        section.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
-        section.Should().Contain("SDK-hosted");
-        lowerSection.Should().Contain("raw injection");
-        section.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS");
-        lowerSection.Should().Contain("smoke");
-        lowerSection.Should().Contain("logs");
-        lowerSection.Should().Contain("revoke");
-        lowerSection.Should().Contain("uninstall");
     }
 
     [Fact]
@@ -182,111 +158,4 @@ public class ReadmeDocumentationTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
-    [Fact]
-    public void Readme_ShouldDocumentPublishedArtifactSetupAndServerBitness()
-    {
-        var content = File.ReadAllText(GetRepoFilePath("README.md"));
-
-        content.Should().Contain("published release",
-            "the public onboarding path should mention published artifacts instead of only source-tree startup");
-        content.Should().Contain("server process architecture must match the target process",
-            "README quick start must state that the MCP server/injector bitness must match the target app");
-    }
-
-    [Fact]
-    public void Readme_ShouldDescribeConnectFirstSceneFirstWorkflow()
-    {
-        var content = File.ReadAllText(GetRepoFilePath("README.md"));
-
-        content.Should().Contain("connect()",
-            "the primary workflow should start from connect() auto-discovery");
-        content.Should().Contain("get_ui_summary",
-            "README should direct agents toward scene-level context before tree expansion");
-        content.Should().Contain("nextSteps",
-            "README should explain that clients should prefer returned runtime navigation guidance");
-        content.Should().Contain("get_processes(windowFilter)",
-            "README should frame process listing as a disambiguation path rather than the default path");
-        content.Should().NotContain("Call `get_processes` to discover WPF targets.",
-            "README should not instruct agents to list processes before trying connect()");
-        content.Should().NotContain("Use tree tools first",
-            "README should not present tree-first exploration as the default path");
-    }
-
-    [Fact]
-    public void Readme_ShouldDescribeConditionalRunBatElevationBehavior()
-    {
-        var content = File.ReadAllText(GetRepoFilePath("README.md"));
-
-        content.Should().Contain("WPFDEVTOOLS_SKIP_ELEVATION=1",
-            "README should explain the opt-out for the launcher elevation request");
-        content.Should().Contain("requests elevation when the current shell is not already elevated",
-            "README should describe the current conditional elevation behavior precisely");
-        content.Should().Contain("register manually after install",
-            "README should document the manual fallback when elevated CLI registration is blocked");
-        content.Should().NotContain("WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH",
-            "README must not document the removed elevated CLI path opt-in");
-    }
-
-    [Fact]
-    public void Readme_ShouldUseAutomationSafeInstallerExamplesAndLiteralAbsoluteJsonPaths()
-    {
-        var content = File.ReadAllText(GetRepoFilePath("README.md"));
-
-        content.Should().Contain("-NonInteractive",
-            "README should not describe an automation-ready install flow without explicitly passing -NonInteractive");
-        content.Should().Contain("-OutputJson",
-            "README should include machine-readable installer output in automation-oriented examples");
-        content.Should().NotContain("%APPDATA%\\\\WpfDevToolsMcp\\\\x64\\\\current\\\\bin\\\\wpf-devtools-x64.exe",
-            "published JSON examples should use literal absolute paths rather than default-root placeholders");
-        File.ReadAllText(GetRepoFilePath("docfx/quickstart/cursor-vscode.md"))
-            .Should().Contain("C:\\\\Users\\\\<you>\\\\AppData\\\\Roaming\\\\WpfDevToolsMcp\\\\<arch>\\\\current\\\\bin\\\\wpf-devtools-<arch>.exe",
-                "DocFX client quickstarts should demonstrate the reviewed JSON shape with a literal absolute path template");
-    }
-
-    [Fact]
-    public void Readme_ShouldUseReviewedOnlineInstallerAsPrimaryBootstrapPath()
-    {
-        var content = File.ReadAllText(GetRepoFilePath("README.md"));
-
-        content.Should().NotContain("raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1",
-            "README should not ask users to execute the moving master branch installer directly");
-        content.Should().Contain(".\\scripts\\online-installer.ps1",
-            "README should make the reviewed repository installer the primary bootstrap path");
-        content.Should().Contain("validates archive integrity before extraction",
-            "README should explain why the reviewed installer path is safer than manually expanding the archive");
-        content.Should().Contain("run.bat",
-            "README should keep the package-local launcher as the manual fallback path");
-        content.Should().Contain("SHA256SUMS.txt",
-            "README manual fallback should require release provenance verification before run.bat is launched from an extracted archive");
-        content.Should().Contain("release-assets.json",
-            "README manual fallback should point users at the canonical release asset metadata before trusting a downloaded archive");
-        content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
-            "README manual fallback should explain how to provide an explicit signer pin if the verified archive is no longer kept beside the extracted package");
-    }
-
-    [Fact]
-    public void LandingPages_ShouldDescribeThumbprintAsRequiredSignerTrustRoot()
-    {
-        var englishLandingPages = new[]
-        {
-            "README.md",
-            "docfx/index.md"
-        };
-
-        foreach (var relativePath in englishLandingPages)
-        {
-            var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-            content.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`");
-            content.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
-            content.Should().Contain("additional constraint");
-            content.Should().NotContain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` or `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
-        }
-
-        var traditionalChinese = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/index.md"));
-        traditionalChinese.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`");
-        traditionalChinese.Should().Contain("`WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
-        traditionalChinese.Should().Contain("additional constraint");
-        traditionalChinese.Should().NotContain("`WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 或 `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT`");
-    }
 }

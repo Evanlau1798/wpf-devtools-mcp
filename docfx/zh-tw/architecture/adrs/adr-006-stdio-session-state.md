@@ -39,7 +39,7 @@
 - 目前 static state 對正式發佈的 STDIO package 仍可接受。
 - 未來 HTTP 工作必須先處理 session-bound service registration，不能只替換 transport。
 - 任何未來 `MapMcp`、Streamable HTTP 或 SSE entrypoint 若仍沿用 STDIO-only process globals，必須在 review 階段被擋下。
-- 文件、smoke tests 與 production readiness review 必須把 session isolation 視為 release gate，而不是 transport launch 後的 cleanup task。
+- 文件、冒煙測試 與 production readiness review 必須把 session isolation 視為 release gate，而不是 transport launch 後的 cleanup task。
 
 ## 參考
 

@@ -44,7 +44,7 @@ public sealed class ReadmeContractConsistencyTests
             .ToArray();
         var totalCount = toolCounts.Sum(entry => entry.Count);
 
-        readme.Should().Contain($"The server ships {totalCount} MCP tools");
+        readme.Should().Contain($"{totalCount} MCP tools");
         readme.Should().NotContain("| Process Management | 5 |");
         toolReference.Should().Contain($"The server currently exposes {totalCount} tools across eleven categories.");
 
@@ -67,7 +67,7 @@ public sealed class ReadmeContractConsistencyTests
         textFallbackHelper.Should().Contain("AppendHighSignalFallbackFields");
         textFallbackHelper.Should().Contain("Annotations = isError ? ErrorAnnotations : null");
         textFallbackHelper.Should().Contain("hasStructuredContent");
-        readme.Should().Contain("structuredContent");
+        readme.Should().Contain("reference/tools/");
         toolReference.Should().Contain("result.structuredContent");
         toolReference.Should().Contain("compact JSON fallback");
         toolReference.Should().Contain("WPFDEVTOOLS_TEXT_FALLBACK_MODE=full");
@@ -81,12 +81,14 @@ public sealed class ReadmeContractConsistencyTests
     public void Readme_ShouldSeparateToolInputSchemasFromResponseContracts()
     {
         var readme = File.ReadAllText(GetRepoFilePath("README.md"));
+        var toolReference = File.ReadAllText(GetRepoFilePath("docfx/reference/tools/index.md"));
 
-        readme.Should().Contain("Use MCP tool discovery for input schemas");
-        readme.Should().Contain("Use `wpf://contracts/response` for machine-readable response contracts");
-        readme.Should().Contain("structuredContent");
-        readme.Should().Contain("navigation");
-        readme.Should().Contain("nextSteps");
+        readme.Should().Contain("DocFX tool reference");
+        toolReference.Should().Contain("tools/list");
+        toolReference.Should().Contain("wpf://contracts/response");
+        toolReference.Should().Contain("structuredContent");
+        toolReference.Should().Contain("navigation");
+        toolReference.Should().Contain("nextSteps");
         readme.Should().NotContain("Use MCP tool discovery for full schemas.");
     }
 

@@ -25,8 +25,8 @@ public sealed class PublicEndpointDocumentationTests
 
             content.Should().Contain(PublicInstallerAlias,
                 $"{file} should publish the HTTPS installer alias for release-candidate docs");
-            content.Should().Contain("GitHub Release assets",
-                $"{file} should explain that first-public-release install requires uploaded assets");
+            content.Should().Contain("release",
+                $"{file} should describe release-based installation rather than source-tree setup");
             content.Should().NotContain(InsecurePublicInstallerAlias,
                 $"{file} should not advertise the retired HTTP installer alias");
             content.Should().NotContain(RetiredDocsHostInstallerAlias,
@@ -77,20 +77,10 @@ public sealed class PublicEndpointDocumentationTests
         yield return "README.md";
         yield return "docfx/index.md";
         yield return "docfx/quickstart/index.md";
-        yield return "docfx/quickstart/ai-agent-clients.md";
-        yield return "docfx/quickstart/claude-code.md";
-        yield return "docfx/quickstart/openai-codex.md";
-        yield return "docfx/quickstart/claude-desktop.md";
-        yield return "docfx/quickstart/cursor-vscode.md";
         yield return "docfx/production/deployment.md";
         yield return "docfx/production/release-layout.md";
         yield return "docfx/zh-tw/index.md";
         yield return "docfx/zh-tw/quickstart/index.md";
-        yield return "docfx/zh-tw/quickstart/ai-agent-clients.md";
-        yield return "docfx/zh-tw/quickstart/claude-code.md";
-        yield return "docfx/zh-tw/quickstart/openai-codex.md";
-        yield return "docfx/zh-tw/quickstart/claude-desktop.md";
-        yield return "docfx/zh-tw/quickstart/cursor-vscode.md";
         yield return "docfx/zh-tw/production/deployment.md";
         yield return "docfx/zh-tw/production/release-layout.md";
     }

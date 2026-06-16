@@ -62,8 +62,11 @@ public sealed class SdkPreferredDocumentationTests
             content.Should().Contain("AV");
             content.Should().Contain("deployment policy");
             content.Should().Contain("net8.0-windows");
-            content.Should().Contain("NuGet package is not yet publicly published");
-            content.Should().Contain("local pack");
+            content.Should().Contain("NuGet");
+            (content.Contains("published", StringComparison.OrdinalIgnoreCase) ||
+             content.Contains("正式發布", StringComparison.Ordinal)).Should().BeTrue(
+                $"{file} should explain the pre-NuGet-publication package flow");
+            content.Should().Contain("dotnet pack");
         }
     }
 
@@ -77,9 +80,15 @@ public sealed class SdkPreferredDocumentationTests
             content.Should().Contain("ProcessId = Environment.ProcessId");
             content.Should().Contain("AuthenticationSecretBase64 = authSecretBase64");
             content.Should().Contain("CertificateDirectory = certificateDirectory");
-            content.Should().Contain("Partial explicit SDK transport configuration is rejected");
-            content.Should().Contain("not mixed with environment variables");
-            content.Should().Contain("The MCP server must use the same secret and certificate directory");
+            (content.Contains("Partial explicit SDK transport configuration is rejected", StringComparison.Ordinal) ||
+             content.Contains("Partial explicit SDK transport configuration 會被拒絕", StringComparison.Ordinal)).Should().BeTrue(
+                $"{file} should document that partial explicit SDK transport configuration is rejected");
+            (content.Contains("not mixed with environment variables", StringComparison.Ordinal) ||
+             content.Contains("不會與 environment variables 混用", StringComparison.Ordinal)).Should().BeTrue(
+                $"{file} should document that explicit options are not mixed with environment variables");
+            (content.Contains("The MCP server must use the same secret and certificate directory", StringComparison.Ordinal) ||
+             content.Contains("MCP server 必須使用相同的 secret 與 certificate directory", StringComparison.Ordinal)).Should().BeTrue(
+                $"{file} should require the MCP server to use the same secret and certificate directory");
             content.Should().Contain("local absolute directory");
         }
     }
@@ -123,12 +132,22 @@ public sealed class SdkPreferredDocumentationTests
     }
 
     [Fact]
+    public void SdkReadme_ShouldWarnThatTrimmedAppsNeedStartupVerification()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Inspector.Sdk/README.md"));
+
+        content.Should().Contain("Trimmed apps are still risky");
+        content.Should().Contain("preferred fallback rather than a guarantee");
+        content.Should().Contain("- Your application is trimmed (verify startup behavior");
+    }
+
+    [Fact]
     public void SdkPreferredPositioning_ShouldStayConsistentAcrossPublicDocs()
     {
         foreach (var file in new[]
                  {
-                     "README.md",
                      "docfx/architecture/overview.md",
+                     "docfx/quickstart/sdk-hosted-inspector.md",
                      "docfx/production/compatibility-matrix.md",
                      "docfx/production/bootstrap-and-injection.md",
                      "src/WpfDevTools.Inspector.Sdk/README.md"
@@ -143,6 +162,7 @@ public sealed class SdkPreferredDocumentationTests
         foreach (var file in new[]
                  {
                      "docfx/zh-tw/architecture/overview.md",
+                     "docfx/zh-tw/quickstart/sdk-hosted-inspector.md",
                      "docfx/zh-tw/production/compatibility-matrix.md",
                      "docfx/zh-tw/production/bootstrap-and-injection.md"
                  })

@@ -9,14 +9,17 @@ public sealed partial class ReleaseReadinessDocumentationTests
     private static readonly string RepoRoot = ResolveRepoRoot();
 
     [Fact]
-    public void Readme_ShouldLinkToReleaseGuideAndPreflightCommand()
+    public void ReleaseDocs_ShouldLinkReadmeToGuideAndKeepPreflightInReleaseGuide()
     {
-        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+        var readme = File.ReadAllText(GetRepoFilePath("README.md"));
+        var releasing = File.ReadAllText(GetRepoFilePath("RELEASING.md"));
 
-        content.Should().Contain("RELEASING.md",
+        readme.Should().Contain("RELEASING.md",
             "maintainers should be able to discover the dedicated release guide from the README");
-        content.Should().Contain("Preflight-Release.ps1",
-            "the README should point maintainers to the no-upload local release validation command");
+        readme.Should().NotContain("Preflight-Release.ps1",
+            "the production README should stay concise and leave maintainer release commands to RELEASING.md");
+        releasing.Should().Contain("Preflight-Release.ps1",
+            "the release guide should point maintainers to the no-upload local release validation command");
     }
 
     [Fact]
@@ -149,12 +152,12 @@ public sealed partial class ReleaseReadinessDocumentationTests
     [InlineData(
         "docfx/production/deployment.md",
         "Signed payload provenance checklist",
-        "package-local smoke",
+        "package-local startup verification",
         "installed path")]
     [InlineData(
         "docfx/zh-tw/production/deployment.md",
         "已簽章 payload provenance 檢查清單",
-        "package-local smoke",
+        "package-local 啟動驗證",
         "已安裝路徑")]
     public void DeploymentGuides_ShouldPublishSignedPayloadProvenanceChecklist(
         string relativePath,
@@ -174,14 +177,15 @@ public sealed partial class ReleaseReadinessDocumentationTests
             $"{relativePath} should require the release asset SBOM sidecar in the production checklist");
         content.Should().Contain("release asset SBOM",
             $"{relativePath} should describe release-sbom.spdx.json as asset-level release inventory");
-        content.Should().Contain("not a full package/dependency SBOM",
+        (content.Contains("not a full package/dependency SBOM", StringComparison.Ordinal) ||
+         content.Contains("不是完整 package/dependency SBOM", StringComparison.Ordinal)).Should().BeTrue(
             $"{relativePath} should not overstate the current release-sbom.spdx.json contents");
         content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
             $"{relativePath} should require an explicit signer pin when adjacent sidecars are absent");
         content.Should().Contain("wpf-devtools-<arch>.exe",
             $"{relativePath} should tie the checklist to the installed release executable");
         content.Should().Contain(packageSmokePhrase,
-            $"{relativePath} should require a package-local smoke check before trusting the install");
+            $"{relativePath} should require package-local startup verification before trusting the install");
         content.Should().Contain(installedPathPhrase,
             $"{relativePath} should require validation from the final installed location");
     }

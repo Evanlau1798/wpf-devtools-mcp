@@ -1,7 +1,7 @@
 - name: Home
   href: index.md
-- name: Traditional Chinese
-  href: zh-tw/toc.yml
+- name: 繁體中文
+  href: zh-tw/index.md
 - name: Quickstart
   items:
     - name: 5-Minute Setup
@@ -10,28 +10,6 @@
       href: quickstart/ai-agent-clients.md
     - name: SDK-Hosted Inspector
       href: quickstart/sdk-hosted-inspector.md
-    - name: Claude Code
-      href: quickstart/claude-code.md
-    - name: OpenAI Codex and Codex CLI
-      href: quickstart/openai-codex.md
-    - name: Claude Desktop
-      href: quickstart/claude-desktop.md
-    - name: VS Code and Visual Studio
-      href: quickstart/cursor-vscode.md
-- name: Guides
-  items:
-    - name: AI Agent Guide
-      href: guides/ai-agent-guide.md
-    - name: Agent-Assisted Install
-      href: guides/agent-assisted-install.md
-    - name: Common Workflows
-      href: guides/common-workflows.md
-    - name: Troubleshooting
-      href: guides/troubleshooting.md
-- name: Agent Feedback
-  items:
-    - name: Overview
-      href: agent-feedback/index.md
 - name: Production
   items:
     - name: Security Model
@@ -78,17 +56,9 @@
       href: architecture/injection.md
     - name: ADR Index
       href: architecture/adrs/index.md
-    - name: ADR-001 Named Pipes for IPC
-      href: architecture/adrs/adr-001-named-pipes.md
-    - name: ADR-002 In-Process Injection
-      href: architecture/adrs/adr-002-in-process-injection.md
-    - name: ADR-003 Length-Prefix Framing
-      href: architecture/adrs/adr-003-length-prefix-framing.md
-    - name: ADR-005 Multi-Targeting Strategy
-      href: architecture/adrs/adr-005-multi-targeting.md
     - name: ADR-006 STDIO Session State
       href: architecture/adrs/adr-006-stdio-session-state.md
-- name: Contributors
+- name: Maintainers
   items:
     - name: Contributor Guide
       href: contributors/index.md
@@ -98,3 +68,7 @@
       href: contributors/testing-and-tdd.md
     - name: Documentation Style
       href: contributors/documentation-style.md
+    - name: Agent-Assisted Install
+      href: guides/agent-assisted-install.md
+    - name: Agent Feedback
+      href: agent-feedback/index.md

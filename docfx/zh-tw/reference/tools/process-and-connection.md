@@ -1,5 +1,7 @@
 # 程序與連線工具
 
+`WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 必須先包含 reviewed target 的 exact local absolute executable path，才呼叫 `connect`；未設定或 malformed value 會 fail closed。
+
 ## 最重要的工具
 
 - `get_processes`

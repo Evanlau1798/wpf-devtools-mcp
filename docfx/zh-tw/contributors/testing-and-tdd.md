@@ -56,7 +56,7 @@ Unit 與 integration suites 會啟用 collection-level parallelization，並用 
 
 - installer PowerShell、TUI、process-lifecycle，以及 package-root 測試若需要彼此序列化，但仍應和不相關 collections 同時執行，請使用 `InstallerScripts`
 - `TimingSensitive` 只用於在無關 workstation contention 下容易不穩的 timing-budget 測試
-- `LiveBootstrapIntegration` collection 必須維持優先執行，因為 live DLL injection/connect smoke tests 在 shared testhost 累積長時間 WPF 與 MCP fixture 狀態前最穩定
+- `LiveBootstrapIntegration` collection 必須維持優先執行，因為 live DLL injection/connect 冒煙測試 在 shared testhost 累積長時間 WPF 與 MCP fixture 狀態前最穩定
 - 除非某個 collection 不能和任何其他 collection 同時執行，否則避免設定 `DisableParallelization = true`
 - 避免把不相關的慢測試放進過寬的 serial lane；如果較小的 collection 就能保留隔離性，應讓其他 lanes 可以同時執行
 

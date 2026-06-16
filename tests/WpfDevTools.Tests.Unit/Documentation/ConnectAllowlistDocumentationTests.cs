@@ -12,24 +12,14 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public sealed class ConnectAllowlistDocumentationTests
 {
     [Theory]
-    [InlineData("README.md", "## Typical MCP workflow")]
-    [InlineData("docfx/quickstart/index.md", "## Step 5: Verify the first session")]
-    [InlineData("docfx/quickstart/ai-agent-clients.md", "## First verification flow")]
-    [InlineData("docfx/quickstart/claude-code.md", "## 5. First useful prompt")]
-    [InlineData("docfx/quickstart/openai-codex.md", "## 5. First useful prompt")]
-    [InlineData("docfx/quickstart/claude-desktop.md", "## 3. First prompt")]
-    [InlineData("docfx/quickstart/cursor-vscode.md", "## 3. First useful workflow")]
-    [InlineData("docfx/zh-tw/quickstart/index.md", "## Step 5")]
-    [InlineData("docfx/zh-tw/quickstart/ai-agent-clients.md", "## 第一次驗證流程")]
-    [InlineData("docfx/zh-tw/quickstart/claude-code.md", "## 5. 第一個實用 prompt")]
-    [InlineData("docfx/zh-tw/quickstart/openai-codex.md", "## 5. 第一個實用 prompt")]
-    [InlineData("docfx/zh-tw/quickstart/claude-desktop.md", "## 3. 第一個 prompt")]
-    [InlineData("docfx/zh-tw/quickstart/cursor-vscode.md", "## 3. 第一個實用流程")]
-    [InlineData("docfx/reference/tools/index.md", "1. `connect()`")]
-    [InlineData("docfx/reference/tools/process-and-connection.md", "connect()` auto-discovers")]
-    [InlineData("docfx/zh-tw/reference/tools/index.md", "1. `connect()`")]
-    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md", "connect()`")]
-    public void FirstRunConnectDocs_ShouldStateMcpTargetAllowlistBeforeSuccessWorkflow(string relativePath, string workflowMarker)
+    [InlineData("README.md")]
+    [InlineData("docfx/quickstart/index.md")]
+    [InlineData("docfx/reference/tools/index.md")]
+    [InlineData("docfx/reference/tools/process-and-connection.md")]
+    [InlineData("docfx/zh-tw/quickstart/index.md")]
+    [InlineData("docfx/zh-tw/reference/tools/index.md")]
+    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md")]
+    public void CanonicalConnectDocs_ShouldStateMcpTargetAllowlistBeforeSuccessWorkflow(string relativePath)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
@@ -37,11 +27,33 @@ public sealed class ConnectAllowlistDocumentationTests
             $"{relativePath} should tell first-run users that connect() requires the MCP target allowlist before it can succeed");
         content.Should().Contain("exact local absolute executable path",
             $"{relativePath} should require exact absolute paths instead of path fragments or relative paths");
-        content.IndexOf("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal)
-            .Should().BeLessThan(content.IndexOf(workflowMarker, StringComparison.Ordinal),
-                $"{relativePath} should explain the allowlist prerequisite before the successful connect() workflow");
+        var connectWorkflowIndex = content.IndexOf("`connect", StringComparison.Ordinal);
+        if (connectWorkflowIndex >= 0)
+        {
+            content.IndexOf("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal)
+                .Should().BeLessThan(connectWorkflowIndex,
+                    $"{relativePath} should explain the allowlist prerequisite before the successful connect workflow");
+        }
         content.Should().Contain("fail closed",
             $"{relativePath} should describe the security behavior when the allowlist is unset or malformed");
+    }
+
+    [Theory]
+    [InlineData("docfx/quickstart/ai-agent-clients.md")]
+    [InlineData("docfx/quickstart/claude-code.md")]
+    [InlineData("docfx/quickstart/openai-codex.md")]
+    [InlineData("docfx/quickstart/claude-desktop.md")]
+    [InlineData("docfx/quickstart/cursor-vscode.md")]
+    [InlineData("docfx/zh-tw/quickstart/ai-agent-clients.md")]
+    [InlineData("docfx/zh-tw/quickstart/claude-code.md")]
+    [InlineData("docfx/zh-tw/quickstart/openai-codex.md")]
+    [InlineData("docfx/zh-tw/quickstart/claude-desktop.md")]
+    [InlineData("docfx/zh-tw/quickstart/cursor-vscode.md")]
+    public void ClientQuickstarts_ShouldMentionAllowlistBeforeFirstPrompt(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
     }
 
     [Theory]

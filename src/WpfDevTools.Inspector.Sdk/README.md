@@ -10,7 +10,7 @@ Native AOT targets are not supported today; SDK-hosted reuse is not a Native AOT
 
 ## Installation
 
-Before public NuGet publication, build the package locally from the repository root and install it from an explicit package source:
+Until the SDK package is published to NuGet, use the repository-local package produced by the release/build pipeline. Do not copy the future NuGet install command into production onboarding until the package is actually published. For local development, build the package locally from the repository root and install it from an explicit package source:
 
 ```bash
 dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --configuration Release --output ./nupkg -p:GeneratePackageOnBuild=false
@@ -19,20 +19,16 @@ dotnet add <your-wpf-app.csproj> package WpfDevTools.Inspector.Sdk --source ./nu
 
 The local SDK package includes the repository-internal `WpfDevTools.Inspector` and `WpfDevTools.Shared` assemblies, so consumers do not need unpublished sibling packages.
 
-After public NuGet publication, consumers can install from the configured NuGet.org source:
-
-```bash
-dotnet add <your-wpf-app.csproj> package WpfDevTools.Inspector.Sdk
-```
+After public NuGet publication, document the NuGet.org install command in the release notes and production onboarding for that release.
 
 ## Usage
 
 Before using the sample below, set matching `WPFDEVTOOLS_AUTH_SECRET` and the same local absolute directory in `WPFDEVTOOLS_CERT_DIR` in both the MCP server process and the target application environment. `InspectorSdk.Initialize()` fails closed if either value is missing or if both are left unset.
 
-Use the same values in both shells. The auth secret must decode to exactly 32 bytes:
+Use the same values in both shells. `WPFDEVTOOLS_AUTH_SECRET` must be base64 encoded and decode to at least 32 bytes. Use 32 bytes unless your deployment policy requires longer material:
 
 ```powershell
-$env:WPFDEVTOOLS_AUTH_SECRET = "base64-encoded-32-byte-secret"
+$env:WPFDEVTOOLS_AUTH_SECRET = "base64-encoded-at-least-32-byte-secret"
 $env:WPFDEVTOOLS_CERT_DIR = "C:\wpf-devtools-certs"
 ```
 
@@ -78,7 +74,7 @@ public partial class App : Application
 Use `InspectorSdkOptions` when you want target-side configuration in code instead of relying only on process environment variables. This is useful when your app reads diagnostics settings from its own config provider.
 
 ```csharp
-string authSecretBase64 = "...base64-encoded-32-byte-secret...";
+string authSecretBase64 = "...base64-encoded-at-least-32-byte-secret...";
 string certificateDirectory = @"C:\absolute\wpf-devtools-certs";
 
 InspectorSdk.InitializeWithOptions(new InspectorSdkOptions
@@ -113,7 +109,7 @@ if (InspectorSdk.IsInitialized)
 Use the Opt-in SDK when:
 
 - Your application is a self-contained single-file app.
-- Your application is trimmed.
+- Your application is trimmed (verify startup behavior because trimming may remove required inspector types).
 - Antivirus software blocks DLL injection.
 - You want direct integration instead of external injection.
 

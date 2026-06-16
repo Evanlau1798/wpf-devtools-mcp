@@ -1,12 +1,12 @@
-﻿# Agent Install Contract
+# Agent Install Contract
 
-This file is the short, raw-link-friendly contract for AI agents. The full guide is [docfx/guides/agent-assisted-install.md](docfx/guides/agent-assisted-install.md).
+This file is the raw-link-friendly contract for AI agents that help a user install WPF DevTools MCP. The public guide is [docfx/guides/agent-assisted-install.md](docfx/guides/agent-assisted-install.md). Maintainer release qualification belongs in [RELEASING.md](RELEASING.md), not in user setup flow.
 
 ## Boundary
 
-Do not install yet. First produce a plan, show what will change, and get explicit user confirmation before mutation.
+Do not install, download release assets, or modify client configuration until the user has reviewed and approved a concrete plan.
 
-Supported client ids must stay synchronized with the installer:
+Supported client ids:
 
 - `claude-code`
 - `codex`
@@ -16,137 +16,90 @@ Supported client ids must stay synchronized with the installer:
 - `claude-desktop`
 - `other`
 
-## Required Flow
+## Required flow
 
 1. Confirm the host is Windows and detect `x64`, `x86`, or `arm64`.
-2. Run the read-only installer discovery plan without writing files:
+2. Run read-only installer discovery:
 
    ```powershell
-   powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Action plan -OutputJson
+   pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson
    ```
 
-   Expected JSON shape:
-
-   ```json
-   {
-     "action": "plan",
-     "contractVersion": 1,
-     "platform": "windows",
-     "version": "latest",
-     "releaseChannel": "stable",
-     "architecture": "x64",
-     "client": "codex",
-     "installRootDefault": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
-     "preferredInstallRoot": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
-     "fallbackInstallRoot": "C:\\Users\\you\\AppData\\Roaming\\WpfDevToolsMcp",
-     "installRootSource": "default",
-     "supportedClients": ["claude-code", "codex", "cursor", "vscode", "visual-studio", "claude-desktop", "other"],
-     "detectedClients": [
-       {
-         "client": "codex",
-         "available": true,
-         "registrationStyle": "cli",
-         "evidence": ["codex command"]
-       },
-       {
-         "client": "other",
-         "available": true,
-         "registrationStyle": "artifact-only",
-         "evidence": ["artifact-only fallback"]
-       }
-     ],
-     "requiresUserConfirmationBeforeMutation": true,
-     "mutatesFileSystem": false,
-     "downloadsReleaseAssets": false,
-     "runsClientRegistration": false,
-     "mutationBoundary": "read-only discovery only; no download, install, registration, or filesystem mutation before user confirmation"
-   }
-   ```
-
-3. Detect available MCP clients without writing files.
-4. Ask the user to confirm version, architecture, install root, and client registration target.
-5. Acquire the versioned release archive and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json`.
-6. Acquire `release-evidence.json` for published-release installs.
-7. Verify the archive hash against `SHA256SUMS.txt`.
-8. Verify canonical metadata from `release-assets.json`.
-9. Verify `release-sbom.spdx.json` as the release asset SBOM sidecar. It is an asset-level release archive inventory, not a full package/dependency SBOM.
-10. Enforce signer pin policy with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` as the required thumbprint trust root. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only a certificate subject additional constraint after the thumbprint is pinned. Report the signer pin that was checked.
-11. Only after confirmation, call the reviewed HTTPS alias, reviewed local `scripts/online-installer.ps1`, or package-local `run.bat`.
-
-   Public HTTPS alias after GitHub Release assets exist:
+   If PowerShell 7 is unavailable, use Windows PowerShell with the same read-only action:
 
    ```powershell
-   irm https://installer.wpf-mcptools.evanlau1798.com | iex
+   powershell.exe -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson
    ```
 
-   GitHub pre-release E2E path:
+3. Present the plan: version, release channel, architecture, install root, client id, detected clients, and whether registration will be written.
+4. Ask for explicit user confirmation before any mutation.
+5. Acquire the release package and sidecars for the selected version and architecture.
+6. Verify the archive hash, release metadata, SBOMs, release evidence, and signer pin policy.
+7. Run the approved install path only after confirmation.
 
-   ```powershell
-   git clone https://github.com/Evanlau1798/wpf-devtools-mcp.git
-   cd wpf-devtools-mcp
-   $e2eRoot = (Resolve-Path .).Path
-   $installRoot = Join-Path $e2eRoot '.e2e\installed-wpf-devtools'
-   $workingRoot = Join-Path $e2eRoot '.e2e\installer-work'
-   powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -Version latest -Prerelease -Architecture x64 -Client other -InstallRoot $installRoot -WorkingRoot $workingRoot -NonInteractive -Force -OutputJson
-   ```
+## Release artifacts to verify
 
-   Pre-release E2E requires a GitHub pre-release that contains the matching archive and sidecars, including `release-assets.json`, `SHA256SUMS.txt`, `release-sbom.spdx.json`, and `release-evidence.json`. Signed `Release` packaging still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`. Use `-Client other` for validation-only E2E so the installer writes registration artifacts without updating a real MCP client.
+For manual production review, keep these files adjacent to the archive before extraction:
 
-   For runtime `connect()` validation, use the installed packaged executable under `<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe`. A source-tree `dotnet run` server is acceptable for discovery-only checks, but it does not prove the packaged `bin\inspectors` and `bin\bootstrapper` sidecar layout. For exhaustive 64-tool validation, either pace requests under the default 300 RPM limit or set `WPFDEVTOOLS_RATE_LIMIT_RPM=10000` for that local E2E session.
+- `release_<version>_win-<arch>.zip`
+- `SHA256SUMS.txt`
+- `release-assets.json`
+- `release-sbom.spdx.json`
+- `package-sbom.spdx.json`
+- `release-evidence.json`
 
-   `-InstallRoot` controls payload and registration output only. The installer still records live install state under `%APPDATA%\WpfDevToolsMcp\installer-state.json` so later runs can discover a reusable install root.
+`release-sbom.spdx.json` describes the release asset/archive inventory. `package-sbom.spdx.json` describes the package, dependency, script, assembly, and payload contents. `release-evidence.json` is the governance/audit bundle. None of these files replaces signer trust; production payload signature verification still requires the independent `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` trust root. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only an additional constraint after the thumbprint is pinned.
 
-   Direct MCP STDIO smoke tests must send one newline-delimited JSON (NDJSON) JSON-RPC message per line. Do not use `Content-Length` framed messages with this server's STDIO transport. The large `tools/list` schema payload requires a real JSON parser such as Python, PowerShell 7, or .NET.
+## Approved install command shapes
 
-   Minimal NDJSON smoke sequence:
+Published release alias:
 
-   ```jsonl
-   {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"external-e2e","version":"1.0"}}}
-   {"jsonrpc":"2.0","method":"notifications/initialized"}
-   {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
-   {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"connect","arguments":{}}}
-   {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_ui_summary","arguments":{"depthMode":"semantic"}}}
-   ```
+```powershell
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
+```
 
-   Reviewed local command shape after confirmation:
+Reviewed local package command after user approval:
 
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 `
-     -PackageArchivePath .\release\release_<version>_win-<arch>.zip `
-     -TrustedReleaseMetadataDirectory .\release `
-     -Architecture <arch> `
-     -Client <client-id> `
-     -InstallRoot "<confirmed-install-root>" `
-     -NonInteractive -Force -OutputJson
-   ```
+```powershell
+pwsh -NoProfile -File .\scripts\online-installer.ps1 `
+  -PackageArchivePath .\release\release_<version>_win-<arch>.zip `
+  -TrustedReleaseMetadataDirectory .\release `
+  -Architecture <arch> `
+  -Client <client-id> `
+  -InstallRoot "<confirmed-install-root>" `
+  -NonInteractive -Force -OutputJson
+```
 
-12. Inspect generated `client-registration` artifacts and verify the installed executable path.
-13. Report changed files or registrations without printing secrets.
+Use `powershell.exe -NoProfile -File` with the same arguments when PowerShell 7 is unavailable on the reviewed Windows host.
+
+Package-local fallback after sidecar verification:
+
+```powershell
+.\run.bat
+```
+
+Use `run.bat` from the extracted package root when the user wants the package entrypoint instead of direct PowerShell invocation.
+
+## Agent output
+
+Report:
+
+- detected platform and architecture
+- selected version, architecture, install root, and client id
+- release archive and sidecar paths
+- hash, metadata, release SBOM, package SBOM, evidence, and signer-pin verification results
+- exact install command approved by the user
+- installed executable path and generated `client-registration` artifact path
+
+Never print or request private keys, PFX passwords, GitHub secrets, certificate export material, auth secrets, or certificate private-key material.
 
 ## Prohibited
 
-- Do not execute remote install commands before the matching GitHub Release assets exist and the user approves the plan.
-- Do not modify client configuration before the user confirms the plan.
-- Do not ask for private keys, PFX password values, GitHub secrets, or signing secrets.
-- Do not store, print, upload, or forward secrets.
-- Do not call self-signed certificates production-trusted; they are only for local/dev/test.
+- Do not execute remote install commands before matching release assets exist and the user approves the plan.
+- Do not modify client configuration before confirmation.
+- Do not use a source-tree server executable as the installed package path.
+- Do not call self-signed certificates production-trusted; they are only for local development.
 
-## Output Expected From An Agent
+## Troubleshooting note
 
-- Detected platform and architecture.
-- Detected clients and selected client id.
-- Release archive and sidecar paths.
-- Hash, metadata, release asset SBOM, and signer pin verification result.
-- The exact local installer command that will run after confirmation.
-- Installed executable path and client registration artifact path.
-
-## External E2E validation checklist
-
-- Start from a fresh clone from GitHub, not the caller's local worktree.
-- Read this file plus the DocFX quickstart before installing.
-- Install the latest GitHub pre-release package with `-Version latest -Prerelease` plus explicit `-InstallRoot` and `-WorkingRoot`.
-- Start the golden WPF TestApp from the clone.
-- Launch the installed packaged MCP server over STDIO and send real JSON-RPC requests.
-- Verify `tools/list` reports 64 tools.
-- Verify `connect`, `get_active_process`, `get_ui_summary`, and one safe read tool.
-- Report P0/P1 blockers separately from P2/P3 documentation or polish findings.
+If a reviewed local script is blocked by local execution policy, inspect the script contents first and use a process-scoped policy override only from a trusted shell. Do not make policy override the normal install path.

@@ -1,4 +1,4 @@
-# Threat Model
+# 威脅模型
 
 本頁整理 WPF DevTools MCP 的生產環境威脅模型。內容刻意保持精簡，方便外部 reviewer 對照風險、控制措施與剩餘假設。
 

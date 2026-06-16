@@ -88,7 +88,7 @@ public class SecurityDocumentationTests
     [InlineData("SECURITY.md", "injection-based")]
     [InlineData("docfx/production/security.md", "Injection-based")]
     [InlineData("docfx/zh-tw/production/security.md", "injection")]
-    [InlineData("docfx/index.md", "persisted local HMAC secret and TLS")]
+    [InlineData("docfx/index.md", "persisted local HMAC secret")]
     [InlineData("docfx/zh-tw/index.md", "持久化的本機 HMAC secret 與 named-pipe TLS")]
     [InlineData("docfx/architecture/overview.md", "shipping injection path hardened by default")]
     [InlineData("docfx/zh-tw/architecture/overview.md", "正式發佈的 injection path 預設即為 hardened")]

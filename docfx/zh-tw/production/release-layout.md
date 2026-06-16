@@ -1,31 +1,41 @@
-﻿# Release Layout
+# 發行版配置
 
-此頁說明公開 release asset、解壓後 package，以及安裝後目錄的穩定結構契約。
+此頁說明公開 release assets、解壓後 package 與 installed copy 的穩定 folder contract。
 
 ## 正式生成來源
 
-- Packaging source: `scripts/tools/packaging/Publish-Release.ps1`
-- Online installer source: `scripts/online-installer.ps1`
+- Packaging source：`scripts/tools/packaging/Publish-Release.ps1`
+- Sidecar source：`scripts/tools/packaging/Write-ReleaseSidecars.ps1`
+- Upload source：`scripts/tools/packaging/Export-GitHubReleaseAssets.ps1`
+- Online installer source：`scripts/online-installer.ps1`
 
-下列說明描述的是這些腳本的輸出結果，而不是取代這些腳本本身。
+下列說明描述這些 scripts 的輸出結果，而不是取代 scripts 本身。
 
-## 公開 release asset
+## 公開 release assets
 
-GitHub Release assets 存在後的公開安裝命令：
+正式發行版 command：
 
 ```powershell
 irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-這個 HTTPS alias 會解析到 `scripts/online-installer.ps1`。在該版本具備 GitHub Release assets 與 sidecar 前，請先把下列 release 名稱視為本機產生 artifact 的 package layout 契約。
-
-目前正式的 release 壓縮檔命名為：
+目前 release archive 命名為：
 
 - `release_<version>_win-x64.zip`
 - `release_<version>_win-x86.zip`
 - `release_<version>_win-arm64.zip`
 
-等 GitHub Release assets 存在後，再從 [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) 下載，並一併取得 `SHA256SUMS.txt`、`release-assets.json`、`release-sbom.spdx.json` 與 `release-evidence.json`。
+Production review 時，請讓 archive 與下列 sidecar 保持相鄰：
+
+| 檔案 | 意義 |
+| --- | --- |
+| `SHA256SUMS.txt` | Archive checksum verification |
+| `release-assets.json` | Canonical asset metadata 與 sidecar hashes |
+| `release-sbom.spdx.json` | Release asset/archive inventory |
+| `package-sbom.spdx.json` | Package、相依性、script、assembly 與 payload SBOM |
+| `release-evidence.json` | Release evidence 與 audit bundle |
+
+`release-sbom.spdx.json` 與 `package-sbom.spdx.json` 是刻意分開的 artifact。兩者都不能取代 signer trust；Release payload 簽章驗證仍需要 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
 
 ## 解壓後 package 結構
 
@@ -55,7 +65,7 @@ release_<version>_win-x64/
       ...
 ```
 
-## 安裝後目錄結構
+## 安裝後 layout
 
 ```text
 <InstallRoot>\<arch>\
@@ -69,10 +79,6 @@ release_<version>_win-x64/
       inspectors/
       bootstrapper/
       installer/
-        installer-helpers.manifest.json
-        Installer.Actions.ps1
-        Installer.Uninstall.ps1
-        Tui.Flow.ps1
   client-registration/
     claude-code.txt
     codex.txt
@@ -85,20 +91,17 @@ release_<version>_win-x64/
   install-manifest.json
 ```
 
-## 契約說明
+## Contract notes
 
 - MCP client 應註冊 `bin/wpf-devtools-<arch>.exe`。
-- `bin/inspectors` 與 `bin/bootstrapper` 是 sidecar 目錄，必須與安裝後的 server 內容保持相對位置。
-- `bin/installer` 是經過完整性驗證的 helper bundle，供 packaged installer 與 standalone recovery flow 使用，必須與封裝或安裝後的 server 內容保持相對位置。
-- `run.bat` 是 package root 的使用者入口，適合不想直接執行 PowerShell 的使用者。
-- `bin/install.ps1` 是 canonical TUI-first installer 腳本在 package 內的複本，並保留 CLI fallback。
-- `client-registration` 會在安裝時產生，並作為 AI client setup 的公開 copy-paste 來源。
-- 若省略 `-InstallRoot`，installer 會優先重用最後一個仍可存取的 live install root；只有沒有可重用途徑時，才會使用 `%APPDATA%\WpfDevToolsMcp` 作為回退根目錄。
+- `bin/inspectors` 與 `bin/bootstrapper` 必須與 installed server content 保持相鄰。
+- `bin/installer` 是 integrity-checked helper bundle，用於 package 與 recovery flows。
+- `run.bat` 是 package-root entrypoint，適合不想直接呼叫 PowerShell 的使用者。
+- `client-registration` 會在安裝時產生，是 MCP client setup 的公開 copy-paste 真源。
+- 若省略 `-InstallRoot`，installer 會優先重用最後一個 live install root；只有沒有可重用 root 時，才 fallback 到 `%APPDATA%\WpfDevToolsMcp`。
 
-## Online installer source exception
+## Online installer source-size 暫時例外
 
-`scripts/online-installer.ps1` 目前仍作為 canonical single-file release artifact source 維護，讓公開安裝說明、package 內的 `bin/install.ps1` 與 recovery flow 保持 byte-for-byte 對齊。
-這是對一般 source file size target 的明確暫時例外；不要在目前的 production remediation loop 內拆分它。
+`scripts/online-installer.ps1` 目前刻意保持為 thin source entrypoint，且可被 package 成 generated single-file release artifact。這是 normal source file size target 的暫時例外：在目前的 production remediation loop 期間，不要拆分它，除非 generated single-file release artifact 與 public installer alias 已一起完成驗證。
 
-Post-remediation，應排程一次 packaging refactor：保留 thin source entrypoint，並為正式發布組合 generated single-file release artifact。
-該後續工作必須維持公開 `scripts/online-installer.ps1` contract，同時把可重用實作移到較小的 helper modules，並由既有 release packaging smoke tests 覆蓋。
+Post-remediation，請重新檢視此例外；只有 release pipeline 能證明 source entrypoint、generated single-file release artifact 與 installer alias 仍產生相同 package verification behavior 時，才拆分 helper logic。

@@ -18,14 +18,15 @@ public sealed class DocfxConfigurationTests
     }
 
     [Fact]
-    public void MetadataSources_ShouldIncludePublicApiProjects()
+    public void MetadataSources_ShouldIncludeOnlyPublicApiProjectsAndFilter()
     {
         var docfx = ReadDocfxConfiguration();
         var sourcePaths = EnumerateMetadataSourcePaths(docfx).ToArray();
 
         sourcePaths.Should().Contain("src/WpfDevTools.Shared/WpfDevTools.Shared.csproj");
         sourcePaths.Should().Contain("src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj");
-        sourcePaths.Should().Contain("src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj");
+        sourcePaths.Should().NotContain("src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj");
+        docfx.GetProperty("metadata")[0].GetProperty("filter").GetString().Should().Be("filterConfig.yml");
     }
 
     private static JsonElement ReadDocfxConfiguration()

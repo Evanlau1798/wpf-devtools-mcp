@@ -1,44 +1,24 @@
 - name: 繁體中文首頁
   href: index.md
+- name: English
+  href: ../index.md
 - name: 快速開始
   items:
     - name: 5 分鐘快速開始
       href: quickstart/index.md
-    - name: AI Agent Client 總覽
+    - name: AI Agent Clients
       href: quickstart/ai-agent-clients.md
-    - name: SDK-Hosted Inspector 快速開始
+    - name: SDK-Hosted Inspector
       href: quickstart/sdk-hosted-inspector.md
-    - name: Claude Code 快速開始
-      href: quickstart/claude-code.md
-    - name: OpenAI Codex 與 Codex CLI 快速開始
-      href: quickstart/openai-codex.md
-    - name: Claude Desktop 快速開始
-      href: quickstart/claude-desktop.md
-    - name: VS Code 與 Visual Studio 快速開始
-      href: quickstart/cursor-vscode.md
-- name: 使用指南
-  items:
-    - name: AI Agent 使用指南
-      href: guides/ai-agent-guide.md
-    - name: Agent 輔助安裝
-      href: guides/agent-assisted-install.md
-    - name: 常見工作流程
-      href: guides/common-workflows.md
-    - name: 疑難排解
-      href: guides/troubleshooting.md
-- name: Agent 使用心得
-  items:
-    - name: 總覽
-      href: agent-feedback/index.md
 - name: 生產環境
   items:
     - name: 安全模型
       href: production/security.md
-    - name: Threat Model
+    - name: 威脅模型
       href: production/threat-model.md
     - name: 部署指南
       href: production/deployment.md
-    - name: Release Layout
+    - name: 發行版配置
       href: production/release-layout.md
     - name: 相容性矩陣
       href: production/compatibility-matrix.md
@@ -76,17 +56,9 @@
       href: architecture/injection.md
     - name: ADR 索引
       href: architecture/adrs/index.md
-    - name: ADR-001 Named Pipes for IPC
-      href: architecture/adrs/adr-001-named-pipes.md
-    - name: ADR-002 In-Process Injection
-      href: architecture/adrs/adr-002-in-process-injection.md
-    - name: ADR-003 Length-Prefix Framing
-      href: architecture/adrs/adr-003-length-prefix-framing.md
-    - name: ADR-005 Multi-Targeting Strategy
-      href: architecture/adrs/adr-005-multi-targeting.md
     - name: ADR-006 STDIO Session State
       href: architecture/adrs/adr-006-stdio-session-state.md
-- name: 貢獻者
+- name: Maintainers
   items:
     - name: 貢獻指南
       href: contributors/index.md
@@ -96,3 +68,7 @@
       href: contributors/testing-and-tdd.md
     - name: 文件風格
       href: contributors/documentation-style.md
+    - name: Agent 輔助安裝
+      href: guides/agent-assisted-install.md
+    - name: Agent Feedback
+      href: agent-feedback/index.md

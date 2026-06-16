@@ -1,105 +1,40 @@
-﻿# Claude Code Setup
+# Claude Code Setup
 
-Claude Code is the fastest public path when you want a terminal-first agent workflow with prompts and resources surfaced directly in the client.
+Claude Code is the terminal-first setup path. Install WPF DevTools with [5-Minute Setup](index.md), then use the generated Claude Code registration command.
 
-## 1. Install Claude Code
+## Register
 
-Follow the official Claude Code installation instructions at <https://docs.claude.com/en/docs/claude-code/overview>.
-
-If you choose to use Anthropic's PowerShell installer, download the script and review it before executing so you can audit what is being run:
-
-```powershell
-$installer = Join-Path $env:TEMP 'claude-install.ps1'
-Invoke-WebRequest -Uri 'https://claude.ai/install.ps1' -OutFile $installer -UseBasicParsing
-Get-Content $installer | Select-Object -First 60   # review before running
-& $installer
-```
-
-> **Security note:** The `irm <url> | iex` one-liner is convenient but executes remote code without review; prefer the download-and-audit flow above, especially on untrusted networks.
-
-## 2. Install WPF DevTools
-
-Published-release command after GitHub Release assets exist:
-
-```powershell
-irm https://installer.wpf-mcptools.evanlau1798.com | iex
-```
-
-The HTTPS alias resolves `scripts/online-installer.ps1`; promote it only after the selected version has GitHub Release assets and sidecars: `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
-
-Preferred local package path:
-
-1. Review `scripts/online-installer.ps1` as the canonical source entrypoint.
-2. Run the reviewed installer against a verified local package archive.
-
-Example:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\online-installer.ps1 -PackageArchivePath .\release\release_<version>_win-<arch>.zip -TrustedReleaseMetadataDirectory .\release -Client claude-code -NonInteractive -Force -OutputJson
-```
-
-Package-local fallback:
-
-1. Use a locally generated package, or after GitHub Release assets exist, download the matching `release_<version>_win-<arch>.zip` from [Releases](https://github.com/Evanlau1798/wpf-devtools-mcp/releases) together with `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `release-evidence.json`.
-2. Verify the archive with `SHA256SUMS.txt`, `release-assets.json`, and `release-sbom.spdx.json` before extraction.
-3. Extract the package.
-4. Run `run.bat`.
-
-Before trusting the extracted package, keep the verified release sidecars beside the archive: `SHA256SUMS.txt` for the checksum, `release-assets.json` for the canonical release metadata, and `release-sbom.spdx.json` for the release asset SBOM. The SBOM sidecar is an asset-level release archive inventory, not a full package/dependency SBOM. Production payload signature verification still requires an independent `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`; adjacent sidecars prove archive provenance but do not replace signer trust. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only an additional constraint after the thumbprint is pinned.
-
-`run.bat` requests elevation when the current shell is not already elevated and then launches the packaged `bin/install.ps1`. Set `WPFDEVTOOLS_SKIP_ELEVATION=1` when you need to keep the install in the current unelevated shell.
-
-For `claude-code` and `codex`, elevated CLI registration intentionally blocks PATH-based CLI discovery and environment-provided command paths. Prefer `WPFDEVTOOLS_SKIP_ELEVATION=1` for the registration step, or register manually after install.
-
-If the installer cannot reuse a previous live install root and you do not pass `-InstallRoot`, the fallback executable path is:
+The installer writes:
 
 ```text
-%APPDATA%\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe
+<InstallRoot>\<arch>\client-registration\claude-code.txt
 ```
 
-## 3. Register the MCP server
+Run the command shown in that file from the shell where Claude Code is available. It should register the installed package executable, not a source-tree command.
 
-Use the generated registration command from `client-registration\claude-code.txt`, or run the same command shape with the actual absolute executable path produced by your install:
-
-```powershell
-claude mcp add --transport stdio wpf-devtools -- "C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe"
-```
-
-Project-scoped alternative:
-
-```powershell
-claude mcp add --scope project --transport stdio wpf-devtools -- "C:\Users\<you>\AppData\Roaming\WpfDevToolsMcp\<arch>\current\bin\wpf-devtools-<arch>.exe"
-```
-
-The installer also writes `client-registration\claude-code.txt`. Treat that file as the reviewed command source because it already reflects the real install root and architecture, and add `--scope project` manually when you want project-scoped setup across contributors or CI worktrees.
-
-## 4. Verify the registration
-
-```powershell
-claude mcp list
-```
-
-Before using this prompt, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the running WPF app's exact local absolute executable path; unset or malformed values fail closed before `connect` attaches.
-
-## 5. First useful prompt
+Fallback executable shape:
 
 ```text
-After WPFDEVTOOLS_MCP_ALLOWED_TARGETS includes the running WPF app's exact local absolute executable path, connect to it, auto-discover the target if there is only one visible candidate, then summarize the root UI state with get_ui_summary(depthMode: "semantic").
+<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
 
-## 6. Discovery entry points inside Claude Code
+## Verify
 
-- Prompts may appear as slash commands such as `/mcp__wpf-devtools__connect_and_list_windows`, but the portable contract is the prompt name itself.
-- Resources may appear as `@wpf-devtools:capabilities` and `@wpf-devtools:limitations/elevated-targets`, but the portable contract is the resource URI.
-- Use those discovery entry points when Claude Code knows the server exists but needs help selecting the right workflow.
+Before starting Claude Code, set the reviewed target allowlist:
 
-## Notes
+```powershell
+$env:WPFDEVTOOLS_MCP_ALLOWED_TARGETS = 'C:\Path\To\YourApp.exe'
+```
 
-- Keep the server on Windows.
-- Do not wrap `wpf-devtools-x64.exe` with extra stdout logging.
-- Start with `connect()` in the common case after `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact local absolute executable path. Use `get_processes(windowFilter)` only when auto-discovery reports multiple candidates or when you need explicit target metadata first.
-- Prefer `get_ui_summary` or `get_form_summary` before tree-heavy inspection; use `get_element_snapshot(elementId)` only after a concrete elementId is known.
-- After each diagnostic, interaction, or mutation, follow `navigation.recommended` first and treat `nextSteps` as the compatibility field.
-- If you already know the next tool and want a leaner payload, capable clients may pass `navigation=false` on `get_binding_errors`. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the `get_binding_errors` tool schema today, but should not assume other tools expose it yet.
-- If `connect` fails, check server bitness, bootstrapper bitness, and target bitness together.
-- If the target app is elevated, start Claude Code as administrator so the STDIO-launched MCP server can attach at the same integrity level.
+Then ask Claude Code:
+
+```text
+Use the WPF DevTools MCP server. Connect to the allowlisted WPF target, then summarize the current UI with get_ui_summary(depthMode: "semantic").
+```
+
+## Troubleshooting
+
+- Re-run the generated registration command after switching install roots or architectures.
+- Claude Code can expose slash-command style MCP entry points such as `/mcp__wpf-devtools__...` and resource mentions such as `@wpf-devtools:`; keep the generated `claude-code.txt` command as the registration source.
+- If Claude Code cannot launch the server, verify the command path points to `wpf-devtools-<arch>.exe` under the installed package.
+- If `connect` is denied, fix `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` before enabling any other gate.

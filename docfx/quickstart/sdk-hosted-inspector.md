@@ -4,7 +4,7 @@ When you own the target application, prefer SDK-hosted reuse with `WpfDevTools.I
 
 ## Package status
 
-The NuGet package is not yet publicly published. Until publication, use a local pack from this repository:
+Until the SDK package is published to NuGet, use the repository-local package produced by the release/build pipeline. Do not copy the future NuGet install command into production onboarding until the package is actually published. For local development, create a local pack from this repository:
 
 ```powershell
 dotnet pack src\WpfDevTools.Inspector.Sdk\WpfDevTools.Inspector.Sdk.csproj -c Release -o .\nupkg -p:GeneratePackageOnBuild=false
@@ -26,10 +26,10 @@ Set both values in the MCP server process and the target WPF application before 
 
 `WPFDEVTOOLS_CERT_DIR` must be a local absolute directory and must match on both sides. SDK plaintext mode is not supported by default.
 
-Use the same values in both shells. The auth secret must decode to exactly 32 bytes:
+Use the same values in both shells. `WPFDEVTOOLS_AUTH_SECRET` must be base64 encoded and decode to at least 32 bytes. Use 32 bytes unless your deployment policy requires longer material:
 
 ```powershell
-$env:WPFDEVTOOLS_AUTH_SECRET = "base64-encoded-32-byte-secret"
+$env:WPFDEVTOOLS_AUTH_SECRET = "base64-encoded-at-least-32-byte-secret"
 $env:WPFDEVTOOLS_CERT_DIR = "C:\wpf-devtools-certs"
 ```
 
@@ -69,7 +69,7 @@ public partial class App : Application
 If you prefer explicit process-local configuration instead of `WPFDEVTOOLS_*` environment variables in the target process, pass `InspectorSdkOptions`. Use this when the target app already reads diagnostic settings from its own config source:
 
 ```csharp
-string authSecretBase64 = "...base64-encoded-32-byte-secret...";
+string authSecretBase64 = "...base64-encoded-at-least-32-byte-secret...";
 string certificateDirectory = @"C:\absolute\wpf-devtools-certs";
 
 InspectorSdk.InitializeWithOptions(new InspectorSdkOptions

@@ -287,6 +287,10 @@ public sealed partial class ReleasePackagingContractTests
             Path.Combine(packagingRoot, "Write-ReleaseSidecars.ps1"),
             overwrite: true);
         File.Copy(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Write-ReleaseSbomDocuments.ps1"),
+            Path.Combine(packagingRoot, "Write-ReleaseSbomDocuments.ps1"),
+            overwrite: true);
+        File.Copy(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
             Path.Combine(repoRoot, "scripts", "online-installer.ps1"),
             overwrite: true);

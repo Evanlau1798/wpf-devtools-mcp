@@ -445,6 +445,8 @@ public sealed class GitHubReleaseAssetScriptTests
             Directory.CreateDirectory(Path.Combine(packageDirectory, "bin"));
             File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Write-ReleaseSidecars.ps1"),
                 Path.Combine(scriptDirectory, "Write-ReleaseSidecars.ps1"));
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Write-ReleaseSbomDocuments.ps1"),
+                Path.Combine(scriptDirectory, "Write-ReleaseSbomDocuments.ps1"));
             File.WriteAllText(Path.Combine(packageDirectory, "run.bat"), "@echo off");
             File.WriteAllText(Path.Combine(packageDirectory, "bin", "install.ps1"), "Write-Host install");
             File.WriteAllText(Path.Combine(repoRoot, "packages.lock.json"), """

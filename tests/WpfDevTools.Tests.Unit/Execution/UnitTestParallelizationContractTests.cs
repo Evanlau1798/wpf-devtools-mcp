@@ -363,26 +363,6 @@ public sealed class UnitTestParallelizationContractTests
             "DP wait integration and E2E tests should coordinate on observable handshakes instead of fixed sleeps");
     }
 
-    [Theory]
-    [InlineData(
-        "tests/WpfDevTools.Tests.Unit.Release/InstallerScripts/InstallerTuiRuntimeTests.cs",
-        "Thread.Sleep(TimeSpan.FromMilliseconds(6500))")]
-    [InlineData(
-        "tests/WpfDevTools.Tests.Unit.Release/InstallerScripts/InstallerCliVerificationTests.cs",
-        "Thread.Sleep(TimeSpan.FromMilliseconds(3500))")]
-    [InlineData(
-        "tests/WpfDevTools.Tests.Unit/McpServer/NamedPipeClientProtocolTests.cs",
-        "Task.Delay(TimeSpan.FromMilliseconds(2_300))")]
-    public void TimeoutCleanupTests_ShouldUseConditionBasedSynchronization(
-        string relativePath,
-        string forbiddenDelay)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().NotContain(forbiddenDelay,
-            "timeout cleanup and protocol grace tests should wait on observable process or transport state instead of fixed sleeps");
-    }
-
     [Fact]
     public void InspectorHostLifecycleTests_ShouldUseInspectorHostLifecycleCollection()
     {

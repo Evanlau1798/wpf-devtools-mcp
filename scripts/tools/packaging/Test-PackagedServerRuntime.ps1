@@ -20,9 +20,7 @@ function Get-ProcessDiagnostics {
         }
         return $output.Trim()
     }
-    catch {
-        return ''
-    }
+    catch { return '' }
 }
 function Stop-PackagedServerProcess {
     param([Parameter(Mandatory)] [System.Diagnostics.Process]$Process)

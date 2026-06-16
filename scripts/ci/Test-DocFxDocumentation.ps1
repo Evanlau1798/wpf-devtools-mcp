@@ -6,6 +6,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$toolNameHelper = Join-Path $PSScriptRoot 'Get-McpToolNames.ps1'
+if (-not (Test-Path -LiteralPath $toolNameHelper)) {
+    throw "Get-McpToolNames.ps1 was not found: $toolNameHelper"
+}
+. $toolNameHelper
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $scriptRoot = $PSScriptRoot
     if ([string]::IsNullOrWhiteSpace($scriptRoot)) {
@@ -277,25 +283,6 @@ function Test-GeneratedLinks {
     }
 }
 
-function Get-RegisteredToolNames {
-    param([Parameter(Mandatory = $true)] [string]$RepoRoot)
-
-    $toolsRoot = Join-PathMany @($RepoRoot, 'src', 'WpfDevTools.Mcp.Server', 'McpTools')
-    if (-not (Test-Path -LiteralPath $toolsRoot -PathType Container)) {
-        return @()
-    }
-
-    $names = New-Object System.Collections.Generic.HashSet[string] ([System.StringComparer]::Ordinal)
-    foreach ($file in Get-ChildItem -LiteralPath $toolsRoot -Recurse -File -Filter '*.cs') {
-        $content = Get-Content -LiteralPath $file.FullName -Raw
-        foreach ($match in [regex]::Matches($content, 'McpServerTool\s*\(\s*Name\s*=\s*"(?<name>[a-z0-9_]+)"')) {
-            [void]$names.Add($match.Groups['name'].Value)
-        }
-    }
-
-    return @($names | Sort-Object)
-}
-
 function Test-ToolReferenceCoverage {
     param(
         [Parameter(Mandatory = $true)] [string]$DocfxRoot,
@@ -485,7 +472,7 @@ if ($script:Failures.Count -eq 0) {
     Test-ZhTwParity -DocfxRoot $docfxRoot
     Test-GeneratedPages -DocfxRoot $docfxRoot -SiteRoot $siteRoot
     Test-GeneratedLinks -SiteRoot $siteRoot
-    Test-ToolReferenceCoverage -DocfxRoot $docfxRoot -SiteRoot $siteRoot -ToolNames (Get-RegisteredToolNames -RepoRoot $repoRootFull)
+    Test-ToolReferenceCoverage -DocfxRoot $docfxRoot -SiteRoot $siteRoot -ToolNames (Get-McpToolNames -RepoRoot $repoRootFull)
 }
 if ($script:Failures.Count -gt 0) {
     Write-DocFxEvidence -Path $EvidenceOutputPath

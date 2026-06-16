@@ -11,10 +11,10 @@
 
 ## 安裝
 
-正式發行版 installer：
+在第一個 stable GitHub Release 發布前，請使用 preview pre-release installer：
 
 ```powershell
-irm https://installer.wpf-mcptools.evanlau1798.com | iex
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
 
 Installer 會偵測 host architecture、詢問 MCP client、安裝 packaged executable，並在下列位置產生 client registration artifact：
@@ -22,6 +22,8 @@ Installer 會偵測 host architecture、詢問 MCP client、安裝 packaged exec
 ```text
 <InstallRoot>\<arch>\client-registration\
 ```
+
+在 stable release assets 與 anonymous endpoint smoke checks 通過前，不要使用 default stable `latest` channel。
 
 安裝後 server path 通常是：
 

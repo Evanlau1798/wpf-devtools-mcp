@@ -13,11 +13,13 @@
 
 ## 公開 release assets
 
-正式發行版 command：
+在第一個 stable GitHub Release 發布前，請使用 preview pre-release command：
 
 ```powershell
-irm https://installer.wpf-mcptools.evanlau1798.com | iex
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
+
+只有在 stable release assets 與 anonymous endpoint smoke checks 通過後，才使用 default stable `latest` channel。
 
 目前 release archive 命名為：
 

@@ -52,11 +52,13 @@ For manual production review, keep these files adjacent to the archive before ex
 
 ## Approved install command shapes
 
-Published release alias:
+Preview pre-release alias until the first stable GitHub Release is published:
 
 ```powershell
-irm https://installer.wpf-mcptools.evanlau1798.com | iex
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
+
+Use the default stable `latest` channel only after stable release assets and anonymous endpoint smoke checks have passed.
 
 Reviewed local package command after user approval:
 

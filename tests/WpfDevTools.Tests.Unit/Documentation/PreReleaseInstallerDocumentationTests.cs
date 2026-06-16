@@ -5,8 +5,12 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 
 public sealed class PreReleaseInstallerDocumentationTests
 {
-    private const string HttpsInstallerCommand =
+    private const string HttpsInstallerAlias =
+        "irm https://installer.wpf-mcptools.evanlau1798.com";
+    private const string StableLatestInstallerCommand =
         "irm https://installer.wpf-mcptools.evanlau1798.com | iex";
+    private const string PreviewPrereleaseInstallerCommand =
+        "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease";
 
     [Theory]
     [InlineData("README.md")]
@@ -22,7 +26,8 @@ public sealed class PreReleaseInstallerDocumentationTests
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
-        content.Should().Contain(HttpsInstallerCommand);
+        content.Should().Contain(HttpsInstallerAlias);
+        content.Should().Contain(PreviewPrereleaseInstallerCommand);
         content.Should().NotContain("irm http://wpf-mcptools.evanlau1798.com | iex",
             "the public installer alias is HTTPS-only");
         content.Should().Contain("release_<version>_win-<arch>.zip",
@@ -31,6 +36,32 @@ public sealed class PreReleaseInstallerDocumentationTests
             $"{relativePath} should require release metadata before users trust the installer path");
         content.Should().Contain("release-evidence.json",
             $"{relativePath} should keep published release evidence visible before production use");
+    }
+
+    [Theory]
+    [InlineData("README.md")]
+    [InlineData("AGENT_INSTALL.md")]
+    [InlineData("docfx/index.md")]
+    [InlineData("docfx/quickstart/index.md")]
+    [InlineData("docfx/guides/agent-assisted-install.md")]
+    [InlineData("docfx/production/deployment.md")]
+    [InlineData("docfx/production/release-layout.md")]
+    [InlineData("docfx/zh-tw/index.md")]
+    [InlineData("docfx/zh-tw/quickstart/index.md")]
+    [InlineData("docfx/zh-tw/guides/agent-assisted-install.md")]
+    [InlineData("docfx/zh-tw/production/deployment.md")]
+    [InlineData("docfx/zh-tw/production/release-layout.md")]
+    public void PublicInstallerDocs_ShouldDefaultPreviewOnboardingToLatestPrereleaseUntilStableExists(
+        string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(PreviewPrereleaseInstallerCommand,
+            $"{relativePath} should install from the latest pre-release until a stable GitHub release exists");
+        content.Should().Contain("pre-release",
+            $"{relativePath} should make the release channel explicit instead of implying stable latest");
+        content.Should().NotContain(StableLatestInstallerCommand,
+            $"{relativePath} should not promote the stable latest installer command before a stable release exists");
     }
 
     [Theory]

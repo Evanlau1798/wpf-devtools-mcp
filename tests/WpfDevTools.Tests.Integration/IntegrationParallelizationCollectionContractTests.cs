@@ -157,6 +157,19 @@ public sealed class IntegrationParallelizationCollectionContractTests
         content.Should().Contain("process.Dispose();");
     }
 
+    [Theory]
+    [InlineData("tests/WpfDevTools.Tests.Integration/E2E/McpE2eFixture.cs")]
+    [InlineData("tests/WpfDevTools.Tests.Integration/E2E/McpStdioClient.cs")]
+    public void E2eProcessOwners_ShouldUseProcessTreeCleanup(string relativePath)
+    {
+        var content = File.ReadAllText(ReleasePackagingTestHarness.GetRepoFilePath(relativePath));
+
+        content.Should().Contain("LiveTestProcessCleanup.StopAndDispose",
+            "E2E server and TestApp cleanup must terminate child processes as well as the parent process");
+        content.Should().NotContain(".Kill();",
+            "parent-only process kills leave child PowerShell, TestApp, or MCP descendants behind");
+    }
+
     [Fact]
     public void LiveTestProcessCleanupBehaviorTest_ShouldFailSafeDisposeSpawnedProcess()
     {

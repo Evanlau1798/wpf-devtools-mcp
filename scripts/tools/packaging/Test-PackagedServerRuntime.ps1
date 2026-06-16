@@ -26,10 +26,11 @@ function Get-ProcessDiagnostics {
 }
 function Stop-PackagedServerProcess {
     param([Parameter(Mandatory)] [System.Diagnostics.Process]$Process)
-    if (-not $Process.HasExited) {
-        $Process.Kill()
-        $Process.WaitForExit(5000) | Out-Null
-    }
+    if ($Process.HasExited) { return }
+    & taskkill.exe /PID $Process.Id /T /F *> $null
+    $Process.WaitForExit(5000) | Out-Null
+    if (-not $Process.HasExited) { & taskkill.exe /PID $Process.Id /T /F *> $null }
+    $Process.WaitForExit(5000) | Out-Null
 }
 function Read-McpResponse {
     param(

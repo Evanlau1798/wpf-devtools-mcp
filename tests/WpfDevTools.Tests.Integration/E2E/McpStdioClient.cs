@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Tests.Integration.TestSupport;
 
 namespace WpfDevTools.Tests.Integration.E2E;
 
@@ -379,25 +380,23 @@ public sealed partial class McpStdioClient : IDisposable
 
         if (_serverProcess != null)
         {
+            var serverProcess = _serverProcess;
+            _serverProcess = null;
+
             try
             {
-                if (!_serverProcess.HasExited)
+                if (!serverProcess.HasExited)
                 {
-                    _serverProcess.StandardInput.Close();
-                    if (!_serverProcess.WaitForExit(2000))
-                    {
-                        _serverProcess.Kill();
-                        _serverProcess.WaitForExit(3000);
-                    }
+                    serverProcess.StandardInput.Close();
+                    serverProcess.WaitForExit(2000);
                 }
             }
             catch
             {
-                try { _serverProcess.Kill(); } catch { /* best effort */ }
             }
             finally
             {
-                _serverProcess.Dispose();
+                LiveTestProcessCleanup.StopAndDispose(serverProcess);
             }
         }
 

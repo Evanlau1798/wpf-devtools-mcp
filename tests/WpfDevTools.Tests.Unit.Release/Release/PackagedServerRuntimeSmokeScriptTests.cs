@@ -66,6 +66,18 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
     }
 
     [Fact]
+    public void TestPackagedServerRuntimeScript_ShouldTerminatePackagedServerProcessTree()
+    {
+        var script = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));
+
+        script.Should().Contain("taskkill.exe",
+            "packaged runtime smoke cleanup must terminate descendants, not just the MCP server parent process");
+        script.Should().Contain("/T");
+        script.Should().NotContain("$Process.Kill()");
+    }
+
+    [Fact]
     public void PackagedRuntimeLiveSmokeHelper_ShouldNotPassEmptyEvidenceOutputPathToRuntimeSmoke()
     {
         var script = File.ReadAllText(

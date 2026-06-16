@@ -373,7 +373,7 @@ public class NamedPipeClientProtocolTests
         await requestReceived.Task;
 
         var disposeTask = Task.Run(client.Dispose);
-        await Task.Delay(TimeSpan.FromMilliseconds(2_300));
+        await disposeTask.WaitAsync(GetDisposeInFlightRequestGraceTimeout() + TimeSpan.FromSeconds(2));
         allowServerCompletion.SetResult();
 
         var response = await sendTask;
@@ -466,5 +466,14 @@ public class NamedPipeClientProtocolTests
         reconnected.Should().BeTrue();
 
         await Task.WhenAll(firstServerTask, secondServerTask);
+    }
+
+    private static TimeSpan GetDisposeInFlightRequestGraceTimeout()
+    {
+        var field = typeof(NamedPipeClient).GetField(
+            "DisposeInFlightRequestGraceTimeout",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        field.Should().NotBeNull();
+        return (TimeSpan)field!.GetValue(null)!;
     }
 }

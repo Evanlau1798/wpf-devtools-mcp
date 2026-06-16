@@ -48,6 +48,7 @@ public sealed partial class InstallerTuiRuntimeTests
             var userProfile = Path.Combine(tempRoot, "UserProfile");
             var fakeBin = Path.Combine(tempRoot, "bin");
             var timeoutMarker = Path.Combine(tempRoot, "claude-timeout-marker.log");
+            var childPidPath = Path.Combine(tempRoot, "claude-child.pid");
             var invocationLog = Path.Combine(tempRoot, "claude-invocations.log");
             Directory.CreateDirectory(appData);
             Directory.CreateDirectory(localAppData);
@@ -59,7 +60,7 @@ public sealed partial class InstallerTuiRuntimeTests
                 "@echo off" + Environment.NewLine +
                 "echo start %TIME% timeout=%WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC% %*>>\"" + invocationLog + "\"" + Environment.NewLine +
                 "if \"%1 %2\"==\"mcp list\" (" + Environment.NewLine +
-                "  powershell -NoProfile -Command \"Start-Sleep -Seconds 6; Add-Content -Path '" + invocationLog.Replace("'", "''") + "' -Value child-done; Set-Content -Path '" + timeoutMarker.Replace("'", "''") + "' -Value done\"" + Environment.NewLine +
+                "  powershell -NoProfile -Command \"$PID | Set-Content -Path '" + childPidPath.Replace("'", "''") + "'; Start-Sleep -Seconds 30; Add-Content -Path '" + invocationLog.Replace("'", "''") + "' -Value child-done; Set-Content -Path '" + timeoutMarker.Replace("'", "''") + "' -Value done\"" + Environment.NewLine +
                 "  echo wpf-devtools" + Environment.NewLine +
                 "  exit /b 0" + Environment.NewLine +
                 ")" + Environment.NewLine +
@@ -87,7 +88,21 @@ public sealed partial class InstallerTuiRuntimeTests
             result.ExitCode.Should().Be(0, result.Stderr);
             result.Stdout.Should().Contain("Installation Manager");
 
-            System.Threading.Thread.Sleep(TimeSpan.FromMilliseconds(6500));
+            var childExited = ReleaseScriptTestHarness.WaitForProcessIdFileToExit(
+                childPidPath,
+                TimeSpan.FromSeconds(2),
+                out var childProcessId);
+            if (!childExited)
+            {
+                ReleaseScriptTestHarness.KillProcessTreeIfRunning(childProcessId);
+            }
+
+            childExited.Should().BeTrue(
+                "timed out CLI discovery should terminate the spawned process tree promptly. child PID: {0}; invocations: {1}; stdout: {2}; stderr: {3}",
+                childProcessId?.ToString() ?? "<missing>",
+                File.Exists(invocationLog) ? File.ReadAllText(invocationLog) : "<none>",
+                result.Stdout,
+                result.Stderr);
             File.Exists(timeoutMarker).Should().BeFalse(
                 "timed out CLI discovery should terminate the spawned process tree before the child marker is written. invocations: {0}; stdout: {1}; stderr: {2}",
                 File.Exists(invocationLog) ? File.ReadAllText(invocationLog) : "<none>",

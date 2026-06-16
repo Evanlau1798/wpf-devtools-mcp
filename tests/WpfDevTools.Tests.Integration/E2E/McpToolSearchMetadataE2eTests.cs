@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.Schema;
 using WpfDevTools.Mcp.Server.McpTools;
@@ -306,6 +307,22 @@ public sealed class McpToolSearchMetadataE2eTests
         examples.GetProperty("element_screenshot").EnumerateArray()
             .Any(example => example.TryGetProperty("resourceFollowUp", out _))
             .Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ReadResource_WithMissingScreenshotResource_ShouldReturnResourceNotFoundError()
+    {
+        var serverExe = FindServerExecutable();
+        using var client = new McpStdioClient();
+
+        await client.StartAsync(serverExe);
+
+        var response = await client.ReadResourceAsync("wpf://screenshots/shot_0123456789abcdef0123456789abcdef");
+
+        response.TryGetProperty("result", out _).Should().BeFalse();
+        response.TryGetProperty("error", out var error).Should().BeTrue();
+        error.GetProperty("code").GetInt32().Should().Be((int)McpErrorCode.ResourceNotFound);
+        error.GetProperty("message").GetString().Should().Contain("not retained");
     }
 
     [Fact]

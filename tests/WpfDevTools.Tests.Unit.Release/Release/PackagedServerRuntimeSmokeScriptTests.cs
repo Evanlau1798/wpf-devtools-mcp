@@ -49,6 +49,23 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
     }
 
     [Fact]
+    public void TestPackagedServerRuntimeScript_ShouldVerifySnapshotDiffBeforeRestore()
+    {
+        var script = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));
+
+        var captureIndex = script.IndexOf("capture_state_snapshot", StringComparison.Ordinal);
+        var mutateIndex = script.IndexOf("set_dp_value", captureIndex, StringComparison.Ordinal);
+        var diffIndex = script.IndexOf("get_state_diff", mutateIndex, StringComparison.Ordinal);
+        var restoreIndex = script.IndexOf("restore_state_snapshot", mutateIndex, StringComparison.Ordinal);
+
+        captureIndex.Should().BeGreaterThanOrEqualTo(0);
+        mutateIndex.Should().BeGreaterThan(captureIndex);
+        diffIndex.Should().BeGreaterThan(mutateIndex);
+        diffIndex.Should().BeLessThan(restoreIndex);
+    }
+
+    [Fact]
     public void PackagedRuntimeLiveSmokeHelper_ShouldNotPassEmptyEvidenceOutputPathToRuntimeSmoke()
     {
         var script = File.ReadAllText(

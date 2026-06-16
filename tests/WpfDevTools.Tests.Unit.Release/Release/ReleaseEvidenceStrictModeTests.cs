@@ -80,6 +80,49 @@ public sealed class ReleaseEvidenceStrictModeTests
         }
     }
 
+    [Fact]
+    public void WriteReleaseEvidence_PublicReleaseStrictMode_ShouldFailWhenToolCountIsUnexpected()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var outputPath = Path.Combine(tempRoot, "release-evidence.json");
+            var runtimeEvidencePath = string.Join(
+                ',',
+                WriteRuntimeEvidence(
+                    tempRoot,
+                    mitmPassed: true,
+                    screenshotPassed: true,
+                    fileName: "runtime-evidence-x64-installed.json",
+                    installMode: "package-local",
+                    packageLocalStatus: "passed",
+                    onlineInstallerStatus: "passed-or-not-public",
+                    toolCount: 63),
+                WriteRuntimeEvidence(
+                    tempRoot,
+                    mitmPassed: true,
+                    screenshotPassed: true,
+                    fileName: "runtime-evidence-x64-online.json",
+                    installMode: "online-installer",
+                    packageLocalStatus: "passed-or-not-public",
+                    onlineInstallerStatus: "passed",
+                    toolCount: 63));
+            var docFxEvidencePath = WriteDocFxEvidence(tempRoot);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Write-ReleaseEvidence.ps1"),
+                BuildArguments(tempRoot, outputPath, runtimeEvidencePath, docFxEvidencePath, extraArguments: ["-PublicReleaseStrict"]));
+
+            result.ExitCode.Should().NotBe(0);
+            (result.Stdout + Environment.NewLine + result.Stderr)
+                .Should().Contain("toolsList.count");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     private static string WriteRuntimeEvidence(
         string tempRoot,
         bool mitmPassed,
@@ -87,14 +130,15 @@ public sealed class ReleaseEvidenceStrictModeTests
         string fileName = "runtime-evidence.json",
         string installMode = "package-local",
         string packageLocalStatus = "passed",
-        string onlineInstallerStatus = "passed-or-not-public")
+        string onlineInstallerStatus = "passed-or-not-public",
+        int toolCount = 64)
     {
         var path = Path.Combine(tempRoot, fileName);
         File.WriteAllText(path, $$"""
             {
               "installMode": "{{installMode}}",
               "toolsList": {
-                "count": 64,
+                "count": {{toolCount}},
                 "nameSetHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "schemaSnapshotHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
               },

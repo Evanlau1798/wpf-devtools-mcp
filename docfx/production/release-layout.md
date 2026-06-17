@@ -102,8 +102,8 @@ release_<version>_win-x64/
 - `client-registration` is generated at install time and is the public copy-paste source for MCP client setup.
 - If `-InstallRoot` is omitted, the installer reuses the last live install root when possible; `%APPDATA%\WpfDevToolsMcp` is the fallback root only when no reusable install root exists.
 
-## Online installer source-size exception
+## Online installer source contract
 
-`scripts/online-installer.ps1` is intentionally kept as a thin source entrypoint that can also be packaged as a generated single-file release artifact. This is a temporary exception to the normal source-file size target: do not split it during the current production remediation loop unless the generated single-file release artifact and public installer alias are validated together.
+`scripts/online-installer.ps1` is the canonical source entrypoint for the public installer alias and the generated single-file release artifact. The release pipeline must validate the source entrypoint, packaged artifact, and public alias together so they resolve the same release assets and enforce the same package verification behavior.
 
-Post-remediation, revisit the exception and split helper logic only when the release pipeline can prove the source entrypoint, generated single-file release artifact, and installer alias still produce the same package verification behavior.
+Any future helper reorganization must preserve that contract and keep the packaged helper manifest, generated artifact, and public installer endpoint in sync.

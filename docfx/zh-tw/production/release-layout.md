@@ -102,8 +102,8 @@ release_<version>_win-x64/
 - `client-registration` 會在安裝時產生，是 MCP client setup 的公開 copy-paste 真源。
 - 若省略 `-InstallRoot`，installer 會優先重用最後一個 live install root；只有沒有可重用 root 時，才 fallback 到 `%APPDATA%\WpfDevToolsMcp`。
 
-## Online installer source-size 暫時例外
+## Online installer source contract
 
-`scripts/online-installer.ps1` 目前刻意保持為 thin source entrypoint，且可被 package 成 generated single-file release artifact。這是 normal source file size target 的暫時例外：在目前的 production remediation loop 期間，不要拆分它，除非 generated single-file release artifact 與 public installer alias 已一起完成驗證。
+`scripts/online-installer.ps1` 是 public installer alias 與 generated single-file release artifact 的 canonical source entrypoint。release pipeline 必須一起驗證 source entrypoint、packaged artifact 與 public alias，確保它們解析相同 release assets，並套用相同 package verification behavior。
 
-Post-remediation，請重新檢視此例外；只有 release pipeline 能證明 source entrypoint、generated single-file release artifact 與 installer alias 仍產生相同 package verification behavior 時，才拆分 helper logic。
+未來若重整 helper logic，必須維持此 contract，並讓 packaged helper manifest、generated artifact 與 public installer endpoint 保持同步。

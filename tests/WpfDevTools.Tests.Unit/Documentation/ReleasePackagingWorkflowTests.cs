@@ -71,7 +71,7 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
-    public void ReleaseLayoutDocs_ShouldDocumentOnlineInstallerSplitExceptionAndFollowUpPlan()
+    public void ReleaseLayoutDocs_ShouldDescribeStableOnlineInstallerContractWithoutRemediationWording()
     {
         var english = File.ReadAllText(GetRepoFilePath("docfx/production/release-layout.md"));
         var traditionalChinese = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/production/release-layout.md"));
@@ -80,21 +80,15 @@ public class ReleasePackagingWorkflowTests
         {
             content.Should().Contain("scripts/online-installer.ps1");
             content.Should().Contain("single-file release artifact");
-            content.Should().Contain("thin source entrypoint");
+            content.Should().Contain("canonical source entrypoint");
             content.Should().Contain("generated single-file release artifact");
-            content.Should().Contain("Post-remediation");
+            content.Should().Contain("release pipeline");
+            content.Should().NotContain("temporary exception");
+            content.Should().NotContain("暫時例外");
+            content.Should().NotContain("current production remediation loop");
+            content.Should().NotContain("production remediation loop");
+            content.Should().NotContain("Post-remediation");
         }
-
-        english.Should().Contain("temporary exception");
-        english.Should().Contain("source-file size target");
-        english.Should().Contain("do not split");
-        english.Should().Contain("current production remediation loop");
-
-        traditionalChinese.Should().Contain("暫時例外");
-        traditionalChinese.Should().Contain("source file size target");
-        traditionalChinese.Should().Contain("不要");
-        traditionalChinese.Should().Contain("拆分");
-        traditionalChinese.Should().Contain("目前的 production remediation loop");
     }
 
     [Fact]

@@ -103,6 +103,21 @@ function Test-InstallerTransientFileSystemError {
     return $false
 }
 
+function Get-InstallerFileSystemRecoveryMessage {
+    param(
+        [Parameter(Mandatory)] [string]$Operation,
+        [Parameter(Mandatory)] [string]$Path,
+        [Parameter(Mandatory)] [System.Exception]$Exception
+    )
+
+    $message = "$Operation failed for '$Path'. $($Exception.Message)"
+    if (Test-InstallerTransientFileSystemError -Exception $Exception) {
+        $message += " Close any running WPF target applications, MCP server processes, and terminals or Explorer windows using this install directory, then retry with -Action full-uninstall."
+    }
+
+    return $message
+}
+
 function Move-InstallerPathWithRetry {
     param(
         [Parameter(Mandatory)] [string]$SourcePath,
@@ -140,7 +155,7 @@ function Move-InstallerPathWithRetry {
             }
 
             if (-not (Test-InstallerTransientFileSystemError -Exception $_.Exception) -or $attempt -ge 19) {
-                throw
+                throw (Get-InstallerFileSystemRecoveryMessage -Operation 'Move installer path' -Path $SourcePath -Exception $_.Exception)
             }
 
             Start-Sleep -Milliseconds ([Math]::Min(150 * ($attempt + 1), 2000))

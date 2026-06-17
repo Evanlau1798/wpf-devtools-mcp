@@ -291,12 +291,30 @@ function Remove-PathIfExists {
                     return
                 }
 
+                if (Test-StandaloneTransientFileSystemError -Exception $_.Exception) {
+                    throw (Get-StandaloneInstallerFileSystemRecoveryMessage -Operation 'Remove installer path' -Path $resolvedPath -Exception $_.Exception)
+                }
+
                 throw
             }
 
             Start-Sleep -Milliseconds $RetryDelayMilliseconds
         }
     }
+}
+function Get-StandaloneInstallerFileSystemRecoveryMessage {
+    param(
+        [Parameter(Mandatory)] [string]$Operation,
+        [Parameter(Mandatory)] [string]$Path,
+        [Parameter(Mandatory)] [System.Exception]$Exception
+    )
+
+    $message = "$Operation failed for '$Path'. $($Exception.Message)"
+    if (Test-StandaloneTransientFileSystemError -Exception $Exception) {
+        $message += " Close any running WPF target applications, MCP server processes, and terminals or Explorer windows using this install directory, then retry with -Action full-uninstall."
+    }
+
+    return $message
 }
 function ConvertTo-SingleQuotedPowerShellLiteral {
     param([AllowEmptyString()] [string]$Value)
@@ -320,7 +338,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:08dfdd41ba90f46d8cf17e4f3851f3f73f68c6b65e63309dab3245295a6382bd'
+$script:InstallerHelperManifestCacheKey = 'sha256:efe740906d01a224b9fdbfd0ef0e386f8366d81d3a3085ba5c60ca9616fc0ae9'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/online-installer.release-assets.ps1'
     'scripts/installer/Installer.BootstrapUi.ps1'
@@ -765,7 +783,7 @@ function Move-StandalonePathWithRetry {
         }
         catch {
             if (-not (Test-StandaloneTransientFileSystemError -Exception $_.Exception) -or $attempt -ge 5) {
-                throw
+                throw (Get-StandaloneInstallerFileSystemRecoveryMessage -Operation 'Move installer path' -Path $SourcePath -Exception $_.Exception)
             }
 
             Start-Sleep -Milliseconds ([Math]::Min(75 * ($attempt + 1), 400))

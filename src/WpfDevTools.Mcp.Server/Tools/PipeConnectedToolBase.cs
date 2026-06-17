@@ -318,7 +318,8 @@ public abstract partial class PipeConnectedToolBase
                 expectedSessionGeneration,
                 "drain_events",
                 new { maxEvents = DefaultPiggybackMaxEvents },
-                piggybackCts.Token).ConfigureAwait(false);
+                piggybackCts.Token,
+                countAgainstRateLimit: false).ConfigureAwait(false);
 
             var drainPayload = ToJsonElement(drainResult);
             if (!IsSuccessfulPayload(drainPayload))

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using System.Text.RegularExpressions;
+using WpfDevTools.Tests.Unit.TestSupport;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
@@ -128,10 +129,10 @@ public class SecurityDocumentationTests
     [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
     public void Documentation_ShouldDescribeMalformedRawInjectionAllowlistErrorContract(string relativePath)
     {
-        var policyLines = File.ReadLines(GetRepoFilePath(relativePath))
-            .Where(line => line.Contains("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS", StringComparison.Ordinal))
-            .ToArray();
-        var policyText = string.Join(Environment.NewLine, policyLines);
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var policyText = DocumentationMarkdown.ExtractVariableContext(
+            content,
+            "WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS");
 
         policyText.Should().Contain("InvalidPolicyConfiguration",
             $"{relativePath} should document malformed raw injection allowlist entries as policy configuration errors");
@@ -495,5 +496,5 @@ public class SecurityDocumentationTests
     }
 
     private static string GetRepoFilePath(string relativePath)
-        => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+        => TestRepositoryPaths.GetRepoFilePath(relativePath);
 }

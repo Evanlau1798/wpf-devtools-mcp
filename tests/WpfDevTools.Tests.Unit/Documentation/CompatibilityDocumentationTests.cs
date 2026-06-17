@@ -6,20 +6,27 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public class CompatibilityDocumentationTests
 {
     [Theory]
-    [InlineData("docfx/production/compatibility-matrix.md", "| Self-contained single-file WPF apps | Not supported | Supported through SDK-host reuse |", "InspectorSdk.Initialize()")]
-    [InlineData("docfx/production/compatibility-matrix.md", "| Native AOT | Not supported | Not supported |", "SDK-hosted reuse is not a Native AOT workaround")]
-    [InlineData("docfx/production/compatibility-matrix.md", "| Trimmed apps | Risky / partial | Prefer SDK-host reuse |", "raw injection or inspector startup unreliable")]
-    [InlineData("docfx/zh-tw/production/compatibility-matrix.md", "| Self-contained single-file WPF app | 不支援 | 可透過 SDK-host reuse 支援 |", "InspectorSdk.Initialize()")]
-    [InlineData("docfx/zh-tw/production/compatibility-matrix.md", "| Native AOT | 不支援 | 不支援 |", "SDK-hosted reuse 不是 Native AOT workaround")]
-    [InlineData("docfx/zh-tw/production/compatibility-matrix.md", "| Trimmed app | 風險較高 / 部分支援 | 優先使用 SDK-host reuse |", "raw injection 或 inspector 啟動不穩定")]
-    public void CompatibilityMatrix_ShouldLockScenarioRows(string relativePath, string expectedRow, string notePhrase)
+    [InlineData("docfx/production/compatibility-matrix.md", "### Self-contained single-file WPF apps", "Raw injection path: Not supported.", "Overall support posture: Supported through SDK-host reuse.", "InspectorSdk.Initialize()")]
+    [InlineData("docfx/production/compatibility-matrix.md", "### Native AOT", "Raw injection path: Not supported.", "Overall support posture: Not supported.", "SDK-hosted reuse is not a Native AOT workaround")]
+    [InlineData("docfx/production/compatibility-matrix.md", "### Trimmed apps", "Raw injection path: Risky / partial.", "Overall support posture: Prefer SDK-host reuse.", "raw injection or inspector startup unreliable")]
+    [InlineData("docfx/zh-tw/production/compatibility-matrix.md", "### Self-contained single-file WPF app", "Raw injection 路徑：不支援。", "整體支援姿態：可透過 SDK-host reuse 支援。", "InspectorSdk.Initialize()")]
+    [InlineData("docfx/zh-tw/production/compatibility-matrix.md", "### Native AOT", "Raw injection 路徑：不支援。", "整體支援姿態：不支援。", "SDK-hosted reuse 不是 Native AOT workaround")]
+    [InlineData("docfx/zh-tw/production/compatibility-matrix.md", "### Trimmed app", "Raw injection 路徑：風險較高 / 部分支援。", "整體支援姿態：優先使用 SDK-host reuse。", "raw injection 或 inspector 啟動不穩定")]
+    public void CompatibilityMatrix_ShouldLockScenarioSections(
+        string relativePath,
+        string scenarioHeading,
+        string rawInjectionPhrase,
+        string supportPhrase,
+        string notePhrase)
     {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var section = ReadMarkdownSection(relativePath, scenarioHeading, "### ");
 
-        content.Should().Contain(expectedRow,
-            $"{relativePath} should preserve the documented raw-injection versus overall-support posture for this scenario row");
-        content.Should().Contain(notePhrase,
-            $"{relativePath} should preserve the scenario-specific mitigation or limitation note for this row");
+        section.Should().Contain(rawInjectionPhrase,
+            $"{relativePath} should preserve the documented raw-injection posture for {scenarioHeading}");
+        section.Should().Contain(supportPhrase,
+            $"{relativePath} should preserve the documented overall-support posture for {scenarioHeading}");
+        section.Should().Contain(notePhrase,
+            $"{relativePath} should preserve the scenario-specific mitigation or limitation note for {scenarioHeading}");
     }
 
     [Theory]
@@ -130,6 +137,22 @@ public class CompatibilityDocumentationTests
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string ReadMarkdownSection(string relativePath, string heading, string nextHeadingPrefix)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var startIndex = content.IndexOf(heading, StringComparison.Ordinal);
+        startIndex.Should().BeGreaterThanOrEqualTo(0, $"{relativePath} should contain {heading}");
+
+        var endIndex = content.IndexOf(
+            Environment.NewLine + nextHeadingPrefix,
+            startIndex + heading.Length,
+            StringComparison.Ordinal);
+
+        return endIndex > startIndex
+            ? content[startIndex..endIndex]
+            : content[startIndex..];
+    }
 
     private static bool ContainsNativeAotSupportClaim(string line) =>
         line.Contains("Supported through SDK-host reuse", StringComparison.OrdinalIgnoreCase) ||

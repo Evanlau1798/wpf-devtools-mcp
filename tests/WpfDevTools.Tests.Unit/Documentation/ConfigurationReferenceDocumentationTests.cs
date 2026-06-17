@@ -39,7 +39,7 @@ public sealed class ConfigurationReferenceDocumentationTests
         content.Should().NotContain("WPFDEVTOOLS_ALLOW_ELEVATED_CLI_COMMAND_PATH",
             $"{relativePath} should not list the removed elevated CLI command path opt-in as a shipping variable");
         content.Should().Contain("thumbprint");
-        content.Should().Contain("additional constraint");
+        content.Should().ContainEquivalentOf("additional constraint");
         content.Should().NotContain("Alternative to thumbprint pinning");
         content.Should().NotContain("取代 thumbprint pin");
     }

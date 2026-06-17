@@ -56,7 +56,8 @@ public sealed class WaitForDpChangeToolPostTriggerTests
     public async Task Execute_ShouldRequestBindingSettlementBeforePollingSnapshot()
     {
         const int processId = 4646;
-        using var connected = await CreateBindingSettlementSessionAsync(processId);
+        var (connected, initialSnapshotResponded) = await CreateBindingSettlementSignalSessionAsync(processId);
+        using var _ = connected;
 
         var waitTool = new WaitForDpChangeTool(connected.SessionManager);
         var mutateTool = new NoPiggybackModifyViewModelTool(connected.SessionManager);
@@ -67,12 +68,12 @@ public sealed class WaitForDpChangeToolPostTriggerTests
                 processId,
                 propertyName = "Text",
                 expectedValue = JsonSerializer.SerializeToElement("after"),
-                timeoutMs = 1000,
+                timeoutMs = 3000,
                 pollIntervalMs = 50
             }),
             CancellationToken.None);
 
-        await Task.Delay(120);
+        await initialSnapshotResponded.WaitAsync(TimeSpan.FromSeconds(5));
 
         var mutateResult = await mutateTool.ExecuteAsync(
             ToJsonElement(new

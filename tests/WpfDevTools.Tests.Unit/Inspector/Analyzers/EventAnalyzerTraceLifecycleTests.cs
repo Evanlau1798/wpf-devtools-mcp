@@ -167,7 +167,7 @@ public partial class EventAnalyzerTests
             registrationInvoker: (uiElement, routedEvent, handler, _, registrations) =>
             {
                 registrationStarted.Set();
-                allowRegistrationToFinish.Wait(TimeSpan.FromSeconds(1)).Should().BeTrue();
+                allowRegistrationToFinish.Wait(DispatcherSignalTimeout).Should().BeTrue();
                 uiElement.AddHandler(routedEvent, handler, handledEventsToo: true);
                 registrations.Add(new HandlerRegistration(uiElement, routedEvent, handler));
             });
@@ -180,7 +180,7 @@ public partial class EventAnalyzerTests
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default);
 
-        registrationStarted.Wait(TimeSpan.FromSeconds(1)).Should().BeTrue();
+        registrationStarted.Wait(DispatcherSignalTimeout).Should().BeTrue();
 
         var disposeTask = Task.Run(() => analyzer.Dispose());
         disposeTask.Wait(TimeSpan.FromMilliseconds(200)).Should().BeFalse();

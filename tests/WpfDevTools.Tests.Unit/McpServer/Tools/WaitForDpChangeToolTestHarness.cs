@@ -120,6 +120,28 @@ internal static class WaitForDpChangeToolTestHarness
             requestPayloads);
     }
 
+    internal static async Task<(ConnectedWaitSession Session, Task InitialSnapshotResponded)> CreateBindingSettlementSignalSessionAsync(int processId)
+    {
+        var state = new BindingSettlementServerState();
+        var requestPayloads = new List<(string method, bool settleBindings)>();
+        var initialSnapshotResponded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var session = await ConnectedWaitSessionBuilder.CreateAsync(
+            processId,
+            state,
+            static (request, currentState) => Task.FromResult(BuildBindingSettlementResult(request, currentState)),
+            request => requestPayloads.Add((request.Method, HasSettleBindingsFlag(request.Params))),
+            requestPayloads,
+            onResponse: request =>
+            {
+                if (request.Method == "get_dp_value_source")
+                {
+                    initialSnapshotResponded.TrySetResult();
+                }
+            });
+
+        return (session, initialSnapshotResponded.Task);
+    }
+
     internal static async Task<ConnectedWaitSession> CreateDelayedTriggerSessionAsync(int processId, int mutationDelayMs)
     {
         var state = new WaitServerState();

@@ -13,8 +13,7 @@ public sealed class ReleaseEvidenceAssetPublicationTests
         {
             var inputRoot = Path.Combine(tempRoot, "release-input");
             var outputRoot = Path.Combine(tempRoot, "release-output");
-            Directory.CreateDirectory(inputRoot);
-            File.WriteAllText(Path.Combine(inputRoot, "release_1.2.3_win-x64.zip"), "x64-asset");
+            ReleaseScriptTestHarness.WriteDummyReleaseArchiveSet(inputRoot);
 
             var exportResult = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"),

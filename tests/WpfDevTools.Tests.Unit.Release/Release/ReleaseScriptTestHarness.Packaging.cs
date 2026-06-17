@@ -11,6 +11,8 @@ internal static partial class ReleaseScriptTestHarness
     [DllImport("Kernel32.dll", EntryPoint = "CreateHardLinkW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool CreateHardLink(string fileName, string existingFileName, nint securityAttributes);
 
+    private static readonly string[] SupportedReleaseArchitectures = ["x64", "x86", "arm64"];
+
     public static string CreatePackageDirectory(string tempRoot, string architecture = "x64", bool useSignedPayload = false)
     {
         var packageDir = Path.Combine(tempRoot, "package");
@@ -42,6 +44,35 @@ internal static partial class ReleaseScriptTestHarness
             Path.Combine(tempRoot, "release-assets.json"),
             preferHardLink: !isolateArchiveContents);
         return archivePath;
+    }
+
+    public static void WriteDummyReleaseArchiveSet(string inputRoot, string version = "1.2.3")
+    {
+        Directory.CreateDirectory(inputRoot);
+        foreach (var architecture in SupportedReleaseArchitectures)
+        {
+            File.WriteAllText(
+                Path.Combine(inputRoot, $"release_{version}_win-{architecture}.zip"),
+                $"{architecture}-asset");
+        }
+    }
+
+    public static IReadOnlyDictionary<string, string> CreatePackageArchiveSet(
+        string destinationRoot,
+        bool useSignedPayload = false,
+        bool isolateArchiveContents = false)
+    {
+        Directory.CreateDirectory(destinationRoot);
+        var archives = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var architecture in SupportedReleaseArchitectures)
+        {
+            var archivePath = Path.Combine(destinationRoot, $"release_1.2.3_win-{architecture}.zip");
+            var cachedArtifacts = GetCachedPackageArtifacts(architecture, useSignedPayload);
+            ReplicateFile(cachedArtifacts.ArchivePath, archivePath, preferHardLink: !isolateArchiveContents);
+            archives[architecture] = archivePath;
+        }
+
+        return archives;
     }
 
     public static void WriteAdjacentReleaseMetadata(string archivePath, string? publishedAssetName = null)

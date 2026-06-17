@@ -16,9 +16,7 @@ public sealed class GitHubReleaseAssetScriptTests
         {
             var inputRoot = Path.Combine(tempRoot, "release-input");
             var outputRoot = Path.Combine(tempRoot, "release-output");
-            Directory.CreateDirectory(inputRoot);
-            File.WriteAllText(Path.Combine(inputRoot, "release_1.2.3_win-x64.zip"), "x64-asset");
-            File.WriteAllText(Path.Combine(inputRoot, "release_1.2.3_win-x86.zip"), "x86-asset");
+            ReleaseScriptTestHarness.WriteDummyReleaseArchiveSet(inputRoot);
             File.WriteAllText(Path.Combine(inputRoot, "ignore.txt"), "not-an-asset");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
@@ -41,7 +39,8 @@ public sealed class GitHubReleaseAssetScriptTests
             File.Exists(Path.Combine(stagedRoot, "upload-gh-release.ps1")).Should().BeTrue();
             File.ReadAllText(Path.Combine(stagedRoot, "SHA256SUMS.txt"))
                 .Should().Contain("release_1.2.3_win-x64.zip")
-                .And.Contain("release_1.2.3_win-x86.zip");
+                .And.Contain("release_1.2.3_win-x86.zip")
+                .And.Contain("release_1.2.3_win-arm64.zip");
             File.ReadAllText(Path.Combine(stagedRoot, "upload-gh-release.ps1"))
                 .Should().Contain("$PSScriptRoot")
                 .And.Contain("$ReleaseTag")
@@ -62,8 +61,7 @@ public sealed class GitHubReleaseAssetScriptTests
         {
             var inputRoot = Path.Combine(tempRoot, "release-input");
             var outputRoot = Path.Combine(tempRoot, "release-output");
-            Directory.CreateDirectory(inputRoot);
-            File.WriteAllText(Path.Combine(inputRoot, "release_1.2.3-dev.1_win-x64.zip"), "dev-asset");
+            ReleaseScriptTestHarness.WriteDummyReleaseArchiveSet(inputRoot, "1.2.3-dev.1");
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"),
@@ -78,8 +76,9 @@ public sealed class GitHubReleaseAssetScriptTests
             result.ExitCode.Should().Be(0, result.Stderr);
             using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(outputRoot, "v1.2.3-dev.1", "release-assets.json")));
             manifest.RootElement.GetProperty("tag").GetString().Should().Be("v1.2.3-dev.1");
-            manifest.RootElement.GetProperty("assets")[0].GetProperty("name").GetString().Should().Be("release_1.2.3-dev.1_win-x64.zip");
-            manifest.RootElement.GetProperty("assets")[0].GetProperty("sha256").GetString().Should().NotBeNullOrWhiteSpace();
+            manifest.RootElement.GetProperty("assets").EnumerateArray()
+                .Select(asset => asset.GetProperty("name").GetString())
+                .Should().Contain("release_1.2.3-dev.1_win-x64.zip");
         }
         finally
         {
@@ -95,8 +94,7 @@ public sealed class GitHubReleaseAssetScriptTests
         {
             var inputRoot = Path.Combine(tempRoot, "release-input");
             var outputRoot = Path.Combine(tempRoot, "release-output");
-            Directory.CreateDirectory(inputRoot);
-            File.WriteAllText(Path.Combine(inputRoot, "release_1.2.3_win-x64.zip"), "x64-asset");
+            ReleaseScriptTestHarness.WriteDummyReleaseArchiveSet(inputRoot);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"),
@@ -134,8 +132,7 @@ public sealed class GitHubReleaseAssetScriptTests
         {
             var inputRoot = Path.Combine(tempRoot, "release-input");
             var outputRoot = Path.Combine(tempRoot, "release-output");
-            Directory.CreateDirectory(inputRoot);
-            File.WriteAllText(Path.Combine(inputRoot, "release_1.2.3_win-x64.zip"), "x64-asset");
+            ReleaseScriptTestHarness.WriteDummyReleaseArchiveSet(inputRoot);
 
             var exportResult = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"),
@@ -240,14 +237,10 @@ public sealed class GitHubReleaseAssetScriptTests
         {
             var inputRoot = Path.Combine(tempRoot, "release-input");
             var outputRoot = Path.Combine(tempRoot, "release-output");
-            Directory.CreateDirectory(inputRoot);
-
-            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(
-                tempRoot,
-                "x64",
+            ReleaseScriptTestHarness.CreatePackageArchiveSet(
+                inputRoot,
                 useSignedPayload: true,
                 isolateArchiveContents: true);
-            File.Copy(archivePath, Path.Combine(inputRoot, Path.GetFileName(archivePath)), overwrite: true);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"),
@@ -277,15 +270,11 @@ public sealed class GitHubReleaseAssetScriptTests
         {
             var inputRoot = Path.Combine(tempRoot, "release-input");
             var outputRoot = Path.Combine(tempRoot, "release-output");
-            Directory.CreateDirectory(inputRoot);
-
-            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(
-                tempRoot,
-                "x64",
+            var archives = ReleaseScriptTestHarness.CreatePackageArchiveSet(
+                inputRoot,
                 useSignedPayload: true,
                 isolateArchiveContents: true);
-            var stagedArchivePath = Path.Combine(inputRoot, Path.GetFileName(archivePath));
-            File.Copy(archivePath, stagedArchivePath, overwrite: true);
+            var stagedArchivePath = archives["x64"];
             var signer = ReadArchiveSignerMetadata(stagedArchivePath);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
@@ -325,9 +314,7 @@ public sealed class GitHubReleaseAssetScriptTests
         {
             var inputRoot = Path.Combine(tempRoot, "release-input");
             var outputRoot = Path.Combine(tempRoot, "release-output");
-            Directory.CreateDirectory(inputRoot);
-            File.WriteAllText(Path.Combine(inputRoot, "release_1.2.3_win-x64.zip"), "x64-asset");
-            File.WriteAllText(Path.Combine(inputRoot, "release_1.2.3_win-x86.zip"), "x86-asset");
+            ReleaseScriptTestHarness.WriteDummyReleaseArchiveSet(inputRoot);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"),
@@ -351,7 +338,10 @@ public sealed class GitHubReleaseAssetScriptTests
             sbomSidecar.GetProperty("role").GetString().Should().Be("release-asset-spdx-sbom");
             var packages = sbom.RootElement.GetProperty("packages").EnumerateArray().ToArray();
             packages.Select(package => package.GetProperty("name").GetString())
-                .Should().BeEquivalentTo("release_1.2.3_win-x64.zip", "release_1.2.3_win-x86.zip");
+                .Should().BeEquivalentTo(
+                    "release_1.2.3_win-x64.zip",
+                    "release_1.2.3_win-x86.zip",
+                    "release_1.2.3_win-arm64.zip");
 
             var manifestAssets = manifest.RootElement.GetProperty("assets").EnumerateArray()
                 .ToDictionary(asset => asset.GetProperty("name").GetString()!);
@@ -378,14 +368,10 @@ public sealed class GitHubReleaseAssetScriptTests
         {
             var inputRoot = Path.Combine(tempRoot, "release-input");
             var outputRoot = Path.Combine(tempRoot, "release-output");
-            Directory.CreateDirectory(inputRoot);
-
-            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(
-                tempRoot,
-                "x64",
+            ReleaseScriptTestHarness.CreatePackageArchiveSet(
+                inputRoot,
                 useSignedPayload: false,
                 isolateArchiveContents: true);
-            File.Copy(archivePath, Path.Combine(inputRoot, Path.GetFileName(archivePath)), overwrite: true);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"),

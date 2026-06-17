@@ -20,12 +20,29 @@ Architecture matching is mandatory for raw injection/bootstrapper fallback. SDK-
 
 ## Known unsupported or constrained scenarios
 
-| Scenario | Raw injection path | Overall support posture | Notes |
-| --- | --- | --- | --- |
-| Self-contained single-file WPF apps | Not supported | Supported through SDK-host reuse | The native injection path cannot rely on the expected assembly layout. Call `InspectorSdk.Initialize()` in the target app with matching transport settings so `connect()` can reuse the existing host. |
-| Native AOT | Not supported | Not supported | WPF DevTools does not support Native AOT targets today. SDK-hosted reuse is not a Native AOT workaround because the Inspector SDK requires managed WPF runtime and assembly access. |
-| Trimmed apps | Risky / partial | Prefer SDK-host reuse | Required types may be removed, making raw injection or inspector startup unreliable. |
-| Non-WPF desktop UI stacks | Not supported | Not supported | This server is WPF-specific. |
+### Self-contained single-file WPF apps
+
+- Raw injection path: Not supported.
+- Overall support posture: Supported through SDK-host reuse.
+- Notes: The native injection path cannot rely on the expected assembly layout. Call `InspectorSdk.Initialize()` in the target app with matching transport settings so `connect()` can reuse the existing host.
+
+### Native AOT
+
+- Raw injection path: Not supported.
+- Overall support posture: Not supported.
+- Notes: WPF DevTools does not support Native AOT targets today. SDK-hosted reuse is not a Native AOT workaround because the Inspector SDK requires managed WPF runtime and assembly access.
+
+### Trimmed apps
+
+- Raw injection path: Risky / partial.
+- Overall support posture: Prefer SDK-host reuse.
+- Notes: Required types may be removed, making raw injection or inspector startup unreliable.
+
+### Non-WPF desktop UI stacks
+
+- Raw injection path: Not supported.
+- Overall support posture: Not supported.
+- Notes: This server is WPF-specific.
 
 ## Practical guidance
 

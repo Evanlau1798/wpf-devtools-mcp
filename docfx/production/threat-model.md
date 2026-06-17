@@ -60,11 +60,29 @@ flowchart LR
 
 ## Accepted-risk register
 
-| Risk | Status | Owner | Accepted date | Revisit date | Rationale |
-| --- | --- | --- | --- | --- | --- |
-| Same-user code remains inside the local trust boundary. | Accepted with controls | Release owner | 2026-06-01 | 2026-09-01 | This is a local debugger; DPAPI, ACLs, HMAC/TLS, and redaction reduce accidental exposure but do not defend against fully compromised same-user code. |
-| Raw injection remains an emergency path. | Accepted with opt-in | Release owner | 2026-06-01 | 2026-09-01 | Some WPF targets cannot host the SDK. Raw injection requires exact target allowlists, matched architecture, and trusted local payloads. |
-| STDIO is single-session only. | Accepted until transport redesign | Release owner | 2026-06-01 | 2026-09-01 | HTTP/SSE or multi-client transport requires explicit session isolation work before production use. |
+### Same-user code remains inside the local trust boundary
+
+- Status: Accepted with controls.
+- Owner: Release owner.
+- Accepted date: 2026-06-01.
+- Revisit date: 2026-09-01.
+- Rationale: This is a local debugger. DPAPI, ACLs, HMAC/TLS, and redaction reduce accidental exposure, but they do not defend against fully compromised same-user code.
+
+### Raw injection remains an emergency path
+
+- Status: Accepted with opt-in.
+- Owner: Release owner.
+- Accepted date: 2026-06-01.
+- Revisit date: 2026-09-01.
+- Rationale: Some WPF targets cannot host the SDK. Raw injection requires exact target allowlists, matched architecture, and trusted local payloads.
+
+### STDIO is single-session only
+
+- Status: Accepted until transport redesign.
+- Owner: Release owner.
+- Accepted date: 2026-06-01.
+- Revisit date: 2026-09-01.
+- Rationale: HTTP/SSE or multi-client transport requires explicit session isolation work before production use.
 
 ## Security contact
 

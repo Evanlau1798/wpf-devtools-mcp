@@ -60,11 +60,29 @@ flowchart LR
 
 ## Accepted-risk register
 
-| Risk | Status | Owner | Accepted date | Revisit date | Rationale |
-| --- | --- | --- | --- | --- | --- |
-| Same-user code remains inside the local trust boundary. | Accepted with controls | Release owner | 2026-06-01 | 2026-09-01 | 這是本機 debugger；DPAPI、ACLs、HMAC/TLS 與 redaction 可降低意外曝露，但不承諾防禦已完全入侵的同使用者程式。 |
-| Raw injection remains an emergency path. | Accepted with opt-in | Release owner | 2026-06-01 | 2026-09-01 | 部分 WPF target 無法 host SDK。Raw injection 必須有 exact target allowlists、matched architecture 與 trusted local payloads。 |
-| STDIO is single-session only. | Accepted until transport redesign | Release owner | 2026-06-01 | 2026-09-01 | HTTP/SSE 或 multi-client transport 在 production 使用前，需要明確的 session isolation work。 |
+### Same-user code remains inside the local trust boundary
+
+- Status: Accepted with controls.
+- Owner: Release owner.
+- Accepted date: 2026-06-01.
+- Revisit date: 2026-09-01.
+- Rationale: 這是本機 debugger；DPAPI、ACLs、HMAC/TLS 與 redaction 可降低意外曝露，但不承諾防禦已完全入侵的同使用者程式。
+
+### Raw injection remains an emergency path
+
+- Status: Accepted with opt-in.
+- Owner: Release owner.
+- Accepted date: 2026-06-01.
+- Revisit date: 2026-09-01.
+- Rationale: 部分 WPF target 無法 host SDK。Raw injection 必須有 exact target allowlists、matched architecture 與 trusted local payloads。
+
+### STDIO is single-session only
+
+- Status: Accepted until transport redesign.
+- Owner: Release owner.
+- Accepted date: 2026-06-01.
+- Revisit date: 2026-09-01.
+- Rationale: HTTP/SSE 或 multi-client transport 在 production 使用前，需要明確的 session isolation work。
 
 ## Security contact
 

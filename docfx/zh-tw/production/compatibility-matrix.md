@@ -20,12 +20,29 @@ Architecture matching is mandatory for raw injection/bootstrapper fallback。SDK
 
 ## 已知不支援或受限的情境
 
-| 情境 | Raw injection 路徑 | 整體支援姿態 | 說明 |
-| --- | --- | --- | --- |
-| Self-contained single-file WPF app | 不支援 | 可透過 SDK-host reuse 支援 | Native injection 路徑無法依賴預期的組件配置。請在 target app 中呼叫 `InspectorSdk.Initialize()`，並讓 transport 設定一致，讓 `connect()` 可以重用既有 host。 |
-| Native AOT | 不支援 | 不支援 | WPF DevTools 目前不支援 Native AOT targets。SDK-hosted reuse 不是 Native AOT workaround，因為 Inspector SDK 仍需要 managed WPF runtime 與 assembly access。 |
-| Trimmed app | 風險較高 / 部分支援 | 優先使用 SDK-host reuse | 必要型別可能被裁掉，導致 raw injection 或 inspector 啟動不穩定。 |
-| 非 WPF 桌面 UI 技術 | 不支援 | 不支援 | 本 server 明確只針對 WPF。 |
+### Self-contained single-file WPF app
+
+- Raw injection 路徑：不支援。
+- 整體支援姿態：可透過 SDK-host reuse 支援。
+- 說明：Native injection 路徑無法依賴預期的組件配置。請在 target app 中呼叫 `InspectorSdk.Initialize()`，並讓 transport 設定一致，讓 `connect()` 可以重用既有 host。
+
+### Native AOT
+
+- Raw injection 路徑：不支援。
+- 整體支援姿態：不支援。
+- 說明：WPF DevTools 目前不支援 Native AOT targets。SDK-hosted reuse 不是 Native AOT workaround，因為 Inspector SDK 仍需要 managed WPF runtime 與 assembly access。
+
+### Trimmed app
+
+- Raw injection 路徑：風險較高 / 部分支援。
+- 整體支援姿態：優先使用 SDK-host reuse。
+- 說明：必要型別可能被裁掉，導致 raw injection 或 inspector 啟動不穩定。
+
+### Non-WPF desktop UI
+
+- Raw injection 路徑：不支援。
+- 整體支援姿態：不支援。
+- 說明：本 server 明確只針對 WPF。
 
 ## 實務建議
 

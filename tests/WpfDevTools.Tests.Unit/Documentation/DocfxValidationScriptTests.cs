@@ -79,6 +79,28 @@ public sealed class DocfxValidationScriptTests
     }
 
     [Fact]
+    public void Script_ShouldFailWhenExcludedAgentFeedbackOutputRemainsInSite()
+    {
+        var fixture = CreateFixture();
+        try
+        {
+            WriteValidDocumentationFixture(fixture);
+            WriteFile(fixture, "docfx/_site/agent-feedback/index.html",
+                """<html><body><h1>Agent feedback</h1></body></html>""");
+
+            var result = RunValidationScript(fixture);
+
+            result.ExitCode.Should().NotBe(0);
+            result.CombinedOutput.Should().Contain("Excluded public DocFX output remains in _site");
+            result.CombinedOutput.Should().Contain("agent-feedback");
+        }
+        finally
+        {
+            DeleteFixture(fixture);
+        }
+    }
+
+    [Fact]
     public void Script_ShouldFailWhenGeneratedInternalAnchorIsMissing()
     {
         var fixture = CreateFixture();

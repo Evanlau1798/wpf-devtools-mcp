@@ -30,7 +30,7 @@ public sealed class TransportStateArchitectureDocumentationTests
     }
 
     [Theory]
-    [InlineData("docfx/toc.yml", "architecture/adrs/adr-006-stdio-session-state.md")]
+    [InlineData("docfx/architecture/toc.yml", "adrs/adr-006-stdio-session-state.md")]
     [InlineData("docfx/zh-tw/toc.yml", "architecture/adrs/adr-006-stdio-session-state.md")]
     [InlineData("docfx/architecture/adrs/index.md", "adr-006-stdio-session-state.md")]
     [InlineData("docfx/zh-tw/architecture/adrs/index.md", "adr-006-stdio-session-state.md")]

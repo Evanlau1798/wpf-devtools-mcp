@@ -1,0 +1,20 @@
+- name: Tool Reference Overview
+  href: tools/index.md
+- name: Process and Connection Tools
+  href: tools/process-and-connection.md
+- name: Tree and XAML Tools
+  href: tools/tree-and-xaml.md
+- name: Binding and Dependency Property Tools
+  href: tools/binding-and-dp.md
+- name: Style and Template Tools
+  href: tools/style-and-template.md
+- name: Scene and State Diagnostic Tools
+  href: tools/scene-and-state.md
+- name: Interaction, Event, Layout, and Performance Tools
+  href: tools/interaction-events-layout.md
+- name: Configuration Reference
+  href: configuration.md
+- name: Error Model
+  href: error-model.md
+- name: API Reference
+  href: ../api/toc.yml

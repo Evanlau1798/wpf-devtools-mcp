@@ -1,0 +1,14 @@
+- name: 5-Minute Setup
+  href: index.md
+- name: AI Agent Clients
+  href: ai-agent-clients.md
+- name: SDK-Hosted Inspector
+  href: sdk-hosted-inspector.md
+- name: Claude Code
+  href: claude-code.md
+- name: Claude Desktop
+  href: claude-desktop.md
+- name: Cursor and VS Code
+  href: cursor-vscode.md
+- name: OpenAI Codex
+  href: openai-codex.md

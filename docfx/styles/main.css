@@ -21,3 +21,28 @@ table code {
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+@media (max-width: 767px) {
+  article.content table {
+    display: table;
+    width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
+    overflow-x: auto;
+  }
+
+  article.content table th,
+  article.content table td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  article.content table code {
+    white-space: normal;
+  }
+
+  article.content .anchorjs-link {
+    display: none;
+  }
+}

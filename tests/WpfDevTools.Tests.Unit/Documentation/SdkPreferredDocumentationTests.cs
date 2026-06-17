@@ -21,8 +21,8 @@ public sealed class SdkPreferredDocumentationTests
 
         File.ReadAllText(GetRepoFilePath("README.md"))
             .Should().Contain("https://wpf-mcptools.evanlau1798.com/quickstart/sdk-hosted-inspector.html");
-        File.ReadAllText(GetRepoFilePath("docfx/toc.yml"))
-            .Should().Contain("quickstart/sdk-hosted-inspector.md");
+        File.ReadAllText(GetRepoFilePath("docfx/quickstart/toc.yml"))
+            .Should().Contain("sdk-hosted-inspector.md");
         File.ReadAllText(GetRepoFilePath("docfx/zh-tw/toc.yml"))
             .Should().Contain("quickstart/sdk-hosted-inspector.md");
         File.ReadAllText(GetRepoFilePath("docfx/quickstart/index.md"))

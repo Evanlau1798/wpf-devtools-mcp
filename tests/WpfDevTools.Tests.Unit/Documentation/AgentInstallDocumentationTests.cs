@@ -35,7 +35,7 @@ public sealed class AgentInstallDocumentationTests
             File.Exists(GetRepoFilePath(file)).Should().BeTrue($"{file} should be published as an agent-readable install contract");
         }
 
-        File.ReadAllText(GetRepoFilePath("docfx/toc.yml")).Should().Contain("guides/agent-assisted-install.md");
+        File.ReadAllText(GetRepoFilePath("docfx/contributors/toc.yml")).Should().Contain("../guides/agent-assisted-install.md");
         File.ReadAllText(GetRepoFilePath("docfx/zh-tw/toc.yml")).Should().Contain("guides/agent-assisted-install.md");
         File.ReadAllText(GetRepoFilePath("AGENT_INSTALL.md")).Should().Contain("docfx/guides/agent-assisted-install.md");
     }

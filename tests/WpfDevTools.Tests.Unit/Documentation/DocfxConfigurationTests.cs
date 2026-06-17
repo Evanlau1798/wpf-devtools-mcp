@@ -6,6 +6,52 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public sealed class DocfxConfigurationTests
 {
     [Fact]
+    public void RootToc_ShouldStayShallowBecauseDocfxUsesItForTheTopNavbar()
+    {
+        var content = ReadRepoText("docfx/toc.yml");
+
+        content.Should().NotContain("items:",
+            "the root TOC is rendered by DocFX as the top navbar and deep items can cover article content");
+        content.Should().NotContain("api/toc.yml",
+            "the generated API TOC is too large for the top navbar and belongs in section navigation");
+        content.Should().Contain("href: zh-tw/index.md");
+        content.Should().Contain("href: quickstart/index.md");
+        content.Should().Contain("href: reference/tools/index.md");
+    }
+
+    [Theory]
+    [InlineData("docfx/quickstart/toc.yml", "sdk-hosted-inspector.md")]
+    [InlineData("docfx/production/toc.yml", "bootstrap-and-injection.md")]
+    [InlineData("docfx/reference/toc.yml", "tools/interaction-events-layout.md")]
+    [InlineData("docfx/reference/toc.yml", "../api/toc.yml")]
+    [InlineData("docfx/architecture/toc.yml", "adrs/adr-006-stdio-session-state.md")]
+    [InlineData("docfx/contributors/toc.yml", "../guides/agent-assisted-install.md")]
+    [InlineData("docfx/agent-feedback/toc.yml", "index.md")]
+    public void SectionTocs_ShouldPreserveDeepNavigationOutsideTheTopNavbar(
+        string relativePath,
+        string expectedHref)
+    {
+        File.Exists(GetRepoFilePath(relativePath)).Should().BeTrue();
+        ReadRepoText(relativePath).Should().Contain(expectedHref);
+    }
+
+    [Fact]
+    public void MainCss_ShouldConstrainDocfxTablesOnMobile()
+    {
+        var content = ReadRepoText("docfx/styles/main.css");
+
+        content.Should().Contain("@media (max-width: 767px)");
+        content.Should().Contain("article.content table");
+        content.Should().Contain("article.content table th");
+        content.Should().Contain("overflow-x: auto");
+        content.Should().Contain("table-layout: fixed");
+        content.Should().Contain("overflow-wrap: anywhere");
+        content.Should().Contain("word-break: break-word");
+        content.Should().Contain(".anchorjs-link");
+        content.Should().Contain("display: none");
+    }
+
+    [Fact]
     public void MetadataSources_ShouldReferenceProjectsInsteadOfConfigurationSpecificBuildOutputs()
     {
         var docfx = ReadDocfxConfiguration();
@@ -31,9 +77,15 @@ public sealed class DocfxConfigurationTests
 
     private static JsonElement ReadDocfxConfiguration()
     {
-        var path = WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath("docfx/docfx.json");
+        var path = GetRepoFilePath("docfx/docfx.json");
         return JsonDocument.Parse(File.ReadAllText(path)).RootElement.Clone();
     }
+
+    private static string ReadRepoText(string relativePath)
+        => File.ReadAllText(GetRepoFilePath(relativePath));
+
+    private static string GetRepoFilePath(string relativePath)
+        => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 
     private static IEnumerable<string> EnumerateMetadataSourcePaths(JsonElement docfx)
     {
@@ -55,9 +107,9 @@ public sealed class DocfxConfigurationTests
     {
         var combined = Path.GetFullPath(
             Path.Combine(
-                WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath("docfx"),
+                GetRepoFilePath("docfx"),
                 path));
-        var repoRoot = WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(".");
+        var repoRoot = GetRepoFilePath(".");
         return Path.GetRelativePath(repoRoot, combined).Replace('\\', '/');
     }
 }

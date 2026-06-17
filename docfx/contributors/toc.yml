@@ -1,0 +1,12 @@
+- name: Contributor Guide
+  href: index.md
+- name: Development Setup
+  href: development-setup.md
+- name: Testing and TDD
+  href: testing-and-tdd.md
+- name: Documentation Style
+  href: documentation-style.md
+- name: Agent-Assisted Install
+  href: ../guides/agent-assisted-install.md
+- name: Agent Feedback
+  href: ../agent-feedback/index.md

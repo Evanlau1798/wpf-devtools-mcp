@@ -22,7 +22,7 @@ public sealed class AgentFeedbackDocumentationTests
     }
 
     [Theory]
-    [InlineData("docfx/toc.yml", "agent-feedback/index.md")]
+    [InlineData("docfx/agent-feedback/toc.yml", "index.md")]
     [InlineData("docfx/zh-tw/toc.yml", "agent-feedback/index.md")]
     public void Tocs_ShouldExposeAgentFeedbackSection(
         string relativePath,

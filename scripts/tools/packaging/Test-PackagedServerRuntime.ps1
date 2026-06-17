@@ -11,6 +11,7 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'Test-McpToolListContract.ps1')
 function Get-ProcessDiagnostics {
     param([Parameter(Mandatory)] [System.Diagnostics.Process]$Process)
     try {
@@ -360,10 +361,7 @@ try {
     Send-McpNotification -Process $process -Method 'notifications/initialized' -Params @{}
 
     $toolsResponse = Invoke-McpRequest -Process $process -Id 2 -Method 'tools/list' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Params @{}
-    $toolNames = @($toolsResponse.result.tools | ForEach-Object { $_.name })
-    if (-not ($toolNames -contains 'get_processes')) {
-        throw "Packaged server tools/list did not include get_processes. Tools: $($toolNames -join ', ')"
-    }
+    Test-McpToolListContract -ToolsResponse $toolsResponse -ExpectedToolNames (Get-PackagedServerExpectedToolNames -RepoRoot (Resolve-PackagingRepoRoot))
 
     $resourceResponse = Invoke-McpRequest -Process $process -Id 3 -Method 'resources/read' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Params @{
         uri = 'wpf://capabilities'

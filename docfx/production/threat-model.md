@@ -88,18 +88,47 @@ flowchart LR
 
 Report a suspected vulnerability by opening a private GitHub Security Advisory for the repository owner. Include affected version, commit SHA, reproduction steps, and whether a public release artifact is involved. Do not publish exploit details, screenshots, target UI data, certificate material, or auth secrets in public issues before a maintainer has triaged the report.
 
-## Threats and mitigations
+## Threats and Mitigations
 
-| Threat | Risk | Mitigations |
-| --- | --- | --- |
-| MCP client as untrusted or prompt-injected caller | A client may request sensitive reads, screenshots, mutations, or process discovery outside the user's intent. | Target allowlists, sensitive-read gates, screenshot gates, destructive-tool policy gates, structured error contracts, and server-side validation before process metadata disclosure. |
-| same-user local attacker | Code running as the same Windows user may inspect local files, environment variables, pipes, or process state. | Local-only path validation, DPAPI-protected default secrets, protected ACLs for persisted auth/cert files, named-pipe authentication, TLS certificate pinning, and redacted default logs. |
-| malicious target process | A target may expose misleading UI state, attempt to exhaust diagnostic payloads, or host an incompatible SDK pipe. | Exact target allowlists, runtime compatibility checks, output caps, timeout handling, secure transport validation, and fail-closed SDK transport configuration. |
-| fake named-pipe / MITM server | A local process may impersonate an Inspector pipe to capture commands or spoof responses. | Process-derived pipe names, HMAC challenge-response, TLS certificate validation, host compatibility ping, PID validation, and adversarial fake-pipe regression tests. |
-| raw injection risk | DLL injection can fail, target the wrong process, or cross architecture/security boundaries. | Exact injection allowlists, architecture preflight before `OpenProcess`, trusted local payload path validation, release signature/integrity checks, and SDK-hosted mode as the preferred path when the target app can opt in. |
-| screenshot, ViewModel, and runtime data exfiltration | UI text, screenshots, binding values, ViewModel data, and state snapshots can contain secrets. | `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS`, `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS`, compact text fallback, omitted base64/log text fallback fields, local path redaction, and resource retention limits. |
-| supply-chain and release tampering | A modified package or installer could register a malicious MCP server. | Signed payload verification, package hash sidecars, canonical release metadata, SBOM sidecars, package-local integrity checks, and residue checks after uninstall. |
-| unsupported future HTTP/SSE multi-session transport | Static process-wide caches and STDIO session assumptions could leak state across clients if reused for multi-session transport. | Current production support is STDIO single-session. HTTP/SSE must not be enabled until session-specific state is moved into DI/request/session scope and covered by isolation tests. |
+### MCP client as untrusted or prompt-injected caller
+
+- Risk: A client may request sensitive reads, screenshots, mutations, or process discovery outside the user's intent.
+- Mitigations: Target allowlists, sensitive-read gates, screenshot gates, destructive-tool policy gates, structured error contracts, and server-side validation before process metadata disclosure.
+
+### same-user local attacker
+
+- Risk: Code running as the same Windows user may inspect local files, environment variables, pipes, or process state.
+- Mitigations: Local-only path validation, DPAPI-protected default secrets, protected ACLs for persisted auth/cert files, named-pipe authentication, TLS certificate pinning, and redacted default logs.
+
+### malicious target process
+
+- Risk: A target may expose misleading UI state, attempt to exhaust diagnostic payloads, or host an incompatible SDK pipe.
+- Mitigations: Exact target allowlists, runtime compatibility checks, output caps, timeout handling, secure transport validation, and fail-closed SDK transport configuration.
+
+### fake named-pipe / MITM server
+
+- Risk: A local process may impersonate an Inspector pipe to capture commands or spoof responses.
+- Mitigations: Process-derived pipe names, HMAC challenge-response, TLS certificate validation, host compatibility ping, PID validation, and adversarial fake-pipe regression tests.
+
+### raw injection risk
+
+- Risk: DLL injection can fail, target the wrong process, or cross architecture/security boundaries.
+- Mitigations: Exact injection allowlists, architecture preflight before `OpenProcess`, trusted local payload path validation, release signature/integrity checks, and SDK-hosted mode as the preferred path when the target app can opt in.
+
+### screenshot, ViewModel, and runtime data exfiltration
+
+- Risk: UI text, screenshots, binding values, ViewModel data, and state snapshots can contain secrets.
+- Mitigations: `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS`, `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS`, compact text fallback, omitted base64/log text fallback fields, local path redaction, and resource retention limits.
+
+### supply-chain and release tampering
+
+- Risk: A modified package or installer could register a malicious MCP server.
+- Mitigations: Signed payload verification, package hash sidecars, canonical release metadata, SBOM sidecars, package-local integrity checks, and residue checks after uninstall.
+
+### unsupported future HTTP/SSE multi-session transport
+
+- Risk: Static process-wide caches and STDIO session assumptions could leak state across clients if reused for multi-session transport.
+- Mitigations: Current production support is STDIO single-session. HTTP/SSE must not be enabled until session-specific state is moved into DI/request/session scope and covered by isolation tests.
 
 ## Out of scope
 

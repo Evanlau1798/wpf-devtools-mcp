@@ -22,6 +22,24 @@ public sealed class MobileReadableDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/production/threat-model.md", "## Threats and Mitigations", "## Out of scope")]
+    [InlineData("docfx/zh-tw/production/threat-model.md", "## Threats and Mitigations", "## Out of scope")]
+    public void ThreatModelThreatsAndMitigations_ShouldUseMobileReadableSections(
+        string relativePath,
+        string startHeading,
+        string endHeading)
+    {
+        var section = ReadSection(relativePath, startHeading, endHeading);
+
+        section.Should().NotContain("| Threat |");
+        section.Should().NotContain("| Risk |");
+        section.Should().NotContain("| Mitigations |");
+        section.Should().Contain("### MCP client as untrusted or prompt-injected caller");
+        section.Should().Contain("### raw injection risk");
+        section.Should().Contain("### screenshot, ViewModel, and runtime data exfiltration");
+    }
+
+    [Theory]
     [InlineData("docfx/production/compatibility-matrix.md", "## Known unsupported or constrained scenarios", "## Practical guidance")]
     [InlineData("docfx/zh-tw/production/compatibility-matrix.md", "## 已知不支援或受限的情境", "## 實務建議")]
     public void CompatibilityConstrainedScenarios_ShouldUseMobileReadableSections(

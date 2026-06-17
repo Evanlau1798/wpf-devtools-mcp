@@ -58,6 +58,8 @@ table code {
   }
 
   article.content :not(pre) > code {
+    display: inline-block;
+    max-width: 100%;
     white-space: normal;
   }
 

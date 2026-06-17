@@ -90,16 +90,45 @@ flowchart LR
 
 ## Threats and Mitigations
 
-| Threat | Risk | Mitigations |
-| --- | --- | --- |
-| MCP client as untrusted or prompt-injected caller | client 可能在使用者意圖之外要求 sensitive reads、screenshots、mutations 或 process discovery。 | target allowlists、sensitive-read gates、screenshot gates、destructive-tool policy gates、structured error contracts，以及 process metadata disclosure 前的 server-side validation。 |
-| same-user local attacker | 以同一個 Windows 使用者執行的程式可能讀取本機檔案、environment variables、pipes 或 process state。 | local-only path validation、DPAPI-protected default secrets、persisted auth/cert files 的 protected ACLs、named-pipe authentication、TLS certificate pinning，以及 redacted default logs。 |
-| malicious target process | target 可能暴露誤導性的 UI state、消耗 diagnostic payload，或啟動不相容的 SDK pipe。 | exact target allowlists、runtime compatibility checks、output caps、timeout handling、secure transport validation，以及 fail-closed SDK transport configuration。 |
-| fake named-pipe / MITM server | 本機 process 可能冒充 Inspector pipe 以攔截 commands 或偽造 responses。 | process-derived pipe names、HMAC challenge-response、TLS certificate validation、host compatibility ping、PID validation，以及 adversarial fake-pipe regression tests。 |
-| raw injection risk | DLL injection 可能失敗、打到錯誤 process，或跨過 architecture/security boundary。 | exact injection allowlists、`OpenProcess` 前的 architecture preflight、trusted local payload path validation、release signature/integrity checks，以及 target app 可 opt in 時優先採用 SDK-hosted mode。 |
-| screenshot, ViewModel, and runtime data exfiltration | UI text、screenshots、binding values、ViewModel data 與 state snapshots 可能含有 secrets。 | `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS`、`WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS`、compact text fallback、省略 base64/log text fallback fields、local path redaction，以及 resource retention limits。 |
-| supply-chain and release tampering | 被竄改的 package 或 installer 可能註冊惡意 MCP server。 | signed payload verification、package hash sidecars、canonical release metadata、SBOM sidecars、package-local integrity checks，以及 uninstall 後 residue checks。 |
-| unsupported future HTTP/SSE multi-session transport | 若把 static process-wide caches 與 STDIO session assumptions 直接用於 multi-session transport，可能造成跨 client state leakage。 | 目前 production support 僅限 STDIO single-session。HTTP/SSE 在啟用前必須先把 session-specific state 移到 DI/request/session scope，並加上 isolation tests。 |
+### MCP client as untrusted or prompt-injected caller
+
+- Risk: client 可能在使用者意圖之外要求 sensitive reads、screenshots、mutations 或 process discovery。
+- Mitigations: target allowlists、sensitive-read gates、screenshot gates、destructive-tool policy gates、structured error contracts，以及 process metadata disclosure 前的 server-side validation。
+
+### same-user local attacker
+
+- Risk: 以同一個 Windows 使用者執行的程式可能讀取本機檔案、environment variables、pipes 或 process state。
+- Mitigations: local-only path validation、DPAPI-protected default secrets、persisted auth/cert files 的 protected ACLs、named-pipe authentication、TLS certificate pinning，以及 redacted default logs。
+
+### malicious target process
+
+- Risk: target 可能暴露誤導性的 UI state、消耗 diagnostic payload，或啟動不相容的 SDK pipe。
+- Mitigations: exact target allowlists、runtime compatibility checks、output caps、timeout handling、secure transport validation，以及 fail-closed SDK transport configuration。
+
+### fake named-pipe / MITM server
+
+- Risk: 本機 process 可能冒充 Inspector pipe 以攔截 commands 或偽造 responses。
+- Mitigations: process-derived pipe names、HMAC challenge-response、TLS certificate validation、host compatibility ping、PID validation，以及 adversarial fake-pipe regression tests。
+
+### raw injection risk
+
+- Risk: DLL injection 可能失敗、打到錯誤 process，或跨過 architecture/security boundary。
+- Mitigations: exact injection allowlists、`OpenProcess` 前的 architecture preflight、trusted local payload path validation、release signature/integrity checks，以及 target app 可 opt in 時優先採用 SDK-hosted mode。
+
+### screenshot, ViewModel, and runtime data exfiltration
+
+- Risk: UI text、screenshots、binding values、ViewModel data 與 state snapshots 可能含有 secrets。
+- Mitigations: `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS`、`WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS`、compact text fallback、省略 base64/log text fallback fields、local path redaction，以及 resource retention limits。
+
+### supply-chain and release tampering
+
+- Risk: 被竄改的 package 或 installer 可能註冊惡意 MCP server。
+- Mitigations: signed payload verification、package hash sidecars、canonical release metadata、SBOM sidecars、package-local integrity checks，以及 uninstall 後 residue checks。
+
+### unsupported future HTTP/SSE multi-session transport
+
+- Risk: 若把 static process-wide caches 與 STDIO session assumptions 直接用於 multi-session transport，可能造成跨 client state leakage。
+- Mitigations: 目前 production support 僅限 STDIO single-session。HTTP/SSE 在啟用前必須先把 session-specific state 移到 DI/request/session scope，並加上 isolation tests。
 
 ## Out of scope
 

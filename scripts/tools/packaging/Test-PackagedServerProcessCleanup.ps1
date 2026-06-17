@@ -29,7 +29,11 @@ function Stop-PackagedServerProcess {
         return $true
     }
 
-    $previousLastExitCode = $global:LASTEXITCODE
+    $hadLastExitCode = Test-Path -LiteralPath 'Variable:\global:LASTEXITCODE'
+    if ($hadLastExitCode) {
+        $previousLastExitCode = $global:LASTEXITCODE
+    }
+
     try {
         & $TaskKillCommand /PID $Process.Id /T /F *> $null
         $Process.WaitForExit($WaitMilliseconds) | Out-Null
@@ -40,7 +44,12 @@ function Stop-PackagedServerProcess {
         $Process.WaitForExit($WaitMilliseconds) | Out-Null
     }
     finally {
-        $global:LASTEXITCODE = $previousLastExitCode
+        if ($hadLastExitCode) {
+            $global:LASTEXITCODE = $previousLastExitCode
+        }
+        else {
+            Remove-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+        }
     }
 
     return [bool]$Process.HasExited

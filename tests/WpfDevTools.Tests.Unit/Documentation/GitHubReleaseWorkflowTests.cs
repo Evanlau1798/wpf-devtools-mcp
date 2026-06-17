@@ -99,6 +99,18 @@ public sealed class GitHubReleaseWorkflowTests
     }
 
     [Fact]
+    public void ReleaseWorkflow_ShouldRejectAmbiguousStagedArchitectureArchives()
+    {
+        var content = File.ReadAllText(GetRepoFilePath(".github/workflows/release.yml"));
+
+        content.Should().Contain("Expected exactly one staged x64 release archive");
+        content.Should().Contain("Expected exactly one staged x86 release archive");
+        content.Should().Contain("Expected exactly one staged arm64 release archive");
+        content.Should().NotContain("Select-Object -First 1",
+            "release validation lanes must not silently pick one archive when duplicated staged assets exist");
+    }
+
+    [Fact]
     public void ReleaseWorkflow_ShouldVerifyFullUninstallResidueForStagedAssetsBeforeUpload()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/release.yml"));

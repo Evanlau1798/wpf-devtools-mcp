@@ -234,13 +234,12 @@ jobs:
         run: |
           $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
-          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x64.zip' |
-            Sort-Object Name -Descending |
-            Select-Object -First 1
-
-          if ($null -eq $packageArchive) {
-            throw 'Could not locate staged x64 release archive for runtime validation.'
+          $packageArchives = @(Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x64.zip' | Sort-Object Name)
+          if ($packageArchives.Count -ne 1) {
+            $foundArchives = if ($packageArchives.Count -eq 0) { '<none>' } else { ($packageArchives | ForEach-Object { $_.Name }) -join ', ' }
+            throw "Expected exactly one staged x64 release archive but found $($packageArchives.Count): $foundArchives"
           }
+          $packageArchive = $packageArchives[0]
 
           $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
           if (Test-Path $packageDir) {
@@ -268,13 +267,12 @@ jobs:
         run: |
           $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
-          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x64.zip' |
-            Sort-Object Name -Descending |
-            Select-Object -First 1
-
-          if ($null -eq $packageArchive) {
-            throw 'Could not locate staged x64 release archive for online installer validation.'
+          $packageArchives = @(Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x64.zip' | Sort-Object Name)
+          if ($packageArchives.Count -ne 1) {
+            $foundArchives = if ($packageArchives.Count -eq 0) { '<none>' } else { ($packageArchives | ForEach-Object { $_.Name }) -join ', ' }
+            throw "Expected exactly one staged x64 release archive but found $($packageArchives.Count): $foundArchives"
           }
+          $packageArchive = $packageArchives[0]
 
           & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory $stagingRoot -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
 
@@ -369,13 +367,12 @@ jobs:
         run: |
           $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
-          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x86.zip' |
-            Sort-Object Name -Descending |
-            Select-Object -First 1
-
-          if ($null -eq $packageArchive) {
-            throw 'Could not locate staged x86 release archive for runtime validation.'
+          $packageArchives = @(Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x86.zip' | Sort-Object Name)
+          if ($packageArchives.Count -ne 1) {
+            $foundArchives = if ($packageArchives.Count -eq 0) { '<none>' } else { ($packageArchives | ForEach-Object { $_.Name }) -join ', ' }
+            throw "Expected exactly one staged x86 release archive but found $($packageArchives.Count): $foundArchives"
           }
+          $packageArchive = $packageArchives[0]
 
           $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
           if (Test-Path $packageDir) {
@@ -403,13 +400,12 @@ jobs:
         run: |
           $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
-          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x86.zip' |
-            Sort-Object Name -Descending |
-            Select-Object -First 1
-
-          if ($null -eq $packageArchive) {
-            throw 'Could not locate staged x86 release archive for online installer validation.'
+          $packageArchives = @(Get-ChildItem $stagingRoot -File -Filter 'release_*_win-x86.zip' | Sort-Object Name)
+          if ($packageArchives.Count -ne 1) {
+            $foundArchives = if ($packageArchives.Count -eq 0) { '<none>' } else { ($packageArchives | ForEach-Object { $_.Name }) -join ', ' }
+            throw "Expected exactly one staged x86 release archive but found $($packageArchives.Count): $foundArchives"
           }
+          $packageArchive = $packageArchives[0]
 
           & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory $stagingRoot -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
 
@@ -504,13 +500,12 @@ jobs:
         run: |
           $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
-          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-arm64.zip' |
-            Sort-Object Name -Descending |
-            Select-Object -First 1
-
-          if ($null -eq $packageArchive) {
-            throw 'Could not locate staged ARM64 release archive for runtime validation.'
+          $packageArchives = @(Get-ChildItem $stagingRoot -File -Filter 'release_*_win-arm64.zip' | Sort-Object Name)
+          if ($packageArchives.Count -ne 1) {
+            $foundArchives = if ($packageArchives.Count -eq 0) { '<none>' } else { ($packageArchives | ForEach-Object { $_.Name }) -join ', ' }
+            throw "Expected exactly one staged arm64 release archive but found $($packageArchives.Count): $foundArchives"
           }
+          $packageArchive = $packageArchives[0]
 
           $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
           if (Test-Path $packageDir) {
@@ -538,13 +533,12 @@ jobs:
         run: |
           $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
-          $packageArchive = Get-ChildItem $stagingRoot -File -Filter 'release_*_win-arm64.zip' |
-            Sort-Object Name -Descending |
-            Select-Object -First 1
-
-          if ($null -eq $packageArchive) {
-            throw 'Could not locate staged ARM64 release archive for online installer validation.'
+          $packageArchives = @(Get-ChildItem $stagingRoot -File -Filter 'release_*_win-arm64.zip' | Sort-Object Name)
+          if ($packageArchives.Count -ne 1) {
+            $foundArchives = if ($packageArchives.Count -eq 0) { '<none>' } else { ($packageArchives | ForEach-Object { $_.Name }) -join ', ' }
+            throw "Expected exactly one staged arm64 release archive but found $($packageArchives.Count): $foundArchives"
           }
+          $packageArchive = $packageArchives[0]
 
           & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory $stagingRoot -InstallRoot './tmp-release-bootstrap-smoke' -Client other -NonInteractive -Force -OutputJson
 

@@ -294,7 +294,7 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
             elementId,
             propertyName,
             cancellationToken).ConfigureAwait(false);
-        if (!finalSnapshotResult.HasValue)
+        if (!finalSnapshotResult.Snapshot.HasValue)
         {
             return BuildWaitResult(
                 changed: false,
@@ -307,10 +307,12 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
                 pollCount,
                 observedChange: observedChangeSinceStart,
                 matchedExpectedValueAtStart,
-                completionReason: "TimedOut");
+                completionReason: "TimedOut",
+                stateAfterTimeoutUnknown: finalSnapshotResult.TimedOut,
+                requiresReconnect: finalSnapshotResult.TimedOut);
         }
 
-        var finalSnapshot = finalSnapshotResult.Value;
+        var finalSnapshot = finalSnapshotResult.Snapshot.Value;
         if (finalSnapshot.Error != null)
         {
             return finalSnapshot.Error;

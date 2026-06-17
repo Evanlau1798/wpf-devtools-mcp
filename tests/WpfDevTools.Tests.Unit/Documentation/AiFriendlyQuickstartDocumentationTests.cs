@@ -78,11 +78,14 @@ public sealed class AiFriendlyQuickstartDocumentationTests
         englishGuide.Should().Contain("when to use");
         englishGuide.Should().Contain("when not to use");
         englishGuide.Should().Contain("wpf://contracts/tools");
+        englishGuide.Should().Contain("wpf://contracts/response");
 
         traditionalChineseGuide.Should().Contain("執行期驗證");
         traditionalChineseGuide.Should().Contain("工具描述");
         traditionalChineseGuide.Should().Contain("適用時機");
         traditionalChineseGuide.Should().Contain("不適用時機");
+        traditionalChineseGuide.Should().Contain("wpf://contracts/tools");
+        traditionalChineseGuide.Should().Contain("wpf://contracts/response");
     }
 
     [Fact]

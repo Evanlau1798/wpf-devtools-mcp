@@ -103,9 +103,11 @@ Also use MCP discovery surfaces instead of relying on memory:
 
 - prompts such as `debug_binding_issue`
 - resources such as `wpf://capabilities`
-- contract resources such as `wpf://contracts/tools`
+- contract resources such as `wpf://contracts/tools` and `wpf://contracts/response`
 
 Some clients may render these as client-specific shortcuts such as `/mcp__wpf-devtools__debug_binding_issue` or `@wpf-devtools:capabilities`, but the standard prompt name and resource URI are the portable contract.
+
+Use `wpf://contracts/tools` for the generated tool manifest and `wpf://contracts/response` for response envelopes, navigation metadata, compatibility aliases, and error recovery fields.
 
 When present, parse these follow-up fields as part of the contract:
 

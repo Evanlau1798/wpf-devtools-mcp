@@ -12,7 +12,7 @@ Preview pre-release installer until the first stable GitHub Release is published
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
 
-The installer resolves the reviewed online installer for the selected public pre-release, verifies the versioned package metadata, and installs the packaged executable. Do not use the default stable `latest` channel until stable release assets and anonymous endpoint smoke checks have passed. For manual installation, download `release_<version>_win-<arch>.zip`, verify the adjacent sidecars, extract the package, and run `run.bat` from the extracted folder.
+The installer resolves the reviewed online installer for the selected public pre-release, verifies the versioned package metadata, and installs the packaged executable. Current public onboarding uses `-Prerelease`; after the first stable GitHub Release is published, stable installs can omit that switch. For manual installation, download `release_<version>_win-<arch>.zip`, verify the adjacent sidecars, extract the package, and run `run.bat` from the extracted folder.
 
 For manual production review, keep these files adjacent to the archive before extraction: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, `package-sbom.spdx.json`, and `release-evidence.json`.
 

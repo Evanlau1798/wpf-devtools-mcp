@@ -19,9 +19,9 @@ Preview pre-release command until the first stable GitHub Release is published:
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
 
-Use the default stable `latest` channel only after stable release assets and anonymous endpoint smoke checks have passed.
+Current public onboarding uses `-Prerelease`; after the first stable GitHub Release is published, stable installs can omit that switch.
 
-The current release archives are named:
+The generic archive pattern is `release_<version>_win-<arch>.zip`. Current per-architecture release archives are named:
 
 - `release_<version>_win-x64.zip`
 - `release_<version>_win-x86.zip`

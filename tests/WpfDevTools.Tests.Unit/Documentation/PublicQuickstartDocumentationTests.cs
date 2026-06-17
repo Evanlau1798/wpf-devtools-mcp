@@ -83,7 +83,6 @@ public sealed class PublicQuickstartDocumentationTests
     {
         string[] files =
         [
-            "README.md",
             "docfx/index.md",
             "docfx/quickstart/index.md",
             "docfx/production/deployment.md",
@@ -104,6 +103,21 @@ public sealed class PublicQuickstartDocumentationTests
             content.Should().Contain("run.bat");
             content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
         }
+    }
+
+    [Fact]
+    public void ReadmeInstallSection_ShouldStayShortAndDelegateManualPackageDetails()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain(PreviewPrereleaseInstallerCommand);
+        content.Should().Contain("release_<version>_win-<arch>.zip");
+        content.Should().Contain("run.bat");
+        content.Should().Contain("production/release-layout.html");
+        content.Should().NotContain("SHA256SUMS.txt");
+        content.Should().NotContain("release-assets.json");
+        content.Should().NotContain("package-sbom.spdx.json");
+        content.Should().NotContain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
     }
 
     [Fact]

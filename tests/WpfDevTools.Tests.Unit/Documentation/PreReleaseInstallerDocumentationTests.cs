@@ -13,11 +13,11 @@ public sealed class PreReleaseInstallerDocumentationTests
         "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease";
 
     [Theory]
-    [InlineData("README.md")]
     [InlineData("docfx/index.md")]
     [InlineData("docfx/quickstart/index.md")]
     [InlineData("docfx/guides/agent-assisted-install.md")]
     [InlineData("docfx/production/deployment.md")]
+    [InlineData("docfx/production/release-layout.md")]
     [InlineData("docfx/zh-tw/index.md")]
     [InlineData("docfx/zh-tw/quickstart/index.md")]
     [InlineData("docfx/zh-tw/guides/agent-assisted-install.md")]
@@ -85,6 +85,8 @@ public sealed class PreReleaseInstallerDocumentationTests
             "64-tool",
             ".e2e",
             "NDJSON smoke",
+            "stable release assets and anonymous endpoint smoke checks have passed",
+            "anonymous endpoint smoke checks",
             "-ExecutionPolicy Bypass"
         ];
 
@@ -96,7 +98,6 @@ public sealed class PreReleaseInstallerDocumentationTests
     }
 
     [Theory]
-    [InlineData("README.md")]
     [InlineData("AGENT_INSTALL.md")]
     [InlineData("docfx/index.md")]
     [InlineData("docfx/quickstart/index.md")]

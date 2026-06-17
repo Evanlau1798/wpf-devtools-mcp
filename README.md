@@ -21,13 +21,9 @@ Preview pre-release installer until the first stable GitHub Release is published
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
 
-This uses the reviewed HTTPS installer alias and resolves the latest public pre-release. Do not use the default stable `latest` channel until stable release assets and anonymous endpoint smoke checks have passed.
+This uses the reviewed HTTPS installer alias and resolves the latest public pre-release. Current public onboarding uses `-Prerelease`; after the first stable GitHub Release is published, stable installs can omit that switch.
 
-For a manual production review, keep these files adjacent to the archive before extraction: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, `package-sbom.spdx.json`, and `release-evidence.json`.
-
-`release-sbom.spdx.json` describes the release asset inventory. `package-sbom.spdx.json` describes the package, dependency, script, assembly, and payload contents. Neither replaces signer trust; Release payload signature verification still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
-
-Manual package fallback: download the matching `release_<version>_win-<arch>.zip`, verify the sidecars, extract the package, and run `run.bat` from the extracted folder. See the [Quickstart](https://wpf-mcptools.evanlau1798.com/quickstart/) and [Deployment Guide](https://wpf-mcptools.evanlau1798.com/production/deployment.html) for the full procedure.
+Manual package fallback: download the matching `release_<version>_win-<arch>.zip`, extract the package, and run `run.bat` from the extracted folder. Use the [Quickstart](https://wpf-mcptools.evanlau1798.com/quickstart/), [Deployment Guide](https://wpf-mcptools.evanlau1798.com/production/deployment.html), and [Release Layout](https://wpf-mcptools.evanlau1798.com/production/release-layout.html) for verification details.
 
 ## Security essentials
 

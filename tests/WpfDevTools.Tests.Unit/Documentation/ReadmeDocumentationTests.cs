@@ -65,16 +65,20 @@ public class ReadmeDocumentationTests
         content.Should().Contain(PreviewPrereleaseInstallerCommand);
         content.Should().Contain("pre-release");
         content.Should().Contain("release_<version>_win-<arch>.zip");
-        content.Should().Contain("SHA256SUMS.txt");
-        content.Should().Contain("release-assets.json");
-        content.Should().Contain("release-sbom.spdx.json");
-        content.Should().Contain("package-sbom.spdx.json");
-        content.Should().Contain("release-evidence.json");
-        content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
         content.Should().Contain("run.bat");
+        content.Should().Contain("Quickstart");
+        content.Should().Contain("Deployment Guide");
+        content.Should().Contain("Release Layout");
+        content.Should().NotContain("SHA256SUMS.txt");
+        content.Should().NotContain("release-assets.json");
+        content.Should().NotContain("release-sbom.spdx.json");
+        content.Should().NotContain("package-sbom.spdx.json");
+        content.Should().NotContain("release-evidence.json");
+        content.Should().NotContain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
         content.Should().NotContain("GitHub pre-release E2E");
         content.Should().NotContain("validation-only");
         content.Should().NotContain("NDJSON smoke");
+        content.Should().NotContain("stable release assets and anonymous endpoint smoke checks have passed");
         content.Should().NotContain("-ExecutionPolicy Bypass");
     }
 

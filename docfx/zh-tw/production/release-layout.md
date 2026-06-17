@@ -19,7 +19,7 @@
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
 
-只有在 stable release assets 與 anonymous endpoint smoke checks 通過後，才使用 default stable `latest` channel。
+目前 public onboarding 使用 `-Prerelease`；第一個 stable GitHub Release 發布後，stable install 可以省略這個 switch。
 
 目前 release archive 命名為：
 

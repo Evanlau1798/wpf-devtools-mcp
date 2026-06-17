@@ -23,7 +23,7 @@ The installer detects the host architecture, asks for the target MCP client, ins
 <InstallRoot>\<arch>\client-registration\
 ```
 
-Do not use the default stable `latest` channel until stable release assets and anonymous endpoint smoke checks have passed.
+Current public onboarding uses `-Prerelease`; after the first stable GitHub Release is published, stable installs can omit that switch.
 
 The installed server path normally resolves to:
 

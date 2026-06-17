@@ -23,7 +23,7 @@ Installer 會偵測 host architecture、詢問 MCP client、安裝 packaged exec
 <InstallRoot>\<arch>\client-registration\
 ```
 
-在 stable release assets 與 anonymous endpoint smoke checks 通過前，不要使用 default stable `latest` channel。
+目前 public onboarding 使用 `-Prerelease`；第一個 stable GitHub Release 發布後，stable install 可以省略這個 switch。
 
 安裝後 server path 通常是：
 

@@ -25,7 +25,9 @@
         ],
         "exclude": [
           "_site/**",
-          "obj/**"
+          "obj/**",
+          "agent-feedback/**",
+          "zh-tw/agent-feedback/**"
         ]
       }
     ],

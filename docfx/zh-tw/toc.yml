@@ -70,5 +70,3 @@
       href: contributors/documentation-style.md
     - name: Agent 輔助安裝
       href: guides/agent-assisted-install.md
-    - name: Agent Feedback
-      href: agent-feedback/index.md

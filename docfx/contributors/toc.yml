@@ -8,5 +8,3 @@
   href: documentation-style.md
 - name: Agent-Assisted Install
   href: ../guides/agent-assisted-install.md
-- name: Agent Feedback
-  href: ../agent-feedback/index.md

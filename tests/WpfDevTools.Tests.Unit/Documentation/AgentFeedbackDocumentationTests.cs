@@ -22,15 +22,24 @@ public sealed class AgentFeedbackDocumentationTests
     }
 
     [Theory]
-    [InlineData("docfx/agent-feedback/toc.yml", "index.md")]
+    [InlineData("docfx/contributors/toc.yml", "../agent-feedback/index.md")]
     [InlineData("docfx/zh-tw/toc.yml", "agent-feedback/index.md")]
-    public void Tocs_ShouldExposeAgentFeedbackSection(
+    public void PublicTocs_ShouldNotExposeAgentFeedbackEvidence(
         string relativePath,
         string indexHref)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
-        content.Should().Contain(indexHref);
+        content.Should().NotContain(indexHref);
+    }
+
+    [Fact]
+    public void DocfxBuild_ShouldExcludeAgentFeedbackEvidence()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("docfx/docfx.json"));
+
+        content.Should().Contain("agent-feedback/**");
+        content.Should().Contain("zh-tw/agent-feedback/**");
     }
 
     [Theory]

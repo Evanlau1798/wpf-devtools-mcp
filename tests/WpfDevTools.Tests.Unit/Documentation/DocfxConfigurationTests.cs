@@ -26,7 +26,6 @@ public sealed class DocfxConfigurationTests
     [InlineData("docfx/reference/toc.yml", "../api/toc.yml")]
     [InlineData("docfx/architecture/toc.yml", "adrs/adr-006-stdio-session-state.md")]
     [InlineData("docfx/contributors/toc.yml", "../guides/agent-assisted-install.md")]
-    [InlineData("docfx/agent-feedback/toc.yml", "index.md")]
     public void SectionTocs_ShouldPreserveDeepNavigationOutsideTheTopNavbar(
         string relativePath,
         string expectedHref)

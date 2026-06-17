@@ -3804,7 +3804,7 @@ function Resolve-RequestedReleaseVersion {
     param([Parameter(Mandatory)] [string]$RequestedVersion)
 
     if ($RequestedVersion -ne 'latest') {
-        return $RequestedVersion
+        return $RequestedVersion.TrimStart('v', 'V')
     }
 
     if (-not [string]::IsNullOrWhiteSpace($script:ResolvedOnlineReleaseVersion)) {

@@ -12,25 +12,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Test-McpToolListContract.ps1')
-function Get-ProcessDiagnostics {
-    param([Parameter(Mandatory)] [System.Diagnostics.Process]$Process)
-    try {
-        $output = $Process.StandardError.ReadToEnd()
-        if ($null -eq $output) {
-            return ''
-        }
-        return $output.Trim()
-    }
-    catch { return '' }
-}
-function Stop-PackagedServerProcess {
-    param([Parameter(Mandatory)] [System.Diagnostics.Process]$Process)
-    if ($Process.HasExited) { return }
-    & taskkill.exe /PID $Process.Id /T /F *> $null
-    $Process.WaitForExit(5000) | Out-Null
-    if (-not $Process.HasExited) { & taskkill.exe /PID $Process.Id /T /F *> $null }
-    $Process.WaitForExit(5000) | Out-Null
-}
+. (Join-Path $PSScriptRoot 'Test-PackagedServerProcessCleanup.ps1')
 function Read-McpResponse {
     param(
         [Parameter(Mandatory)] [System.Diagnostics.Process]$Process,

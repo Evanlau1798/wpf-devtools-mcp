@@ -102,6 +102,50 @@ public sealed class DocfxValidationScriptTests
     }
 
     [Fact]
+    public void Script_ShouldFailWhenGeneratedContractSnapshotIsStale()
+    {
+        var fixture = CreateFixture();
+        try
+        {
+            WriteValidDocumentationFixture(fixture);
+            var sourceToolHash = new string('a', 64);
+            var sourceResponseHash = new string('b', 64);
+            var staleToolHash = new string('c', 64);
+            WriteFile(fixture, "docfx/reference/tools/index.md", $$"""
+                # Tools
+
+                ## Generated Contract Snapshot
+
+                - `wpf://contracts/tools` SHA-256: `{{sourceToolHash}}`
+                - `wpf://contracts/response` SHA-256: `{{sourceResponseHash}}`
+
+                - `connect`
+                """);
+            WriteFile(fixture, "docfx/_site/reference/tools/index.html", $$"""
+                <html><body>
+                <h1 id="tools">Tools</h1>
+                <h2 id="generated-contract-snapshot">Generated Contract Snapshot</h2>
+                <ul>
+                <li><code>wpf://contracts/tools</code> SHA-256: <code>{{staleToolHash}}</code></li>
+                <li><code>wpf://contracts/response</code> SHA-256: <code>{{sourceResponseHash}}</code></li>
+                </ul>
+                <code>connect</code>
+                </body></html>
+                """);
+
+            var result = RunValidationScript(fixture);
+
+            result.ExitCode.Should().NotBe(0);
+            result.CombinedOutput.Should().Contain("Stale generated contract snapshot");
+            result.CombinedOutput.Should().Contain("wpf://contracts/tools");
+        }
+        finally
+        {
+            DeleteFixture(fixture);
+        }
+    }
+
+    [Fact]
     public void Script_ShouldWriteDocFxEvidenceJson()
     {
         var fixture = CreateFixture();

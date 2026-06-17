@@ -12,6 +12,12 @@ if (-not (Test-Path -LiteralPath $toolNameHelper)) {
 }
 . $toolNameHelper
 
+$contractSnapshotHelper = Join-Path $PSScriptRoot 'Test-DocFxContractSnapshots.ps1'
+if (-not (Test-Path -LiteralPath $contractSnapshotHelper)) {
+    throw "Test-DocFxContractSnapshots.ps1 was not found: $contractSnapshotHelper"
+}
+. $contractSnapshotHelper
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $scriptRoot = $PSScriptRoot
     if ([string]::IsNullOrWhiteSpace($scriptRoot)) {
@@ -472,6 +478,7 @@ if ($script:Failures.Count -eq 0) {
     Test-ZhTwParity -DocfxRoot $docfxRoot
     Test-GeneratedPages -DocfxRoot $docfxRoot -SiteRoot $siteRoot
     Test-GeneratedLinks -SiteRoot $siteRoot
+    Test-DocFxGeneratedContractSnapshots -DocfxRoot $docfxRoot -SiteRoot $siteRoot
     Test-ToolReferenceCoverage -DocfxRoot $docfxRoot -SiteRoot $siteRoot -ToolNames (Get-McpToolNames -RepoRoot $repoRootFull)
 }
 if ($script:Failures.Count -gt 0) {

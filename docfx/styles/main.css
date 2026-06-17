@@ -10,6 +10,11 @@ article.content :not(pre) > code {
   word-break: break-word;
 }
 
+article.content a {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 table code {
   white-space: nowrap;
 }
@@ -45,6 +50,11 @@ table code {
 
   article.content table code {
     white-space: normal;
+  }
+
+  article.content table a {
+    display: block;
+    max-width: 100%;
   }
 
   article.content :not(pre) > code {

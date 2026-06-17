@@ -48,6 +48,9 @@ public sealed class DocfxConfigurationTests
         content.Should().Contain("overflow-wrap: anywhere");
         content.Should().Contain("word-break: break-word");
         content.Should().Contain("article.content :not(pre) > code");
+        content.Should().Contain("article.content a");
+        content.Should().Contain("article.content table a");
+        content.Should().Contain("display: block");
         content.Should().Contain("white-space: normal");
         content.Should().Contain(".anchorjs-link");
         content.Should().Contain("display: none");

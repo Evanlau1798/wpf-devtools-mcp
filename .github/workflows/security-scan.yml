@@ -63,8 +63,8 @@ jobs:
     - name: Run PowerShell ScriptAnalyzer
       shell: pwsh
       run: |
-        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-        Install-Module PSScriptAnalyzer -Scope CurrentUser -Force -RequiredVersion 1.25.0 -Repository PSGallery
+        # Install pinned PSScriptAnalyzer without permanently trusting PSGallery.
+        ./scripts/tools/security/Install-PowerShellScriptAnalyzer.ps1 -RequiredVersion 1.25.0
 
         ./scripts/tools/security/Invoke-PowerShellScriptAnalyzerGate.ps1 -Path 'scripts' -Severity Error
 

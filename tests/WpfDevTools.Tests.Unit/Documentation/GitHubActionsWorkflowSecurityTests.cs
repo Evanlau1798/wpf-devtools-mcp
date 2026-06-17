@@ -95,6 +95,26 @@ public sealed class GitHubActionsWorkflowSecurityTests
     }
 
     [Fact]
+    public void SecurityScanWorkflow_ShouldInstallScriptAnalyzerWithoutPermanentGalleryTrust()
+    {
+        var workflow = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(".github/workflows/security-scan.yml"));
+        var sandboxSecurity = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath("scripts/ci/SandboxCi.Security.ps1"));
+        var installerPath = TestRepositoryPaths.GetRepoFilePath(
+            "scripts/tools/security/Install-PowerShellScriptAnalyzer.ps1");
+        var installer = File.Exists(installerPath) ? File.ReadAllText(installerPath) : string.Empty;
+
+        File.Exists(installerPath).Should().BeTrue(
+            "ScriptAnalyzer installation should be centralized in a reusable verifier script");
+        workflow.Should().Contain("Install-PowerShellScriptAnalyzer.ps1");
+        sandboxSecurity.Should().Contain("Install-PowerShellScriptAnalyzer.ps1");
+        workflow.Should().NotContain("Set-PSRepository -Name PSGallery -InstallationPolicy Trusted");
+        sandboxSecurity.Should().NotContain("Set-PSRepository -Name PSGallery -InstallationPolicy Trusted");
+        installer.Should().Contain("Install-Module PSScriptAnalyzer");
+        installer.Should().Contain("Test-ModuleManifest");
+        installer.Should().NotContain("Set-PSRepository");
+    }
+
+    [Fact]
     public void CodeQlWorkflow_ShouldAnalyzeManagedAndNativeCodeWithManualBuilds()
     {
         var workflow = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(".github/workflows/codeql.yml"));

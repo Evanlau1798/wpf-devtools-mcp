@@ -122,7 +122,6 @@ function Invoke-InstallerFullUninstallCore {
 
         $removedRuntimeScreenshotCache = Remove-InstallerRuntimeScreenshotCache
         $newState = Get-EmptyInstallerState
-        $newState.lastInstallRoot = $State.lastInstallRoot
         $statePath = Save-InstallerState -State $newState
         $stateRestoreRequired = $true
         foreach ($registrationBackup in $registrationBackups) {

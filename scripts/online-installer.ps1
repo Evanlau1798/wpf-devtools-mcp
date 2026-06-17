@@ -338,7 +338,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:efe740906d01a224b9fdbfd0ef0e386f8366d81d3a3085ba5c60ca9616fc0ae9'
+$script:InstallerHelperManifestCacheKey = 'sha256:19972582cf179b12738cf8e5addfa687fbe935a66fa5541d41a8e9f6e3e13566'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/online-installer.release-assets.ps1'
     'scripts/installer/Installer.BootstrapUi.ps1'
@@ -2385,6 +2385,7 @@ function Invoke-StandaloneInstallerActionCore {
 
             $state.registrations.Clear()
             $state.architectures.Clear()
+            $state.lastInstallRoot = $null
             $statePath = Save-StandaloneInstallerState -State $state
             $stateRestoreRequired = $true
             foreach ($operation in $registrationOperations) {

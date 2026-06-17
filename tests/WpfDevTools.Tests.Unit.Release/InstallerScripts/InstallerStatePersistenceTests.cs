@@ -79,6 +79,72 @@ public sealed class InstallerStatePersistenceTests
     }
 
     [Fact]
+    public void OnlineInstallerFullUninstall_WhenLastInstallerOwnedInstallIsRemoved_ShouldClearLastInstallRoot()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "x64");
+            var installRoot = Path.Combine(tempRoot, "shared-server-root");
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var environment = new Dictionary<string, string?>
+            {
+                ["APPDATA"] = appData,
+                ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                ["PATH"] = string.Empty
+            };
+
+            var installResult = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                new[]
+                {
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                },
+                environment);
+
+            installResult.ExitCode.Should().Be(0, installResult.Stderr);
+
+            var uninstallResult = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                new[]
+                {
+                    "-Action", "full-uninstall",
+                    "-InstallRoot", installRoot,
+                    "-Architecture", "x64",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                },
+                environment);
+
+            uninstallResult.ExitCode.Should().Be(0, uninstallResult.Stderr);
+            using var uninstallPayload = JsonDocument.Parse(uninstallResult.Stdout);
+            uninstallPayload.RootElement.GetProperty("removedInstallation").GetBoolean().Should().BeTrue();
+
+            var statePath = Path.Combine(appData, "WpfDevToolsMcp", "installer-state.json");
+            if (!File.Exists(statePath))
+            {
+                return;
+            }
+
+            using var state = JsonDocument.Parse(File.ReadAllText(statePath));
+            state.RootElement.GetProperty("lastInstallRoot").ValueKind.Should().Be(JsonValueKind.Null);
+            state.RootElement.GetProperty("architectures").EnumerateObject().Should().BeEmpty();
+            state.RootElement.GetProperty("registrations").EnumerateObject().Should().BeEmpty();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void SharedInstallerStateLoader_ShouldQuarantineMalformedStateAndReturnEmptyState()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

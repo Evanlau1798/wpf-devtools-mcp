@@ -352,7 +352,6 @@ function Invoke-StandaloneFullUninstall {
 
     $removedRuntimeScreenshotCache = Remove-InstallerRuntimeScreenshotCache
     $newState = Get-EmptyInstallerState
-    $newState.lastInstallRoot = $State.lastInstallRoot
     $statePath = Save-InstallerState -State $newState
     return [ordered]@{
         statePath = $statePath

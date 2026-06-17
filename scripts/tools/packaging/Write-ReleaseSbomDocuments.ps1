@@ -25,11 +25,30 @@ function Get-Sha256FileHashHex {
     return (($hashBytes | ForEach-Object { $_.ToString('x2') }) -join '')
 }
 
+function Get-Sha256StringHashHex {
+    param([Parameter(Mandatory)] [string]$Value)
+
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($Value)
+        return (($sha256.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) -join '')
+    }
+    finally {
+        $sha256.Dispose()
+    }
+}
+
 function ConvertTo-SpdxIdSuffix {
     param([Parameter(Mandatory)] [string]$Value)
 
     $suffix = $Value -replace '[^A-Za-z0-9\.\-]', '-'
-    return $suffix.Trim('-')
+    $suffix = $suffix.Trim('-')
+    if ([string]::IsNullOrWhiteSpace($suffix)) {
+        $suffix = 'item'
+    }
+
+    $hash = (Get-Sha256StringHashHex -Value $Value).Substring(0, 12)
+    return "$suffix-$hash"
 }
 
 function New-ReleaseSbom {

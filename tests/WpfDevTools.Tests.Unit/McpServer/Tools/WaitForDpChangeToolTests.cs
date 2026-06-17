@@ -156,7 +156,7 @@ public sealed class WaitForDpChangeToolTests
             {
                 processId,
                 propertyName = "Text",
-                timeoutMs = 160,
+                timeoutMs = 500,
                 pollIntervalMs = 50,
                 expectedValue = JsonSerializer.SerializeToElement("after")
             }),
@@ -167,6 +167,7 @@ public sealed class WaitForDpChangeToolTests
         resultJson.GetProperty("timedOut").GetBoolean().Should().BeTrue();
         resultJson.GetProperty("completionReason").GetString().Should().Be("TimedOut");
         resultJson.GetProperty("pollCount").GetInt32().Should().BeGreaterThan(1);
+        connected.RequestMethods.Count(method => method == "get_dp_value_source").Should().BeGreaterThan(2);
     }
 
     [Fact]

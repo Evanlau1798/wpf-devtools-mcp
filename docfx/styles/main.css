@@ -5,6 +5,11 @@
   margin: 1rem 0;
 }
 
+article.content :not(pre) > code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 table code {
   white-space: nowrap;
 }
@@ -39,6 +44,10 @@ table code {
   }
 
   article.content table code {
+    white-space: normal;
+  }
+
+  article.content :not(pre) > code {
     white-space: normal;
   }
 

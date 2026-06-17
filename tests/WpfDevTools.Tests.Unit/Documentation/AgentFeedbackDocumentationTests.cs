@@ -54,6 +54,7 @@ public sealed class AgentFeedbackDocumentationTests
             [
                 "docfx/agent-feedback/index.md",
                 "docfx/agent-feedback/template.md",
+                "docfx/agent-feedback/toc.yml",
                 "docfx/zh-tw/agent-feedback/index.md",
                 "docfx/zh-tw/agent-feedback/template.md"
             ],

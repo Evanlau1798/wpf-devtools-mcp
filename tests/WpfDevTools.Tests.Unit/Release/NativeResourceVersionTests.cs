@@ -7,8 +7,8 @@ public sealed class NativeResourceVersionTests
 {
     [Theory]
     [InlineData("0.1.0", "0,1,0,0", "0.1.0.0", "0.1.0")]
-    [InlineData("v1.2.3-beta.4+sha", "1,2,3,0", "1.2.3.0", "1.2.3-beta.4+sha")]
-    public void ConvertToNativeResourceVersion_ShouldPreservePackageVersionAndEmitNumericResourceVersion(
+    [InlineData("v1.2.3-beta.4+sha", "1,2,3,0", "1.2.3.0", "1.2.3.0")]
+    public void ConvertToNativeResourceVersion_ShouldEmitRcSafeNumericVersionStrings(
         string packageVersion,
         string expectedNumeric,
         string expectedFileVersion,

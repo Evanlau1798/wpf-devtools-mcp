@@ -155,10 +155,16 @@ function ConvertTo-NativeResourceVersion {
         $resolvedParts[$index] = $value
     }
 
+    $fileVersionString = [string]::Join('.', $resolvedParts)
+    $productVersionString = $trimmedVersion
+    if (-not [string]::Equals($trimmedVersion, $numericVersion, [System.StringComparison]::Ordinal)) {
+        $productVersionString = $fileVersionString
+    }
+
     return [ordered]@{
         Numeric = [string]::Join(',', $resolvedParts)
-        FileVersionString = [string]::Join('.', $resolvedParts)
-        ProductVersionString = $trimmedVersion
+        FileVersionString = $fileVersionString
+        ProductVersionString = $productVersionString
     }
 }
 

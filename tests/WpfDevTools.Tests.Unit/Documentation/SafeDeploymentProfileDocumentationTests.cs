@@ -23,6 +23,23 @@ public sealed class SafeDeploymentProfileDocumentationTests
     [Theory]
     [InlineData("docfx/production/security.md")]
     [InlineData("docfx/zh-tw/production/security.md")]
+    public void SecurityDocs_ShouldUseMobileReadableSafeDeploymentProfileSections(string relativePath)
+    {
+        var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(relativePath));
+
+        content.Should().NotContain("| Profile |");
+        content.Should().NotContain("| 適用情境 |");
+        content.Should().NotContain("|---|---|---|---|");
+        content.Should().Contain("### Read-only diagnostics");
+        content.Should().Contain("### Screenshot-enabled diagnostics");
+        content.Should().Contain("### ViewModel-enabled diagnostics");
+        content.Should().Contain("### Mutation-enabled diagnostics");
+        content.Should().Contain("### Raw-injection emergency diagnostics");
+    }
+
+    [Theory]
+    [InlineData("docfx/production/security.md")]
+    [InlineData("docfx/zh-tw/production/security.md")]
     public void SecurityDocs_ShouldListExactGatesForSafeDeploymentProfiles(string relativePath)
     {
         var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(relativePath));

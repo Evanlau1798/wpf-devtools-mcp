@@ -60,13 +60,100 @@ IPC payload size is bounded at the framing layer. `MessageFraming.MaxMessageSize
 
 Use these profiles as deployment templates for production or shared test workstations. Every target path must be an exact local absolute executable path. Boolean gates not listed for a profile should stay unset or `false`. Prefer SDK-hosted reuse with matching `WPFDEVTOOLS_AUTH_SECRET` and `WPFDEVTOOLS_CERT_DIR` for the first four profiles; use raw injection only for the emergency profile after separate approval.
 
-| Profile | Intended use | Set these gates | Expected blocked tools |
-|---|---|---|---|
-| Read-only diagnostics | Scene, tree, binding, DP, and state reads where target UI text may leave the process. | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS=<exact target exe>`; `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`. Keep `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS`, `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION`, `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS`, and `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` unset. | `element_screenshot`, `get_viewmodel`, `modify_viewmodel`, `set_dp_value`, `click_element`, `batch_mutate`, and raw-injection fallback are blocked. `get_ui_summary` and other sensitive read tools are allowed only for the allowlisted target. |
-| Screenshot-enabled diagnostics | Pixel capture for a reviewed target when metadata and scene summaries are insufficient. | Read-only diagnostics gates plus `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true`. Use `element_screenshot` `outputMode: "metadata"` or `"file"` by default. | ViewModel tools, mutation tools such as `modify_viewmodel`, `set_dp_value`, `click_element`, and `batch_mutate`, and raw-injection fallback remain blocked. |
-| ViewModel-enabled diagnostics | Inspect commands, DataContext chain, and ViewModel state without mutating the running app. | Read-only diagnostics gates plus `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true`. Keep `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` unset unless mutation is approved. | Destructive ViewModel and UI changes remain blocked, including `modify_viewmodel`, `execute_command`, `set_dp_value`, `click_element`, and `batch_mutate` mutation steps. |
-| Mutation-enabled diagnostics | Controlled workflow where rollback-safe UI or ViewModel changes are approved. | Read-only diagnostics gates plus `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`; add `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` when ViewModel tools, ViewModel snapshot fields, ViewModel batch steps, or ViewModel wait-after-mutation triggers are required; add screenshots only if pixel evidence is required. | Any capability whose gate stays unset is blocked. Raw-injection fallback remains blocked unless the emergency profile is also explicitly approved. |
-| Raw-injection emergency diagnostics | Last-resort diagnostics for a reviewed local target that cannot host the SDK inspector. | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS=<exact target exe>` and `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS=<same exact target exe>`; then add only the minimum `WPFDEVTOOLS_MCP_ALLOW_*` gates from the profiles above. | Non-allowlisted targets are blocked. `element_screenshot`, `get_viewmodel`, `modify_viewmodel`, `set_dp_value`, `click_element`, and `batch_mutate` remain blocked unless their exact profile gates are also enabled. |
+### Read-only diagnostics
+
+Use this profile for scene, tree, binding, DP, and state reads where target UI text may leave the process.
+
+Set:
+
+- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS=<exact target exe>`
+- `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`
+
+Keep unset or `false`:
+
+- `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS`
+- `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION`
+- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS`
+- `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`
+
+Blocked:
+
+- `element_screenshot`
+- `get_viewmodel` and `modify_viewmodel`
+- `set_dp_value`, `click_element`, and `batch_mutate`
+- raw-injection fallback
+
+Allowed:
+
+- `get_ui_summary` and other sensitive read tools, only for the allowlisted target.
+
+### Screenshot-enabled diagnostics
+
+Use this profile when metadata and scene summaries are insufficient and pixel capture is approved for a reviewed target.
+
+Set:
+
+- All read-only diagnostics gates
+- `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true`
+
+Use `element_screenshot` with `outputMode: "metadata"` or `"file"` by default.
+
+Blocked:
+
+- ViewModel tools
+- `modify_viewmodel`, `set_dp_value`, `click_element`, and `batch_mutate`
+- raw-injection fallback
+
+### ViewModel-enabled diagnostics
+
+Use this profile to inspect commands, the DataContext chain, and ViewModel state without mutating the running app.
+
+Set:
+
+- All read-only diagnostics gates
+- `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true`
+
+Keep `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` unset unless mutation is separately approved.
+
+Blocked:
+
+- `modify_viewmodel`
+- `execute_command`
+- `set_dp_value`, `click_element`, and `batch_mutate` mutation steps
+
+### Mutation-enabled diagnostics
+
+Use this profile only for approved workflows where UI or ViewModel changes are rollback-safe.
+
+Set:
+
+- All read-only diagnostics gates
+- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`
+
+Add only when required:
+
+- `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` for ViewModel tools, ViewModel snapshot fields, ViewModel batch steps, or ViewModel wait-after-mutation triggers.
+- `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` when pixel evidence is required.
+
+Blocked:
+
+- Any capability whose gate stays unset.
+- raw-injection fallback, unless the emergency profile is also explicitly approved.
+
+### Raw-injection emergency diagnostics
+
+Use this profile as the last resort for a reviewed local target that cannot host the SDK inspector.
+
+Set:
+
+- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS=<exact target exe>`
+- `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS=<same exact target exe>`
+- Only the minimum `WPFDEVTOOLS_MCP_ALLOW_*` gates required from the profiles above.
+
+Blocked:
+
+- Non-allowlisted targets.
+- `element_screenshot`, `get_viewmodel`, `modify_viewmodel`, `set_dp_value`, `click_element`, and `batch_mutate` unless their exact profile gates are also enabled.
 
 ### Named-pipe authentication
 

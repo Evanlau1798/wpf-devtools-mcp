@@ -58,15 +58,102 @@ IPC payload size 會在 framing layer 受限制。`MessageFraming.MaxMessageSize
 
 ## Safe deployment profiles
 
-請把下列表格當成 production 或 shared test workstation 的部署樣板。所有 target path 都必須是 exact local absolute executable path。未列在 profile 內的 boolean gate 應保持 unset 或 `false`。前四種 profile 優先使用已設定相同 `WPFDEVTOOLS_AUTH_SECRET` 與 `WPFDEVTOOLS_CERT_DIR` 的 SDK-hosted reuse；raw injection 只應用於經過額外核准的 emergency profile。
+請把這些 profile 當成 production 或 shared test workstation 的部署樣板。所有 target path 都必須是 exact local absolute executable path。未列在 profile 內的 boolean gate 應保持 unset 或 `false`。前四種 profile 優先使用已設定相同 `WPFDEVTOOLS_AUTH_SECRET` 與 `WPFDEVTOOLS_CERT_DIR` 的 SDK-hosted reuse；raw injection 只應用於經過額外核准的 emergency profile。
 
-| Profile | 適用情境 | 需要設定的 gates | 預期被 blocked 的 tools |
-|---|---|---|---|
-| Read-only diagnostics | 允許 scene、tree、binding、DP 與 state read，且可讓 target UI text 離開 process。 | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS=<exact target exe>`；`WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`。保持 `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS`、`WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION`、`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` 與 `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` unset。 | `element_screenshot`、`get_viewmodel`、`modify_viewmodel`、`set_dp_value`、`click_element`、`batch_mutate` 與 raw-injection fallback 都會被 blocked。`get_ui_summary` 與其他 sensitive read tools 只允許用在 allowlisted target。 |
-| Screenshot-enabled diagnostics | Metadata 與 scene summary 不足時，對已審查 target 進行 pixel capture。 | Read-only diagnostics gates，加上 `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true`。`element_screenshot` 預設應使用 `outputMode: "metadata"` 或 `"file"`。 | ViewModel tools、`modify_viewmodel`、`set_dp_value`、`click_element`、`batch_mutate` 等 mutation tools，以及 raw-injection fallback 仍會被 blocked。 |
-| ViewModel-enabled diagnostics | 檢查 commands、DataContext chain 與 ViewModel state，但不修改執行中的 app。 | Read-only diagnostics gates，加上 `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true`。除非 mutation 已核准，否則保持 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` unset。 | Destructive ViewModel 與 UI 變更仍會被 blocked，包含 `modify_viewmodel`、`execute_command`、`set_dp_value`、`click_element` 與 `batch_mutate` mutation steps。 |
-| Mutation-enabled diagnostics | 已核准且可 rollback 的 UI 或 ViewModel 變更 workflow。 | Read-only diagnostics gates，加上 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`；需要 ViewModel tools、ViewModel snapshot fields、ViewModel batch steps 或 ViewModel wait-after-mutation triggers 時，再加 `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true`；只有需要 pixel evidence 時才開 screenshots。 | 任何 gate 未啟用的能力都會被 blocked。除非 emergency profile 也被明確核准，raw-injection fallback 仍會被 blocked。 |
-| Raw-injection emergency diagnostics | 已審查的本機 target 無法 host SDK inspector 時，最後手段的診斷 profile。 | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS=<exact target exe>` 與 `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS=<same exact target exe>`；之後只加入上方 profiles 中必要的最小 `WPFDEVTOOLS_MCP_ALLOW_*` gates。 | 未 allowlist 的 targets 會被 blocked。`element_screenshot`、`get_viewmodel`、`modify_viewmodel`、`set_dp_value`、`click_element` 與 `batch_mutate` 仍會被 blocked，除非對應 profile gate 也明確啟用。 |
+### Read-only diagnostics
+
+適用於 scene、tree、binding、DP 與 state read，且允許 target UI text 離開 process 的診斷情境。
+
+設定：
+
+- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS=<exact target exe>`
+- `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`
+
+保持 unset 或 `false`：
+
+- `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS`
+- `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION`
+- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS`
+- `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`
+
+會被 blocked：
+
+- `element_screenshot`
+- `get_viewmodel` 與 `modify_viewmodel`
+- `set_dp_value`、`click_element` 與 `batch_mutate`
+- raw-injection fallback
+
+仍可使用：
+
+- `get_ui_summary` 與其他 sensitive read tools，但只能用在 allowlisted target。
+
+### Screenshot-enabled diagnostics
+
+適用於 metadata 與 scene summary 不足，且已核准對審查過的 target 做 pixel capture 的情境。
+
+設定：
+
+- 所有 Read-only diagnostics gates
+- `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true`
+
+`element_screenshot` 預設應使用 `outputMode: "metadata"` 或 `"file"`。
+
+會被 blocked：
+
+- ViewModel tools
+- `modify_viewmodel`、`set_dp_value`、`click_element` 與 `batch_mutate`
+- raw-injection fallback
+
+### ViewModel-enabled diagnostics
+
+適用於檢查 commands、DataContext chain 與 ViewModel state，但不修改執行中 app 的情境。
+
+設定：
+
+- 所有 Read-only diagnostics gates
+- `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true`
+
+除非 mutation 另外核准，否則保持 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` unset。
+
+會被 blocked：
+
+- `modify_viewmodel`
+- `execute_command`
+- `set_dp_value`、`click_element` 與 `batch_mutate` mutation steps
+
+### Mutation-enabled diagnostics
+
+只適用於已核准，且 UI 或 ViewModel 變更可 rollback 的 workflow。
+
+設定：
+
+- 所有 Read-only diagnostics gates
+- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`
+
+只有在需要時才加：
+
+- 需要 ViewModel tools、ViewModel snapshot fields、ViewModel batch steps 或 ViewModel wait-after-mutation triggers 時，設定 `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true`。
+- 需要 pixel evidence 時，設定 `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true`。
+
+會被 blocked：
+
+- 任何 gate 未啟用的能力。
+- raw-injection fallback，除非 emergency profile 也被明確核准。
+
+### Raw-injection emergency diagnostics
+
+只在已審查的本機 target 無法 host SDK inspector 時，作為最後手段使用。
+
+設定：
+
+- `WPFDEVTOOLS_MCP_ALLOWED_TARGETS=<exact target exe>`
+- `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS=<same exact target exe>`
+- 只加入上方 profiles 中必要的最小 `WPFDEVTOOLS_MCP_ALLOW_*` gates。
+
+會被 blocked：
+
+- 未 allowlist 的 targets。
+- `element_screenshot`、`get_viewmodel`、`modify_viewmodel`、`set_dp_value`、`click_element` 與 `batch_mutate`，除非對應 profile gate 也明確啟用。
 
 ### Named-pipe 驗證
 

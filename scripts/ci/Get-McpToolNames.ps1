@@ -22,6 +22,10 @@ function Get-McpToolNamesFromRuntimeManifest {
             Sort-Object LastWriteTimeUtc -Descending
     )
     foreach ($candidate in $candidates) {
+        if (-not (Test-McpToolRuntimeManifestFresh -RepoRoot $RepoRoot -ManifestAssembly $candidate)) {
+            continue
+        }
+
         try {
             $assembly = [System.Reflection.Assembly]::LoadFrom($candidate.FullName)
             $type = $assembly.GetType('WpfDevTools.Mcp.Server.McpResources.CapabilityResources', $false)
@@ -51,16 +55,30 @@ function Get-McpToolNamesFromRuntimeManifest {
     return @()
 }
 
+function Test-McpToolRuntimeManifestFresh {
+    param(
+        [Parameter(Mandatory = $true)] [string]$RepoRoot,
+        [Parameter(Mandatory = $true)] [System.IO.FileInfo]$ManifestAssembly
+    )
+
+    $sourceFiles = @(Get-McpToolSourceFiles -RepoRoot $RepoRoot)
+    if ($sourceFiles.Count -eq 0) {
+        return $true
+    }
+
+    $latestSource = @($sourceFiles | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1)
+    if ($latestSource.Count -eq 0) {
+        return $true
+    }
+
+    return $ManifestAssembly.LastWriteTimeUtc -ge $latestSource[0].LastWriteTimeUtc
+}
+
 function Get-McpToolNamesFromSourceAttributes {
     param([Parameter(Mandatory = $true)] [string]$RepoRoot)
 
-    $toolsRoot = Join-Path $RepoRoot 'src\WpfDevTools.Mcp.Server\McpTools'
-    if (-not (Test-Path -LiteralPath $toolsRoot -PathType Container)) {
-        return @()
-    }
-
     $names = New-Object System.Collections.Generic.HashSet[string] ([System.StringComparer]::Ordinal)
-    foreach ($file in Get-ChildItem -LiteralPath $toolsRoot -Recurse -File -Filter '*.cs') {
+    foreach ($file in Get-McpToolSourceFiles -RepoRoot $RepoRoot) {
         $content = Get-Content -LiteralPath $file.FullName -Raw
         foreach ($block in Get-McpServerToolAttributeBlocks -Content $content) {
             $name = Get-McpServerToolNameFromAttributeBlock -Block $block
@@ -71,6 +89,17 @@ function Get-McpToolNamesFromSourceAttributes {
     }
 
     return @($names | Sort-Object)
+}
+
+function Get-McpToolSourceFiles {
+    param([Parameter(Mandatory = $true)] [string]$RepoRoot)
+
+    $toolsRoot = Join-Path $RepoRoot 'src\WpfDevTools.Mcp.Server\McpTools'
+    if (-not (Test-Path -LiteralPath $toolsRoot -PathType Container)) {
+        return @()
+    }
+
+    return @(Get-ChildItem -LiteralPath $toolsRoot -Recurse -File -Filter '*.cs' -ErrorAction SilentlyContinue)
 }
 
 function Get-McpServerToolAttributeBlocks {

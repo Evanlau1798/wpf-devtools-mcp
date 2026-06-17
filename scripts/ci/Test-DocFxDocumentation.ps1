@@ -130,6 +130,7 @@ function Get-MarkdownFiles {
             $relative = Get-RelativePath -BasePath $DocfxRoot -Path $_.FullName
             $parts = $relative -split '[\\/]'
             $parts -notcontains '_site' -and
+                $parts -notcontains 'agent-feedback' -and
                 $parts -notcontains 'api' -and
                 $parts -notcontains 'obj'
         }
@@ -404,7 +405,6 @@ function Test-ReleaseSidecarDocumentation {
         'release-evidence.json'
     )
     $docs = @(
-        'README.md',
         'AGENT_INSTALL.md',
         'docfx/index.md',
         'docfx/quickstart/index.md',

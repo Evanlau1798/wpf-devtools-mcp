@@ -30,6 +30,55 @@ public sealed class DocfxValidationScriptTests
     }
 
     [Fact]
+    public void Script_ShouldAllowBriefReadmeThatLinksToReleaseLayout()
+    {
+        var fixture = CreateFixture();
+        try
+        {
+            WriteValidDocumentationFixture(fixture);
+            WriteReleaseLayoutFixture(fixture);
+            WriteFile(fixture, "README.md", """
+                # WPF DevTools MCP Server
+
+                Use the Release Layout documentation for release verification details.
+
+                ViewModel policy terms: get_datacontext_chain, capture_state_snapshot,
+                batch_mutate, wait_for_dp_change_after_mutation.
+                """);
+
+            var result = RunValidationScript(fixture);
+
+            result.ExitCode.Should().Be(0, result.CombinedOutput);
+            result.CombinedOutput.Should().Contain("DocFX documentation validation passed");
+        }
+        finally
+        {
+            DeleteFixture(fixture);
+        }
+    }
+
+    [Fact]
+    public void Script_ShouldIgnoreAgentFeedbackMarkdownExcludedFromPublicDocfx()
+    {
+        var fixture = CreateFixture();
+        try
+        {
+            WriteValidDocumentationFixture(fixture);
+            WriteFile(fixture, "docfx/agent-feedback/index.md", "# Agent feedback\n");
+            WriteFile(fixture, "docfx/zh-tw/agent-feedback/index.md", "# Agent feedback\n");
+
+            var result = RunValidationScript(fixture);
+
+            result.ExitCode.Should().Be(0, result.CombinedOutput);
+            result.CombinedOutput.Should().Contain("DocFX documentation validation passed");
+        }
+        finally
+        {
+            DeleteFixture(fixture);
+        }
+    }
+
+    [Fact]
     public void Script_ShouldFailWhenGeneratedInternalAnchorIsMissing()
     {
         var fixture = CreateFixture();
@@ -253,6 +302,17 @@ public sealed class DocfxValidationScriptTests
             """<html><body><h1 id="tools">Tools</h1><code>connect</code></body></html>""");
         WriteFile(root, "src/WpfDevTools.Mcp.Server/McpTools/FakeMcpTools.cs",
             fakeToolSource ?? """[McpServerTool(Name = "connect", Title = "Connect")] public static class FakeMcpTools { }""");
+    }
+
+    private static void WriteReleaseLayoutFixture(string root)
+    {
+        const string sidecars = "`SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, `package-sbom.spdx.json`, and `release-evidence.json`";
+        WriteFile(root, "docfx/production/release-layout.md", $"# Release Layout\n\n{sidecars}\n");
+        WriteFile(root, "docfx/zh-tw/production/release-layout.md", $"# Release Layout\n\n{sidecars}\n");
+        WriteFile(root, "docfx/_site/production/release-layout.html",
+            """<html><body><h1 id="release-layout">Release Layout</h1></body></html>""");
+        WriteFile(root, "docfx/_site/zh-tw/production/release-layout.html",
+            """<html><body><h1 id="release-layout">Release Layout</h1></body></html>""");
     }
 
     private static void WriteFile(string root, string relativePath, string content)

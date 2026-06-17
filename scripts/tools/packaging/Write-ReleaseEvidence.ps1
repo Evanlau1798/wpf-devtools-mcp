@@ -239,7 +239,9 @@ function Assert-PublicReleaseStrictEvidence {
     $security = $Evidence['security']
     $packageSmoke = $Evidence['packageSmoke']
     $liveSmoke = $Evidence['liveSmoke']
-
+    if ([int]$Evidence['toolsList']['count'] -ne 64) {
+        $failures += 'toolsList.count'
+    }
     if ($docfx['englishParity'] -ne $true) {
         $failures += 'docfx.englishParity'
     }
@@ -249,7 +251,6 @@ function Assert-PublicReleaseStrictEvidence {
     if ([int]$docfx['brokenLinks'] -ne 0) {
         $failures += 'docfx.brokenLinks'
     }
-
     foreach ($property in @('mitmMatrixPassed', 'stdoutPurityPassed', 'screenshotIntegrityPassed')) {
         if ($security[$property] -ne $true) {
             $failures += "security.$property"
@@ -261,7 +262,6 @@ function Assert-PublicReleaseStrictEvidence {
             $failures += "liveSmoke.$property"
         }
     }
-
     $requiredPackageSmoke = @{
         'windows-x64' = @{ architecture = 'x64'; modes = @{ 'package-local' = 'x64PackageLocal'; 'online-installer' = 'x64OnlineInstaller' } }
         'windows-x86' = @{ architecture = 'x86'; modes = @{ 'package-local' = 'x86PackageLocal'; 'online-installer' = 'x86OnlineInstaller' } }

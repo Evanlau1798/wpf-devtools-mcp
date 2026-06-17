@@ -17,7 +17,8 @@ internal static class ConnectedWaitSessionBuilder
         Func<InspectorRequest, TState, Task<object>> buildResultAsync,
         Action<InspectorRequest>? onRequest = null,
         List<(string method, bool settleBindings)>? requestPayloads = null,
-        Action<InspectorRequest>? onResponse = null)
+        Action<InspectorRequest>? onResponse = null,
+        int? maxRequestsPerMinute = null)
         where TState : class
     {
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
@@ -67,7 +68,9 @@ internal static class ConnectedWaitSessionBuilder
         SessionManager? sessionManager = null;
         try
         {
-            sessionManager = new SessionManager();
+            sessionManager = maxRequestsPerMinute.HasValue
+                ? new SessionManager(maxRequestsPerMinute.Value)
+                : new SessionManager();
             sessionManager.AddSession(processId);
 
             var client = new NamedPipeClient(processId, pipeName);

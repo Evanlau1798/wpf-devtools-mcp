@@ -69,7 +69,7 @@ public sealed partial class ReleaseReadinessDocumentationTests
     public void PublicReleaseChecklistGuard_ShouldRejectRewordedCheckedInstallerOnboardingClaims()
     {
         const string rewordedCompletedClaim = "- [x] Publish the public installer alias and document the one-line installer in README and DocFX quickstarts.";
-        const string uncheckedRemainingClaim = "- [ ] Publish the public installer alias and document `irm https://installer.wpf-mcptools.evanlau1798.com | iex` in README and DocFX quickstart pages after anonymous endpoint smoke checks pass.";
+        const string uncheckedRemainingClaim = "- [ ] Publish the public installer alias and document the preview pre-release installer in README and DocFX quickstart pages after anonymous endpoint smoke checks pass.";
         const string releaseGateClaim = "- [x] Document release preflight gates for signing and the public installer alias in `RELEASING.md`.";
 
         GetCompletedPublicInstallerOnboardingClaims(rewordedCompletedClaim).Should().ContainSingle(

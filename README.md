@@ -15,11 +15,13 @@
 
 ## Install
 
-Published release installer:
+Preview pre-release installer until the first stable GitHub Release is published:
 
 ```powershell
-irm https://installer.wpf-mcptools.evanlau1798.com | iex
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
+
+This uses the reviewed HTTPS installer alias and resolves the latest public pre-release. Do not use the default stable `latest` channel until stable release assets and anonymous endpoint smoke checks have passed.
 
 For a manual production review, keep these files adjacent to the archive before extraction: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, `package-sbom.spdx.json`, and `release-evidence.json`.
 

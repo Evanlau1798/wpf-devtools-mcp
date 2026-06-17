@@ -86,12 +86,13 @@ public sealed partial class InstallerScriptTests
         {
             var fakeBin = Path.Combine(tempRoot, "bin");
             var timeoutMarker = Path.Combine(tempRoot, "claude-timeout-marker.log");
+            var childPidPath = Path.Combine(tempRoot, "claude-child.pid");
             Directory.CreateDirectory(fakeBin);
             File.WriteAllText(
                 Path.Combine(fakeBin, "claude.cmd"),
                 "@echo off" + Environment.NewLine +
                 "if \"%1 %2\"==\"mcp list\" (" + Environment.NewLine +
-                "  powershell -NoProfile -Command \"Start-Sleep -Seconds 3; Set-Content -Path '" + timeoutMarker.Replace("'", "''") + "' -Value done\"" + Environment.NewLine +
+                "  powershell -NoProfile -Command \"$PID | Set-Content -Path '" + childPidPath.Replace("'", "''") + "'; Start-Sleep -Seconds 30; Set-Content -Path '" + timeoutMarker.Replace("'", "''") + "' -Value done\"" + Environment.NewLine +
                 "  echo wpf-devtools" + Environment.NewLine +
                 "  exit /b 0" + Environment.NewLine +
                 ")" + Environment.NewLine +
@@ -112,7 +113,18 @@ public sealed partial class InstallerScriptTests
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(30));
 
             result.ExitCode.Should().Be(0, result.Stderr);
-            System.Threading.Thread.Sleep(TimeSpan.FromMilliseconds(3500));
+            var childExited = ReleaseScriptTestHarness.WaitForProcessIdFileToExit(
+                childPidPath,
+                TimeSpan.FromSeconds(2),
+                out var childProcessId);
+            if (!childExited)
+            {
+                ReleaseScriptTestHarness.KillProcessTreeIfRunning(childProcessId);
+            }
+
+            childExited.Should().BeTrue(
+                "timed out batch CLI verification must stop descendants promptly. child PID: {0}",
+                childProcessId?.ToString() ?? "<missing>");
             File.Exists(timeoutMarker).Should().BeFalse("timed out batch CLI verification must stop descendants before marker writes");
         }
         finally

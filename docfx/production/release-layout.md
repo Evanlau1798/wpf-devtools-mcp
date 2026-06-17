@@ -13,11 +13,13 @@ The documentation below describes the output of those scripts. It does not repla
 
 ## Public release assets
 
-Published release command:
+Preview pre-release command until the first stable GitHub Release is published:
 
 ```powershell
-irm https://installer.wpf-mcptools.evanlau1798.com | iex
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
+
+Use the default stable `latest` channel only after stable release assets and anonymous endpoint smoke checks have passed.
 
 The current release archives are named:
 

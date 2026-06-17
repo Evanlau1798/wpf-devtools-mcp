@@ -57,6 +57,11 @@ public sealed class CanonicalMcpToolManifestTests
         AssertGovernance(tools, "element_screenshot", "controlled-sensitive", "not-mutating");
         AssertGovernance(tools, "modify_viewmodel", "destructive-sensitive", "snapshot-restore-required");
         AssertGovernance(tools, "batch_mutate", "destructive-sensitive", "snapshot-restore-required");
+        var allowedLiveCoverageStatuses = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "missing",
+            "live-e2e-covered"
+        };
 
         foreach (var tool in tools)
         {
@@ -66,8 +71,23 @@ public sealed class CanonicalMcpToolManifestTests
             tool.GetProperty("responseContractStatus").GetString()
                 .Should().Be(tool.GetProperty("outputSchemaStatus").GetString());
             tool.GetProperty("liveTestCoverageStatus").GetString()
-                .Should().NotBe("missing");
+                .Should().BeOneOf(allowedLiveCoverageStatuses);
         }
+    }
+
+    [Fact]
+    public void ToolManifestResource_ShouldUseExplicitLiveEvidenceInventory()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
+        var statusByName = document.RootElement
+            .GetProperty("tools")
+            .EnumerateArray()
+            .ToDictionary(GetName, tool => tool.GetProperty("liveTestCoverageStatus").GetString(), StringComparer.Ordinal);
+
+        statusByName["get_ui_summary"].Should().Be("live-e2e-covered");
+        statusByName["set_dp_value"].Should().Be("live-e2e-covered");
+        statusByName["override_style_setter"].Should().Be("missing",
+            "live coverage must come from an explicit evidence inventory, not from destructive-policy inference");
     }
 
     [Fact]

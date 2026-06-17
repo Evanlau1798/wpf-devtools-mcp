@@ -11,28 +11,8 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-function Get-ProcessDiagnostics {
-    param([Parameter(Mandatory)] [System.Diagnostics.Process]$Process)
-    try {
-        $output = $Process.StandardError.ReadToEnd()
-        if ($null -eq $output) {
-            return ''
-        }
-        return $output.Trim()
-    }
-    catch {
-        return ''
-    }
-}
-
-function Stop-PackagedServerProcess {
-    param([Parameter(Mandatory)] [System.Diagnostics.Process]$Process)
-    if (-not $Process.HasExited) {
-        $Process.Kill()
-        $Process.WaitForExit(5000) | Out-Null
-    }
-}
-
+. (Join-Path $PSScriptRoot 'Test-McpToolListContract.ps1')
+. (Join-Path $PSScriptRoot 'Test-PackagedServerProcessCleanup.ps1')
 function Read-McpResponse {
     param(
         [Parameter(Mandatory)] [System.Diagnostics.Process]$Process,
@@ -57,7 +37,6 @@ function Read-McpResponse {
         $stderr = Get-ProcessDiagnostics -Process $Process
         throw "Packaged server closed stdout before returning $OperationName response. Stderr: $stderr"
     }
-
     try {
         $response = $responseLine | ConvertFrom-Json
     }
@@ -66,17 +45,14 @@ function Read-McpResponse {
         $stderr = Get-ProcessDiagnostics -Process $Process
         throw "Packaged server $OperationName returned stdout contamination before JSON-RPC response: $responseLine. Error: $($_.Exception.Message). Stderr: $stderr"
     }
-
     $jsonRpcVersion = Get-JsonProperty -Object $response -Name 'jsonrpc'
     if ($jsonRpcVersion -ne '2.0') {
         throw "Packaged server $OperationName returned unexpected JSON-RPC version: $jsonRpcVersion. Response: $responseLine"
     }
-
     $responseId = Get-JsonProperty -Object $response -Name 'id'
     if (-not ($responseId -is [int] -or $responseId -is [long])) {
         throw "Packaged server $OperationName returned non-integer response id $responseId. Response: $responseLine"
     }
-
     if ($responseId -ne $ExpectedResponseId) {
         throw "Packaged server $OperationName returned response id $responseId, expected $ExpectedResponseId. Response: $responseLine"
     }
@@ -86,7 +62,6 @@ function Read-McpResponse {
     }
     return $response
 }
-
 function Invoke-McpRequest {
     param(
         [Parameter(Mandatory)] [System.Diagnostics.Process]$Process,
@@ -107,7 +82,6 @@ function Invoke-McpRequest {
     $Process.StandardInput.Flush()
     return Read-McpResponse -Process $Process -OperationName $Method -ExpectedResponseId $Id -TimeoutMilliseconds $TimeoutMilliseconds -AllowError:$AllowError
 }
-
 function Send-McpNotification {
     param(
         [Parameter(Mandatory)] [System.Diagnostics.Process]$Process,
@@ -124,7 +98,6 @@ function Send-McpNotification {
     $Process.StandardInput.WriteLine($notification)
     $Process.StandardInput.Flush()
 }
-
 function Get-JsonProperty {
     param(
         [Parameter(Mandatory)] [object]$Object,
@@ -138,7 +111,6 @@ function Get-JsonProperty {
 
     return $property.Value
 }
-
 function Get-Sha256Hex {
     param([Parameter(Mandatory)] [string]$Value)
 
@@ -371,10 +343,7 @@ try {
     Send-McpNotification -Process $process -Method 'notifications/initialized' -Params @{}
 
     $toolsResponse = Invoke-McpRequest -Process $process -Id 2 -Method 'tools/list' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Params @{}
-    $toolNames = @($toolsResponse.result.tools | ForEach-Object { $_.name })
-    if (-not ($toolNames -contains 'get_processes')) {
-        throw "Packaged server tools/list did not include get_processes. Tools: $($toolNames -join ', ')"
-    }
+    Test-McpToolListContract -ToolsResponse $toolsResponse -ExpectedToolNames (Get-PackagedServerExpectedToolNames -RepoRoot (Resolve-PackagingRepoRoot))
 
     $resourceResponse = Invoke-McpRequest -Process $process -Id 3 -Method 'resources/read' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Params @{
         uri = 'wpf://capabilities'
@@ -459,15 +428,26 @@ try {
             if ($mutatedValue -ne $overrideValue) {
                 throw "Packaged runtime smoke set_dp_value did not update Text. Expected '$overrideValue', got '$mutatedValue'."
             }
+
+            $stateDiff = Invoke-McpTool -Process $process -Id 14 -Name 'get_state_diff' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+                processId = $TargetProcessId
+                snapshotId = $snapshotId
+                trigger = 'set_dp_value(Text)'
+            }
+            $propertyChanges = @(Get-JsonProperty -Object $stateDiff -Name 'propertyChanges')
+            $matchingTextChange = $propertyChanges | Where-Object { $_.propertyName -eq 'Text' -and $_.afterValue -eq $overrideValue } | Select-Object -First 1
+            if ($null -eq $matchingTextChange) {
+                throw "Packaged runtime smoke get_state_diff did not report the Text mutation: $($stateDiff | ConvertTo-Json -Compress -Depth 8)"
+            }
         }
         finally {
-            Invoke-McpTool -Process $process -Id 14 -Name 'restore_state_snapshot' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+            Invoke-McpTool -Process $process -Id 15 -Name 'restore_state_snapshot' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
                 processId = $TargetProcessId
                 snapshotId = $snapshotId
             } | Out-Null
         }
 
-        $restoredValueSource = Invoke-McpTool -Process $process -Id 15 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
+        $restoredValueSource = Invoke-McpTool -Process $process -Id 16 -Name 'get_dp_value_source' -TimeoutMilliseconds $RequestTimeoutMilliseconds -Arguments @{
             processId = $TargetProcessId
             elementId = $smokeElementId
             propertyName = 'Text'

@@ -49,6 +49,35 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
     }
 
     [Fact]
+    public void TestPackagedServerRuntimeScript_ShouldVerifySnapshotDiffBeforeRestore()
+    {
+        var script = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));
+
+        var captureIndex = script.IndexOf("capture_state_snapshot", StringComparison.Ordinal);
+        var mutateIndex = script.IndexOf("set_dp_value", captureIndex, StringComparison.Ordinal);
+        var diffIndex = script.IndexOf("get_state_diff", mutateIndex, StringComparison.Ordinal);
+        var restoreIndex = script.IndexOf("restore_state_snapshot", mutateIndex, StringComparison.Ordinal);
+
+        captureIndex.Should().BeGreaterThanOrEqualTo(0);
+        mutateIndex.Should().BeGreaterThan(captureIndex);
+        diffIndex.Should().BeGreaterThan(mutateIndex);
+        diffIndex.Should().BeLessThan(restoreIndex);
+    }
+
+    [Fact]
+    public void TestPackagedServerRuntimeScript_ShouldTerminatePackagedServerProcessTree()
+    {
+        var script = File.ReadAllText(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerProcessCleanup.ps1"));
+
+        script.Should().Contain("taskkill.exe",
+            "packaged runtime smoke cleanup must terminate descendants, not just the MCP server parent process");
+        script.Should().Contain("/T");
+        script.Should().NotContain("$Process.Kill()");
+    }
+
+    [Fact]
     public void PackagedRuntimeLiveSmokeHelper_ShouldNotPassEmptyEvidenceOutputPathToRuntimeSmoke()
     {
         var script = File.ReadAllText(
@@ -202,8 +231,13 @@ $source = Get-Content -LiteralPath $scriptPath -Raw
 $helperStart = $source.IndexOf('Set-StrictMode')
 $mainStart = $source.IndexOf('$resolvedServerPath =')
 if ($helperStart -lt 0 -or $mainStart -lt 0 -or $helperStart -ge $mainStart) { throw 'Could not locate packaged runtime smoke helper body.' }
-$helperPath = Join-Path $env:TEMP ('packaged-smoke-functions-' + [guid]::NewGuid().ToString('N') + '.ps1')
+$helperRoot = Join-Path $env:TEMP ('packaged-smoke-functions-' + [guid]::NewGuid().ToString('N'))
 try {
+    $sourceDirectory = Split-Path -Parent $scriptPath
+    New-Item -ItemType Directory -Force -Path $helperRoot | Out-Null
+    Copy-Item -LiteralPath (Join-Path $sourceDirectory 'Test-McpToolListContract.ps1') -Destination $helperRoot -Force
+    Copy-Item -LiteralPath (Join-Path $sourceDirectory 'Test-PackagedServerProcessCleanup.ps1') -Destination $helperRoot -Force
+    $helperPath = Join-Path $helperRoot 'packaged-smoke-functions.ps1'
     Set-Content -LiteralPath $helperPath -Value $source.Substring($helperStart, $mainStart - $helperStart) -Encoding UTF8
     . $helperPath
 
@@ -235,7 +269,7 @@ try {
     }
 }
 finally {
-    Remove-Item -LiteralPath $helperPath -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $helperRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 """;
 

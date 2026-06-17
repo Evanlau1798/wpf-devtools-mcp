@@ -34,14 +34,86 @@ function ConvertTo-SingleQuotedLiteral {
     return "'" + $Value.Replace("'", "''") + "'"
 }
 
+function Get-ExpectedArchiveVersion {
+    param([Parameter(Mandatory)] [string]$ReleaseTag)
+
+    return $ReleaseTag.Substring(1)
+}
+
+function Get-ReleaseAssetRecord {
+    param(
+        [Parameter(Mandatory)] [System.IO.FileInfo]$Archive,
+        [Parameter(Mandatory)] [string]$ExpectedVersion
+    )
+
+    $match = [regex]::Match(
+        $Archive.Name,
+        '^release_(?<version>.+)_win-(?<architecture>x64|x86|arm64)\.zip$',
+        'IgnoreCase, CultureInvariant')
+    if (-not $match.Success) {
+        throw "Unexpected release archive name '$($Archive.Name)'. Expected release_${ExpectedVersion}_win-<x64|x86|arm64>.zip."
+    }
+
+    $version = $match.Groups['version'].Value
+    if ($version -ne $ExpectedVersion) {
+        throw "Release archive '$($Archive.Name)' does not match release tag v$ExpectedVersion."
+    }
+
+    [pscustomobject]@{
+        Archive = $Archive
+        Architecture = $match.Groups['architecture'].Value.ToLowerInvariant()
+    }
+}
+
+function Assert-ReleaseAssetSet {
+    param(
+        [Parameter(Mandatory)] [System.IO.FileInfo[]]$Assets,
+        [Parameter(Mandatory)] [string]$ReleaseTag
+    )
+
+    $expectedVersion = Get-ExpectedArchiveVersion -ReleaseTag $ReleaseTag
+    $records = @($Assets | ForEach-Object {
+        Get-ReleaseAssetRecord -Archive $_ -ExpectedVersion $expectedVersion
+    })
+
+    foreach ($architecture in @('x64', 'x86', 'arm64')) {
+        $matches = @($records | Where-Object { $_.Architecture -eq $architecture })
+        if ($matches.Count -eq 0) {
+            throw "Missing release archive for architecture $architecture."
+        }
+
+        if ($matches.Count -gt 1) {
+            $names = @($matches | ForEach-Object { $_.Archive.Name }) -join ', '
+            throw "Duplicate release archives for architecture ${architecture}: $names"
+        }
+    }
+}
+
 function Get-ReleaseAssets {
-    param([Parameter(Mandatory)] [string]$Root)
+    param(
+        [Parameter(Mandatory)] [string]$Root,
+        [Parameter(Mandatory)] [string]$ReleaseTag
+    )
 
     if (-not (Test-Path $Root)) {
         throw "Input root does not exist: $Root"
     }
 
-    return @(Get-ChildItem -Path $Root -Filter 'release_*.zip' -File -Recurse | Sort-Object Name)
+    $rootFullPath = (Resolve-Path $Root).Path
+    $archives = @(Get-ChildItem -Path $rootFullPath -Filter 'release_*.zip' -File -Recurse | Sort-Object FullName)
+    $nestedArchives = @($archives | Where-Object {
+        -not $_.DirectoryName.Equals($rootFullPath, [System.StringComparison]::OrdinalIgnoreCase)
+    })
+    if ($nestedArchives.Count -gt 0) {
+        $nestedNames = @($nestedArchives | ForEach-Object { $_.FullName }) -join ', '
+        throw "Nested release archives are not allowed under input root: $nestedNames"
+    }
+
+    $rootArchives = @($archives | Where-Object {
+        $_.DirectoryName.Equals($rootFullPath, [System.StringComparison]::OrdinalIgnoreCase)
+    } | Sort-Object Name)
+    Assert-ReleaseAssetSet -Assets ([System.IO.FileInfo[]]$rootArchives) -ReleaseTag $ReleaseTag
+    return $rootArchives
 }
 
 function New-UploadScriptContent {
@@ -84,7 +156,7 @@ if (Test-Path $stagingRoot) {
 }
 
 New-Item -ItemType Directory -Force -Path $stagingRoot | Out-Null
-$assets = Get-ReleaseAssets -Root $inputRootFullPath
+$assets = Get-ReleaseAssets -Root $inputRootFullPath -ReleaseTag $Tag
 if ($assets.Count -eq 0) {
     throw "No release_*.zip archives were found under: $inputRootFullPath"
 }

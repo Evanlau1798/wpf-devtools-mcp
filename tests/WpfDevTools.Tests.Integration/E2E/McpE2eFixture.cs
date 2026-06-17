@@ -203,27 +203,24 @@ public sealed class McpE2eFixture : IAsyncLifetime, IDisposable
 
         if (_testApp != null)
         {
+            var testApp = _testApp;
+            _testApp = null;
+
             try
             {
-                if (!_testApp.HasExited)
+                if (!testApp.HasExited)
                 {
-                    _testApp.CloseMainWindow();
-                    if (!_testApp.WaitForExit(3000))
-                    {
-                        _testApp.Kill();
-                        _testApp.WaitForExit(3000);
-                    }
+                    testApp.CloseMainWindow();
+                    testApp.WaitForExit(3000);
                 }
             }
             catch
             {
                 // Process may not be in a valid state (never started, already exited, etc.)
-                try { _testApp.Kill(); } catch { /* best effort */ }
             }
             finally
             {
-                _testApp.Dispose();
-                _testApp = null;
+                LiveTestProcessCleanup.StopAndDispose(testApp);
             }
         }
 

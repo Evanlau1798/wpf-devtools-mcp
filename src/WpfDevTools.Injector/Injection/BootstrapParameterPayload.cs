@@ -27,7 +27,9 @@ internal sealed class BootstrapParameterPayload : IDisposable
 
     internal static BootstrapParameterPayload Create(
         InjectionRequest request,
-        Action<string>? onSecretFileCreated)
+        Action<string>? onSecretFileCreated,
+        Func<string>? tempPathProvider = null,
+        Func<string, bool>? reparsePointDetector = null)
     {
         if (request == null)
         {
@@ -39,7 +41,9 @@ internal sealed class BootstrapParameterPayload : IDisposable
             : CreateAuthenticationSecretFile(
                 request.ProcessId,
                 request.AuthenticationSecretBase64!,
-                onSecretFileCreated);
+                onSecretFileCreated,
+                tempPathProvider,
+                reparsePointDetector);
 
         try
         {
@@ -62,14 +66,25 @@ internal sealed class BootstrapParameterPayload : IDisposable
     private static string CreateAuthenticationSecretFile(
         int processId,
         string secretBase64,
-        Action<string>? onSecretFileCreated)
+        Action<string>? onSecretFileCreated,
+        Func<string>? tempPathProvider,
+        Func<string, bool>? reparsePointDetector)
     {
+#if !NET48
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("Bootstrap authentication secret handoff requires Windows DPAPI.");
+        }
+#endif
+
+        var tempRoot = ResolveAuthenticationSecretTempRoot(tempPathProvider, reparsePointDetector);
         var path = Path.Combine(
-            Path.GetTempPath(),
+            tempRoot,
             $"WpfDevTools_AuthSecret_{processId}_{Guid.NewGuid():N}.txt");
 
         try
         {
+            EnsureNoAuthenticationSecretTempRootReparsePoint(tempRoot, reparsePointDetector);
             using (var stream = new FileStream(
                 path,
                 FileMode.CreateNew,
@@ -84,12 +99,6 @@ internal sealed class BootstrapParameterPayload : IDisposable
                 byte[] protectedBytes = [];
                 try
                 {
-#if !NET48
-                    if (!OperatingSystem.IsWindows())
-                    {
-                        throw new PlatformNotSupportedException("Bootstrap authentication secret handoff requires Windows DPAPI.");
-                    }
-#endif
                     protectedBytes = LocalSecretProtector.Protect(bytes);
                     stream.Write(protectedBytes, 0, protectedBytes.Length);
                 }
@@ -106,6 +115,52 @@ internal sealed class BootstrapParameterPayload : IDisposable
         {
             SecureDeleteSecretFile(path);
             throw;
+        }
+    }
+
+    private static string ResolveAuthenticationSecretTempRoot(
+        Func<string>? tempPathProvider,
+        Func<string, bool>? reparsePointDetector)
+    {
+#if !NET48
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("Bootstrap authentication secret handoff requires Windows DPAPI.");
+        }
+#endif
+
+        var tempRoot = (tempPathProvider ?? Path.GetTempPath)();
+        try
+        {
+            CertificateStorageSecurity.EnsureLocalPath(tempRoot, nameof(tempRoot));
+            var fullTempRoot = Path.GetFullPath(tempRoot);
+            EnsureNoAuthenticationSecretTempRootReparsePoint(fullTempRoot, reparsePointDetector);
+            return fullTempRoot;
+        }
+        catch (ArgumentException ex)
+        {
+            throw new InvalidOperationException(
+                "Bootstrap authentication secret temp directory must be an absolute local path " +
+                "and must not traverse reparse points. " +
+                ex.Message,
+                ex);
+        }
+        catch (Exception ex) when (ex is NotSupportedException or PathTooLongException)
+        {
+            throw new InvalidOperationException(
+                "Bootstrap authentication secret temp directory must resolve to a valid local path.",
+                ex);
+        }
+    }
+
+    private static void EnsureNoAuthenticationSecretTempRootReparsePoint(
+        string tempRoot,
+        Func<string, bool>? reparsePointDetector)
+    {
+        if (reparsePointDetector?.Invoke(tempRoot) == true)
+        {
+            throw new InvalidOperationException(
+                "Bootstrap authentication secret temp directory must not traverse symbolic links or reparse points.");
         }
     }
 

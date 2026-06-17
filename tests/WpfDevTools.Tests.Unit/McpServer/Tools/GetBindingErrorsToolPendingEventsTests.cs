@@ -128,6 +128,41 @@ public sealed class GetBindingErrorsToolPendingEventsTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WithPiggybackedPendingEvents_ShouldNotConsumeRateLimitForInternalDrain()
+    {
+        var processId = NextSyntheticProcessId();
+        var rateLimiter = new CountingRateLimiterManager();
+        using var connected = await ConnectedBindingErrorsSession.CreateAsync(
+            processId,
+            rateLimiter,
+            JsonSerializer.Serialize(new
+            {
+                success = true,
+                errorCount = 0,
+                errors = Array.Empty<object>()
+            }),
+            JsonSerializer.Serialize(new
+            {
+                success = true,
+                pendingEventCount = 1,
+                droppedEventCount = 0,
+                pendingEvents = new[] { new { eventType = "DpChange", elementId = "Button_1" } }
+            }));
+        var tool = new GetBindingErrorsTool(connected.SessionManager);
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new { processId }),
+            CancellationToken.None));
+
+        await connected.ServerTask;
+
+        connected.RequestMethods.Should().Equal("get_binding_errors", "drain_events");
+        rateLimiter.AcquireCount.Should().Be(1);
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("pendingEventCount").GetInt32().Should().Be(1);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WithPiggybackCleanupFailureAndNoPendingEvents_ShouldPreserveCleanupDiagnostics()
     {
         const int processId = 51044;
@@ -307,22 +342,36 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         public IReadOnlyList<string> RequestMethods { get; } = requestMethods;
 
         public static Task<ConnectedBindingErrorsSession> CreateAsync(int processId, params string[] responses) =>
-            CreateAsync(processId, onResponseWritten: null, responses);
+            CreateAsync(processId, rateLimiter: null, onResponseWritten: null, responses);
+
+        public static Task<ConnectedBindingErrorsSession> CreateAsync(
+            int processId,
+            IRateLimiterManager rateLimiter,
+            params string[] responses) =>
+            CreateAsync(processId, rateLimiter, onResponseWritten: null, responses);
 
         public static Task<ConnectedBindingErrorsSession> CreateAsync(
             int processId,
             Func<string, NamedPipeServerStream, Task>? onRequestReceived,
             params string[] responses) =>
-            CreateAsync(processId, onResponseWritten: null, onRequestReceived, responses);
+            CreateAsync(processId, rateLimiter: null, onResponseWritten: null, onRequestReceived, responses);
 
         public static async Task<ConnectedBindingErrorsSession> CreateAsync(
             int processId,
             Action<string>? onResponseWritten,
             params string[] responses) =>
-            await CreateAsync(processId, onResponseWritten, onRequestReceived: null, responses);
+            await CreateAsync(processId, rateLimiter: null, onResponseWritten, onRequestReceived: null, responses);
+
+        private static Task<ConnectedBindingErrorsSession> CreateAsync(
+            int processId,
+            IRateLimiterManager? rateLimiter,
+            Action<string>? onResponseWritten,
+            params string[] responses) =>
+            CreateAsync(processId, rateLimiter, onResponseWritten, onRequestReceived: null, responses);
 
         private static async Task<ConnectedBindingErrorsSession> CreateAsync(
             int processId,
+            IRateLimiterManager? rateLimiter,
             Action<string>? onResponseWritten,
             Func<string, NamedPipeServerStream, Task>? onRequestReceived,
             params string[] responses)
@@ -375,7 +424,7 @@ public sealed class GetBindingErrorsToolPendingEventsTests
                 }
             });
 
-            var sessionManager = new SessionManager();
+            var sessionManager = rateLimiter is null ? new SessionManager() : new SessionManager(rateLimiter);
             DisableSessionManagerCleanupTimer(sessionManager);
             sessionManager.AddSession(processId);
             var client = new NamedPipeClient(processId, pipeName);
@@ -412,5 +461,32 @@ public sealed class GetBindingErrorsToolPendingEventsTests
             }
         }
 
+    }
+
+    private sealed class CountingRateLimiterManager : IRateLimiterManager, IRateLimiterStatusProvider
+    {
+        private int _acquireCount;
+
+        public int AcquireCount => Volatile.Read(ref _acquireCount);
+
+        public bool TryAcquire(int processId)
+        {
+            Interlocked.Increment(ref _acquireCount);
+            return true;
+        }
+
+        public RateLimitStatus TryAcquireWithStatus(int processId)
+        {
+            Interlocked.Increment(ref _acquireCount);
+            return new RateLimitStatus(true, int.MaxValue, TimeSpan.Zero);
+        }
+
+        public void RemoveSession(int processId)
+        {
+        }
+
+        public int GetAvailableTokens(int processId) => int.MaxValue;
+
+        public TimeSpan GetRetryAfter(int processId) => TimeSpan.Zero;
     }
 }

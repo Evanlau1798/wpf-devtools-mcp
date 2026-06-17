@@ -11,10 +11,10 @@ This page is the production onboarding path for a supported MCP client on Window
 
 ## Install
 
-Published release installer:
+Preview pre-release installer until the first stable GitHub Release is published:
 
 ```powershell
-irm https://installer.wpf-mcptools.evanlau1798.com | iex
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
 
 The installer detects the host architecture, asks for the target MCP client, installs the packaged executable, and writes client-registration artifacts under:
@@ -22,6 +22,8 @@ The installer detects the host architecture, asks for the target MCP client, ins
 ```text
 <InstallRoot>\<arch>\client-registration\
 ```
+
+Do not use the default stable `latest` channel until stable release assets and anonymous endpoint smoke checks have passed.
 
 The installed server path normally resolves to:
 

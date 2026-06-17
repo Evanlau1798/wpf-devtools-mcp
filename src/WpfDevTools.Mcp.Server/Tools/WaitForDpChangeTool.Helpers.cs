@@ -4,7 +4,7 @@ namespace WpfDevTools.Mcp.Server.Tools;
 
 public sealed partial class WaitForDpChangeTool
 {
-    private async Task<DpSnapshot?> TryReadFinalSnapshotAsync(
+    private async Task<FinalSnapshotReadResult> TryReadFinalSnapshotAsync(
         int processId,
         string? elementId,
         string propertyName,
@@ -15,15 +15,18 @@ public sealed partial class WaitForDpChangeTool
 
         try
         {
-            return await ReadSnapshotAsync(
+            var snapshot = await ReadSnapshotAsync(
                 processId,
                 elementId,
                 propertyName,
-                finalReadCts.Token).ConfigureAwait(false);
+                finalReadCts.Token,
+                countAgainstRateLimit: false).ConfigureAwait(false);
+
+            return FinalSnapshotReadResult.Success(snapshot);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return null;
+            return FinalSnapshotReadResult.Timeout();
         }
     }
 
@@ -31,19 +34,27 @@ public sealed partial class WaitForDpChangeTool
         int processId,
         string? elementId,
         string propertyName,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool countAgainstRateLimit)
     {
-        var result = await SendInspectorRequestWithoutPiggybackAsync(
-            processId,
-            "get_dp_value_source",
-            new
-            {
-                elementId,
-                propertyName,
-                compact = true,
-                settleBindings = true
-            },
-            cancellationToken).ConfigureAwait(false);
+        var parameters = new
+        {
+            elementId,
+            propertyName,
+            compact = true,
+            settleBindings = true
+        };
+        var result = countAgainstRateLimit
+            ? await SendInspectorRequestWithoutPiggybackAsync(
+                processId,
+                "get_dp_value_source",
+                parameters,
+                cancellationToken).ConfigureAwait(false)
+            : await SendInternalInspectorRequestWithoutPiggybackAsync(
+                processId,
+                "get_dp_value_source",
+                parameters,
+                cancellationToken).ConfigureAwait(false);
 
         var payload = result is JsonElement jsonElement
             ? jsonElement
@@ -188,5 +199,12 @@ public sealed partial class WaitForDpChangeTool
             elapsedMs,
             pollCount
         };
+    }
+
+    private readonly record struct FinalSnapshotReadResult(DpSnapshot? Snapshot, bool TimedOut)
+    {
+        public static FinalSnapshotReadResult Success(DpSnapshot snapshot) => new(snapshot, TimedOut: false);
+
+        public static FinalSnapshotReadResult Timeout() => new(null, TimedOut: true);
     }
 }

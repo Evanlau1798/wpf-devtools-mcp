@@ -8,6 +8,9 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 
 public class ReadmeDocumentationTests
 {
+    private const string PreviewPrereleaseInstallerCommand =
+        "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease";
+
     [Fact]
     public void Readme_ShouldStayConciseProductionEntrypoint()
     {
@@ -59,7 +62,8 @@ public class ReadmeDocumentationTests
     {
         var content = File.ReadAllText(GetRepoFilePath("README.md"));
 
-        content.Should().Contain("irm https://installer.wpf-mcptools.evanlau1798.com | iex");
+        content.Should().Contain(PreviewPrereleaseInstallerCommand);
+        content.Should().Contain("pre-release");
         content.Should().Contain("release_<version>_win-<arch>.zip");
         content.Should().Contain("SHA256SUMS.txt");
         content.Should().Contain("release-assets.json");

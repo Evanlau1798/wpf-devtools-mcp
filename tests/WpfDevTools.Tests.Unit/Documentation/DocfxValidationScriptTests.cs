@@ -76,6 +76,76 @@ public sealed class DocfxValidationScriptTests
     }
 
     [Fact]
+    public void Script_ShouldDiscoverToolNamesWhenAttributeNameIsNotFirstArgument()
+    {
+        var fixture = CreateFixture();
+        try
+        {
+            WriteValidDocumentationFixture(
+                fixture,
+                """
+                [McpServerTool(
+                    Title = "Connect",
+                    Name = "connect")]
+                public static class FakeMcpTools { }
+                """);
+
+            var result = RunValidationScript(fixture);
+
+            result.ExitCode.Should().Be(0, result.CombinedOutput);
+            result.CombinedOutput.Should().Contain("DocFX documentation validation passed");
+        }
+        finally
+        {
+            DeleteFixture(fixture);
+        }
+    }
+
+    [Fact]
+    public void Script_ShouldFailWhenGeneratedContractSnapshotIsStale()
+    {
+        var fixture = CreateFixture();
+        try
+        {
+            WriteValidDocumentationFixture(fixture);
+            var sourceToolHash = new string('a', 64);
+            var sourceResponseHash = new string('b', 64);
+            var staleToolHash = new string('c', 64);
+            WriteFile(fixture, "docfx/reference/tools/index.md", $$"""
+                # Tools
+
+                ## Generated Contract Snapshot
+
+                - `wpf://contracts/tools` SHA-256: `{{sourceToolHash}}`
+                - `wpf://contracts/response` SHA-256: `{{sourceResponseHash}}`
+
+                - `connect`
+                """);
+            WriteFile(fixture, "docfx/_site/reference/tools/index.html", $$"""
+                <html><body>
+                <h1 id="tools">Tools</h1>
+                <h2 id="generated-contract-snapshot">Generated Contract Snapshot</h2>
+                <ul>
+                <li><code>wpf://contracts/tools</code> SHA-256: <code>{{staleToolHash}}</code></li>
+                <li><code>wpf://contracts/response</code> SHA-256: <code>{{sourceResponseHash}}</code></li>
+                </ul>
+                <code>connect</code>
+                </body></html>
+                """);
+
+            var result = RunValidationScript(fixture);
+
+            result.ExitCode.Should().NotBe(0);
+            result.CombinedOutput.Should().Contain("Stale generated contract snapshot");
+            result.CombinedOutput.Should().Contain("wpf://contracts/tools");
+        }
+        finally
+        {
+            DeleteFixture(fixture);
+        }
+    }
+
+    [Fact]
     public void Script_ShouldWriteDocFxEvidenceJson()
     {
         var fixture = CreateFixture();
@@ -108,6 +178,16 @@ public sealed class DocfxValidationScriptTests
             "DocFX validation must not normalize canonical relative paths to Windows-only separators");
         content.Should().NotContain("Join-Path $SiteRoot $expectedRelative",
             "relative paths that may contain separators should be joined segment-by-segment");
+    }
+
+    [Fact]
+    public void Script_ShouldNotScrapeMcpToolAttributesWithRegex()
+    {
+        var content = File.ReadAllText(ScriptPath);
+
+        content.Should().Contain("Get-McpToolNames");
+        content.Should().NotContain("McpServerTool\\s*\\(",
+            "DocFX coverage should prefer the canonical tool manifest and only use a structured fallback for lightweight fixtures");
     }
 
     [Fact]
@@ -150,7 +230,7 @@ public sealed class DocfxValidationScriptTests
     private static string CreateFixture()
         => Path.Combine(Path.GetTempPath(), $"wpf-devtools-docfx-validation-{Guid.NewGuid():N}");
 
-    private static void WriteValidDocumentationFixture(string root)
+    private static void WriteValidDocumentationFixture(string root, string? fakeToolSource = null)
     {
         const string sidecars = "`SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, `package-sbom.spdx.json`, and `release-evidence.json`";
         WriteFile(root, "docfx/index.md", $"# Home\n\n{sidecars}\n\n[Quickstart](quickstart/index.md#setup)\n");
@@ -172,7 +252,7 @@ public sealed class DocfxValidationScriptTests
         WriteFile(root, "docfx/_site/zh-tw/reference/tools/index.html",
             """<html><body><h1 id="tools">Tools</h1><code>connect</code></body></html>""");
         WriteFile(root, "src/WpfDevTools.Mcp.Server/McpTools/FakeMcpTools.cs",
-            """[McpServerTool(Name = "connect", Title = "Connect")] public static class FakeMcpTools { }""");
+            fakeToolSource ?? """[McpServerTool(Name = "connect", Title = "Connect")] public static class FakeMcpTools { }""");
     }
 
     private static void WriteFile(string root, string relativePath, string content)

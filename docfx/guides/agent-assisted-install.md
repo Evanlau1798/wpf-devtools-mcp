@@ -44,11 +44,13 @@ For manual production review, keep these files adjacent to the archive before ex
 
 ## Install after approval
 
-Published release alias:
+Preview pre-release alias until the first stable GitHub Release is published:
 
 ```powershell
-irm https://installer.wpf-mcptools.evanlau1798.com | iex
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
+
+Use the default stable `latest` channel only after stable release assets and anonymous endpoint smoke checks have passed.
 
 Reviewed local package command:
 
@@ -94,5 +96,5 @@ Do not report private keys, PFX passwords, GitHub secrets, auth secrets, or cert
 ## Copyable prompt
 
 ```text
-Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, or powershell.exe -NoProfile -File with the same arguments when PowerShell 7 is unavailable. Present a plan with version, architecture, install root, client id, release archive, sidecars, and signer pin policy. Ask for confirmation before mutation. After approval, use the published installer, a reviewed local package command, or package-local run.bat. Report generated registration artifacts and do not print secrets.
+Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, or powershell.exe -NoProfile -File with the same arguments when PowerShell 7 is unavailable. Present a plan with version, architecture, install root, client id, release archive, sidecars, and signer pin policy. Ask for confirmation before mutation. After approval, use the preview pre-release alias, a reviewed local package command, or package-local run.bat. Report generated registration artifacts and do not print secrets.
 ```

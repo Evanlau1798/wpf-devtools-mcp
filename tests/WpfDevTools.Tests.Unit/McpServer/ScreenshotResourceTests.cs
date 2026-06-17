@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Reflection;
 using FluentAssertions;
+using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpResources;
@@ -53,8 +54,9 @@ public sealed class ScreenshotResourceTests
         var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, screenshotId);
 
         act.Should()
-            .Throw<InvalidOperationException>()
-            .WithMessage("*failed SHA-256 verification*");
+            .Throw<McpProtocolException>()
+            .Where(ex => ex.ErrorCode == McpErrorCode.InternalError)
+            .WithMessage("*failed integrity verification*");
     }
 
     [Theory]
@@ -210,7 +212,8 @@ public sealed class ScreenshotResourceTests
         var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, screenshotId);
 
         act.Should()
-            .Throw<InvalidOperationException>()
+            .Throw<McpProtocolException>()
+            .Where(ex => ex.ErrorCode == McpErrorCode.ResourceNotFound)
             .WithMessage("*is not retained in this MCP session*");
     }
 
@@ -230,7 +233,8 @@ public sealed class ScreenshotResourceTests
         var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, screenshotId);
 
         act.Should()
-            .Throw<InvalidOperationException>()
+            .Throw<McpProtocolException>()
+            .Where(ex => ex.ErrorCode == McpErrorCode.ResourceNotFound)
             .WithMessage("*is not retained in this MCP session*");
         File.Exists(filePath).Should().BeFalse(
             "disconnecting a target should purge retained screenshot pixels");
@@ -277,7 +281,8 @@ public sealed class ScreenshotResourceTests
         var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, screenshotId);
 
         act.Should()
-            .Throw<InvalidOperationException>()
+            .Throw<McpProtocolException>()
+            .Where(ex => ex.ErrorCode == McpErrorCode.ResourceNotFound)
             .WithMessage("*is not retained in this MCP session*");
         File.Exists(filePath).Should().BeFalse(
             "expired screenshot resources should remove their retained PNG file");

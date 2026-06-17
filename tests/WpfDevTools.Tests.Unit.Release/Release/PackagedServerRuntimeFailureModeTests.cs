@@ -6,6 +6,27 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class PackagedServerRuntimeFailureModeTests
 {
     [Fact]
+    public void StopPackagedServerProcess_ShouldNotRequireLastExitCodeUnderStrictMode()
+    {
+        var command = BuildHelperBootstrap() + """
+
+        Remove-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+        $process = Start-FakePowerShellProcess "Start-Sleep -Seconds 2"
+        if (-not (Stop-PackagedServerProcess -Process $process)) {
+            throw 'Stop-PackagedServerProcess did not terminate the fake packaged server.'
+        }
+
+        $process.Dispose()
+        Write-Output 'unset LASTEXITCODE cleanup succeeded'
+        """;
+
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(5));
+
+        result.ExitCode.Should().Be(0, $"stdout: {result.Stdout}; stderr: {result.Stderr}");
+        result.Stdout.Should().Contain("unset LASTEXITCODE cleanup succeeded");
+    }
+
+    [Fact]
     public void ReadMcpResponse_ShouldFailFastWhenLiveServerNeverWritesStdout()
     {
         var command = BuildHelperBootstrap() + """
@@ -114,13 +135,18 @@ public sealed class PackagedServerRuntimeFailureModeTests
         $helperStart = $source.IndexOf('Set-StrictMode')
         $mainStart = $source.IndexOf('$resolvedServerPath =')
         if ($helperStart -lt 0 -or $mainStart -lt 0 -or $helperStart -ge $mainStart) { throw 'Could not locate packaged runtime smoke helper body.' }
-        $helperPath = Join-Path $env:TEMP ('packaged-smoke-functions-' + [guid]::NewGuid().ToString('N') + '.ps1')
+        $helperRoot = Join-Path $env:TEMP ('packaged-smoke-functions-' + [guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Force -Path $helperRoot | Out-Null
+        $sourceDirectory = Split-Path -Parent $scriptPath
+        Copy-Item -LiteralPath (Join-Path $sourceDirectory 'Test-McpToolListContract.ps1') -Destination $helperRoot -Force
+        Copy-Item -LiteralPath (Join-Path $sourceDirectory 'Test-PackagedServerProcessCleanup.ps1') -Destination $helperRoot -Force
+        $helperPath = Join-Path $helperRoot 'packaged-smoke-functions.ps1'
         Set-Content -LiteralPath $helperPath -Value $source.Substring($helperStart, $mainStart - $helperStart) -Encoding UTF8
         try {
             . $helperPath
         }
         finally {
-            Remove-Item -LiteralPath $helperPath -Force -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath $helperRoot -Recurse -Force -ErrorAction SilentlyContinue
         }
 
         function Start-FakePowerShellProcess {

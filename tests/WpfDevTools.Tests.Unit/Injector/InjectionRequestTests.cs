@@ -304,6 +304,67 @@ public class InjectionRequestTests
     }
 
     [Fact]
+    public void CreateBootstrapParameterPayload_WithNetworkTempRoot_ShouldFailClosedBeforeCreatingSecretFile()
+    {
+        var request = new InjectionRequest
+        {
+            ProcessId = 1234,
+            BootstrapperDllPath = @"C:\app\Bootstrapper.x64.dll",
+            InspectorDllPath = @"C:\app\net8.0-windows\Inspector.dll",
+            ExpectedPipeName = "WpfDevTools_1234",
+            AuthenticationSecretBase64 = "YWJjZA=="
+        };
+        var secretFileCreated = false;
+
+        var act = () => BootstrapParameterPayload.Create(
+            request,
+            _ => secretFileCreated = true,
+            tempPathProvider: () => @"\\server\share\wpf-temp");
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Bootstrap authentication secret temp directory*local path*Network paths are not allowed*");
+        secretFileCreated.Should().BeFalse(
+            "the auth secret file must not be created under a network-backed temp root");
+    }
+
+    [Fact]
+    public void CreateBootstrapParameterPayload_WithReparsePointTempRoot_ShouldFailClosedBeforeCreatingSecretFile()
+    {
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"WpfDevTools_AuthSecret_TempRoot_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+        var request = new InjectionRequest
+        {
+            ProcessId = 1234,
+            BootstrapperDllPath = @"C:\app\Bootstrapper.x64.dll",
+            InspectorDllPath = @"C:\app\net8.0-windows\Inspector.dll",
+            ExpectedPipeName = "WpfDevTools_1234",
+            AuthenticationSecretBase64 = "YWJjZA=="
+        };
+        var secretFileCreated = false;
+
+        try
+        {
+            var act = () => BootstrapParameterPayload.Create(
+                request,
+                _ => secretFileCreated = true,
+                tempPathProvider: () => tempRoot,
+                reparsePointDetector: _ => true);
+
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*Bootstrap authentication secret temp directory*reparse point*");
+            secretFileCreated.Should().BeFalse(
+                "the auth secret file must not be created after the temp root becomes untrusted");
+            Directory.EnumerateFileSystemEntries(tempRoot).Should().BeEmpty();
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public void ToBootstrapParameters_WithSemicolonInValue_ShouldThrow()
     {
         var request = new InjectionRequest

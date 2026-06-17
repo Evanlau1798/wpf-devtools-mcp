@@ -72,7 +72,7 @@ internal static class CanonicalMcpToolManifest
                 ? "embedded-description"
                 : "missing-description-examples",
             docsCoverageStatus = "docfx-name-level-covered-by-tests",
-            liveTestCoverageStatus = GetLiveTestCoverageStatus(outputSchemaStatus, mutationRestoreRequirementStatus),
+            liveTestCoverageStatus = McpToolLiveTestCoverageCatalog.GetStatus(toolName),
             mutationRestoreRequirementStatus,
             annotations = new
             {
@@ -115,20 +115,6 @@ internal static class CanonicalMcpToolManifest
         }
 
         return "low";
-    }
-
-    private static string GetLiveTestCoverageStatus(
-        string outputSchemaStatus,
-        string mutationRestoreRequirementStatus)
-    {
-        if (string.Equals(mutationRestoreRequirementStatus, "snapshot-restore-required", StringComparison.Ordinal))
-        {
-            return "live-mutation-restore-covered";
-        }
-
-        return string.Equals(outputSchemaStatus, "exact-tool-output-schema", StringComparison.Ordinal)
-            ? "runtime-parity-covered"
-            : "unit-contract-covered";
     }
 
     private static string GetMutationRestoreRequirementStatus(McpToolCapabilityEntry entry)

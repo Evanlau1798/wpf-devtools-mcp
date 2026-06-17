@@ -126,6 +126,106 @@ public sealed class WaitForDpChangeToolTests
     }
 
     [Fact]
+    public async Task Execute_WhenInternalPollingExceedsSessionRateLimit_ShouldStillReturnTimeout()
+    {
+        const int processId = 4951;
+        var state = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["currentValue"] = "before"
+        };
+        using var connected = await ConnectedWaitSessionBuilder.CreateAsync(
+            processId,
+            state,
+            static (request, currentState) =>
+            {
+                var value = currentState["currentValue"];
+                return Task.FromResult<object>(new
+                {
+                    success = true,
+                    propertyName = "Text",
+                    baseValueSource = "Local",
+                    currentValue = value,
+                    effectiveValue = value
+                });
+            },
+            maxRequestsPerMinute: 2);
+        var waitTool = new WaitForDpChangeTool(connected.SessionManager);
+
+        var result = await waitTool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId,
+                propertyName = "Text",
+                timeoutMs = 160,
+                pollIntervalMs = 50,
+                expectedValue = JsonSerializer.SerializeToElement("after")
+            }),
+            CancellationToken.None);
+
+        var resultJson = JsonSerializer.SerializeToElement(result);
+        resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("timedOut").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("completionReason").GetString().Should().Be("TimedOut");
+        resultJson.GetProperty("pollCount").GetInt32().Should().BeGreaterThan(1);
+    }
+
+    [Fact]
+    public async Task Execute_WhenFinalSnapshotReadTimesOut_ShouldRequireReconnectAndMarkStateUnknown()
+    {
+        const int processId = 4952;
+        var snapshotReadCount = 0;
+        using var connected = await ConnectedWaitSessionBuilder.CreateAsync(
+            processId,
+            new object(),
+            async (request, _) =>
+            {
+                if (request.Method != "get_dp_value_source")
+                {
+                    return new { success = true };
+                }
+
+                snapshotReadCount++;
+                if (snapshotReadCount == 2)
+                {
+                    await Task.Delay(30);
+                }
+                else if (snapshotReadCount >= 3)
+                {
+                    await Task.Delay(1500);
+                }
+
+                return new
+                {
+                    success = true,
+                    propertyName = "Text",
+                    baseValueSource = "Local",
+                    currentValue = "before",
+                    effectiveValue = "before"
+                };
+            });
+        var waitTool = new WaitForDpChangeTool(connected.SessionManager);
+
+        var result = await waitTool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId,
+                propertyName = "Text",
+                timeoutMs = 60,
+                pollIntervalMs = 50,
+                expectedValue = JsonSerializer.SerializeToElement("after")
+            }),
+            CancellationToken.None);
+
+        var resultJson = JsonSerializer.SerializeToElement(result);
+        resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("timedOut").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("completionReason").GetString().Should().Be("TimedOut");
+        resultJson.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
+        connected.RequestMethods.Count(method => method == "get_dp_value_source").Should().Be(3);
+    }
+
+    [Fact]
     public async Task Execute_WhenCancelledDuringPollDelay_ShouldNotIssueAdditionalSnapshots()
     {
         const int processId = 4848;

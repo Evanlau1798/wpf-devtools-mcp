@@ -137,7 +137,8 @@ public abstract partial class PipeConnectedToolBase
         string method,
         object? parameters,
         CancellationToken ct,
-        bool piggybackPendingEvents = true)
+        bool piggybackPendingEvents = true,
+        bool countAgainstRateLimit = true)
     {
         if (!_sessionManager.TryGetSessionGeneration(processId, out var expectedSessionGeneration))
         {
@@ -150,7 +151,8 @@ public abstract partial class PipeConnectedToolBase
             method,
             parameters,
             ct,
-            piggybackPendingEvents).ConfigureAwait(false);
+            piggybackPendingEvents,
+            countAgainstRateLimit).ConfigureAwait(false);
     }
 
     protected async Task<object> SendInspectorRequestAsync(
@@ -159,14 +161,16 @@ public abstract partial class PipeConnectedToolBase
         string method,
         object? parameters,
         CancellationToken ct,
-        bool piggybackPendingEvents = true)
+        bool piggybackPendingEvents = true,
+        bool countAgainstRateLimit = true)
     {
         var result = await SendInspectorRequestCoreAsync(
             processId,
             expectedSessionGeneration,
             method,
             parameters,
-            ct).ConfigureAwait(false);
+            ct,
+            countAgainstRateLimit).ConfigureAwait(false);
         if (!piggybackPendingEvents)
         {
             return result;
@@ -194,12 +198,26 @@ public abstract partial class PipeConnectedToolBase
         CancellationToken ct) =>
         SendInspectorRequestAsync(processId, method, parameters, ct, piggybackPendingEvents: false);
 
+    protected Task<object> SendInternalInspectorRequestWithoutPiggybackAsync(
+        int processId,
+        string method,
+        object? parameters,
+        CancellationToken ct) =>
+        SendInspectorRequestAsync(
+            processId,
+            method,
+            parameters,
+            ct,
+            piggybackPendingEvents: false,
+            countAgainstRateLimit: false);
+
     private async Task<object> SendInspectorRequestCoreAsync(
         int processId,
         long expectedSessionGeneration,
         string method,
         object? parameters,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool countAgainstRateLimit = true)
     {
         // Get the pipe client and verify the request is still bound to the same session generation.
         var client = _sessionManager.GetPipeClient(processId, expectedSessionGeneration);
@@ -207,12 +225,15 @@ public abstract partial class PipeConnectedToolBase
             return CreateNotConnectedError(processId);
 
         // SECURITY: Check rate limit to prevent DoS attacks (only for connected sessions)
-        var rateLimitStatus = _sessionManager.CheckRateLimitStatus(processId);
-        if (!rateLimitStatus.Allowed)
+        if (countAgainstRateLimit)
         {
-            return RateLimitResponseFactory.Create(
-                rateLimitStatus,
-                "Rate limit exceeded. Please slow down your requests.");
+            var rateLimitStatus = _sessionManager.CheckRateLimitStatus(processId);
+            if (!rateLimitStatus.Allowed)
+            {
+                return RateLimitResponseFactory.Create(
+                    rateLimitStatus,
+                    "Rate limit exceeded. Please slow down your requests.");
+            }
         }
 
         if (!client.IsConnected)
@@ -297,7 +318,8 @@ public abstract partial class PipeConnectedToolBase
                 expectedSessionGeneration,
                 "drain_events",
                 new { maxEvents = DefaultPiggybackMaxEvents },
-                piggybackCts.Token).ConfigureAwait(false);
+                piggybackCts.Token,
+                countAgainstRateLimit: false).ConfigureAwait(false);
 
             var drainPayload = ToJsonElement(drainResult);
             if (!IsSuccessfulPayload(drainPayload))

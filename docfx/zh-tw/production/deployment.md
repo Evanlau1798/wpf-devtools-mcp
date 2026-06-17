@@ -19,11 +19,13 @@ Production review 時，請把下列檔案放在一起：
 
 ## 安裝路徑
 
-正式發行版 alias：
+在第一個 stable GitHub Release 發布前，請使用 preview pre-release alias：
 
 ```powershell
-irm https://installer.wpf-mcptools.evanlau1798.com | iex
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
+
+只有在 stable release assets 與 anonymous endpoint smoke checks 通過後，才使用 default stable `latest` channel。
 
 已審查本機 package command：
 

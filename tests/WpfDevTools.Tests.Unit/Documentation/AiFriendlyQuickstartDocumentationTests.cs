@@ -5,6 +5,9 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 
 public sealed class AiFriendlyQuickstartDocumentationTests
 {
+    private const string PreviewPrereleaseInstallerCommand =
+        "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease";
+
     [Theory]
     [InlineData("docfx/reference/tools/index.md")]
     [InlineData("docfx/zh-tw/reference/tools/index.md")]
@@ -99,7 +102,7 @@ public sealed class AiFriendlyQuickstartDocumentationTests
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
             content.Should().NotContain("raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/online-installer.ps1");
-            content.Should().Contain("irm https://installer.wpf-mcptools.evanlau1798.com | iex");
+            content.Should().Contain(PreviewPrereleaseInstallerCommand);
             content.Should().Contain("release_<version>_win-<arch>.zip");
             content.Should().Contain("release-assets.json");
         }

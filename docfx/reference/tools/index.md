@@ -67,7 +67,7 @@ If you only need broader auto-discovery, prefer `connect(windowFilter='all')` an
 
 ## Contract validation scope
 
-The DocFX validation script verifies tool-name coverage against `[McpServerTool]` attributes in the source tree and checks that no listed tool names are stale. Unit documentation tests validate the generated contract snapshot hashes shown below. The validation script does not regenerate or fully validate parameter lists, output schemas, or capability tags.
+The DocFX validation script verifies tool-name coverage from the canonical tool manifest when available, with a structured source-attribute fallback for lightweight validation fixtures, and checks that no listed tool names are stale. Unit documentation tests validate the generated contract snapshot hashes shown below. The validation script does not regenerate or fully validate parameter lists, output schemas, or capability tags.
 
 For parameter metadata, policy gates, and output schemas, use the runtime resources:
 
@@ -80,7 +80,7 @@ If a tool signature, policy gate, or response schema changes, update the relevan
 
 These values are generated from the runtime MCP contract resources. If a tool is added or renamed, a method signature changes, policy gates move, or response fields change, the documentation tests require this snapshot to be regenerated.
 
-- `wpf://contracts/tools` SHA-256: `fe179b86c0d386e26e3e68fc7185beae7830638541147651ab119933862529e3`
+- `wpf://contracts/tools` SHA-256: `0e9aa21b780fee64663e34b63f893f27bd4ec99496f4524a8eb625c99d0ff37a`
 - `wpf://contracts/response` SHA-256: `78a7564133b834b534029c39ceda3a2a7b9a234c246629fba68a82364857c03e`
 - Validation scope: `toolCount`, `name`, `title`, `parameters`, `requiredParameters`, `inputSchemaHash`, `outputSchemaHash`, `capabilityTags`, `policyCapabilityTags`, `annotations`, `parameterConstraints`, `parameterVocabularies`, and `highValueTools`.
 

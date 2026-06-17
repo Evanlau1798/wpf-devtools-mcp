@@ -68,6 +68,87 @@ internal static partial class ReleaseScriptTestHarness
         return TimeSpan.FromMilliseconds(timeout.TotalMilliseconds * scale);
     }
 
+    internal static bool WaitForProcessIdFileToExit(
+        string processIdPath,
+        TimeSpan timeout,
+        out int? processId)
+    {
+        processId = null;
+        var deadline = DateTimeOffset.UtcNow.Add(ScaleTimeout(timeout));
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (!processId.HasValue && TryReadProcessId(processIdPath, out var detectedProcessId))
+            {
+                processId = detectedProcessId;
+            }
+
+            if (processId.HasValue && !IsProcessRunning(processId.Value))
+            {
+                return true;
+            }
+
+            Thread.Sleep(50);
+        }
+
+        return processId.HasValue && !IsProcessRunning(processId.Value);
+    }
+
+    internal static void KillProcessTreeIfRunning(int? processId)
+    {
+        if (!processId.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            using var process = Process.GetProcessById(processId.Value);
+            TryKillProcessTree(process);
+        }
+        catch (ArgumentException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    private static bool TryReadProcessId(string processIdPath, out int processId)
+    {
+        processId = 0;
+        try
+        {
+            return File.Exists(processIdPath) &&
+                int.TryParse(File.ReadAllText(processIdPath).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out processId);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsProcessRunning(int processId)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            return !process.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
     private static void TryKillProcessTree(Process process)
     {
         if (process.HasExited)

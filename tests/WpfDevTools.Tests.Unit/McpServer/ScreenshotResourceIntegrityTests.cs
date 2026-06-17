@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using FluentAssertions;
+using ModelContextProtocol;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpResources;
 
@@ -103,8 +104,30 @@ public sealed class ScreenshotResourceIntegrityTests
         var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, ScreenshotId);
 
         act.Should()
-            .Throw<InvalidOperationException>()
-            .WithMessage("*failed SHA-256 verification*");
+            .Throw<McpProtocolException>()
+            .Where(ex => ex.ErrorCode == McpErrorCode.InternalError)
+            .WithMessage("*failed integrity verification*");
+    }
+
+    [Fact]
+    public void GetScreenshotPng_WithFileDeletedAfterRegistration_ShouldReturnResourceNotFound()
+    {
+        using var sessionManager = new SessionManager();
+        var originalBytes = new byte[] { 137, 80, 78, 71 };
+        var filePath = WriteOwnedScreenshot(sessionManager, originalBytes);
+        sessionManager.RegisterScreenshotResource(
+            ProcessId,
+            ScreenshotId,
+            filePath,
+            ValidSha256For(originalBytes));
+        File.Delete(filePath);
+
+        var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, ScreenshotId);
+
+        act.Should()
+            .Throw<McpProtocolException>()
+            .Where(ex => ex.ErrorCode == McpErrorCode.ResourceNotFound)
+            .WithMessage("*no longer available*");
     }
 
     private static string WriteOwnedScreenshot(SessionManager sessionManager, byte[] imageBytes)

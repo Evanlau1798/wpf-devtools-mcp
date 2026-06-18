@@ -34,6 +34,8 @@ internal static class MutationBatchMcpToolDescriptions
         "  - errorCode (optional): string,\n" +
         "  - recovery (optional): { suggestedAction, hint, tool (optional), params (optional) },\n" +
         "  - executionMode: 'sequential-stop-on-error',\n" +
+        "  - executionPolicy: 'sequential',\n" +
+        "  - stopOnError: true,\n" +
         "  - mutationCount: number,\n" +
         "  - executedMutationCount: number,\n" +
         "  - successfulMutationCount: number,\n" +

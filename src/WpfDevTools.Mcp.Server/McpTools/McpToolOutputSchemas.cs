@@ -189,6 +189,8 @@ internal static partial class McpToolOutputSchemas
             ["batch_mutate"] = CreateSchema(false, new()
             {
                 ["executionMode"] = String("Batch execution strategy."),
+                ["executionPolicy"] = String("Human-readable batch execution policy."),
+                ["stopOnError"] = Boolean("Whether execution stops after the first failed mutation."),
                 ["mutations"] = ArrayOf("Per-mutation results in execution order.", MutationResult()),
                 ["mutationCount"] = Integer("Total mutation count."),
                 ["executedMutationCount"] = Integer("Number of mutations that started execution."),

@@ -50,7 +50,7 @@ public sealed partial class ResponseContractResourceTests
             highValueTools,
             "batch_mutate",
             "batch-mutation",
-            topLevelFields: ["snapshotId", "mutationCount", "executedMutationCount", "failedMutationCount", "skippedMutationCount", "mutations", "stateDiff", "rollback", "recovery", "stateAfterTimeoutUnknown", "requiresReconnect", "retryAfterSeconds", "retryAfter", "availableTokens"],
+            topLevelFields: ["snapshotId", "executionPolicy", "stopOnError", "mutationCount", "executedMutationCount", "failedMutationCount", "skippedMutationCount", "mutations", "stateDiff", "rollback", "recovery", "stateAfterTimeoutUnknown", "requiresReconnect", "retryAfterSeconds", "retryAfter", "availableTokens"],
             requestParameters: ["captureSnapshot", "includeDiff", "mutations", "trigger"],
             nestedResponsePaths: ["mutations[].tool", "mutations[].success", "mutations[].stateAfterTimeoutUnknown", "stateDiff.snapshotId", "rollback.params.snapshotId", "recovery.tool", "recovery.retryAfterSeconds"]);
     }

@@ -262,6 +262,8 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
             availableEvents = failure?.Projection?.AvailableEvents,
             recovery = failure?.Recovery,
             executionMode = "sequential-stop-on-error",
+            executionPolicy = "sequential",
+            stopOnError = true,
             mutationCount = request.Mutations.Count,
             executedMutationCount,
             successfulMutationCount,

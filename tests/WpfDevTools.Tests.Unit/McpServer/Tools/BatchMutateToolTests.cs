@@ -63,6 +63,8 @@ public sealed class BatchMutateToolTests
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("snapshotId").GetString().Should().Be("snapshot_batch_1");
+        result.GetProperty("executionPolicy").GetString().Should().Be("sequential");
+        result.GetProperty("stopOnError").GetBoolean().Should().BeTrue();
         result.GetProperty("mutationCount").GetInt32().Should().Be(2);
         result.GetProperty("executedMutationCount").GetInt32().Should().Be(2);
         result.GetProperty("successfulMutationCount").GetInt32().Should().Be(2);

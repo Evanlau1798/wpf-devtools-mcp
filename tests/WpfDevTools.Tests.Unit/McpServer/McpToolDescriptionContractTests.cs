@@ -81,6 +81,8 @@ public sealed class McpToolDescriptionContractTests
 
         description.Should().ContainAll(
             "mutationCount",
+            "executionPolicy",
+            "stopOnError",
             "executedMutationCount",
             "successfulMutationCount",
             "failedMutationCount",

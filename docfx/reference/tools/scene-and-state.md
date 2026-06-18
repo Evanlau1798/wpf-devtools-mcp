@@ -147,7 +147,7 @@ Parameters:
 - `includeDiff` optional; requires `captureSnapshot`.
 - `trigger`, `processId`, and default `elementId` optional.
 
-Output fields include execution counts, per-step results, optional `snapshotId`, optional `stateDiff`, and rollback guidance. Execution stops on the first failed step and does not automatically roll back.
+Output fields include `executionPolicy`, `stopOnError`, execution counts, per-step results, optional `snapshotId`, optional `stateDiff`, and rollback guidance. Execution stops on the first failed step and does not automatically roll back.
 
 Example:
 

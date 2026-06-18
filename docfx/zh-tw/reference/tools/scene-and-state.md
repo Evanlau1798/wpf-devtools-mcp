@@ -147,7 +147,7 @@ Policy gate：destructive。Server 必須先以 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTI
 - `includeDiff`：可選；需要搭配 `captureSnapshot`。
 - `trigger`、`processId` 與預設 `elementId`：可選。
 
-輸出欄位包含 execution counts、每個 step 的結果、可選 `snapshotId`、可選 `stateDiff` 與 rollback guidance。遇到第一個失敗 step 就停止，且不會自動 rollback。
+輸出欄位包含 `executionPolicy`、`stopOnError`、execution counts、每個 step 的結果、可選 `snapshotId`、可選 `stateDiff` 與 rollback guidance。遇到第一個失敗 step 就停止，且不會自動 rollback。
 
 範例：
 

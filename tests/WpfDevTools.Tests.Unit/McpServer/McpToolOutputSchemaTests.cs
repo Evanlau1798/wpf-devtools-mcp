@@ -270,6 +270,8 @@ public sealed class McpToolOutputSchemaTests
         AssertNestedPropertyType("batch_mutate", ["recovery"], "availableEvents", "array");
         AssertTopLevelFields("batch_mutate",
             "executionMode",
+            "executionPolicy",
+            "stopOnError",
             "mutations",
             "stateDiff",
             "requiresReconnect",

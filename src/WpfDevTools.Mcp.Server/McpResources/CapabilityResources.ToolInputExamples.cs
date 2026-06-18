@@ -233,7 +233,7 @@ public static partial class CapabilityResources
                         }
                     }
                 },
-                capture_state_snapshot = new[]
+                capture_state_snapshot = new object[]
                 {
                     new
                     {
@@ -250,6 +250,25 @@ public static partial class CapabilityResources
                             propertyNames = new[] { "Text", "IsEnabled" },
                             includeFocus = true,
                             snapshotName = "before-editor-change"
+                        }
+                    },
+                    new
+                    {
+                        name = "Capture bound Text rollback with source ViewModel state",
+                        policyGates = new[]
+                        {
+                            "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS",
+                            "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS",
+                            "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION"
+                        },
+                        arguments = new
+                        {
+                            processId = 12345,
+                            elementId = "SearchTextBox",
+                            propertyNames = new[] { "Text" },
+                            viewModelPropertyNames = new[] { "SearchText" },
+                            includeFocus = true,
+                            snapshotName = "before-bound-search-text"
                         }
                     }
                 },

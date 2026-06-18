@@ -113,6 +113,17 @@ public sealed class McpToolDescriptionContractTests
     }
 
     [Fact]
+    public void CaptureStateSnapshot_Description_ShouldExplainBoundDpSourceRollback()
+    {
+        var description = GetDescriptionText("capture_state_snapshot");
+
+        description.Should().Contain("Binding-backed");
+        description.Should().Contain("two-way");
+        description.Should().Contain("viewModelPropertyNames");
+        description.Should().Contain("includeFocus");
+    }
+
+    [Fact]
     public void DrainEvents_Description_ShouldAdvertiseCleanupDiagnosticsAndReplaySubsetSemantics()
     {
         var description = GetDescriptionText("drain_events");

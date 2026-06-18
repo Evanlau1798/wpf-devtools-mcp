@@ -104,6 +104,18 @@ public sealed class ToolInputExamplesResourceTests
     }
 
     [Fact]
+    public void ToolExamplesResource_ShouldIncludeBoundDpSnapshotRollbackExample()
+    {
+        using var document = ReadToolExamples();
+        var captureExamples = document.RootElement
+            .GetProperty("examplesByTool")
+            .GetProperty("capture_state_snapshot");
+
+        captureExamples.EnumerateArray().Any(HasBoundDpSnapshotRollbackExample)
+            .Should().BeTrue("agents need a concrete rollback-safe example for two-way bound DependencyProperties");
+    }
+
+    [Fact]
     public void ToolExamplesResource_ShouldOnlyReferenceRegisteredTools()
     {
         using var document = ReadToolExamples();
@@ -166,6 +178,17 @@ public sealed class ToolInputExamplesResourceTests
     private static bool HasScreenshotResourceFollowUp(JsonElement example)
         => example.TryGetProperty("resourceFollowUp", out var followUp)
            && followUp.GetProperty("resourceUriTemplate").GetString() == "wpf://screenshots/{screenshotId}";
+
+    private static bool HasBoundDpSnapshotRollbackExample(JsonElement example)
+    {
+        var arguments = example.GetProperty("arguments");
+        return example.GetProperty("name").GetString()?.Contains("bound", StringComparison.OrdinalIgnoreCase) == true
+               && arguments.TryGetProperty("propertyNames", out var propertyNames)
+               && propertyNames.EnumerateArray().Any(item => item.GetString() == "Text")
+               && arguments.TryGetProperty("viewModelPropertyNames", out var viewModelPropertyNames)
+               && viewModelPropertyNames.EnumerateArray().Any(item => item.GetString() == "SearchText")
+               && arguments.GetProperty("includeFocus").GetBoolean();
+    }
 
     private static HashSet<string> GetRegisteredToolNames()
         => typeof(CapabilityResources).Assembly.GetTypes()

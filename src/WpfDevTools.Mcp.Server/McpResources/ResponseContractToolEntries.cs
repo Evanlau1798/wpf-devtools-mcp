@@ -417,6 +417,29 @@ internal static class ResponseContractToolEntries
                         }
                     }
                 },
+                outputModeGuidance = new
+                {
+                    metadata = new
+                    {
+                        noImageBytes = true,
+                        preferredForPixelEvidence = false,
+                        useWhen = "Use for dimensions, format, renderability checks, and low-cost discovery only."
+                    },
+                    file = new
+                    {
+                        noImageBytes = false,
+                        preferredForPixelEvidence = true,
+                        resourceRead = "resources/read",
+                        useWhen = "Use for normal pixel evidence; the result returns resourceUri and redacts local paths."
+                    },
+                    base64 = new
+                    {
+                        noImageBytes = false,
+                        inlineOnlyForSmallImages = true,
+                        preferredForPixelEvidence = false,
+                        useWhen = "Use only for small inline captures when a resource read is not available."
+                    }
+                },
                 errorDataFields = new[]
                 {
                     "errorData.byteLength",

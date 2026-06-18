@@ -277,8 +277,25 @@ public static partial class CapabilityResources
                         }
                     }
                 },
-                element_screenshot = new[]
+                element_screenshot = new object[]
                 {
+                    new
+                    {
+                        name = "Read screenshot metadata without image bytes",
+                        policyGates = new[] { "WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS" },
+                        arguments = new
+                        {
+                            processId = 12345,
+                            elementId = "SaveButton",
+                            outputMode = "metadata"
+                        },
+                        outputGuidance = new
+                        {
+                            noImageBytes = true,
+                            pixelEvidenceMode = "file",
+                            useWhen = "Use metadata for dimensions, format, and renderability checks only."
+                        }
+                    },
                     new
                     {
                         name = "Capture a file-backed screenshot and read the retained resource",
@@ -295,6 +312,12 @@ public static partial class CapabilityResources
                             when = "Use when the tool result includes resourceUri.",
                             call = "resources/read",
                             resourceUriTemplate = "wpf://screenshots/{screenshotId}"
+                        },
+                        outputGuidance = new
+                        {
+                            noImageBytes = false,
+                            pixelEvidenceMode = "file",
+                            useWhen = "Use file mode when pixel evidence is required without bloating the tool response."
                         }
                     }
                 },

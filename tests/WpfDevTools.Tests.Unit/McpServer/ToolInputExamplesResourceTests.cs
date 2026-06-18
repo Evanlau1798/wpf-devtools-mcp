@@ -104,6 +104,18 @@ public sealed class ToolInputExamplesResourceTests
     }
 
     [Fact]
+    public void ToolExamplesResource_ShouldDescribeScreenshotOutputModeTradeoffs()
+    {
+        using var document = ReadToolExamples();
+        var screenshotExamples = document.RootElement
+            .GetProperty("examplesByTool")
+            .GetProperty("element_screenshot");
+
+        screenshotExamples.EnumerateArray().Any(HasScreenshotMetadataModeGuidance)
+            .Should().BeTrue("agents need to know metadata mode returns dimensions but no image bytes");
+    }
+
+    [Fact]
     public void ToolExamplesResource_ShouldIncludeBoundDpSnapshotRollbackExample()
     {
         using var document = ReadToolExamples();
@@ -192,6 +204,16 @@ public sealed class ToolInputExamplesResourceTests
     private static bool HasScreenshotResourceFollowUp(JsonElement example)
         => example.TryGetProperty("resourceFollowUp", out var followUp)
            && followUp.GetProperty("resourceUriTemplate").GetString() == "wpf://screenshots/{screenshotId}";
+
+    private static bool HasScreenshotMetadataModeGuidance(JsonElement example)
+    {
+        var arguments = example.GetProperty("arguments");
+        return arguments.TryGetProperty("outputMode", out var outputMode)
+               && outputMode.GetString() == "metadata"
+               && example.TryGetProperty("outputGuidance", out var outputGuidance)
+               && outputGuidance.GetProperty("noImageBytes").GetBoolean()
+               && outputGuidance.GetProperty("pixelEvidenceMode").GetString() == "file";
+    }
 
     private static bool HasBoundDpSnapshotRollbackExample(JsonElement example)
     {

@@ -82,6 +82,21 @@ public sealed class ResponseContractResourceOperationalGuidanceTests
                 "call drain_events again to read only the action window");
     }
 
+    [Fact]
+    public void ResponseContractResource_ShouldDescribeScreenshotOutputModeGuidance()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetResponseContract());
+        var screenshotTool = document.RootElement
+            .GetProperty("highValueTools")
+            .EnumerateArray()
+            .Single(tool => tool.GetProperty("tool").GetString() == "element_screenshot");
+        var guidance = screenshotTool.GetProperty("outputModeGuidance");
+
+        guidance.GetProperty("metadata").GetProperty("noImageBytes").GetBoolean().Should().BeTrue();
+        guidance.GetProperty("file").GetProperty("preferredForPixelEvidence").GetBoolean().Should().BeTrue();
+        guidance.GetProperty("base64").GetProperty("inlineOnlyForSmallImages").GetBoolean().Should().BeTrue();
+    }
+
     private static void AssertPolicyProfile(JsonElement profiles, string name, params string[] envVars)
     {
         var profile = profiles

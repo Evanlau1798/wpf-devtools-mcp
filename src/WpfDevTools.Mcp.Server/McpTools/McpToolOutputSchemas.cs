@@ -279,6 +279,8 @@ internal static partial class McpToolOutputSchemas
             ["pendingEventsOrigin"] = String("Origin of the pending event payload when reported."),
             ["pendingEventsMayIncludePriorContext"] = Boolean("Whether pending events may include context from before this request."),
             ["pendingEventsSuggestedAction"] = String("Recommended drain_events workflow when a clean event window matters."),
+            ["pendingEventsAreAdvisory"] = Boolean("Whether piggybacked pending events are advisory shared-buffer context rather than proof that the current request caused them."),
+            ["pendingEventsSummary"] = String("Compact summary of piggybacked event count, event types, prior-context caveat, and clean drain workflow."),
             ["cleanupIncomplete"] = Boolean("Whether cleanup after a tool operation was incomplete."),
             ["cleanupFailureMessage"] = String("Cleanup failure details when cleanupIncomplete is true."),
             ["cleanupFailureType"] = String("Cleanup failure type when cleanupIncomplete is true."),

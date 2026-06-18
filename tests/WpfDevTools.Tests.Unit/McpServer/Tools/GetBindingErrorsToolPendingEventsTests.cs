@@ -67,6 +67,11 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         result.GetProperty("pendingEventsOrigin").GetString().Should().Be("piggybackSharedBuffer");
         result.GetProperty("pendingEventsMayIncludePriorContext").GetBoolean().Should().BeTrue();
         result.GetProperty("pendingEventsSuggestedAction").GetString().Should().Contain("drain_events");
+        result.GetProperty("pendingEventsAreAdvisory").GetBoolean().Should().BeTrue();
+        result.GetProperty("pendingEventsSummary").GetString().Should().ContainAll(
+            "BindingError",
+            "prior context",
+            "drain_events");
 
         var pendingEvent = result.GetProperty("pendingEvents")[0];
         pendingEvent.GetProperty("eventType").GetString().Should().Be("BindingError");

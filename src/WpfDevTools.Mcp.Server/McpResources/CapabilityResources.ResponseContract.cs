@@ -91,7 +91,9 @@ public static partial class CapabilityResources
                     "cleanupFailureType",
                     "pendingEventsOrigin",
                     "pendingEventsMayIncludePriorContext",
-                    "pendingEventsSuggestedAction"
+                    "pendingEventsSuggestedAction",
+                    "pendingEventsAreAdvisory",
+                    "pendingEventsSummary"
                 }
             },
             policyProfiles = new[]
@@ -159,7 +161,9 @@ public static partial class CapabilityResources
                     "cleanupFailureType",
                     "pendingEventsOrigin",
                     "pendingEventsMayIncludePriorContext",
-                    "pendingEventsSuggestedAction"
+                    "pendingEventsSuggestedAction",
+                    "pendingEventsAreAdvisory",
+                    "pendingEventsSummary"
                 },
                 piggybackScope = "any successful pipe-backed tool response that keeps default piggyback drain behavior",
                 illustrativeTools = new[] { "get_binding_errors" },
@@ -167,8 +171,10 @@ public static partial class CapabilityResources
                 pendingEventsOriginValues = new[] { "piggybackSharedBuffer" },
                 pendingEventsMayIncludePriorContextField = "pendingEventsMayIncludePriorContext",
                 pendingEventsSuggestedActionField = "pendingEventsSuggestedAction",
+                pendingEventsAreAdvisoryField = "pendingEventsAreAdvisory",
+                pendingEventsSummaryField = "pendingEventsSummary",
                 deterministicDrainTool = "drain_events",
-                priorContextGuidance = "When pendingEventsOrigin is piggybackSharedBuffer and pendingEventsMayIncludePriorContext is true, pendingEvents can include prior context from earlier watch activity. Use drain_events directly when a clean action window matters.",
+                priorContextGuidance = "When pendingEventsOrigin is piggybackSharedBuffer and pendingEventsMayIncludePriorContext is true, pendingEvents can include prior context from earlier watch activity. Treat pendingEventsAreAdvisory=true and pendingEventsSummary as a compact caveat, and use drain_events directly when a clean action window matters.",
                 cleanBufferWorkflow = new[]
                 {
                     "call drain_events with the narrowest useful filters before the action",

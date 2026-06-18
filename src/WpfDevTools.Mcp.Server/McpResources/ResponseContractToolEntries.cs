@@ -147,6 +147,8 @@ internal static class ResponseContractToolEntries
                     "pendingEventsOrigin",
                     "pendingEventsMayIncludePriorContext",
                     "pendingEventsSuggestedAction",
+                    "pendingEventsAreAdvisory",
+                    "pendingEventsSummary",
                     "navigation",
                     "nextSteps"
                 },

@@ -122,6 +122,8 @@ public abstract partial class PipeConnectedToolBase
         writer.WriteString(
             "pendingEventsSuggestedAction",
             "For a clean event window, call drain_events with narrow filters before the next action, perform the action, then call drain_events again.");
+        writer.WriteBoolean("pendingEventsAreAdvisory", true);
+        writer.WriteString("pendingEventsSummary", BuildPendingEventsSummary(drainPayload));
 
         if (drainPayload.TryGetProperty("pendingEvents", out var pendingEvents))
         {
@@ -134,6 +136,40 @@ public abstract partial class PipeConnectedToolBase
 
         using var document = JsonDocument.Parse(buffer.WrittenMemory);
         return document.RootElement.Clone();
+    }
+
+    private static string BuildPendingEventsSummary(JsonElement drainPayload)
+    {
+        var pendingEventCount = drainPayload.TryGetProperty("pendingEventCount", out var countProperty)
+            && countProperty.ValueKind == JsonValueKind.Number
+            && countProperty.TryGetInt32(out var count)
+                ? count
+                : 0;
+        var eventTypes = GetPendingEventTypes(drainPayload);
+        var typeSummary = eventTypes.Length > 0
+            ? $" Types: {string.Join(", ", eventTypes)}."
+            : string.Empty;
+        return $"{pendingEventCount} piggybacked shared-buffer event(s) are advisory and may include prior context from before this request.{typeSummary} Use drain_events before and after an action when a clean event window matters.";
+    }
+
+    private static string[] GetPendingEventTypes(JsonElement drainPayload)
+    {
+        if (!drainPayload.TryGetProperty("pendingEvents", out var pendingEvents)
+            || pendingEvents.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return pendingEvents.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.Object)
+            .Select(item => item.TryGetProperty("eventType", out var eventType)
+                && eventType.ValueKind == JsonValueKind.String
+                    ? eventType.GetString()
+                    : null)
+            .Where(eventType => !string.IsNullOrWhiteSpace(eventType))
+            .Cast<string>()
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
     }
 
     private static object MergePiggybackFailureDiagnostics(

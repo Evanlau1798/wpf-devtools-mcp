@@ -210,6 +210,9 @@ public sealed class McpToolOutputSchemaTests
     [Fact]
     public void ExactHighValueTools_ShouldCoverKnownRuntimePayloadFields()
     {
+        AssertTopLevelFields("get_binding_errors",
+            "pendingEventsAreAdvisory",
+            "pendingEventsSummary");
         AssertTopLevelFields("connect",
             "hint",
             "reusedExistingHost",
@@ -344,6 +347,8 @@ public sealed class McpToolOutputSchemaTests
         "pendingEventsOrigin",
         "pendingEventsMayIncludePriorContext",
         "pendingEventsSuggestedAction",
+        "pendingEventsAreAdvisory",
+        "pendingEventsSummary",
         "cleanupIncomplete",
         "cleanupFailureMessage",
         "cleanupFailureType",

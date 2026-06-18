@@ -104,6 +104,22 @@ public static partial class CapabilityResources
                         }
                     }
                 },
+                get_namescope = new[]
+                {
+                    new
+                    {
+                        name = "Focused lookup from a known scope",
+                        arguments = new
+                        {
+                            processId = 12345,
+                            elementId = "MainWindow"
+                        },
+                        followUp = new
+                        {
+                            next = "Use returned names for get_element_snapshot or scoped find_elements before broad tree dumps."
+                        }
+                    }
+                },
                 get_bindings = new[]
                 {
                     new

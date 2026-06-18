@@ -116,6 +116,19 @@ public sealed class ToolInputExamplesResourceTests
     }
 
     [Fact]
+    public void ToolExamplesResource_ShouldIncludeNamescopeFocusedLookupExample()
+    {
+        using var document = ReadToolExamples();
+        var examplesByTool = document.RootElement.GetProperty("examplesByTool");
+
+        examplesByTool.TryGetProperty("get_namescope", out var namescopeExamples).Should().BeTrue();
+        namescopeExamples.EnumerateArray().Any(example =>
+            example.GetProperty("name").GetString()?.Contains("focused lookup", StringComparison.OrdinalIgnoreCase) == true
+            && example.GetProperty("arguments").TryGetProperty("elementId", out _))
+            .Should().BeTrue("agents need a concrete namescope-first lookup example before using broad tree dumps");
+    }
+
+    [Fact]
     public void ToolExamplesResource_ShouldIncludeBoundDpSnapshotRollbackExample()
     {
         using var document = ReadToolExamples();

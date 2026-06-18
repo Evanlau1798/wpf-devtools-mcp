@@ -76,6 +76,13 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldGuideFocusedLookupBeforeBroadTrees()
+    {
+        ServerInstructions.Value.Should().Contain("get_namescope before broad tree dumps");
+        ServerInstructions.Value.Should().Contain("scoped find_elements");
+    }
+
+    [Fact]
     public void Value_ShouldContainCommonWorkflows()
     {
         ServerInstructions.Value.Should().Contain("COMMON WORKFLOWS");

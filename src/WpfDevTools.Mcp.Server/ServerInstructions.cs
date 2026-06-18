@@ -52,6 +52,7 @@ public static class ServerInstructions
         === ELEMENT DISCOVERY ===
         - elementId is session-specific; omitting it targets Application.MainWindow
         - Use find_elements for compact lookup, then get_visual_tree/get_logical_tree for surrounding structure
+        - For named controls, build scene context first, then use get_namescope before broad tree dumps when you have a scope; prefer scoped find_elements with elementId/depth before expanding full visual or logical trees
         - Each tree/window node returns an elementId; use get_windows first for dialogs, tool windows, or secondary windows
 
         === MULTI-WINDOW SUPPORT ===
@@ -75,7 +76,7 @@ public static class ServerInstructions
 
         === TOOL SELECTION GUIDE ===
         - Need quick scene context first? -> get_ui_summary (semantic default; use summaryOnly=true when you only need summaryText) or get_form_summary; use get_element_snapshot(elementId) only after a concrete elementId is known
-        - Need exact element lookup first? -> find_elements, then get_visual_tree/get_logical_tree for local structure
+        - Need exact element lookup first? -> get_namescope before broad tree dumps when names are available, otherwise scoped find_elements, then get_visual_tree/get_logical_tree for local structure
         - Blank screen / wrong data? -> get_binding_errors, get_bindings, get_datacontext_chain
         - Binding active but data looks wrong? -> get_binding_mismatches (path, type, nullability analysis)
         - UI not responding to changes? -> get_dp_value_source, get_viewmodel (MVVM)

@@ -2,6 +2,16 @@
 
 This server is explicitly intended for AI-assisted WPF debugging and testing. The most effective agents treat the MCP tool catalog as the contract, use discovery first, and separate inspection from mutation.
 
+## First calls
+
+Before calling tools, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the target executable path and enable only the gates required by the task.
+
+1. `connect()`
+2. If `connect()` is ambiguous, call `get_processes(windowFilter)` and retry `connect(processId)`.
+3. `get_ui_summary` for scene-first orientation.
+4. `find_elements` or `get_namescope` to obtain a current `elementId`.
+5. `get_element_snapshot(elementId)`, then follow `navigation.recommended` or `nextSteps`.
+
 ## Recommended workflow
 
 1. Discover tools and schemas.

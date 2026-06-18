@@ -2,6 +2,16 @@
 
 這個 server 本來就是為 AI 輔助的 WPF 偵錯與測試而設計。效果最好的 agent 會把 MCP 工具目錄當成契約來源，先做 discovery，再把 inspection 與 mutation 清楚分開。
 
+## 前幾個呼叫
+
+呼叫工具前，先確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含目標 executable path，並只啟用目前任務需要的 gates。
+
+1. `connect()`
+2. 若 `connect()` 回報多個候選，呼叫 `get_processes(windowFilter)`，再用 `connect(processId)` 重試。
+3. 用 `get_ui_summary` 先建立 scene-first 理解。
+4. 用 `find_elements` 或 `get_namescope` 取得目前 session 的 `elementId`。
+5. 呼叫 `get_element_snapshot(elementId)`，再依 `navigation.recommended` 或 `nextSteps` 前進。
+
 ## 建議工作流程
 
 1. 先探索工具與 schema。

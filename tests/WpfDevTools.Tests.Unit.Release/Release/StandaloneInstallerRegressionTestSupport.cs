@@ -12,11 +12,12 @@ internal static class StandaloneInstallerRegressionTestSupport
 
     public static (int ExitCode, string Stdout, string Stderr) RunRepoInstaller(
         string tempRoot,
-        IReadOnlyList<string> arguments)
+        IReadOnlyList<string> arguments,
+        IReadOnlyDictionary<string, string?>? environment = null)
         => ReleaseScriptTestHarness.RunPowerShellScript(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
             arguments,
-            CreateStandaloneEnvironment(tempRoot));
+            environment ?? CreateStandaloneEnvironment(tempRoot));
 
     public static IReadOnlyDictionary<string, string?> CreateStandaloneEnvironment(
         string tempRoot,
@@ -30,6 +31,29 @@ internal static class StandaloneInstallerRegressionTestSupport
             ["WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI"] = "http://127.0.0.1:1/installer",
             ["WPFDEVTOOLS_INSTALLER_HELPER_TIMEOUT_SEC"] = "1",
             ["WPFDEVTOOLS_INSTALLER_HELPER_BOOTSTRAP_TIMEOUT_SEC"] = "3"
+        };
+
+        if (overrides is not null)
+        {
+            foreach (var pair in overrides)
+            {
+                environment[pair.Key] = pair.Value;
+            }
+        }
+
+        return environment;
+    }
+
+    public static IReadOnlyDictionary<string, string?> CreatePublicStandaloneEnvironment(
+        string tempRoot,
+        IReadOnlyDictionary<string, string?>? overrides = null)
+    {
+        var environment = new Dictionary<string, string?>
+        {
+            ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+            ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+            ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+            ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0"
         };
 
         if (overrides is not null)

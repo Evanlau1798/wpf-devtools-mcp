@@ -2095,6 +2095,140 @@ function Resolve-StandaloneExecutableCommandPath {
 
     return $null
 }
+function Format-StandaloneCommandArgument {
+    param([AllowNull()] [string]$Value)
+
+    if ($null -eq $Value) {
+        return '""'
+    }
+
+    $argument = [string]$Value
+    if ($argument.Length -eq 0) {
+        return '""'
+    }
+
+    if ($argument -match '[\s"]') {
+        return '"' + $argument.Replace('"', '\"') + '"'
+    }
+
+    return $argument
+}
+function Invoke-StandaloneVerificationCommand {
+    param(
+        [Parameter(Mandatory)] [string]$Command,
+        [Parameter(Mandatory)] [string[]]$Arguments,
+        [Parameter(Mandatory)] [string]$ExpectedToken,
+        [Parameter(Mandatory)] [bool]$ExpectPresent
+    )
+
+    $isElevated = Test-StandaloneInstallerRunningElevated
+    $selectedCommandPath = $null
+    try {
+        $selectedCommandPath = Resolve-StandaloneExecutableCommandPath -Command $Command
+    }
+    catch {
+        return [ordered]@{
+            Succeeded = $false
+            Output = $_.Exception.Message
+            ExitCode = -1
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($selectedCommandPath)) {
+        return [ordered]@{
+            Succeeded = $false
+            Output = if ($isElevated) { "Automatic $Command verification is blocked while the installer is elevated because resolving '$Command' from PATH is unsafe." } else { "$Command is not installed." }
+            ExitCode = -1
+        }
+    }
+
+    $quotedArguments = @($Arguments | ForEach-Object { Format-StandaloneCommandArgument -Value ([string]$_) })
+    $filePath = $selectedCommandPath
+    $argumentText = $quotedArguments -join ' '
+    $selectedExtension = [System.IO.Path]::GetExtension($selectedCommandPath).ToLowerInvariant()
+    if (@('.cmd', '.bat') -contains $selectedExtension) {
+        $filePath = if (-not [string]::IsNullOrWhiteSpace($env:ComSpec)) { $env:ComSpec } else { 'cmd.exe' }
+        $argumentText = '/d /c "' + $selectedCommandPath + '"'
+        if ($quotedArguments.Count -gt 0) {
+            $argumentText += ' ' + ($quotedArguments -join ' ')
+        }
+    }
+    elseif ($selectedExtension -eq '.ps1') {
+        $filePath = (Get-Process -Id $PID).Path
+        $argumentText = '-NoProfile -ExecutionPolicy Bypass -File "' + $selectedCommandPath + '"'
+        if ($quotedArguments.Count -gt 0) {
+            $argumentText += ' ' + ($quotedArguments -join ' ')
+        }
+    }
+
+    $process = $null
+    $stdoutTask = $null
+    $stderrTask = $null
+    $exitCode = -3
+    try {
+        $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $startInfo.FileName = $filePath
+        $startInfo.Arguments = $argumentText
+        $startInfo.UseShellExecute = $false
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.RedirectStandardError = $true
+        $startInfo.CreateNoWindow = $true
+
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $startInfo
+        $null = $process.Start()
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        $timeoutSeconds = Get-InstallerVerificationTimeoutSeconds
+        if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
+            try {
+                $process.Kill()
+            }
+            catch {
+            }
+
+            return [ordered]@{
+                Succeeded = $false
+                Output = "$Command timed out after $timeoutSeconds second(s)."
+                ExitCode = -2
+            }
+        }
+
+        $exitCode = $process.ExitCode
+    }
+    catch {
+        return [ordered]@{
+            Succeeded = $false
+            Output = $_.Exception.Message
+            ExitCode = -3
+        }
+    }
+    finally {
+        if ($null -ne $process) {
+            $process.Dispose()
+        }
+    }
+
+    $output = @(
+        if ($null -ne $stdoutTask) { $stdoutTask.GetAwaiter().GetResult() }
+        if ($null -ne $stderrTask) { $stderrTask.GetAwaiter().GetResult() }
+    ) -join [Environment]::NewLine
+    $output = $output.Trim()
+    if ($exitCode -ne 0) {
+        return [ordered]@{
+            Succeeded = $false
+            Output = $output
+            ExitCode = $exitCode
+        }
+    }
+
+    $containsToken = -not [string]::IsNullOrWhiteSpace($output) -and $output.Contains($ExpectedToken)
+    return [ordered]@{
+        Succeeded = ($containsToken -eq $ExpectPresent)
+        Output = $output
+        ExitCode = $exitCode
+    }
+}
 function Invoke-StandaloneUninstallVerification {
     param(
         [Parameter(Mandatory)] [string]$SelectedClient,
@@ -2105,11 +2239,11 @@ function Invoke-StandaloneUninstallVerification {
     $clientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
     $verificationSucceeded = switch ($clientBaseId) {
         'claude-code' {
-            (Invoke-VerificationCommand -Command 'claude' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
+            (Invoke-StandaloneVerificationCommand -Command 'claude' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
             break
         }
         'codex' {
-            (Invoke-VerificationCommand -Command 'codex' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
+            (Invoke-StandaloneVerificationCommand -Command 'codex' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
             break
         }
         'cursor' {

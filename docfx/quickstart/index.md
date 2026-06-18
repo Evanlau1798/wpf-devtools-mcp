@@ -17,6 +17,15 @@ Preview pre-release installer until the first stable GitHub Release is published
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
 
+For a pinned pre-release, set the GitHub release tag explicitly:
+
+```powershell
+$version = 'v0.1.0-preview.1'
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
+```
+
+Replace the example with the selected public pre-release tag from GitHub Releases.
+
 The installer detects the host architecture, asks for the target MCP client, installs the packaged executable, and writes client-registration artifacts under:
 
 ```text

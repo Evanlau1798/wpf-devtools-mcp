@@ -83,13 +83,14 @@ public class ReadmeDocumentationTests
     }
 
     [Fact]
-    public void Readme_ShouldShowGenericPinnedPrereleaseInstallExample()
+    public void Readme_ShouldShowConcretePinnedPrereleaseInstallExample()
     {
         var content = File.ReadAllText(GetRepoFilePath("README.md"));
 
-        content.Should().Contain("$version = '<version>'");
+        content.Should().Contain("$version = 'v0.1.0-preview.1'");
         content.Should().Contain("-Version $version -Prerelease");
         content.Should().Contain("Pinned pre-release install");
+        content.Should().NotContain("$version = '<version>'");
         content.Should().NotContain("0.1.0-e2e.");
     }
 

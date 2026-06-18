@@ -11,6 +11,10 @@ public sealed class PreReleaseInstallerDocumentationTests
         "irm https://installer.wpf-mcptools.evanlau1798.com | iex";
     private const string PreviewPrereleaseInstallerCommand =
         "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease";
+    private const string PinnedPrereleaseVersionExample =
+        "$version = 'v0.1.0-preview.1'";
+    private const string PinnedPrereleaseInstallerCommand =
+        "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease";
 
     [Theory]
     [InlineData("docfx/index.md")]
@@ -93,6 +97,22 @@ public sealed class PreReleaseInstallerDocumentationTests
             content.Should().NotContain(term,
                 $"{relativePath} should read as production onboarding, not release-validation runbook material");
         }
+    }
+
+    [Theory]
+    [InlineData("README.md")]
+    [InlineData("docfx/quickstart/index.md")]
+    [InlineData("docfx/zh-tw/quickstart/index.md")]
+    public void PublicQuickstartDocs_ShouldShowConcretePinnedPrereleaseExampleWithoutE2eResidue(
+        string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(PinnedPrereleaseVersionExample,
+            $"{relativePath} should show a copyable pinned prerelease shape without using an E2E validation tag");
+        content.Should().Contain(PinnedPrereleaseInstallerCommand);
+        content.Should().NotContain("$version = '<version>'");
+        content.Should().NotContain("0.1.0-e2e.");
     }
 
     [Theory]

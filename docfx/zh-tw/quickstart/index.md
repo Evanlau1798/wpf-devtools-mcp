@@ -17,6 +17,15 @@
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
 
+若要 pin 特定 pre-release，請明確設定 GitHub release tag：
+
+```powershell
+$version = 'v0.1.0-preview.1'
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
+```
+
+請將範例值替換為實際選定的 public pre-release tag。
+
 Installer 會偵測 host architecture、詢問 MCP client、安裝 packaged executable，並在下列位置產生 client registration artifact：
 
 ```text

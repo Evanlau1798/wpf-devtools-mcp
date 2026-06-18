@@ -6,6 +6,23 @@ function Write-InstallerActionProgress {
     }
 }
 
+function Get-InstallerUninstallCleanupGuidance {
+    param([Parameter(Mandatory)] [string]$ResolvedClient)
+
+    $otherClause = if ((Resolve-ClientBaseId -ClientId $ResolvedClient) -eq 'other') {
+        ' For -Client other, other.mcpServers.json is the selected artifact-only registration target.'
+    }
+    else {
+        ''
+    }
+
+    return "uninstall removes or verifies only the selected registration and leaves installer-owned server locations in place.$otherClause Use -Action full-uninstall to remove all detected registrations, generated client-registration artifacts, and installer-owned server locations."
+}
+
+function Get-InstallerFullUninstallCleanupGuidance {
+    return 'full-uninstall removes all detected registrations, generated client-registration artifacts, and installer-owned server locations. Persisted auth secrets and certificate stores remain manual cleanup items.'
+}
+
 function Invoke-InstallerActionCore {
     param(
         [Parameter(Mandatory)] [ValidateSet('install', 'uninstall', 'full-uninstall')] [string]$ResolvedAction,
@@ -36,6 +53,8 @@ function Invoke-InstallerActionCore {
             removedInstallation = [bool]$result.removedInstallation
             removedInstallations = @($result.removedInstallations)
             registrations = @($result.registrations)
+            cleanupScope = 'registrations-and-installer-owned-server-locations'
+            cleanupGuidance = Get-InstallerFullUninstallCleanupGuidance
             verificationMessage = [string]$result.verificationMessage
         }
     }
@@ -163,6 +182,8 @@ function Invoke-InstallerActionCore {
             removedInstallation = $false
             removedRuntimeScreenshotCache = $removedRuntimeScreenshotCache
             registrations = @($registrations)
+            cleanupScope = 'selected-registration-only'
+            cleanupGuidance = Get-InstallerUninstallCleanupGuidance -ResolvedClient $ResolvedClient
             verificationMessage = [string]$verification.VerificationMessage
         }
     }

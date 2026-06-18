@@ -102,6 +102,29 @@ public sealed class InstallerUninstallBehaviorTests
     }
 
     [Fact]
+    public void InstallerUninstallResults_ShouldDescribeCleanupScope()
+    {
+        string[] files =
+        [
+            "scripts/online-installer.ps1",
+            "scripts/installer/Installer.Actions.Core.ps1"
+        ];
+
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath(file));
+
+            content.Should().Contain("cleanupScope");
+            content.Should().Contain("selected-registration-only");
+            content.Should().Contain("registrations-and-installer-owned-server-locations");
+            content.Should().Contain("cleanupGuidance");
+            content.Should().Contain("For -Client other");
+            content.Should().Contain("other.mcpServers.json");
+            content.Should().Contain("Use -Action full-uninstall");
+        }
+    }
+
+    [Fact]
     public void InstallerDiscoveryMerge_ShouldPreferExternalEvidenceForMutableInstallationFields()
     {
         var discoveryScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Discovery.ps1");

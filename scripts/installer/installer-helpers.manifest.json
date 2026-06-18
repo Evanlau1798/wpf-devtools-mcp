@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "cacheKey":  "sha256:19972582cf179b12738cf8e5addfa687fbe935a66fa5541d41a8e9f6e3e13566",
+    "cacheKey":  "sha256:6566b187627c33f100b30bdf6674685f637b3d19dac7d55d6b1f73534304c6b7",
     "helperFiles":  [
                         {
                             "path":  "online-installer.release-assets.ps1",
@@ -199,8 +199,8 @@
                         },
                         {
                             "path":  "Installer.Actions.Core.ps1",
-                            "sha256":  "368832536f635524427e5b17459121678fe228ef2c46421ee0efd9ae8fd59c84",
-                            "sizeBytes":  15598
+                            "sha256":  "d6c665876ce256354ac192d44bc626a9c3fb477bc1f7e6c151d2eaa5ff8db17b",
+                            "sizeBytes":  16800
                         },
                         {
                             "path":  "Installer.Actions.ps1",

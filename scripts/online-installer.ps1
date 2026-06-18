@@ -338,7 +338,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:19972582cf179b12738cf8e5addfa687fbe935a66fa5541d41a8e9f6e3e13566'
+$script:InstallerHelperManifestCacheKey = 'sha256:6566b187627c33f100b30bdf6674685f637b3d19dac7d55d6b1f73534304c6b7'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/online-installer.release-assets.ps1'
     'scripts/installer/Installer.BootstrapUi.ps1'
@@ -2206,6 +2206,24 @@ function Invoke-StandaloneUninstallVerification {
         VerificationMessage = "Verified uninstall state for $SelectedClient."
     }
 }
+
+function Get-StandaloneUninstallCleanupGuidance {
+    param([Parameter(Mandatory)] [string]$ResolvedClient)
+
+    $otherClause = if ((Resolve-ClientBaseId -ClientId $ResolvedClient) -eq 'other') {
+        ' For -Client other, other.mcpServers.json is the selected artifact-only registration target.'
+    }
+    else {
+        ''
+    }
+
+    return "uninstall removes or verifies only the selected registration and leaves installer-owned server locations in place.$otherClause Use -Action full-uninstall to remove all detected registrations, generated client-registration artifacts, and installer-owned server locations."
+}
+
+function Get-StandaloneFullUninstallCleanupGuidance {
+    return 'full-uninstall removes all detected registrations, generated client-registration artifacts, and installer-owned server locations. Persisted auth secrets and certificate stores remain manual cleanup items.'
+}
+
 function Invoke-StandaloneInstallerActionCore {
     param(
         [Parameter(Mandatory)] [ValidateSet('uninstall', 'full-uninstall')] [string]$ResolvedAction,
@@ -2412,6 +2430,8 @@ function Invoke-StandaloneInstallerActionCore {
                 removedInstallation = ($removedInstallations.Count -gt 0)
                 removedInstallations = @($removedInstallations)
                 registrations = @($registrationOperations | Where-Object { [bool]$_.Applied })
+                cleanupScope = 'registrations-and-installer-owned-server-locations'
+                cleanupGuidance = Get-StandaloneFullUninstallCleanupGuidance
                 verificationMessage = "Verified removal of $($registrationOperations.Count) registration(s) and $($removedInstallations.Count) installer-owned server location(s)."
             }
         }
@@ -2648,6 +2668,8 @@ function Invoke-StandaloneInstallerActionCore {
             statePath = $statePath
             removedInstallation = $false
             registrations = @($registrations)
+            cleanupScope = 'selected-registration-only'
+            cleanupGuidance = Get-StandaloneUninstallCleanupGuidance -ResolvedClient $ResolvedClient
             verificationMessage = [string]$verification.VerificationMessage
         }
     }
@@ -4574,6 +4596,9 @@ else {
     }
     if (-not [string]::IsNullOrWhiteSpace($result.verificationMessage)) {
         Write-InstallerMessage $result.verificationMessage
+    }
+    if (-not [string]::IsNullOrWhiteSpace($result.cleanupGuidance)) {
+        Write-InstallerMessage $result.cleanupGuidance
     }
     if (-not [string]::IsNullOrWhiteSpace($versionHint)) {
         Write-InstallerMessage $versionHint

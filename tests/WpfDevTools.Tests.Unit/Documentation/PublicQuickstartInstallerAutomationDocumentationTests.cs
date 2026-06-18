@@ -58,6 +58,23 @@ public sealed class PublicQuickstartInstallerAutomationDocumentationTests
         }
     }
 
+    [Fact]
+    public void DeploymentDocs_ShouldClarifyOtherClientUninstallCleanupScope()
+    {
+        foreach (var file in new[] { "docfx/production/deployment.md", "docfx/zh-tw/production/deployment.md" })
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+
+            content.Should().Contain("`-Client other`");
+            content.Should().Contain("other.mcpServers.json");
+            content.Should().Contain("`-Action uninstall`");
+            content.Should().Contain("selected registration");
+            content.Should().Contain("`-Action full-uninstall`");
+            content.Should().Contain("installer-owned server");
+            content.Should().Contain("generated client-registration artifacts");
+        }
+    }
+
     private static IEnumerable<string> EnumeratePublicInstallDocs()
     {
         yield return "README.md";

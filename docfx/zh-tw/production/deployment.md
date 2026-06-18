@@ -101,7 +101,8 @@ Release promotion 前，針對 locked solution 執行 `dotnet restore --locked-m
 ## Rollback 與 uninstall
 
 - 使用前一個已審查 package 重新執行 installer 以 rollback。
-- 使用 package uninstall flow 移除 client registration 與 installer-owned payloads。
+- 使用 `-Action uninstall` 搭配 `-Client <client-id>` 只移除或驗證 selected registration。若使用 `-Client other`，selected registration target 是產生的 `other.mcpServers.json` artifact；installer-owned server files 會保留，供其他 clients 或之後重用。
+- 測試執行後或 decommissioning workflow 需要移除所有 detected registration、generated client-registration artifacts 與 installer-owned server locations 時，請使用 `-Action full-uninstall`。
 - 只有 deployment policy 要求 rotation 或 decommissioning 時，才手動移除 persisted auth secrets 與 certificates。
 
 ## Operational verification

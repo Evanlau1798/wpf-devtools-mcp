@@ -62,6 +62,8 @@ Use this when a property value is not coming from the source you expected.
 
 Use this workflow for production-safe debugging, demos, or test sessions where the app must be left unchanged after the experiment. As long as the snapshot is still active, `get_state_diff` should be the default first verification tool after a mutation.
 
+If the mutation targets a bound `DependencyProperty`, capture the affected ViewModel source with `viewModelPropertyNames` before changing it. A DependencyProperty-only snapshot can restore the binding expression while leaving a two-way source value changed.
+
 ## Focus-sensitive multi-window workflow
 
 1. `connect`

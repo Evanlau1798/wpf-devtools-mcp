@@ -62,6 +62,8 @@
 
 當你在正式環境除錯、示範或驗證時，希望實驗結束後讓 app 回到原始狀態，這是最穩健的流程。只要 snapshot 仍然 active，`get_state_diff` 應該是 mutation 後的第一優先驗證工具。
 
+如果 mutation 目標是綁定的 `DependencyProperty`，變更前請用 `viewModelPropertyNames` 捕捉受影響的 ViewModel source。只捕捉 DependencyProperty 可能會還原 binding expression，但留下 two-way source value 的變更。
+
 ## 焦點敏感的多視窗工作流
 
 1. `connect`

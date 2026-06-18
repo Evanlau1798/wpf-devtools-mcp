@@ -124,6 +124,8 @@ Policy gate：destructive。使用此工具前，需設定 `WPFDEVTOOLS_MCP_ALLO
 
 輸出欄位包含 `snapshotId` 與 `snapshotSummary`。Snapshot 存於記憶體、綁定 session，並且有保留數量與時間上限。
 
+Rollback note：mutating 綁定的 `DependencyProperty` 時，binding 也可能更新 ViewModel source。如果 semantic rollback 需要同時還原 DependencyProperty expression 與 source value，mutation 前請把對應 source property 放入 `viewModelPropertyNames`。
+
 範例：
 
 ```json
@@ -154,6 +156,8 @@ Policy gate：destructive。Server 必須先以 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTI
 ```
 
 復原路徑：如果某個 step 失敗但前面 step 已成功，檢查 `rollback`，並在 snapshot 仍保留時呼叫 `restore_state_snapshot`。
+
+針對 `TextBox.Text` 上的 `set_dp_value` 這類綁定的 `DependencyProperty` mutation，請把受影響的 ViewModel source 加入 `captureSnapshot.viewModelPropertyNames`；只捕捉 `propertyNames` 可能會還原 binding expression，但留下 two-way source value 的變更。
 
 ## `get_state_diff`
 

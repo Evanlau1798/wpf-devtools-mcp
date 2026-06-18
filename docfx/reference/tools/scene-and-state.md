@@ -124,6 +124,8 @@ Parameters:
 
 Output fields include `snapshotId` and `snapshotSummary`. Snapshots are in-memory, session-scoped, and retained for a bounded time.
 
+Rollback note: when mutating a bound `DependencyProperty`, the binding can update its ViewModel source as well. If semantic rollback must restore both the DependencyProperty expression and source value, include the matching source property in `viewModelPropertyNames` before the mutation.
+
 Example:
 
 ```json
@@ -154,6 +156,8 @@ Example:
 ```
 
 Recovery path: if a step fails after earlier mutations succeeded, inspect `rollback` and call `restore_state_snapshot` when a retained snapshot is available.
+
+For bound `DependencyProperty` mutations such as `set_dp_value` on `TextBox.Text`, include the affected ViewModel source in `captureSnapshot.viewModelPropertyNames`; capturing only `propertyNames` may restore the binding expression while leaving a two-way source value changed.
 
 ## `get_state_diff`
 

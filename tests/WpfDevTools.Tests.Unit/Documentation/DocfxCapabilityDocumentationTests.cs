@@ -111,6 +111,22 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/reference/tools/scene-and-state.md", "bound `DependencyProperty`", "ViewModel source", "`viewModelPropertyNames`")]
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md", "綁定的 `DependencyProperty`", "ViewModel source", "`viewModelPropertyNames`")]
+    public void SceneAndStateReferencePages_ShouldWarnBoundDpRollbackNeedsViewModelSourceCapture(
+        string relativePath,
+        string boundDpPhrase,
+        string viewModelSourcePhrase,
+        string viewModelPropertyNamesPhrase)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(boundDpPhrase);
+        content.Should().Contain(viewModelSourcePhrase);
+        content.Should().Contain(viewModelPropertyNamesPhrase);
+    }
+
+    [Theory]
     [InlineData(
         "docfx/architecture/ipc.md",
         "event push from inspector to server",

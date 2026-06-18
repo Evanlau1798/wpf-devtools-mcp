@@ -134,7 +134,7 @@ public sealed class InspectorErrorContractExceptionPathTests
     }
 
     [StaFact]
-    public void HighlightElement_WithoutAdornerLayer_ShouldReturnStructuredElementNotLoaded()
+    public void HighlightElement_WithoutRenderedBounds_ShouldReturnStructuredElementNotLoaded()
     {
         var finder = new ElementFinder();
         var analyzer = new LayoutAnalyzer(finder);
@@ -143,7 +143,7 @@ public sealed class InspectorErrorContractExceptionPathTests
 
         var result = analyzer.HighlightElement(elementId, "Red", 1000);
 
-        AssertStructuredError(result, "ElementNotLoaded", "AdornerLayer");
+        AssertStructuredError(result, "ElementNotLoaded", "non-zero rendered bounds");
     }
 
     private static void AssertStructuredError(object result, string expectedErrorCode, string expectedHintFragment)

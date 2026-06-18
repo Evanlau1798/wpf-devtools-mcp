@@ -296,7 +296,8 @@ public sealed class McpToolOutputSchemaTests
             "byteLength",
             "fileName",
             "localPathRedacted",
-            "sha256");
+            "sha256",
+            "nextSteps");
     }
 
     [Fact]

@@ -167,7 +167,35 @@ public sealed class ElementScreenshotFileModeContractTests
         JsonSerializer.Serialize(result).Should().NotContain(localPath);
     }
 
-    private static async Task<JsonElement> ExecuteFileModeAsync(Func<InspectorRequest, JsonElement> responseFactory)
+    [Fact]
+    public async Task Execute_MetadataModeSuccess_ShouldSuggestFileModeForPixelEvidence()
+    {
+        var result = await ExecuteScreenshotAsync(
+            _ => JsonSerializer.SerializeToElement(new
+            {
+                success = true,
+                outputMode = "metadata",
+                rendered = false,
+                width = 160,
+                height = 80,
+                byteLength = 0
+            }),
+            "metadata");
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("outputMode").GetString().Should().Be("metadata");
+        var nextStep = result.GetProperty("nextSteps").EnumerateArray().Should().ContainSingle().Subject;
+        nextStep.GetProperty("tool").GetString().Should().Be("element_screenshot");
+        nextStep.GetProperty("params").GetProperty("outputMode").GetString().Should().Be("file");
+        nextStep.GetProperty("reason").GetString().Should().Contain("pixel evidence");
+    }
+
+    private static Task<JsonElement> ExecuteFileModeAsync(Func<InspectorRequest, JsonElement> responseFactory) =>
+        ExecuteScreenshotAsync(responseFactory, "file");
+
+    private static async Task<JsonElement> ExecuteScreenshotAsync(
+        Func<InspectorRequest, JsonElement> responseFactory,
+        string outputMode)
     {
         var processId = NextSyntheticProcessId();
         var pipeName = $"WpfDevTools_Test_ElementScreenshotContract_{Guid.NewGuid():N}";
@@ -219,7 +247,7 @@ public sealed class ElementScreenshotFileModeContractTests
         try
         {
             return JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
-                JsonSerializer.SerializeToElement(new { processId, outputMode = "file" }),
+                JsonSerializer.SerializeToElement(new { processId, outputMode }),
                 CancellationToken.None));
         }
         finally

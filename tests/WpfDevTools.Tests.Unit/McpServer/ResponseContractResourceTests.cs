@@ -326,7 +326,8 @@ public sealed partial class ResponseContractResourceTests
                 "fileName",
                 "localPathRedacted",
                 "sha256",
-                "base64Image"
+                "base64Image",
+                "nextSteps"
             ],
             requestParameters: [
                 "elementId",
@@ -343,7 +344,7 @@ public sealed partial class ResponseContractResourceTests
             outputVariants,
             "metadata",
             rendered: false,
-            fields: ["success", "width", "height", "format", "rendered", "byteLength"]);
+            fields: ["success", "width", "height", "format", "rendered", "byteLength", "nextSteps"]);
         AssertOutputVariant(
             outputVariants,
             "file",

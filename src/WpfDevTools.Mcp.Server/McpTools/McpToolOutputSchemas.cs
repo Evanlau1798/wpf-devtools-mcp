@@ -227,7 +227,8 @@ internal static partial class McpToolOutputSchemas
                 ["sha256"] = String("SHA-256 hash of the screenshot bytes when available."),
                 ["mimeType"] = String("Image MIME type."),
                 ["base64Image"] = String("Inline base64 image data when explicitly requested and below the inline byte limit."),
-                ["maxInlineByteLength"] = Integer("Inline base64 PNG byte limit reported on oversized inline requests.")
+                ["maxInlineByteLength"] = Integer("Inline base64 PNG byte limit reported on oversized inline requests."),
+                ["nextSteps"] = ArrayOf("Compatibility next-step list.", NextStep())
             })
         };
 

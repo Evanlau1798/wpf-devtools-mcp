@@ -358,7 +358,8 @@ internal static class ResponseContractToolEntries
                     "sha256",
                     "mimeType",
                     "base64Image",
-                    "maxInlineByteLength"
+                    "maxInlineByteLength",
+                    "nextSteps"
                 },
                 nestedResponsePaths = Array.Empty<string>(),
                 requestParameters = new[]
@@ -381,7 +382,8 @@ internal static class ResponseContractToolEntries
                             "height",
                             "format",
                             "rendered",
-                            "byteLength"
+                            "byteLength",
+                            "nextSteps"
                         }
                     },
                     new
@@ -427,6 +429,7 @@ internal static class ResponseContractToolEntries
                     {
                         noImageBytes = true,
                         preferredForPixelEvidence = false,
+                        fileModeNextStep = true,
                         useWhen = "Use for dimensions, format, renderability checks, and low-cost discovery only."
                     },
                     file = new

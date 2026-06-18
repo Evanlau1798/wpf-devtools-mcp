@@ -114,7 +114,82 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
                 sessionGeneration!.Value,
                 screenshotDirectory!,
                 result)
-            : result;
+            : AddMetadataModePixelEvidenceStep(processId, elementId, outputMode, maxWidth, maxHeight, result);
+    }
+
+    private static object AddMetadataModePixelEvidenceStep(
+        int processId,
+        string? elementId,
+        string outputMode,
+        int? maxWidth,
+        int? maxHeight,
+        object result)
+    {
+        if (!string.Equals(outputMode, "metadata", StringComparison.Ordinal))
+        {
+            return result;
+        }
+
+        var payload = result is JsonElement jsonElement
+            ? jsonElement
+            : JsonSerializer.SerializeToElement(result);
+        if (payload.ValueKind != JsonValueKind.Object ||
+            (payload.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.False) ||
+            payload.TryGetProperty("nextSteps", out _))
+        {
+            return result;
+        }
+
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            foreach (var property in payload.EnumerateObject())
+            {
+                property.WriteTo(writer);
+            }
+
+            WriteFileModeNextStep(writer, processId, elementId, maxWidth, maxHeight);
+            writer.WriteEndObject();
+        }
+
+        return JsonDocument.Parse(stream.ToArray()).RootElement.Clone();
+    }
+
+    private static void WriteFileModeNextStep(
+        Utf8JsonWriter writer,
+        int processId,
+        string? elementId,
+        int? maxWidth,
+        int? maxHeight)
+    {
+        writer.WritePropertyName("nextSteps");
+        writer.WriteStartArray();
+        writer.WriteStartObject();
+        writer.WriteString("tool", "element_screenshot");
+        writer.WritePropertyName("params");
+        writer.WriteStartObject();
+        writer.WriteNumber("processId", processId);
+        if (!string.IsNullOrWhiteSpace(elementId))
+        {
+            writer.WriteString("elementId", elementId);
+        }
+
+        writer.WriteString("outputMode", "file");
+        if (maxWidth.HasValue)
+        {
+            writer.WriteNumber("maxWidth", maxWidth.Value);
+        }
+
+        if (maxHeight.HasValue)
+        {
+            writer.WriteNumber("maxHeight", maxHeight.Value);
+        }
+
+        writer.WriteEndObject();
+        writer.WriteString("reason", "Request file mode when pixel evidence or image bytes are required; metadata mode reports dimensions and render metadata only.");
+        writer.WriteEndObject();
+        writer.WriteEndArray();
     }
 
     private object RedactFilePathFromScreenshotResult(

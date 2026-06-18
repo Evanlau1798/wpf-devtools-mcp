@@ -93,6 +93,7 @@ public sealed class ResponseContractResourceOperationalGuidanceTests
         var guidance = screenshotTool.GetProperty("outputModeGuidance");
 
         guidance.GetProperty("metadata").GetProperty("noImageBytes").GetBoolean().Should().BeTrue();
+        guidance.GetProperty("metadata").GetProperty("fileModeNextStep").GetBoolean().Should().BeTrue();
         guidance.GetProperty("file").GetProperty("preferredForPixelEvidence").GetBoolean().Should().BeTrue();
         guidance.GetProperty("base64").GetProperty("inlineOnlyForSmallImages").GetBoolean().Should().BeTrue();
     }

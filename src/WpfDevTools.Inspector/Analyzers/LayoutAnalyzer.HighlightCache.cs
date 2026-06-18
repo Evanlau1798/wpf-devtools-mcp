@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 
 namespace WpfDevTools.Inspector.Analyzers;
@@ -181,6 +182,50 @@ public sealed partial class LayoutAnalyzer
             {
             }
         };
+    }
+
+    private static Action CreateHighlightRemoval(Popup popup)
+    {
+        return () =>
+        {
+            try
+            {
+                var dispatcher = popup.Dispatcher;
+                if (dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
+                {
+                    return;
+                }
+
+                if (dispatcher.CheckAccess())
+                {
+                    ClosePopupHighlight(popup);
+                    return;
+                }
+
+                _ = dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        if (!dispatcher.HasShutdownStarted && !dispatcher.HasShutdownFinished)
+                        {
+                            ClosePopupHighlight(popup);
+                        }
+                    }
+                    catch (InvalidOperationException)
+                    {
+                    }
+                }));
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        };
+    }
+
+    private static void ClosePopupHighlight(Popup popup)
+    {
+        popup.IsOpen = false;
+        popup.Child = null;
     }
 
     private sealed class HighlightEntry

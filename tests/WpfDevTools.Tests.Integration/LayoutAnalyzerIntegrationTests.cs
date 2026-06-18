@@ -120,6 +120,37 @@ public class LayoutAnalyzerIntegrationTests
     }
 
     [Fact]
+    public void HighlightElement_WithRootWindowWithoutAdornerLayer_ShouldUseFallbackSurface()
+    {
+        // Arrange & Act
+        var result = _fixture.RunOnUIThread(() =>
+        {
+            var elementFinder = new ElementFinder();
+            var analyzer = new LayoutAnalyzer(elementFinder);
+
+            var content = new Border
+            {
+                Width = 200,
+                Height = 100,
+                Child = new TextBlock { Text = "No adorner layer" }
+            };
+
+            Application.Current.MainWindow.Content = content;
+            Application.Current.MainWindow.UpdateLayout();
+
+            var rootId = elementFinder.GenerateElementId(Application.Current.MainWindow);
+
+            return analyzer.HighlightElement(rootId, color: "#FF00AA", duration: 100);
+        });
+
+        // Assert
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue(json.GetRawText());
+        json.GetProperty("highlightSurface").GetString().Should().Be("popup");
+        json.GetProperty("elementType").GetString().Should().Be("Window");
+    }
+
+    [Fact]
     public void InvalidateLayout_ShouldExecuteSuccessfully()
     {
         // Arrange & Act

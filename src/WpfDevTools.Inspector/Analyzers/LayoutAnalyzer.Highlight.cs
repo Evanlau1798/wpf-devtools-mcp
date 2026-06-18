@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Media;
 using WpfDevTools.Inspector.Utilities;
@@ -33,34 +34,39 @@ public sealed partial class LayoutAnalyzer
             try
             {
                 var brush = CreateHighlightBrush(color);
-
-                var highlightBorder = new Border
-                {
-                    BorderBrush = brush,
-                    BorderThickness = new Thickness(2),
-                    IsHitTestVisible = false
-                };
-
-                var adornerLayer = AdornerLayer.GetAdornerLayer(fe);
-                if (adornerLayer == null)
-                {
-                    return ToolErrorFactory.ElementNotLoaded(
-                        "Cannot highlight element: AdornerLayer not available",
-                        "Ensure the element is attached to a visual tree with an available AdornerLayer/AdornerDecorator ancestor before retrying highlight_element.");
-                }
-
-                var adorner = new HighlightAdorner(fe, highlightBorder);
-                adornerLayer.Add(adorner);
-
+                var highlightBorder = CreateHighlightBorder(brush);
                 var key = elementId ?? "root";
                 var createdAtUtc = DateTimeOffset.UtcNow;
                 var effectiveDuration = GetEffectiveHighlightDuration(duration);
                 var effectiveDurationMs = (int)effectiveDuration.TotalMilliseconds;
                 var expiresAtUtc = createdAtUtc.Add(effectiveDuration);
+
+                var adornerLayer = AdornerLayer.GetAdornerLayer(fe);
+                Action removeHighlight;
+                string highlightSurface;
+
+                if (adornerLayer != null)
+                {
+                    var adorner = new HighlightAdorner(fe, highlightBorder);
+                    adornerLayer.Add(adorner);
+                    removeHighlight = CreateHighlightRemoval(adornerLayer, adorner);
+                    highlightSurface = "adorner";
+                }
+                else if (TryCreatePopupHighlight(fe, highlightBorder, out removeHighlight))
+                {
+                    highlightSurface = "popup";
+                }
+                else
+                {
+                    return ToolErrorFactory.ElementNotLoaded(
+                        "Cannot highlight element: target has no rendered size",
+                        "Ensure the target element is visible, loaded, and has non-zero rendered bounds before retrying highlight_element.");
+                }
+
                 var entry = new HighlightEntry(
                     createdAtUtc,
                     expiresAtUtc,
-                    CreateHighlightRemoval(adornerLayer, adorner));
+                    removeHighlight);
                 RegisterHighlight(key, entry);
                 ScheduleHighlightRemoval(key, entry, effectiveDuration);
 
@@ -73,7 +79,8 @@ public sealed partial class LayoutAnalyzer
                     requestedDuration = duration,
                     effectiveDuration = effectiveDurationMs,
                     durationCapped = effectiveDurationMs != Math.Max(0, duration),
-                    elementType = element.GetType().Name
+                    elementType = element.GetType().Name,
+                    highlightSurface
                 };
             }
             catch (Exception ex)
@@ -81,9 +88,20 @@ public sealed partial class LayoutAnalyzer
                 return ToolErrorFactory.OperationFailed(
                     "highlight element",
                     ex,
-                    "Ensure the target is visible and attached to an AdornerLayer before retrying highlight_element.");
+                    "Ensure the target is visible and loaded before retrying highlight_element.");
             }
         });
+    }
+
+    private static Border CreateHighlightBorder(Brush brush)
+    {
+        return new Border
+        {
+            BorderBrush = brush,
+            BorderThickness = new Thickness(2),
+            Background = Brushes.Transparent,
+            IsHitTestVisible = false
+        };
     }
 
     private static SolidColorBrush CreateHighlightBrush(string color)
@@ -98,6 +116,91 @@ public sealed partial class LayoutAnalyzer
                 $"LayoutAnalyzer: Invalid color '{SensitiveLogRedactor.Redact(color)}', falling back to Red: {SensitiveLogRedactor.Redact(ex.Message)}");
             return new SolidColorBrush(Colors.Red);
         }
+    }
+
+    private static bool TryCreatePopupHighlight(
+        FrameworkElement target,
+        Border highlightBorder,
+        out Action removeHighlight)
+    {
+        removeHighlight = null!;
+        var placementTarget = GetPopupPlacementTarget(target);
+        var highlightSize = GetHighlightSize(placementTarget);
+        var width = highlightSize.Width;
+        var height = highlightSize.Height;
+        if (width <= 0 || height <= 0)
+        {
+            return false;
+        }
+
+        highlightBorder.Width = width;
+        highlightBorder.Height = height;
+
+        var popup = new Popup
+        {
+            PlacementTarget = placementTarget,
+            Placement = PlacementMode.Relative,
+            AllowsTransparency = true,
+            StaysOpen = true,
+            IsHitTestVisible = false,
+            Focusable = false,
+            HorizontalOffset = 0,
+            VerticalOffset = 0,
+            Child = highlightBorder
+        };
+
+        popup.IsOpen = true;
+        removeHighlight = CreateHighlightRemoval(popup);
+        return true;
+    }
+
+    private static FrameworkElement GetPopupPlacementTarget(FrameworkElement target)
+    {
+        if (HasHighlightBounds(target))
+        {
+            return target;
+        }
+
+        return target is Window { Content: FrameworkElement content } && HasHighlightBounds(content)
+            ? content
+            : target;
+    }
+
+    private static bool HasHighlightBounds(FrameworkElement element)
+    {
+        var highlightSize = GetHighlightSize(element);
+        return highlightSize.Width > 0 && highlightSize.Height > 0;
+    }
+
+    private static Size GetHighlightSize(FrameworkElement element)
+    {
+        return new Size(
+            GetHighlightDimension(element.ActualWidth, element.RenderSize.Width, element.Width, element.DesiredSize.Width),
+            GetHighlightDimension(element.ActualHeight, element.RenderSize.Height, element.Height, element.DesiredSize.Height));
+    }
+
+    private static double GetHighlightDimension(
+        double actual,
+        double render,
+        double explicitLength,
+        double desired)
+    {
+        if (actual > 0)
+        {
+            return actual;
+        }
+
+        if (render > 0)
+        {
+            return render;
+        }
+
+        if (!double.IsNaN(explicitLength) && !double.IsInfinity(explicitLength) && explicitLength > 0)
+        {
+            return explicitLength;
+        }
+
+        return desired > 0 ? desired : 0;
     }
 
     private sealed class HighlightAdorner(UIElement adornedElement, Border border) : Adorner(adornedElement)

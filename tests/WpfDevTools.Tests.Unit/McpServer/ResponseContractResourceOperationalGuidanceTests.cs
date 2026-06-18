@@ -63,6 +63,25 @@ public sealed class ResponseContractResourceOperationalGuidanceTests
         ServerInstructions.Value.Should().Contain("wpf://contracts/response");
     }
 
+    [Fact]
+    public void ResponseContractResource_ShouldDescribeDeterministicPendingEventDrainWorkflow()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetResponseContract());
+        var pendingEventsContract = document.RootElement.GetProperty("pendingEventsAdditiveContract");
+
+        pendingEventsContract.GetProperty("deterministicDrainTool").GetString().Should().Be("drain_events");
+        pendingEventsContract.GetProperty("priorContextGuidance").GetString().Should().Contain("pendingEventsMayIncludePriorContext");
+        pendingEventsContract.GetProperty("priorContextGuidance").GetString().Should().Contain("drain_events");
+        pendingEventsContract.GetProperty("cleanBufferWorkflow")
+            .EnumerateArray()
+            .Select(step => step.GetString())
+            .Should()
+            .ContainInOrder(
+                "call drain_events with the narrowest useful filters before the action",
+                "perform the action or mutation",
+                "call drain_events again to read only the action window");
+    }
+
     private static void AssertPolicyProfile(JsonElement profiles, string name, params string[] envVars)
     {
         var profile = profiles

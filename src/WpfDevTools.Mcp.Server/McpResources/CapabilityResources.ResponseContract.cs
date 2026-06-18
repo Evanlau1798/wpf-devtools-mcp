@@ -163,7 +163,15 @@ public static partial class CapabilityResources
                 illustrativeTools = new[] { "get_binding_errors" },
                 pendingEventsOriginField = "pendingEventsOrigin",
                 pendingEventsOriginValues = new[] { "piggybackSharedBuffer" },
-                pendingEventsMayIncludePriorContextField = "pendingEventsMayIncludePriorContext"
+                pendingEventsMayIncludePriorContextField = "pendingEventsMayIncludePriorContext",
+                deterministicDrainTool = "drain_events",
+                priorContextGuidance = "When pendingEventsOrigin is piggybackSharedBuffer and pendingEventsMayIncludePriorContext is true, pendingEvents can include prior context from earlier watch activity. Use drain_events directly when a clean action window matters.",
+                cleanBufferWorkflow = new[]
+                {
+                    "call drain_events with the narrowest useful filters before the action",
+                    "perform the action or mutation",
+                    "call drain_events again to read only the action window"
+                }
             },
             errorPayload = new
             {

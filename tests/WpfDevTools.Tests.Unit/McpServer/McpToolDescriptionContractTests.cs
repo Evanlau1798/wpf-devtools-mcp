@@ -138,6 +138,21 @@ public sealed class McpToolDescriptionContractTests
     }
 
     [Fact]
+    public void DrainEvents_Description_ShouldExplainPriorContextWorkflow()
+    {
+        var description = GetDescriptionText("drain_events");
+
+        description.Should().Contain("pendingEventsMayIncludePriorContext",
+            "AI agents must know how to interpret piggybacked events that may predate the current tool call");
+        description.Should().Contain("prior context",
+            "AI agents need a plain-language warning that piggyback events can include old context");
+        description.Should().Contain("drain_events before the action",
+            "AI agents need the deterministic clean-buffer workflow before measuring an action window");
+        description.Should().Contain("drain_events again",
+            "AI agents need the deterministic follow-up read after the action or mutation");
+    }
+
+    [Fact]
     public void DrainEvents_MaxEventsParameterDescription_ShouldExplainReplayBacklogDefault()
     {
         var method = FindToolMethod("drain_events");

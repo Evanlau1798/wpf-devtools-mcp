@@ -10,6 +10,7 @@ internal static class EventDrainMcpToolDescriptions
         "Use it when you want deterministic event consumption instead of waiting for piggyback on a later tool response.\n\n" +
         "USE WHEN: You have active DP watches or routed-event traces and need an explicit read step; you want to filter buffered events by type, element, or time window.\n" +
         "DO NOT USE: As a long-running subscription. This drains a bounded in-memory buffer.\n\n" +
+        "PRIOR CONTEXT: Piggybacked pendingEvents on other tool responses can set pendingEventsMayIncludePriorContext=true, meaning those events may include prior context from before the current tool call. For a clean action window, call drain_events before the action with the narrowest useful filters, perform the action or mutation, then call drain_events again to read only that action window.\n\n" +
         "REPLAY SEMANTICS: When replay is already buffered, the server performs an uncapped live read internally, then applies maxEvents across the merged replay + live event set. Any replay event that is not returned by the explicit read, and any matching live event that exceeds the caller-visible result cap, remain buffered for the next explicit drain_events call. If that live drain fails before merge completes, the error surfaces errorData.replayPreserved plus errorData.bufferedReplayEventCount so callers can retry without assuming the preserved replay buffer was discarded.\n\n" +
         "RESPONSE SUMMARY:\n" +
         "  - success: boolean,\n" +

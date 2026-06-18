@@ -334,4 +334,107 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+
+    [Fact]
+    public void StandaloneOnlineInstaller_CodexUninstallWithoutInstallRoot_ShouldHandleMissingCodexRegistration()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var defaultInstallRoot = Path.Combine(tempRoot, "AppData", "Roaming", "WpfDevToolsMcp");
+            var fakeCliRoot = Path.Combine(tempRoot, "fake-cli");
+            var claudeMarkerPath = Path.Combine(tempRoot, "claude-registration.txt");
+            var codexMarkerPath = Path.Combine(tempRoot, "codex-registration.txt");
+            Directory.CreateDirectory(fakeCliRoot);
+            File.WriteAllText(
+                Path.Combine(fakeCliRoot, "claude.cmd"),
+                string.Join("\r\n",
+                [
+                    "@echo off",
+                    "if \"%1\"==\"mcp\" if \"%2\"==\"add\" (",
+                    "  >\"" + claudeMarkerPath + "\" echo registered",
+                    "  exit /b 0",
+                    ")",
+                    "if \"%1\"==\"mcp\" if \"%2\"==\"remove\" (",
+                    "  if exist \"" + claudeMarkerPath + "\" del \"" + claudeMarkerPath + "\"",
+                    "  exit /b 0",
+                    ")",
+                    "if \"%1\"==\"mcp\" if \"%2\"==\"list\" (",
+                    "  if exist \"" + claudeMarkerPath + "\" (",
+                    "    echo wpf-devtools %FAKE_CLAUDE_REGISTERED_PATH%",
+                    "  )",
+                    "  exit /b 0",
+                    ")",
+                    "exit /b 1"
+                ]));
+            File.WriteAllText(
+                Path.Combine(fakeCliRoot, "codex.cmd"),
+                string.Join("\r\n",
+                [
+                    "@echo off",
+                    "if \"%1\"==\"mcp\" if \"%2\"==\"remove\" (",
+                    "  if exist \"" + codexMarkerPath + "\" del \"" + codexMarkerPath + "\"",
+                    "  exit /b 0",
+                    ")",
+                    "if \"%1\"==\"mcp\" if \"%2\"==\"list\" (",
+                    "  if exist \"" + codexMarkerPath + "\" (",
+                    "    echo wpf-devtools %FAKE_CODEX_REGISTERED_PATH%",
+                    "  )",
+                    "  exit /b 0",
+                    ")",
+                    "exit /b 1"
+                ]));
+
+            var environmentOverrides = new Dictionary<string, string?>
+            {
+                ["FAKE_CLAUDE_REGISTERED_PATH"] = Path.Combine(defaultInstallRoot, "x64", "current", "bin", "wpf-devtools-x64.exe"),
+                ["FAKE_CODEX_REGISTERED_PATH"] = Path.Combine(defaultInstallRoot, "x64", "current", "bin", "wpf-devtools-x64.exe"),
+                ["PATH"] = fakeCliRoot + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH")
+            };
+
+            var install = RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                CreateStandaloneEnvironment(tempRoot, environmentOverrides));
+            install.ExitCode.Should().Be(0, install.Stderr);
+            File.Exists(claudeMarkerPath).Should().BeTrue("the default fake claude-code registration should be installed");
+            File.Exists(codexMarkerPath).Should().BeFalse("codex should be absent before the no-op uninstall");
+
+            var standaloneRoot = Path.Combine(tempRoot, "standalone-codex-default-root");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScriptPath,
+                overwrite: true);
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                standaloneScriptPath,
+                [
+                    "-Action", "uninstall",
+                    "-Architecture", "x64",
+                    "-Client", "codex",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                CreatePublicStandaloneEnvironment(tempRoot, environmentOverrides));
+
+            removal.ExitCode.Should().Be(0, removal.Stderr);
+            using var json = JsonDocument.Parse(removal.Stdout);
+            json.RootElement.GetProperty("action").GetString().Should().Be("uninstall");
+            File.Exists(claudeMarkerPath).Should().BeTrue("uninstalling codex should not remove the default claude-code registration");
+            File.Exists(codexMarkerPath).Should().BeFalse("codex should remain absent after verified no-op cleanup");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
 }

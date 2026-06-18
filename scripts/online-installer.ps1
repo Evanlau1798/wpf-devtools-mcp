@@ -1628,6 +1628,27 @@ function Resolve-StandaloneInstallBasePath {
 
     return (Join-Path $ResolvedInstallRoot $ResolvedArchitecture)
 }
+function Resolve-StandaloneRemovalInstallRoot {
+    param(
+        [AllowEmptyString()] [AllowNull()] [string]$ResolvedInstallRoot,
+        [Parameter(Mandatory)] $State
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($ResolvedInstallRoot)) {
+        return $ResolvedInstallRoot
+    }
+
+    $lastInstallRoot = [string]$State.lastInstallRoot
+    if (-not [string]::IsNullOrWhiteSpace($lastInstallRoot)) {
+        return $lastInstallRoot
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:APPDATA)) {
+        return (Join-Path $env:APPDATA 'WpfDevToolsMcp')
+    }
+
+    return (Join-Path ([System.IO.Path]::GetTempPath()) 'WpfDevToolsMcp')
+}
 function Get-StandaloneLiveInstallerManifestEvidence {
     param(
         [string]$InstallRoot,
@@ -2369,9 +2390,10 @@ function Invoke-StandaloneInstallerActionCore {
     )
 
     $state = Get-StandaloneInstallerState
+    $effectiveInstallRoot = Resolve-StandaloneRemovalInstallRoot -ResolvedInstallRoot $ResolvedInstallRoot -State $state
 
     if ($ResolvedAction -eq 'full-uninstall') {
-        $detectedInstallations = @(Get-StandaloneDetectedInstallerInstallations -State $state -ExpectedInstallRoot $ResolvedInstallRoot)
+        $detectedInstallations = @(Get-StandaloneDetectedInstallerInstallations -State $state -ExpectedInstallRoot $effectiveInstallRoot)
         $detectedRegistrations = @(Get-StandaloneDetectedInstallerRegistrations -State $state)
         $registrationMap = [ordered]@{}
         foreach ($registration in $detectedRegistrations) {
@@ -2674,7 +2696,7 @@ function Invoke-StandaloneInstallerActionCore {
         $detectedRegistrationMap[$registrationKey]
     }
     else {
-        Get-StandaloneFallbackRegistrationRecord -SelectedClient $ResolvedClient -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedArchitecture $ResolvedArchitecture
+        Get-StandaloneFallbackRegistrationRecord -SelectedClient $ResolvedClient -ResolvedInstallRoot $effectiveInstallRoot -ResolvedArchitecture $ResolvedArchitecture
     }
 
     $registrations = @()
@@ -2796,7 +2818,7 @@ function Invoke-StandaloneInstallerActionCore {
             client = $ResolvedClient
             packageAssetName = $null
             downloadUri = $null
-            installRoot = $ResolvedInstallRoot
+            installRoot = $effectiveInstallRoot
             installedExecutable = [string]$registrationRecord.installedExecutable
             selectedClients = @($ResolvedClient)
             statePath = $statePath

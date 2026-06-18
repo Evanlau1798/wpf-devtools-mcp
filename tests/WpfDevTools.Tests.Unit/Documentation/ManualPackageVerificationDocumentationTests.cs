@@ -45,6 +45,30 @@ public sealed class ManualPackageVerificationDocumentationTests
     }
 
     [Theory]
+    [InlineData("AGENT_INSTALL.md")]
+    [InlineData("docfx/index.md")]
+    [InlineData("docfx/quickstart/index.md")]
+    [InlineData("docfx/guides/agent-assisted-install.md")]
+    [InlineData("docfx/production/deployment.md")]
+    [InlineData("docfx/production/release-layout.md")]
+    [InlineData("docfx/zh-tw/index.md")]
+    [InlineData("docfx/zh-tw/quickstart/index.md")]
+    [InlineData("docfx/zh-tw/guides/agent-assisted-install.md")]
+    [InlineData("docfx/zh-tw/production/deployment.md")]
+    [InlineData("docfx/zh-tw/production/release-layout.md")]
+    public void PublicManualInstallDocs_ShouldOnlyRequirePublishedReleaseSidecars(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("SHA256SUMS.txt");
+        content.Should().Contain("release-assets.json");
+        content.Should().Contain("release-sbom.spdx.json");
+        content.Should().Contain("package-sbom.spdx.json");
+        content.Should().NotContain("release-evidence.json",
+            $"{relativePath} should not ask users to collect a sidecar that the public release asset list does not publish");
+    }
+
+    [Theory]
     [InlineData("docfx/quickstart/ai-agent-clients.md")]
     [InlineData("docfx/quickstart/claude-code.md")]
     [InlineData("docfx/quickstart/openai-codex.md")]

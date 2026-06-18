@@ -35,7 +35,6 @@ Production review 時，請讓 archive 與下列 sidecar 保持相鄰：
 | `release-assets.json` | Canonical asset metadata 與 sidecar hashes |
 | `release-sbom.spdx.json` | Release asset/archive inventory |
 | `package-sbom.spdx.json` | Package、相依性、script、assembly 與 payload SBOM |
-| `release-evidence.json` | Release evidence 與 audit bundle |
 
 `release-sbom.spdx.json` 與 `package-sbom.spdx.json` 是刻意分開的 artifact。兩者都不能取代 signer trust；Release payload 簽章驗證仍需要 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
 

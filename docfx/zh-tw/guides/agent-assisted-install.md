@@ -38,7 +38,7 @@ Supported client ids 為 `claude-code`、`codex`、`cursor`、`vscode`、`visual
 
 ## Release artifacts
 
-手動 production review 前，請把這些檔案與 archive 放在同一層：`SHA256SUMS.txt`、`release-assets.json`、`release-sbom.spdx.json`、`package-sbom.spdx.json` 與 `release-evidence.json`。
+手動 production review 前，請把這些檔案與 archive 放在同一層：`SHA256SUMS.txt`、`release-assets.json`、`release-sbom.spdx.json` 與 `package-sbom.spdx.json`。
 
 `release-sbom.spdx.json` 描述 release asset/archive inventory。`package-sbom.spdx.json` 描述 package、相依性、script、assembly 與 payload contents。Payload 簽章驗證仍需要 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
 

@@ -36,10 +36,10 @@ Installer 會偵測 host architecture、詢問 MCP client、安裝 packaged exec
 若你已取得已審查的 release archive，請使用此路徑。
 
 1. 下載 `release_<version>_win-<arch>.zip`。
-2. 將這些 sidecar 放在 archive 旁邊：`SHA256SUMS.txt`、`release-assets.json`、`release-sbom.spdx.json`、`package-sbom.spdx.json` 與 `release-evidence.json`。
+2. 將這些 sidecar 放在 archive 旁邊：`SHA256SUMS.txt`、`release-assets.json`、`release-sbom.spdx.json` 與 `package-sbom.spdx.json`。
 3. 用 `SHA256SUMS.txt` 驗證 archive hash，並用 `release-assets.json` 驗證 release metadata。
 4. Review 兩份 SBOM：`release-sbom.spdx.json` 用於 release assets，`package-sbom.spdx.json` 用於 package/dependency/payload contents。
-5. 驗證 release evidence 與 signer pin policy。Payload 簽章驗證仍需要 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
+5. 驗證 signer pin policy。Payload 簽章驗證仍需要 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
 6. 解壓後執行：
 
    ```powershell

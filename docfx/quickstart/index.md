@@ -36,10 +36,10 @@ The installed server path normally resolves to:
 Use this path when you already have a reviewed release archive.
 
 1. Download `release_<version>_win-<arch>.zip`.
-2. Keep these adjacent sidecars beside the archive: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, `package-sbom.spdx.json`, and `release-evidence.json`.
+2. Keep these adjacent sidecars beside the archive: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `package-sbom.spdx.json`.
 3. Verify the archive hash against `SHA256SUMS.txt` and release metadata in `release-assets.json`.
 4. Review both SBOMs: `release-sbom.spdx.json` for release assets and `package-sbom.spdx.json` for package/dependency/payload contents.
-5. Verify the release evidence and signer pin policy. Payload signature verification still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
+5. Verify the signer pin policy. Payload signature verification still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
 6. Extract the package and run:
 
    ```powershell

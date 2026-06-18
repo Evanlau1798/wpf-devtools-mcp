@@ -401,8 +401,7 @@ function Test-ReleaseSidecarDocumentation {
         'SHA256SUMS.txt',
         'release-assets.json',
         'release-sbom.spdx.json',
-        'package-sbom.spdx.json',
-        'release-evidence.json'
+        'package-sbom.spdx.json'
     )
     $docs = @(
         'AGENT_INSTALL.md',

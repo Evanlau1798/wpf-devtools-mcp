@@ -35,7 +35,6 @@ Keep the archive adjacent to these sidecars for production review:
 | `release-assets.json` | Canonical asset metadata and sidecar hashes |
 | `release-sbom.spdx.json` | Release asset/archive inventory |
 | `package-sbom.spdx.json` | Package, dependency, script, assembly, and payload SBOM |
-| `release-evidence.json` | Release evidence and audit bundle |
 
 `release-sbom.spdx.json` and `package-sbom.spdx.json` are intentionally separate. Neither replaces signer trust; Release payload signature verification still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
 

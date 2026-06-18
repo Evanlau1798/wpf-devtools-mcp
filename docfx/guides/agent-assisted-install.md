@@ -38,7 +38,7 @@ Before installation, ask the user to confirm:
 
 ## Release artifacts
 
-For manual production review, keep these files adjacent to the archive before extraction: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, `package-sbom.spdx.json`, and `release-evidence.json`.
+For manual production review, keep these files adjacent to the archive before extraction: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `package-sbom.spdx.json`.
 
 `release-sbom.spdx.json` describes the release asset/archive inventory. `package-sbom.spdx.json` describes package, dependency, script, assembly, and payload contents. Payload signature verification still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
 

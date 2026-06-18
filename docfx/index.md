@@ -14,7 +14,7 @@ Preview pre-release installer until the first stable GitHub Release is published
 
 The installer resolves the reviewed online installer for the selected public pre-release, verifies the versioned package metadata, and installs the packaged executable. Current public onboarding uses `-Prerelease`; after the first stable GitHub Release is published, stable installs can omit that switch. For manual installation, download `release_<version>_win-<arch>.zip`, verify the adjacent sidecars, extract the package, and run `run.bat` from the extracted folder.
 
-For manual production review, keep these files adjacent to the archive before extraction: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, `package-sbom.spdx.json`, and `release-evidence.json`.
+For manual production review, keep these files adjacent to the archive before extraction: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `package-sbom.spdx.json`.
 
 `release-sbom.spdx.json` describes the release asset/archive inventory. `package-sbom.spdx.json` describes the package, dependency, script, assembly, and payload contents. Neither replaces signer trust; production payload signature verification still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
 

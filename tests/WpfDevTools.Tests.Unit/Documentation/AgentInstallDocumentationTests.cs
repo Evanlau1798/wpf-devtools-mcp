@@ -80,7 +80,6 @@ public sealed class AgentInstallDocumentationTests
             content.Should().Contain("release-assets.json");
             content.Should().Contain("release-sbom.spdx.json");
             content.Should().Contain("package-sbom.spdx.json");
-            content.Should().Contain("release-evidence.json");
             content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
             content.Should().Contain("-PackageArchivePath");
             content.Should().Contain("-TrustedReleaseMetadataDirectory");

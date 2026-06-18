@@ -34,8 +34,6 @@ public sealed class PreReleaseInstallerDocumentationTests
             $"{relativePath} should gate the public installer on the versioned release package");
         content.Should().Contain("release-assets.json",
             $"{relativePath} should require release metadata before users trust the installer path");
-        content.Should().Contain("release-evidence.json",
-            $"{relativePath} should keep published release evidence visible before production use");
     }
 
     [Theory]
@@ -117,8 +115,7 @@ public sealed class PreReleaseInstallerDocumentationTests
             "SHA256SUMS.txt",
             "release-assets.json",
             "release-sbom.spdx.json",
-            "package-sbom.spdx.json",
-            "release-evidence.json"
+            "package-sbom.spdx.json"
         ];
 
         foreach (var sidecar in requiredSidecars)

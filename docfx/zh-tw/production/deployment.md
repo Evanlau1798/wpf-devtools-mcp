@@ -13,9 +13,8 @@ Production review 時，請把下列檔案放在一起：
 | `release-assets.json` | Canonical release asset metadata | 必要 |
 | `release-sbom.spdx.json` | Release asset/archive inventory | Release governance 必要 |
 | `package-sbom.spdx.json` | Package、相依性、script、assembly 與 payload SBOM | 完整 production review 必要 |
-| `release-evidence.json` | Release evidence 與 audit bundle | Strict production review policy 必要 |
 
-`release-sbom.spdx.json` 與 `package-sbom.spdx.json` 是不同 artifact。Sidecar 可證明 provenance 與 review evidence，但不能取代 payload 簽章驗證。Production payload 簽章驗證仍需要 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
+`release-sbom.spdx.json` 與 `package-sbom.spdx.json` 是不同 artifact。Sidecar 可證明 provenance 與 review scope，但不能取代 payload 簽章驗證。Production payload 簽章驗證仍需要 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
 
 ## 安裝路徑
 
@@ -51,9 +50,8 @@ Sidecar 驗證後的 package-local fallback：
 2. 使用 `release-assets.json` 驗證 asset entry 與 sidecar hash。
 3. Review `release-sbom.spdx.json` 的 release assets。
 4. Review `package-sbom.spdx.json` 的 package contents 與 dependencies。
-5. Review `release-evidence.json` 的 audit evidence。
-6. 使用 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` pin 預期 Authenticode signer。
-7. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` 只能在 thumbprint 已 pin 後作為額外 subject constraint。
+5. 使用 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` pin 預期 Authenticode signer。
+6. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` 只能在 thumbprint 已 pin 後作為額外 subject constraint。
 
 ## 已簽章 payload provenance 檢查清單
 
@@ -62,10 +60,9 @@ Production 使用前，請先確認：
 1. 用 `SHA256SUMS.txt` 與 `release-assets.json` 驗證下載的 `release_<version>_win-<arch>.zip`。
 2. 確認 `release-sbom.spdx.json` 是 release asset SBOM，不是完整 package/dependency SBOM。
 3. 確認 `package-sbom.spdx.json` 涵蓋 package、dependency、script、assembly 與 payload contents。
-4. Review `release-evidence.json`，並拒絕缺少或過期 evidence 的 package。
-5. 在 payload 簽章驗證前 pin `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
-6. 大規模安裝前，先從解壓後 archive 執行 package-local 啟動驗證。
-7. 從最終已安裝路徑確認 `wpf-devtools-<arch>.exe` 位於已審查 install root。
+4. 在 payload 簽章驗證前 pin `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
+5. 大規模安裝前，先從解壓後 archive 執行 package-local 啟動驗證。
+6. 從最終已安裝路徑確認 `wpf-devtools-<arch>.exe` 位於已審查 install root。
 
 ## Install root 與 registration
 

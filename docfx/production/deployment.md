@@ -13,9 +13,8 @@ For a production review, keep the following files together:
 | `release-assets.json` | Canonical release asset metadata | Required |
 | `release-sbom.spdx.json` | Release asset/archive inventory | Required for release governance |
 | `package-sbom.spdx.json` | Package, dependency, script, assembly, and payload SBOM | Required for full production review |
-| `release-evidence.json` | Release evidence and audit bundle | Required by strict production review policy |
 
-`release-sbom.spdx.json` and `package-sbom.spdx.json` are different artifacts. Sidecars prove provenance and review evidence; they do not replace payload signature verification. Production payload signature verification still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
+`release-sbom.spdx.json` and `package-sbom.spdx.json` are different artifacts. Sidecars prove provenance and review scope; they do not replace payload signature verification. Production payload signature verification still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
 
 ## Install paths
 
@@ -51,9 +50,8 @@ Use `-Client other` when you want artifact-only registration output. Use a concr
 2. Verify the asset entry and sidecar hashes in `release-assets.json`.
 3. Review `release-sbom.spdx.json` for release assets.
 4. Review `package-sbom.spdx.json` for package contents and dependencies.
-5. Review `release-evidence.json` for audit evidence.
-6. Pin the expected Authenticode signer with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
-7. Use `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` only as an additional subject constraint after the thumbprint is pinned.
+5. Pin the expected Authenticode signer with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
+6. Use `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` only as an additional subject constraint after the thumbprint is pinned.
 
 ## Signed payload provenance checklist
 
@@ -62,10 +60,9 @@ Before trusting a package for production use:
 1. Verify `SHA256SUMS.txt` and `release-assets.json` against the downloaded `release_<version>_win-<arch>.zip`.
 2. Confirm `release-sbom.spdx.json` is the release asset SBOM; it is not a full package/dependency SBOM.
 3. Confirm `package-sbom.spdx.json` covers package, dependency, script, assembly, and payload contents.
-4. Review `release-evidence.json` and reject packages with missing or stale evidence.
-5. Pin `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` before payload signature verification.
-6. Run a package-local startup verification from the extracted archive before installing broadly.
-7. Validate the final installed path points to `wpf-devtools-<arch>.exe` under the reviewed install root.
+4. Pin `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` before payload signature verification.
+5. Run a package-local startup verification from the extracted archive before installing broadly.
+6. Validate the final installed path points to `wpf-devtools-<arch>.exe` under the reviewed install root.
 
 ## Install root and registration
 

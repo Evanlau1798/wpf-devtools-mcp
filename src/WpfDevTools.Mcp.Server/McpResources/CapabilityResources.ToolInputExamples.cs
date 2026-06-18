@@ -145,7 +145,7 @@ public static partial class CapabilityResources
                         }
                     }
                 },
-                batch_mutate = new[]
+                batch_mutate = new object[]
                 {
                     new
                     {
@@ -179,6 +179,71 @@ public static partial class CapabilityResources
                                     }
                                 }
                             }
+                        }
+                    },
+                    new
+                    {
+                        name = "Run ordered search edit with rollback snapshot and diff",
+                        policyGates = new[]
+                        {
+                            "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS",
+                            "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS",
+                            "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION"
+                        },
+                        arguments = new
+                        {
+                            processId = 12345,
+                            elementId = "SearchTextBox",
+                            captureSnapshot = new
+                            {
+                                propertyNames = new[] { "Text" },
+                                viewModelPropertyNames = new[] { "SearchText" },
+                                includeFocus = true,
+                                snapshotName = "before-batch-search"
+                            },
+                            includeDiff = true,
+                            trigger = "after batch search edit",
+                            mutations = new object[]
+                            {
+                                new
+                                {
+                                    tool = "focus_element",
+                                    label = "Focus search box",
+                                    args = new { }
+                                },
+                                new
+                                {
+                                    tool = "set_dp_value",
+                                    label = "Set bound search text",
+                                    args = new
+                                    {
+                                        propertyName = "Text",
+                                        value = "Ready"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    new
+                    {
+                        name = "Submit stringified mutations from text-only clients",
+                        policyGates = new[] { "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS" },
+                        arguments = new
+                        {
+                            processId = 12345,
+                            elementId = "SearchTextBox",
+                            mutations = """
+                                [
+                                  {
+                                    "tool": "set_dp_value",
+                                    "label": "Set search text",
+                                    "args": {
+                                      "propertyName": "Text",
+                                      "value": "Ready"
+                                    }
+                                  }
+                                ]
+                                """
                         }
                     }
                 },

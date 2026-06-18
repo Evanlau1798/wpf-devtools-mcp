@@ -100,6 +100,16 @@ public sealed class McpToolDescriptionContractTests
     }
 
     [Fact]
+    public void BatchMutate_Description_ShouldDocumentSchemaErgonomics()
+    {
+        var description = GetDescriptionText("batch_mutate");
+
+        description.Should().Contain("stringified JSON array");
+        description.Should().Contain("Nested args must not include processId");
+        description.Should().Contain("includeDiff=true requires captureSnapshot");
+    }
+
+    [Fact]
     public void GetNameScope_Description_ShouldDocumentNoNameScopeAsSuccessfulEmptyResult()
     {
         var description = GetDescriptionText("get_namescope");

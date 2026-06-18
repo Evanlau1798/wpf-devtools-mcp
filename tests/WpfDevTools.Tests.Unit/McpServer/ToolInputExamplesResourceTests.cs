@@ -116,6 +116,20 @@ public sealed class ToolInputExamplesResourceTests
     }
 
     [Fact]
+    public void ToolExamplesResource_ShouldIncludeErgonomicBatchMutateExamples()
+    {
+        using var document = ReadToolExamples();
+        var batchExamples = document.RootElement
+            .GetProperty("examplesByTool")
+            .GetProperty("batch_mutate");
+
+        batchExamples.EnumerateArray().Any(HasSequentialRollbackBatchExample)
+            .Should().BeTrue("agents need a multi-step rollback-safe batch example with diff capture");
+        batchExamples.EnumerateArray().Any(HasStringifiedMutationsExample)
+            .Should().BeTrue("text-only clients need a valid stringified mutations example");
+    }
+
+    [Fact]
     public void ToolExamplesResource_ShouldOnlyReferenceRegisteredTools()
     {
         using var document = ReadToolExamples();
@@ -188,6 +202,40 @@ public sealed class ToolInputExamplesResourceTests
                && arguments.TryGetProperty("viewModelPropertyNames", out var viewModelPropertyNames)
                && viewModelPropertyNames.EnumerateArray().Any(item => item.GetString() == "SearchText")
                && arguments.GetProperty("includeFocus").GetBoolean();
+    }
+
+    private static bool HasSequentialRollbackBatchExample(JsonElement example)
+    {
+        var arguments = example.GetProperty("arguments");
+        if (!arguments.TryGetProperty("captureSnapshot", out var captureSnapshot)
+            || !arguments.TryGetProperty("includeDiff", out var includeDiff)
+            || !includeDiff.GetBoolean()
+            || !captureSnapshot.TryGetProperty("viewModelPropertyNames", out var viewModelPropertyNames)
+            || !viewModelPropertyNames.EnumerateArray().Any(item => item.GetString() == "SearchText")
+            || !arguments.TryGetProperty("mutations", out var mutations)
+            || mutations.ValueKind != JsonValueKind.Array
+            || mutations.GetArrayLength() < 2)
+        {
+            return false;
+        }
+
+        return mutations.EnumerateArray()
+            .Select(mutation => mutation.GetProperty("args"))
+            .All(args => !args.TryGetProperty("processId", out _));
+    }
+
+    private static bool HasStringifiedMutationsExample(JsonElement example)
+    {
+        var arguments = example.GetProperty("arguments");
+        if (!arguments.TryGetProperty("mutations", out var mutations)
+            || mutations.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        using var parsed = JsonDocument.Parse(mutations.GetString()!);
+        return parsed.RootElement.ValueKind == JsonValueKind.Array
+               && parsed.RootElement.GetArrayLength() > 0;
     }
 
     private static HashSet<string> GetRegisteredToolNames()

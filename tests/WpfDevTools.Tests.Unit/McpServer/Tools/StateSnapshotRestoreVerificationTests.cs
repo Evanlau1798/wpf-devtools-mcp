@@ -70,6 +70,9 @@ public sealed class StateSnapshotRestoreVerificationTests
         result.GetProperty("warnings").EnumerateArray()
             .Select(item => item.GetString())
             .Should().Contain(warning => warning!.Contains("Width", StringComparison.Ordinal));
+        result.GetProperty("nextSteps").EnumerateArray()
+            .Select(item => item.GetProperty("tool").GetString())
+            .Should().Contain(["get_binding_value_chain", "capture_state_snapshot"]);
         connected.RequestMethods.Should().Equal("set_dp_value", "get_dp_value_source");
     }
 

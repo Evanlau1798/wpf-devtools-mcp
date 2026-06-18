@@ -189,7 +189,7 @@ public static class ServerInstructions
         - SDK startup fails closed before host reuse is possible -> set both WPFDEVTOOLS_AUTH_SECRET and WPFDEVTOOLS_CERT_DIR before calling InspectorSdk.Initialize(); partial or unset SDK transport configuration is no longer accepted by default
         - "element not found" -> verify elementId from get_visual_tree/get_logical_tree
         - "property not found" -> verify propertyName spelling and element type
-        - "Rate limit exceeded" -> wait the returned `retryAfterSeconds`, then retry. Response includes { availableTokens, retryAfterSeconds, retryAfter }
+        - "Rate limit exceeded" -> wait the returned `retryAfterSeconds` or `retryAfterMs`, then retry. Prefer `recovery.suggestedAction` when present. Response includes { availableTokens, retryAfterSeconds, retryAfterMs, retryAfter, recovery }
         - InternalError/FileNotFound/OperationError -> retry when safe, verify build output, or report the issue with errorData
 
         === RESPONSE CONTRACT ===
@@ -197,7 +197,7 @@ public static class ServerInstructions
         Error responses set `success=false` and may include `error`, `errorCode`, `errorData`, `recovery`, `hint`, `suggestedAction`, `requiresReconnect`, or `stateAfterTimeoutUnknown` depending on the failure.
         - errorCode is the Inspector error enum name when the request reached the in-process Inspector
         - errorData is optional structured context for automated recovery logic
-        - recovery is the canonical machine-readable recovery surface; compatibility fields such as suggestedAction, requiresReconnect, stateAfterTimeoutUnknown, retryAfterSeconds, retryAfter, availableTokens, and availableEvents may remain top-level for older clients
+        - recovery is the canonical machine-readable recovery surface; compatibility fields such as suggestedAction, requiresReconnect, stateAfterTimeoutUnknown, retryAfterSeconds, retryAfterMs, retryAfter, availableTokens, and availableEvents may remain top-level for older clients
         - Common closed vocabularies for string parameters such as windowFilter, selectionStrategy, depthMode, detail, and outputMode are published in parameterVocabularies inside `wpf://contracts/response`
 
         === LIMITATIONS ===

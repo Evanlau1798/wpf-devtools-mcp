@@ -70,6 +70,29 @@ public class RateLimitContractTests
     }
 
     [Fact]
+    public async Task ConnectTool_RateLimitResponse_ShouldContainCanonicalRecoveryBackoff()
+    {
+        var sessionManager = new SessionManager(new FixedRateLimiterManager(
+            availableTokens: 0,
+            retryAfter: TimeSpan.FromMilliseconds(1250)));
+        var tool = new ConnectTool(sessionManager);
+        var processId = NextSyntheticProcessId();
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("retryAfterSeconds").GetInt32().Should().Be(2);
+        json.GetProperty("retryAfterMs").GetInt32().Should().Be(1250);
+
+        var recovery = json.GetProperty("recovery");
+        recovery.GetProperty("retryAfterSeconds").GetInt32().Should().Be(2);
+        recovery.GetProperty("retryAfterMs").GetInt32().Should().Be(1250);
+        recovery.GetProperty("availableTokens").GetInt32().Should().Be(0);
+        recovery.GetProperty("suggestedAction").GetString().Should().Contain("Wait 2 seconds");
+    }
+
+    [Fact]
     public async Task ConnectTool_RateLimitResponse_ShouldContainHumanReadableRetryAfter()
     {
         // Arrange
@@ -119,6 +142,10 @@ public class RateLimitContractTests
 
         instructions.Should().Contain("retryAfterSeconds",
             "ServerInstructions must document the numeric retryAfterSeconds field");
+        instructions.Should().Contain("retryAfterMs",
+            "ServerInstructions must document the numeric retryAfterMs field");
+        instructions.Should().Contain("recovery",
+            "ServerInstructions must document the canonical recovery object");
         instructions.Should().Contain("availableTokens",
             "ServerInstructions must document the availableTokens field");
     }

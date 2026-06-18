@@ -5,6 +5,8 @@ internal static class RateLimitResponseFactory
     public static object Create(RateLimitStatus status, string errorMessage)
     {
         var retryAfterSeconds = NormalizeRetryAfterSeconds(status.RetryAfter);
+        var retryAfterMs = NormalizeRetryAfterMilliseconds(status.RetryAfter);
+        var retryAfter = BuildHumanReadableRetryAfter(retryAfterSeconds);
 
         return new
         {
@@ -13,7 +15,16 @@ internal static class RateLimitResponseFactory
             errorCode = "RateLimitExceeded",
             availableTokens = status.AvailableTokens,
             retryAfterSeconds,
-            retryAfter = BuildHumanReadableRetryAfter(retryAfterSeconds)
+            retryAfterMs,
+            retryAfter,
+            recovery = new
+            {
+                suggestedAction = retryAfter,
+                availableTokens = status.AvailableTokens,
+                retryAfterSeconds,
+                retryAfterMs,
+                retryAfter
+            }
         };
     }
 
@@ -36,6 +47,17 @@ internal static class RateLimitResponseFactory
         }
 
         return (int)Math.Ceiling(retryAfter.TotalSeconds);
+    }
+
+    private static int NormalizeRetryAfterMilliseconds(TimeSpan retryAfter)
+    {
+        if (retryAfter <= TimeSpan.Zero)
+        {
+            return 0;
+        }
+
+        var milliseconds = Math.Ceiling(retryAfter.TotalMilliseconds);
+        return milliseconds >= int.MaxValue ? int.MaxValue : (int)milliseconds;
     }
 
     private static string BuildHumanReadableRetryAfter(int retryAfterSeconds)

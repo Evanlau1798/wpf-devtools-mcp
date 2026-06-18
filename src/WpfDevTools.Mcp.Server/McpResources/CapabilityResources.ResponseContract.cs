@@ -127,6 +127,7 @@ public static partial class CapabilityResources
                     "processId",
                     "timeoutSeconds",
                     "retryAfterSeconds",
+                    "retryAfterMs",
                     "retryAfter",
                     "availableTokens",
                     "availableEvents"
@@ -144,6 +145,7 @@ public static partial class CapabilityResources
                         processId = new { type = "integer", optional = true },
                         timeoutSeconds = new { type = "integer", optional = true },
                         retryAfterSeconds = new { type = "integer", optional = true },
+                        retryAfterMs = new { type = "integer", optional = true },
                         retryAfter = new { type = "string", optional = true },
                         availableTokens = new { type = "integer", optional = true },
                         availableEvents = new { type = "string[]", optional = true }

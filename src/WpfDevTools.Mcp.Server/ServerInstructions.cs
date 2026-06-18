@@ -125,6 +125,7 @@ public static class ServerInstructions
         - WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true opts into target UI text, DependencyProperty and binding values, routed-event payloads, tree/scene summaries, and runtime state snapshots such as get_ui_summary, get_visual_tree, get_bindings, and get_state_diff
         - WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true opts into get_datacontext_chain, get_viewmodel, get_commands, modify_viewmodel, and execute_command
         - Unset or disabled gates return errorCode: SecurityError; invalid boolean gate values return errorCode: InvalidPolicyConfiguration
+        - Common gate bundles are listed as `policyProfiles` in `wpf://contracts/response`; use them before asking an operator to enable extra capabilities
 
         === DESTRUCTIVE TOOLS (modify running app or consume session state - changes NOT persisted to XAML) ===
         - set_dp_value, clear_dp_value, override_style_setter: change property/style values

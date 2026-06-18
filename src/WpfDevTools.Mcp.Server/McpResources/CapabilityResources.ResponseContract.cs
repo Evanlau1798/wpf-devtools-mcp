@@ -93,6 +93,59 @@ public static partial class CapabilityResources
                     "pendingEventsMayIncludePriorContext"
                 }
             },
+            policyProfiles = new[]
+            {
+                new
+                {
+                    name = "inspect-only",
+                    agentUse = "Use for scene-first read workflows that inspect UI text, tree shape, bindings, DP values, and state diffs without runtime mutation.",
+                    requiredEnvVars = new[]
+                    {
+                        new { name = McpServerConfiguration.AllowedTargetsEnvVar, value = "exact local absolute target executable path", purpose = "permits connect() to the reviewed target" },
+                        new { name = McpServerConfiguration.AllowSensitiveReadsEnvVar, value = "true", purpose = "permits target UI text, binding values, DP values, scene summaries, and state reads" }
+                    },
+                    primaryTools = new[] { "connect", "get_ui_summary", "get_element_snapshot", "get_bindings", "get_state_diff" },
+                    extraGateGuidance = "Do not request screenshots, ViewModel inspection, or mutation gates unless the task requires them."
+                },
+                new
+                {
+                    name = "screenshot-evidence",
+                    agentUse = "Use when visual pixel evidence is required after scene-first lookup identifies a concrete elementId.",
+                    requiredEnvVars = new[]
+                    {
+                        new { name = McpServerConfiguration.AllowedTargetsEnvVar, value = "exact local absolute target executable path", purpose = "permits connect() to the reviewed target" },
+                        new { name = McpServerConfiguration.AllowScreenshotsEnvVar, value = "true", purpose = "permits element_screenshot at the MCP boundary" }
+                    },
+                    primaryTools = new[] { "connect", "get_ui_summary", "find_elements", "element_screenshot" },
+                    extraGateGuidance = "Pair with sensitive reads only when the workflow also needs target text or runtime values."
+                },
+                new
+                {
+                    name = "mutation-safe",
+                    agentUse = "Use for runtime-only interactions or temporary mutations guarded by snapshot, diff, and restore.",
+                    requiredEnvVars = new[]
+                    {
+                        new { name = McpServerConfiguration.AllowedTargetsEnvVar, value = "exact local absolute target executable path", purpose = "permits connect() to the reviewed target" },
+                        new { name = McpServerConfiguration.AllowDestructiveToolsEnvVar, value = "true", purpose = "permits runtime mutation, interaction, snapshots, event drains, and restore tools" },
+                        new { name = McpServerConfiguration.AllowSensitiveReadsEnvVar, value = "true", purpose = "permits state diff and runtime value verification" }
+                    },
+                    primaryTools = new[] { "capture_state_snapshot", "click_element", "set_dp_value", "get_state_diff", "restore_state_snapshot" },
+                    extraGateGuidance = "Capture state before the mutation and restore before ending the workflow."
+                },
+                new
+                {
+                    name = "mvvm-inspection",
+                    agentUse = "Use when DataContext, ViewModel properties, commands, or command execution are required.",
+                    requiredEnvVars = new[]
+                    {
+                        new { name = McpServerConfiguration.AllowedTargetsEnvVar, value = "exact local absolute target executable path", purpose = "permits connect() to the reviewed target" },
+                        new { name = McpServerConfiguration.AllowViewModelInspectionEnvVar, value = "true", purpose = "permits ViewModel and command inspection tools" },
+                        new { name = McpServerConfiguration.AllowSensitiveReadsEnvVar, value = "true", purpose = "permits target runtime values commonly needed to validate MVVM state" }
+                    },
+                    primaryTools = new[] { "get_datacontext_chain", "get_viewmodel", "get_commands", "execute_command", "modify_viewmodel" },
+                    extraGateGuidance = "Enable destructive tools too only when executing commands or modifying ViewModel state."
+                }
+            },
             pendingEventsAdditiveContract = new
             {
                 topLevelFields = new[]

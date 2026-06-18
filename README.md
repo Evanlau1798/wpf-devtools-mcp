@@ -21,6 +21,13 @@ Preview pre-release installer until the first stable GitHub Release is published
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
 ```
 
+Pinned pre-release install:
+
+```powershell
+$version = '<version>'
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
+```
+
 This uses the reviewed HTTPS installer alias and resolves the latest public pre-release. Current public onboarding uses `-Prerelease`; after the first stable GitHub Release is published, stable installs can omit that switch.
 
 Manual package fallback: download the matching `release_<version>_win-<arch>.zip`, extract the package, and run `run.bat` from the extracted folder. Use the [Quickstart](https://wpf-mcptools.evanlau1798.com/quickstart/), [Deployment Guide](https://wpf-mcptools.evanlau1798.com/production/deployment.html), and [Release Layout](https://wpf-mcptools.evanlau1798.com/production/release-layout.html) for verification details.

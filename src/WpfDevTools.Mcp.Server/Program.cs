@@ -89,6 +89,12 @@ try
                     suggestedAction: "Retry with a registered MCP tool name from tools/list.");
             }
 
+            var argumentValidation = McpToolArgumentValidator.Validate(parameters?.Name, parameters?.Arguments);
+            if (argumentValidation is not null)
+            {
+                return argumentValidation;
+            }
+
             var policyDecision = toolPolicy.EvaluateToolCall(parameters?.Name, parameters?.Arguments);
             if (!policyDecision.IsAllowed)
             {

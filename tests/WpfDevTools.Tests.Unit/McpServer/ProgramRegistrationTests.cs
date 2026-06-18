@@ -39,6 +39,24 @@ public class ProgramRegistrationTests
             "oversized names should be rejected before allowlist policy evaluation or dispatch");
     }
 
+    [Fact]
+    public void Program_CallToolFilter_ShouldValidateArgumentsBeforePolicyDispatch()
+    {
+        var programPath = Path.Combine(FindSolutionRoot(), "src", "WpfDevTools.Mcp.Server", "Program.cs");
+        var content = File.ReadAllText(programPath);
+
+        content.Should().Contain("McpToolArgumentValidator.Validate(parameters?.Name, parameters?.Arguments)",
+            "raw SDK call-tool parameters must be checked before typed tool wrappers can discard unknown arguments");
+
+        var validationIndex = content.IndexOf("McpToolArgumentValidator.Validate", StringComparison.Ordinal);
+        var policyIndex = content.IndexOf("toolPolicy.EvaluateToolCall", StringComparison.Ordinal);
+
+        validationIndex.Should().BeGreaterThanOrEqualTo(0);
+        policyIndex.Should().BeGreaterThanOrEqualTo(0);
+        validationIndex.Should().BeLessThan(policyIndex,
+            "argument validation should reject invalid requests before policy dispatch or wrapper binding");
+    }
+
     private static string FindSolutionRoot()
     {
         var current = new DirectoryInfo(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!);

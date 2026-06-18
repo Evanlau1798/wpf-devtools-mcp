@@ -340,6 +340,7 @@ public sealed class McpToolOutputSchemaTests
         "droppedEventCount",
         "pendingEventsOrigin",
         "pendingEventsMayIncludePriorContext",
+        "pendingEventsSuggestedAction",
         "cleanupIncomplete",
         "cleanupFailureMessage",
         "cleanupFailureType",

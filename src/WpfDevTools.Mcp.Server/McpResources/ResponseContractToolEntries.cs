@@ -146,6 +146,7 @@ internal static class ResponseContractToolEntries
                     "cleanupFailureType",
                     "pendingEventsOrigin",
                     "pendingEventsMayIncludePriorContext",
+                    "pendingEventsSuggestedAction",
                     "navigation",
                     "nextSteps"
                 },

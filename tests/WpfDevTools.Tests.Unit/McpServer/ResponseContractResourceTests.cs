@@ -30,7 +30,8 @@ public sealed partial class ResponseContractResourceTests
             "cleanupFailureMessage",
             "cleanupFailureType",
             "pendingEventsOrigin",
-            "pendingEventsMayIncludePriorContext");
+            "pendingEventsMayIncludePriorContext",
+            "pendingEventsSuggestedAction");
 
         var pendingEventsAdditiveContract = root.GetProperty("pendingEventsAdditiveContract");
         AssertArrayContains(
@@ -42,11 +43,13 @@ public sealed partial class ResponseContractResourceTests
             "cleanupFailureMessage",
             "cleanupFailureType",
             "pendingEventsOrigin",
-            "pendingEventsMayIncludePriorContext");
+            "pendingEventsMayIncludePriorContext",
+            "pendingEventsSuggestedAction");
         pendingEventsAdditiveContract.GetProperty("piggybackScope").GetString().Should().Contain("default piggyback drain behavior");
         AssertArrayContains(pendingEventsAdditiveContract.GetProperty("illustrativeTools"), "get_binding_errors");
         pendingEventsAdditiveContract.GetProperty("pendingEventsOriginField").GetString().Should().Be("pendingEventsOrigin");
         pendingEventsAdditiveContract.GetProperty("pendingEventsMayIncludePriorContextField").GetString().Should().Be("pendingEventsMayIncludePriorContext");
+        pendingEventsAdditiveContract.GetProperty("pendingEventsSuggestedActionField").GetString().Should().Be("pendingEventsSuggestedAction");
         root.GetProperty("navigation").GetProperty("field").GetString().Should().Be("navigation");
         root.GetProperty("nextSteps").GetProperty("field").GetString().Should().Be("nextSteps");
     }
@@ -173,6 +176,7 @@ public sealed partial class ResponseContractResourceTests
                 "cleanupFailureType",
                 "pendingEventsOrigin",
                 "pendingEventsMayIncludePriorContext",
+                "pendingEventsSuggestedAction",
                 "navigation"
             ],
             requestParameters: [

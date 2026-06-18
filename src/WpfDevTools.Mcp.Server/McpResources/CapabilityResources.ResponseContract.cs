@@ -90,7 +90,8 @@ public static partial class CapabilityResources
                     "cleanupFailureMessage",
                     "cleanupFailureType",
                     "pendingEventsOrigin",
-                    "pendingEventsMayIncludePriorContext"
+                    "pendingEventsMayIncludePriorContext",
+                    "pendingEventsSuggestedAction"
                 }
             },
             policyProfiles = new[]
@@ -157,13 +158,15 @@ public static partial class CapabilityResources
                     "cleanupFailureMessage",
                     "cleanupFailureType",
                     "pendingEventsOrigin",
-                    "pendingEventsMayIncludePriorContext"
+                    "pendingEventsMayIncludePriorContext",
+                    "pendingEventsSuggestedAction"
                 },
                 piggybackScope = "any successful pipe-backed tool response that keeps default piggyback drain behavior",
                 illustrativeTools = new[] { "get_binding_errors" },
                 pendingEventsOriginField = "pendingEventsOrigin",
                 pendingEventsOriginValues = new[] { "piggybackSharedBuffer" },
                 pendingEventsMayIncludePriorContextField = "pendingEventsMayIncludePriorContext",
+                pendingEventsSuggestedActionField = "pendingEventsSuggestedAction",
                 deterministicDrainTool = "drain_events",
                 priorContextGuidance = "When pendingEventsOrigin is piggybackSharedBuffer and pendingEventsMayIncludePriorContext is true, pendingEvents can include prior context from earlier watch activity. Use drain_events directly when a clean action window matters.",
                 cleanBufferWorkflow = new[]

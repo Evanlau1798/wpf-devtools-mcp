@@ -119,6 +119,9 @@ public abstract partial class PipeConnectedToolBase
 
         writer.WriteString("pendingEventsOrigin", "piggybackSharedBuffer");
         writer.WriteBoolean("pendingEventsMayIncludePriorContext", true);
+        writer.WriteString(
+            "pendingEventsSuggestedAction",
+            "For a clean event window, call drain_events with narrow filters before the next action, perform the action, then call drain_events again.");
 
         if (drainPayload.TryGetProperty("pendingEvents", out var pendingEvents))
         {

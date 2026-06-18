@@ -43,7 +43,7 @@ internal static class StateMcpToolDescriptions
         "  - restoredFocus: boolean,\n" +
         "  - warnings: string[]\n\n" +
         "ERRORS:\n" +
-        "- \"snapshotId\" -> snapshot missing, expired, or created for another process\n" +
+        "- \"snapshotId\" -> snapshot missing, expired, already removed, or created for another process; take a fresh snapshot with capture_state_snapshot. If restore conflicts persist, inspect get_dp_value_source and get_bindings before retrying\n" +
         "- \"not connected\" -> reconnect before restore\n\n" +
         "EXAMPLES:\n" +
         "- { \"processId\": 12345, \"snapshotId\": \"snapshot_abc\" }";

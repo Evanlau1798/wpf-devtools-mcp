@@ -28,7 +28,7 @@ public sealed partial class RestoreStateSnapshotTool(SessionManager sessionManag
             {
                 Error = $"No stored snapshot found for snapshotId '{snapshotId}'.",
                 ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
-                Hint = "Call capture_state_snapshot first or verify the snapshotId before retrying restore_state_snapshot."
+                Hint = "Take a fresh snapshot with capture_state_snapshot for the current connected process, or verify the snapshotId has not expired, was not removed by a prior restore, and belongs to this session. If restore conflicts persist, inspect live state with get_dp_value_source and get_bindings before retrying."
             };
         }
 

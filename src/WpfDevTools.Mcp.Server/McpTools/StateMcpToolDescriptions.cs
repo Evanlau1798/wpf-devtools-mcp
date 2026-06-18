@@ -14,7 +14,8 @@ internal static class StateMcpToolDescriptions
         "RESPONSE SUMMARY:\n" +
         "  - success: boolean,\n" +
         "  - snapshotId: string,\n" +
-        "  - snapshotSummary: { dependencyPropertyCount, viewModelPropertyCount, capturedFocus }\n\n" +
+        "  - snapshotSummary: { dependencyPropertyCount, skippedDependencyPropertyCount, viewModelPropertyCount, capturedFocus },\n" +
+        "  - skippedDependencyProperties: [{ propertyName, reason, errorCode }] when individual DependencyProperty captures are skipped but another requested state dimension is captured\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"propertyNames / viewModelPropertyNames / includeFocus required\" -> choose at least one capture dimension\n\n" +

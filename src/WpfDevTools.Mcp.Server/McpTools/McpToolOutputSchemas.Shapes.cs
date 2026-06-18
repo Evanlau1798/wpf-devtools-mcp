@@ -131,6 +131,16 @@ internal static partial class McpToolOutputSchemas
             ["verificationSkippedReason"] = String("Reason verification could not be completed.")
         });
 
+    private static object SkippedCaptureEntry()
+        => ObjectSchema("Skipped capture request.", new()
+        {
+            ["source"] = String("State source."),
+            ["elementId"] = String("Element id."),
+            ["propertyName"] = String("Property name."),
+            ["reason"] = String("Skip reason."),
+            ["errorCode"] = String("Machine-readable error code.")
+        });
+
     private static object MutationResult()
         => ObjectSchema("Per-mutation result.", new()
         {

@@ -114,6 +114,48 @@ public sealed class StateSnapshotDependencyPropertySafetyTests
     }
 
     [Fact]
+    public async Task CaptureStateSnapshot_WithMixedDependencyPropertyResults_ShouldCaptureValidEntries()
+    {
+        var processId = NextSyntheticProcessId();
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request => request.Method switch
+            {
+                "get_dp_value_source" => request.Params!.Value.GetProperty("propertyName").GetString() == "MissingWidth"
+                    ? new { success = false, error = "DependencyProperty 'MissingWidth' was not found.", errorCode = "PropertyNotFound" }
+                    : new
+                    {
+                        success = true,
+                        propertyName = "Text",
+                        currentValue = "Alice",
+                        hadLocalValue = true,
+                        localValue = "Alice",
+                        baseValueSource = "LocalValue",
+                        isExpression = false
+                    },
+                "get_binding_errors" => EmptyErrors(),
+                "get_validation_errors" => EmptyErrors(),
+                _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
+            });
+
+        var tool = new CaptureStateSnapshotTool(connected.SessionManager);
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            elementId = "TextBox_1",
+            propertyNames = new[] { "Text", "MissingWidth" }
+        }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("snapshotSummary").GetProperty("dependencyPropertyCount").GetInt32().Should().Be(1);
+        result.GetProperty("snapshotSummary").GetProperty("skippedDependencyPropertyCount").GetInt32().Should().Be(1);
+        result.GetProperty("skippedDependencyProperties").EnumerateArray().Should().ContainSingle();
+        var snapshotId = result.GetProperty("snapshotId").GetString();
+        connected.SessionManager.TryGetStateSnapshot(processId, snapshotId!, out var snapshot).Should().BeTrue();
+        snapshot!.DependencyProperties.Should().ContainSingle(entry => entry.PropertyName == "Text");
+    }
+
+    [Fact]
     public async Task RestoreStateSnapshot_ShouldRestoreBindingBackedDependencyProperty_WhenRestoreHandleWasCaptured()
     {
         var processId = NextSyntheticProcessId();

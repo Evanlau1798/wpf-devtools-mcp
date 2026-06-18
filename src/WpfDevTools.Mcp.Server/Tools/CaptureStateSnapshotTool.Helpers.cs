@@ -220,6 +220,18 @@ public sealed partial class CaptureStateSnapshotTool
             response);
     }
 
+    private static object CreateSkippedDependencyPropertyCapture(
+        string? elementId,
+        string propertyName,
+        JsonElement response) => new
+        {
+            source = "DependencyProperty",
+            elementId,
+            propertyName,
+            reason = GetOptionalString(response, "error") ?? $"DependencyProperty '{propertyName}' could not be captured.",
+            errorCode = GetOptionalString(response, "errorCode")
+        };
+
     private async Task<(
         IReadOnlyList<StoredBindingErrorSnapshot> bindingErrors,
         bool success,

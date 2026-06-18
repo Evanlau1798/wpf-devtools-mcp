@@ -43,6 +43,8 @@ public sealed partial class CaptureStateSnapshotTool(SessionManager sessionManag
         }
 
         var dependencyProperties = new List<StoredDependencyPropertySnapshot>();
+        var skippedDependencyProperties = new List<object>();
+        ToolErrorPayload? firstDependencyPropertyFailure = null;
         foreach (var propertyName in propertyNames.Values)
         {
             var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
@@ -55,7 +57,9 @@ public sealed partial class CaptureStateSnapshotTool(SessionManager sessionManag
 
             if (!IsSuccess(response))
             {
-                return CreateStepFailure("get_dp_value_source", propertyName, response);
+                firstDependencyPropertyFailure ??= CreateStepFailure("get_dp_value_source", propertyName, response);
+                skippedDependencyProperties.Add(CreateSkippedDependencyPropertyCapture(elementId, propertyName, response));
+                continue;
             }
 
             var isExpression = GetOptionalBool(response, "isExpression");
@@ -158,6 +162,14 @@ public sealed partial class CaptureStateSnapshotTool(SessionManager sessionManag
                 GetOptionalString(response, "focusedElementId"));
         }
 
+        if (dependencyProperties.Count == 0 &&
+            viewModelProperties.Count == 0 &&
+            focus == null &&
+            firstDependencyPropertyFailure != null)
+        {
+            return firstDependencyPropertyFailure;
+        }
+
         var (bindingErrors, hasBindingErrorBaseline, bindingBaselineError) = await TryCaptureBindingErrorBaselineAsync(
             processId,
             sessionGeneration,
@@ -186,6 +198,11 @@ public sealed partial class CaptureStateSnapshotTool(SessionManager sessionManag
         if (!hasValidationBaseline)
         {
             warnings.Add("Could not capture get_validation_errors baseline; get_state_diff will omit validation changes for this snapshot.");
+        }
+
+        if (skippedDependencyProperties.Count > 0)
+        {
+            warnings.Add($"Skipped {skippedDependencyProperties.Count} DependencyProperty capture request(s); inspect skippedDependencyProperties and call get_dp_value_source with exact propertyName values before retrying.");
         }
 
         var snapshotId = $"snapshot_{Guid.NewGuid():N}";
@@ -222,7 +239,7 @@ public sealed partial class CaptureStateSnapshotTool(SessionManager sessionManag
             {
                 dependencyPropertyCount = dependencyProperties.Count,
                 restorableDependencyPropertyCount = dependencyProperties.Count(snapshot => snapshot.CanRestore),
-                skippedDependencyPropertyCount = dependencyProperties.Count(snapshot => !snapshot.CanRestore),
+                skippedDependencyPropertyCount = dependencyProperties.Count(snapshot => !snapshot.CanRestore) + skippedDependencyProperties.Count,
                 viewModelPropertyCount = viewModelProperties.Count,
                 capturedFocus = focus != null
             },
@@ -231,6 +248,7 @@ public sealed partial class CaptureStateSnapshotTool(SessionManager sessionManag
                 bindingErrorBaselineCaptured = hasBindingErrorBaseline,
                 validationBaselineCaptured = hasValidationBaseline
             },
+            skippedDependencyProperties,
             warnings
         };
     }

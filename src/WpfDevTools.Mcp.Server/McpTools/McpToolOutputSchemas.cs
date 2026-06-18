@@ -148,6 +148,7 @@ internal static partial class McpToolOutputSchemas
                 ["snapshotName"] = String("Caller-supplied snapshot name when provided."),
                 ["snapshotSummary"] = StateSnapshotSummary(),
                 ["snapshotCompleteness"] = SnapshotCompleteness(),
+                ["skippedDependencyProperties"] = ArrayOf("DependencyProperty capture requests skipped before snapshot creation.", SkippedCaptureEntry()),
                 ["warnings"] = ArrayOfString("Snapshot capture warnings.")
             }),
             ["get_state_diff"] = CreateSchema(false, new()

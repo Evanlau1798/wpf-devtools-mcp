@@ -258,27 +258,7 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
             var fakeCliRoot = Path.Combine(tempRoot, "fake-cli");
             var markerPath = Path.Combine(tempRoot, "codex-registration.txt");
             Directory.CreateDirectory(fakeCliRoot);
-            File.WriteAllText(
-                Path.Combine(fakeCliRoot, "codex.cmd"),
-                string.Join("\r\n",
-                [
-                    "@echo off",
-                    "if \"%1\"==\"mcp\" if \"%2\"==\"add\" (",
-                    "  >\"" + markerPath + "\" echo registered",
-                    "  exit /b 0",
-                    ")",
-                    "if \"%1\"==\"mcp\" if \"%2\"==\"remove\" (",
-                    "  if exist \"" + markerPath + "\" del \"" + markerPath + "\"",
-                    "  exit /b 0",
-                    ")",
-                    "if \"%1\"==\"mcp\" if \"%2\"==\"list\" (",
-                    "  if exist \"" + markerPath + "\" (",
-                    "    echo wpf-devtools %FAKE_CODEX_REGISTERED_PATH%",
-                    "  )",
-                    "  exit /b 0",
-                    ")",
-                    "exit /b 1"
-                ]));
+            WriteFakeCli(fakeCliRoot, "codex", markerPath, "FAKE_CODEX_REGISTERED_PATH");
 
             var environmentOverrides = new Dictionary<string, string?>
             {
@@ -347,44 +327,8 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
             var claudeMarkerPath = Path.Combine(tempRoot, "claude-registration.txt");
             var codexMarkerPath = Path.Combine(tempRoot, "codex-registration.txt");
             Directory.CreateDirectory(fakeCliRoot);
-            File.WriteAllText(
-                Path.Combine(fakeCliRoot, "claude.cmd"),
-                string.Join("\r\n",
-                [
-                    "@echo off",
-                    "if \"%1\"==\"mcp\" if \"%2\"==\"add\" (",
-                    "  >\"" + claudeMarkerPath + "\" echo registered",
-                    "  exit /b 0",
-                    ")",
-                    "if \"%1\"==\"mcp\" if \"%2\"==\"remove\" (",
-                    "  if exist \"" + claudeMarkerPath + "\" del \"" + claudeMarkerPath + "\"",
-                    "  exit /b 0",
-                    ")",
-                    "if \"%1\"==\"mcp\" if \"%2\"==\"list\" (",
-                    "  if exist \"" + claudeMarkerPath + "\" (",
-                    "    echo wpf-devtools %FAKE_CLAUDE_REGISTERED_PATH%",
-                    "  )",
-                    "  exit /b 0",
-                    ")",
-                    "exit /b 1"
-                ]));
-            File.WriteAllText(
-                Path.Combine(fakeCliRoot, "codex.cmd"),
-                string.Join("\r\n",
-                [
-                    "@echo off",
-                    "if \"%1\"==\"mcp\" if \"%2\"==\"remove\" (",
-                    "  if exist \"" + codexMarkerPath + "\" del \"" + codexMarkerPath + "\"",
-                    "  exit /b 0",
-                    ")",
-                    "if \"%1\"==\"mcp\" if \"%2\"==\"list\" (",
-                    "  if exist \"" + codexMarkerPath + "\" (",
-                    "    echo wpf-devtools %FAKE_CODEX_REGISTERED_PATH%",
-                    "  )",
-                    "  exit /b 0",
-                    ")",
-                    "exit /b 1"
-                ]));
+            WriteFakeCli(fakeCliRoot, "claude", claudeMarkerPath, "FAKE_CLAUDE_REGISTERED_PATH");
+            WriteFakeCli(fakeCliRoot, "codex", codexMarkerPath, "FAKE_CODEX_REGISTERED_PATH", supportsAdd: false);
 
             var environmentOverrides = new Dictionary<string, string?>
             {
@@ -436,5 +380,110 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
         {
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
+    }
+
+    [Fact]
+    public void StandaloneOnlineInstaller_FullUninstall_ShouldAcceptCliListExitCodeWhenRegistrationIsAbsent()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var defaultInstallRoot = Path.Combine(tempRoot, "AppData", "Roaming", "WpfDevToolsMcp");
+            var fakeCliRoot = Path.Combine(tempRoot, "fake-cli");
+            var claudeMarkerPath = Path.Combine(tempRoot, "claude-registration.txt");
+            Directory.CreateDirectory(fakeCliRoot);
+            WriteFakeCli(
+                fakeCliRoot,
+                "claude",
+                claudeMarkerPath,
+                "FAKE_CLAUDE_REGISTERED_PATH",
+                exitWithOneWhenAbsent: true);
+
+            var environmentOverrides = new Dictionary<string, string?>
+            {
+                ["FAKE_CLAUDE_REGISTERED_PATH"] = Path.Combine(defaultInstallRoot, "x64", "current", "bin", "wpf-devtools-x64.exe"),
+                ["PATH"] = fakeCliRoot + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH")
+            };
+
+            var install = RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                CreateStandaloneEnvironment(tempRoot, environmentOverrides));
+            install.ExitCode.Should().Be(0, install.Stderr);
+            File.Exists(claudeMarkerPath).Should().BeTrue("the fake claude-code registration should be installed before full uninstall");
+
+            var standaloneRoot = Path.Combine(tempRoot, "standalone-full-uninstall-cli");
+            Directory.CreateDirectory(standaloneRoot);
+            var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                standaloneScriptPath,
+                overwrite: true);
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                standaloneScriptPath,
+                [
+                    "-Action", "full-uninstall",
+                    "-Architecture", "x64",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                CreatePublicStandaloneEnvironment(tempRoot, environmentOverrides));
+
+            removal.ExitCode.Should().Be(0, removal.Stderr);
+            using var json = JsonDocument.Parse(removal.Stdout);
+            json.RootElement.GetProperty("action").GetString().Should().Be("full-uninstall");
+            File.Exists(claudeMarkerPath).Should().BeFalse("full-uninstall should remove the cli registration");
+            Directory.Exists(Path.Combine(defaultInstallRoot, "x64")).Should().BeFalse("full-uninstall should remove the installed package base");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    private static void WriteFakeCli(
+        string fakeCliRoot,
+        string commandName,
+        string markerPath,
+        string registeredPathVariable,
+        bool exitWithOneWhenAbsent = false,
+        bool supportsAdd = true)
+    {
+        var lines = new List<string> { "@echo off" };
+        if (supportsAdd)
+        {
+            lines.AddRange(
+            [
+                "if \"%1\"==\"mcp\" if \"%2\"==\"add\" (",
+                "  >\"" + markerPath + "\" echo registered",
+                "  exit /b 0",
+                ")"
+            ]);
+        }
+
+        lines.AddRange(
+        [
+            "if \"%1\"==\"mcp\" if \"%2\"==\"remove\" (",
+            "  if exist \"" + markerPath + "\" del \"" + markerPath + "\"",
+            "  exit /b 0",
+            ")",
+            "if \"%1\"==\"mcp\" if \"%2\"==\"list\" (",
+            "  if exist \"" + markerPath + "\" (",
+            "    echo wpf-devtools %" + registeredPathVariable + "%",
+            "    exit /b 0",
+            "  )",
+            exitWithOneWhenAbsent ? "  exit /b 1" : "  exit /b 0",
+            ")",
+            "exit /b 1"
+        ]);
+        File.WriteAllText(Path.Combine(fakeCliRoot, commandName + ".cmd"), string.Join("\r\n", lines));
     }
 }

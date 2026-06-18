@@ -2235,7 +2235,16 @@ function Invoke-StandaloneVerificationCommand {
         if ($null -ne $stderrTask) { $stderrTask.GetAwaiter().GetResult() }
     ) -join [Environment]::NewLine
     $output = $output.Trim()
+    $containsToken = -not [string]::IsNullOrWhiteSpace($output) -and $output.Contains($ExpectedToken)
     if ($exitCode -ne 0) {
+        if (-not $ExpectPresent -and -not $containsToken) {
+            return [ordered]@{
+                Succeeded = $true
+                Output = $output
+                ExitCode = $exitCode
+            }
+        }
+
         return [ordered]@{
             Succeeded = $false
             Output = $output
@@ -2243,7 +2252,6 @@ function Invoke-StandaloneVerificationCommand {
         }
     }
 
-    $containsToken = -not [string]::IsNullOrWhiteSpace($output) -and $output.Contains($ExpectedToken)
     return [ordered]@{
         Succeeded = ($containsToken -eq $ExpectPresent)
         Output = $output

@@ -61,6 +61,35 @@ public class FindElementsToolTests
         json.GetProperty("success").GetBoolean().Should().BeTrue();
     }
 
+    [Fact]
+    public async Task Execute_WithUnknownNameFilter_ShouldReturnInvalidArgumentBeforeInspectorRequest()
+    {
+        const int processId = 53003;
+        var inspectorRequestReceived = false;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request =>
+            {
+                inspectorRequestReceived = true;
+                return new { success = true };
+            });
+
+        var tool = new FindElementsTool(connected.SessionManager);
+        var result = await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            nameFilter = "SubmitButton",
+            maxResults = 10
+        }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        json.GetProperty("error").GetString().Should().Contain("nameFilter");
+        json.GetProperty("hint").GetString().Should().Contain("elementName");
+        inspectorRequestReceived.Should().BeFalse();
+    }
+
     private static async Task<ConnectedFindElementsSession> CreateConnectedSessionAsync(
         int processId,
         Func<InspectorRequest, object> responder)

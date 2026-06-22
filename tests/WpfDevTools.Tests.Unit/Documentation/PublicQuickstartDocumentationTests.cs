@@ -202,6 +202,29 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
+    public void AgentQuickstarts_ShouldSummarizeAdvancedPolicyGatesNearDeeperWorkflows()
+    {
+        foreach (var file in new[]
+        {
+            "docfx/quickstart/ai-agent-clients.md",
+            "docfx/quickstart/openai-codex.md",
+            "docfx/zh-tw/quickstart/ai-agent-clients.md",
+            "docfx/zh-tw/quickstart/openai-codex.md"
+        })
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+
+            content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true");
+            content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true");
+            content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true");
+            content.Should().Contain("element_screenshot");
+            content.Should().Contain("get_viewmodel");
+            content.Should().Contain("capture_state_snapshot");
+            content.Should().Contain("batch_mutate");
+        }
+    }
+
+    [Fact]
     public void DocfxConfig_ShouldNotPublishScriptsFromDocumentationSite()
     {
         var content = File.ReadAllText(GetRepoFilePath("docfx/docfx.json"));

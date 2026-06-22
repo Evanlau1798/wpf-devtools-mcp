@@ -33,6 +33,16 @@ $env:WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS = 'true'
 Use the WPF DevTools MCP server. Connect to the allowlisted WPF target and return get_ui_summary(depthMode: "semantic").
 ```
 
+## 需要更深工具時的 gates
+
+第一次 Codex session 先保持範圍小；後續只啟用下一個已核准 tool 需要的 gate：
+
+- `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` 用於 `element_screenshot`。
+- `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` 用於 `get_viewmodel`、command metadata，以及 snapshot 或 `batch_mutate` 內的 ViewModel scopes。
+- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` 用於 `capture_state_snapshot`、`batch_mutate`、interaction、event drain 與 restore workflows。
+
+在 mutation 或有順序的 `batch_mutate` 前，先呼叫 `capture_state_snapshot`，再檢查 `get_state_diff`，並在 workflow 需要 rollback 時 restore。
+
 ## Troubleshooting
 
 - 以 generated `codex.txt` command 作為真源。

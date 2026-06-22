@@ -39,3 +39,13 @@ $env:WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS = 'true'
 4. `navigation.recommended` 建議的 focused diagnostic tool
 
 請優先使用 scene-level summary，再考慮 visual-tree dump 或 screenshot。
+
+## 需要更深工具時的 gates
+
+第一次 session 先保持範圍小；後續只啟用下一個已核准 tool 需要的 gate：
+
+- `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` 用於 `element_screenshot`。
+- `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` 用於 `get_viewmodel`、command metadata，以及 snapshot 或 `batch_mutate` 內的 ViewModel scopes。
+- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` 用於 `capture_state_snapshot`、`batch_mutate`、interaction、event drain 與 restore workflows。
+
+在 mutation 或有順序的 `batch_mutate` 前，先呼叫 `capture_state_snapshot`，再檢查 `get_state_diff`，並在 workflow 需要 rollback 時 restore。

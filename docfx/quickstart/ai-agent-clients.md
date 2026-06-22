@@ -39,3 +39,13 @@ $env:WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS = 'true'
 4. A focused diagnostic tool from `navigation.recommended`
 
 Prefer scene-level summaries before visual-tree dumps or screenshots.
+
+## Deeper gated workflows
+
+Keep the first session narrow, then enable only the gate needed for the next approved tool:
+
+- `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` for `element_screenshot`.
+- `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` for `get_viewmodel`, command metadata, and ViewModel scopes in snapshots or `batch_mutate`.
+- `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` for `capture_state_snapshot`, `batch_mutate`, interactions, event drain, and restore workflows.
+
+Before a mutation or ordered `batch_mutate`, take `capture_state_snapshot`, inspect `get_state_diff`, and restore when the workflow needs rollback.

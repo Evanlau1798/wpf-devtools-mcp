@@ -61,6 +61,7 @@ function Invoke-InstallerActionCore {
 
     if ($ResolvedAction -eq 'uninstall') {
         $state = Get-InstallerState
+        $effectiveInstallRoot = Resolve-StandaloneRemovalInstallRoot -ResolvedInstallRoot $ResolvedInstallRoot -State $state
         $detectedRegistrations = if ($NonInteractive -or $OutputJson) {
             Get-StandaloneDetectedInstallerRegistrationMap -State $state
         }
@@ -113,7 +114,7 @@ function Invoke-InstallerActionCore {
             $stateRegistrationRecord
         }
         else {
-            Get-StandaloneFallbackRegistrationRecord -SelectedClient $ResolvedClient -ResolvedInstallRoot $ResolvedInstallRoot -ResolvedArchitecture $ResolvedArchitecture
+            Get-StandaloneFallbackRegistrationRecord -SelectedClient $ResolvedClient -ResolvedInstallRoot $effectiveInstallRoot -ResolvedArchitecture $ResolvedArchitecture
         }
         $registrationRecord = Merge-RegistrationRecordWithStateFallback -RegistrationRecord $registrationRecord -StateRecord $stateRegistrationRecord -SelectedClient $ResolvedClient
         if ($null -ne $registrationRecord) {
@@ -129,7 +130,7 @@ function Invoke-InstallerActionCore {
             $ResolvedArchitecture = Get-SystemDefaultArchitecture
         }
         if ([string]::IsNullOrWhiteSpace($ResolvedInstallRoot)) {
-            $ResolvedInstallRoot = Resolve-PreferredInstallRoot
+            $ResolvedInstallRoot = $effectiveInstallRoot
         }
 
         $ResolvedInstallRoot = Resolve-AbsolutePath -Path $ResolvedInstallRoot

@@ -302,7 +302,7 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
                     "-Force",
                     "-OutputJson"
                 ],
-                CreatePublicStandaloneEnvironment(tempRoot, environmentOverrides));
+                CreateStandaloneEnvironment(tempRoot, environmentOverrides));
 
             removal.ExitCode.Should().Be(0, removal.Stderr);
             using var json = JsonDocument.Parse(removal.Stdout);
@@ -368,7 +368,7 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
                     "-Force",
                     "-OutputJson"
                 ],
-                CreatePublicStandaloneEnvironment(tempRoot, environmentOverrides));
+                CreateStandaloneEnvironment(tempRoot, environmentOverrides));
 
             removal.ExitCode.Should().Be(0, removal.Stderr);
             using var json = JsonDocument.Parse(removal.Stdout);
@@ -435,7 +435,7 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
                     "-Force",
                     "-OutputJson"
                 ],
-                CreatePublicStandaloneEnvironment(tempRoot, environmentOverrides));
+                CreateStandaloneEnvironment(tempRoot, environmentOverrides));
 
             removal.ExitCode.Should().Be(0, removal.Stderr);
             using var json = JsonDocument.Parse(removal.Stdout);

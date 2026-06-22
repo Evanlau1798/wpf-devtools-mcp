@@ -24,7 +24,14 @@
 
 ## 第一次 verification flow
 
-第一次連線前，請把 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 設為已審查 target 的 exact local absolute executable path。
+第一次連線前，請把 reviewed target path 同時用於 connection 與 raw-injection fallback，並為第一次 scene summary 啟用 sensitive reads：
+
+```powershell
+$target = 'C:\Path\To\YourApp.exe'
+$env:WPFDEVTOOLS_MCP_ALLOWED_TARGETS = $target
+$env:WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS = $target
+$env:WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS = 'true'
+```
 
 1. `connect`
 2. `get_active_process`

@@ -184,7 +184,9 @@ public sealed class PublicQuickstartDocumentationTests
     {
         foreach (var file in new[]
         {
+            "docfx/quickstart/ai-agent-clients.md",
             "docfx/quickstart/openai-codex.md",
+            "docfx/zh-tw/quickstart/ai-agent-clients.md",
             "docfx/zh-tw/quickstart/openai-codex.md"
         })
         {

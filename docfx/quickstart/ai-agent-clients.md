@@ -24,7 +24,14 @@ Use the generated `client-registration` artifact as the source of truth. The exe
 
 ## First verification flow
 
-Before the first connection, set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact local absolute executable path.
+Before the first connection, set the reviewed target path for connection and raw-injection fallback, then enable sensitive reads for the first scene summary:
+
+```powershell
+$target = 'C:\Path\To\YourApp.exe'
+$env:WPFDEVTOOLS_MCP_ALLOWED_TARGETS = $target
+$env:WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS = $target
+$env:WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS = 'true'
+```
 
 1. `connect`
 2. `get_active_process`

@@ -66,6 +66,8 @@ pwsh -NoProfile -File .\scripts\online-installer.ps1 `
 
 如果已審查 Windows host 沒有 PowerShell 7，請以 `powershell.exe -NoProfile -File` 搭配相同 arguments 執行。
 
+Prerelease/debug trust boundary：如果 noninteractive install 需要在允許 `DebugTrustedRootSkip` 前證明 dev/Debug package，請使用上方已審查本機 package command，讓 online installer 先用 `-TrustedReleaseMetadataDirectory` 驗證 ZIP 後再解壓。不要把 `bin\install.ps1`、`bin/install.ps1` 或 `run.bat` 當作 noninteractive prerelease/debug trust path。這些 package-local entrypoints 可以在另外完成 sidecar verification 後使用，但它們本身無法證明 extracted files 來自哪個 archive。
+
 Package-local fallback：
 
 ```powershell

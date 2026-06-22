@@ -66,6 +66,8 @@ pwsh -NoProfile -File .\scripts\online-installer.ps1 `
 
 Use `powershell.exe -NoProfile -File` with the same arguments when PowerShell 7 is unavailable on the reviewed Windows host.
 
+Prerelease/debug trust boundary: when a noninteractive install must prove a dev/Debug package before `DebugTrustedRootSkip` is honored, use the reviewed local package command above so the online installer validates the ZIP against `-TrustedReleaseMetadataDirectory` before extraction. Do not use `bin\install.ps1`, `bin/install.ps1`, or `run.bat` as the noninteractive prerelease/debug trust path. Those package-local entrypoints are useful after separate sidecar verification, but they cannot by themselves prove which archive produced the extracted files.
+
 Package-local fallback:
 
 ```powershell

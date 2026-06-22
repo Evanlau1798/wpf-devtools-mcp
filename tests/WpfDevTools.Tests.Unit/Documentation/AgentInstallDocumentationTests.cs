@@ -88,6 +88,28 @@ public sealed class AgentInstallDocumentationTests
         }
     }
 
+    [Theory]
+    [InlineData(
+        "AGENT_INSTALL.md",
+        "Do not use `bin\\install.ps1`, `bin/install.ps1`, or `run.bat` as the noninteractive prerelease/debug trust path.")]
+    [InlineData(
+        "docfx/guides/agent-assisted-install.md",
+        "Do not use `bin\\install.ps1`, `bin/install.ps1`, or `run.bat` as the noninteractive prerelease/debug trust path.")]
+    [InlineData(
+        "docfx/zh-tw/guides/agent-assisted-install.md",
+        "不要把 `bin\\install.ps1`、`bin/install.ps1` 或 `run.bat` 當作 noninteractive prerelease/debug trust path。")]
+    public void AgentInstallDocs_ShouldClarifyPrereleaseDebugTrustPath(
+        string file,
+        string expectedBoundary)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(file));
+
+        content.Should().Contain(expectedBoundary);
+        content.Should().Contain("-PackageArchivePath");
+        content.Should().Contain("-TrustedReleaseMetadataDirectory");
+        content.Should().Contain("DebugTrustedRootSkip");
+    }
+
     [Fact]
     public void AgentInstallDocs_ShouldListTheInstallerSupportedClients()
     {

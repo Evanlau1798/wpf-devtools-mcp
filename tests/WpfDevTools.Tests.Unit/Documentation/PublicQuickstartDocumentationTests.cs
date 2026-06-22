@@ -180,6 +180,26 @@ public sealed class PublicQuickstartDocumentationTests
     }
 
     [Fact]
+    public void ClientVerifyDocs_ShouldIncludeSceneSummaryPolicyGatesBeforeGetUiSummary()
+    {
+        foreach (var file in new[]
+        {
+            "docfx/quickstart/openai-codex.md",
+            "docfx/zh-tw/quickstart/openai-codex.md"
+        })
+        {
+            var content = File.ReadAllText(GetRepoFilePath(file));
+            var sceneSummaryIndex = content.IndexOf("get_ui_summary", StringComparison.Ordinal);
+
+            sceneSummaryIndex.Should().BeGreaterThan(0, $"{file} should describe scene-first verification");
+            var beforeSceneSummary = content[..sceneSummaryIndex];
+            beforeSceneSummary.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
+            beforeSceneSummary.Should().Contain("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS");
+            beforeSceneSummary.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS");
+        }
+    }
+
+    [Fact]
     public void DocfxConfig_ShouldNotPublishScriptsFromDocumentationSite()
     {
         var content = File.ReadAllText(GetRepoFilePath("docfx/docfx.json"));

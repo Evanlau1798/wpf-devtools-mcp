@@ -18,10 +18,13 @@ Installer 會寫入：
 
 ## Verify
 
-啟動 client 前設定 reviewed target allowlist：
+啟動 client 前，設定 reviewed target path 與 scene summary read gate：
 
 ```powershell
-$env:WPFDEVTOOLS_MCP_ALLOWED_TARGETS = 'C:\Path\To\YourApp.exe'
+$target = 'C:\Path\To\YourApp.exe'
+$env:WPFDEVTOOLS_MCP_ALLOWED_TARGETS = $target
+$env:WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS = $target
+$env:WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS = 'true'
 ```
 
 接著要求 Codex：

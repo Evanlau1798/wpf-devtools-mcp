@@ -18,10 +18,13 @@ Run the command shown in that file from the shell where Codex CLI is available. 
 
 ## Verify
 
-Set the reviewed target allowlist before launching the client:
+Set the reviewed target path and the scene-summary read gate before launching the client:
 
 ```powershell
-$env:WPFDEVTOOLS_MCP_ALLOWED_TARGETS = 'C:\Path\To\YourApp.exe'
+$target = 'C:\Path\To\YourApp.exe'
+$env:WPFDEVTOOLS_MCP_ALLOWED_TARGETS = $target
+$env:WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS = $target
+$env:WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS = 'true'
 ```
 
 Then ask Codex:

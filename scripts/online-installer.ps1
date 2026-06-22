@@ -338,7 +338,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:48f40f6f00bb1eb3a9a8f42a2998bb2e393957d57338bb8b217b36382a0636f0'
+$script:InstallerHelperManifestCacheKey = 'sha256:6e4efb4bf615b465a6c30e360acd317fa64531111cd1acfc213bf4e4655ff558'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/online-installer.release-assets.ps1'
     'scripts/installer/Installer.BootstrapUi.ps1'
@@ -2425,7 +2425,7 @@ function Get-StandaloneUninstallCleanupGuidance {
         ''
     }
 
-    return "uninstall removes or verifies only the selected registration and leaves installer-owned server locations in place.$otherClause Use -Action full-uninstall to remove all detected registrations, generated client-registration artifacts, and installer-owned server locations."
+    return "uninstall removes or verifies only the selected registration and leaves installer-owned server locations in place.$otherClause For E2E, temporary, or decommissioning cleanup, use the full cleanup action. Use -Action full-uninstall to remove all detected registrations, generated client-registration artifacts, and installer-owned server locations."
 }
 
 function Get-StandaloneFullUninstallCleanupGuidance {

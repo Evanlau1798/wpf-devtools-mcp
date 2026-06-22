@@ -16,7 +16,7 @@ function Get-InstallerUninstallCleanupGuidance {
         ''
     }
 
-    return "uninstall removes or verifies only the selected registration and leaves installer-owned server locations in place.$otherClause Use -Action full-uninstall to remove all detected registrations, generated client-registration artifacts, and installer-owned server locations."
+    return "uninstall removes or verifies only the selected registration and leaves installer-owned server locations in place.$otherClause For E2E, temporary, or decommissioning cleanup, use the full cleanup action. Use -Action full-uninstall to remove all detected registrations, generated client-registration artifacts, and installer-owned server locations."
 }
 
 function Get-InstallerFullUninstallCleanupGuidance {

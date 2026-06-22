@@ -121,6 +121,7 @@ public sealed class InstallerUninstallBehaviorTests
             content.Should().Contain("For -Client other");
             content.Should().Contain("other.mcpServers.json");
             content.Should().Contain("Use -Action full-uninstall");
+            content.Should().Contain("For E2E, temporary, or decommissioning cleanup");
         }
     }
 

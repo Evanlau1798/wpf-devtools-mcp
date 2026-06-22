@@ -76,3 +76,50 @@ function Merge-RegistrationRecordWithStateFallback {
         LastVerifiedUtc = if ($null -ne $RegistrationRecord -and -not [string]::IsNullOrWhiteSpace((Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('LastVerifiedUtc', 'lastVerifiedUtc')))) { Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('LastVerifiedUtc', 'lastVerifiedUtc') } else { Get-InstallerRecordStringValueCore -Record $StateRecord -PropertyNames @('lastVerifiedUtc', 'LastVerifiedUtc') }
     }
 }
+
+function Test-InstallerRegistrationMatchesInstallRoot {
+    param(
+        $RegistrationRecord,
+        [string]$ExpectedInstallRoot
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ExpectedInstallRoot)) {
+        return $true
+    }
+
+    if ($null -eq $RegistrationRecord) {
+        return $false
+    }
+
+    $recordInstallRoot = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('installRoot', 'InstallRoot')
+    if (-not [string]::IsNullOrWhiteSpace($recordInstallRoot)) {
+        return (Test-InstallerPathEqualsCore -Left $recordInstallRoot -Right $ExpectedInstallRoot)
+    }
+
+    $installedExecutable = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('installedExecutable', 'InstalledExecutable', 'executable', 'Executable')
+    if ([string]::IsNullOrWhiteSpace($installedExecutable)) {
+        return $false
+    }
+
+    $ownership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
+    return ([bool]$ownership.InstallerOwned -and (Test-InstallerPathEqualsCore -Left ([string]$ownership.InstallRoot) -Right $ExpectedInstallRoot))
+}
+
+function Test-InstallerExplicitRootCliUninstallNoOp {
+    param(
+        $RegistrationRecord,
+        [bool]$InstallRootWasSpecified
+    )
+
+    if (-not $InstallRootWasSpecified -or $null -eq $RegistrationRecord) {
+        return $false
+    }
+
+    $mode = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('mode', 'Mode', 'RegistrationMode')
+    if (-not [string]::Equals($mode, 'cli', [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $false
+    }
+
+    $installedExecutable = Get-InstallerRecordStringValueCore -Record $RegistrationRecord -PropertyNames @('installedExecutable', 'InstalledExecutable')
+    return [string]::IsNullOrWhiteSpace($installedExecutable)
+}

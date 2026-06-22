@@ -107,6 +107,18 @@ function Invoke-InstallerActionCore {
         else {
             $null
         }
+
+        if ($script:InstallRootWasSpecified) {
+            if ($null -ne $detectedRegistration -and -not (Test-InstallerRegistrationMatchesInstallRoot -RegistrationRecord $detectedRegistration -ExpectedInstallRoot $effectiveInstallRoot)) {
+                $detectedRegistration = $null
+            }
+
+            if ($null -ne $stateRegistrationRecord -and -not (Test-InstallerRegistrationMatchesInstallRoot -RegistrationRecord $stateRegistrationRecord -ExpectedInstallRoot $effectiveInstallRoot)) {
+                $stateRegistrationRecord = $null
+                $stateRegistrationKey = $null
+            }
+        }
+
         $registrationRecord = if ($null -ne $detectedRegistration) {
             $detectedRegistration
         }
@@ -142,11 +154,20 @@ function Invoke-InstallerActionCore {
             $null
         }
         $registrations = @()
+        $skipSelectedUninstall = Test-InstallerExplicitRootCliUninstallNoOp -RegistrationRecord $registrationRecord -InstallRootWasSpecified:([bool]$script:InstallRootWasSpecified)
         try {
-            $registrations = @(Invoke-ClientUnregistration -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord)
-            $verification = Invoke-UninstallVerification -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord -RegistrationChanges $registrations
-            if (-not $verification.Succeeded) {
-                throw $verification.VerificationMessage
+            if ($skipSelectedUninstall) {
+                $verification = [ordered]@{
+                    Succeeded = $true
+                    VerificationMessage = "Verified no matching $ResolvedClient registration under $ResolvedInstallRoot."
+                }
+            }
+            else {
+                $registrations = @(Invoke-ClientUnregistration -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord)
+                $verification = Invoke-UninstallVerification -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord -RegistrationChanges $registrations
+                if (-not $verification.Succeeded) {
+                    throw $verification.VerificationMessage
+                }
             }
 
             $removedRuntimeScreenshotCache = Remove-InstallerRuntimeScreenshotCache

@@ -338,7 +338,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:2e84bab9fee5311e8221e3ff7ad8975de045e93e8d1aadd7313946d341ebad08'
+$script:InstallerHelperManifestCacheKey = 'sha256:48f40f6f00bb1eb3a9a8f42a2998bb2e393957d57338bb8b217b36382a0636f0'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/online-installer.release-assets.ps1'
     'scripts/installer/Installer.BootstrapUi.ps1'
@@ -2078,6 +2078,51 @@ function Get-StandaloneFallbackRegistrationRecord {
         default { return $null }
     }
 }
+function Test-StandaloneRegistrationMatchesInstallRoot {
+    param(
+        $RegistrationRecord,
+        [string]$ExpectedInstallRoot
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ExpectedInstallRoot)) {
+        return $true
+    }
+
+    if ($null -eq $RegistrationRecord) {
+        return $false
+    }
+
+    $recordInstallRoot = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('installRoot', 'InstallRoot')
+    if (-not [string]::IsNullOrWhiteSpace($recordInstallRoot)) {
+        return (Test-StandaloneInstallerPathEquals -Left $recordInstallRoot -Right $ExpectedInstallRoot)
+    }
+
+    $installedExecutable = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('installedExecutable', 'InstalledExecutable', 'executable', 'Executable')
+    if ([string]::IsNullOrWhiteSpace($installedExecutable)) {
+        return $false
+    }
+
+    $ownership = Resolve-StandaloneInstallerOwnershipFromExecutable -InstalledExecutable $installedExecutable
+    return ([bool]$ownership.InstallerOwned -and (Test-StandaloneInstallerPathEquals -Left ([string]$ownership.InstallRoot) -Right $ExpectedInstallRoot))
+}
+function Test-StandaloneExplicitRootCliUninstallNoOp {
+    param(
+        $RegistrationRecord,
+        [bool]$InstallRootWasSpecified
+    )
+
+    if (-not $InstallRootWasSpecified -or $null -eq $RegistrationRecord) {
+        return $false
+    }
+
+    $mode = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('mode', 'Mode', 'RegistrationMode')
+    if (-not [string]::Equals($mode, 'cli', [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $false
+    }
+
+    $installedExecutable = Get-StandaloneRecordStringValue -Record $RegistrationRecord -PropertyNames @('installedExecutable', 'InstalledExecutable')
+    return [string]::IsNullOrWhiteSpace($installedExecutable)
+}
 function Test-StandaloneInstallerRunningElevated {
     if ($script:WpfDevToolsInstallerTestModeEnabled -and
         -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED)) {
@@ -2707,9 +2752,15 @@ function Invoke-StandaloneInstallerActionCore {
         Get-StandaloneFallbackRegistrationRecord -SelectedClient $ResolvedClient -ResolvedInstallRoot $effectiveInstallRoot -ResolvedArchitecture $ResolvedArchitecture
     }
 
+    if ($script:InstallRootWasSpecified -and $null -ne $registrationRecord -and -not (Test-StandaloneRegistrationMatchesInstallRoot -RegistrationRecord $registrationRecord -ExpectedInstallRoot $effectiveInstallRoot)) {
+        $registrationKey = $null
+        $registrationRecord = Get-StandaloneFallbackRegistrationRecord -SelectedClient $ResolvedClient -ResolvedInstallRoot $effectiveInstallRoot -ResolvedArchitecture $ResolvedArchitecture
+    }
+
     $registrations = @()
+    $skipSelectedUninstall = Test-StandaloneExplicitRootCliUninstallNoOp -RegistrationRecord $registrationRecord -InstallRootWasSpecified:([bool]$script:InstallRootWasSpecified)
     try {
-        if ($null -ne $registrationRecord) {
+        if ($null -ne $registrationRecord -and -not $skipSelectedUninstall) {
             $rawMode = Get-StandaloneRecordStringValue -Record $registrationRecord -PropertyNames @('mode', 'Mode', 'RegistrationMode')
             $mode = Get-StandaloneNormalizedRegistrationMode -RegistrationMode $rawMode
             $targetPath = Get-StandaloneTrustedRecordedTarget -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord
@@ -2806,9 +2857,17 @@ function Invoke-StandaloneInstallerActionCore {
             }
         }
 
-        $verification = Invoke-StandaloneUninstallVerification -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord -RegistrationChanges @($registrations)
-        if (-not $verification.Succeeded) {
-            throw $verification.VerificationMessage
+        if ($skipSelectedUninstall) {
+            $verification = [ordered]@{
+                Succeeded = $true
+                VerificationMessage = "Verified no matching $ResolvedClient registration under $effectiveInstallRoot."
+            }
+        }
+        else {
+            $verification = Invoke-StandaloneUninstallVerification -SelectedClient $ResolvedClient -RegistrationRecord $registrationRecord -RegistrationChanges @($registrations)
+            if (-not $verification.Succeeded) {
+                throw $verification.VerificationMessage
+            }
         }
 
         if (-not [string]::IsNullOrWhiteSpace([string]$registrationKey) -and $state.registrations.Contains($registrationKey)) {

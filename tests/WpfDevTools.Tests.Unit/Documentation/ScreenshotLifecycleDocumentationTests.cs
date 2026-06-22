@@ -39,6 +39,27 @@ public sealed class ScreenshotLifecycleDocumentationTests
             $"{relativePath} should not blur server-owned retained resources with Inspector cache cleanup");
     }
 
+    [Theory]
+    [InlineData(
+        "docfx/reference/tools/interaction-events-layout.md",
+        "metadata mode does not return `screenshotId`, `resourceUri`, or a `wpf://screenshots/{screenshotId}` handle")]
+    [InlineData(
+        "docfx/zh-tw/reference/tools/interaction-events-layout.md",
+        "metadata mode 不會回傳 `screenshotId`、`resourceUri` 或 `wpf://screenshots/{screenshotId}` handle")]
+    [InlineData(
+        "src/WpfDevTools.Mcp.Server/McpTools/InteractionMcpToolDescriptions.cs",
+        "metadata mode does not return `screenshotId`, `resourceUri`, or a `wpf://screenshots/{screenshotId}` handle")]
+    public void ElementScreenshotDocumentation_ShouldClarifyMetadataModeHasNoResourceHandle(
+        string relativePath,
+        string expectedPhrase)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(expectedPhrase);
+        content.Should().Contain("outputMode");
+        content.Should().Contain("file");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }

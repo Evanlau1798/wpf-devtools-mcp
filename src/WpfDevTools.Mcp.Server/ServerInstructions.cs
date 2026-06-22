@@ -46,6 +46,7 @@ public static class ServerInstructions
 
         === RATE LIMITS ===
         - Per-session: 300 requests/minute per connected process
+        - For long autonomous validation or E2E-style runs, pace tool calls below the per-session limit; use small bursts and wait for `retryAfterSeconds` or `retryAfterMs` if RateLimitExceeded appears
         - Tree tools: Use depth parameter to limit response size
         - Performance tools: Avoid calling in tight loops
 

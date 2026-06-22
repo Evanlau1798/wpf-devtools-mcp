@@ -70,6 +70,14 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldGuideLongAutonomousRunsToPaceRequests()
+    {
+        ServerInstructions.Value.Should().Contain(
+            "For long autonomous validation or E2E-style runs, pace tool calls below the per-session limit",
+            "agents should learn the pacing expectation before they discover it by hitting RateLimitExceeded");
+    }
+
+    [Fact]
     public void Value_ShouldContainToolSelectionGuide()
     {
         ServerInstructions.Value.Should().Contain("TOOL SELECTION GUIDE");

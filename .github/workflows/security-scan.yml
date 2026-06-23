@@ -58,6 +58,7 @@ jobs:
           $dotnet = (Get-Command dotnet -ErrorAction Stop).Source
         }
 
+        $env:DOTNET_HOST_PATH = $dotnet
         & $dotnet format WpfDevTools.sln analyzers --verify-no-changes --severity error --no-restore
 
     - name: Run PowerShell ScriptAnalyzer

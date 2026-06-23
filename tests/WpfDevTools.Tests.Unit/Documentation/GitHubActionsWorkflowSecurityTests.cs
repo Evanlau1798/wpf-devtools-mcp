@@ -75,6 +75,8 @@ public sealed class GitHubActionsWorkflowSecurityTests
             "hosted security scans must make the setup-dotnet installation visible to dotnet-format child CLI resolution");
         workflow.Should().Contain("Join-Path $env:DOTNET_ROOT 'dotnet.exe'",
             "the analyzer gate should invoke the setup-dotnet CLI explicitly rather than relying on a mutable PATH");
+        workflow.Should().Contain("$env:DOTNET_HOST_PATH = $dotnet",
+            "dotnet-format child processes need the resolved host path on GitHub hosted runners");
         workflow.Should().Contain("PSScriptAnalyzer",
             "PowerShell installer and release scripts should be statically scanned in CI");
         workflow.Should().Contain("Invoke-PowerShellScriptAnalyzerGate.ps1");

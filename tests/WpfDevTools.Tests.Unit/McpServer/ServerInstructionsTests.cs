@@ -78,6 +78,17 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldExplainSessionStatefulInteractionBoundaries()
+    {
+        ServerInstructions.Value.Should().Contain(
+            "Treat scroll_to_element, highlight_element, and drag_and_drop as session-stateful interaction tools",
+            "agents need to know which interaction tools can leave natural UI/session side effects");
+        ServerInstructions.Value.Should().Contain(
+            "capture_state_snapshot does not restore scroll position, temporary highlight adorners, or OS pointer/input fidelity",
+            "snapshot rollback guidance should not imply every interaction side effect is restorable");
+    }
+
+    [Fact]
     public void Value_ShouldContainToolSelectionGuide()
     {
         ServerInstructions.Value.Should().Contain("TOOL SELECTION GUIDE");

@@ -118,6 +118,7 @@ public static class ServerInstructions
         - wait_for_dp_change is now read-only; if you need the old triggerMutation-style serialized mutation-plus-wait flow, use wait_for_dp_change_after_mutation instead
         - If get_dp_value_source reports isExpression=true, treat set_dp_value as a temporary override. Binding-backed expressions can usually be restored later in the same session with clear_dp_value or restore_state_snapshot; for two-way bindings, also snapshot the relevant ViewModel property when you need deterministic semantic rollback of the source value. Non-Binding expressions remain an explicit capability boundary
         - focus_element and simulate_keyboard require the target to be attached to the active rendered visual tree; activate inactive tabs before focus-sensitive actions
+        - Treat scroll_to_element, highlight_element, and drag_and_drop as session-stateful interaction tools. capture_state_snapshot does not restore scroll position, temporary highlight adorners, or OS pointer/input fidelity; verify effects explicitly and close injected target apps before installer full-uninstall when binaries may be locked
         - Remember: all destructive changes are runtime-only and NOT persisted to XAML
 
         === SERVER-SIDE POLICY GATES ===

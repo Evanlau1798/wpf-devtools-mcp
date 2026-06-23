@@ -131,12 +131,15 @@ function Invoke-InstallerFullUninstallCore {
         foreach ($backup in $installationBackups) {
             Remove-PathIfExists -Path ([string]$backup.RollbackPath)
         }
+
+        $removedInstallRoots = @(Remove-InstallerOwnedEmptyInstallRoots -Installations $removedInstallations -BestEffort)
         return [ordered]@{
             action = 'full-uninstall'
             client = 'all'
             statePath = $statePath
             removedInstallation = ($removedInstallations.Count -gt 0)
             removedInstallations = @($removedInstallations)
+            removedInstallRoots = @($removedInstallRoots)
             removedRuntimeScreenshotCache = $removedRuntimeScreenshotCache
             registrations = @($unregistrationResults)
             verificationMessage = "Verified removal of $($detectedRegistrations.Count) registration(s) and $($removedInstallations.Count) installer-owned server location(s)."

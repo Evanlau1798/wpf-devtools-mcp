@@ -109,6 +109,82 @@ function Remove-InstallerRuntimeScreenshotCache {
     return $true
 }
 
+function Remove-InstallerOwnedEmptyInstallRoots {
+    param(
+        [object[]]$Installations,
+        [switch]$BestEffort
+    )
+
+    $installRoots = [ordered]@{}
+    $trimChars = @([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    foreach ($installation in @($Installations)) {
+        if (-not [bool]$installation.InstallerOwned) {
+            continue
+        }
+
+        $installRoot = [string]$installation.InstallRoot
+        if ([string]::IsNullOrWhiteSpace($installRoot)) {
+            continue
+        }
+
+        try {
+            $trustedInstallRoot = Assert-InstallerLocalPathTrusted -Path $installRoot
+        }
+        catch {
+            if ($BestEffort) {
+                continue
+            }
+
+            throw
+        }
+
+        $volumeRoot = [System.IO.Path]::GetPathRoot($trustedInstallRoot)
+        $normalizedRoot = $trustedInstallRoot.TrimEnd($trimChars)
+        $normalizedVolumeRoot = $volumeRoot.TrimEnd($trimChars)
+        if ([string]::Equals($normalizedRoot, $normalizedVolumeRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            continue
+        }
+
+        $key = $normalizedRoot.ToLowerInvariant()
+        if (-not $installRoots.Contains($key)) {
+            $installRoots[$key] = $trustedInstallRoot
+        }
+    }
+
+    $removedInstallRoots = @()
+    foreach ($installRoot in $installRoots.Values) {
+        if (-not (Test-Path -LiteralPath $installRoot)) {
+            continue
+        }
+
+        $item = Get-Item -LiteralPath $installRoot -Force
+        if (-not $item.PSIsContainer) {
+            continue
+        }
+
+        $hasEntries = $false
+        foreach ($entry in @(Get-ChildItem -LiteralPath $installRoot -Force -ErrorAction Stop | Select-Object -First 1)) {
+            $hasEntries = $true
+        }
+
+        if ($hasEntries) {
+            continue
+        }
+
+        $removeParameters = @{
+            Path = $installRoot
+        }
+        if ($BestEffort -and (Get-Command Remove-PathIfExists).Parameters.ContainsKey('BestEffort')) {
+            $removeParameters['BestEffort'] = $true
+        }
+
+        Remove-PathIfExists @removeParameters
+        $removedInstallRoots += $installRoot
+    }
+
+    return @($removedInstallRoots)
+}
+
 function Get-JsonConfigRegisteredExecutable {
     param(
         [Parameter(Mandatory)] [string]$CollectionName,
@@ -346,6 +422,8 @@ function Invoke-StandaloneFullUninstall {
         }
     }
 
+    $removedInstallRoots = @(Remove-InstallerOwnedEmptyInstallRoots -Installations $removedInstallations)
+
     if ($verificationFailures.Count -gt 0) {
         throw ($verificationFailures -join ' ')
     }
@@ -357,6 +435,7 @@ function Invoke-StandaloneFullUninstall {
         statePath = $statePath
         removedInstallation = ($removedInstallations.Count -gt 0)
         removedInstallations = @($removedInstallations)
+        removedInstallRoots = @($removedInstallRoots)
         removedRuntimeScreenshotCache = $removedRuntimeScreenshotCache
         registrations = @($unregistrationResults)
         verificationMessage = "Verified removal of $($detectedRegistrations.Count) registration(s) and $($removedInstallations.Count) installer-owned server location(s)."

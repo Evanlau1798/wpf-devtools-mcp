@@ -338,7 +338,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:8e785b074291b9b6df10ed68be3bafbf062124e36977e921d07ac52d42c285f2'
+$script:InstallerHelperManifestCacheKey = 'sha256:6de3c846430ff364c52c8e2617aa1e9911a6295aa633914a0644d795c9d9e6d0'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/online-installer.release-assets.ps1'
     'scripts/installer/Installer.BootstrapUi.ps1'
@@ -432,6 +432,7 @@ $script:GitHubReleaseChecksumRecordCache = @{}
 $script:TuiHelperBootstrapArchive = $null
 $script:TrustedLocalPackageArchivePath = $null
 $script:InstallerSharedModulePathsCache = $null
+$script:InstallerSharedModulePathsCacheIncludesInstalledRoots = $false
 function Resolve-InstallerScriptRoot {
     if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
         return $PSScriptRoot
@@ -683,6 +684,8 @@ function Add-InstallerHelperRootCandidate {
     }
 }
 function Get-LocalInstallerHelperRoots {
+    param([switch]$IncludeInstalledRoots)
+
     $candidateRoots = New-Object System.Collections.Generic.List[string]
 
     $localScriptRoot = Resolve-InstallerScriptRoot
@@ -693,7 +696,7 @@ function Get-LocalInstallerHelperRoots {
     $overrideDirectory = Get-TuiHelperOverrideDirectory
     Add-InstallerHelperRootCandidate -Roots $candidateRoots -CandidateRoot $overrideDirectory
 
-    if ($Action -ne 'install' -and (Test-InstallerTestModeEnabled)) {
+    if ($IncludeInstalledRoots) {
         foreach ($helperRoot in @(Get-InstalledInstallerHelperRoots)) {
             Add-InstallerHelperRootCandidate -Roots $candidateRoots -CandidateRoot $helperRoot
         }
@@ -1980,6 +1983,81 @@ function Get-StandaloneDetectedInstallerInstallations {
 
     return @($installations.Values)
 }
+function Remove-StandaloneInstallerOwnedEmptyInstallRoots {
+    param(
+        [object[]]$Installations,
+        [switch]$BestEffort
+    )
+
+    $installRoots = [ordered]@{}
+    $trimChars = @([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    foreach ($installation in @($Installations)) {
+        if (-not [bool]$installation.InstallerOwned) {
+            continue
+        }
+
+        $installRoot = [string]$installation.InstallRoot
+        if ([string]::IsNullOrWhiteSpace($installRoot)) {
+            continue
+        }
+
+        try {
+            $trustedInstallRoot = Assert-InstallerLocalPathTrusted -Path $installRoot
+        }
+        catch {
+            if ($BestEffort) {
+                continue
+            }
+
+            throw
+        }
+
+        $volumeRoot = [System.IO.Path]::GetPathRoot($trustedInstallRoot)
+        $normalizedRoot = $trustedInstallRoot.TrimEnd($trimChars)
+        $normalizedVolumeRoot = $volumeRoot.TrimEnd($trimChars)
+        if ([string]::Equals($normalizedRoot, $normalizedVolumeRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            continue
+        }
+
+        $key = $normalizedRoot.ToLowerInvariant()
+        if (-not $installRoots.Contains($key)) {
+            $installRoots[$key] = $trustedInstallRoot
+        }
+    }
+
+    $removedInstallRoots = @()
+    foreach ($installRoot in $installRoots.Values) {
+        if (-not (Test-Path -LiteralPath $installRoot)) {
+            continue
+        }
+
+        $item = Get-Item -LiteralPath $installRoot -Force
+        if (-not $item.PSIsContainer) {
+            continue
+        }
+
+        $hasEntries = $false
+        foreach ($entry in @(Get-ChildItem -LiteralPath $installRoot -Force -ErrorAction Stop | Select-Object -First 1)) {
+            $hasEntries = $true
+        }
+
+        if ($hasEntries) {
+            continue
+        }
+
+        $removeParameters = @{
+            Path = $installRoot
+        }
+        if ($BestEffort) {
+            $removeParameters['BestEffort'] = $true
+        }
+
+        Remove-PathIfExists @removeParameters
+        $removedInstallRoots += $installRoot
+    }
+
+    return @($removedInstallRoots)
+}
 function Get-StandaloneFallbackRegistrationRecord {
     param(
         [Parameter(Mandatory)] [string]$SelectedClient,
@@ -2467,6 +2545,7 @@ function Invoke-StandaloneInstallerActionCore {
         $registrationOperations = @()
         $installationBackups = @()
         $removedInstallations = @()
+        $removedInstallRoots = @()
         $stateRestoreRequired = $false
         $statePath = Resolve-StandaloneInstallerStatePath -CreateRoot
         $hadOriginalStateFile = Test-Path -LiteralPath $statePath
@@ -2622,6 +2701,8 @@ function Invoke-StandaloneInstallerActionCore {
             foreach ($backup in $installationBackups) {
                 Remove-PathIfExists -Path ([string]$backup.RollbackPath)
             }
+            $removedInstallRoots = @(Remove-StandaloneInstallerOwnedEmptyInstallRoots -Installations $removedInstallations)
+
             return [ordered]@{
                 action = 'full-uninstall'
                 mode = 'offline'
@@ -2638,6 +2719,7 @@ function Invoke-StandaloneInstallerActionCore {
                 statePath = $statePath
                 removedInstallation = ($removedInstallations.Count -gt 0)
                 removedInstallations = @($removedInstallations)
+                removedInstallRoots = @($removedInstallRoots)
                 registrations = @($registrationOperations | Where-Object { [bool]$_.Applied })
                 cleanupScope = 'registrations-and-installer-owned-server-locations'
                 cleanupGuidance = Get-StandaloneFullUninstallCleanupGuidance
@@ -2988,6 +3070,21 @@ function Get-InstalledInstallerHelperRoots {
 
     return @($helperRoots.ToArray())
 }
+function Test-InstalledInstallerHelperRootCandidate {
+    param([string]$CandidateRoot)
+
+    if ([string]::IsNullOrWhiteSpace($CandidateRoot)) {
+        return $false
+    }
+
+    foreach ($helperRoot in @(Get-InstalledInstallerHelperRoots)) {
+        if (Test-StandaloneInstallerPathEquals -Left $CandidateRoot -Right $helperRoot) {
+            return $true
+        }
+    }
+
+    return $false
+}
 function Test-InstallerTestModeEnabled {
     return [bool]$script:WpfDevToolsInstallerTestModeEnabled
 }
@@ -3319,13 +3416,16 @@ if (-not [string]::IsNullOrWhiteSpace($script:InstallerBootstrapUiPath)) {
     }
 }
 function Get-TuiHelperManifest {
-    param([switch]$SuppressBootstrapOutput)
+    param(
+        [switch]$SuppressBootstrapOutput,
+        [switch]$IncludeInstalledRoots
+    )
 
     if ($null -ne $script:TuiHelperManifest) {
         return $script:TuiHelperManifest
     }
 
-    foreach ($candidateRoot in @(Get-LocalInstallerHelperRoots)) {
+    foreach ($candidateRoot in @(Get-LocalInstallerHelperRoots -IncludeInstalledRoots:$IncludeInstalledRoots)) {
         if ([string]::IsNullOrWhiteSpace($candidateRoot) -or -not (Test-Path $candidateRoot)) {
             continue
         }
@@ -3349,7 +3449,16 @@ function Get-TuiHelperManifest {
             continue
         }
 
-        Assert-InstallerHelperManifestIntegrity -HelperDirectory $candidateRoot -Manifest $manifest -RequirePinnedCacheKey
+        try {
+            Assert-InstallerHelperManifestIntegrity -HelperDirectory $candidateRoot -Manifest $manifest -RequirePinnedCacheKey
+        }
+        catch {
+            if (Test-InstalledInstallerHelperRootCandidate -CandidateRoot $candidateRoot) {
+                continue
+            }
+
+            throw
+        }
 
         $script:TuiHelperManifest = $manifest
         return $manifest
@@ -3390,15 +3499,18 @@ function Get-TuiHelperManifest {
     return $script:TuiHelperManifest
 }
 function Ensure-TuiHelpersAvailable {
-    param([switch]$SuppressBootstrapOutput)
+    param(
+        [switch]$SuppressBootstrapOutput,
+        [switch]$IncludeInstalledRoots
+    )
 
     if (-not [string]::IsNullOrWhiteSpace($script:TuiHelperResolvedRoot)) {
         return $script:TuiHelperResolvedRoot
     }
 
-    $manifest = Get-TuiHelperManifest -SuppressBootstrapOutput:$SuppressBootstrapOutput
+    $manifest = Get-TuiHelperManifest -SuppressBootstrapOutput:$SuppressBootstrapOutput -IncludeInstalledRoots:$IncludeInstalledRoots
     $helperFiles = @(Get-HelperLeafNames)
-    foreach ($candidateRoot in @(Get-LocalInstallerHelperRoots)) {
+    foreach ($candidateRoot in @(Get-LocalInstallerHelperRoots -IncludeInstalledRoots:$IncludeInstalledRoots)) {
         if ([string]::IsNullOrWhiteSpace($candidateRoot)) {
             continue
         }
@@ -3552,14 +3664,18 @@ function Ensure-TuiHelpersAvailable {
     return $runtimeRoot
 }
 function Get-InstallerSharedModulePaths {
-    param([switch]$AllowMissing)
+    param(
+        [switch]$AllowMissing,
+        [switch]$IncludeInstalledRoots
+    )
 
-    if ($null -ne $script:InstallerSharedModulePathsCache) {
+    if ($null -ne $script:InstallerSharedModulePathsCache -and
+        [bool]$script:InstallerSharedModulePathsCacheIncludesInstalledRoots -eq [bool]$IncludeInstalledRoots) {
         return @($script:InstallerSharedModulePathsCache)
     }
 
     try {
-        $helperRoot = Ensure-TuiHelpersAvailable -SuppressBootstrapOutput
+        $helperRoot = Ensure-TuiHelpersAvailable -SuppressBootstrapOutput -IncludeInstalledRoots:$IncludeInstalledRoots
     }
     catch {
         if ($AllowMissing) {
@@ -3588,6 +3704,7 @@ function Get-InstallerSharedModulePaths {
     }
 
     $script:InstallerSharedModulePathsCache = @($helperPaths.ToArray())
+    $script:InstallerSharedModulePathsCacheIncludesInstalledRoots = [bool]$IncludeInstalledRoots
     return @($script:InstallerSharedModulePathsCache)
 }
 function Import-TuiHelpers {
@@ -4646,11 +4763,12 @@ function Invoke-InstallerAction {
     )
 
     Assert-InstallerHelperRuntimeAvailable -ResolvedAction $ResolvedAction
+    $includeInstalledHelperRoots = $ResolvedAction -eq 'uninstall' -or $ResolvedAction -eq 'full-uninstall'
     $sharedModulePaths = if ($ResolvedAction -eq 'install') {
         @(Get-InstallerSharedModulePaths)
     }
     else {
-        @(Get-InstallerSharedModulePaths -AllowMissing)
+        @(Get-InstallerSharedModulePaths -AllowMissing -IncludeInstalledRoots:$includeInstalledHelperRoots)
     }
     $shouldUseStandaloneFallback = ($ResolvedAction -ne 'install' -and $sharedModulePaths.Count -eq 0)
 
@@ -4761,8 +4879,9 @@ function Resolve-Selection {
     Close-TuiBootstrapScreen
     $mode = Resolve-InstallerMode
     $versionHint = $null
+    $includeInstalledHelperRoots = $Action -eq 'uninstall' -or $Action -eq 'full-uninstall'
     try {
-        foreach ($helperPath in @(Get-InstallerSharedModulePaths)) {
+        foreach ($helperPath in @(Get-InstallerSharedModulePaths -IncludeInstalledRoots:$includeInstalledHelperRoots)) {
             . $helperPath
         }
 

@@ -52,6 +52,7 @@ function Invoke-InstallerActionCore {
             statePath = [string]$result.statePath
             removedInstallation = [bool]$result.removedInstallation
             removedInstallations = @($result.removedInstallations)
+            removedInstallRoots = @($result.removedInstallRoots)
             registrations = @($result.registrations)
             cleanupScope = 'registrations-and-installer-owned-server-locations'
             cleanupGuidance = Get-InstallerFullUninstallCleanupGuidance

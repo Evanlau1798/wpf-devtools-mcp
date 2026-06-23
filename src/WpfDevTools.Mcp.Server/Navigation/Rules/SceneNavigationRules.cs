@@ -16,47 +16,45 @@ internal static class SceneNavigationRules
 
     private static ToolNavigationEnvelope BuildUiSummary(ToolNavigationContext context)
     {
-        if (!TryGetArray(context.Payload, "nodes", out var nodes)
-            && !TryGetArray(context.Payload, "navigationNodes", out nodes))
+        if (TryGetArray(context.Payload, "nodes", out var nodes)
+            || TryGetArray(context.Payload, "navigationNodes", out nodes))
         {
-            return ToolNavigationEnvelope.Empty;
-        }
-
-        foreach (var node in nodes.EnumerateArray())
-        {
-            if (!TryGetString(node, "elementId", out var elementId))
+            foreach (var node in nodes.EnumerateArray())
             {
-                continue;
-            }
+                if (!TryGetString(node, "elementId", out var elementId))
+                {
+                    continue;
+                }
 
-            if (HasAnnotation(node, "disabled"))
-            {
-                return ToolNavigationEnvelope.FromRecommended(
-                    [
-                        CreateDiagnostic(
-                        "get_interaction_readiness",
-                        1,
-                        "Inspect why the disabled UI control is not ready for interaction.",
-                        context,
-                        ("elementId", elementId))
-                    ]);
-            }
+                if (HasAnnotation(node, "disabled"))
+                {
+                    return ToolNavigationEnvelope.FromRecommended(
+                        [
+                            CreateDiagnostic(
+                            "get_interaction_readiness",
+                            1,
+                            "Inspect why the disabled UI control is not ready for interaction.",
+                            context,
+                            ("elementId", elementId))
+                        ]);
+                }
 
-            if (HasAnnotation(node, "visibility:") || HasAnnotation(node, "transparent"))
-            {
-                var rootCause = HasAnnotation(node, "transparent")
-                    ? "transparent"
-                    : "hidden";
-                return ToolNavigationEnvelope.FromRecommended(
-                    [
-                        CreateDiagnostic(
-                        "diagnose_visibility",
-                        1,
-                        "Inspect why the element is hidden or transparent in the scene summary.",
-                        context,
-                        ("elementId", elementId))
-                    ],
-                    contextRefs: [VisibilityIssueContextRefBuilder.Create(elementId, rootCause)]);
+                if (HasAnnotation(node, "visibility:") || HasAnnotation(node, "transparent"))
+                {
+                    var rootCause = HasAnnotation(node, "transparent")
+                        ? "transparent"
+                        : "hidden";
+                    return ToolNavigationEnvelope.FromRecommended(
+                        [
+                            CreateDiagnostic(
+                            "diagnose_visibility",
+                            1,
+                            "Inspect why the element is hidden or transparent in the scene summary.",
+                            context,
+                            ("elementId", elementId))
+                        ],
+                        contextRefs: [VisibilityIssueContextRefBuilder.Create(elementId, rootCause)]);
+                }
             }
         }
 
@@ -73,8 +71,46 @@ internal static class SceneNavigationRules
                 ]);
         }
 
+        if (IsTruncated(context.Payload)
+            && TryResolveUiSummaryScope(context, out var scopeElementId))
+        {
+            return BuildTruncatedUiSummaryNavigation(context, scopeElementId);
+        }
+
         return ToolNavigationEnvelope.Empty;
     }
+
+    private static ToolNavigationEnvelope BuildTruncatedUiSummaryNavigation(
+        ToolNavigationContext context,
+        string scopeElementId) =>
+        ToolNavigationEnvelope.FromRecommended(
+            [
+                CreateDiagnostic(
+                    "get_namescope",
+                    1,
+                    "The scene summary was truncated; inspect the scoped namescope before treating the root summary as a complete inventory.",
+                    context,
+                    ("elementId", scopeElementId))
+            ],
+            alternatives:
+            [
+                CreateDiagnostic(
+                    "get_element_snapshot",
+                    2,
+                    "Inspect the scoped root element before expanding broader tree output.",
+                    context,
+                    ("elementId", scopeElementId)),
+                CreateDiagnostic(
+                    "get_visual_tree",
+                    3,
+                    "Inspect a capped visual subtree after narrowing from the truncated scene summary.",
+                    context,
+                    ("elementId", scopeElementId),
+                    ("depth", 4),
+                    ("compact", true),
+                    ("maxNodes", 220))
+            ],
+            prefetchTools: ["find_elements"]);
 
     private static IReadOnlyList<ToolNextStep> BuildElementSnapshot(ToolNavigationContext context)
     {
@@ -264,6 +300,22 @@ internal static class SceneNavigationRules
         elementId = string.Empty;
         return false;
     }
+
+    private static bool TryResolveUiSummaryScope(ToolNavigationContext context, out string elementId)
+    {
+        if (TryGetString(context.Payload, "rootElementId", out elementId))
+        {
+            return true;
+        }
+
+        return TryResolveElementId(context, out elementId);
+    }
+
+    private static bool IsTruncated(JsonElement? element) =>
+        element is { } candidate
+        && candidate.ValueKind == JsonValueKind.Object
+        && candidate.TryGetProperty("truncated", out var property)
+        && property.ValueKind == JsonValueKind.True;
 
     private static bool HasNonEmptyArray(JsonElement element, string propertyName) =>
         TryGetArray(element, propertyName, out var property) && property.GetArrayLength() > 0;

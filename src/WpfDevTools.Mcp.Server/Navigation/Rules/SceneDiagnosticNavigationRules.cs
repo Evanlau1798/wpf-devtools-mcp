@@ -122,7 +122,7 @@ internal static class SceneDiagnosticNavigationRules
         return steps;
     }
 
-    private static IReadOnlyList<ToolNextStep> BuildFormSummary(ToolNavigationContext context)
+    private static ToolNavigationEnvelope BuildFormSummary(ToolNavigationContext context)
     {
         var steps = new List<ToolNextStep>();
 
@@ -132,7 +132,47 @@ internal static class SceneDiagnosticNavigationRules
             steps.AddRange(BuildInteractionSteps(commandElementId, commandReason));
         }
 
-        return steps;
+        if (steps.Count > 0)
+        {
+            return ToolNavigationEnvelope.FromRecommended(steps);
+        }
+
+        if (IsTruncated(context.Payload)
+            && TryGetString(context.Payload, "formScope", out var formScope))
+        {
+            return ToolNavigationEnvelope.FromRecommended(
+                [
+                    CreateDiagnostic(
+                        context,
+                        "get_namescope",
+                        1,
+                        "The form summary was truncated; inspect the scoped namescope before treating the form summary as a complete inventory.",
+                        ("elementId", formScope))
+                ],
+                alternatives:
+                [
+                    CreateDiagnostic(
+                        context,
+                        "get_ui_summary",
+                        2,
+                        "Use a scoped scene summary to re-orient within the truncated form subtree.",
+                        ("elementId", formScope),
+                        ("depthMode", "semantic"),
+                        ("summaryOnly", true)),
+                    CreateDiagnostic(
+                        context,
+                        "get_visual_tree",
+                        3,
+                        "Inspect a capped visual subtree after narrowing from the truncated form summary.",
+                        ("elementId", formScope),
+                        ("depth", 4),
+                        ("compact", true),
+                        ("maxNodes", 220))
+                ],
+                prefetchTools: ["find_elements"]);
+        }
+
+        return ToolNavigationEnvelope.Empty;
     }
 
     private static IEnumerable<ToolNextStep> BuildInteractionSteps(string elementId, string reason)
@@ -234,12 +274,32 @@ internal static class SceneDiagnosticNavigationRules
         params (string name, object? value)[] parameters) =>
         new(tool, NavigationParamBuilders.Create(parameters), reason, ToolNextStepKind.Diagnostic, priority);
 
+    private static ToolNextStep CreateDiagnostic(
+        ToolNavigationContext context,
+        string tool,
+        int priority,
+        string reason,
+        params (string name, object? value)[] parameters) =>
+        new(tool, BuildScopedParams(context, parameters), reason, ToolNextStepKind.Diagnostic, priority);
+
     private static ToolNextStep CreateAction(
         string tool,
         int priority,
         string reason,
         params (string name, object? value)[] parameters) =>
         new(tool, NavigationParamBuilders.Create(parameters), reason, ToolNextStepKind.Action, priority);
+
+    private static JsonElement BuildScopedParams(
+        ToolNavigationContext context,
+        params (string name, object? value)[] extraParameters)
+    {
+        var parameters = new List<(string name, object? value)>
+        {
+            ("processId", TryGetInt(context.Arguments, "processId"))
+        };
+        parameters.AddRange(extraParameters);
+        return NavigationParamBuilders.Create(parameters.ToArray());
+    }
 
     private static bool TryResolveElementId(ToolNavigationContext context, out string elementId)
     {
@@ -283,6 +343,24 @@ internal static class SceneDiagnosticNavigationRules
         value = string.Empty;
         return false;
     }
+
+    private static int? TryGetInt(JsonElement? element, string propertyName)
+    {
+        if (element is { } candidate
+            && candidate.ValueKind == JsonValueKind.Object
+            && candidate.TryGetProperty(propertyName, out var property)
+            && property.ValueKind == JsonValueKind.Number
+            && property.TryGetInt32(out var value))
+        {
+            return value;
+        }
+
+        return null;
+    }
+
+    private static bool IsTruncated(JsonElement element) =>
+        element.TryGetProperty("truncated", out var property)
+        && property.ValueKind == JsonValueKind.True;
 
     private static bool TryGetNestedString(
         JsonElement element,

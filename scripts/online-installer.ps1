@@ -4085,6 +4085,14 @@ function Get-InstallerReleaseChannel {
         return 'prerelease'
     }
 
+    $requestedVersion = [string]$Version
+    if (-not [string]::IsNullOrWhiteSpace($requestedVersion)) {
+        $normalizedVersion = $requestedVersion.Trim().TrimStart('v', 'V')
+        if ($normalizedVersion -match '^\d+\.\d+\.\d+-[0-9A-Za-z][0-9A-Za-z.-]*$') {
+            return 'prerelease'
+        }
+    }
+
     return 'stable'
 }
 function Get-GitHubReleaseListApiUri {

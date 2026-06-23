@@ -124,19 +124,6 @@ internal static class SceneDiagnosticNavigationRules
 
     private static ToolNavigationEnvelope BuildFormSummary(ToolNavigationContext context)
     {
-        var steps = new List<ToolNextStep>();
-
-        if (TryGetRepresentativeBlocker(context.Payload, "commands", out var commandElementId, out var commandReason)
-            || TryGetRepresentativeBlocker(context.Payload, "inputs", out commandElementId, out commandReason))
-        {
-            steps.AddRange(BuildInteractionSteps(commandElementId, commandReason));
-        }
-
-        if (steps.Count > 0)
-        {
-            return ToolNavigationEnvelope.FromRecommended(steps);
-        }
-
         if (IsTruncated(context.Payload)
             && TryGetString(context.Payload, "formScope", out var formScope))
         {
@@ -170,6 +157,19 @@ internal static class SceneDiagnosticNavigationRules
                         ("maxNodes", 220))
                 ],
                 prefetchTools: ["find_elements"]);
+        }
+
+        var steps = new List<ToolNextStep>();
+
+        if (TryGetRepresentativeBlocker(context.Payload, "commands", out var commandElementId, out var commandReason)
+            || TryGetRepresentativeBlocker(context.Payload, "inputs", out commandElementId, out commandReason))
+        {
+            steps.AddRange(BuildInteractionSteps(commandElementId, commandReason));
+        }
+
+        if (steps.Count > 0)
+        {
+            return ToolNavigationEnvelope.FromRecommended(steps);
         }
 
         return ToolNavigationEnvelope.Empty;

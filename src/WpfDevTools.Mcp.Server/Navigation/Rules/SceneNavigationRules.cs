@@ -16,6 +16,12 @@ internal static class SceneNavigationRules
 
     private static ToolNavigationEnvelope BuildUiSummary(ToolNavigationContext context)
     {
+        if (IsTruncated(context.Payload)
+            && TryResolveUiSummaryScope(context, out var scopeElementId))
+        {
+            return BuildTruncatedUiSummaryNavigation(context, scopeElementId);
+        }
+
         if (TryGetArray(context.Payload, "nodes", out var nodes)
             || TryGetArray(context.Payload, "navigationNodes", out nodes))
         {
@@ -69,12 +75,6 @@ internal static class SceneNavigationRules
                     "Inspect binding diagnostics hinted by the scene summary.",
                     context)
                 ]);
-        }
-
-        if (IsTruncated(context.Payload)
-            && TryResolveUiSummaryScope(context, out var scopeElementId))
-        {
-            return BuildTruncatedUiSummaryNavigation(context, scopeElementId);
         }
 
         return ToolNavigationEnvelope.Empty;

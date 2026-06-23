@@ -73,4 +73,65 @@ public sealed class ToolNavigationTruncationTests : IDisposable
             .Should()
             .Contain(["get_ui_summary", "get_visual_tree"]);
     }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithTruncatedUiSummaryAndDisabledFrameworkNode_ShouldPreferScopedNarrowing()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                rootElementId = "MainWindow_1",
+                truncated = true,
+                truncationReasons = new[] { "SemanticNodeLimit" },
+                nodes = new[]
+                {
+                    new
+                    {
+                        elementId = "RepeatButton_332",
+                        annotations = new[] { "disabled" }
+                    }
+                }
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345)),
+            CancellationToken.None,
+            toolName: "get_ui_summary");
+
+        var firstStep = result.StructuredContent!.Value
+            .GetProperty("navigation")
+            .GetProperty("recommended")[0];
+        firstStep.GetProperty("tool").GetString().Should().Be("get_namescope");
+        firstStep.GetProperty("params").GetProperty("elementId").GetString().Should().Be("MainWindow_1");
+    }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_WithTruncatedFormSummaryAndDisabledFrameworkCommand_ShouldPreferScopedNarrowing()
+    {
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                formScope = "MainWindow_1",
+                truncated = true,
+                truncationReasons = new[] { "InputLimit" },
+                commands = new[]
+                {
+                    new
+                    {
+                        elementId = "RepeatButton_332",
+                        blockers = new object[] { new { reason = "ElementDisabled" } }
+                    }
+                },
+                inputs = Array.Empty<object>()
+            }),
+            ToolCallHelper.BuildJsonArgs(("processId", 12345)),
+            CancellationToken.None,
+            toolName: "get_form_summary");
+
+        var firstStep = result.StructuredContent!.Value
+            .GetProperty("navigation")
+            .GetProperty("recommended")[0];
+        firstStep.GetProperty("tool").GetString().Should().Be("get_namescope");
+        firstStep.GetProperty("params").GetProperty("elementId").GetString().Should().Be("MainWindow_1");
+    }
 }

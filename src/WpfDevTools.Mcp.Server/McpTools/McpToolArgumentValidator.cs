@@ -21,16 +21,30 @@ internal static class McpToolArgumentValidator
         "matchMode"
     };
 
+    private static readonly Dictionary<string, string[]> RequiredArgumentsByTool = new(StringComparer.Ordinal)
+    {
+        ["get_event_handlers"] = ["eventName", "elementId"],
+        ["fire_routed_event"] = ["eventName", "elementId"]
+    };
+
     public static CallToolResult? Validate(
         string? toolName,
         IEnumerable<KeyValuePair<string, JsonElement>>? arguments)
     {
-        if (!string.Equals(toolName, "find_elements", StringComparison.Ordinal) || arguments is null)
+        var argumentArray = arguments?.ToArray();
+        if (toolName is not null
+            && RequiredArgumentsByTool.TryGetValue(toolName, out var requiredArguments)
+            && TryFindMissingRequiredArgument(argumentArray, requiredArguments, out var missingArgument))
+        {
+            return CreateMissingRequiredArgumentErrorResult(missingArgument);
+        }
+
+        if (!string.Equals(toolName, "find_elements", StringComparison.Ordinal) || argumentArray is null)
         {
             return null;
         }
 
-        foreach (var argument in arguments)
+        foreach (var argument in argumentArray)
         {
             if (FindElementsArgumentNames.Contains(argument.Key))
             {
@@ -41,6 +55,54 @@ internal static class McpToolArgumentValidator
         }
 
         return null;
+    }
+
+    private static bool TryFindMissingRequiredArgument(
+        IReadOnlyCollection<KeyValuePair<string, JsonElement>>? arguments,
+        IReadOnlyList<string> requiredArguments,
+        out string missingArgument)
+    {
+        foreach (var requiredArgument in requiredArguments)
+        {
+            if (arguments is null || !TryGetArgument(arguments, requiredArgument, out var argument))
+            {
+                missingArgument = requiredArgument;
+                return true;
+            }
+
+            if (argument.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+            {
+                missingArgument = requiredArgument;
+                return true;
+            }
+
+            if (argument.ValueKind == JsonValueKind.String && argument.GetString()?.Length == 0)
+            {
+                missingArgument = requiredArgument;
+                return true;
+            }
+        }
+
+        missingArgument = string.Empty;
+        return false;
+    }
+
+    private static bool TryGetArgument(
+        IEnumerable<KeyValuePair<string, JsonElement>> arguments,
+        string name,
+        out JsonElement value)
+    {
+        foreach (var argument in arguments)
+        {
+            if (string.Equals(argument.Key, name, StringComparison.Ordinal))
+            {
+                value = argument.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
     }
 
     internal static ToolErrorPayload? ValidateFindElementsArguments(JsonElement? arguments)
@@ -61,6 +123,15 @@ internal static class McpToolArgumentValidator
         }
 
         return null;
+    }
+
+    private static CallToolResult CreateMissingRequiredArgumentErrorResult(string argumentName)
+    {
+        return ToolCallHelper.CreateStructuredErrorResult(
+            $"Missing required parameter: {argumentName}",
+            ToolErrorCode.MissingRequiredParameter.ToString(),
+            hint: $"Provide {argumentName} explicitly, or establish an active process/session before retrying.",
+            suggestedAction: $"Retry with {argumentName} set.");
     }
 
     private static CallToolResult CreateFindElementsErrorResult(string argumentName)

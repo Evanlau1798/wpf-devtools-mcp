@@ -1,8 +1,9 @@
 using System.Text.Json;
 using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
@@ -25,6 +26,76 @@ public sealed class McpToolRequiredElementIdTests
             .Select(required => required.GetString())
             .Should().Contain("elementId",
                 "target-specific tools should not advertise elementId as optional in tools/list inputSchema");
+    }
+
+    [Fact]
+    public void GetEventHandlers_ShouldPublishEventNameAsRequired()
+    {
+        var schema = CreateInputSchema(typeof(EventMcpTools), nameof(EventMcpTools.GetEventHandlers));
+
+        schema.TryGetProperty("required", out var required).Should().BeTrue();
+        required.EnumerateArray()
+            .Select(required => required.GetString())
+            .Should().Contain("eventName",
+                "get_event_handlers should advertise the WPF event name as required in tools/list inputSchema");
+    }
+
+    [Fact]
+    public void GetEventHandlers_ShouldRejectMissingEventNameBeforeSdkBinding()
+    {
+        var result = McpToolArgumentValidator.Validate(
+            "get_event_handlers",
+            new Dictionary<string, JsonElement>
+            {
+                ["processId"] = JsonSerializer.SerializeToElement(12345),
+                ["elementId"] = JsonSerializer.SerializeToElement("Button_1")
+            });
+
+        result.Should().NotBeNull(
+            "the server call filter should return a structured missing-parameter error before MCP SDK method binding");
+        AssertStructuredMissingParameter(result!, "eventName");
+    }
+
+    [Fact]
+    public void FireRoutedEvent_ShouldRejectMissingEventNameBeforeSdkBinding()
+    {
+        var result = McpToolArgumentValidator.Validate(
+            "fire_routed_event",
+            new Dictionary<string, JsonElement>
+            {
+                ["processId"] = JsonSerializer.SerializeToElement(12345),
+                ["elementId"] = JsonSerializer.SerializeToElement("Button_1")
+            });
+
+        result.Should().NotBeNull(
+            "mutating event tools should return a structured missing-parameter error before MCP SDK method binding");
+        AssertStructuredMissingParameter(result!, "eventName");
+    }
+
+    [Fact]
+    public void GetEventHandlers_ShouldRejectMissingElementIdBeforeSdkBinding()
+    {
+        var result = McpToolArgumentValidator.Validate(
+            "get_event_handlers",
+            new Dictionary<string, JsonElement>
+            {
+                ["processId"] = JsonSerializer.SerializeToElement(12345),
+                ["eventName"] = JsonSerializer.SerializeToElement("Click")
+            });
+
+        result.Should().NotBeNull(
+            "target-specific event tools should return a structured missing-parameter error before MCP SDK method binding");
+        AssertStructuredMissingParameter(result!, "elementId");
+    }
+
+    private static void AssertStructuredMissingParameter(CallToolResult result, string parameterName)
+    {
+        result.IsError.Should().BeTrue();
+        result.StructuredContent.Should().NotBeNull();
+        var content = result.StructuredContent!.Value;
+        content.GetProperty("errorCode").GetString().Should().Be("MissingRequiredParameter");
+        content.GetProperty("error").GetString().Should().Contain(parameterName);
+        content.GetProperty("hint").GetString().Should().Contain(parameterName);
     }
 
     [Theory]
@@ -65,18 +136,18 @@ public sealed class McpToolRequiredElementIdTests
         };
     }
 
-    private static JsonElement CreateInputSchema(Type toolType, string methodName)
+    private static JsonElement CreateInputSchema(Type toolType, string methodName) =>
+        CreateTool(toolType, methodName).ProtocolTool.InputSchema;
+
+    private static McpServerTool CreateTool(
+        Type toolType,
+        string methodName,
+        IServiceProvider? services = null)
     {
         var method = toolType.GetMethod(methodName);
         method.Should().NotBeNull();
 
-        using var services = new ServiceCollection()
-            .AddSingleton<SessionManager>(_ => throw new InvalidOperationException("Schema tests do not invoke tools."))
-            .BuildServiceProvider();
-
-        return McpServerTool.Create(method!, target: null, new McpServerToolCreateOptions { Services = services })
-            .ProtocolTool
-            .InputSchema;
+        return McpServerTool.Create(method!, target: null, new McpServerToolCreateOptions { Services = services });
     }
 
     private static JsonElement ToJsonElement(object value) =>

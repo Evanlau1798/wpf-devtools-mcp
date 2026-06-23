@@ -18,13 +18,13 @@ For a production review, keep the following files together:
 
 ## Install paths
 
-Preview pre-release alias until the first stable GitHub Release is published:
+Install the latest stable release:
 
 ```powershell
-& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-Current public onboarding uses `-Prerelease`; after the first stable GitHub Release is published, stable installs can omit that switch.
+ARM64 archives may be published as preview assets, but they are not guaranteed stable because practical Windows-on-ARM runtime validation hardware is not currently available.
 
 Reviewed local package command:
 

@@ -2,7 +2,7 @@ param(
     [ValidateSet('Release')]
     [string]$Configuration = 'Release',
 
-    [string[]]$Architectures = @('x64', 'x86', 'arm64'),
+    [string[]]$Architectures,
 
     [string]$VersionTag,
 
@@ -84,6 +84,12 @@ function Resolve-ArchitectureList {
     return @($resolvedArchitectures)
 }
 
+function Test-PrereleaseTag {
+    param([Parameter(Mandatory)] [string]$ReleaseTag)
+
+    return $ReleaseTag -match '^v\d+\.\d+\.\d+-[0-9A-Za-z][0-9A-Za-z.-]*$'
+}
+
 function Resolve-ScriptPath {
     param(
         [Parameter(Mandatory)] [string]$DefaultRelativePath,
@@ -101,6 +107,14 @@ function Resolve-ScriptPath {
     }
 
     return [System.IO.Path]::GetFullPath($candidatePath)
+}
+
+if (-not $PSBoundParameters.ContainsKey('Architectures')) {
+    $Architectures = @('x64', 'x86')
+    if (-not [string]::IsNullOrWhiteSpace($VersionTag) -and
+        (Test-PrereleaseTag -ReleaseTag $VersionTag)) {
+        $Architectures += 'arm64'
+    }
 }
 
 $resolvedArchitectures = Resolve-ArchitectureList -InputArchitectures $Architectures
@@ -126,7 +140,7 @@ if (-not [string]::IsNullOrWhiteSpace($VersionTag) -and [string]::IsNullOrWhiteS
 }
 
 $steps = New-Object System.Collections.ArrayList
-$architecturesLiteral = "@('" + ($resolvedArchitectures -join "', '") + "')"
+$architecturesLiteral = $resolvedArchitectures -join ','
 if (-not $SkipBuild) {
     $null = $steps.Add("dotnet build WpfDevTools.sln -c $Configuration -m:1 -nodeReuse:false -p:BuildInParallel=false")
 }

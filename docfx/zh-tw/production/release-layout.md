@@ -13,18 +13,19 @@
 
 ## 公開 release assets
 
-在第一個 stable GitHub Release 發布前，請使用 preview pre-release command：
+安裝最新 stable release：
 
 ```powershell
-& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-目前 public onboarding 使用 `-Prerelease`；第一個 stable GitHub Release 發布後，stable install 可以省略這個 switch。
-
-目前 release archive 命名為：
+通用 archive pattern 是 `release_<version>_win-<arch>.zip`。Stable release archive 命名為：
 
 - `release_<version>_win-x64.zip`
 - `release_<version>_win-x86.zip`
+
+ARM64 發行檔可作為 preview asset 提供，但目前不保證穩定性，因為尚無可行的 Windows-on-ARM runtime 驗證硬體。Preview ARM64 archive 使用：
+
 - `release_<version>_win-arm64.zip`
 
 Production review 時，請讓 archive 與下列 sidecar 保持相鄰：

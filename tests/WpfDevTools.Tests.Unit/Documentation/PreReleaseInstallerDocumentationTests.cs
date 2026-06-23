@@ -15,34 +15,12 @@ public sealed class PreReleaseInstallerDocumentationTests
         "$version = 'v1.0.0-beta.1'";
     private const string PinnedPrereleaseInstallerCommand =
         "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease";
+    private const string EnglishArm64PreviewWarning =
+        "ARM64 archives may be published as preview assets, but they are not guaranteed stable";
+    private const string TraditionalChineseArm64PreviewWarning =
+        "ARM64 發行檔可作為 preview asset 提供，但目前不保證穩定性";
 
     [Theory]
-    [InlineData("docfx/index.md")]
-    [InlineData("docfx/quickstart/index.md")]
-    [InlineData("docfx/guides/agent-assisted-install.md")]
-    [InlineData("docfx/production/deployment.md")]
-    [InlineData("docfx/production/release-layout.md")]
-    [InlineData("docfx/zh-tw/index.md")]
-    [InlineData("docfx/zh-tw/quickstart/index.md")]
-    [InlineData("docfx/zh-tw/guides/agent-assisted-install.md")]
-    [InlineData("docfx/zh-tw/production/deployment.md")]
-    public void PublicInstallerDocs_ShouldPublishHttpsAliasWithReleaseAssetGate(string relativePath)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain(HttpsInstallerAlias);
-        content.Should().Contain(PreviewPrereleaseInstallerCommand);
-        content.Should().NotContain("irm http://wpf-mcptools.evanlau1798.com | iex",
-            "the public installer alias is HTTPS-only");
-        content.Should().Contain("release_<version>_win-<arch>.zip",
-            $"{relativePath} should gate the public installer on the versioned release package");
-        content.Should().Contain("release-assets.json",
-            $"{relativePath} should require release metadata before users trust the installer path");
-    }
-
-    [Theory]
-    [InlineData("README.md")]
-    [InlineData("AGENT_INSTALL.md")]
     [InlineData("docfx/index.md")]
     [InlineData("docfx/quickstart/index.md")]
     [InlineData("docfx/guides/agent-assisted-install.md")]
@@ -53,17 +31,73 @@ public sealed class PreReleaseInstallerDocumentationTests
     [InlineData("docfx/zh-tw/guides/agent-assisted-install.md")]
     [InlineData("docfx/zh-tw/production/deployment.md")]
     [InlineData("docfx/zh-tw/production/release-layout.md")]
-    public void PublicInstallerDocs_ShouldDefaultPreviewOnboardingToLatestPrereleaseUntilStableExists(
+    public void PublicInstallerDocs_ShouldPublishHttpsAliasWithReleaseAssetGate(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(HttpsInstallerAlias);
+        content.Should().Contain(StableLatestInstallerCommand);
+        content.Should().NotContain(PreviewPrereleaseInstallerCommand);
+        content.Should().NotContain("irm http://wpf-mcptools.evanlau1798.com | iex",
+            "the public installer alias is HTTPS-only");
+        content.Should().Contain("release_<version>_win-<arch>.zip",
+            $"{relativePath} should gate the public installer on the versioned release package");
+        content.Should().Contain("release-assets.json",
+            $"{relativePath} should require release metadata before users trust the installer path");
+    }
+
+    [Theory]
+    [InlineData("docfx/index.md")]
+    [InlineData("docfx/quickstart/index.md")]
+    [InlineData("docfx/guides/agent-assisted-install.md")]
+    [InlineData("docfx/production/deployment.md")]
+    [InlineData("docfx/production/release-layout.md")]
+    [InlineData("docfx/zh-tw/index.md")]
+    [InlineData("docfx/zh-tw/quickstart/index.md")]
+    [InlineData("docfx/zh-tw/guides/agent-assisted-install.md")]
+    [InlineData("docfx/zh-tw/production/deployment.md")]
+    [InlineData("docfx/zh-tw/production/release-layout.md")]
+    public void PublicInstallerDocs_ShouldDefaultOnboardingToStableReleaseCommand(
         string relativePath)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
-        content.Should().Contain(PreviewPrereleaseInstallerCommand,
-            $"{relativePath} should install from the latest pre-release until a stable GitHub release exists");
-        content.Should().Contain("pre-release",
-            $"{relativePath} should make the release channel explicit instead of implying stable latest");
-        content.Should().NotContain(StableLatestInstallerCommand,
-            $"{relativePath} should not promote the stable latest installer command before a stable release exists");
+        content.Should().Contain(StableLatestInstallerCommand,
+            $"{relativePath} should promote the stable public installer command for release onboarding");
+        content.Should().NotContain(PreviewPrereleaseInstallerCommand,
+            $"{relativePath} should not default public onboarding to latest prerelease after release readiness");
+        content.Should().NotContain("until the first stable GitHub Release is published");
+        content.Should().NotContain("第一個 stable GitHub Release 發布前");
+    }
+
+    [Fact]
+    public void Readme_ShouldPromoteStableReleaseInstallerCommandAndDelegatePrereleaseDetails()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain(StableLatestInstallerCommand);
+        content.Should().NotContain(PreviewPrereleaseInstallerCommand);
+        content.Should().Contain(PinnedPrereleaseInstallerCommand);
+    }
+
+    [Theory]
+    [InlineData("docfx/index.md", EnglishArm64PreviewWarning)]
+    [InlineData("docfx/quickstart/index.md", EnglishArm64PreviewWarning)]
+    [InlineData("docfx/guides/agent-assisted-install.md", EnglishArm64PreviewWarning)]
+    [InlineData("docfx/production/deployment.md", EnglishArm64PreviewWarning)]
+    [InlineData("docfx/production/release-layout.md", EnglishArm64PreviewWarning)]
+    [InlineData("docfx/zh-tw/index.md", TraditionalChineseArm64PreviewWarning)]
+    [InlineData("docfx/zh-tw/quickstart/index.md", TraditionalChineseArm64PreviewWarning)]
+    [InlineData("docfx/zh-tw/guides/agent-assisted-install.md", TraditionalChineseArm64PreviewWarning)]
+    [InlineData("docfx/zh-tw/production/deployment.md", TraditionalChineseArm64PreviewWarning)]
+    [InlineData("docfx/zh-tw/production/release-layout.md", TraditionalChineseArm64PreviewWarning)]
+    public void PublicInstallerDocs_ShouldWarnArm64PreviewAssetsAreNotStable(
+        string relativePath,
+        string expectedWarning)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(expectedWarning);
     }
 
     [Theory]

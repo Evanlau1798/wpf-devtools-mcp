@@ -40,6 +40,12 @@ function Get-ExpectedArchiveVersion {
     return $ReleaseTag.Substring(1)
 }
 
+function Test-PrereleaseTag {
+    param([Parameter(Mandatory)] [string]$ReleaseTag)
+
+    return $ReleaseTag -match '^v\d+\.\d+\.\d+-[0-9A-Za-z][0-9A-Za-z.-]*$'
+}
+
 function Get-ReleaseAssetRecord {
     param(
         [Parameter(Mandatory)] [System.IO.FileInfo]$Archive,
@@ -76,7 +82,7 @@ function Assert-ReleaseAssetSet {
         Get-ReleaseAssetRecord -Archive $_ -ExpectedVersion $expectedVersion
     })
 
-    foreach ($architecture in @('x64', 'x86', 'arm64')) {
+    foreach ($architecture in @('x64', 'x86')) {
         $matches = @($records | Where-Object { $_.Architecture -eq $architecture })
         if ($matches.Count -eq 0) {
             throw "Missing release archive for architecture $architecture."
@@ -86,6 +92,17 @@ function Assert-ReleaseAssetSet {
             $names = @($matches | ForEach-Object { $_.Archive.Name }) -join ', '
             throw "Duplicate release archives for architecture ${architecture}: $names"
         }
+    }
+
+    $arm64Matches = @($records | Where-Object { $_.Architecture -eq 'arm64' })
+    if ($arm64Matches.Count -gt 1) {
+        $names = @($arm64Matches | ForEach-Object { $_.Archive.Name }) -join ', '
+        throw "Duplicate release archives for architecture arm64: $names"
+    }
+
+    if ($arm64Matches.Count -gt 0 -and -not (Test-PrereleaseTag -ReleaseTag $ReleaseTag)) {
+        $names = @($arm64Matches | ForEach-Object { $_.Archive.Name }) -join ', '
+        throw "ARM64 release archive is prerelease-only and must not be staged for stable tag ${ReleaseTag}: $names"
     }
 }
 
@@ -140,6 +157,31 @@ $assetBlock
 if (`$missingAssets.Count -gt 0) {
     throw "Generated release upload script references missing staged release asset(s): `$(`$missingAssets -join ', ')"
 }
+
+`$sha256SumsPath = Join-Path `$PSScriptRoot 'SHA256SUMS.txt'
+`$releaseNotesPath = Join-Path `$PSScriptRoot 'release-notes.md'
+`$sha256Sums = (Get-Content -LiteralPath `$sha256SumsPath -Raw).Trim()
+`$releaseNotes = @(
+    "# `$ReleaseTag release artifacts",
+    "",
+    "These assets are the official GitHub Release artifacts for `$ReleaseTag.",
+    "",
+    "## SHA256 checksums",
+    "",
+    '``````text',
+    `$sha256Sums,
+    '``````'
+)
+
+if (`$ReleaseTag -match '^v\d+\.\d+\.\d+-[0-9A-Za-z][0-9A-Za-z.-]*$') {
+    `$releaseNotes += @(
+        "",
+        "ARM64 archives, when present, are prerelease-only preview artifacts."
+    )
+}
+
+Set-Content -LiteralPath `$releaseNotesPath -Value (`$releaseNotes -join [Environment]::NewLine) -Encoding UTF8
+& gh release edit `$ReleaseTag --notes-file `$releaseNotesPath
 
 # Upload assets staged next to this script.
 & gh release upload `$ReleaseTag `$assets --clobber

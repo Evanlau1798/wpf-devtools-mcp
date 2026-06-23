@@ -5,6 +5,8 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 
 public sealed class PublicQuickstartDocumentationTests
 {
+    private const string StableLatestInstallerCommand =
+        "irm https://installer.wpf-mcptools.evanlau1798.com | iex";
     private const string PreviewPrereleaseInstallerCommand =
         "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease";
 
@@ -94,8 +96,8 @@ public sealed class PublicQuickstartDocumentationTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(GetRepoFilePath(file));
-            content.Should().Contain(PreviewPrereleaseInstallerCommand);
-            content.Should().Contain("pre-release");
+            content.Should().Contain(StableLatestInstallerCommand);
+            content.Should().NotContain(PreviewPrereleaseInstallerCommand);
             content.Should().Contain("release_<version>_win-<arch>.zip");
             content.Should().Contain("SHA256SUMS.txt");
             content.Should().Contain("release-assets.json");
@@ -110,7 +112,8 @@ public sealed class PublicQuickstartDocumentationTests
     {
         var content = File.ReadAllText(GetRepoFilePath("README.md"));
 
-        content.Should().Contain(PreviewPrereleaseInstallerCommand);
+        content.Should().Contain(StableLatestInstallerCommand);
+        content.Should().NotContain(PreviewPrereleaseInstallerCommand);
         content.Should().Contain("release_<version>_win-<arch>.zip");
         content.Should().Contain("run.bat");
         content.Should().Contain("production/release-layout.html");

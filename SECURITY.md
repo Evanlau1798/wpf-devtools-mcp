@@ -108,6 +108,8 @@ This table lists the security-relevant `WPFDEVTOOLS_*` environment variables for
 
 Report a suspected vulnerability by opening a private GitHub Security Advisory for the repository owner. Include affected version, commit SHA, reproduction steps, and whether a public release artifact is involved. Do not publish exploit details, screenshots, target UI data, certificate material, or auth secrets in public issues before a maintainer has triaged the report.
 
+Maintainer release checks for public installer paths, checksum publication, runtime policy gates, and snapshot/restore validation live in the DocFX contributor guide: `docfx/contributors/public-path-runtime-security.md`.
+
 ## Dependency audit cadence
 
 Before each release candidate, run `dotnet restore --locked-mode` and `dotnet list package --vulnerable` for the solution. Treat NuGet audit warnings as release blockers unless a documented false positive exists. Review `ModelContextProtocol`, `System.Text.Json`, PowerShell packaging dependencies, and GitHub Actions versions against verified advisories. Avoid updates driven only by speculative CVE claims; update dependencies when a verified advisory, compatibility requirement, or pinned-runner change applies.

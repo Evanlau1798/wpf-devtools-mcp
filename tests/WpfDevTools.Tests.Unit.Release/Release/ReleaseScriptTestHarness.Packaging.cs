@@ -11,7 +11,8 @@ internal static partial class ReleaseScriptTestHarness
     [DllImport("Kernel32.dll", EntryPoint = "CreateHardLinkW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool CreateHardLink(string fileName, string existingFileName, nint securityAttributes);
 
-    private static readonly string[] SupportedReleaseArchitectures = ["x64", "x86", "arm64"];
+    private static readonly string[] StableReleaseArchitectures = ["x64", "x86"];
+    private static readonly string[] PrereleaseReleaseArchitectures = ["x64", "x86", "arm64"];
 
     public static string CreatePackageDirectory(string tempRoot, string architecture = "x64", bool useSignedPayload = false)
     {
@@ -46,10 +47,10 @@ internal static partial class ReleaseScriptTestHarness
         return archivePath;
     }
 
-    public static void WriteDummyReleaseArchiveSet(string inputRoot, string version = "1.2.3")
+    public static void WriteDummyReleaseArchiveSet(string inputRoot, string version = "1.2.3", bool includeArm64 = false)
     {
         Directory.CreateDirectory(inputRoot);
-        foreach (var architecture in SupportedReleaseArchitectures)
+        foreach (var architecture in GetReleaseArchitectures(includeArm64))
         {
             File.WriteAllText(
                 Path.Combine(inputRoot, $"release_{version}_win-{architecture}.zip"),
@@ -60,11 +61,12 @@ internal static partial class ReleaseScriptTestHarness
     public static IReadOnlyDictionary<string, string> CreatePackageArchiveSet(
         string destinationRoot,
         bool useSignedPayload = false,
-        bool isolateArchiveContents = false)
+        bool isolateArchiveContents = false,
+        bool includeArm64 = false)
     {
         Directory.CreateDirectory(destinationRoot);
         var archives = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var architecture in SupportedReleaseArchitectures)
+        foreach (var architecture in GetReleaseArchitectures(includeArm64))
         {
             var archivePath = Path.Combine(destinationRoot, $"release_1.2.3_win-{architecture}.zip");
             var cachedArtifacts = GetCachedPackageArtifacts(architecture, useSignedPayload);
@@ -74,6 +76,9 @@ internal static partial class ReleaseScriptTestHarness
 
         return archives;
     }
+
+    private static IReadOnlyList<string> GetReleaseArchitectures(bool includeArm64)
+        => includeArm64 ? PrereleaseReleaseArchitectures : StableReleaseArchitectures;
 
     public static void WriteAdjacentReleaseMetadata(string archivePath, string? publishedAssetName = null)
     {

@@ -13,18 +13,19 @@ The documentation below describes the output of those scripts. It does not repla
 
 ## Public release assets
 
-Preview pre-release command until the first stable GitHub Release is published:
+Install the latest stable release:
 
 ```powershell
-& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-Current public onboarding uses `-Prerelease`; after the first stable GitHub Release is published, stable installs can omit that switch.
-
-The generic archive pattern is `release_<version>_win-<arch>.zip`. Current per-architecture release archives are named:
+The generic archive pattern is `release_<version>_win-<arch>.zip`. Stable release archives are named:
 
 - `release_<version>_win-x64.zip`
 - `release_<version>_win-x86.zip`
+
+ARM64 archives may be published as preview assets, but they are not guaranteed stable because practical Windows-on-ARM runtime validation hardware is not currently available. Preview ARM64 archives use:
+
 - `release_<version>_win-arm64.zip`
 
 Keep the archive adjacent to these sidecars for production review:

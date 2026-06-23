@@ -102,7 +102,7 @@ public sealed class ReleasePreflightScriptTests
     }
 
     [Fact]
-    public void PreflightReleaseScript_SkipBuildAndTest_ShouldInvokePublishScriptWithAllArchitectures()
+    public void PreflightReleaseScript_SkipBuildAndTest_ShouldInvokePublishScriptWithStableArchitectures()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -168,8 +168,40 @@ public sealed class ReleasePreflightScriptTests
             var steps = document.RootElement.GetProperty("steps").EnumerateArray().Select(x => x.GetString()).ToArray();
             steps.Should().NotContain(step => step!.Contains("dotnet build", StringComparison.Ordinal));
             steps.Should().NotContain(step => step!.Contains("dotnet test", StringComparison.Ordinal));
-            File.ReadAllText(publishLog).Trim().Should().Be("x64,x86,arm64|v1.2.3");
+            File.ReadAllText(publishLog).Trim().Should().Be("x64,x86|v1.2.3");
             File.ReadAllText(exportLog).Trim().Should().Be("ABCDEF1234567890ABCDEF1234567890ABCDEF12");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void PreflightReleaseScript_PrereleasePlan_ShouldIncludeArm64PreviewArchitecture()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var outputRoot = Path.Combine(tempRoot, "preflight-output");
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Preflight-Release.ps1"),
+                new[]
+                {
+                    "-VersionTag", "v1.2.3-beta.1",
+                    "-OutputRoot", outputRoot,
+                    "-PlanOnly",
+                    "-OutputJson"
+                },
+                new Dictionary<string, string?>
+                {
+                    ["WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT"] = "ABCDEF1234567890ABCDEF1234567890ABCDEF12"
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var document = JsonDocument.Parse(result.Stdout);
+            var steps = document.RootElement.GetProperty("steps").EnumerateArray().Select(x => x.GetString()).ToArray();
+            steps.Should().Contain(step => step!.Contains("-Architectures x64,x86,arm64", StringComparison.Ordinal));
         }
         finally
         {

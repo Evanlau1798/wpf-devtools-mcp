@@ -6,6 +6,8 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 
 public sealed class AgentInstallDocumentationTests
 {
+    private const string StableLatestInstallerCommand =
+        "irm https://installer.wpf-mcptools.evanlau1798.com | iex";
     private const string PreviewPrereleaseInstallerCommand =
         "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease";
 
@@ -132,6 +134,9 @@ public sealed class AgentInstallDocumentationTests
             var content = File.ReadAllText(GetRepoFilePath(file));
             var withoutReviewedHttpsAlias = content.Replace(
                 PreviewPrereleaseInstallerCommand,
+                string.Empty,
+                StringComparison.Ordinal).Replace(
+                StableLatestInstallerCommand,
                 string.Empty,
                 StringComparison.Ordinal);
 

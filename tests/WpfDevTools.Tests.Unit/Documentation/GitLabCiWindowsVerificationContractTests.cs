@@ -130,7 +130,8 @@ public sealed class GitLabCiWindowsVerificationContractTests
         workflow.Should().Contain("Run tests with coverage");
         workflow.Should().Contain("Run release packaging smoke test");
         workflow.Should().Contain("architecture: [x64, x86]");
-        releaseWorkflow.Should().Contain("@('x64', 'x86', 'arm64')");
+        releaseWorkflow.Should().Contain("$releaseArchitectures = @('x64', 'x86')");
+        releaseWorkflow.Should().Contain("$releaseArchitectures += 'arm64'");
         workflow.Should().Contain("Build SDK package");
         hosted.Should().Contain("Invoke-HostedCoverageVerification");
         hosted.Should().Contain("--settings', 'coverlet.runsettings'");

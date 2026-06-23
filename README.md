@@ -15,20 +15,20 @@
 
 ## Install
 
-Preview pre-release installer until the first stable GitHub Release is published:
+Install the latest stable release:
 
 ```powershell
-& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-Pinned pre-release install; replace the example with the selected public pre-release tag:
+Pinned pre-release install for beta or preview validation; replace the example with the selected public pre-release tag:
 
 ```powershell
 $version = 'v1.0.0-beta.1'
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 
-This uses the reviewed HTTPS installer alias and resolves the latest public pre-release. Current public onboarding uses `-Prerelease`; after the first stable GitHub Release is published, stable installs can omit that switch.
+Both commands use the reviewed HTTPS installer alias and install versioned GitHub Release assets.
 
 Manual package fallback: download the matching `release_<version>_win-<arch>.zip`, extract the package, and run `run.bat` from the extracted folder. Use the [Quickstart](https://wpf-mcptools.evanlau1798.com/quickstart/), [Deployment Guide](https://wpf-mcptools.evanlau1798.com/production/deployment.html), and [Release Layout](https://wpf-mcptools.evanlau1798.com/production/release-layout.html) for verification details.
 
@@ -56,6 +56,8 @@ Manual package fallback: download the matching `release_<version>_win-<arch>.zip
 - [SDK-Hosted Inspector](https://wpf-mcptools.evanlau1798.com/quickstart/sdk-hosted-inspector.html)
 - [Security Model](https://wpf-mcptools.evanlau1798.com/production/security.html)
 - [Release Layout](https://wpf-mcptools.evanlau1798.com/production/release-layout.html)
+- [Maintainer Docs](https://wpf-mcptools.evanlau1798.com/contributors/)
+- [Public-Path Runtime Security Checklist](https://wpf-mcptools.evanlau1798.com/contributors/public-path-runtime-security.html)
 
 ## Development
 

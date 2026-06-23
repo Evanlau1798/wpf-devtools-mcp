@@ -51,13 +51,13 @@ For manual production review, keep these files adjacent to the archive before ex
 
 ## Approved install command shapes
 
-Preview pre-release alias until the first stable GitHub Release is published:
+Stable release alias after explicit user approval:
 
 ```powershell
-& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-Current public onboarding uses `-Prerelease`; after the first stable GitHub Release is published, stable installs can omit that switch.
+ARM64 archives may be published as preview assets, but they are not guaranteed stable because practical Windows-on-ARM runtime validation hardware is not currently available.
 
 Reviewed local package command after user approval:
 

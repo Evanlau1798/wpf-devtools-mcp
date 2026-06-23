@@ -55,7 +55,7 @@ public sealed class ReleaseExportAssetSelectionScriptTests
     }
 
     [Fact]
-    public void Export_WhenArchitectureArchiveIsMissing_ShouldFailBeforeSidecarGeneration()
+    public void Export_WhenStableReleaseContainsArm64Archive_ShouldFailBeforeSidecarGeneration()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -63,11 +63,33 @@ public sealed class ReleaseExportAssetSelectionScriptTests
             var inputRoot = Path.Combine(tempRoot, "input");
             WriteArchive(inputRoot, "release_1.2.3_win-x64.zip");
             WriteArchive(inputRoot, "release_1.2.3_win-x86.zip");
+            WriteArchive(inputRoot, "release_1.2.3_win-arm64.zip");
 
             var result = RunExport(inputRoot, Path.Combine(tempRoot, "output"));
 
             result.ExitCode.Should().NotBe(0);
-            result.Output.Should().Contain("Missing release archive for architecture arm64");
+            result.Output.Should().Contain("ARM64 release archive is prerelease-only");
+            result.Output.Should().Contain("v1.2.3");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void Export_WhenStableArchitectureArchiveIsMissing_ShouldFailBeforeSidecarGeneration()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var inputRoot = Path.Combine(tempRoot, "input");
+            WriteArchive(inputRoot, "release_1.2.3_win-x64.zip");
+
+            var result = RunExport(inputRoot, Path.Combine(tempRoot, "output"));
+
+            result.ExitCode.Should().NotBe(0);
+            result.Output.Should().Contain("Missing release archive for architecture x86");
         }
         finally
         {

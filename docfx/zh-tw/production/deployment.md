@@ -18,13 +18,13 @@ Production review 時，請把下列檔案放在一起：
 
 ## 安裝路徑
 
-在第一個 stable GitHub Release 發布前，請使用 preview pre-release alias：
+安裝最新 stable release：
 
 ```powershell
-& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-目前 public onboarding 使用 `-Prerelease`；第一個 stable GitHub Release 發布後，stable install 可以省略這個 switch。
+ARM64 發行檔可作為 preview asset 提供，但目前不保證穩定性，因為尚無可行的 Windows-on-ARM runtime 驗證硬體。
 
 已審查本機 package command：
 

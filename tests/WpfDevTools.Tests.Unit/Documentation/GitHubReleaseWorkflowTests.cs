@@ -9,12 +9,16 @@ public sealed class GitHubReleaseWorkflowTests
     private static readonly string RepoRoot = ResolveRepoRoot();
 
     [Fact]
-    public void ReleaseWorkflow_ShouldBuildAllSupportedArchitectures()
+    public void ReleaseWorkflow_ShouldBuildStableArchitecturesAndLimitArm64ToPrerelease()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/release.yml"));
 
-        content.Should().Contain("@('x64', 'x86', 'arm64')",
-            "GitHub Release packaging should build x64, x86, and arm64 assets from the same workflow");
+        content.Should().Contain("$releaseArchitectures = @('x64', 'x86')",
+            "stable GitHub Release packaging should publish only the currently validated x64 and x86 assets");
+        content.Should().Contain("if ($env:RELEASE_IS_PRERELEASE -eq 'true')",
+            "ARM64 packages are temporarily preview-only and should be attached only to prerelease tags");
+        content.Should().Contain("$releaseArchitectures += 'arm64'",
+            "prerelease tags may still expose ARM64 packages for early adopters without making them stable assets");
         content.Should().Contain("Publish-Release.ps1",
             "the release workflow should call the production packaging script instead of duplicating packaging logic inline");
         content.Should().Contain("-ExpectedReleaseTag $env:RELEASE_TAG",
@@ -48,14 +52,14 @@ public sealed class GitHubReleaseWorkflowTests
     }
 
     [Fact]
-    public void ReleaseWorkflow_ShouldRequireArm64RuntimeValidationBeforeUpload()
+    public void ReleaseWorkflow_ShouldTreatArm64RuntimeValidationAsOptionalPreviewGate()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/release.yml"));
 
         content.Should().Contain("WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE",
-            "public release publication should fail closed until a dedicated ARM64 runtime validation lane is configured");
+            "maintainers should still be able to opt into a real ARM64 runtime validation lane when suitable hardware exists");
         content.Should().Contain("validate-arm64-release-assets",
-            "release publication should have a dedicated ARM64 validation job that runs before upload");
+            "the workflow should retain a dedicated ARM64 validation job for preview ARM64 assets when hardware is available");
         content.Should().Contain("[self-hosted, Windows, ARM64]",
             "ARM64 asset validation must occur on an actual ARM64 runner so the packaged executable can launch");
         content.Should().Contain("Invoke-PackagedRuntimeLiveSmoke.ps1",
@@ -65,9 +69,11 @@ public sealed class GitHubReleaseWorkflowTests
         content.Should().Contain("upload-release-assets:",
             "asset upload should happen in a separate job after validation finishes");
         content.Should().Contain("needs:",
-            "the upload job must depend on the package build and ARM64 runtime validation jobs");
-        content.Should().Contain("- validate-arm64-release-assets",
-            "the ARM64 runtime validation job should be part of the release workflow DAG before upload");
+            "the upload job must still depend on the package build and validation jobs");
+        content.Should().Contain("needs.validate-arm64-release-assets.result == 'skipped'",
+            "ARM64 runtime smoke may be skipped for beta/prerelease publication when no practical Windows-on-ARM runner is available");
+        content.Should().NotContain("Public release publishing requires WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE=true",
+            "stable x64/x86 releases should not be blocked by unavailable Windows-on-ARM hardware while ARM64 remains prerelease-only");
     }
 
     [Fact]

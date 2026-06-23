@@ -6,13 +6,15 @@ WPF DevTools MCP Server 是 Windows-only 的 Model Context Protocol server，用
 
 ## 安裝
 
-在第一個 stable GitHub Release 發布前，請使用 preview pre-release installer：
+安裝最新 stable release：
 
 ```powershell
-& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-Installer 會解析所選 public pre-release 的已審查 online installer，驗證版本化 package metadata，並安裝封裝後的 executable。目前 public onboarding 使用 `-Prerelease`；第一個 stable GitHub Release 發布後，stable install 可以省略這個 switch。若要手動安裝，請下載 `release_<version>_win-<arch>.zip`、驗證相鄰 sidecar、解壓 package，並從解壓後資料夾執行 `run.bat`。
+Installer 會解析已審查的 online installer，驗證版本化 package metadata，並安裝封裝後的 executable。若要手動安裝，請下載 `release_<version>_win-<arch>.zip`、驗證相鄰 sidecar、解壓 package，並從解壓後資料夾執行 `run.bat`。
+
+ARM64 發行檔可作為 preview asset 提供，但目前不保證穩定性，因為尚無可行的 Windows-on-ARM runtime 驗證硬體。
 
 手動 production review 前，請把這些檔案與 archive 放在同一層：`SHA256SUMS.txt`、`release-assets.json`、`release-sbom.spdx.json` 與 `package-sbom.spdx.json`。
 

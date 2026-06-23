@@ -7,7 +7,8 @@ Thank you for considering a contribution.
 1. [Development Setup](development-setup.md)
 2. [Testing and TDD](testing-and-tdd.md)
 3. [Documentation Style](documentation-style.md)
-4. [ADR Index](../architecture/adrs/index.md)
+4. [Public-Path Runtime Security Checklist](public-path-runtime-security.md)
+5. [ADR Index](../architecture/adrs/index.md)
 
 ## Contribution priorities
 
@@ -25,3 +26,6 @@ The project values:
 - understand runtime and architecture implications
 - prefer narrow, test-backed changes
 - keep file size under the repository limit
+
+Release packaging and vulnerability reporting also have root repository entrypoints:
+`RELEASING.md` and `SECURITY.md`.

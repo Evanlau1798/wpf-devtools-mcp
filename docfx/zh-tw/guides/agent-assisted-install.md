@@ -44,13 +44,13 @@ Supported client ids 為 `claude-code`、`codex`、`cursor`、`vscode`、`visual
 
 ## 使用者核准後安裝
 
-在第一個 stable GitHub Release 發布前，請使用 preview pre-release alias：
+使用者明確核准後，可使用 stable release alias：
 
 ```powershell
-& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-目前 public onboarding 使用 `-Prerelease`；第一個 stable GitHub Release 發布後，stable install 可以省略這個 switch。
+ARM64 發行檔可作為 preview asset 提供，但目前不保證穩定性，因為尚無可行的 Windows-on-ARM runtime 驗證硬體。
 
 已審查本機 package command：
 
@@ -98,5 +98,5 @@ Package-local fallback：
 ## 可複製 prompt
 
 ```text
-Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, or powershell.exe -NoProfile -File with the same arguments when PowerShell 7 is unavailable. Present a plan with version, architecture, install root, client id, release archive, sidecars, and signer pin policy. Ask for confirmation before mutation. After approval, use the preview pre-release alias, a reviewed local package command, or package-local run.bat. Report generated registration artifacts and do not print secrets.
+Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, or powershell.exe -NoProfile -File with the same arguments when PowerShell 7 is unavailable. Present a plan with version, architecture, install root, client id, release archive, sidecars, and signer pin policy. Ask for confirmation before mutation. After approval, use the stable installer alias, a reviewed local package command, or package-local run.bat. Report generated registration artifacts and do not print secrets.
 ```

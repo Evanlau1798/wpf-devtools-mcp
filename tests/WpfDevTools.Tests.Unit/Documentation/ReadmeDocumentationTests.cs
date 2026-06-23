@@ -8,7 +8,9 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 
 public class ReadmeDocumentationTests
 {
-    private const string PreviewPrereleaseInstallerCommand =
+    private const string StableLatestInstallerCommand =
+        "irm https://installer.wpf-mcptools.evanlau1798.com | iex";
+    private const string LatestPrereleaseInstallerCommand =
         "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease";
 
     [Fact]
@@ -31,6 +33,8 @@ public class ReadmeDocumentationTests
         content.Should().Contain("https://wpf-mcptools.evanlau1798.com/production/deployment.html");
         content.Should().Contain("https://wpf-mcptools.evanlau1798.com/production/security.html");
         content.Should().Contain("https://wpf-mcptools.evanlau1798.com/production/release-layout.html");
+        content.Should().Contain("https://wpf-mcptools.evanlau1798.com/contributors/");
+        content.Should().Contain("https://wpf-mcptools.evanlau1798.com/contributors/public-path-runtime-security.html");
         content.Should().Contain("https://wpf-mcptools.evanlau1798.com/reference/tools/");
 
         content.Should().NotContain("docfx/index.md");
@@ -62,7 +66,8 @@ public class ReadmeDocumentationTests
     {
         var content = File.ReadAllText(GetRepoFilePath("README.md"));
 
-        content.Should().Contain(PreviewPrereleaseInstallerCommand);
+        content.Should().Contain(StableLatestInstallerCommand);
+        content.Should().NotContain(LatestPrereleaseInstallerCommand);
         content.Should().Contain("pre-release");
         content.Should().Contain("release_<version>_win-<arch>.zip");
         content.Should().Contain("run.bat");

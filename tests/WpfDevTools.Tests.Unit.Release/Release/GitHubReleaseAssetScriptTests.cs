@@ -40,7 +40,7 @@ public sealed class GitHubReleaseAssetScriptTests
             File.ReadAllText(Path.Combine(stagedRoot, "SHA256SUMS.txt"))
                 .Should().Contain("release_1.2.3_win-x64.zip")
                 .And.Contain("release_1.2.3_win-x86.zip")
-                .And.Contain("release_1.2.3_win-arm64.zip");
+                .And.NotContain("release_1.2.3_win-arm64.zip");
             File.ReadAllText(Path.Combine(stagedRoot, "upload-gh-release.ps1"))
                 .Should().Contain("$PSScriptRoot")
                 .And.Contain("$ReleaseTag")
@@ -61,7 +61,7 @@ public sealed class GitHubReleaseAssetScriptTests
         {
             var inputRoot = Path.Combine(tempRoot, "release-input");
             var outputRoot = Path.Combine(tempRoot, "release-output");
-            ReleaseScriptTestHarness.WriteDummyReleaseArchiveSet(inputRoot, "1.2.3-dev.1");
+            ReleaseScriptTestHarness.WriteDummyReleaseArchiveSet(inputRoot, "1.2.3-dev.1", includeArm64: true);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1"),
@@ -78,7 +78,8 @@ public sealed class GitHubReleaseAssetScriptTests
             manifest.RootElement.GetProperty("tag").GetString().Should().Be("v1.2.3-dev.1");
             manifest.RootElement.GetProperty("assets").EnumerateArray()
                 .Select(asset => asset.GetProperty("name").GetString())
-                .Should().Contain("release_1.2.3-dev.1_win-x64.zip");
+                .Should().Contain("release_1.2.3-dev.1_win-x64.zip")
+                .And.Contain("release_1.2.3-dev.1_win-arm64.zip");
         }
         finally
         {
@@ -105,6 +106,11 @@ public sealed class GitHubReleaseAssetScriptTests
             var uploadScript = File.ReadAllText(Path.Combine(stagedRoot, "upload-gh-release.ps1"));
             uploadScript.Should().Contain("$PSScriptRoot");
             uploadScript.Should().NotContain("gh release upload $ReleaseTag @assets --clobber");
+            uploadScript.Should().Contain("SHA256SUMS.txt",
+                "GitHub Release notes should include the official checksums users need when payload signing is not yet configured");
+            uploadScript.Should().Contain("release-notes.md");
+            uploadScript.Should().Contain("gh release edit $ReleaseTag --notes-file $releaseNotesPath",
+                "the upload helper should publish checksum notes before attaching assets");
 
             using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(stagedRoot, "release-assets.json")));
             var asset = manifest.RootElement.GetProperty("assets")[0];
@@ -340,8 +346,7 @@ public sealed class GitHubReleaseAssetScriptTests
             packages.Select(package => package.GetProperty("name").GetString())
                 .Should().BeEquivalentTo(
                     "release_1.2.3_win-x64.zip",
-                    "release_1.2.3_win-x86.zip",
-                    "release_1.2.3_win-arm64.zip");
+                    "release_1.2.3_win-x86.zip");
 
             var manifestAssets = manifest.RootElement.GetProperty("assets").EnumerateArray()
                 .ToDictionary(asset => asset.GetProperty("name").GetString()!);

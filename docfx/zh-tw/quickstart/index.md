@@ -11,13 +11,13 @@
 
 ## 安裝
 
-在第一個 stable GitHub Release 發布前，請使用 preview pre-release installer：
+安裝最新 stable release：
 
 ```powershell
-& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-若要 pin 特定 pre-release，請明確設定 GitHub release tag：
+若要 pin 特定 beta 或 preview pre-release，請明確設定 GitHub release tag：
 
 ```powershell
 $version = 'v1.0.0-beta.1'
@@ -32,13 +32,13 @@ Installer 會偵測 host architecture、詢問 MCP client、安裝 packaged exec
 <InstallRoot>\<arch>\client-registration\
 ```
 
-目前 public onboarding 使用 `-Prerelease`；第一個 stable GitHub Release 發布後，stable install 可以省略這個 switch。
-
 安裝後 server path 通常是：
 
 ```text
 <InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
+
+ARM64 發行檔可作為 preview asset 提供，但目前不保證穩定性，因為尚無可行的 Windows-on-ARM runtime 驗證硬體。
 
 ## 手動驗證 package 安裝
 

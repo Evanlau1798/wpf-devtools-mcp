@@ -19,6 +19,7 @@ jobs:
     outputs:
       release-tag: ${{ steps.release-metadata.outputs.tag }}
       is-e2e-validation-release: ${{ steps.release-metadata.outputs.is-e2e-validation-release }}
+      is-prerelease-release: ${{ steps.release-metadata.outputs.is-prerelease-release }}
       tag-commit-sha: ${{ steps.tag-checkout.outputs.tag-commit-sha }}
     env:
       RELEASE_OUTPUT_ROOT: artifacts/release/github-release
@@ -54,8 +55,10 @@ jobs:
           }
 
           $isE2EValidationRelease = $tag -match '^v\d+\.\d+\.\d+-e2e\.[0-9A-Za-z][0-9A-Za-z.-]*$'
+          $isPrereleaseRelease = $tag -match '^v\d+\.\d+\.\d+-[0-9A-Za-z][0-9A-Za-z.-]*$'
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "is-e2e-validation-release=$($isE2EValidationRelease.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "is-prerelease-release=$($isPrereleaseRelease.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Checkout tagged revision
         id: tag-checkout
@@ -153,12 +156,24 @@ jobs:
             throw 'GitHub Release packaging requires WPFDEVTOOLS_PFX_PASSWORD.'
           }
 
-      - name: Validate ARM64 runtime smoke lane configuration
+      - name: Report ARM64 release policy
         if: steps.release-metadata.outputs.is-e2e-validation-release != 'true'
         shell: pwsh
+        env:
+          RELEASE_IS_PRERELEASE: ${{ steps.release-metadata.outputs.is-prerelease-release }}
         run: |
-          if ('${{ vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE }}' -ne 'true') {
-            throw 'Public release publishing requires WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE=true and a self-hosted Windows ARM64 runner for runtime validation before upload.'
+          if ($env:RELEASE_IS_PRERELEASE -eq 'true') {
+            Write-Host 'ARM64 release archives are prerelease-only preview assets until practical Windows-on-ARM validation hardware is available.'
+          }
+          else {
+            Write-Host 'Stable release assets are limited to x64 and x86.'
+          }
+
+          if ('${{ vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE }}' -eq 'true') {
+            Write-Host 'ARM64 runtime smoke is enabled for prerelease validation.'
+          }
+          else {
+            Write-Host 'ARM64 runtime smoke is disabled; prerelease ARM64 runtime validation will be skipped.'
           }
 
       - name: Build release packages
@@ -166,13 +181,19 @@ jobs:
         shell: pwsh
         env:
           RELEASE_TAG: ${{ steps.release-metadata.outputs.tag }}
+          RELEASE_IS_PRERELEASE: ${{ steps.release-metadata.outputs.is-prerelease-release }}
           WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
           WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}
           WPFDEVTOOLS_PFX_PASSWORD: ${{ secrets.WPFDEVTOOLS_PFX_PASSWORD }}
         run: |
+          $releaseArchitectures = @('x64', 'x86')
+          if ($env:RELEASE_IS_PRERELEASE -eq 'true') {
+            $releaseArchitectures += 'arm64'
+          }
+
           ./scripts/tools/packaging/Publish-Release.ps1 `
             -Configuration Release `
-            -Architectures @('x64', 'x86', 'arm64') `
+            -Architectures $releaseArchitectures `
             -ExpectedReleaseTag $env:RELEASE_TAG `
             -OutputRoot '${{ env.RELEASE_OUTPUT_ROOT }}'
 
@@ -487,7 +508,7 @@ jobs:
           path: artifacts/release/runtime-evidence-x86-*.json
 
   validate-arm64-release-assets:
-    if: needs.publish-release-assets.outputs.is-e2e-validation-release != 'true' && vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE == 'true'
+    if: needs.publish-release-assets.outputs.is-e2e-validation-release != 'true' && needs.publish-release-assets.outputs.is-prerelease-release == 'true' && vars.WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE == 'true'
     needs: publish-release-assets
     runs-on: [self-hosted, Windows, ARM64]
     env:
@@ -620,7 +641,7 @@ jobs:
           path: artifacts/release/runtime-evidence-arm64-*.json
 
   upload-release-assets:
-    if: needs.publish-release-assets.outputs.is-e2e-validation-release != 'true'
+    if: always() && needs.publish-release-assets.outputs.is-e2e-validation-release != 'true' && needs.publish-release-assets.result == 'success' && needs.validate-x64-release-assets.result == 'success' && needs.validate-x86-release-assets.result == 'success' && (needs.validate-arm64-release-assets.result == 'success' || needs.validate-arm64-release-assets.result == 'skipped')
     needs:
       - publish-release-assets
       - validate-x64-release-assets
@@ -655,6 +676,7 @@ jobs:
         shell: pwsh
         env:
           RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+          ARM64_VALIDATION_RESULT: ${{ needs.validate-arm64-release-assets.result }}
           WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
         run: |
           $tag = $env:RELEASE_TAG
@@ -664,6 +686,10 @@ jobs:
             throw 'No runtime evidence artifacts were downloaded for release evidence summary.'
           }
           $runtimeEvidenceCsv = $runtimeEvidence -join ','
+          $runnerMatrix = 'windows-x64,windows-x86'
+          if ($env:ARM64_VALIDATION_RESULT -eq 'success') {
+            $runnerMatrix += ',windows-arm64'
+          }
 
           & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Write-ReleaseEvidence.ps1 `
             -OutputPath (Join-Path $stagingRoot 'release-evidence.json') `
@@ -671,7 +697,7 @@ jobs:
             -Branch $tag `
             -CommitSha '${{ needs.publish-release-assets.outputs.tag-commit-sha }}' `
             -WorkflowRunId '${{ github.run_id }}' `
-            -RunnerMatrix 'windows-x64,windows-x86,windows-arm64' `
+            -RunnerMatrix $runnerMatrix `
             -RuntimeEvidencePath $runtimeEvidenceCsv `
             -DocFxEvidencePath (Join-Path $stagingRoot 'docfx-evidence.json') `
             -SecurityEvidencePath (Join-Path $stagingRoot 'security-evidence.json') `

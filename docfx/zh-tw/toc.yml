@@ -68,5 +68,7 @@
       href: contributors/testing-and-tdd.md
     - name: 文件風格
       href: contributors/documentation-style.md
+    - name: Public-Path Runtime Security
+      href: contributors/public-path-runtime-security.md
     - name: Agent 輔助安裝
       href: guides/agent-assisted-install.md

@@ -11,13 +11,13 @@ This page is the production onboarding path for a supported MCP client on Window
 
 ## Install
 
-Preview pre-release installer until the first stable GitHub Release is published:
+Install the latest stable release:
 
 ```powershell
-& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease
+irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-For a pinned pre-release, set the GitHub release tag explicitly:
+For a pinned beta or preview pre-release, set the GitHub release tag explicitly:
 
 ```powershell
 $version = 'v1.0.0-beta.1'
@@ -32,13 +32,13 @@ The installer detects the host architecture, asks for the target MCP client, ins
 <InstallRoot>\<arch>\client-registration\
 ```
 
-Current public onboarding uses `-Prerelease`; after the first stable GitHub Release is published, stable installs can omit that switch.
-
 The installed server path normally resolves to:
 
 ```text
 <InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
+
+ARM64 archives may be published as preview assets, but they are not guaranteed stable because practical Windows-on-ARM runtime validation hardware is not currently available.
 
 ## Manual verified package install
 

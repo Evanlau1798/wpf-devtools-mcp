@@ -26,12 +26,32 @@ public sealed class DocfxConfigurationTests
     [InlineData("docfx/reference/toc.yml", "../api/toc.yml")]
     [InlineData("docfx/architecture/toc.yml", "adrs/adr-006-stdio-session-state.md")]
     [InlineData("docfx/contributors/toc.yml", "../guides/agent-assisted-install.md")]
+    [InlineData("docfx/contributors/toc.yml", "public-path-runtime-security.md")]
+    [InlineData("docfx/zh-tw/toc.yml", "contributors/public-path-runtime-security.md")]
     public void SectionTocs_ShouldPreserveDeepNavigationOutsideTheTopNavbar(
         string relativePath,
         string expectedHref)
     {
         File.Exists(GetRepoFilePath(relativePath)).Should().BeTrue();
         ReadRepoText(relativePath).Should().Contain(expectedHref);
+    }
+
+    [Fact]
+    public void ContributorDocs_ShouldIncludePublicPathRuntimeSecurityChecklist()
+    {
+        var english = ReadRepoText("docfx/contributors/public-path-runtime-security.md");
+        var traditionalChinese = ReadRepoText("docfx/zh-tw/contributors/public-path-runtime-security.md");
+
+        foreach (var content in new[] { english, traditionalChinese })
+        {
+            content.Should().Contain("SHA256SUMS.txt");
+            content.Should().Contain("release-assets.json");
+            content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
+            content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS");
+            content.Should().Contain("capture_state_snapshot");
+            content.Should().Contain("restore_state_snapshot");
+            content.Should().Contain("full-uninstall");
+        }
     }
 
     [Fact]

@@ -6,5 +6,7 @@
   href: testing-and-tdd.md
 - name: Documentation Style
   href: documentation-style.md
+- name: Public-Path Runtime Security
+  href: public-path-runtime-security.md
 - name: Agent-Assisted Install
   href: ../guides/agent-assisted-install.md

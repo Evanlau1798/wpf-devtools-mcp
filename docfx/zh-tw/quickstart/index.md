@@ -20,7 +20,7 @@
 若要 pin 特定 pre-release，請明確設定 GitHub release tag：
 
 ```powershell
-$version = 'v0.1.0-preview.1'
+$version = 'v1.0.0-beta.1'
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 

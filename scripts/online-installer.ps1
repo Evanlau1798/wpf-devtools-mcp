@@ -4374,7 +4374,7 @@ function Read-ValidatedVersion {
             return $normalized.TrimStart('v', 'V')
         }
 
-        Write-InstallerMessage 'Allowed values: latest or a SemVer release such as 0.1.0'
+        Write-InstallerMessage 'Allowed values: latest or a SemVer release such as 1.0.0-beta.1'
     }
 }
 function Get-CliSelection {

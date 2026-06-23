@@ -60,10 +60,10 @@
     <NetFxSdkLibraryDir Condition="'$(NetFxSdkLibraryDir)' == '' and '$(NETFXKitsDir)' != '' and '$(Platform)'=='x64'">$(NETFXKitsDir)Lib\um\x64</NetFxSdkLibraryDir>
     <NetFxSdkLibraryDir Condition="'$(NetFxSdkLibraryDir)' == '' and '$(NETFXKitsDir)' != '' and '$(Platform)'=='ARM64' and Exists('$(NETFXKitsDir)Lib\um\arm64\mscoree.lib')">$(NETFXKitsDir)Lib\um\arm64</NetFxSdkLibraryDir>
     <NetFxSdkLibraryDir Condition="'$(NetFxSdkLibraryDir)' == '' and '$(NETFXKitsDir)' != '' and '$(Platform)'=='ARM64'">$(NETFXKitsDir)Lib\um\arm</NetFxSdkLibraryDir>
-    <BootstrapperFileVersion Condition="'$(BootstrapperFileVersion)' == ''">0,1,0,0</BootstrapperFileVersion>
-    <BootstrapperProductVersion Condition="'$(BootstrapperProductVersion)' == ''">0,1,0,0</BootstrapperProductVersion>
-    <BootstrapperFileVersionString Condition="'$(BootstrapperFileVersionString)' == ''">0.1.0.0</BootstrapperFileVersionString>
-    <BootstrapperProductVersionString Condition="'$(BootstrapperProductVersionString)' == ''">0.1.0</BootstrapperProductVersionString>
+    <BootstrapperFileVersion Condition="'$(BootstrapperFileVersion)' == ''">1,0,0,0</BootstrapperFileVersion>
+    <BootstrapperProductVersion Condition="'$(BootstrapperProductVersion)' == ''">1,0,0,0</BootstrapperProductVersion>
+    <BootstrapperFileVersionString Condition="'$(BootstrapperFileVersionString)' == ''">1.0.0.0</BootstrapperFileVersionString>
+    <BootstrapperProductVersionString Condition="'$(BootstrapperProductVersionString)' == ''">1.0.0-beta.1</BootstrapperProductVersionString>
     <TargetName Condition="'$(Platform)'=='Win32'">WpfDevTools.Bootstrapper.x86</TargetName>
     <TargetName Condition="'$(Platform)'=='x64'">WpfDevTools.Bootstrapper.x64</TargetName>
     <TargetName Condition="'$(Platform)'=='ARM64'">WpfDevTools.Bootstrapper.arm64</TargetName>

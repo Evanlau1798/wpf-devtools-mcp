@@ -24,7 +24,7 @@ Preview pre-release installer until the first stable GitHub Release is published
 Pinned pre-release install; replace the example with the selected public pre-release tag:
 
 ```powershell
-$version = 'v0.1.0-preview.1'
+$version = 'v1.0.0-beta.1'
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 

@@ -28,7 +28,7 @@ In CI, `WPFDEVTOOLS_PFX_PASSWORD` must be present and non-empty when `WPFDEVTOOL
 Run the release preflight script from the repository root:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Preflight-Release.ps1 -VersionTag v0.1.0 -OutputJson
+powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Preflight-Release.ps1 -VersionTag v1.0.0-beta.1 -OutputJson
 ```
 
 Preflight-Release.ps1 builds, tests, packages, and optionally stages GitHub Release sidecars when `-VersionTag` is present. Use this command as the local validation gate before publishing.
@@ -52,7 +52,7 @@ If the preflight reaches `x64`/`x86` successfully but fails on `ARM64`, that usu
 If you only want to inspect the planned commands, use:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Preflight-Release.ps1 -VersionTag v0.1.0 -PlanOnly -OutputJson
+powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Preflight-Release.ps1 -VersionTag v1.0.0-beta.1 -PlanOnly -OutputJson
 ```
 
 ## 2. Verify the staged outputs

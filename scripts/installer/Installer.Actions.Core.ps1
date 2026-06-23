@@ -238,6 +238,15 @@ function Invoke-InstallerActionCore {
         $resolvedArchitecture = if ([string]::IsNullOrWhiteSpace([string]$packageManifest.architecture)) { $ResolvedArchitecture } else { [string]$packageManifest.architecture }
         $resolvedVersion = if ([string]::IsNullOrWhiteSpace([string]$packageManifest.version)) { [string]$session.ResolvedVersion } else { [string]$packageManifest.version }
         $packageAssetIdentity = Get-ReleaseAssetIdentity -AssetName ([string]$session.PackageAssetName)
+        $sourceReleaseVersion = if ($null -ne $packageAssetIdentity -and -not [string]::IsNullOrWhiteSpace([string]$packageAssetIdentity.ResolvedVersion)) {
+            [string]$packageAssetIdentity.ResolvedVersion
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace([string]$session.ResolvedVersion) -and [string]$session.ResolvedVersion -ne 'latest') {
+            [string]$session.ResolvedVersion
+        }
+        else {
+            $resolvedVersion
+        }
         $packageAssetName = if ($null -ne $packageAssetIdentity) {
             [string]$packageAssetIdentity.AssetName
         }
@@ -247,8 +256,11 @@ function Invoke-InstallerActionCore {
         else {
             [string]$session.PackageAssetName
         }
-        $downloadUri = if (-not [string]::IsNullOrWhiteSpace($packageAssetName) -and -not [string]::IsNullOrWhiteSpace($resolvedVersion)) {
-            Get-ReleaseDownloadUri -ResolvedVersion $resolvedVersion -ResolvedArchitecture $resolvedArchitecture
+        $downloadUri = if ($session.DownloadSource -eq 'github-release' -and -not [string]::IsNullOrWhiteSpace([string]$session.DownloadUri)) {
+            [string]$session.DownloadUri
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($packageAssetName) -and -not [string]::IsNullOrWhiteSpace($sourceReleaseVersion)) {
+            Get-ReleaseDownloadUri -ResolvedVersion $sourceReleaseVersion -ResolvedArchitecture $resolvedArchitecture
         }
         else {
             [string]$session.DownloadUri

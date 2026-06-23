@@ -63,7 +63,7 @@
     <BootstrapperFileVersion Condition="'$(BootstrapperFileVersion)' == ''">1,0,0,0</BootstrapperFileVersion>
     <BootstrapperProductVersion Condition="'$(BootstrapperProductVersion)' == ''">1,0,0,0</BootstrapperProductVersion>
     <BootstrapperFileVersionString Condition="'$(BootstrapperFileVersionString)' == ''">1.0.0.0</BootstrapperFileVersionString>
-    <BootstrapperProductVersionString Condition="'$(BootstrapperProductVersionString)' == ''">1.0.0-beta.1</BootstrapperProductVersionString>
+    <BootstrapperProductVersionString Condition="'$(BootstrapperProductVersionString)' == ''">1.0.0.0</BootstrapperProductVersionString>
     <TargetName Condition="'$(Platform)'=='Win32'">WpfDevTools.Bootstrapper.x86</TargetName>
     <TargetName Condition="'$(Platform)'=='x64'">WpfDevTools.Bootstrapper.x64</TargetName>
     <TargetName Condition="'$(Platform)'=='ARM64'">WpfDevTools.Bootstrapper.arm64</TargetName>

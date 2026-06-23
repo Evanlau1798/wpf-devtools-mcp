@@ -40,6 +40,18 @@ public sealed class NativeResourceVersionTests
         result.Stdout.Trim().Should().Be("0%2c1%2c0%2c0");
     }
 
+    [Fact]
+    public void BootstrapperDefaultResourceVersions_ShouldStayRcSafeForBetaRelease()
+    {
+        var resource = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Bootstrapper/bootstrapper.rc"));
+        var project = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Bootstrapper/WpfDevTools.Bootstrapper.vcxproj"));
+
+        resource.Should().Contain("WPFDEVTOOLS_BOOTSTRAPPER_PRODUCT_VERSION_STRING \"1.0.0.0\"");
+        project.Should().Contain("<BootstrapperProductVersionString Condition=\"'$(BootstrapperProductVersionString)' == ''\">1.0.0.0</BootstrapperProductVersionString>");
+        resource.Should().NotContain("1.0.0-beta.1");
+        project.Should().NotContain("1.0.0-beta.1</BootstrapperProductVersionString>");
+    }
+
     private static string EscapePowerShellPath(string path) =>
         path.Replace("'", "''", StringComparison.Ordinal);
 }

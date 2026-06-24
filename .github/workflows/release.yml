@@ -323,13 +323,17 @@ jobs:
           }
           $packageArchive = $packageArchives[0]
 
-          $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
-          if (Test-Path $packageDir) {
-            Remove-Item -LiteralPath $packageDir -Recurse -Force
-          }
+          if ($env:RELEASE_TRUST_MODE -eq 'ReleaseChecksumOnly') {
+            & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory $stagingRoot -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+          } else {
+            $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
+            if (Test-Path $packageDir) {
+              Remove-Item -LiteralPath $packageDir -Recurse -Force
+            }
 
-          Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
-          & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+            Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
+            & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+          }
 
       - name: Start staged installed x64 runtime live smoke test
         shell: pwsh
@@ -461,13 +465,17 @@ jobs:
           }
           $packageArchive = $packageArchives[0]
 
-          $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
-          if (Test-Path $packageDir) {
-            Remove-Item -LiteralPath $packageDir -Recurse -Force
-          }
+          if ($env:RELEASE_TRUST_MODE -eq 'ReleaseChecksumOnly') {
+            & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory $stagingRoot -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+          } else {
+            $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
+            if (Test-Path $packageDir) {
+              Remove-Item -LiteralPath $packageDir -Recurse -Force
+            }
 
-          Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
-          & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+            Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
+            & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+          }
 
       - name: Start staged installed x86 runtime live smoke test
         shell: pwsh
@@ -598,13 +606,17 @@ jobs:
           }
           $packageArchive = $packageArchives[0]
 
-          $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
-          if (Test-Path $packageDir) {
-            Remove-Item -LiteralPath $packageDir -Recurse -Force
-          }
+          if ($env:RELEASE_TRUST_MODE -eq 'ReleaseChecksumOnly') {
+            & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -PackageArchivePath $packageArchive.FullName -TrustedReleaseMetadataDirectory $stagingRoot -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+          } else {
+            $packageDir = Join-Path $stagingRoot $packageArchive.BaseName
+            if (Test-Path $packageDir) {
+              Remove-Item -LiteralPath $packageDir -Recurse -Force
+            }
 
-          Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
-          & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+            Expand-Archive -LiteralPath $packageArchive.FullName -DestinationPath $packageDir -Force
+            & powershell -ExecutionPolicy Bypass -File (Join-Path $packageDir 'bin/install.ps1') -InstallRoot './tmp-release-install-smoke' -Client other -NonInteractive -Force -OutputJson
+          }
 
       - name: Start staged installed ARM64 runtime smoke test
         shell: pwsh

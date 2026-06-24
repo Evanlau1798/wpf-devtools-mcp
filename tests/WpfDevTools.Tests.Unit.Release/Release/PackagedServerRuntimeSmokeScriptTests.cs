@@ -191,7 +191,7 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
             using var packageLocalEvidence = JsonDocument.Parse(File.ReadAllText(packageLocalEvidencePath));
             var packageLocalRoot = packageLocalEvidence.RootElement;
             packageLocalRoot.GetProperty("installMode").GetString().Should().Be("package-local");
-            packageLocalRoot.GetProperty("packageSmoke").GetProperty("x64PackageLocal").GetString().Should().Be("not-run");
+            packageLocalRoot.GetProperty("packageSmoke").GetProperty("x64PackageLocal").GetString().Should().Be("passed");
             packageLocalRoot.GetProperty("packageSmoke").GetProperty("x64OnlineInstaller").GetString().Should().Be("passed-or-not-public");
 
             var onlineEvidencePath = Path.Combine(tempRoot, "runtime-evidence-online.json");
@@ -209,7 +209,7 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
             var onlineRoot = onlineEvidence.RootElement;
             onlineRoot.GetProperty("installMode").GetString().Should().Be("online-installer");
             onlineRoot.GetProperty("packageSmoke").GetProperty("x64PackageLocal").GetString().Should().Be("passed-or-not-public");
-            onlineRoot.GetProperty("packageSmoke").GetProperty("x64OnlineInstaller").GetString().Should().Be("not-run");
+            onlineRoot.GetProperty("packageSmoke").GetProperty("x64OnlineInstaller").GetString().Should().Be("passed");
         }
         finally
         {

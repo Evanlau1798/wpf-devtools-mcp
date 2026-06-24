@@ -804,6 +804,7 @@ jobs:
         shell: pwsh
         env:
           RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+          RELEASE_TRUST_MODE: ${{ needs.publish-release-assets.outputs.release-trust-mode }}
           ARM64_VALIDATION_RESULT: ${{ needs.validate-arm64-release-assets.result }}
           WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
         run: |
@@ -836,6 +837,7 @@ jobs:
             -DotnetSdkVersion (dotnet --version) `
             -PowerShellVersion $PSVersionTable.PSVersion.ToString() `
             -WorkflowSha '${{ github.workflow_sha }}' `
+            -ReleaseTrustMode $env:RELEASE_TRUST_MODE `
             -TrustedSignerThumbprint $env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT `
             -UninstallResiduePassed `
             -PublicReleaseStrict

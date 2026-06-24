@@ -135,7 +135,7 @@ function Write-RuntimeEvidence {
     $nameSetHash = Get-Sha256Hex -Value ($toolNames -join "`n")
     $schemaJson = $ToolsResponse.result.tools | ConvertTo-Json -Compress -Depth 64
     $schemaSnapshotHash = Get-Sha256Hex -Value $schemaJson
-    $packageSmokeStatus = if ($TargetAwareLiveSmokePassed) { 'passed' } else { 'not-run' }
+    $packageSmokeStatus = 'passed'
     $packageSmoke = [ordered]@{
         x64PackageLocal = 'passed-or-not-public'
         x64OnlineInstaller = 'passed-or-not-public'

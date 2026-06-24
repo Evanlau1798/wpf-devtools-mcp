@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using Xunit;
 
@@ -62,11 +63,54 @@ public sealed class ReleaseEvidenceRuntimeModeStrictTests
         }
     }
 
+    [Fact]
+    public void WriteReleaseEvidence_PublicReleaseStrictMode_ShouldAcceptChecksumOnlyProtocolEvidence()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var outputPath = Path.Combine(tempRoot, "release-evidence.json");
+            var runtimeEvidenceCsv = string.Join(
+                ',',
+                WriteRuntimeEvidence(
+                    tempRoot,
+                    "runtime-evidence-x64-installed.json",
+                    installMode: "package-local",
+                    packageLocalStatus: "passed",
+                    onlineInstallerStatus: "passed-or-not-public",
+                    liveSmokePassed: false),
+                WriteRuntimeEvidence(
+                    tempRoot,
+                    "runtime-evidence-x64-online.json",
+                    installMode: "online-installer",
+                    packageLocalStatus: "passed-or-not-public",
+                    onlineInstallerStatus: "passed",
+                    liveSmokePassed: false));
+
+            var result = RunReleaseEvidence(
+                tempRoot,
+                outputPath,
+                runtimeEvidenceCsv,
+                publicReleaseStrict: true,
+                releaseTrustMode: "ReleaseChecksumOnly");
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var evidence = JsonDocument.Parse(File.ReadAllText(outputPath));
+            evidence.RootElement.GetProperty("releaseTrustMode").GetString().Should().Be("ReleaseChecksumOnly");
+            evidence.RootElement.GetProperty("liveSmoke").GetProperty("connect").GetBoolean().Should().BeFalse();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     private static (int ExitCode, string Stdout, string Stderr) RunReleaseEvidence(
         string tempRoot,
         string outputPath,
         string runtimeEvidencePath,
-        bool publicReleaseStrict)
+        bool publicReleaseStrict,
+        string releaseTrustMode = "Signed")
     {
         var docFxEvidencePath = Path.Combine(tempRoot, "docfx-evidence.json");
         File.WriteAllText(docFxEvidencePath, """{"englishParity":true,"zhTwParity":true,"brokenLinks":0}""");
@@ -96,6 +140,7 @@ public sealed class ReleaseEvidenceRuntimeModeStrictTests
             "-DotnetSdkVersion", "8.0.999",
             "-PowerShellVersion", "7.4.99",
             "-WorkflowSha", "fedcba9876543210fedcba9876543210fedcba98",
+            "-ReleaseTrustMode", releaseTrustMode,
             "-UninstallResiduePassed"
         };
         if (publicReleaseStrict)
@@ -113,7 +158,8 @@ public sealed class ReleaseEvidenceRuntimeModeStrictTests
         string fileName,
         string installMode,
         string packageLocalStatus,
-        string onlineInstallerStatus)
+        string onlineInstallerStatus,
+        bool liveSmokePassed = true)
     {
         var path = Path.Combine(tempRoot, fileName);
         File.WriteAllText(path, $$"""
@@ -138,11 +184,11 @@ public sealed class ReleaseEvidenceRuntimeModeStrictTests
                 "arm64OnlineInstaller": "passed-or-not-public"
               },
               "liveSmoke": {
-                "connect": true,
-                "ping": true,
-                "getUiSummary": true,
-                "safeRead": true,
-                "mutationRestore": true,
+                "connect": {{liveSmokePassed.ToString().ToLowerInvariant()}},
+                "ping": {{liveSmokePassed.ToString().ToLowerInvariant()}},
+                "getUiSummary": {{liveSmokePassed.ToString().ToLowerInvariant()}},
+                "safeRead": {{liveSmokePassed.ToString().ToLowerInvariant()}},
+                "mutationRestore": {{liveSmokePassed.ToString().ToLowerInvariant()}},
                 "uninstallResidue": true
               }
             }

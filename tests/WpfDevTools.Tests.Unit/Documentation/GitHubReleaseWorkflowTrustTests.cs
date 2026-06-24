@@ -111,6 +111,21 @@ public sealed class GitHubReleaseWorkflowTrustTests
         }
     }
 
+    [Fact]
+    public void ReleaseUpload_ShouldPassTrustModeToEvidenceWriter()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+        var job = GetWorkflowJobBlock(lines, "upload-release-assets");
+        var step = GetNamedStepBlock(job, "Write release evidence summary");
+
+        step.Should().Contain(line =>
+                line.Contains("RELEASE_TRUST_MODE: ${{ needs.publish-release-assets.outputs.release-trust-mode }}", StringComparison.Ordinal),
+            "the evidence writer needs the same trust mode used to package and validate release assets");
+        step.Should().Contain(line =>
+                line.Contains("-ReleaseTrustMode $env:RELEASE_TRUST_MODE", StringComparison.Ordinal),
+            "checksum-only prereleases should not be evaluated as signed raw-injection releases");
+    }
+
     private static (string JobName, string Architecture)[] ReleaseValidationJobs
         =>
         [

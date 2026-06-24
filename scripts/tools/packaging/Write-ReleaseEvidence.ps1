@@ -15,13 +15,13 @@ param(
     [string]$DotnetSdkVersion = '',
     [string]$PowerShellVersion = '',
     [string]$WorkflowSha = $env:GITHUB_WORKFLOW_SHA,
+    [ValidateSet('Signed', 'ReleaseChecksumOnly')] [string]$ReleaseTrustMode = 'Signed',
     [string]$ExpectedThumbprintHash = '',
     [string]$ObservedThumbprintHash = '',
     [string]$TrustedSignerThumbprint = '',
     [switch]$UninstallResiduePassed,
     [switch]$PublicReleaseStrict
 )
-
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -38,17 +38,14 @@ function Get-Sha256HexForBytes {
 
 function Get-Sha256HexForFile {
     param([Parameter(Mandatory)] [string]$Path)
-
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
         throw "Required release evidence input is missing: $Path"
     }
-
     return Get-Sha256HexForBytes -Bytes ([System.IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $Path).Path))
 }
 
 function Get-Sha256HexForString {
     param([Parameter(Mandatory)] [string]$Value)
-
     return Get-Sha256HexForBytes -Bytes ([System.Text.Encoding]::UTF8.GetBytes($Value))
 }
 
@@ -61,12 +58,10 @@ function Resolve-GitValue {
     if (-not [string]::IsNullOrWhiteSpace($Value)) {
         return $Value
     }
-
     $result = & git $FallbackCommand.Split(' ') 2>$null
     if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace([string]$result)) {
         return ([string]$result).Trim()
     }
-
     return 'unknown'
 }
 
@@ -81,12 +76,10 @@ function Read-RuntimeEvidence {
     if ($expandedPaths.Count -eq 0) {
         throw 'At least one runtime evidence JSON path is required.'
     }
-
     foreach ($path in $expandedPaths) {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "Runtime evidence JSON is missing: $path"
         }
-
         Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
     }
 }
@@ -108,11 +101,9 @@ function Get-RequiredJsonProperty {
 
 function Read-DocFxEvidence {
     param([Parameter(Mandatory)] [string]$Path)
-
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
         throw "DocFX evidence JSON is missing: $Path"
     }
-
     $source = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
     return [ordered]@{
         englishParity = [bool](Get-RequiredJsonProperty -Object $source -Name 'englishParity' -Source 'DocFX evidence')
@@ -231,7 +222,8 @@ function Assert-PublicReleaseStrictEvidence {
     param(
         [Parameter(Mandatory)] [System.Collections.Specialized.OrderedDictionary]$Evidence,
         [Parameter(Mandatory)] [object[]]$RuntimeEvidence,
-        [Parameter(Mandatory)] [string[]]$Runners
+        [Parameter(Mandatory)] [string[]]$Runners,
+        [Parameter(Mandatory)] [ValidateSet('Signed', 'ReleaseChecksumOnly')] [string]$ReleaseTrustMode
     )
 
     $failures = @()
@@ -257,10 +249,15 @@ function Assert-PublicReleaseStrictEvidence {
         }
     }
 
-    foreach ($property in @('connect', 'ping', 'getUiSummary', 'safeRead', 'mutationRestore', 'uninstallResidue')) {
-        if ($liveSmoke[$property] -ne $true) {
-            $failures += "liveSmoke.$property"
+    if ($ReleaseTrustMode -eq 'Signed') {
+        foreach ($property in @('connect', 'ping', 'getUiSummary', 'safeRead', 'mutationRestore', 'uninstallResidue')) {
+            if ($liveSmoke[$property] -ne $true) {
+                $failures += "liveSmoke.$property"
+            }
         }
+    }
+    elseif ($liveSmoke['uninstallResidue'] -ne $true) {
+        $failures += 'liveSmoke.uninstallResidue'
     }
     $requiredPackageSmoke = @{
         'windows-x64' = @{ architecture = 'x64'; modes = @{ 'package-local' = 'x64PackageLocal'; 'online-installer' = 'x64OnlineInstaller' } }
@@ -416,6 +413,7 @@ $evidence = [ordered]@{
     repository = $repositoryValue
     branch = $branchValue
     commitSha = $commitShaValue
+    releaseTrustMode = $ReleaseTrustMode
     workflowRunIds = $workflowRunIds
     runnerMatrix = $runnerValues
     toolsList = [ordered]@{
@@ -492,7 +490,7 @@ function Test-RuntimeEvidenceHasInstallMode {
 }
 
 if ($PublicReleaseStrict) {
-    Assert-PublicReleaseStrictEvidence -Evidence $evidence -RuntimeEvidence $runtimeEvidence -Runners $runnerValues
+    Assert-PublicReleaseStrictEvidence -Evidence $evidence -RuntimeEvidence $runtimeEvidence -Runners $runnerValues -ReleaseTrustMode $ReleaseTrustMode
 }
 
 $outputDirectory = Split-Path -Parent ([System.IO.Path]::GetFullPath($OutputPath))

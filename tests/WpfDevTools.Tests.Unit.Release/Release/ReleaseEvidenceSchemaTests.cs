@@ -15,7 +15,7 @@ public sealed class ReleaseEvidenceSchemaTests
 
         schema["$schema"]!.GetValue<string>().Should().Be("https://json-schema.org/draft/2020-12/schema");
         var required = schema["required"]!.AsArray().Select(node => node!.GetValue<string>()).ToArray();
-        required.Should().Contain(["repository", "commitSha", "docfx", "security", "packageSmoke", "liveSmoke", "releaseAssets"]);
+        required.Should().Contain(["repository", "commitSha", "releaseTrustMode", "docfx", "security", "packageSmoke", "liveSmoke", "releaseAssets"]);
     }
 
     [Fact]

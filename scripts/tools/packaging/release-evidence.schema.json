@@ -8,6 +8,7 @@
     "repository",
     "branch",
     "commitSha",
+    "releaseTrustMode",
     "workflowRunIds",
     "runnerMatrix",
     "toolsList",
@@ -23,6 +24,7 @@
     "repository": { "type": "string" },
     "branch": { "type": "string" },
     "commitSha": { "type": "string" },
+    "releaseTrustMode": { "type": "string", "enum": [ "Signed", "ReleaseChecksumOnly" ] },
     "workflowRunIds": { "type": "array", "items": { "type": "integer" } },
     "runnerMatrix": { "type": "array", "items": { "type": "string" } },
     "toolsList": {

@@ -344,7 +344,11 @@ jobs:
             throw "Could not locate staged installed x64 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x64' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x64-installed.json'
+          if ($env:RELEASE_TRUST_MODE -eq 'ReleaseChecksumOnly') {
+            & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath -Architecture 'x64' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x64-installed.json'
+          } else {
+            & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x64' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x64-installed.json'
+          }
 
       - name: x64 online installer smoke test
         shell: pwsh
@@ -371,7 +375,11 @@ jobs:
             throw "Could not locate staged online-installed x64 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x64' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x64-online.json'
+          if ($env:RELEASE_TRUST_MODE -eq 'ReleaseChecksumOnly') {
+            & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath -Architecture 'x64' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x64-online.json'
+          } else {
+            & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x64' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x64-online.json'
+          }
 
       - name: Uninstall staged installed x64 package smoke test
         shell: pwsh
@@ -486,7 +494,11 @@ jobs:
             throw "Could not locate staged installed x86 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x86' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x86-installed.json'
+          if ($env:RELEASE_TRUST_MODE -eq 'ReleaseChecksumOnly') {
+            & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath -Architecture 'x86' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x86-installed.json'
+          } else {
+            & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x86' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x86-installed.json'
+          }
 
       - name: x86 online installer smoke test
         shell: pwsh
@@ -513,7 +525,11 @@ jobs:
             throw "Could not locate staged online-installed x86 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x86' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x86-online.json'
+          if ($env:RELEASE_TRUST_MODE -eq 'ReleaseChecksumOnly') {
+            & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath -Architecture 'x86' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x86-online.json'
+          } else {
+            & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'x86' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-x86-online.json'
+          }
 
       - name: Uninstall staged installed x86 package smoke test
         shell: pwsh
@@ -627,7 +643,11 @@ jobs:
             throw "Could not locate staged installed ARM64 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-installed.json'
+          if ($env:RELEASE_TRUST_MODE -eq 'ReleaseChecksumOnly') {
+            & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-installed.json'
+          } else {
+            & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'package-local' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-installed.json'
+          }
 
       - name: ARM64 online installer smoke test
         shell: pwsh
@@ -654,7 +674,11 @@ jobs:
             throw "Could not locate staged online-installed ARM64 server executable at $serverPath"
           }
 
-          & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-online.json'
+          if ($env:RELEASE_TRUST_MODE -eq 'ReleaseChecksumOnly') {
+            & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-PackagedServerRuntime.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-online.json'
+          } else {
+            & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Invoke-PackagedRuntimeLiveSmoke.ps1 -ServerPath $serverPath -Architecture 'arm64' -SmokeInstallMode 'online-installer' -EvidenceOutputPath 'artifacts/release/runtime-evidence-arm64-online.json'
+          }
 
       - name: Uninstall staged installed ARM64 package smoke test
         shell: pwsh

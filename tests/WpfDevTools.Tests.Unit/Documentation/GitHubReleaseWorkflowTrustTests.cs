@@ -39,6 +39,40 @@ public sealed class GitHubReleaseWorkflowTrustTests
         }
     }
 
+    [Fact]
+    public void ReleaseValidation_ShouldUseProtocolSmokeForChecksumOnlyArchives()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+
+        foreach (var (jobName, stepArchitecture, architecture) in ReleaseValidationRuntimeJobs)
+        {
+            var job = GetWorkflowJobBlock(lines, jobName);
+            foreach (var (stepName, smokeInstallMode) in RuntimeSmokeSteps(stepArchitecture))
+            {
+                var step = GetNamedStepBlock(job, stepName);
+                var checksumBranchIndex = Array.FindIndex(step, line =>
+                    line.Contains("if ($env:RELEASE_TRUST_MODE -eq 'ReleaseChecksumOnly')", StringComparison.Ordinal));
+                var protocolSmokeIndex = Array.FindIndex(step, line =>
+                    line.Contains(
+                        $"Test-PackagedServerRuntime.ps1 -ServerPath $serverPath -Architecture '{architecture}' -SmokeInstallMode '{smokeInstallMode}'",
+                        StringComparison.Ordinal));
+                var signedBranchIndex = Array.FindIndex(step, line =>
+                    line.Trim().Equals("} else {", StringComparison.Ordinal));
+                var liveSmokeIndex = Array.FindIndex(step, line =>
+                    line.Contains("Invoke-PackagedRuntimeLiveSmoke.ps1", StringComparison.Ordinal));
+
+                checksumBranchIndex.Should().BeGreaterThanOrEqualTo(0,
+                    $"the {stepName} step must branch for unsigned checksum-only beta archives");
+                protocolSmokeIndex.Should().BeGreaterThan(checksumBranchIndex,
+                    $"the {stepName} checksum-only branch should validate protocol/tools without raw injection");
+                signedBranchIndex.Should().BeGreaterThan(protocolSmokeIndex,
+                    $"the {stepName} signed branch should remain the raw-injection gate");
+                liveSmokeIndex.Should().BeGreaterThan(signedBranchIndex,
+                    $"the {stepName} signed branch should keep target-aware live smoke coverage");
+            }
+        }
+    }
+
     private static (string JobName, string Architecture)[] ReleaseValidationJobs
         =>
         [
@@ -46,6 +80,27 @@ public sealed class GitHubReleaseWorkflowTrustTests
             ("validate-x86-release-assets", "x86"),
             ("validate-arm64-release-assets", "ARM64"),
         ];
+
+    private static (string JobName, string StepArchitecture, string Architecture)[] ReleaseValidationRuntimeJobs
+        =>
+        [
+            ("validate-x64-release-assets", "x64", "x64"),
+            ("validate-x86-release-assets", "x86", "x86"),
+            ("validate-arm64-release-assets", "ARM64", "arm64"),
+        ];
+
+    private static (string StepName, string SmokeInstallMode)[] RuntimeSmokeSteps(string stepArchitecture)
+    {
+        var infix = string.Equals(stepArchitecture, "ARM64", StringComparison.Ordinal)
+            ? "runtime smoke test"
+            : "runtime live smoke test";
+
+        return
+        [
+            ($"Start staged installed {stepArchitecture} {infix}", "package-local"),
+            ($"Start staged online-installed {stepArchitecture} {infix}", "online-installer"),
+        ];
+    }
 
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));

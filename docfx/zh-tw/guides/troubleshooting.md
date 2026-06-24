@@ -26,6 +26,16 @@ SDK-hosted reuse 透過 named pipes 通訊；target-side host 已啟動後，不
 
 如果 `connect` 在找到 process 後仍失敗，請確認安裝資料夾中 `bootstrapper` 與 `inspectors` sidecar 仍與解析後的 `wpf-devtools-<arch>.exe` 位於預期位置。
 
+## release trust verification failure
+
+如果手動 package setup 後 `connect()` 回傳 `SecurityError: Security verification failed`，請先檢查 server path。MCP client 應指向 installed executable：
+
+```text
+<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe
+```
+
+不要註冊解壓 archive 內的 package-local executable。對 checksum-only prerelease，請讓 archive 與 trusted sidecars 位於同一目錄，並用 packaged installer 搭配 `-PackageArchivePath` 與 `-TrustedReleaseMetadataDirectory` 執行，讓 runtime trust 在 raw injection 前完成解析。
+
 ## elevated target 與系統管理員權限不一致
 
 如果目標 WPF app 是以系統管理員權限或其他 elevated 狀態啟動，而 MCP host 不是，通常仍可看到 process，但無法真正控制它。這類情況常會在 `connect`、injection 或後續工具呼叫時出現 `Access denied` 或中文系統上的「存取遭拒」。

@@ -26,6 +26,16 @@ If the server starts and exits immediately, verify the required .NET runtime is 
 
 If `connect` fails after process discovery, verify the installed folder still contains the expected `bootstrapper` and `inspectors` sidecar directories next to the resolved `wpf-devtools-<arch>.exe`.
 
+## release trust verification failure
+
+If `connect()` returns `SecurityError: Security verification failed` after a manual package setup, check the server path first. The MCP client should point to the installed executable:
+
+```text
+<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe
+```
+
+Do not register the package-local executable from an extracted archive. For checksum-only prereleases, keep the archive adjacent to trusted sidecars and run the packaged installer with `-PackageArchivePath` and `-TrustedReleaseMetadataDirectory` so runtime trust can be resolved before raw injection.
+
 ## elevated target or administrator mismatch
 
 If the target WPF app is running as administrator or otherwise elevated, a non-elevated MCP host can usually discover the process but cannot control it. This typically surfaces as `Access denied` during `connect`, injection, or follow-up tool calls.

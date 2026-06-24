@@ -49,11 +49,28 @@ Use this path when you already have a reviewed release archive.
 3. Verify the archive hash against `SHA256SUMS.txt` and release metadata in `release-assets.json`.
 4. Review both SBOMs: `release-sbom.spdx.json` for release assets and `package-sbom.spdx.json` for package/dependency/payload contents.
 5. Verify the release trust mode. `Signed` packages require signer verification with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`; `ReleaseChecksumOnly` beta prereleases require SHA256 release metadata in the GitHub Release notes and `release-assets.json`.
-6. Extract the package and run:
+6. Extract the package and run the packaged installer with the original archive and metadata directory:
 
    ```powershell
-   .\run.bat
+   $version = '1.0.0-beta.2'
+   $arch = 'x64'
+   $archive = (Resolve-Path ".\release_${version}_win-$arch.zip").Path
+   $metadata = Split-Path -Parent $archive
+   $packageRoot = Join-Path $metadata "release_${version}_win-$arch"
+   $installRoot = Join-Path $env:LOCALAPPDATA 'WpfDevToolsMcp'
+
+   Expand-Archive -Path $archive -DestinationPath $packageRoot -Force
+
+   powershell -NoProfile -File (Join-Path $packageRoot 'bin\install.ps1') `
+     -Action install `
+     -Architecture $arch `
+     -Client other `
+     -InstallRoot $installRoot `
+     -PackageArchivePath $archive `
+     -TrustedReleaseMetadataDirectory $metadata
    ```
+
+Register the installed executable from `<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe`. Do not register a package-local executable from the extracted archive; prerelease checksum trust is resolved by the installer and trusted sidecars.
 
 ## Register a client
 
@@ -103,5 +120,6 @@ The server fails closed unless the corresponding policy is explicitly enabled.
 
 - If `connect()` fails, verify `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` uses exact local absolute executable paths.
 - If a client cannot find the server, copy from the generated `client-registration` artifact instead of retyping the path.
+- If `connect()` returns `SecurityError: Security verification failed` after a manual package install, verify the client is registered to the installed path under `<InstallRoot>\<arch>\current\bin\`, not to the extracted archive's package-local executable.
 - Architecture matching is mandatory for raw injection/bootstrapper fallback. SDK-hosted reuse communicates over named pipes and does not require a bitness-matched bootstrapper attach.
 - If local execution policy blocks a reviewed local script, inspect the script and use a process-scoped policy override only from a trusted shell. Keep the normal path on `run.bat` or `pwsh -NoProfile -File`.

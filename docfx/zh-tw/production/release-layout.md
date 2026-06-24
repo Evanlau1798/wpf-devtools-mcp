@@ -37,7 +37,9 @@ Production review 時，請讓 archive 與下列 sidecar 保持相鄰：
 | `release-sbom.spdx.json` | Release asset/archive inventory |
 | `package-sbom.spdx.json` | Package、相依性、script、assembly 與 payload SBOM |
 
-`release-sbom.spdx.json` 與 `package-sbom.spdx.json` 是刻意分開的 artifact。兩者都不能取代 signer trust；Release payload 簽章驗證仍需要 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
+`release-sbom.spdx.json` 與 `package-sbom.spdx.json` 是刻意分開的 artifact。
+
+Release package 有兩種 trust mode。`Signed` package 使用 Authenticode payload verification，並需要 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。付費簽章尚不可用時，beta prerelease package 可以使用 `ReleaseChecksumOnly`；installer 只有在 GitHub Release sidecars 或明確 trusted metadata directory 透過 SHA256 release metadata 證明 archive 後，才接受此模式。
 
 ## 解壓後 package 結構
 

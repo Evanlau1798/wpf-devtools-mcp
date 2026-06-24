@@ -34,7 +34,7 @@ Supported client ids:
 3. Present the plan: version, release channel, architecture, install root, client id, detected clients, and whether registration will be written.
 4. Ask for explicit user confirmation before any mutation.
 5. Acquire the release package and sidecars for the selected version and architecture.
-6. Verify the archive hash, release metadata, SBOMs, and signer pin policy.
+6. Verify the archive hash, release metadata, SBOMs, and release trust policy.
 7. Run the approved install path only after confirmation.
 
 ## Release artifacts to verify
@@ -47,7 +47,7 @@ For manual production review, keep these files adjacent to the archive before ex
 - `release-sbom.spdx.json`
 - `package-sbom.spdx.json`
 
-`release-sbom.spdx.json` describes the release asset/archive inventory. `package-sbom.spdx.json` describes the package, dependency, script, assembly, and payload contents. None of these files replaces signer trust; production payload signature verification still requires the independent `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` trust root. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only an additional constraint after the thumbprint is pinned.
+`release-sbom.spdx.json` describes the release asset/archive inventory. `package-sbom.spdx.json` describes the package, dependency, script, assembly, and payload contents. `Signed` packages require the independent `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` trust root. Beta prereleases may use `ReleaseChecksumOnly` only when SHA256 release metadata from GitHub Release sidecars or a trusted metadata directory verifies the archive. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only an additional constraint after the thumbprint is pinned.
 
 ## Approved install command shapes
 
@@ -90,7 +90,7 @@ Report:
 - detected platform and architecture
 - selected version, architecture, install root, and client id
 - release archive and sidecar paths
-- hash, metadata, release SBOM, package SBOM, and signer-pin verification results
+- hash, metadata, release SBOM, package SBOM, and release trust verification results
 - exact install command approved by the user
 - installed executable path and generated `client-registration` artifact path
 

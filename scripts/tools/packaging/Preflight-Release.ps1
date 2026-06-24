@@ -8,6 +8,9 @@ param(
 
     [string]$OutputRoot = (Join-Path $PSScriptRoot '..\..\artifacts\release\preflight'),
 
+    [ValidateSet('Auto', 'Signed', 'ReleaseChecksumOnly')]
+    [string]$ReleaseTrustMode = 'Auto',
+
     [switch]$SkipBuild,
     [switch]$SkipTest,
 
@@ -135,8 +138,28 @@ if (-not (Test-Path $exportScript)) {
 }
 
 $trustedSignerThumbprint = ([string]$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT).Trim()
-if (-not [string]::IsNullOrWhiteSpace($VersionTag) -and [string]::IsNullOrWhiteSpace($trustedSignerThumbprint)) {
-    throw 'Release preflight asset staging requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+$isPrereleaseTag = -not [string]::IsNullOrWhiteSpace($VersionTag) -and (Test-PrereleaseTag -ReleaseTag $VersionTag)
+$resolvedReleaseTrustMode = if ($ReleaseTrustMode -ne 'Auto') {
+    $ReleaseTrustMode
+}
+elseif (-not [string]::IsNullOrWhiteSpace($trustedSignerThumbprint)) {
+    'Signed'
+}
+elseif ($isPrereleaseTag) {
+    'ReleaseChecksumOnly'
+}
+else {
+    'Signed'
+}
+
+if ($resolvedReleaseTrustMode -eq 'Signed' -and
+    -not [string]::IsNullOrWhiteSpace($VersionTag) -and
+    [string]::IsNullOrWhiteSpace($trustedSignerThumbprint)) {
+    throw 'Signed release preflight asset staging requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+}
+
+if ($resolvedReleaseTrustMode -eq 'ReleaseChecksumOnly' -and -not $isPrereleaseTag) {
+    throw 'ReleaseChecksumOnly preflight is allowed only for prerelease tags.'
 }
 
 $steps = New-Object System.Collections.ArrayList
@@ -150,14 +173,19 @@ if (-not $SkipTest) {
     $null = $steps.Add("dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj -c $Configuration --no-build")
 }
 
-$publishStep = "powershell -ExecutionPolicy Bypass -File $publishScript -Configuration $Configuration -Architectures $architecturesLiteral -OutputRoot $packageOutputRoot"
+$publishStep = "powershell -ExecutionPolicy Bypass -File $publishScript -Configuration $Configuration -Architectures $architecturesLiteral -OutputRoot $packageOutputRoot -ReleaseTrustMode $resolvedReleaseTrustMode"
 if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
     $publishStep += " -ExpectedReleaseTag $VersionTag"
 }
 
 $null = $steps.Add($publishStep)
 if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
-    $null = $steps.Add("powershell -ExecutionPolicy Bypass -File $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag -TrustedSignerThumbprint `$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT")
+    $exportStep = "powershell -ExecutionPolicy Bypass -File $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag"
+    if ($resolvedReleaseTrustMode -eq 'Signed') {
+        $exportStep += " -TrustedSignerThumbprint `$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT"
+    }
+
+    $null = $steps.Add($exportStep)
 }
 
 $result = [pscustomobject]@{
@@ -170,6 +198,7 @@ $result = [pscustomobject]@{
     assetOutputRoot = $assetOutputRoot
     skipBuild = [bool]$SkipBuild
     skipTest = [bool]$SkipTest
+    releaseTrustMode = $resolvedReleaseTrustMode
     steps = @($steps)
     uploadedToGitHub = $false
 }
@@ -199,7 +228,7 @@ if (-not $SkipTest) {
     Invoke-Step -FilePath 'dotnet' -Arguments @('test', 'tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj', '-c', $Configuration, '--no-build')
 }
 
-$publishCommandDescription = "$publishScript -Configuration $Configuration -Architectures $($resolvedArchitectures -join ',') -OutputRoot $packageOutputRoot"
+$publishCommandDescription = "$publishScript -Configuration $Configuration -Architectures $($resolvedArchitectures -join ',') -OutputRoot $packageOutputRoot -ReleaseTrustMode $resolvedReleaseTrustMode"
 if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
     $publishCommandDescription += " -ExpectedReleaseTag $VersionTag"
 }
@@ -208,34 +237,48 @@ Write-StepMessage -Message $publishCommandDescription
 $global:LASTEXITCODE = 0
 if ($OutputJson) {
     if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
-        & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot -ExpectedReleaseTag $VersionTag 2>&1 6>&1 |
+        & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot -ReleaseTrustMode $resolvedReleaseTrustMode -ExpectedReleaseTag $VersionTag 2>&1 6>&1 |
             ForEach-Object { [Console]::Error.WriteLine($_.ToString()) }
     }
     else {
-        & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot 2>&1 6>&1 |
+        & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot -ReleaseTrustMode $resolvedReleaseTrustMode 2>&1 6>&1 |
             ForEach-Object { [Console]::Error.WriteLine($_.ToString()) }
     }
 }
 else {
     if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
-        & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot -ExpectedReleaseTag $VersionTag
+        & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot -ReleaseTrustMode $resolvedReleaseTrustMode -ExpectedReleaseTag $VersionTag
     }
     else {
-        & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot
+        & $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $packageOutputRoot -ReleaseTrustMode $resolvedReleaseTrustMode
     }
 }
 Assert-LastExitCodeSucceeded -CommandDescription $publishCommandDescription
 
 if (-not [string]::IsNullOrWhiteSpace($VersionTag)) {
-    $exportCommandDescription = "$exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag -TrustedSignerThumbprint `$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT"
+    $exportCommandDescription = "$exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag"
+    if ($resolvedReleaseTrustMode -eq 'Signed') {
+        $exportCommandDescription += " -TrustedSignerThumbprint `$env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT"
+    }
     Write-StepMessage -Message $exportCommandDescription
     $global:LASTEXITCODE = 0
     if ($OutputJson) {
-        & $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag -TrustedSignerThumbprint $trustedSignerThumbprint 2>&1 6>&1 |
+        if ($resolvedReleaseTrustMode -eq 'Signed') {
+            & $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag -TrustedSignerThumbprint $trustedSignerThumbprint 2>&1 6>&1 |
+                ForEach-Object { [Console]::Error.WriteLine($_.ToString()) }
+        }
+        else {
+            & $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag 2>&1 6>&1 |
             ForEach-Object { [Console]::Error.WriteLine($_.ToString()) }
+        }
     }
     else {
-        & $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag -TrustedSignerThumbprint $trustedSignerThumbprint
+        if ($resolvedReleaseTrustMode -eq 'Signed') {
+            & $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag -TrustedSignerThumbprint $trustedSignerThumbprint
+        }
+        else {
+            & $exportScript -InputRoot $packageOutputRoot -OutputRoot $assetOutputRoot -Tag $VersionTag
+        }
     }
     Assert-LastExitCodeSucceeded -CommandDescription $exportCommandDescription
 }

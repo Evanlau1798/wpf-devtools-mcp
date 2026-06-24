@@ -25,6 +25,11 @@ If the signing certificate is already installed in `Cert:\CurrentUser\My`, you c
 
 In CI, `WPFDEVTOOLS_PFX_PASSWORD` must be present and non-empty when `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH` points at a PFX file. `Publish-Release.ps1` now fails fast instead of prompting.
 
+Release packages use one of two trust modes:
+
+- `Signed`: the default and the required mode for stable public releases. Payloads are signed and installer validation pins `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
+- `ReleaseChecksumOnly`: prerelease-only mode for beta assets when paid Authenticode signing is not available. The installer accepts it only after GitHub Release sidecars or an explicit trusted metadata directory verify the archive through SHA256 release metadata.
+
 Run the release preflight script from the repository root:
 
 ```powershell
@@ -32,6 +37,12 @@ powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Preflight-Relea
 ```
 
 Preflight-Release.ps1 builds, tests, packages, and optionally stages GitHub Release sidecars when `-VersionTag` is present. Use this command as the local validation gate before publishing.
+
+For prerelease beta validation without paid signing, preflight automatically resolves `-ReleaseTrustMode ReleaseChecksumOnly` when the version tag is a prerelease tag and no release signer thumbprint is configured. To make the choice explicit, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Preflight-Release.ps1 -VersionTag v1.0.0-beta.1 -ReleaseTrustMode ReleaseChecksumOnly -OutputJson
+```
 
 To generate release zip packages locally without running the preflight validation steps or uploading anything, use:
 
@@ -44,6 +55,12 @@ build-release.ps1 delegates directly to scripts/tools/packaging/Publish-Release.
 1. Produces stable `x64` and `x86` release packages through `scripts/tools/packaging/Publish-Release.ps1`
 2. Stops after package generation; it does not run the preflight build/test validation
 3. Does not stage GitHub Release assets or upload anything
+
+For beta package generation without paid signing, add `-ReleaseTrustMode ReleaseChecksumOnly` and publish only as a GitHub prerelease:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/tools/build-release.ps1 -Configuration Release -Architectures x64,x86 -OutputRoot release -ReleaseTrustMode ReleaseChecksumOnly
+```
 
 ARM64 packages are temporarily prerelease-only preview assets. Build them only for prerelease validation by adding `arm64` to `-Architectures` or by running preflight with a prerelease tag such as `v1.0.0-beta.1`.
 
@@ -85,9 +102,10 @@ Before publishing a public Release channel build, confirm:
 - Stable release packages include `x64` and `x86` only
 - ARM64 packages are attached only to prerelease tags
 - A self-hosted Windows ARM64 runner is available and `WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE=true` is configured only when prerelease ARM64 runtime validation is intentionally enabled
-- `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` is set to the expected release signer
-- `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH` or an installed certificate thumbprint is available to `Publish-Release.ps1`
-- `WPFDEVTOOLS_PFX_PASSWORD` is available when the signing certificate is supplied as a PFX file
+- Stable releases use `Signed` trust mode, with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` set to the expected release signer
+- Stable releases have `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH` or an installed certificate thumbprint available to `Publish-Release.ps1`
+- `WPFDEVTOOLS_PFX_PASSWORD` is available when a `Signed` release supplies the signing certificate as a PFX file
+- Beta prereleases may use `ReleaseChecksumOnly` only when `SHA256SUMS.txt`, `release-assets.json`, and the GitHub Release notes publish SHA256 release metadata for every archive
 - A public endpoint smoke check passes from an anonymous shell before any public installer docs are promoted. The repository, Releases page, latest-release API, raw installer URL, and installer alias must return HTTP 200 anonymously:
   - `https://github.com/Evanlau1798/wpf-devtools-mcp`
   - `https://github.com/Evanlau1798/wpf-devtools-mcp/releases`
@@ -107,15 +125,16 @@ Trigger modes:
 The workflow will:
 
 1. Check out the tagged revision
-2. Materialize `WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64` into `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH`
-3. Rebuild and sign stable release packages for `x64` and `x86` using `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`
-4. Add `arm64` only for prerelease tags
-5. Validate `x64` and `x86` assets before upload
-6. Optionally validate the staged `win-arm64` asset on a self-hosted Windows ARM64 runner when `WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE=true`
-7. Stage checksums, metadata, and the release asset SBOM
-8. Execute the generated upload helper to write checksum release notes and attach assets to the GitHub Release after required validation passes
+2. Resolve release trust mode: `Signed` when signing secrets are configured, `ReleaseChecksumOnly` only for prerelease tags, and fail closed for stable releases without signing
+3. Materialize `WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64` into `WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH` only for `Signed` packaging
+4. Rebuild stable release packages for `x64` and `x86`; signed packages use `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`
+5. Add `arm64` only for prerelease tags
+6. Validate `x64` and `x86` assets before upload, using signer validation for `Signed` and SHA256 release metadata validation for `ReleaseChecksumOnly`
+7. Optionally validate the staged `win-arm64` asset on a self-hosted Windows ARM64 runner when `WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE=true`
+8. Stage checksums, metadata, and the release asset SBOM
+9. Execute the generated upload helper to write checksum release notes and attach assets to the GitHub Release after required validation passes
 
-When the workflow is triggered by `release: published`, the GitHub Release entry already exists before validation starts. If signing, packaging, upload, or required runtime validation fails, immediately retract the release entry or keep it marked as non-distributable until the workflow is rerun successfully.
+When the workflow is triggered by `release: published`, the GitHub Release entry already exists before validation starts. If signing, checksum metadata validation, packaging, upload, or required runtime validation fails, immediately retract the release entry or keep it marked as non-distributable until the workflow is rerun successfully.
 
 The CI smoke lane in `./.github/workflows/ci-cd.yml` does not use the production certificate. Instead, it sets `WPFDEVTOOLS_INSTALLER_TEST_MODE=1`, `WPFDEVTOOLS_TEST_TRUST_LOCAL_ARCHIVE_RELEASE_METADATA=1`, and `WPFDEVTOOLS_TEST_SIGNATURE_STATUS=Valid` so `Publish-Release.ps1` exercises the release-signature contract deterministically on hosted runners while local archive smoke installs still trust the freshly generated release sidecars only through the explicit test hook. Hosted `windows-latest` runners continue to smoke `x64` and `x86`; the actual `arm64` executable lane remains prerelease-only and runs only when `WPFDEVTOOLS_ENABLE_ARM64_RUNTIME_SMOKE=true` and the repository has a self-hosted Windows ARM64 runner.
 

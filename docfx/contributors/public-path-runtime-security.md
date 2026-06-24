@@ -7,6 +7,8 @@ Use this checklist before publishing or promoting any public installer path, Git
 - Confirm the release tag points to the reviewed commit before packaging.
 - Publish only stable `x64` and `x86` archives on stable releases.
 - Treat `arm64` archives as prerelease-only preview assets until a practical Windows-on-ARM runtime smoke path is available.
+- Use `Signed` trust mode for stable releases, with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` configured before publication.
+- Use `ReleaseChecksumOnly` only for beta prereleases when paid signing is unavailable, and verify every archive through SHA256 release metadata.
 - Ensure `SHA256SUMS.txt` is attached to the GitHub Release.
 - Ensure `release-assets.json` is attached and lists every uploaded archive with size and SHA256 metadata.
 - Ensure the generated GitHub Release notes include the contents of `SHA256SUMS.txt`.

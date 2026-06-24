@@ -14,7 +14,7 @@ For a production review, keep the following files together:
 | `release-sbom.spdx.json` | Release asset/archive inventory | Required for release governance |
 | `package-sbom.spdx.json` | Package, dependency, script, assembly, and payload SBOM | Required for full production review |
 
-`release-sbom.spdx.json` and `package-sbom.spdx.json` are different artifacts. Sidecars prove provenance and review scope; they do not replace payload signature verification. Production payload signature verification still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
+`release-sbom.spdx.json` and `package-sbom.spdx.json` are different artifacts. Sidecars prove provenance and review scope. `Signed` packages still require payload signature verification with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`; beta prerelease packages may use `ReleaseChecksumOnly` only when the archive is verified through SHA256 release metadata.
 
 ## Install paths
 
@@ -50,8 +50,9 @@ Use `-Client other` when you want artifact-only registration output. Use a concr
 2. Verify the asset entry and sidecar hashes in `release-assets.json`.
 3. Review `release-sbom.spdx.json` for release assets.
 4. Review `package-sbom.spdx.json` for package contents and dependencies.
-5. Pin the expected Authenticode signer with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
-6. Use `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` only as an additional subject constraint after the thumbprint is pinned.
+5. For `Signed` packages, pin the expected Authenticode signer with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
+6. For `ReleaseChecksumOnly` beta prereleases, confirm GitHub Release notes and `release-assets.json` publish SHA256 release metadata for the selected archive.
+7. Use `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` only as an additional subject constraint after the thumbprint is pinned.
 
 ## Signed payload provenance checklist
 
@@ -63,6 +64,16 @@ Before trusting a package for production use:
 4. Pin `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` before payload signature verification.
 5. Run a package-local startup verification from the extracted archive before installing broadly.
 6. Validate the final installed path points to `wpf-devtools-<arch>.exe` under the reviewed install root.
+
+## Checksum-only prerelease checklist
+
+Before trusting a beta prerelease package without paid signing:
+
+1. Confirm the GitHub Release is marked prerelease.
+2. Confirm the package manifest uses `ReleaseChecksumOnly`.
+3. Verify the archive against SHA256 release metadata in `SHA256SUMS.txt` and `release-assets.json`.
+4. Review both SBOMs before extraction.
+5. Run a package-local startup verification and validate the final installed path.
 
 ## Install root and registration
 

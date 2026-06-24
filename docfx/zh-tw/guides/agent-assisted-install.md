@@ -6,7 +6,7 @@
 
 - 偵測 platform、architecture、可用 MCP clients 與可重用 install root。
 - 在任何 mutation 前提出具體 plan。
-- 驗證 release archive sidecars 與 signer-pin policy。
+- 驗證 release archive sidecars 與 release trust policy。
 - 以 generated `client-registration` artifact 作為 registration 真源。
 - 不列印 secrets，也不要求 signing material。
 
@@ -40,7 +40,7 @@ Supported client ids 為 `claude-code`、`codex`、`cursor`、`vscode`、`visual
 
 手動 production review 前，請把這些檔案與 archive 放在同一層：`SHA256SUMS.txt`、`release-assets.json`、`release-sbom.spdx.json` 與 `package-sbom.spdx.json`。
 
-`release-sbom.spdx.json` 描述 release asset/archive inventory。`package-sbom.spdx.json` 描述 package、相依性、script、assembly 與 payload contents。Payload 簽章驗證仍需要 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
+`release-sbom.spdx.json` 描述 release asset/archive inventory。`package-sbom.spdx.json` 描述 package、相依性、script、assembly 與 payload contents。`Signed` package 需要使用 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 做 signer-pin verification。Beta prerelease 只有在 GitHub Release sidecars 或 trusted metadata directory 的 SHA256 release metadata 驗證 archive 後，才可使用 `ReleaseChecksumOnly`。
 
 ## 使用者核准後安裝
 
@@ -82,7 +82,7 @@ Package-local fallback：
 - generated registration artifact path
 - selected client id
 - release sidecar verification result
-- checked signer pin
+- release trust mode checked
 - 是否仍需要 manual registration step
 
 不要回報 private keys、PFX passwords、GitHub secrets、auth secrets 或 certificate private-key material。
@@ -91,12 +91,13 @@ Package-local fallback：
 
 - 如果 host 不是 Windows，停止並回報 server 只支援 Windows/WPF target。
 - 如果缺少 sidecar，不要安裝。
-- 如果 signer verification 失敗，停止。
+- 如果 `Signed` package signer verification 失敗，停止。
+- 如果 `ReleaseChecksumOnly` prerelease 的 SHA256 release metadata verification 失敗，停止。
 - 如果 client CLI discovery 被 elevation 擋住，改用 generated artifact 並請使用者手動註冊。
 - 如果安裝後 `connect()` 失敗，確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`、process architecture 與 raw-injection policy。
 
 ## 可複製 prompt
 
 ```text
-Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, or powershell.exe -NoProfile -File with the same arguments when PowerShell 7 is unavailable. Present a plan with version, architecture, install root, client id, release archive, sidecars, and signer pin policy. Ask for confirmation before mutation. After approval, use the stable installer alias, a reviewed local package command, or package-local run.bat. Report generated registration artifacts and do not print secrets.
+Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, or powershell.exe -NoProfile -File with the same arguments when PowerShell 7 is unavailable. Present a plan with version, architecture, install root, client id, release archive, sidecars, and release trust policy. Ask for confirmation before mutation. After approval, use the stable installer alias, a reviewed local package command, or package-local run.bat. Report generated registration artifacts and do not print secrets.
 ```

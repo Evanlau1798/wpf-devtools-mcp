@@ -8,6 +8,8 @@ param(
     [string]$SigningCertificateThumbprint,
     [string]$SigningPasswordEnvironmentVariable = 'WPFDEVTOOLS_PFX_PASSWORD',
     [string]$SigningTimestampServer = 'https://timestamp.digicert.com',
+    [ValidateSet('Signed', 'ReleaseChecksumOnly')]
+    [string]$ReleaseTrustMode = 'Signed',
     [switch]$SkipBuild
 )
 
@@ -60,7 +62,7 @@ foreach ($architecture in $resolvedArchitectures) {
     $runtimeId = Get-RuntimeId -Architecture $architecture
     $bootstrapperPlatform = Get-BootstrapperPlatform -Architecture $architecture
     $channel = Get-PackageChannel -BuildConfiguration $Configuration
-    $signaturePolicy = Get-SignaturePolicy -BuildConfiguration $Configuration
+    $signaturePolicy = Get-SignaturePolicy -BuildConfiguration $Configuration -ReleaseTrustMode $ReleaseTrustMode
     $packageDir = Join-Path $outputRootFullPath "release_${version}_win-$architecture"
     $packageArchiveName = "release_${version}_win-$architecture.zip"
     $packageArchivePath = Join-Path $outputRootFullPath $packageArchiveName

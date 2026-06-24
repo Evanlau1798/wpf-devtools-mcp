@@ -30,6 +30,8 @@ $version = 'v1.0.0-beta.1'
 
 Both commands use the reviewed HTTPS installer alias and install versioned GitHub Release assets.
 
+Beta pre-release assets may use SHA256 release metadata until paid Authenticode signing is available; stable releases remain Signed packages once signing is configured.
+
 Manual package fallback: download the matching `release_<version>_win-<arch>.zip`, extract the package, and run `run.bat` from the extracted folder. Use the [Quickstart](https://wpf-mcptools.evanlau1798.com/quickstart/), [Deployment Guide](https://wpf-mcptools.evanlau1798.com/production/deployment.html), and [Release Layout](https://wpf-mcptools.evanlau1798.com/production/release-layout.html) for verification details.
 
 ## Security essentials

@@ -20,7 +20,7 @@ public sealed class GitHubReleaseE2EWorkflowTests
 
         GetNamedStepBlock(lines, "Materialize signing certificate")
             .Should()
-            .Contain(line => line.Trim() == "if: steps.release-metadata.outputs.is-e2e-validation-release != 'true'",
+            .Contain(line => line.Contains("steps.release-metadata.outputs.is-e2e-validation-release != 'true'", StringComparison.Ordinal),
                 "E2E validation pre-releases are already uploaded as Debug/dev assets and must not require production signing secrets");
 
         foreach (var jobName in new[]

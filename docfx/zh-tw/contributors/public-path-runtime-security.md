@@ -7,6 +7,8 @@
 - 確認 release tag 指向已審查的 commit 後才開始 packaging。
 - Stable release 只發布 `x64` 與 `x86` archives。
 - 在具備可行的 Windows-on-ARM runtime smoke 路徑前，`arm64` archives 只能作為 prerelease-only preview assets。
+- Stable release 使用 `Signed` trust mode，並在發布前設定 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
+- 付費簽章尚不可用時，`ReleaseChecksumOnly` 只能用於 beta prerelease，且每個 archive 都必須透過 SHA256 release metadata 驗證。
 - 確認 GitHub Release 已附上 `SHA256SUMS.txt`。
 - 確認 `release-assets.json` 已附上，且列出每個 uploaded archive 的 size 與 SHA256 metadata。
 - 確認 generated GitHub Release notes 包含 `SHA256SUMS.txt` 的內容。

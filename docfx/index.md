@@ -18,7 +18,7 @@ ARM64 archives may be published as preview assets, but they are not guaranteed s
 
 For manual production review, keep these files adjacent to the archive before extraction: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `package-sbom.spdx.json`.
 
-`release-sbom.spdx.json` describes the release asset/archive inventory. `package-sbom.spdx.json` describes the package, dependency, script, assembly, and payload contents. Neither replaces signer trust; production payload signature verification still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
+`release-sbom.spdx.json` describes the release asset/archive inventory. `package-sbom.spdx.json` describes the package, dependency, script, assembly, and payload contents. Stable production packages use `Signed` payload verification with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`; beta prereleases may use `ReleaseChecksumOnly` when public SHA256 release metadata verifies the archive.
 
 ## Choose your path
 

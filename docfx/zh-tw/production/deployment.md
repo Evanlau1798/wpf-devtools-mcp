@@ -14,7 +14,7 @@ Production review 時，請把下列檔案放在一起：
 | `release-sbom.spdx.json` | Release asset/archive inventory | Release governance 必要 |
 | `package-sbom.spdx.json` | Package、相依性、script、assembly 與 payload SBOM | 完整 production review 必要 |
 
-`release-sbom.spdx.json` 與 `package-sbom.spdx.json` 是不同 artifact。Sidecar 可證明 provenance 與 review scope，但不能取代 payload 簽章驗證。Production payload 簽章驗證仍需要 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
+`release-sbom.spdx.json` 與 `package-sbom.spdx.json` 是不同 artifact。Sidecar 可證明 provenance 與 review scope。`Signed` package 仍需要使用 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 做 payload 簽章驗證；beta prerelease package 只有在 archive 已透過 SHA256 release metadata 驗證時，才可以使用 `ReleaseChecksumOnly`。
 
 ## 安裝路徑
 
@@ -50,8 +50,9 @@ Sidecar 驗證後的 package-local fallback：
 2. 使用 `release-assets.json` 驗證 asset entry 與 sidecar hash。
 3. Review `release-sbom.spdx.json` 的 release assets。
 4. Review `package-sbom.spdx.json` 的 package contents 與 dependencies。
-5. 使用 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` pin 預期 Authenticode signer。
-6. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` 只能在 thumbprint 已 pin 後作為額外 subject constraint。
+5. 對 `Signed` package，使用 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` pin 預期 Authenticode signer。
+6. 對 `ReleaseChecksumOnly` beta prerelease，確認 GitHub Release notes 與 `release-assets.json` 針對選定 archive 發布 SHA256 release metadata。
+7. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` 只能在 thumbprint 已 pin 後作為額外 subject constraint。
 
 ## 已簽章 payload provenance 檢查清單
 
@@ -63,6 +64,16 @@ Production 使用前，請先確認：
 4. 在 payload 簽章驗證前 pin `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
 5. 大規模安裝前，先從解壓後 archive 執行 package-local 啟動驗證。
 6. 從最終已安裝路徑確認 `wpf-devtools-<arch>.exe` 位於已審查 install root。
+
+## Checksum-only prerelease 檢查清單
+
+信任未付費簽章的 beta prerelease package 前，請先確認：
+
+1. GitHub Release 已標記為 prerelease。
+2. Package manifest 使用 `ReleaseChecksumOnly`。
+3. 使用 `SHA256SUMS.txt` 與 `release-assets.json` 中的 SHA256 release metadata 驗證 archive。
+4. 解壓前 review 兩份 SBOM。
+5. 執行 package-local 啟動驗證，並確認最終 installed path。
 
 ## Install root 與 registration
 

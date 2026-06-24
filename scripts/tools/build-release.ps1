@@ -6,6 +6,9 @@ param(
 
     [string]$OutputRoot = (Join-Path $PSScriptRoot '..\..\release'),
 
+    [ValidateSet('Signed', 'ReleaseChecksumOnly')]
+    [string]$ReleaseTrustMode = 'Signed',
+
     [switch]$SkipBuild
 )
 
@@ -51,7 +54,7 @@ if (-not (Test-Path $publishScript)) {
     throw "Publish-Release.ps1 was not found: $publishScript"
 }
 
-& $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $OutputRoot -SkipBuild:$SkipBuild
+& $publishScript -Configuration $Configuration -Architectures $resolvedArchitectures -OutputRoot $OutputRoot -ReleaseTrustMode $ReleaseTrustMode -SkipBuild:$SkipBuild
 $publishExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
 if ($publishExitCode -ne 0) {
     throw "Release build failed with exit code $publishExitCode"

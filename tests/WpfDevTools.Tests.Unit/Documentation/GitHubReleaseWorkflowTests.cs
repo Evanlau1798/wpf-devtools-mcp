@@ -149,6 +149,26 @@ public sealed class GitHubReleaseWorkflowTests
     }
 
     [Fact]
+    public void ReleaseWorkflow_ShouldAllowShaOnlyPrereleaseWhenSigningSecretsAreAbsent()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+        var content = string.Join(Environment.NewLine, lines);
+        var trustModeStep = GetNamedStepBlock(lines, "Resolve release trust mode");
+        var packagingStep = GetNamedStepBlock(lines, "Build release packages");
+
+        trustModeStep.Should().Contain(line => line.Contains("$trustMode = 'ReleaseChecksumOnly'", StringComparison.Ordinal),
+            "unsigned beta publication should be an explicit SHA-only release mode, not an accidental missing-secret path");
+        trustModeStep.Should().Contain(line => line.Contains("RELEASE_IS_PRERELEASE", StringComparison.Ordinal),
+            "automatic SHA-only fallback must be limited to prerelease tags");
+        trustModeStep.Should().Contain(line => line.Contains("Stable release packaging requires signing secrets", StringComparison.Ordinal),
+            "stable releases should fail closed instead of silently downgrading to checksum-only payload trust");
+        packagingStep.Should().Contain(line => line.Contains("-ReleaseTrustMode $env:RELEASE_TRUST_MODE", StringComparison.Ordinal),
+            "Publish-Release.ps1 should receive the resolved release trust mode explicitly");
+        content.Should().Contain("ReleaseChecksumOnly",
+            "the workflow should use the same policy name that package manifests and installer validation understand");
+    }
+
+    [Fact]
     public void ReleaseWorkflow_ShouldCheckoutTaggedRevisionBeforeExposingSigningCertificateSecret()
     {
         var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));

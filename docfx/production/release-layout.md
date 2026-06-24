@@ -37,7 +37,9 @@ Keep the archive adjacent to these sidecars for production review:
 | `release-sbom.spdx.json` | Release asset/archive inventory |
 | `package-sbom.spdx.json` | Package, dependency, script, assembly, and payload SBOM |
 
-`release-sbom.spdx.json` and `package-sbom.spdx.json` are intentionally separate. Neither replaces signer trust; Release payload signature verification still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
+`release-sbom.spdx.json` and `package-sbom.spdx.json` are intentionally separate.
+
+Release packages use two trust modes. `Signed` packages use Authenticode payload verification and require `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`. Beta prerelease packages may use `ReleaseChecksumOnly` while paid signing is unavailable; the installer accepts that mode only after GitHub Release sidecars or an explicit trusted metadata directory prove the archive through SHA256 release metadata.
 
 ## Extracted package layout
 

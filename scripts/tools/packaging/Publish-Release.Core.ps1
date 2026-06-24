@@ -90,9 +90,17 @@ function Get-PackageChannel {
 }
 
 function Get-SignaturePolicy {
-    param([Parameter(Mandatory)] [string]$BuildConfiguration)
+    param(
+        [Parameter(Mandatory)] [string]$BuildConfiguration,
+        [ValidateSet('Signed', 'ReleaseChecksumOnly')] [string]$ReleaseTrustMode = 'Signed'
+    )
+
     if ($BuildConfiguration -eq 'Debug') {
         return 'DebugTrustedRootSkip'
+    }
+
+    if ($ReleaseTrustMode -eq 'ReleaseChecksumOnly') {
+        return 'ReleaseChecksumOnly'
     }
 
     return 'RequireAuthenticodeSignature'

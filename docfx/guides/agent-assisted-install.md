@@ -6,7 +6,7 @@ This page is for AI agents that help a user install WPF DevTools MCP. It is inte
 
 - Detect platform, architecture, available MCP clients, and a reusable install root.
 - Present a concrete plan before any mutation.
-- Verify release archive sidecars and signer-pin policy.
+- Verify release archive sidecars and release trust policy.
 - Use the generated `client-registration` artifacts as the registration source of truth.
 - Never print secrets or ask for signing material.
 
@@ -40,7 +40,7 @@ Before installation, ask the user to confirm:
 
 For manual production review, keep these files adjacent to the archive before extraction: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `package-sbom.spdx.json`.
 
-`release-sbom.spdx.json` describes the release asset/archive inventory. `package-sbom.spdx.json` describes package, dependency, script, assembly, and payload contents. Payload signature verification still requires `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
+`release-sbom.spdx.json` describes the release asset/archive inventory. `package-sbom.spdx.json` describes package, dependency, script, assembly, and payload contents. `Signed` packages require signer-pin verification with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`. Beta prereleases may use `ReleaseChecksumOnly` only when SHA256 release metadata from GitHub Release sidecars or a trusted metadata directory verifies the archive.
 
 ## Install after approval
 
@@ -82,7 +82,7 @@ After installation, report:
 - generated registration artifact path
 - selected client id
 - release sidecar verification result
-- signer pin checked
+- release trust mode checked
 - any manual registration step still required
 
 Do not report private keys, PFX passwords, GitHub secrets, auth secrets, or certificate private-key material.
@@ -91,12 +91,13 @@ Do not report private keys, PFX passwords, GitHub secrets, auth secrets, or cert
 
 - If the host is not Windows, stop and report that the server supports Windows/WPF targets only.
 - If sidecars are missing, do not install.
-- If signer verification fails, stop.
+- If `Signed` package signer verification fails, stop.
+- If `ReleaseChecksumOnly` prerelease SHA256 release metadata verification fails, stop.
 - If client CLI discovery is blocked by elevation, use generated artifacts and ask the user to register manually.
 - If `connect()` fails after install, verify `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`, process architecture, and raw-injection policy.
 
 ## Copyable prompt
 
 ```text
-Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, or powershell.exe -NoProfile -File with the same arguments when PowerShell 7 is unavailable. Present a plan with version, architecture, install root, client id, release archive, sidecars, and signer pin policy. Ask for confirmation before mutation. After approval, use the stable installer alias, a reviewed local package command, or package-local run.bat. Report generated registration artifacts and do not print secrets.
+Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, or powershell.exe -NoProfile -File with the same arguments when PowerShell 7 is unavailable. Present a plan with version, architecture, install root, client id, release archive, sidecars, and release trust policy. Ask for confirmation before mutation. After approval, use the stable installer alias, a reviewed local package command, or package-local run.bat. Report generated registration artifacts and do not print secrets.
 ```

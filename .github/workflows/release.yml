@@ -21,6 +21,7 @@ jobs:
       is-e2e-validation-release: ${{ steps.release-metadata.outputs.is-e2e-validation-release }}
       is-prerelease-release: ${{ steps.release-metadata.outputs.is-prerelease-release }}
       tag-commit-sha: ${{ steps.tag-checkout.outputs.tag-commit-sha }}
+      release-trust-mode: ${{ steps.release-trust-mode.outputs.release-trust-mode }}
     env:
       RELEASE_OUTPUT_ROOT: artifacts/release/github-release
       RELEASE_STAGING_ROOT: artifacts/release/github-assets
@@ -126,8 +127,37 @@ jobs:
         shell: pwsh
         run: ./scripts/tools/packaging/Write-ReleaseSecurityEvidence.ps1 -OutputPath artifacts/release/security-evidence.json -Configuration Release
 
-      - name: Materialize signing certificate
+      - name: Resolve release trust mode
+        id: release-trust-mode
         if: steps.release-metadata.outputs.is-e2e-validation-release != 'true'
+        shell: pwsh
+        env:
+          RELEASE_IS_PRERELEASE: ${{ steps.release-metadata.outputs.is-prerelease-release }}
+          WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64: ${{ secrets.WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64 }}
+          WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
+          WPFDEVTOOLS_PFX_PASSWORD: ${{ secrets.WPFDEVTOOLS_PFX_PASSWORD }}
+        run: |
+          $hasSigningSecrets =
+            -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64) -and
+            -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT) -and
+            -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_PFX_PASSWORD)
+
+          if ($hasSigningSecrets) {
+            $trustMode = 'Signed'
+          }
+          elseif ($env:RELEASE_IS_PRERELEASE -eq 'true') {
+            $trustMode = 'ReleaseChecksumOnly'
+            Write-Host 'Signing secrets are unavailable; prerelease assets will use SHA256 release metadata only.'
+          }
+          else {
+            throw 'Stable release packaging requires signing secrets. Configure WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64, WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT, and WPFDEVTOOLS_PFX_PASSWORD, or publish a prerelease tag.'
+          }
+
+          "RELEASE_TRUST_MODE=$trustMode" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "release-trust-mode=$trustMode" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Materialize signing certificate
+        if: steps.release-metadata.outputs.is-e2e-validation-release != 'true' && steps.release-trust-mode.outputs.release-trust-mode == 'Signed'
         shell: pwsh
         env:
           WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64: ${{ secrets.WPFDEVTOOLS_RELEASE_CERTIFICATE_BASE64 }}
@@ -142,7 +172,7 @@ jobs:
             -GitHubEnvPath $env:GITHUB_ENV
 
       - name: Validate signing secrets
-        if: steps.release-metadata.outputs.is-e2e-validation-release != 'true'
+        if: steps.release-metadata.outputs.is-e2e-validation-release != 'true' && steps.release-trust-mode.outputs.release-trust-mode == 'Signed'
         shell: pwsh
         env:
           WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
@@ -182,6 +212,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ steps.release-metadata.outputs.tag }}
           RELEASE_IS_PRERELEASE: ${{ steps.release-metadata.outputs.is-prerelease-release }}
+          RELEASE_TRUST_MODE: ${{ steps.release-trust-mode.outputs.release-trust-mode }}
           WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
           WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}
           WPFDEVTOOLS_PFX_PASSWORD: ${{ secrets.WPFDEVTOOLS_PFX_PASSWORD }}
@@ -195,6 +226,7 @@ jobs:
             -Configuration Release `
             -Architectures $releaseArchitectures `
             -ExpectedReleaseTag $env:RELEASE_TAG `
+            -ReleaseTrustMode $env:RELEASE_TRUST_MODE `
             -OutputRoot '${{ env.RELEASE_OUTPUT_ROOT }}'
 
       - name: Stage GitHub Release assets
@@ -246,6 +278,7 @@ jobs:
     runs-on: windows-2022
     env:
       RELEASE_STAGING_ROOT: artifacts/release/github-assets
+      RELEASE_TRUST_MODE: ${{ needs.publish-release-assets.outputs.release-trust-mode }}
       WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
       WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}
 
@@ -269,8 +302,11 @@ jobs:
       - name: Verify release validation signer trust
         shell: pwsh
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
+          if ($env:RELEASE_TRUST_MODE -eq 'Signed' -and [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
             throw 'Release validation requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+          }
+          if ($env:RELEASE_TRUST_MODE -eq 'ReleaseChecksumOnly') {
+            Write-Host 'Release validation is using SHA256 release metadata without Authenticode signer pinning.'
           }
 
       - name: Install staged x64 package smoke test
@@ -379,6 +415,7 @@ jobs:
     runs-on: windows-2022
     env:
       RELEASE_STAGING_ROOT: artifacts/release/github-assets
+      RELEASE_TRUST_MODE: ${{ needs.publish-release-assets.outputs.release-trust-mode }}
       WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
       WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}
 
@@ -403,8 +440,11 @@ jobs:
       - name: Verify release validation signer trust
         shell: pwsh
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
+          if ($env:RELEASE_TRUST_MODE -eq 'Signed' -and [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
             throw 'Release validation requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+          }
+          if ($env:RELEASE_TRUST_MODE -eq 'ReleaseChecksumOnly') {
+            Write-Host 'Release validation is using SHA256 release metadata without Authenticode signer pinning.'
           }
 
       - name: Install staged x86 package smoke test
@@ -513,6 +553,7 @@ jobs:
     runs-on: [self-hosted, Windows, ARM64]
     env:
       RELEASE_STAGING_ROOT: artifacts/release/github-assets
+      RELEASE_TRUST_MODE: ${{ needs.publish-release-assets.outputs.release-trust-mode }}
       WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT }}
       WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT: ${{ secrets.WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT }}
 
@@ -536,8 +577,11 @@ jobs:
       - name: Verify release validation signer trust
         shell: pwsh
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
+          if ($env:RELEASE_TRUST_MODE -eq 'Signed' -and [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT)) {
             throw 'Release validation requires WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT.'
+          }
+          if ($env:RELEASE_TRUST_MODE -eq 'ReleaseChecksumOnly') {
+            Write-Host 'Release validation is using SHA256 release metadata without Authenticode signer pinning.'
           }
 
       - name: Install staged ARM64 package smoke test

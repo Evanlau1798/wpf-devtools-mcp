@@ -224,6 +224,19 @@ function Test-AllowDebugTrustedRootSkipPayloadPolicy {
         [string]::Equals([string]$PackageManifest.buildConfiguration, 'Debug', [System.StringComparison]::OrdinalIgnoreCase)
 }
 
+function Test-AllowReleaseChecksumOnlyPayloadPolicy {
+    param(
+        [Parameter(Mandatory)] [string]$SignaturePolicy,
+        [Parameter(Mandatory)] [bool]$TrustedArchiveManifestPolicy,
+        [Parameter(Mandatory)] $PackageManifest
+    )
+
+    return $TrustedArchiveManifestPolicy -and
+        [string]::Equals($SignaturePolicy, 'ReleaseChecksumOnly', [System.StringComparison]::Ordinal) -and
+        [string]::Equals([string]$PackageManifest.channel, 'release', [System.StringComparison]::OrdinalIgnoreCase) -and
+        [string]::Equals([string]$PackageManifest.buildConfiguration, 'Release', [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 function Get-ExplicitTrustedReleaseMetadataDirectory {
     $trustedDirectoryEntry = Get-Item Env:WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY -ErrorAction SilentlyContinue
     if ($null -eq $trustedDirectoryEntry) {
@@ -385,6 +398,13 @@ function Assert-PackagePayloadIntegrity {
     $installerMode = Resolve-InstallerMode
 
     if (Test-AllowDebugTrustedRootSkipPayloadPolicy `
+            -SignaturePolicy $signaturePolicy `
+            -TrustedArchiveManifestPolicy ([bool]$TrustedArchiveManifestPolicy) `
+            -PackageManifest $PackageManifest) {
+        return
+    }
+
+    if (Test-AllowReleaseChecksumOnlyPayloadPolicy `
             -SignaturePolicy $signaturePolicy `
             -TrustedArchiveManifestPolicy ([bool]$TrustedArchiveManifestPolicy) `
             -PackageManifest $PackageManifest) {

@@ -45,6 +45,10 @@ public sealed partial class ReleaseReadinessDocumentationTests
             "the release guide should point maintainers to the GitHub release automation workflow");
         content.Should().Contain("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
             "maintainers need the exact signer pin variables called out before running signed Release packaging");
+        content.Should().Contain("ReleaseChecksumOnly",
+            "maintainers need the explicit SHA-only prerelease trust mode documented before publishing beta assets without paid signing");
+        content.Should().Contain("SHA256 release metadata",
+            "the release guide should explain how unsigned prerelease assets are still bound to public checksum metadata");
         content.Should().Contain("WPFDEVTOOLS_RELEASE_CERTIFICATE_PATH",
             "the guide should explain how hosted or local packaging supplies the signing certificate to Publish-Release.ps1");
         content.Should().Contain("release-sbom.spdx.json",
@@ -63,6 +67,33 @@ public sealed partial class ReleaseReadinessDocumentationTests
             "maintainers need the release guide to call out the fail-closed ARM64 runtime validation gate used by GitHub release automation");
         content.Should().Contain("self-hosted Windows ARM64 runner",
             "the release guide should explain that public ARM64 publication now requires a runner that can actually launch the packaged ARM64 executable");
+    }
+
+    [Theory]
+    [InlineData("RELEASING.md")]
+    [InlineData("AGENT_INSTALL.md")]
+    [InlineData("docfx/index.md")]
+    [InlineData("docfx/zh-tw/index.md")]
+    [InlineData("docfx/quickstart/index.md")]
+    [InlineData("docfx/zh-tw/quickstart/index.md")]
+    [InlineData("docfx/production/deployment.md")]
+    [InlineData("docfx/zh-tw/production/deployment.md")]
+    [InlineData("docfx/production/release-layout.md")]
+    [InlineData("docfx/zh-tw/production/release-layout.md")]
+    [InlineData("docfx/guides/agent-assisted-install.md")]
+    [InlineData("docfx/zh-tw/guides/agent-assisted-install.md")]
+    [InlineData("docfx/contributors/public-path-runtime-security.md")]
+    [InlineData("docfx/zh-tw/contributors/public-path-runtime-security.md")]
+    public void PublicReleaseDocs_ShouldDescribeSignedAndChecksumOnlyTrustModes(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("ReleaseChecksumOnly",
+            $"{relativePath} should name the prerelease SHA-only trust mode explicitly");
+        content.Should().Contain("SHA256 release metadata",
+            $"{relativePath} should explain that checksum-only prereleases are still verified by public release metadata");
+        content.Should().Contain("Signed",
+            $"{relativePath} should keep the signed Release trust mode visible for stable production releases");
     }
 
     [Fact]
@@ -200,7 +231,7 @@ public sealed partial class ReleaseReadinessDocumentationTests
             .ToArray();
 
         violations.Should().BeEmpty(
-            "production payload signature verification always requires an independent signer thumbprint; adjacent sidecars prove archive provenance but do not replace signer trust");
+            "signed release payload verification requires an independent signer thumbprint; checksum-only prereleases must remain a separate trust mode, not a sidecar fallback");
     }
 
     private static IEnumerable<string> GetInstallerTrustDocumentationFiles()

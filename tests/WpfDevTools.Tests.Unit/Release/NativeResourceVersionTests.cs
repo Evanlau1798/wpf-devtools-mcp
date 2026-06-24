@@ -49,7 +49,9 @@ public sealed class NativeResourceVersionTests
         resource.Should().Contain("WPFDEVTOOLS_BOOTSTRAPPER_PRODUCT_VERSION_STRING \"1.0.0.0\"");
         project.Should().Contain("<BootstrapperProductVersionString Condition=\"'$(BootstrapperProductVersionString)' == ''\">1.0.0.0</BootstrapperProductVersionString>");
         resource.Should().NotContain("1.0.0-beta.1");
+        resource.Should().NotContain("1.0.0-beta.2");
         project.Should().NotContain("1.0.0-beta.1</BootstrapperProductVersionString>");
+        project.Should().NotContain("1.0.0-beta.2</BootstrapperProductVersionString>");
     }
 
     private static string EscapePowerShellPath(string path) =>

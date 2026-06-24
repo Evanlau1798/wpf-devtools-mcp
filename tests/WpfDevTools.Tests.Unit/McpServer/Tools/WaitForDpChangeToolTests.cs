@@ -175,6 +175,8 @@ public sealed class WaitForDpChangeToolTests
     {
         const int processId = 4952;
         var snapshotReadCount = 0;
+        var beforePollDelayCalls = 0;
+        var previousBeforePollDelay = WaitForDpChangeTool.BeforePollDelayForTesting;
         using var connected = await ConnectedWaitSessionBuilder.CreateAsync(
             processId,
             new object(),
@@ -186,11 +188,7 @@ public sealed class WaitForDpChangeToolTests
                 }
 
                 snapshotReadCount++;
-                if (snapshotReadCount == 2)
-                {
-                    await Task.Delay(30);
-                }
-                else if (snapshotReadCount >= 3)
+                if (snapshotReadCount >= 3)
                 {
                     await Task.Delay(1500);
                 }
@@ -206,23 +204,41 @@ public sealed class WaitForDpChangeToolTests
             });
         var waitTool = new WaitForDpChangeTool(connected.SessionManager);
 
-        var result = await waitTool.ExecuteAsync(
-            ToJsonElement(new
+        WaitForDpChangeTool.BeforePollDelayForTesting = async () =>
+        {
+            beforePollDelayCalls++;
+            if (beforePollDelayCalls == 1)
             {
-                processId,
-                propertyName = "Text",
-                timeoutMs = 60,
-                pollIntervalMs = 50,
-                expectedValue = JsonSerializer.SerializeToElement("after")
-            }),
-            CancellationToken.None);
+                await Task.Delay(300);
+            }
+        };
+
+        object result;
+        try
+        {
+            result = await waitTool.ExecuteAsync(
+                ToJsonElement(new
+                {
+                    processId,
+                    propertyName = "Text",
+                    timeoutMs = 250,
+                    pollIntervalMs = 50,
+                    expectedValue = JsonSerializer.SerializeToElement("after")
+                }),
+                CancellationToken.None);
+        }
+        finally
+        {
+            WaitForDpChangeTool.BeforePollDelayForTesting = previousBeforePollDelay;
+        }
 
         var resultJson = JsonSerializer.SerializeToElement(result);
-        resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
+        resultJson.GetProperty("success").GetBoolean().Should().BeTrue("payload was {0}", resultJson.ToString());
         resultJson.GetProperty("timedOut").GetBoolean().Should().BeTrue();
         resultJson.GetProperty("completionReason").GetString().Should().Be("TimedOut");
         resultJson.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
         resultJson.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
+        beforePollDelayCalls.Should().Be(1);
         connected.RequestMethods.Count(method => method == "get_dp_value_source").Should().Be(3);
     }
 

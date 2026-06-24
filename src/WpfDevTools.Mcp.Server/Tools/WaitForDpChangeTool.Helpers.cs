@@ -22,6 +22,11 @@ public sealed partial class WaitForDpChangeTool
                 finalReadCts.Token,
                 countAgainstRateLimit: false).ConfigureAwait(false);
 
+            if (snapshot.Error is not null && IsTimeoutOrTransportSnapshotError(snapshot.Error))
+            {
+                return FinalSnapshotReadResult.Timeout();
+            }
+
             return FinalSnapshotReadResult.Success(snapshot);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -149,6 +154,16 @@ public sealed partial class WaitForDpChangeTool
         return payload.ValueKind == JsonValueKind.Object
             && payload.TryGetProperty("success", out var successProperty)
             && successProperty.ValueKind == JsonValueKind.True;
+    }
+
+    private static bool IsTimeoutOrTransportSnapshotError(object error)
+    {
+        var payload = error is JsonElement jsonElement
+            ? jsonElement
+            : JsonSerializer.SerializeToElement(error);
+
+        return payload.ValueKind == JsonValueKind.Object
+            && ToolRecoveryPayload.IsTimeoutOrTransportRecovery(payload);
     }
 
     private static string? TryGetStringProperty(JsonElement payload, string propertyName)

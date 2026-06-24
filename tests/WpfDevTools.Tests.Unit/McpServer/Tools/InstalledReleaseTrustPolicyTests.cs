@@ -1,0 +1,169 @@
+using FluentAssertions;
+using WpfDevTools.Mcp.Server.Tools;
+
+namespace WpfDevTools.Tests.Unit.McpServer.Tools;
+
+public sealed class InstalledReleaseTrustPolicyTests
+{
+    [Fact]
+    public void CanSkipSignatureForChecksumOnlyPayload_WithInstalledInspectorPayload_ShouldReturnTrue()
+    {
+        using var layout = InstalledLayout.Create();
+
+        var result = InstalledReleaseTrustPolicy.CanSkipSignatureForChecksumOnlyPayload(
+            layout.InspectorNet8Path,
+            layout.BaseDirectory,
+            layout.ExecutablePath);
+
+        result.Should().BeTrue(
+            "checksum-only prereleases verified by release SHA metadata need a runtime path for their own installed inspector payloads");
+    }
+
+    [Fact]
+    public void CanSkipSignatureForChecksumOnlyPayload_WithInstalledBootstrapperPayload_ShouldReturnTrue()
+    {
+        using var layout = InstalledLayout.Create();
+
+        var result = InstalledReleaseTrustPolicy.CanSkipSignatureForChecksumOnlyPayload(
+            layout.BootstrapperPath,
+            layout.BaseDirectory,
+            layout.ExecutablePath);
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CanSkipSignatureForChecksumOnlyPayload_WithUnlistedDll_ShouldReturnFalse()
+    {
+        using var layout = InstalledLayout.Create();
+        var unlistedPath = Path.Combine(layout.BaseDirectory, "unlisted.dll");
+        File.WriteAllText(unlistedPath, string.Empty);
+
+        var result = InstalledReleaseTrustPolicy.CanSkipSignatureForChecksumOnlyPayload(
+            unlistedPath,
+            layout.BaseDirectory,
+            layout.ExecutablePath);
+
+        result.Should().BeFalse("the checksum-only trust path must not become a broad directory-wide signature bypass");
+    }
+
+    [Fact]
+    public void CanSkipSignatureForChecksumOnlyPayload_WithSignedPolicyManifest_ShouldReturnFalse()
+    {
+        using var layout = InstalledLayout.Create(packageSignaturePolicy: "RequireAuthenticodeSignature");
+
+        var result = InstalledReleaseTrustPolicy.CanSkipSignatureForChecksumOnlyPayload(
+            layout.InspectorNet8Path,
+            layout.BaseDirectory,
+            layout.ExecutablePath);
+
+        result.Should().BeFalse("signed releases should continue to require Authenticode validation");
+    }
+
+    [Fact]
+    public void CanSkipSignatureForChecksumOnlyPayload_WithMismatchedExecutable_ShouldReturnFalse()
+    {
+        using var layout = InstalledLayout.Create();
+        var otherExecutable = Path.Combine(layout.BaseDirectory, "wpf-devtools-other.exe");
+        File.WriteAllText(otherExecutable, string.Empty);
+
+        var result = InstalledReleaseTrustPolicy.CanSkipSignatureForChecksumOnlyPayload(
+            layout.InspectorNet8Path,
+            layout.BaseDirectory,
+            otherExecutable);
+
+        result.Should().BeFalse("the install manifest must bind the trust decision to the running packaged server executable");
+    }
+
+    private sealed class InstalledLayout : IDisposable
+    {
+        private InstalledLayout(
+            string root,
+            string baseDirectory,
+            string executablePath,
+            string inspectorNet8Path,
+            string bootstrapperPath)
+        {
+            Root = root;
+            BaseDirectory = baseDirectory;
+            ExecutablePath = executablePath;
+            InspectorNet8Path = inspectorNet8Path;
+            BootstrapperPath = bootstrapperPath;
+        }
+
+        public string Root { get; }
+        public string BaseDirectory { get; }
+        public string ExecutablePath { get; }
+        public string InspectorNet8Path { get; }
+        public string BootstrapperPath { get; }
+
+        public static InstalledLayout Create(string packageSignaturePolicy = "ReleaseChecksumOnly")
+        {
+            var root = Path.Combine(Path.GetTempPath(), "wpf-devtools-installed-trust-" + Guid.NewGuid().ToString("N"));
+            var installRoot = Path.Combine(root, "installed-product");
+            var installBase = Path.Combine(installRoot, "x64");
+            var currentDir = Path.Combine(installBase, "current");
+            var baseDirectory = Path.Combine(currentDir, "bin");
+            var inspectorDir = Path.Combine(baseDirectory, "inspectors", "net8.0-windows");
+            var bootstrapperDir = Path.Combine(baseDirectory, "bootstrapper", "x64");
+            Directory.CreateDirectory(inspectorDir);
+            Directory.CreateDirectory(bootstrapperDir);
+
+            var executablePath = Path.Combine(baseDirectory, "wpf-devtools-x64.exe");
+            var inspectorNet8Path = Path.Combine(inspectorDir, "WpfDevTools.Inspector.dll");
+            var bootstrapperPath = Path.Combine(bootstrapperDir, "WpfDevTools.Bootstrapper.x64.dll");
+            File.WriteAllText(executablePath, string.Empty);
+            File.WriteAllText(inspectorNet8Path, string.Empty);
+            File.WriteAllText(bootstrapperPath, string.Empty);
+
+            File.WriteAllText(
+                Path.Combine(baseDirectory, "manifest.json"),
+                $$"""
+                {
+                  "name": "wpf-devtools",
+                  "version": "1.0.0-beta.2",
+                  "architecture": "x64",
+                  "channel": "release",
+                  "buildConfiguration": "Release",
+                  "signaturePolicy": "{{packageSignaturePolicy}}",
+                  "entryExecutable": "bin/wpf-devtools-x64.exe",
+                  "inspector": {
+                    "net8": "bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll",
+                    "net48": "bin/inspectors/net48/WpfDevTools.Inspector.dll"
+                  },
+                  "bootstrapper": "bin/bootstrapper/x64/WpfDevTools.Bootstrapper.x64.dll"
+                }
+                """);
+
+            File.WriteAllText(
+                Path.Combine(installBase, "install-manifest.json"),
+                $$"""
+                {
+                  "name": "wpf-devtools",
+                  "architecture": "x64",
+                  "version": "1.0.0-beta.2",
+                  "installRoot": "{{EscapeJson(installRoot)}}",
+                  "installDir": "{{EscapeJson(currentDir)}}",
+                  "executable": "{{EscapeJson(executablePath)}}",
+                  "channel": "release",
+                  "buildConfiguration": "Release",
+                  "signaturePolicy": "ReleaseChecksumOnly",
+                  "installedUtc": "2026-06-24T00:00:00.0000000Z"
+                }
+                """);
+
+            return new InstalledLayout(root, baseDirectory, executablePath, inspectorNet8Path, bootstrapperPath);
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Root))
+            {
+                Directory.Delete(Root, recursive: true);
+            }
+        }
+
+        private static string EscapeJson(string value)
+            => value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
+    }
+}

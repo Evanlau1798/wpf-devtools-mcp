@@ -71,6 +71,18 @@ internal static partial class DllPathValidator
         string dllPath,
         string baseDirectory,
         bool trustedLocalDevelopmentSkipOptIn)
+        => ValidateDllPath(
+            dllPath,
+            baseDirectory,
+            GetSignatureAction(baseDirectory, trustedLocalDevelopmentSkipOptIn));
+
+    internal static void ValidateChecksumOnlyReleasePayloadPath(string dllPath, string baseDirectory)
+        => ValidateDllPath(dllPath, baseDirectory, SignaturePolicy.Action.Skip);
+
+    private static void ValidateDllPath(
+        string dllPath,
+        string baseDirectory,
+        SignaturePolicy.Action signatureAction)
     {
         if (string.IsNullOrWhiteSpace(dllPath))
             throw new ArgumentException("DLL path cannot be empty", nameof(dllPath));
@@ -105,8 +117,6 @@ internal static partial class DllPathValidator
         {
             throw new ArgumentException("Cannot load DLL from system directories", nameof(dllPath));
         }
-
-        var signatureAction = GetSignatureAction(baseDirectory, trustedLocalDevelopmentSkipOptIn);
 
         if (signatureAction == SignaturePolicy.Action.Skip)
         {

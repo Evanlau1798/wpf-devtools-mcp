@@ -93,17 +93,32 @@ public static class ProcessMcpTools
 
     private static ConnectTool CreateConnectTool(SessionManager sessionManager)
     {
-        Action<string>? dllPathValidator = IsTestTrustLocalReleaseSignatureSkipEnabled()
-            ? path => DllPathValidator.ValidateDllPath(
-                path,
-                AppContext.BaseDirectory,
-                trustedLocalDevelopmentSkipOptIn: true)
-            : null;
-
         return new ConnectTool(
             sessionManager,
             new ProcessInjector(),
-            dllPathValidator: dllPathValidator);
+            dllPathValidator: CreateDllPathValidator());
+    }
+
+    private static Action<string> CreateDllPathValidator()
+    {
+        if (IsTestTrustLocalReleaseSignatureSkipEnabled())
+        {
+            return path => DllPathValidator.ValidateDllPath(
+                path,
+                AppContext.BaseDirectory,
+                trustedLocalDevelopmentSkipOptIn: true);
+        }
+
+        return path =>
+        {
+            if (InstalledReleaseTrustPolicy.CanSkipSignatureForChecksumOnlyPayload(path, AppContext.BaseDirectory))
+            {
+                DllPathValidator.ValidateChecksumOnlyReleasePayloadPath(path, AppContext.BaseDirectory);
+                return;
+            }
+
+            DllPathValidator.ValidateDllPath(path);
+        };
     }
 
     private static bool IsTestTrustLocalReleaseSignatureSkipEnabled()

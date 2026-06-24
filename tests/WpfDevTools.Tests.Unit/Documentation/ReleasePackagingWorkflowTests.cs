@@ -324,6 +324,15 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
+    public void PackagedServerRuntimeSmokeScript_ShouldAllowHostedX64ColdStart()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));
+
+        content.Should().Contain("[int]$InitializeTimeoutMilliseconds = 30000",
+            "GitHub-hosted x64 checksum-only release smoke can spend more than 10 seconds in first-start runtime scanning before initialize responds");
+    }
+
+    [Fact]
     public void PackagedServerRuntimeSmokeScript_ShouldGuardAgainstStdoutContamination()
     {
         var content = File.ReadAllText(GetRepoFilePath("scripts/tools/packaging/Test-PackagedServerRuntime.ps1"));

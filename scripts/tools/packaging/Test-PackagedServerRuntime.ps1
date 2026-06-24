@@ -5,7 +5,7 @@ param(
     [string]$TargetProcessPath = '',
     [string]$EvidenceOutputPath = '',
     [ValidateSet('package-local', 'online-installer')] [string]$SmokeInstallMode = 'package-local',
-    [int]$InitializeTimeoutMilliseconds = 10000,
+    [int]$InitializeTimeoutMilliseconds = 30000,
     [int]$RequestTimeoutMilliseconds = 10000,
     [switch]$SkipExistingHostReuse
 )

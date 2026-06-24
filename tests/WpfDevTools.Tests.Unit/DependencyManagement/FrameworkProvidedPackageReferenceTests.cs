@@ -55,8 +55,36 @@ public sealed class FrameworkProvidedPackageReferenceTests
 
         var version = packageVersion.Attribute("Version")?.Value;
 
-        version.Should().Be("10.0.6",
+        version.Should().Be("10.0.9",
             "the MCP SDK requires the 10.x System.Text.Json line, so the server should pin the current stable servicing patch rather than an older build");
+        version.Should().NotContain("-");
+    }
+
+    [Fact]
+    public void McpServerHostingPin_ShouldAlignWithMcpSdkExtensionStack()
+    {
+        var packageVersion = LoadProject("Directory.Packages.props")
+            .Descendants("PackageVersion")
+            .Single(element => element.Attribute("Include")?.Value == "Microsoft.Extensions.Hosting");
+
+        var version = packageVersion.Attribute("Version")?.Value;
+
+        version.Should().Be("10.0.9",
+            "ModelContextProtocol 1.4.0 depends on the Microsoft.Extensions 10.x stack, so the server should not mix an 8.x Hosting package with 10.x hosting abstractions");
+        version.Should().NotContain("-");
+    }
+
+    [Fact]
+    public void McpSdkPackagePin_ShouldUseCurrentStableRelease()
+    {
+        var packageVersion = LoadProject("Directory.Packages.props")
+            .Descendants("PackageVersion")
+            .Single(element => element.Attribute("Include")?.Value == "ModelContextProtocol");
+
+        var version = packageVersion.Attribute("Version")?.Value;
+
+        version.Should().Be("1.4.0",
+            "NuGet publishes ModelContextProtocol 1.4.0 as the current stable MCP C# SDK package");
         version.Should().NotContain("-");
     }
 

@@ -2,7 +2,7 @@
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple)](https://dotnet.microsoft.com/)
-[![MCP](https://img.shields.io/badge/MCP-SDK%20v1.0-blue)](https://modelcontextprotocol.io/)
+[![MCP](https://img.shields.io/badge/MCP-SDK%20v1.4-blue)](https://modelcontextprotocol.io/)
 
 `wpf-devtools-mcp` is a Windows-only Model Context Protocol server for inspecting and interacting with running WPF applications. It exposes WPF-native diagnostics for visual/logical trees, bindings, dependency properties, routed events, layout, screenshots, MVVM state, and controlled runtime mutation.
 

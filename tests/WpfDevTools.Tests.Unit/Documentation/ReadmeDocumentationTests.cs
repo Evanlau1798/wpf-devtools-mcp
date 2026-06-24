@@ -62,6 +62,15 @@ public class ReadmeDocumentationTests
     }
 
     [Fact]
+    public void Readme_ShouldAdvertiseCurrentMcpSdkVersion()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("README.md"));
+
+        content.Should().Contain("MCP-SDK%20v1.4");
+        content.Should().NotContain("MCP-SDK%20v1.0");
+    }
+
+    [Fact]
     public void Readme_ShouldDescribePublishedInstallArtifactsWithoutE2eRunbookResidue()
     {
         var content = File.ReadAllText(GetRepoFilePath("README.md"));

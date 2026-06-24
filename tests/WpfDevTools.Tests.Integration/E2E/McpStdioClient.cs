@@ -14,7 +14,7 @@ namespace WpfDevTools.Tests.Integration.E2E;
 /// <summary>
 /// MCP STDIO protocol client for E2E testing.
 /// Communicates with the MCP Server via stdin/stdout using newline-delimited JSON (NDJSON).
-/// The C# ModelContextProtocol SDK v1.0.0 StdioServerTransport reads JSON messages line-by-line.
+/// The C# ModelContextProtocol SDK StdioServerTransport reads JSON messages line-by-line.
 /// </summary>
 public sealed partial class McpStdioClient : IDisposable
 {

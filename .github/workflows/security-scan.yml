@@ -52,13 +52,16 @@ jobs:
     - name: Run .NET analyzer gate
       shell: pwsh
       run: |
-        $env:PATH = "$env:DOTNET_ROOT;$env:PATH"
         $dotnet = Join-Path $env:DOTNET_ROOT 'dotnet.exe'
         if (-not (Test-Path -LiteralPath $dotnet)) {
           $dotnet = (Get-Command dotnet -ErrorAction Stop).Source
         }
 
+        $dotnetDir = Split-Path -Parent $dotnet
+        $env:DOTNET_ROOT = $dotnetDir
+        $env:PATH = "$dotnetDir;$env:PATH"
         $env:DOTNET_HOST_PATH = $dotnet
+        & $dotnet --info
         & $dotnet format WpfDevTools.sln analyzers --verify-no-changes --severity error --no-restore
 
     - name: Run PowerShell ScriptAnalyzer

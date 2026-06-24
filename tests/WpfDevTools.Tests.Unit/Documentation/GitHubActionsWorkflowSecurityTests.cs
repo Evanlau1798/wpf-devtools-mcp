@@ -71,10 +71,14 @@ public sealed class GitHubActionsWorkflowSecurityTests
         workflow.Should().Contain("security-scan:");
         workflow.Should().Contain("dotnet format WpfDevTools.sln analyzers --verify-no-changes",
             "CI should run a .NET analyzer gate, not only restore-time NuGet vulnerability checks");
-        workflow.Should().Contain("$env:PATH = \"$env:DOTNET_ROOT;$env:PATH\"",
-            "hosted security scans must make the setup-dotnet installation visible to dotnet-format child CLI resolution");
         workflow.Should().Contain("Join-Path $env:DOTNET_ROOT 'dotnet.exe'",
             "the analyzer gate should invoke the setup-dotnet CLI explicitly rather than relying on a mutable PATH");
+        workflow.Should().Contain("$dotnetDir = Split-Path -Parent $dotnet",
+            "hosted security scans must derive DOTNET_ROOT from the actual resolved dotnet executable");
+        workflow.Should().Contain("$env:DOTNET_ROOT = $dotnetDir",
+            "dotnet-format child CLI resolution should not depend on a possibly stale setup-dotnet environment variable");
+        workflow.Should().Contain("$env:PATH = \"$dotnetDir;$env:PATH\"",
+            "hosted security scans must make the resolved dotnet installation visible to dotnet-format child CLI resolution");
         workflow.Should().Contain("$env:DOTNET_HOST_PATH = $dotnet",
             "dotnet-format child processes need the resolved host path on GitHub hosted runners");
         workflow.Should().Contain("PSScriptAnalyzer",

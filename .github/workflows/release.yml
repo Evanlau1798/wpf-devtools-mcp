@@ -313,6 +313,8 @@ jobs:
         shell: pwsh
         env:
           RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
         run: |
           $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
@@ -354,6 +356,8 @@ jobs:
         shell: pwsh
         env:
           RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
         run: |
           $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
@@ -383,6 +387,9 @@ jobs:
 
       - name: Uninstall staged installed x64 package smoke test
         shell: pwsh
+        env:
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
         run: |
           $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'x64\current\bin\install.ps1'
 
@@ -394,12 +401,18 @@ jobs:
 
       - name: Full uninstall staged installed x64 package residue test
         shell: pwsh
+        env:
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
         run: |
           & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
           & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture 'x64'
 
       - name: Uninstall staged x64 online installer smoke test
         shell: pwsh
+        env:
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
         run: |
           $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'x64\current\bin\install.ps1'
 
@@ -411,6 +424,9 @@ jobs:
 
       - name: Full uninstall staged x64 online installer residue test
         shell: pwsh
+        env:
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
         run: |
           & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x64' -Client other -NonInteractive -OutputJson
           & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x64'
@@ -438,7 +454,7 @@ jobs:
           ref: refs/tags/${{ needs.publish-release-assets.outputs.release-tag }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
           dotnet-version: '8.0.x'
           architecture: x86
@@ -463,6 +479,8 @@ jobs:
         shell: pwsh
         env:
           RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
         run: |
           $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
@@ -504,6 +522,8 @@ jobs:
         shell: pwsh
         env:
           RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
         run: |
           $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
@@ -533,6 +553,9 @@ jobs:
 
       - name: Uninstall staged installed x86 package smoke test
         shell: pwsh
+        env:
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
         run: |
           $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'x86\current\bin\install.ps1'
 
@@ -544,12 +567,18 @@ jobs:
 
       - name: Full uninstall staged installed x86 package residue test
         shell: pwsh
+        env:
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
         run: |
           & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'x86' -Client other -NonInteractive -OutputJson
           & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture 'x86'
 
       - name: Uninstall staged x86 online installer smoke test
         shell: pwsh
+        env:
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
         run: |
           $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'x86\current\bin\install.ps1'
 
@@ -561,6 +590,9 @@ jobs:
 
       - name: Full uninstall staged x86 online installer residue test
         shell: pwsh
+        env:
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
         run: |
           & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x86' -Client other -NonInteractive -OutputJson
           & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'x86'
@@ -612,6 +644,8 @@ jobs:
         shell: pwsh
         env:
           RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
         run: |
           $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
@@ -653,6 +687,8 @@ jobs:
         shell: pwsh
         env:
           RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release-tag }}
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
         run: |
           $tag = $env:RELEASE_TAG
           $stagingRoot = Join-Path '${{ env.RELEASE_STAGING_ROOT }}' $tag
@@ -682,6 +718,9 @@ jobs:
 
       - name: Uninstall staged installed ARM64 package smoke test
         shell: pwsh
+        env:
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
         run: |
           $installedScript = Join-Path (Resolve-Path './tmp-release-install-smoke').Path 'arm64\current\bin\install.ps1'
 
@@ -693,12 +732,18 @@ jobs:
 
       - name: Full uninstall staged installed ARM64 package residue test
         shell: pwsh
+        env:
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\install\AppData\Local
         run: |
           & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
           & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-install-smoke' -Architecture 'arm64'
 
       - name: Uninstall staged ARM64 online installer smoke test
         shell: pwsh
+        env:
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
         run: |
           $installedScript = Join-Path (Resolve-Path './tmp-release-bootstrap-smoke').Path 'arm64\current\bin\install.ps1'
 
@@ -710,6 +755,9 @@ jobs:
 
       - name: Full uninstall staged ARM64 online installer residue test
         shell: pwsh
+        env:
+          APPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Roaming
+          LOCALAPPDATA: ${{ github.workspace }}\tmp-release-user-smoke\bootstrap\AppData\Local
         run: |
           & powershell -ExecutionPolicy Bypass -File scripts/online-installer.ps1 -Action full-uninstall -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64' -Client other -NonInteractive -OutputJson
           & powershell -ExecutionPolicy Bypass -File scripts/tools/packaging/Test-InstallResidue.ps1 -InstallRoot './tmp-release-bootstrap-smoke' -Architecture 'arm64'

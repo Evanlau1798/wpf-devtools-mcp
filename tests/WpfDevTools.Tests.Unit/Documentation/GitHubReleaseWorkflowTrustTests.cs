@@ -73,6 +73,44 @@ public sealed class GitHubReleaseWorkflowTrustTests
         }
     }
 
+    [Fact]
+    public void ReleaseValidation_ShouldUseX86SetupDotnetActionWithArchitectureSupport()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+        var job = GetWorkflowJobBlock(lines, "validate-x86-release-assets");
+        var step = GetNamedStepBlock(job, "Setup .NET");
+
+        step.Should().Contain(line => line.Contains("actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0", StringComparison.Ordinal),
+            "x86 validation needs a setup-dotnet version that accepts the architecture input");
+        step.Should().Contain(line => line.Trim().Equals("architecture: x86", StringComparison.Ordinal),
+            "x86 packaged executables need an x86 dotnet host on hosted runners");
+        step.Should().NotContain(line => line.Contains("actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4", StringComparison.Ordinal),
+            "setup-dotnet v4 ignores architecture: x86 and leaves the x86 package using the x64 hostfxr");
+    }
+
+    [Fact]
+    public void ReleaseValidation_ShouldIsolateInstallerStateByInstallPath()
+    {
+        var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/release.yml"));
+
+        foreach (var (_, stepArchitecture, _) in ReleaseValidationRuntimeJobs)
+        {
+            var job = GetWorkflowJobBlock(lines, $"validate-{stepArchitecture.ToLowerInvariant()}-release-assets");
+
+            foreach (var stepName in PackageLocalInstallerStateSteps(stepArchitecture))
+            {
+                var step = GetNamedStepBlock(job, stepName);
+                step.ContainInstallerState("install", stepName);
+            }
+
+            foreach (var stepName in OnlineInstallerStateSteps(stepArchitecture))
+            {
+                var step = GetNamedStepBlock(job, stepName);
+                step.ContainInstallerState("bootstrap", stepName);
+            }
+        }
+    }
+
     private static (string JobName, string Architecture)[] ReleaseValidationJobs
         =>
         [
@@ -101,6 +139,22 @@ public sealed class GitHubReleaseWorkflowTrustTests
             ($"Start staged online-installed {stepArchitecture} {infix}", "online-installer"),
         ];
     }
+
+    private static string[] PackageLocalInstallerStateSteps(string stepArchitecture)
+        =>
+        [
+            $"Install staged {stepArchitecture} package smoke test",
+            $"Uninstall staged installed {stepArchitecture} package smoke test",
+            $"Full uninstall staged installed {stepArchitecture} package residue test",
+        ];
+
+    private static string[] OnlineInstallerStateSteps(string stepArchitecture)
+        =>
+        [
+            $"{stepArchitecture} online installer smoke test",
+            $"Uninstall staged {stepArchitecture} online installer smoke test",
+            $"Full uninstall staged {stepArchitecture} online installer residue test",
+        ];
 
     private static string GetRepoFilePath(string relativePath)
         => Path.GetFullPath(Path.Combine(RepoRoot, relativePath));
@@ -151,5 +205,22 @@ public sealed class GitHubReleaseWorkflowTrustTests
         }
 
         throw new DirectoryNotFoundException("Could not locate repository root from test base directory.");
+    }
+}
+
+file static class ReleaseWorkflowTrustAssertionExtensions
+{
+    public static void ContainInstallerState(this IEnumerable<string> lines, string stateScope, string stepName)
+    {
+        lines.Should().Contain(line =>
+                line.Trim().Equals(
+                    $@"APPDATA: ${{{{ github.workspace }}}}\tmp-release-user-smoke\{stateScope}\AppData\Roaming",
+                    StringComparison.Ordinal),
+            $"{stepName} should use isolated {stateScope} installer state");
+        lines.Should().Contain(line =>
+                line.Trim().Equals(
+                    $@"LOCALAPPDATA: ${{{{ github.workspace }}}}\tmp-release-user-smoke\{stateScope}\AppData\Local",
+                    StringComparison.Ordinal),
+            $"{stepName} should use isolated {stateScope} installer state");
     }
 }

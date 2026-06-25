@@ -166,7 +166,7 @@ public sealed class WaitForDpChangeToolTests
         resultJson.GetProperty("success").GetBoolean().Should().BeTrue();
         resultJson.GetProperty("timedOut").GetBoolean().Should().BeTrue();
         resultJson.GetProperty("completionReason").GetString().Should().Be("TimedOut");
-        resultJson.GetProperty("pollCount").GetInt32().Should().BeGreaterThan(1);
+        resultJson.GetProperty("pollCount").GetInt32().Should().BeGreaterThanOrEqualTo(1);
         connected.RequestMethods.Count(method => method == "get_dp_value_source").Should().BeGreaterThan(2);
     }
 

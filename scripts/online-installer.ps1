@@ -4086,14 +4086,43 @@ function Get-InstallerReleaseChannel {
     }
 
     $requestedVersion = [string]$Version
-    if (-not [string]::IsNullOrWhiteSpace($requestedVersion)) {
-        $normalizedVersion = $requestedVersion.Trim().TrimStart('v', 'V')
-        if ($normalizedVersion -match '^\d+\.\d+\.\d+-[0-9A-Za-z][0-9A-Za-z.-]*$') {
-            return 'prerelease'
-        }
+    if (Test-InstallerPrereleaseVersion -VersionValue $requestedVersion) {
+        return 'prerelease'
     }
 
     return 'stable'
+}
+function Test-InstallerPrereleaseVersion {
+    param([AllowNull()] [string]$VersionValue)
+
+    if ([string]::IsNullOrWhiteSpace($VersionValue)) {
+        return $false
+    }
+
+    $normalizedVersion = ([string]$VersionValue).Trim().TrimStart('v', 'V')
+    return ($normalizedVersion -match '^\d+\.\d+\.\d+-[0-9A-Za-z][0-9A-Za-z.-]*$')
+}
+function Test-InstallerPrereleaseArtifactText {
+    param([AllowNull()] [string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+
+    $text = [string]$Value
+    $assetMatch = [regex]::Match(
+        $text,
+        'release_(?<version>[^\\/]+?)_win-(?:x64|x86|arm64)\.zip',
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    if ($assetMatch.Success -and (Test-InstallerPrereleaseVersion -VersionValue ([string]$assetMatch.Groups['version'].Value))) {
+        return $true
+    }
+
+    $tagMatch = [regex]::Match(
+        $text,
+        '(?:^|/)v(?<version>\d+\.\d+\.\d+-[0-9A-Za-z][0-9A-Za-z.-]*)(?:/|$)',
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    return ($tagMatch.Success -and (Test-InstallerPrereleaseVersion -VersionValue ([string]$tagMatch.Groups['version'].Value)))
 }
 function Get-GitHubReleaseListApiUri {
     return 'https://api.github.com/repos/Evanlau1798/wpf-devtools-mcp/releases?per_page=20'
@@ -4751,7 +4780,7 @@ function Add-InstallerReleaseChannelToResult {
         return $Result
     }
 
-    $releaseChannel = Get-InstallerReleaseChannel
+    $releaseChannel = Resolve-InstallerResultReleaseChannel -Result $Result
     if ($Result -is [System.Collections.IDictionary]) {
         $Result['releaseChannel'] = $releaseChannel
         return $Result
@@ -4759,6 +4788,53 @@ function Add-InstallerReleaseChannelToResult {
 
     $Result | Add-Member -NotePropertyName 'releaseChannel' -NotePropertyValue $releaseChannel -Force
     return $Result
+}
+function Resolve-InstallerResultReleaseChannel {
+    param($Result)
+
+    $releaseChannel = Get-InstallerReleaseChannel
+    if ($releaseChannel -eq 'prerelease') {
+        return $releaseChannel
+    }
+
+    foreach ($propertyName in @('resolvedVersion', 'ResolvedVersion', 'sourceReleaseVersion', 'SourceReleaseVersion', 'version', 'Version')) {
+        if (Test-InstallerPrereleaseVersion -VersionValue (Get-InstallerResultStringValue -Result $Result -PropertyName $propertyName)) {
+            return 'prerelease'
+        }
+    }
+
+    foreach ($propertyName in @('packageAssetName', 'PackageAssetName', 'downloadUri', 'DownloadUri')) {
+        if (Test-InstallerPrereleaseArtifactText -Value (Get-InstallerResultStringValue -Result $Result -PropertyName $propertyName)) {
+            return 'prerelease'
+        }
+    }
+
+    return $releaseChannel
+}
+function Get-InstallerResultStringValue {
+    param(
+        $Result,
+        [Parameter(Mandatory)] [string]$PropertyName
+    )
+
+    if ($null -eq $Result) {
+        return $null
+    }
+
+    if ($Result -is [System.Collections.IDictionary]) {
+        if ($Result.Contains($PropertyName) -and $null -ne $Result[$PropertyName]) {
+            return [string]$Result[$PropertyName]
+        }
+
+        return $null
+    }
+
+    $property = $Result.PSObject.Properties[$PropertyName]
+    if ($null -eq $property -or $null -eq $property.Value) {
+        return $null
+    }
+
+    return [string]$property.Value
 }
 function Invoke-InstallerAction {
     param(

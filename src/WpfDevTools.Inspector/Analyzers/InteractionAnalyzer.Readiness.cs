@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -69,6 +70,15 @@ public sealed partial class InteractionAnalyzer
                 blockers.Add(CreateBlocker(reason, message, activationGuidance));
             }
 
+            if (IsClickInteraction(normalizedInteractionType)
+                && frameworkElement is not ButtonBase
+                && frameworkElement is not TabItem)
+            {
+                blockers.Add(CreateBlocker(
+                    "ClickTargetUnsupported",
+                    "click_element supports ButtonBase and TabItem targets. Choose a clickable child, use focus_element, or inspect the element snapshot before interacting."));
+            }
+
             var resolvedElementId = elementId ?? _elementFinder.GenerateElementId(frameworkElement);
             var commandReadiness = CreateCommandReadiness(frameworkElement, resolvedElementId, out var canExecute);
             if (canExecute == false)
@@ -103,6 +113,11 @@ public sealed partial class InteractionAnalyzer
             };
         });
     }
+
+    private static bool IsClickInteraction(string interactionType) =>
+        string.Equals(interactionType, "Click", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(interactionType, "MouseClick", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(interactionType, "ClickElement", StringComparison.OrdinalIgnoreCase);
 
     private static object CreateCommandReadiness(
         FrameworkElement frameworkElement,

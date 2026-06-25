@@ -90,4 +90,27 @@ public sealed class InteractionReadinessAnalyzerTests
         result.TryGetProperty("activationTarget", out var activationTarget).Should().BeTrue(result.GetRawText());
         activationTarget.GetProperty("tabItemElementId").GetString().Should().NotBeNullOrWhiteSpace();
     }
+
+    [StaFact]
+    public void GetInteractionReadiness_WhenClickElementCannotClickTarget_ShouldReportUnsupportedClickTarget()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var item = new ListBoxItem
+        {
+            Content = "Team"
+        };
+        item.Measure(new Size(100, 30));
+        item.Arrange(new Rect(0, 0, 100, 30));
+        item.UpdateLayout();
+        var elementId = finder.GenerateElementId(item);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetInteractionReadiness(elementId, "Click"));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("isReady").GetBoolean().Should().BeFalse();
+        result.GetProperty("blockers").EnumerateArray()
+            .Select(item => item.GetProperty("reason").GetString())
+            .Should().Contain("ClickTargetUnsupported");
+    }
 }

@@ -35,6 +35,7 @@ public sealed class ElementSearchHandlers : IRequestHandler
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult<object>(_elementSearchAnalyzer.FindElementsWithTraversalBudget(
             rootElementId: ParameterHelpers.GetStringParam(@params, "elementId"),
+            query: ParameterHelpers.GetStringParam(@params, "query"),
             typeName: ParameterHelpers.GetStringParam(@params, "typeName"),
             typeNames: ParameterHelpers.GetStringArrayParam(@params, "typeNames"),
             elementName: ParameterHelpers.GetStringParam(@params, "elementName"),

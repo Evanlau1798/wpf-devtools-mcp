@@ -62,6 +62,36 @@ public class FindElementsToolTests
     }
 
     [Fact]
+    public async Task Execute_WithQuery_ShouldForwardQueryToInspector()
+    {
+        const int processId = 53005;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request =>
+            {
+                request.Method.Should().Be("find_elements");
+                request.Params.HasValue.Should().BeTrue();
+
+                var payload = request.Params!.Value;
+                payload.GetProperty("query").GetString().Should().Be("Apply");
+                payload.GetProperty("maxResults").GetInt32().Should().Be(5);
+
+                return new { success = true, resultCount = 1, truncated = false, results = Array.Empty<object>() };
+            });
+
+        var tool = new FindElementsTool(connected.SessionManager);
+        var result = await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            query = "Apply",
+            maxResults = 5
+        }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Execute_WithControlTypeAlias_ShouldForwardTypeNameToInspector()
     {
         const int processId = 53004;

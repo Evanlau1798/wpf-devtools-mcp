@@ -80,6 +80,8 @@ public class ReadmeDocumentationTests
         content.Should().Contain("pre-release");
         content.Should().Contain("release_<version>_win-<arch>.zip");
         content.Should().Contain("run.bat");
+        content.Should().Contain("trusted release metadata");
+        content.Should().Contain("before using package-local `run.bat`");
         content.Should().Contain("Quickstart");
         content.Should().Contain("Deployment Guide");
         content.Should().Contain("Release Layout");

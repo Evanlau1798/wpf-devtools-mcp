@@ -120,6 +120,38 @@ public static partial class CapabilityResources
                         }
                     }
                 },
+                find_elements = new object[]
+                {
+                    new
+                    {
+                        name = "Find actionable controls by visible text before interaction",
+                        policyGates = new[] { "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS" },
+                        arguments = new
+                        {
+                            processId = 12345,
+                            elementId = "MainWindow",
+                            query = "Apply",
+                            typeNames = new[] { "Button", "MenuItem" },
+                            maxResults = 10
+                        },
+                        followUp = new
+                        {
+                            next = "Call diagnose_visibility and get_interaction_readiness before click_element when the chosen target may be hidden or disabled."
+                        }
+                    },
+                    new
+                    {
+                        name = "Use exact filters for deterministic named controls",
+                        policyGates = new[] { "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS" },
+                        arguments = new
+                        {
+                            processId = 12345,
+                            elementName = "SaveButton",
+                            typeName = "Button",
+                            maxResults = 5
+                        }
+                    }
+                },
                 get_bindings = new[]
                 {
                     new

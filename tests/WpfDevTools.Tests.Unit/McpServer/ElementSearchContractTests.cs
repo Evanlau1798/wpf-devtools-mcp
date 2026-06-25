@@ -11,6 +11,7 @@ public sealed class ElementSearchContractTests
     public void FindElements_ShouldExposeOptionalSearchParameters()
     {
         AssertOptionalParameter(nameof(TreeMcpTools.FindElements), "matchMode", typeof(string), null);
+        AssertOptionalParameter(nameof(TreeMcpTools.FindElements), "query", typeof(string), null);
         AssertOptionalParameter(nameof(TreeMcpTools.FindElements), "controlType", typeof(string), null);
         AssertOptionalParameter(nameof(TreeMcpTools.FindElements), "typeNames", typeof(string[]), null);
         AssertOptionalParameter(nameof(TreeMcpTools.FindElements), "maxTraversalNodes", typeof(int?), null);

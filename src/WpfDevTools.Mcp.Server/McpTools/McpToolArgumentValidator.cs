@@ -10,6 +10,7 @@ internal static class McpToolArgumentValidator
     {
         "processId",
         "elementId",
+        "query",
         "typeName",
         "controlType",
         "typeNames",
@@ -196,7 +197,7 @@ internal static class McpToolArgumentValidator
         {
             Error = $"Unknown argument '{argumentName}' for find_elements.",
             ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
-            Hint = "Use one of: processId, elementId, typeName, controlType, typeNames, elementName, automationId, propertyName, propertyValue, maxResults, maxTraversalNodes, matchMode."
+            Hint = "Use one of: processId, elementId, query, typeName, controlType, typeNames, elementName, automationId, propertyName, propertyValue, maxResults, maxTraversalNodes, matchMode."
         };
     }
 

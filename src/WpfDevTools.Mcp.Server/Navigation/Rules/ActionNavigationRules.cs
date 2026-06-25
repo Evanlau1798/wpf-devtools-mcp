@@ -17,7 +17,7 @@ internal static class ActionNavigationRules
         RegisterSnapshotAwareMutation(registry, "clear_dp_value");
         RegisterSnapshotAwareMutation(registry, "wait_for_dp_change_after_mutation");
         RegisterSnapshotAwareMutation(registry, "force_binding_update");
-        RegisterSnapshotAwareMutation(registry, "focus_element");
+        registry.Register("focus_element", BuildFocusElement);
         RegisterSnapshotAwareMutation(registry, "drag_and_drop");
         RegisterSnapshotAwareMutation(registry, "scroll_to_element");
         RegisterSnapshotAwareMutation(registry, "simulate_keyboard");
@@ -32,12 +32,33 @@ internal static class ActionNavigationRules
             $"Inspect the updated UI state after {toolName}.",
             $"Returns semantic runtime changes caused by {toolName}."));
 
-    private static ToolNavigationEnvelope BuildClickElement(ToolNavigationContext context) =>
-        BuildSnapshotAwareUiVerification(
+    private static ToolNavigationEnvelope BuildClickElement(ToolNavigationContext context)
+    {
+        if (IsInteractionTargetFailure(context.Payload))
+        {
+            return BuildInteractionFailureRecovery(context, includeScopedSearch: true);
+        }
+
+        return BuildSnapshotAwareUiVerification(
             context,
             "click_element",
             "Inspect the updated UI state after the click.",
             "Returns semantic runtime changes caused by the click.");
+    }
+
+    private static ToolNavigationEnvelope BuildFocusElement(ToolNavigationContext context)
+    {
+        if (IsInteractionTargetFailure(context.Payload))
+        {
+            return BuildInteractionFailureRecovery(context, includeScopedSearch: false);
+        }
+
+        return BuildSnapshotAwareUiVerification(
+            context,
+            "focus_element",
+            "Inspect the updated UI state after focus_element.",
+            "Returns semantic runtime changes caused by focus_element.");
+    }
 
     private static ToolNavigationEnvelope BuildExecuteCommand(ToolNavigationContext context) =>
         BuildSnapshotAwareUiVerification(
@@ -236,6 +257,60 @@ internal static class ActionNavigationRules
                 1)
             ]);
 
+    private static ToolNavigationEnvelope BuildInteractionFailureRecovery(
+        ToolNavigationContext context,
+        bool includeScopedSearch)
+    {
+        if (!TryGetString(context.Arguments, "elementId", out var elementId))
+        {
+            return ToolNavigationEnvelope.Empty;
+        }
+
+        var processId = TryGetInt(context.Arguments, "processId");
+        var recommended = new List<ToolNextStep>
+        {
+            new(
+                "diagnose_visibility",
+                NavigationParamBuilders.Create(
+                    ("processId", processId),
+                    ("elementId", elementId)),
+                "Check whether the target is rendered, visible, clipped, disabled, or inside an inactive tab before retrying interaction.",
+                ToolNextStepKind.Diagnostic,
+                1,
+                WhyNow: "The interaction failed before it could mutate state, so visibility is the first recovery signal.",
+                Confidence: "high"),
+            new(
+                "get_interaction_readiness",
+                NavigationParamBuilders.Create(
+                    ("processId", processId),
+                    ("elementId", elementId),
+                    ("interactionType", "Click")),
+                "Explain click/focus blockers on the target before choosing another interaction path.",
+                ToolNextStepKind.Diagnostic,
+                2,
+                WhyNow: "Readiness combines enabled state, visibility, tab activation, and click support.",
+                Confidence: "high")
+        };
+
+        if (includeScopedSearch)
+        {
+            recommended.Add(new ToolNextStep(
+                "find_elements",
+                NavigationParamBuilders.Create(
+                    ("processId", processId),
+                    ("elementId", elementId),
+                    ("typeNames", new[] { "Button", "TextBox", "ComboBox", "CheckBox", "MenuItem" }),
+                    ("maxResults", 20)),
+                "Find a visible actionable descendant before retrying click_element on a broad container or root element.",
+                ToolNextStepKind.Navigation,
+                3,
+                WhyNow: "The supplied element was not directly clickable; scoped lookup avoids broad tree expansion.",
+                Confidence: "medium"));
+        }
+
+        return ToolNavigationEnvelope.FromRecommended(recommended);
+    }
+
     private static ToolNavigationEnvelope BuildSnapshotAwareUiVerification(
         ToolNavigationContext context,
         string sourceTool,
@@ -266,6 +341,19 @@ internal static class ActionNavigationRules
         (TryGetBool(payload, "success", out var success) && !success)
         || (TryGetBool(payload, "requiresReconnect", out var requiresReconnect) && requiresReconnect)
         || (TryGetBool(payload, "stateAfterTimeoutUnknown", out var stateAfterTimeoutUnknown) && stateAfterTimeoutUnknown);
+
+    private static bool IsInteractionTargetFailure(JsonElement? payload)
+    {
+        if (!TryGetBool(payload, "success", out var success) || success)
+        {
+            return false;
+        }
+
+        return TryGetString(payload, "errorCode", out var errorCode)
+            && (string.Equals(errorCode, "ElementNotLoaded", StringComparison.Ordinal)
+                || string.Equals(errorCode, "ElementNotClickable", StringComparison.Ordinal)
+                || string.Equals(errorCode, "ElementNotVisible", StringComparison.Ordinal));
+    }
 
     private static bool TryBuildStateDiffStep(
         ToolNavigationContext context,

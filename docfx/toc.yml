@@ -8,6 +8,8 @@
   href: production/security.md
 - name: Reference
   href: reference/tools/index.md
+- name: Agent Feedback
+  href: agent-feedback/index.md
 - name: Architecture
   href: architecture/overview.md
 - name: Maintainers

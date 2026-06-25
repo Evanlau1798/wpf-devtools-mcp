@@ -46,6 +46,8 @@
       href: reference/error-model.md
     - name: API 參考
       href: ../api/toc.yml
+- name: Agent 使用心得
+  href: agent-feedback/index.md
 - name: 架構
   items:
     - name: 架構總覽

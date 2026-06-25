@@ -130,7 +130,6 @@ function Get-MarkdownFiles {
             $relative = Get-RelativePath -BasePath $DocfxRoot -Path $_.FullName
             $parts = $relative -split '[\\/]'
             $parts -notcontains '_site' -and
-                $parts -notcontains 'agent-feedback' -and
                 $parts -notcontains 'api' -and
                 $parts -notcontains 'obj'
         }
@@ -472,9 +471,6 @@ if ($script:Failures.Count -eq 0) {
     Test-LocaleTocIsolation -DocfxRoot $docfxRoot
     Test-ReleaseSidecarDocumentation -RepoRoot $repoRootFull
     Test-ViewModelPolicyDocumentation -RepoRoot $repoRootFull
-    foreach ($excludedPublicPath in @('agent-feedback', 'zh-tw/agent-feedback')) {
-        if (Test-Path -LiteralPath (Join-RelativePath -Root $siteRoot -RelativePath $excludedPublicPath)) { Add-ValidationFailure "Excluded public DocFX output remains in _site: $excludedPublicPath" }
-    }
 }
 if ($script:Failures.Count -eq 0) {
     Test-ZhTwParity -DocfxRoot $docfxRoot

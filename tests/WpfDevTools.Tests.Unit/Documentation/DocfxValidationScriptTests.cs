@@ -58,7 +58,7 @@ public sealed class DocfxValidationScriptTests
     }
 
     [Fact]
-    public void Script_ShouldIgnoreAgentFeedbackMarkdownExcludedFromPublicDocfx()
+    public void Script_ShouldRequireGeneratedAgentFeedbackPages()
     {
         var fixture = CreateFixture();
         try
@@ -69,8 +69,9 @@ public sealed class DocfxValidationScriptTests
 
             var result = RunValidationScript(fixture);
 
-            result.ExitCode.Should().Be(0, result.CombinedOutput);
-            result.CombinedOutput.Should().Contain("DocFX documentation validation passed");
+            result.ExitCode.Should().NotBe(0);
+            result.CombinedOutput.Should().Contain("Missing generated DocFX page");
+            result.CombinedOutput.Should().Contain("agent-feedback");
         }
         finally
         {
@@ -79,20 +80,23 @@ public sealed class DocfxValidationScriptTests
     }
 
     [Fact]
-    public void Script_ShouldFailWhenExcludedAgentFeedbackOutputRemainsInSite()
+    public void Script_ShouldAllowGeneratedAgentFeedbackOutput()
     {
         var fixture = CreateFixture();
         try
         {
             WriteValidDocumentationFixture(fixture);
+            WriteFile(fixture, "docfx/agent-feedback/index.md", "# Agent feedback\n");
+            WriteFile(fixture, "docfx/zh-tw/agent-feedback/index.md", "# Agent feedback\n");
             WriteFile(fixture, "docfx/_site/agent-feedback/index.html",
+                """<html><body><h1>Agent feedback</h1></body></html>""");
+            WriteFile(fixture, "docfx/_site/zh-tw/agent-feedback/index.html",
                 """<html><body><h1>Agent feedback</h1></body></html>""");
 
             var result = RunValidationScript(fixture);
 
-            result.ExitCode.Should().NotBe(0);
-            result.CombinedOutput.Should().Contain("Excluded public DocFX output remains in _site");
-            result.CombinedOutput.Should().Contain("agent-feedback");
+            result.ExitCode.Should().Be(0, result.CombinedOutput);
+            result.CombinedOutput.Should().Contain("DocFX documentation validation passed");
         }
         finally
         {

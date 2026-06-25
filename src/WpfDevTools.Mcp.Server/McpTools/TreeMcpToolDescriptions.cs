@@ -141,6 +141,7 @@ internal static class TreeMcpToolDescriptions
         "DO NOT USE: As a full query language. This wave supports exact-match and case-insensitive contains filters only.\n\n" +
         "SUPPORTED FILTERS:\n" +
         "- typeName\n" +
+        "- controlType (compatibility alias for typeName; prefer typeName in new calls)\n" +
         "- typeNames\n" +
         "- elementName\n" +
         "- automationId\n" +
@@ -162,6 +163,7 @@ internal static class TreeMcpToolDescriptions
         "- \"maxTraversalNodes\" -> must be a positive integer\n\n" +
         "EXAMPLES:\n" +
         "- { \"processId\": 12345, \"typeName\": \"Button\", \"maxResults\": 10 }\n" +
+        "- { \"processId\": 12345, \"controlType\": \"Button\", \"maxResults\": 10 }\n" +
         "- { \"processId\": 12345, \"elementName\": \"SaveButton\" }\n" +
         "- { \"processId\": 12345, \"propertyName\": \"Text\", \"propertyValue\": \"Ready\" }";
 

@@ -17,7 +17,8 @@ public sealed class FindElementsTool : PipeConnectedToolBase
         var unknownArgumentError = McpToolArgumentValidator.ValidateFindElementsArguments(arguments);
         if (unknownArgumentError != null) return unknownArgumentError;
 
-        var typeName = ParseStringParam(arguments, "typeName");
+        var typeName = ParseStringParam(arguments, "typeName")
+            ?? ParseStringParam(arguments, "controlType");
         var typeNames = ParseStringArrayParam(arguments, "typeNames");
         var elementName = ParseStringParam(arguments, "elementName");
         var automationId = ParseStringParam(arguments, "automationId");

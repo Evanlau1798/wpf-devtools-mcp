@@ -62,6 +62,36 @@ public class FindElementsToolTests
     }
 
     [Fact]
+    public async Task Execute_WithControlTypeAlias_ShouldForwardTypeNameToInspector()
+    {
+        const int processId = 53004;
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request =>
+            {
+                request.Method.Should().Be("find_elements");
+                request.Params.HasValue.Should().BeTrue();
+
+                var payload = request.Params!.Value;
+                payload.GetProperty("typeName").GetString().Should().Be("Button");
+                payload.TryGetProperty("controlType", out _).Should().BeFalse();
+
+                return new { success = true, resultCount = 0, truncated = false, results = Array.Empty<object>() };
+            });
+
+        var tool = new FindElementsTool(connected.SessionManager);
+        var result = await tool.ExecuteAsync(ToJsonElement(new
+        {
+            processId,
+            controlType = "Button",
+            maxResults = 5
+        }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Execute_WithUnknownNameFilter_ShouldReturnInvalidArgumentBeforeInspectorRequest()
     {
         const int processId = 53003;

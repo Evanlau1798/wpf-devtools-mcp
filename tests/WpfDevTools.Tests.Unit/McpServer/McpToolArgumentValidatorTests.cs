@@ -32,6 +32,7 @@ public sealed class McpToolArgumentValidatorTests
         var arguments = ToArguments(new
         {
             processId = 12345,
+            controlType = "Button",
             elementName = "SubmitButton",
             maxResults = 10
         });

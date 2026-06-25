@@ -59,15 +59,20 @@ internal static class TreeMcpToolDescriptions
         TreeMetadata + "[Tree] Serialize a WPF element to its XAML representation. " +
         "Returns the XAML markup string for the element and its children.\n\n" +
         "USE WHEN: You need to understand element structure in markup form or export UI definition.\n" +
-        "DO NOT USE: On large subtrees (use elementId to scope to specific element).\n\n" +
+        "DO NOT USE: As a root-window dump or with selector-style arguments. First use get_ui_summary, get_visual_tree, get_logical_tree, or find_elements to obtain a current elementId.\n\n" +
+        "REQUEST FORMAT:\n" +
+        "- elementId: required current runtime element ID from this connected session\n" +
+        "- processId: optional after connect(processId) or select_active_process(processId)\n" +
+        "- Unsupported: selector, maxDepth, and maxNodes are rejected before pipe access; use tree tools to narrow scope first.\n\n" +
         "RESPONSE SUMMARY:\n" +
         "  - success: boolean,\n" +
         "  - xaml: string\n\n" +
         "ERRORS:\n" +
+        "- \"missing elementId\" -> call get_ui_summary, get_visual_tree, get_logical_tree, or find_elements first\n" +
+        "- \"unknown argument\" -> use only processId and elementId\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"serialization failed\" -> element may contain non-serializable properties\n\n" +
         "EXAMPLES:\n" +
-        "- { \"processId\": 12345 }\n" +
         "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }";
 
     public const string GetNamescope =

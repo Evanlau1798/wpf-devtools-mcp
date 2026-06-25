@@ -22,10 +22,17 @@ internal static class McpToolArgumentValidator
         "matchMode"
     };
 
+    private static readonly HashSet<string> SerializeToXamlArgumentNames = new(StringComparer.Ordinal)
+    {
+        "processId",
+        "elementId"
+    };
+
     private static readonly Dictionary<string, string[]> RequiredArgumentsByTool = new(StringComparer.Ordinal)
     {
         ["get_event_handlers"] = ["eventName", "elementId"],
-        ["fire_routed_event"] = ["eventName", "elementId"]
+        ["fire_routed_event"] = ["eventName", "elementId"],
+        ["serialize_to_xaml"] = ["elementId"]
     };
 
     public static CallToolResult? Validate(
@@ -33,6 +40,20 @@ internal static class McpToolArgumentValidator
         IEnumerable<KeyValuePair<string, JsonElement>>? arguments)
     {
         var argumentArray = arguments?.ToArray();
+        if (string.Equals(toolName, "serialize_to_xaml", StringComparison.Ordinal)
+            && argumentArray is not null)
+        {
+            foreach (var argument in argumentArray)
+            {
+                if (SerializeToXamlArgumentNames.Contains(argument.Key))
+                {
+                    continue;
+                }
+
+                return CreateSerializeToXamlErrorResult(argument.Key);
+            }
+        }
+
         if (toolName is not null
             && RequiredArgumentsByTool.TryGetValue(toolName, out var requiredArguments)
             && TryFindMissingRequiredArgument(argumentArray, requiredArguments, out var missingArgument))
@@ -145,6 +166,16 @@ internal static class McpToolArgumentValidator
             suggestedAction: payload.Hint);
     }
 
+    private static CallToolResult CreateSerializeToXamlErrorResult(string argumentName)
+    {
+        var payload = CreateSerializeToXamlErrorPayload(argumentName);
+        return ToolCallHelper.CreateStructuredErrorResult(
+            payload.Error,
+            payload.ErrorCode,
+            payload.Hint,
+            suggestedAction: payload.Hint);
+    }
+
     private static ToolErrorPayload CreateFindElementsErrorPayload(string argumentName)
     {
         if (string.Equals(argumentName, "nameFilter", StringComparison.Ordinal))
@@ -164,4 +195,12 @@ internal static class McpToolArgumentValidator
             Hint = "Use one of: processId, elementId, typeName, controlType, typeNames, elementName, automationId, propertyName, propertyValue, maxResults, maxTraversalNodes, matchMode."
         };
     }
+
+    private static ToolErrorPayload CreateSerializeToXamlErrorPayload(string argumentName) =>
+        new()
+        {
+            Error = $"Unknown argument '{argumentName}' for serialize_to_xaml.",
+            ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
+            Hint = "Call get_ui_summary, get_visual_tree, or find_elements first to obtain a current elementId, then call serialize_to_xaml with only processId and elementId."
+        };
 }

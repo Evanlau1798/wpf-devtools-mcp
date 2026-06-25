@@ -80,8 +80,8 @@ public static class TreeMcpTools
     [Description(TreeMcpToolDescriptions.SerializeToXaml)]
     public static Task<CallToolResult> SerializeToXaml(
         SessionManager sessionManager,
+        [Description("Current runtime element ID to serialize. Obtain this from get_ui_summary, find_elements, get_visual_tree, or get_logical_tree in the same session.")] string elementId,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
-        [Description("Optional element ID to serialize. Omit to serialize the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

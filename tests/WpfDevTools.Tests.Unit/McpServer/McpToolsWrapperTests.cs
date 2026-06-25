@@ -230,7 +230,7 @@ public class McpToolsWrapperTests : IDisposable
     [Fact]
     public async Task SerializeToXaml_WithUnconnectedProcess_ShouldReturnError()
     {
-        var result = await TreeMcpTools.SerializeToXaml(_sessionManager, processId: 99999);
+        var result = await TreeMcpTools.SerializeToXaml(_sessionManager, elementId: "Button_1", processId: 99999);
         result.IsError.Should().BeTrue();
     }
 

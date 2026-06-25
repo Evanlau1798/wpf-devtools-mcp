@@ -20,7 +20,7 @@
 - 需要看 template 產生出的 visual children 時，用 **template tree**
 - 需要找穩定的命名部件時，用 **namescope**
 - 需要檢查 dialog 或 secondary window 時，用 **`get_windows`**；將回傳的 window `elementId` 傳給 tree、scene 或其他 element-scoped 工具。
-- 需要取得精簡的 XAML 近似表示時，用 **serialize_to_xaml**
+- 只有在 scene、tree 或 search 工具已回傳目前 session 的 `elementId` 後，才使用 **serialize_to_xaml(elementId)** 取得該子樹的 XAML 近似表示。
 
 ## 預設輸出上限
 
@@ -29,6 +29,8 @@
 `get_template_tree` 使用同樣的預設 node 與 fan-out caps；需要更小的 template payload 時，也可以傳入 `maxNodes` 與 `maxChildrenPerNode`。若回傳被截斷，先檢查 `returnedNodeCount`、`omittedNodeCount`、`truncated` 以及節點上的 `omittedChildCount`，再決定要縮小範圍或提高 caps。
 
 `find_elements` 也會在評估 match 前套用 traversal cap：`maxTraversalNodes` 預設為 `1000`，最高接受 `10000`。若搜尋回傳 `traversalTruncated=true`，先檢查 `traversalNodeCount`，並優先縮小 root 或 filters，再考慮提高 traversal cap。
+
+`serialize_to_xaml` 會要求 `elementId`，並拒絕 `selector`、`maxDepth`、`maxNodes` 這類 selector-style 參數。請先用 `get_ui_summary`、`get_visual_tree`、`get_logical_tree` 或 `find_elements` 取得具體元素，避免意外序列化大型 root window。
 
 ## 常見陷阱
 

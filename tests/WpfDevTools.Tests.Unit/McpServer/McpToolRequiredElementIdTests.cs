@@ -16,6 +16,7 @@ public sealed class McpToolRequiredElementIdTests
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.StyleMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.StyleMcpTools.OverrideStyleSetter))]
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.LayoutMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.LayoutMcpTools.HighlightElement))]
     [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.LayoutMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.LayoutMcpTools.GetClippingInfo))]
+    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.SerializeToXaml))]
     public void ToolsThatRequireConcreteTargets_ShouldPublishElementIdAsRequired(Type toolType, string methodName)
     {
         var schema = CreateInputSchema(toolType, methodName);

@@ -89,6 +89,27 @@ public sealed class McpToolRequiredElementIdTests
         AssertStructuredMissingParameter(result!, "elementId");
     }
 
+    [Theory]
+    [InlineData("get_state_diff", "snapshotId")]
+    [InlineData("restore_state_snapshot", "snapshotId")]
+    [InlineData("simulate_keyboard", "key")]
+    [InlineData("execute_command", "commandName")]
+    public void ToolsWithRequiredNonElementParameters_ShouldRejectMissingArgumentBeforeSdkBinding(
+        string toolName,
+        string parameterName)
+    {
+        var result = McpToolArgumentValidator.Validate(
+            toolName,
+            new Dictionary<string, JsonElement>
+            {
+                ["processId"] = JsonSerializer.SerializeToElement(12345)
+            });
+
+        result.Should().NotBeNull(
+            "the server call filter should return a structured missing-parameter error before MCP SDK method binding");
+        AssertStructuredMissingParameter(result!, parameterName);
+    }
+
     private static void AssertStructuredMissingParameter(CallToolResult result, string parameterName)
     {
         result.IsError.Should().BeTrue();

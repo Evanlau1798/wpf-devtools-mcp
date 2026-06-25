@@ -32,6 +32,10 @@ internal static class McpToolArgumentValidator
     {
         ["get_event_handlers"] = ["eventName", "elementId"],
         ["fire_routed_event"] = ["eventName", "elementId"],
+        ["get_state_diff"] = ["snapshotId"],
+        ["restore_state_snapshot"] = ["snapshotId"],
+        ["simulate_keyboard"] = ["key"],
+        ["execute_command"] = ["commandName"],
         ["serialize_to_xaml"] = ["elementId"]
     };
 

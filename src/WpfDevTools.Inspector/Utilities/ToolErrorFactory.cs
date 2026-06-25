@@ -138,6 +138,22 @@ public static class ToolErrorFactory
         });
 
     /// <summary>
+    /// Create a recoverable error for root/window XAML serialization requests.
+    /// </summary>
+    public static ToolErrorPayload XamlRootWindowSerializationBlocked(
+        string? elementId,
+        string elementType) => Create(
+        ToolErrorCode.InvalidArgument,
+        "serialize_to_xaml cannot safely serialize root Window scopes.",
+        "Use get_ui_summary, get_visual_tree, get_logical_tree, or find_elements to target a smaller descendant elementId before retrying serialize_to_xaml.",
+        new
+        {
+            elementId,
+            elementType,
+            reasonCode = "RootWindowSerializationBlocked"
+        });
+
+    /// <summary>
     /// Create a structured error payload from primitive parts.
     /// </summary>
     public static ToolErrorPayload Create(

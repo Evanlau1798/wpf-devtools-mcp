@@ -136,6 +136,12 @@ public class TreeHandlers : IRequestHandler
             return Task.FromResult<object>(ToolErrorFactory.ElementNotFound(elementId));
         }
 
+        var scopeError = CreateUnsafeXamlSerializationScopeError(elementId, element);
+        if (scopeError != null)
+        {
+            return Task.FromResult<object>(scopeError);
+        }
+
         var dispatcher = element.Dispatcher ?? System.Windows.Application.Current?.Dispatcher;
         if (dispatcher == null)
         {
@@ -267,6 +273,16 @@ public class TreeHandlers : IRequestHandler
                 maxByteLength = _maxSerializedXamlUtf8Bytes,
                 messageFramingMaxByteLength = MessageFraming.MaxMessageSizeBytes
             });
+    }
+
+    private static object? CreateUnsafeXamlSerializationScopeError(string? elementId, object element)
+    {
+        if (elementId == null || element is System.Windows.Window)
+        {
+            return ToolErrorFactory.XamlRootWindowSerializationBlocked(elementId, element.GetType().Name);
+        }
+
+        return null;
     }
 
     private static TimeSpan? ValidateTimeout(TimeSpan? timeout)

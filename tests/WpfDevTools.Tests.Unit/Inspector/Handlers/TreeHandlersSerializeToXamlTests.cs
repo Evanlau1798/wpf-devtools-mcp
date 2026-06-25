@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text;
+using System.Windows;
 using System.Threading;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -249,6 +250,32 @@ public sealed class TreeHandlersSerializeToXamlTests
         json.GetProperty("errorData").GetProperty("elementId").GetString().Should().Be(elementId);
         json.GetProperty("errorData").GetProperty("elementType").GetString().Should().Be("Button");
         json.GetProperty("errorData").GetProperty("exceptionType").GetString().Should().NotBeNullOrWhiteSpace();
+    }
+
+    [StaFact]
+    public async Task SerializeToXaml_WhenTargetIsWindow_ShouldReturnRecoverableInvalidArgument()
+    {
+        using var finder = new ElementFinder();
+        var window = new Window
+        {
+            Content = new Grid()
+        };
+        var elementId = finder.GenerateElementId(window);
+        var handler = CreateHandler(finder);
+
+        var result = await handler.HandleAsync(
+            "serialize_to_xaml",
+            ToJsonElement(new { elementId }),
+            CancellationToken.None);
+        var json = JsonSerializer.SerializeToElement(result);
+
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        json.GetProperty("hint").GetString().Should().Contain("smaller descendant");
+        json.GetProperty("errorData").GetProperty("elementId").GetString().Should().Be(elementId);
+        json.GetProperty("errorData").GetProperty("elementType").GetString().Should().Be("Window");
+        json.GetProperty("errorData").GetProperty("reasonCode").GetString()
+            .Should().Be("RootWindowSerializationBlocked");
     }
 
     private static TreeHandlers CreateHandler(

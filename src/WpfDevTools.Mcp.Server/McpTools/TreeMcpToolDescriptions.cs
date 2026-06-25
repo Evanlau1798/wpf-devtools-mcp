@@ -59,7 +59,7 @@ internal static class TreeMcpToolDescriptions
         TreeMetadata + "[Tree] Serialize a WPF element to its XAML representation. " +
         "Returns the XAML markup string for the element and its children.\n\n" +
         "USE WHEN: You need to understand element structure in markup form or export UI definition.\n" +
-        "DO NOT USE: As a root-window dump or with selector-style arguments. First use get_ui_summary, get_visual_tree, get_logical_tree, or find_elements to obtain a current elementId.\n\n" +
+        "DO NOT USE: As a root-window dump or with selector-style arguments. Window/root elementIds are rejected before XAML serialization. First use get_ui_summary, get_visual_tree, get_logical_tree, or find_elements to obtain a smaller current elementId.\n\n" +
         "REQUEST FORMAT:\n" +
         "- elementId: required current runtime element ID from this connected session\n" +
         "- processId: optional after connect(processId) or select_active_process(processId)\n" +
@@ -67,12 +67,15 @@ internal static class TreeMcpToolDescriptions
         "RESPONSE SUMMARY:\n" +
         "  - success: boolean\n" +
         "  - xaml: string when success=true\n" +
+        "  - errorCode: InvalidArgument with reasonCode=RootWindowSerializationBlocked when elementId targets a root Window scope\n" +
         "  - errorCode: XamlSerializationFailed when WPF cannot serialize the requested runtime element\n" +
+        "  - errorData: { elementId, elementType, reasonCode } for blocked root/window scopes\n" +
         "  - errorData: { elementId, elementType, exceptionType } for serialization failures\n\n" +
         "ERRORS:\n" +
         "- \"missing elementId\" -> call get_ui_summary, get_visual_tree, get_logical_tree, or find_elements first\n" +
         "- \"unknown argument\" -> use only processId and elementId\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
+        "- \"InvalidArgument\" with reasonCode=RootWindowSerializationBlocked -> target a smaller descendant elementId first\n" +
         "- \"XamlSerializationFailed\" -> element contains runtime-only or non-serializable values; inspect a smaller subtree first\n\n" +
         "EXAMPLES:\n" +
         "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }";

@@ -6,19 +6,24 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public sealed class AgentFeedbackDocumentationTests
 {
     [Theory]
-    [InlineData("docfx/agent-feedback/index.md", "Agent Feedback", "Suggested report skeleton", "template.md")]
-    [InlineData("docfx/zh-tw/agent-feedback/index.md", "Agent 使用心得", "建議骨架", "template.md")]
-    public void AgentFeedbackIndexPages_ShouldExistAndDescribeReportStructure(
+    [InlineData("docfx/agent-feedback/index.md", "Agent Feedback", "2026-03-17-agent-feedback-63-tool-e2e-validation.md", "2026-06-24-agent-feedback-security-deep-scan.md")]
+    [InlineData("docfx/zh-tw/agent-feedback/index.md", "Agent 使用心得", "2026-03-17-agent-feedback-63-tool-e2e-validation.md", "2026-06-24-agent-feedback-security-deep-scan.md")]
+    public void AgentFeedbackIndexPages_ShouldBeEntryPagesOnly(
         string relativePath,
         string expectedHeading,
-        string expectedStructureHeading,
-        string expectedTemplateLink)
+        string firstReportHref,
+        string secondReportHref)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
         content.Should().Contain(expectedHeading);
-        content.Should().Contain(expectedStructureHeading);
-        content.Should().Contain(expectedTemplateLink);
+        content.Should().Contain(firstReportHref);
+        content.Should().Contain(secondReportHref);
+        content.Should().NotContain("Template");
+        content.Should().NotContain("範本");
+        content.Should().NotContain("Suggested report skeleton");
+        content.Should().NotContain("建議骨架");
+        content.Length.Should().BeLessThan(1200, "the index page should remain a compact document entry point");
     }
 
     [Theory]
@@ -42,33 +47,23 @@ public sealed class AgentFeedbackDocumentationTests
         content.Should().NotContain("zh-tw/agent-feedback/**");
     }
 
-    [Theory]
-    [InlineData("docfx/agent-feedback/template.md", "# Agent Feedback Template")]
-    [InlineData("docfx/zh-tw/agent-feedback/template.md", "# Agent 使用心得範本")]
-    public void AgentFeedbackTemplates_ShouldExistWithoutTocExposure(
-        string relativePath,
-        string expectedHeading)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain(expectedHeading);
-    }
-
     [Fact]
-    public void AgentFeedbackTrackedPages_ShouldNotPublishStaleValidationReports()
+    public void AgentFeedbackTrackedPages_ShouldContainOnlyApprovedReportsAndIndexes()
     {
         var trackedFiles = GetTrackedAgentFeedbackFiles();
 
         trackedFiles.Should().BeEquivalentTo(
             [
+                "docfx/agent-feedback/2026-03-17-agent-feedback-63-tool-e2e-validation.md",
+                "docfx/agent-feedback/2026-06-24-agent-feedback-security-deep-scan.md",
                 "docfx/agent-feedback/index.md",
-                "docfx/agent-feedback/template.md",
                 "docfx/agent-feedback/toc.yml",
+                "docfx/zh-tw/agent-feedback/2026-03-17-agent-feedback-63-tool-e2e-validation.md",
+                "docfx/zh-tw/agent-feedback/2026-06-24-agent-feedback-security-deep-scan.md",
                 "docfx/zh-tw/agent-feedback/index.md",
-                "docfx/zh-tw/agent-feedback/template.md"
             ],
-            "only the official entry and template pages should be tracked; validation reports must be current before publication");
-        trackedFiles.Should().NotContain(path => path.Contains("63-tool", StringComparison.OrdinalIgnoreCase));
+            "only the approved feedback reports and compact entry pages should be tracked");
+        trackedFiles.Should().NotContain(path => path.Contains("template", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string GetRepoFilePath(string relativePath)

@@ -47,6 +47,12 @@ public sealed partial class BatchMutateTool
                     $"Unsupported mutation tool '{tool}'. Supported tools: {string.Join(", ", BatchMutationCatalog.SupportedTools)}."));
             }
 
+            if (mutationElement.TryGetProperty("arguments", out _))
+            {
+                return (null, CreateInvalidParamError(
+                    "Each mutations item uses 'arguments', but batch_mutate mutation steps must put nested tool inputs under 'args': { \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Text\", \"value\": \"Ready\" } }."));
+            }
+
             JsonElement args = JsonSerializer.SerializeToElement(new { });
             if (mutationElement.TryGetProperty("args", out var argsElement))
             {

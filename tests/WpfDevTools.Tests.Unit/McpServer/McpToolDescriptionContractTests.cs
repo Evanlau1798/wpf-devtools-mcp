@@ -109,6 +109,17 @@ public sealed class McpToolDescriptionContractTests
         description.Should().Contain("stringified JSON array");
         description.Should().Contain("Nested args must not include processId");
         description.Should().Contain("includeDiff=true requires captureSnapshot");
+        description.Should().Contain("not `arguments`");
+    }
+
+    [Fact]
+    public void WaitForDpChangeAfterMutation_Description_ShouldDocumentTriggerMutationArgsShape()
+    {
+        var description = GetDescriptionText("wait_for_dp_change_after_mutation");
+
+        description.Should().Contain("triggerMutation");
+        description.Should().Contain("`args`");
+        description.Should().Contain("not `arguments`");
     }
 
     [Fact]

@@ -154,7 +154,7 @@ internal static class DependencyPropertyMcpToolDescriptions
         "This tool is designed for STDIO transports where push notifications are not available and the client cannot issue concurrent calls on the same session.\n\n" +
         "USE WHEN: Your MCP client must mutate and then wait inside one bounded request without sending a second concurrent tool call.\n" +
         "DO NOT USE: For plain read-only waits. Use wait_for_dp_change when you only need to observe existing runtime state.\n\n" +
-        "MUTATION STEP: Provide `triggerMutation` using the same shape as one `batch_mutate` step. The server will execute that mutation first, then wait for the property transition. This workflow is destructive because it mutates live runtime state before waiting.\n\n" +
+        "MUTATION STEP: Provide `triggerMutation` using the same shape as one `batch_mutate` step. Nested mutation inputs must be under `args`, not `arguments`. The server will execute that mutation first, then wait for the property transition. This workflow is destructive because it mutates live runtime state before waiting.\n\n" +
         "LIMITS: timeoutMs defaults to 5000 and is capped at 25000 so the mutation-plus-wait request finishes before the inspector host hard request timeout.\n\n" +
         "OPTIONAL MATCHING: Provide `expectedValue` to wait until the property equals a specific value after the mutation. Omit it to stop on any value change.\n\n" +
         "RESPONSE SUMMARY:\n" +

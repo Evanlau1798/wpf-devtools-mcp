@@ -43,4 +43,40 @@ public sealed class WaitForDpChangeToolCompatibilityTests
         waitJson.GetProperty("completionReason").GetString().Should().Be("ExpectedValueReached");
         connected.RequestMethods.Should().Contain("modify_viewmodel");
     }
+
+    [Fact]
+    public async Task Execute_WithTriggerMutationArgumentsProperty_ShouldReturnActionableShapeError()
+    {
+        const int processId = 4748;
+        using var connected = await CreateConnectedSessionAsync(processId);
+        var waitTool = new WaitForDpChangeTool(connected.SessionManager);
+
+        var waitResult = await waitTool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId,
+                propertyName = "Text",
+                expectedValue = JsonSerializer.SerializeToElement("after"),
+                timeoutMs = 1000,
+                pollIntervalMs = 50,
+                triggerMutation = new
+                {
+                    tool = "modify_viewmodel",
+                    arguments = new
+                    {
+                        propertyName = "Name",
+                        value = "after"
+                    }
+                }
+            }),
+            CancellationToken.None);
+
+        var waitJson = JsonSerializer.SerializeToElement(waitResult);
+        waitJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        waitJson.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        waitJson.GetProperty("error").GetString().Should().Contain("triggerMutation");
+        waitJson.GetProperty("error").GetString().Should().Contain("arguments");
+        waitJson.GetProperty("error").GetString().Should().Contain("args");
+        connected.RequestMethods.Should().NotContain("modify_viewmodel");
+    }
 }

@@ -164,7 +164,7 @@ public static class DependencyPropertyMcpTools
     public static Task<CallToolResult> WaitForDpChangeAfterMutation(
         SessionManager sessionManager,
         [Description("DependencyProperty name to monitor for changes after the mutation runs.")] string propertyName,
-        [Description("Single mutation step as a JSON object, using the same shape as one batch_mutate item: { \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Width\", \"value\": 100 } }.")] JsonElement triggerMutation,
+        [Description("Single mutation step as a JSON object, using the same shape as one batch_mutate item. Use args, not arguments: { \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Width\", \"value\": 100 } }.")] JsonElement triggerMutation,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         [Description("Optional timeout in milliseconds. Default: 5000. Maximum: 25000.")] int? timeoutMs = null,

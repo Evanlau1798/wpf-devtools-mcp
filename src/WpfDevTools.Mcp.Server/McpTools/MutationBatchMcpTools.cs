@@ -17,7 +17,7 @@ public static class MutationBatchMcpTools
     [Description(MutationBatchMcpToolDescriptions.BatchMutate)]
     public static Task<CallToolResult> BatchMutate(
         SessionManager sessionManager,
-        [Description("Mutation steps as a JSON array. Each step must include tool (string) and may include label (string) plus args (object). Example: [{ \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Width\", \"value\": 100 } }]")] JsonElement? mutations = null,
+        [Description("Mutation steps as a JSON array. Each step must include tool (string) and may include label (string) plus args (object), not arguments. Example: [{ \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Width\", \"value\": 100 } }]")] JsonElement? mutations = null,
         [Description("Optional capture_state_snapshot request as a JSON object. Required when includeDiff=true. Example: { \"propertyNames\": [\"Text\"], \"viewModelPropertyNames\": [\"Name\"] }")] JsonElement? captureSnapshot = null,
         [Description("Optional flag to run get_state_diff after all mutations succeed. Requires captureSnapshot.")] bool includeDiff = false,
         [Description("Optional trigger label forwarded to get_state_diff. Defaults to 'batch_mutate'.")] string? trigger = null,

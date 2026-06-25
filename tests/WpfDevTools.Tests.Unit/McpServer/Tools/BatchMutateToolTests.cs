@@ -299,6 +299,46 @@ public sealed class BatchMutateToolTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WithMutationArgumentsProperty_ShouldRejectPayloadBeforeExecution()
+    {
+        var mutationCalled = false;
+        var tool = new BatchMutateTool(
+            new SessionManager(),
+            (_, _, _) =>
+            {
+                mutationCalled = true;
+                return Task.FromResult<object>(new { success = true });
+            },
+            null,
+            null);
+
+        var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
+            ToJsonElement(new
+            {
+                processId = 12345,
+                mutations = new object[]
+                {
+                    new
+                    {
+                        tool = "set_dp_value",
+                        arguments = new
+                        {
+                            propertyName = "Text",
+                            value = "Ready"
+                        }
+                    }
+                }
+            }),
+            CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        result.GetProperty("error").GetString().Should().Contain("arguments");
+        result.GetProperty("error").GetString().Should().Contain("args");
+        mutationCalled.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WithNestedCaptureSnapshotProcessId_ShouldRejectPayloadBeforeSnapshot()
     {
         var snapshotCalled = false;

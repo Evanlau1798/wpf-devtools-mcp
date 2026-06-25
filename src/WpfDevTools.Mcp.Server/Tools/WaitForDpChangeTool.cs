@@ -94,6 +94,12 @@ public sealed partial class WaitForDpChangeTool : PipeConnectedToolBase
 
         if (arguments.HasValue && hasTriggerMutation)
         {
+            if (parsedTriggerMutation.TryGetProperty("arguments", out _))
+            {
+                return CreateInvalidParamError(
+                    "triggerMutation uses 'arguments', but wait_for_dp_change_after_mutation requires the nested mutation inputs under 'args': { \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Text\", \"value\": \"Ready\" } }.");
+            }
+
             triggerMutation = parsedTriggerMutation;
         }
 

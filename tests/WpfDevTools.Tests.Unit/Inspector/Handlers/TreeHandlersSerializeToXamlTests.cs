@@ -229,6 +229,28 @@ public sealed class TreeHandlersSerializeToXamlTests
         json.GetProperty("errorData").GetProperty("maxByteLength").GetInt32().Should().Be(byteBudget);
     }
 
+    [StaFact]
+    public async Task SerializeToXaml_WhenXamlWriterCannotSerializeElement_ShouldReturnStructuredFailure()
+    {
+        using var finder = new ElementFinder();
+        var button = new Button { Content = new PayloadWithoutDefaultConstructor("probe") };
+        var elementId = finder.GenerateElementId(button);
+        var handler = CreateHandler(finder);
+
+        var result = await handler.HandleAsync(
+            "serialize_to_xaml",
+            ToJsonElement(new { elementId }),
+            CancellationToken.None);
+        var json = JsonSerializer.SerializeToElement(result);
+
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("XamlSerializationFailed");
+        json.GetProperty("hint").GetString().Should().Contain("smaller element");
+        json.GetProperty("errorData").GetProperty("elementId").GetString().Should().Be(elementId);
+        json.GetProperty("errorData").GetProperty("elementType").GetString().Should().Be("Button");
+        json.GetProperty("errorData").GetProperty("exceptionType").GetString().Should().NotBeNullOrWhiteSpace();
+    }
+
     private static TreeHandlers CreateHandler(
         ElementFinder finder,
         TimeSpan? dispatcherTimeout = null,
@@ -243,5 +265,15 @@ public sealed class TreeHandlersSerializeToXamlTests
             dispatcherTimeout,
             maxSerializedXamlCharacters,
             maxSerializedXamlUtf8Bytes);
+    }
+
+    private sealed class PayloadWithoutDefaultConstructor
+    {
+        public PayloadWithoutDefaultConstructor(string value)
+        {
+            Value = value;
+        }
+
+        public string Value { get; }
     }
 }

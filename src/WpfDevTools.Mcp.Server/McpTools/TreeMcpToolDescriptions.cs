@@ -65,13 +65,15 @@ internal static class TreeMcpToolDescriptions
         "- processId: optional after connect(processId) or select_active_process(processId)\n" +
         "- Unsupported: selector, maxDepth, and maxNodes are rejected before pipe access; use tree tools to narrow scope first.\n\n" +
         "RESPONSE SUMMARY:\n" +
-        "  - success: boolean,\n" +
-        "  - xaml: string\n\n" +
+        "  - success: boolean\n" +
+        "  - xaml: string when success=true\n" +
+        "  - errorCode: XamlSerializationFailed when WPF cannot serialize the requested runtime element\n" +
+        "  - errorData: { elementId, elementType, exceptionType } for serialization failures\n\n" +
         "ERRORS:\n" +
         "- \"missing elementId\" -> call get_ui_summary, get_visual_tree, get_logical_tree, or find_elements first\n" +
         "- \"unknown argument\" -> use only processId and elementId\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"serialization failed\" -> element may contain non-serializable properties\n\n" +
+        "- \"XamlSerializationFailed\" -> element contains runtime-only or non-serializable values; inspect a smaller subtree first\n\n" +
         "EXAMPLES:\n" +
         "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }";
 

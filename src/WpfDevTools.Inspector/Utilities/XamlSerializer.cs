@@ -63,7 +63,7 @@ public class XamlSerializer
         {
             System.Diagnostics.Debug.WriteLine(
                 $"XamlSerializer: Failed to serialize element: {SensitiveLogRedactor.Redact(ex.Message)}");
-            return $"<!-- Failed to serialize element to XAML: {ex.GetType().Name} -->";
+            throw new XamlSerializationException(ex.GetType().Name, ex);
         }
     }
 
@@ -130,4 +130,15 @@ internal sealed class XamlPayloadTooLargeException : Exception
     public int CharacterCount { get; }
 
     public int MaxCharacterCount { get; }
+}
+
+internal sealed class XamlSerializationException : Exception
+{
+    public XamlSerializationException(string exceptionType, Exception innerException)
+        : base("Failed to serialize the WPF element to XAML.", innerException)
+    {
+        ExceptionType = exceptionType;
+    }
+
+    public string ExceptionType { get; }
 }

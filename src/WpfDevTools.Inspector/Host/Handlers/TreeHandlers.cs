@@ -168,6 +168,13 @@ public class TreeHandlers : IRequestHandler
                     byteLength: null,
                     rawXamlByteLength: null);
             }
+            catch (XamlSerializationException ex)
+            {
+                return ToolErrorFactory.XamlSerializationFailed(
+                    elementId,
+                    element.GetType().Name,
+                    ex.ExceptionType);
+            }
         }
 
         if (dispatcher.CheckAccess())

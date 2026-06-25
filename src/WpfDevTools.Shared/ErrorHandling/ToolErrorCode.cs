@@ -61,6 +61,11 @@ public enum ToolErrorCode
     OperationFailed,
 
     /// <summary>
+    /// The target WPF element could not be serialized to XAML.
+    /// </summary>
+    XamlSerializationFailed,
+
+    /// <summary>
     /// The requested response payload would exceed transport, memory, or storage limits.
     /// </summary>
     PayloadTooLarge,

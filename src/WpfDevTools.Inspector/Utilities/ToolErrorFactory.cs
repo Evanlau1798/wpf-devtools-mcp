@@ -121,6 +121,23 @@ public static class ToolErrorFactory
         errorData);
 
     /// <summary>
+    /// Create a structured XAML serialization failure payload.
+    /// </summary>
+    public static ToolErrorPayload XamlSerializationFailed(
+        string? elementId,
+        string elementType,
+        string exceptionType) => Create(
+        ToolErrorCode.XamlSerializationFailed,
+        $"Failed to serialize WPF element '{elementType}' to XAML.",
+        "Target a smaller element, use get_ui_summary or get_element_snapshot first, or inspect a narrower subtree before retrying serialize_to_xaml.",
+        new
+        {
+            elementId,
+            elementType,
+            exceptionType
+        });
+
+    /// <summary>
     /// Create a structured error payload from primitive parts.
     /// </summary>
     public static ToolErrorPayload Create(

@@ -163,6 +163,7 @@ public static class TreeMcpTools
         SessionManager sessionManager,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional root element ID to search within. Omit for the root window.")] string? elementId = null,
+        [Description("Optional general semantic query matched against element type, FrameworkElement.Name, AutomationId, Text, Content, or Header. Prefer precise filters for deterministic automation.")] string? query = null,
         [Description("Optional exact WPF type name filter, such as Button or TextBox.")] string? typeName = null,
         [Description("Compatibility alias for typeName. Prefer typeName for new calls; controlType is accepted for UI Automation-style clients.")] string? controlType = null,
         [Description("Optional WPF type name filters for OR-style matching. Use either typeName or typeNames, not both.")] string[]? typeNames = null,
@@ -181,6 +182,7 @@ public static class TreeMcpTools
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
             ("elementId", elementId),
+            ("query", query),
             ("typeName", typeName ?? controlType),
             ("typeNames", typeNames),
             ("elementName", elementName),

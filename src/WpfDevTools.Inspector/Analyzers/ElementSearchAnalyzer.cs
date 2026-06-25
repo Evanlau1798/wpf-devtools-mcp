@@ -13,6 +13,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
 {
     internal const int MaxSearchPropertyNameLength = 256;
+    internal const int MaxSearchQueryLength = 256;
     internal const int MaxDependencyPropertyCacheEntries = 512;
 
     private readonly ElementFinder _elementFinder;
@@ -50,10 +51,12 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         string? propertyName = null,
         string? propertyValue = null,
         int? maxResults = null,
-        string? matchMode = null)
+        string? matchMode = null,
+        string? query = null)
     {
         return FindElementsCore(
             rootElementId,
+            query,
             typeName,
             typeNames,
             elementName,
@@ -75,10 +78,12 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         string? propertyValue = null,
         int? maxResults = null,
         int? maxTraversalNodes = null,
-        string? matchMode = null)
+        string? matchMode = null,
+        string? query = null)
     {
         return FindElementsCore(
             rootElementId,
+            query,
             typeName,
             typeNames,
             elementName,
@@ -92,6 +97,7 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
 
     private object FindElementsCore(
         string? rootElementId,
+        string? query,
         string? typeName,
         string[]? typeNames,
         string? elementName,
@@ -131,6 +137,11 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
                 return ToolErrorFactory.InvalidArgument($"propertyName must be {MaxSearchPropertyNameLength} characters or fewer.");
             }
 
+            if (query?.Length > MaxSearchQueryLength)
+            {
+                return ToolErrorFactory.InvalidArgument($"query must be {MaxSearchQueryLength} characters or fewer.");
+            }
+
             if (!string.IsNullOrWhiteSpace(typeName) && typeNames is { Length: > 0 })
             {
                 return ToolErrorFactory.InvalidArgument(
@@ -139,6 +150,7 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
             }
 
             var resolvedMatchMode = string.IsNullOrWhiteSpace(matchMode) ? "exact" : matchMode!;
+            var resolvedQueryMatchMode = string.IsNullOrWhiteSpace(matchMode) ? "contains" : resolvedMatchMode;
             if (!string.Equals(resolvedMatchMode, "exact", StringComparison.OrdinalIgnoreCase) &&
                 !string.Equals(resolvedMatchMode, "contains", StringComparison.OrdinalIgnoreCase))
             {
@@ -158,7 +170,19 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
             {
                 traversalNodeCount++;
 
-                if (!Matches(current, typeName, typeNames, elementName, automationId, propertyName, propertyValue, resolvedMatchMode, out var matchedValue))
+                if (!Matches(
+                        current,
+                        query,
+                        typeName,
+                        typeNames,
+                        elementName,
+                        automationId,
+                        propertyName,
+                        propertyValue,
+                        resolvedMatchMode,
+                        resolvedQueryMatchMode,
+                        out var matchedProperty,
+                        out var matchedValue))
                 {
                     continue;
                 }
@@ -169,7 +193,7 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
                     elementType = current.GetType().Name,
                     elementName = (current as FrameworkElement)?.Name,
                     automationId = current is DependencyObject depObj ? AutomationProperties.GetAutomationId(depObj) : null,
-                    matchedProperty = propertyName,
+                    matchedProperty,
                     matchedValue
                 });
 
@@ -204,6 +228,7 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
 
     private bool Matches(
         DependencyObject element,
+        string? query,
         string? typeName,
         string[]? typeNames,
         string? elementName,
@@ -211,8 +236,11 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         string? propertyName,
         string? propertyValue,
         string matchMode,
+        string queryMatchMode,
+        out string? matchedProperty,
         out string? matchedValue)
     {
+        matchedProperty = null;
         matchedValue = null;
 
         if (!MatchesString(element.GetType().Name, typeName, typeNames, matchMode))
@@ -233,20 +261,102 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         }
 
         var requestedPropertyName = propertyName;
-        if (string.IsNullOrWhiteSpace(requestedPropertyName))
+        if (!string.IsNullOrWhiteSpace(requestedPropertyName))
+        {
+            var value = TryGetPropertyValue(element, requestedPropertyName!);
+            matchedProperty = requestedPropertyName;
+            matchedValue = FormatResponseValue(value);
+
+            if (propertyValue == null)
+            {
+                if (value == null)
+                {
+                    return false;
+                }
+            }
+            else if (!MatchesValue(matchedValue, propertyValue, matchMode))
+            {
+                return false;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(query))
         {
             return true;
         }
 
-        var value = TryGetPropertyValue(element, requestedPropertyName!);
-        matchedValue = FormatResponseValue(value);
-
-        if (propertyValue == null)
+        if (!TryMatchQuery(element, query!, queryMatchMode, out var queryMatchedProperty, out var queryMatchedValue))
         {
-            return value != null;
+            return false;
         }
 
-        return MatchesValue(matchedValue, propertyValue, matchMode);
+        matchedProperty ??= queryMatchedProperty;
+        matchedValue ??= queryMatchedValue;
+        return true;
+    }
+
+    private static bool TryMatchQuery(
+        DependencyObject element,
+        string query,
+        string queryMatchMode,
+        out string? matchedProperty,
+        out string? matchedValue)
+    {
+        foreach (var candidate in GetSemanticQueryCandidates(element))
+        {
+            if (!MatchesValue(candidate.Value, query, queryMatchMode))
+            {
+                continue;
+            }
+
+            matchedProperty = candidate.PropertyName;
+            matchedValue = candidate.Value;
+            return true;
+        }
+
+        matchedProperty = null;
+        matchedValue = null;
+        return false;
+    }
+
+    private static IEnumerable<(string PropertyName, string? Value)> GetSemanticQueryCandidates(DependencyObject element)
+    {
+        yield return ("elementType", element.GetType().Name);
+
+        if (element is FrameworkElement frameworkElement)
+        {
+            yield return ("elementName", frameworkElement.Name);
+        }
+
+        yield return ("automationId", AutomationProperties.GetAutomationId(element));
+
+        if (element is TextBlock textBlock)
+        {
+            yield return ("Text", textBlock.Text);
+        }
+        else if (element is TextBox textBox)
+        {
+            yield return ("Text", textBox.Text);
+        }
+        else if (element is ComboBox comboBox)
+        {
+            yield return ("Text", comboBox.Text);
+        }
+
+        if (element is ContentControl contentControl)
+        {
+            yield return ("Content", FormatResponseValue(contentControl.Content));
+        }
+
+        if (element is HeaderedContentControl headeredContentControl)
+        {
+            yield return ("Header", FormatResponseValue(headeredContentControl.Header));
+        }
+
+        if (element is HeaderedItemsControl headeredItemsControl)
+        {
+            yield return ("Header", FormatResponseValue(headeredItemsControl.Header));
+        }
     }
 
     private static bool MatchesString(string actual, string? exactValue, string[]? alternatives, string matchMode)

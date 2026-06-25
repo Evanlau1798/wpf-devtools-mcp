@@ -43,6 +43,21 @@ public sealed class McpToolArgumentValidatorTests
     }
 
     [Fact]
+    public void Validate_FindElementsQueryArgument_ShouldAllowCall()
+    {
+        var arguments = ToArguments(new
+        {
+            processId = 12345,
+            query = "Apply",
+            maxResults = 5
+        });
+
+        var result = McpToolArgumentValidator.Validate("find_elements", arguments);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
     public void Validate_SerializeToXamlSelector_ShouldReturnActionableInvalidArgument()
     {
         var arguments = ToArguments(new

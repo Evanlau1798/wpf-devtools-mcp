@@ -17,6 +17,7 @@ public sealed class FindElementsTool : PipeConnectedToolBase
         var unknownArgumentError = McpToolArgumentValidator.ValidateFindElementsArguments(arguments);
         if (unknownArgumentError != null) return unknownArgumentError;
 
+        var query = ParseStringParam(arguments, "query");
         var typeName = ParseStringParam(arguments, "typeName")
             ?? ParseStringParam(arguments, "controlType");
         var typeNames = ParseStringArrayParam(arguments, "typeNames");
@@ -34,6 +35,7 @@ public sealed class FindElementsTool : PipeConnectedToolBase
             new
             {
                 elementId,
+                query,
                 typeName,
                 typeNames,
                 elementName,

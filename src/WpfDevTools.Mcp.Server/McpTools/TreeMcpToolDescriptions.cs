@@ -148,8 +148,9 @@ internal static class TreeMcpToolDescriptions
         TreeMetadata + "[Tree] Search visual and logical descendants from the chosen root using exact or contains filters. " +
         "Results are bounded by maxResults and traversal is bounded by maxTraversalNodes to protect the target UI thread.\n\n" +
         "USE WHEN: You need a compact lookup entry point before calling get_visual_tree, get_layout_info, get_bindings, or other element-scoped tools.\n" +
-        "DO NOT USE: As a full query language. This wave supports exact-match and case-insensitive contains filters only.\n\n" +
+        "DO NOT USE: As a full query language. The query parameter is a bounded convenience lookup over common semantic fields; use precise filters when automation needs determinism.\n\n" +
         "SUPPORTED FILTERS:\n" +
+        "- query: bounded semantic query across element type, FrameworkElement.Name, AutomationId, Text, Content, and Header; defaults to contains matching when matchMode is omitted\n" +
         "- typeName\n" +
         "- controlType (compatibility alias for typeName; prefer typeName in new calls)\n" +
         "- typeNames\n" +
@@ -172,6 +173,7 @@ internal static class TreeMcpToolDescriptions
         "- \"maxResults\" -> must be a positive integer\n" +
         "- \"maxTraversalNodes\" -> must be a positive integer\n\n" +
         "EXAMPLES:\n" +
+        "- { \"processId\": 12345, \"query\": \"Apply\", \"maxResults\": 10 }\n" +
         "- { \"processId\": 12345, \"typeName\": \"Button\", \"maxResults\": 10 }\n" +
         "- { \"processId\": 12345, \"controlType\": \"Button\", \"maxResults\": 10 }\n" +
         "- { \"processId\": 12345, \"elementName\": \"SaveButton\" }\n" +

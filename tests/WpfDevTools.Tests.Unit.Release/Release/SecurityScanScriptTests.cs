@@ -34,7 +34,7 @@ public sealed class SecurityScanScriptTests
 
             result.ExitCode.Should().Be(0, result.Stdout + result.Stderr);
             var log = File.ReadAllText(logPath);
-            log.Should().Contain("Run .NET analyzer gate|DOTNET-STUB|format WpfDevTools.sln analyzers --verify-no-changes --severity error --no-restore");
+            log.Should().Contain("Run .NET analyzer gate|powershell.exe|-NoProfile -ExecutionPolicy Bypass -File scripts\\tools\\security\\Invoke-DotNetAnalyzerGate.ps1 -DotNetPath DOTNET-STUB");
             log.Should().Contain("Run PowerShell ScriptAnalyzer|powershell.exe|-NoProfile -ExecutionPolicy Bypass -File scripts\\tools\\security\\Invoke-PowerShellScriptAnalyzerGate.ps1 -Path scripts -Severity Error");
             log.Should().Contain("Run repository secret pattern scan|powershell.exe|-NoProfile -ExecutionPolicy Bypass -File scripts\\tools\\security\\Invoke-RepositorySecretScan.ps1");
             log.Should().Contain("Run native bootstrapper security analysis|MSBUILD-STUB|src\\WpfDevTools.Bootstrapper\\WpfDevTools.Bootstrapper.vcxproj");
@@ -172,6 +172,64 @@ public sealed class SecurityScanScriptTests
     }
 
     [Fact]
+    public void DotNetAnalyzerGate_ShouldRetryTransientDotnetCliResolutionFailure()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var logPath = Path.Combine(tempRoot, "dotnet-format.log");
+            var fakeDotNet = WriteFakeDotNetScript(
+                tempRoot,
+                logPath,
+                transientFirstFormatAttempt: true,
+                nonTransientFormatFailure: false);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/security/Invoke-DotNetAnalyzerGate.ps1"),
+                ["-DotNetPath", fakeDotNet, "-RetryDelaySeconds", "0"],
+                timeout: TimeSpan.FromSeconds(20));
+
+            result.ExitCode.Should().Be(0, result.Stdout + result.Stderr);
+            var log = File.ReadAllText(logPath);
+            log.Split("format WpfDevTools.sln", StringSplitOptions.None).Should().HaveCount(3);
+            result.Stdout.Should().Contain("Retrying dotnet format analyzer gate");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void DotNetAnalyzerGate_ShouldFailWithoutRetryingNonTransientAnalyzerFailure()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var logPath = Path.Combine(tempRoot, "dotnet-format-failure.log");
+            var fakeDotNet = WriteFakeDotNetScript(
+                tempRoot,
+                logPath,
+                transientFirstFormatAttempt: false,
+                nonTransientFormatFailure: true);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/tools/security/Invoke-DotNetAnalyzerGate.ps1"),
+                ["-DotNetPath", fakeDotNet, "-RetryDelaySeconds", "0"],
+                timeout: TimeSpan.FromSeconds(20));
+
+            result.ExitCode.Should().NotBe(0);
+            (result.Stdout + Environment.NewLine + result.Stderr).Should().Contain("CA9999");
+            var log = File.ReadAllText(logPath);
+            log.Split("format WpfDevTools.sln", StringSplitOptions.None).Should().HaveCount(2);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void PowerShellScriptAnalyzerGate_ShouldFailOnSyntheticAnalyzerViolation()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -221,6 +279,41 @@ public sealed class SecurityScanScriptTests
         {
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
+    }
+
+    private static string WriteFakeDotNetScript(
+        string tempRoot,
+        string logPath,
+        bool transientFirstFormatAttempt,
+        bool nonTransientFormatFailure)
+    {
+        var statePath = Path.Combine(tempRoot, "dotnet-format-attempts.txt");
+        var scriptPath = Path.Combine(tempRoot, "dotnet.ps1");
+        File.WriteAllText(
+            scriptPath,
+            string.Join(Environment.NewLine, [
+                "param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)",
+                "$ErrorActionPreference = 'Stop'",
+                "$logPath = " + QuotePowerShellString(logPath),
+                "$statePath = " + QuotePowerShellString(statePath),
+                "Add-Content -LiteralPath $logPath -Value ($Arguments -join ' ')",
+                "if ($Arguments.Count -eq 1 -and $Arguments[0] -eq '--info') { Write-Output 'fake dotnet'; $global:LASTEXITCODE = 0; return }",
+                "if ($Arguments.Count -gt 0 -and $Arguments[0] -eq 'format') {",
+                "  $attempt = if (Test-Path -LiteralPath $statePath) { [int](Get-Content -LiteralPath $statePath -Raw) } else { 0 }",
+                "  $attempt += 1",
+                "  Set-Content -LiteralPath $statePath -Value $attempt",
+                transientFirstFormatAttempt
+                    ? "  if ($attempt -eq 1) { Write-Output 'Unable to locate dotnet CLI. Ensure that it is on the PATH.'; $global:LASTEXITCODE = 1; return }"
+                    : string.Empty,
+                nonTransientFormatFailure
+                    ? "  Write-Output 'CA9999: synthetic analyzer failure'; $global:LASTEXITCODE = 2; return"
+                    : "  Write-Output 'format ok'; $global:LASTEXITCODE = 0; return",
+                "}",
+                "Write-Output ('Unexpected fake dotnet arguments: ' + ($Arguments -join ' '))",
+                "$global:LASTEXITCODE = 99"
+            ]));
+
+        return scriptPath;
     }
 
     private static string QuotePowerShellString(string value)

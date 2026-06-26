@@ -86,14 +86,14 @@ function Invoke-HostedNativeBootstrapperSecurityAnalysis {
 function Invoke-HostedSecurityScanEquivalence {
     param([Parameter(Mandatory = $true)] [string]$DotNetPath)
 
-    Invoke-External 'Run .NET analyzer gate' $DotNetPath @(
-        'format',
-        'WpfDevTools.sln',
-        'analyzers',
-        '--verify-no-changes',
-        '--severity',
-        'error',
-        '--no-restore'
+    Invoke-External 'Run .NET analyzer gate' 'powershell.exe' @(
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        'scripts\tools\security\Invoke-DotNetAnalyzerGate.ps1',
+        '-DotNetPath',
+        $DotNetPath
     )
     Invoke-HostedPowerShellScriptAnalyzerGate
     Invoke-External 'Run repository secret pattern scan' 'powershell.exe' @(

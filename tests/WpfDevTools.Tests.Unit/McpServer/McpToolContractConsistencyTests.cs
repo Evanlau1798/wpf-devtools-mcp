@@ -253,6 +253,12 @@ public class McpToolContractConsistencyTests
     }
 
     [Fact]
+    public void SelectActiveProcess_ShouldExposeOptionalNullableProcessId_ForStructuredMissingParameter()
+    {
+        AssertOptionalParameter(typeof(ProcessMcpTools), nameof(ProcessMcpTools.SelectActiveProcess), "processId", typeof(int?), null);
+    }
+
+    [Fact]
     public void AllConnectedMcpTools_ShouldExposeOptionalProcessId_ExceptConnectionSelectionEntrypoints()
     {
         var exemptToolNames = new HashSet<string>(StringComparer.Ordinal)

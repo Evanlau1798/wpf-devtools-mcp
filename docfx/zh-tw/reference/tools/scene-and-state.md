@@ -145,7 +145,7 @@ Policy gate：destructive。Server 必須先以 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTI
 參數：
 
 - `mutations`：必填，支援的 mutation steps 陣列。
-- `captureSnapshot`：可選 snapshot request。
+- `captureSnapshot`：可選 snapshot request。需要精準 rollback scope 時請使用物件。`captureSnapshot: true` 只適合單一元素 batch，且 server 能從 mutation 的 `args.propertyName` 推斷 `propertyNames` 或 `viewModelPropertyNames`。
 - `includeDiff`：可選；需要搭配 `captureSnapshot`。
 - `trigger`、`processId` 與預設 `elementId`：可選。
 
@@ -155,6 +155,12 @@ Policy gate：destructive。Server 必須先以 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTI
 
 ```json
 { "captureSnapshot": { "elementId": "NameTextBox", "propertyNames": ["Text"] }, "includeDiff": true, "mutations": [{ "tool": "set_dp_value", "args": { "elementId": "NameTextBox", "propertyName": "Text", "value": "Alice" } }] }
+```
+
+單一元素捷徑：
+
+```json
+{ "captureSnapshot": true, "includeDiff": true, "mutations": [{ "tool": "set_dp_value", "args": { "elementId": "NameTextBox", "propertyName": "Text", "value": "Alice" } }] }
 ```
 
 復原路徑：如果某個 step 失敗但前面 step 已成功，檢查 `rollback`，並在 snapshot 仍保留時呼叫 `restore_state_snapshot`。

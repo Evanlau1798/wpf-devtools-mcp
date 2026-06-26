@@ -34,7 +34,7 @@ If `connect()` returns `SecurityError: Security verification failed` after a man
 <InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
 
-Prefer the installed executable for normal client registration. For checksum-only prerelease portable validation, package-local `run.bat` or `bin\wpf-devtools-<arch>.exe` can be used only when the extracted package stays in the same directory as the original archive and `SHA256SUMS.txt`; otherwise run the packaged installer with `-PackageArchivePath` and `-TrustedReleaseMetadataDirectory` so runtime trust can be resolved before raw injection.
+Prefer the installed executable for normal client registration. For checksum-only prerelease portable validation, package-local `run.bat` or `bin\wpf-devtools-<arch>.exe` can be used only when the extracted package stays in the same directory as the original archive and `SHA256SUMS.txt`, or when `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY` points to the directory containing that original archive and checksum sidecar. Otherwise run the packaged installer with `-PackageArchivePath` and `-TrustedReleaseMetadataDirectory` so runtime trust can be resolved before raw injection.
 
 ## elevated target or administrator mismatch
 

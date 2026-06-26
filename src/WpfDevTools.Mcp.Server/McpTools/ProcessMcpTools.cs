@@ -39,7 +39,7 @@ public static class ProcessMcpTools
     public static Task<CallToolResult> SelectActiveProcess(
         SessionManager sessionManager,
         [Range(1, int.MaxValue)]
-        [Description("Connected WPF process ID to make active for omitted processId workflows.")] int processId,
+        [Description("Connected WPF process ID to make active for omitted processId workflows.")] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(("processId", processId));

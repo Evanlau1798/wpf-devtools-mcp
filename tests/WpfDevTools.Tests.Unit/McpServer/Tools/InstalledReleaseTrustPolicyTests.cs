@@ -5,6 +5,7 @@ using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("ProcessEnvironment")]
 public sealed class InstalledReleaseTrustPolicyTests
 {
     [Fact]
@@ -89,6 +90,34 @@ public sealed class InstalledReleaseTrustPolicyTests
 
         result.Should().BeTrue(
             "directly extracted GitHub prerelease assets should keep the checksum-only trust path when the original ZIP and SHA sidecar still verify the payload");
+    }
+
+    [Fact]
+    public void CanSkipSignatureForChecksumOnlyPayload_WithTrustedReleaseMetadataDirectory_ShouldReturnTrue()
+    {
+        using var layout = PortableReleaseLayout.Create();
+        var metadataDirectory = Path.Combine(layout.Root, "trusted-metadata");
+        Directory.CreateDirectory(metadataDirectory);
+        File.Move(layout.ArchivePath, Path.Combine(metadataDirectory, Path.GetFileName(layout.ArchivePath)));
+        File.Move(layout.ShaSidecarPath, Path.Combine(metadataDirectory, Path.GetFileName(layout.ShaSidecarPath)));
+
+        var previousMetadataDirectory = Environment.GetEnvironmentVariable("WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY");
+        try
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY", metadataDirectory);
+
+            var result = InstalledReleaseTrustPolicy.CanSkipSignatureForChecksumOnlyPayload(
+                layout.InspectorNet8Path,
+                layout.BaseDirectory,
+                layout.ExecutablePath);
+
+            result.Should().BeTrue(
+                "portable prerelease validation should accept an explicit trusted release metadata directory without copying sidecars beside the extracted package");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY", previousMetadataDirectory);
+        }
     }
 
     [Fact]
@@ -218,12 +247,14 @@ public sealed class InstalledReleaseTrustPolicyTests
             string baseDirectory,
             string executablePath,
             string inspectorNet8Path,
+            string archivePath,
             string shaSidecarPath)
         {
             Root = root;
             BaseDirectory = baseDirectory;
             ExecutablePath = executablePath;
             InspectorNet8Path = inspectorNet8Path;
+            ArchivePath = archivePath;
             ShaSidecarPath = shaSidecarPath;
         }
 
@@ -231,6 +262,7 @@ public sealed class InstalledReleaseTrustPolicyTests
         public string BaseDirectory { get; }
         public string ExecutablePath { get; }
         public string InspectorNet8Path { get; }
+        public string ArchivePath { get; }
         public string ShaSidecarPath { get; }
 
         public static PortableReleaseLayout Create()
@@ -278,7 +310,7 @@ public sealed class InstalledReleaseTrustPolicyTests
             var shaSidecarPath = Path.Combine(releaseDirectory, "SHA256SUMS.txt");
             File.WriteAllText(shaSidecarPath, archiveHash + "  release_1.0.0-beta.7_win-x64.zip");
 
-            return new PortableReleaseLayout(root, baseDirectory, executablePath, inspectorNet8Path, shaSidecarPath);
+            return new PortableReleaseLayout(root, baseDirectory, executablePath, inspectorNet8Path, archivePath, shaSidecarPath);
         }
 
         public void Dispose()

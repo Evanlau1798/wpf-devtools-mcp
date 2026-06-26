@@ -372,6 +372,7 @@ public partial class ToolCallHelperTests
         structured.GetProperty("hint").GetString().Should().Contain("SHA256SUMS.txt");
         structured.GetProperty("suggestedAction").GetString().Should().Contain("-PackageArchivePath");
         structured.GetProperty("suggestedAction").GetString().Should().Contain("-TrustedReleaseMetadataDirectory");
+        structured.GetProperty("suggestedAction").GetString().Should().Contain("WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY");
         structured.GetProperty("recovery").GetProperty("suggestedAction").GetString().Should().Contain("original archive");
     }
 

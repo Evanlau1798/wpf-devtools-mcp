@@ -109,6 +109,8 @@ public sealed class McpToolDescriptionContractTests
         description.Should().Contain("stringified JSON array");
         description.Should().Contain("Nested args must not include processId");
         description.Should().Contain("includeDiff=true requires captureSnapshot");
+        description.Should().Contain("captureSnapshot=true");
+        description.Should().Contain("single element");
         description.Should().Contain("not `arguments`");
     }
 

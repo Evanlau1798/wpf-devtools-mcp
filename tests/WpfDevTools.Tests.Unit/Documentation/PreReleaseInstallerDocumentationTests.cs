@@ -177,6 +177,8 @@ public sealed class PreReleaseInstallerDocumentationTests
             $"{relativePath} should not imply package-local prerelease execution is always invalid");
         content.Should().Contain(sidecarBoundary,
             $"{relativePath} should tie portable package-local trust to the original archive and checksum sidecar");
+        content.Should().Contain("WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY",
+            $"{relativePath} should document the explicit metadata directory path so agents do not need to copy sidecars beside the extracted package");
         content.Should().NotContain("Do not register a package-local executable");
         content.Should().NotContain("不要註冊解壓 archive 內的 package-local executable");
     }

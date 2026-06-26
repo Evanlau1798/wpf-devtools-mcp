@@ -1,4 +1,6 @@
 using FluentAssertions;
+using System.IO.Compression;
+using System.Security.Cryptography;
 using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
@@ -73,6 +75,48 @@ public sealed class InstalledReleaseTrustPolicyTests
             otherExecutable);
 
         result.Should().BeFalse("the install manifest must bind the trust decision to the running packaged server executable");
+    }
+
+    [Fact]
+    public void CanSkipSignatureForChecksumOnlyPayload_WithPortableReleaseArchiveAndShaSidecar_ShouldReturnTrue()
+    {
+        using var layout = PortableReleaseLayout.Create();
+
+        var result = InstalledReleaseTrustPolicy.CanSkipSignatureForChecksumOnlyPayload(
+            layout.InspectorNet8Path,
+            layout.BaseDirectory,
+            layout.ExecutablePath);
+
+        result.Should().BeTrue(
+            "directly extracted GitHub prerelease assets should keep the checksum-only trust path when the original ZIP and SHA sidecar still verify the payload");
+    }
+
+    [Fact]
+    public void CanSkipSignatureForChecksumOnlyPayload_WithoutPortableReleaseShaSidecar_ShouldReturnFalse()
+    {
+        using var layout = PortableReleaseLayout.Create();
+        File.Delete(layout.ShaSidecarPath);
+
+        var result = InstalledReleaseTrustPolicy.CanSkipSignatureForChecksumOnlyPayload(
+            layout.InspectorNet8Path,
+            layout.BaseDirectory,
+            layout.ExecutablePath);
+
+        result.Should().BeFalse("portable checksum-only trust must remain tied to published release SHA metadata");
+    }
+
+    [Fact]
+    public void CanSkipSignatureForChecksumOnlyPayload_WithTamperedPortablePayload_ShouldReturnFalse()
+    {
+        using var layout = PortableReleaseLayout.Create();
+        File.WriteAllText(layout.InspectorNet8Path, "tampered");
+
+        var result = InstalledReleaseTrustPolicy.CanSkipSignatureForChecksumOnlyPayload(
+            layout.InspectorNet8Path,
+            layout.BaseDirectory,
+            layout.ExecutablePath);
+
+        result.Should().BeFalse("portable payload bytes must still match the verified GitHub release ZIP entry");
     }
 
     private sealed class InstalledLayout : IDisposable
@@ -165,5 +209,84 @@ public sealed class InstalledReleaseTrustPolicyTests
 
         private static string EscapeJson(string value)
             => value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
+    }
+
+    private sealed class PortableReleaseLayout : IDisposable
+    {
+        private PortableReleaseLayout(
+            string root,
+            string baseDirectory,
+            string executablePath,
+            string inspectorNet8Path,
+            string shaSidecarPath)
+        {
+            Root = root;
+            BaseDirectory = baseDirectory;
+            ExecutablePath = executablePath;
+            InspectorNet8Path = inspectorNet8Path;
+            ShaSidecarPath = shaSidecarPath;
+        }
+
+        public string Root { get; }
+        public string BaseDirectory { get; }
+        public string ExecutablePath { get; }
+        public string InspectorNet8Path { get; }
+        public string ShaSidecarPath { get; }
+
+        public static PortableReleaseLayout Create()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "wpf-devtools-portable-trust-" + Guid.NewGuid().ToString("N"));
+            var releaseDirectory = Path.Combine(root, "release");
+            var packageRoot = Path.Combine(releaseDirectory, "extracted");
+            var baseDirectory = Path.Combine(packageRoot, "bin");
+            var inspectorDir = Path.Combine(baseDirectory, "inspectors", "net8.0-windows");
+            var bootstrapperDir = Path.Combine(baseDirectory, "bootstrapper", "x64");
+            Directory.CreateDirectory(inspectorDir);
+            Directory.CreateDirectory(bootstrapperDir);
+
+            var executablePath = Path.Combine(baseDirectory, "wpf-devtools-x64.exe");
+            var inspectorNet8Path = Path.Combine(inspectorDir, "WpfDevTools.Inspector.dll");
+            var bootstrapperPath = Path.Combine(bootstrapperDir, "WpfDevTools.Bootstrapper.x64.dll");
+            File.WriteAllText(executablePath, "portable exe");
+            File.WriteAllText(inspectorNet8Path, "portable inspector");
+            File.WriteAllText(bootstrapperPath, "portable bootstrapper");
+
+            File.WriteAllText(
+                Path.Combine(baseDirectory, "manifest.json"),
+                """
+                {
+                  "name": "wpf-devtools",
+                  "version": "1.0.0-beta.7",
+                  "architecture": "x64",
+                  "runtimeId": "win-x64",
+                  "channel": "release",
+                  "buildConfiguration": "Release",
+                  "signaturePolicy": "ReleaseChecksumOnly",
+                  "entryExecutable": "bin/wpf-devtools-x64.exe",
+                  "inspector": {
+                    "net8": "bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll",
+                    "net48": "bin/inspectors/net48/WpfDevTools.Inspector.dll"
+                  },
+                  "bootstrapper": "bin/bootstrapper/x64/WpfDevTools.Bootstrapper.x64.dll"
+                }
+                """);
+
+            var archivePath = Path.Combine(releaseDirectory, "release_1.0.0-beta.7_win-x64.zip");
+            ZipFile.CreateFromDirectory(packageRoot, archivePath);
+
+            var archiveHash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(archivePath))).ToLowerInvariant();
+            var shaSidecarPath = Path.Combine(releaseDirectory, "SHA256SUMS.txt");
+            File.WriteAllText(shaSidecarPath, archiveHash + "  release_1.0.0-beta.7_win-x64.zip");
+
+            return new PortableReleaseLayout(root, baseDirectory, executablePath, inspectorNet8Path, shaSidecarPath);
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Root))
+            {
+                Directory.Delete(Root, recursive: true);
+            }
+        }
     }
 }

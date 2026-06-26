@@ -20,7 +20,7 @@
 - Use **namescope** when you need stable named parts.
 - Use **find_elements** when you need a compact lookup by semantic `query`, type, name, automation id, or property value before expanding the full tree.
 - Use **`get_windows`** when a process has dialogs or secondary windows; pass the returned window `elementId` to tree, scene, or element-scoped tools.
-- Use **`serialize_to_xaml(elementId)`** only after another scene, tree, or search tool has returned a current `elementId` for the subtree you want to inspect.
+- Use **`serialize_to_xaml(elementId)`** only after another scene, tree, or search tool has returned a current `elementId` for the subtree you want to inspect. The result is a safe runtime XAML snapshot, not a design-time XAML export.
 
 ## Bounded output defaults
 
@@ -32,7 +32,9 @@ Use `get_template_tree` on a loaded templated control from the current visual tr
 
 `find_elements` also applies a traversal cap before evaluating matches: `maxTraversalNodes` defaults to `1000` and is capped at `10000`. The optional `query` parameter is a bounded convenience search over common semantic fields such as element type, `FrameworkElement.Name`, AutomationId, Text, Content, and Header; use exact filters like `typeName`, `elementName`, or `automationId` when the automation path must be deterministic. When a search returns `traversalTruncated=true`, inspect `traversalNodeCount` and narrow the root or filters before raising the traversal cap.
 
-`serialize_to_xaml` intentionally requires `elementId` and rejects selector-style arguments such as `selector`, `maxDepth`, and `maxNodes`. Use `get_ui_summary`, `get_visual_tree`, `get_logical_tree`, or `find_elements` first so the tool serializes a specific live subtree instead of accidentally targeting a large root window.
+`serialize_to_xaml` intentionally requires `elementId` and rejects selector-style arguments such as `selector`, `maxDepth`, and `maxNodes`. Use `get_ui_summary`, `get_visual_tree`, `get_logical_tree`, or `find_elements` first so the tool snapshots a specific live subtree instead of accidentally targeting a large root window.
+
+The snapshot writer avoids WPF `XamlWriter` round-trip serialization so third-party controls and template-heavy subtrees can be inspected without invoking design-time serializers. Treat the output as a bounded runtime view of the live element tree.
 
 ## Common pitfall
 

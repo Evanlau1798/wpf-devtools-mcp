@@ -231,7 +231,7 @@ public sealed class TreeHandlersSerializeToXamlTests
     }
 
     [StaFact]
-    public async Task SerializeToXaml_WhenXamlWriterCannotSerializeElement_ShouldReturnStructuredFailure()
+    public async Task SerializeToXaml_WhenContentCannotRoundTripThroughXamlWriter_ShouldReturnSafeSnapshot()
     {
         using var finder = new ElementFinder();
         var button = new Button { Content = new PayloadWithoutDefaultConstructor("probe") };
@@ -244,12 +244,10 @@ public sealed class TreeHandlersSerializeToXamlTests
             CancellationToken.None);
         var json = JsonSerializer.SerializeToElement(result);
 
-        json.GetProperty("success").GetBoolean().Should().BeFalse();
-        json.GetProperty("errorCode").GetString().Should().Be("XamlSerializationFailed");
-        json.GetProperty("hint").GetString().Should().Contain("smaller element");
-        json.GetProperty("errorData").GetProperty("elementId").GetString().Should().Be(elementId);
-        json.GetProperty("errorData").GetProperty("elementType").GetString().Should().Be("Button");
-        json.GetProperty("errorData").GetProperty("exceptionType").GetString().Should().NotBeNullOrWhiteSpace();
+        json.GetProperty("success").GetBoolean().Should().BeTrue();
+        var xaml = json.GetProperty("xaml").GetString();
+        xaml.Should().Contain("<Button");
+        xaml.Should().Contain("Content=\"PayloadWithoutDefaultConstructor\"");
     }
 
     [StaFact]

@@ -55,20 +55,20 @@ internal static class TreeMcpToolDescriptions
         "- { \"processId\": 12345, \"depth\": 5 }";
 
     public const string SerializeToXaml =
-        "Use this tool to serialize a live WPF element into XAML for runtime inspection and comparison.\n\n" +
-        TreeMetadata + "[Tree] Serialize a WPF element to its XAML representation. " +
-        "Returns the XAML markup string for the element and its children.\n\n" +
-        "USE WHEN: You need to understand element structure in markup form or export UI definition.\n" +
-        "DO NOT USE: As a root-window dump or with selector-style arguments. Window/root elementIds are rejected before XAML serialization. First use get_ui_summary, get_visual_tree, get_logical_tree, or find_elements to obtain a smaller current elementId.\n\n" +
+        "Use this tool to serialize a live WPF element into a safe runtime XAML snapshot for inspection and comparison.\n\n" +
+        TreeMetadata + "[Tree] Serialize a WPF element to a bounded XAML-like runtime snapshot. " +
+        "Returns a markup string for the element and a capped set of children without invoking WPF XamlWriter round-trip serialization.\n\n" +
+        "USE WHEN: You need to understand element structure in markup form after narrowing to a concrete live elementId.\n" +
+        "DO NOT USE: As a design-time XAML export, source-code round trip, root-window dump, or with selector-style arguments. Window/root elementIds are rejected before serialization. First use get_ui_summary, get_visual_tree, get_logical_tree, or find_elements to obtain a smaller current elementId.\n\n" +
         "REQUEST FORMAT:\n" +
         "- elementId: required current runtime element ID from this connected session\n" +
         "- processId: optional after connect(processId) or select_active_process(processId)\n" +
         "- Unsupported: selector, maxDepth, and maxNodes are rejected before pipe access; use tree tools to narrow scope first.\n\n" +
         "RESPONSE SUMMARY:\n" +
         "  - success: boolean\n" +
-        "  - xaml: string when success=true\n" +
+        "  - xaml: safe runtime snapshot string when success=true\n" +
         "  - errorCode: InvalidArgument with reasonCode=RootWindowSerializationBlocked when elementId targets a root Window scope\n" +
-        "  - errorCode: XamlSerializationFailed when WPF cannot serialize the requested runtime element\n" +
+        "  - errorCode: XamlSerializationFailed when the safe snapshot writer cannot inspect the requested runtime element\n" +
         "  - errorData: { elementId, elementType, reasonCode } for blocked root/window scopes\n" +
         "  - errorData: { elementId, elementType, exceptionType } for serialization failures\n\n" +
         "ERRORS:\n" +
@@ -76,7 +76,7 @@ internal static class TreeMcpToolDescriptions
         "- \"unknown argument\" -> use only processId and elementId\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"InvalidArgument\" with reasonCode=RootWindowSerializationBlocked -> target a smaller descendant elementId first\n" +
-        "- \"XamlSerializationFailed\" -> element contains runtime-only or non-serializable values; inspect a smaller subtree first\n\n" +
+        "- \"XamlSerializationFailed\" -> the runtime snapshot writer could not inspect this element; inspect a smaller subtree first\n\n" +
         "EXAMPLES:\n" +
         "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }";
 

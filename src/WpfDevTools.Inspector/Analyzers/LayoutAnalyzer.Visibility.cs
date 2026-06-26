@@ -44,11 +44,8 @@ public sealed partial class LayoutAnalyzer
                 !isRenderTransformOffscreen,
                 "RenderTransform-adjusted viewport bounds"));
 
-            var overflow = MaxOverflow(
-                GetSelfOverflowAmounts(frameworkElement, frameworkElement.Clip, frameworkElement.ClipToBounds),
-                GetAncestorOverflowAmounts(frameworkElement));
-            var isClipped = frameworkElement.Clip != null || HasOverflow(overflow);
-            checks.Add(CreateVisibilityCheck("clipping", isClipped ? "clipped" : "not-clipped", !isClipped, "Clipping"));
+            var clipping = AnalyzeClipping(frameworkElement);
+            checks.Add(CreateVisibilityCheck("clipping", clipping.Severity, !clipping.IsFullyClipped, "Clipping"));
 
             var ancestors = EnumerateAncestorStates(frameworkElement);
             checks.AddRange(ancestors.Select(static ancestor => CreateVisibilityCheck(
@@ -63,7 +60,7 @@ public sealed partial class LayoutAnalyzer
                 frameworkElement.Opacity,
                 hasSize,
                 isRenderTransformOffscreen,
-                isClipped,
+                clipping,
                 ancestors);
 
             return new
@@ -72,6 +69,13 @@ public sealed partial class LayoutAnalyzer
                 elementId = elementId ?? _elementFinder.GenerateElementId(frameworkElement),
                 isUserVisible = diagnosis.isUserVisible,
                 checks,
+                clipping = new
+                {
+                    severity = clipping.Severity,
+                    isClipped = clipping.IsClipped,
+                    isFullyClipped = clipping.IsFullyClipped,
+                    visibleRatio = NormalizeDouble(clipping.VisibleRatio)
+                },
                 rootCause = diagnosis.rootCause,
                 suggestedFix = diagnosis.suggestedFix
             };
@@ -84,7 +88,7 @@ public sealed partial class LayoutAnalyzer
         double selfOpacity,
         bool hasSize,
         bool isRenderTransformOffscreen,
-        bool isClipped,
+        ClippingDiagnosis clipping,
         IReadOnlyList<AncestorVisibilityState> ancestors)
     {
         if (!string.Equals(selfVisibility, Visibility.Visible.ToString(), StringComparison.Ordinal))
@@ -120,10 +124,10 @@ public sealed partial class LayoutAnalyzer
                 $"Review the RenderTransform offsets for {elementId} and move it back inside the visible viewport.");
         }
 
-        if (isClipped)
+        if (clipping.IsFullyClipped)
         {
             return (false,
-                $"Element {elementId} is clipped by its own or an ancestor clipping region.",
+                $"Element {elementId} is fully clipped by its own or an ancestor clipping region.",
                 $"Inspect clipping ancestors for {elementId} and relax ClipToBounds or sizing constraints.");
         }
 
@@ -135,6 +139,88 @@ public sealed partial class LayoutAnalyzer
         }
 
         return (true, null, null);
+    }
+
+    private static ClippingDiagnosis AnalyzeClipping(FrameworkElement element)
+    {
+        var contentBounds = GetContentBounds(element);
+        if (contentBounds.IsEmpty || contentBounds.Width <= 0 || contentBounds.Height <= 0)
+        {
+            return ClippingDiagnosis.None;
+        }
+
+        var diagnosis = ClippingDiagnosis.None;
+        if (element.Clip != null)
+        {
+            diagnosis = diagnosis.Merge(AnalyzeClipBoundary(contentBounds, element.Clip.Bounds));
+        }
+
+        if (element.ClipToBounds)
+        {
+            diagnosis = diagnosis.Merge(AnalyzeClipBoundary(
+                contentBounds,
+                new Rect(new Point(0, 0), element.RenderSize)));
+        }
+
+        DependencyObject? current = VisualTreeHelper.GetParent(element);
+        while (current is Visual ancestorVisual)
+        {
+            Rect? clippingBounds = current switch
+            {
+                UIElement { Clip: not null } ancestorWithClip => ancestorWithClip.Clip!.Bounds,
+                FrameworkElement { ClipToBounds: true } ancestorFramework => new Rect(new Point(0, 0), ancestorFramework.RenderSize),
+                _ => null
+            };
+
+            if (clippingBounds != null)
+            {
+                try
+                {
+                    var transformedBounds = element.TransformToAncestor(ancestorVisual).TransformBounds(contentBounds);
+                    diagnosis = diagnosis.Merge(AnalyzeClipBoundary(transformedBounds, clippingBounds.Value));
+                }
+                catch (InvalidOperationException)
+                {
+                }
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return diagnosis;
+    }
+
+    private static ClippingDiagnosis AnalyzeClipBoundary(Rect elementBounds, Rect clippingBounds)
+    {
+        if (clippingBounds.IsEmpty || clippingBounds.Width <= 0 || clippingBounds.Height <= 0)
+        {
+            return ClippingDiagnosis.Full;
+        }
+
+        var elementArea = elementBounds.Width * elementBounds.Height;
+        if (elementArea <= 0)
+        {
+            return ClippingDiagnosis.None;
+        }
+
+        if (!elementBounds.IntersectsWith(clippingBounds))
+        {
+            return ClippingDiagnosis.Full;
+        }
+
+        var visibleBounds = Rect.Intersect(elementBounds, clippingBounds);
+        if (visibleBounds.IsEmpty || visibleBounds.Width <= 0 || visibleBounds.Height <= 0)
+        {
+            return ClippingDiagnosis.Full;
+        }
+
+        var visibleRatio = Math.Clamp(
+            visibleBounds.Width * visibleBounds.Height / elementArea,
+            0d,
+            1d);
+        return visibleRatio >= 0.999
+            ? ClippingDiagnosis.None
+            : ClippingDiagnosis.Partial(visibleRatio);
     }
 
     private IReadOnlyList<AncestorVisibilityState> EnumerateAncestorStates(FrameworkElement element)
@@ -181,5 +267,39 @@ public sealed partial class LayoutAnalyzer
         public string displayName => !string.IsNullOrWhiteSpace(elementName)
             ? elementName!
             : $"{elementType} ({elementId})";
+    }
+
+    private sealed record ClippingDiagnosis(string Severity, double VisibleRatio)
+    {
+        public static ClippingDiagnosis None { get; } = new("none", 1d);
+
+        public static ClippingDiagnosis Full { get; } = new("full", 0d);
+
+        public bool IsClipped => Severity != "none";
+
+        public bool IsFullyClipped => Severity == "full";
+
+        public static ClippingDiagnosis Partial(double visibleRatio) =>
+            new("partial", visibleRatio);
+
+        public ClippingDiagnosis Merge(ClippingDiagnosis other)
+        {
+            if (IsFullyClipped || other.Severity == "none")
+            {
+                return this;
+            }
+
+            if (other.IsFullyClipped)
+            {
+                return other;
+            }
+
+            if (Severity == "none")
+            {
+                return other;
+            }
+
+            return Partial(Math.Min(VisibleRatio, other.VisibleRatio));
+        }
     }
 }

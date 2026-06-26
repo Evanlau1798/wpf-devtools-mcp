@@ -46,7 +46,7 @@ internal static class SceneDiagnosticsMcpToolDescriptions
     public const string DiagnoseVisibility =
         "Use this tool to explain why a WPF runtime element is or is not user-visible without relying on screenshots.\n\n" +
         SceneMetadata +
-        "[Scene] Diagnose visibility blockers such as element or ancestor Visibility, zero Opacity, zero layout size, and clipping.\n\n" +
+        "[Scene] Diagnose visibility blockers such as element or ancestor Visibility, zero Opacity, zero layout size, full clipping, and partial clipping metadata.\n\n" +
         "USE WHEN: An element exists in the tree but does not appear on screen, or when you want a structured replacement for screenshot-based visibility debugging.\n" +
         "DO NOT USE: As a generic tree browser; use get_visual_tree/get_logical_tree for structure exploration.\n\n" +
         "RESPONSE SUMMARY:\n" +
@@ -54,8 +54,10 @@ internal static class SceneDiagnosticsMcpToolDescriptions
         "  - elementId: string,\n" +
         "  - isUserVisible: boolean,\n" +
         "  - checks: [],\n" +
+        "  - clipping: { severity: 'none'|'partial'|'full', isClipped: boolean, isFullyClipped: boolean, visibleRatio: number|null },\n" +
         "  - rootCause: string|null,\n" +
         "  - suggestedFix: string|null\n\n" +
+        "CLIPPING: partial clipping reports isUserVisible=true when the element still has visible area; full clipping reports a rootCause and suggestedFix.\n\n" +
         "ERRORS:\n" +
         "- \"elementId\" -> provide a runtime elementId from find_elements / get_visual_tree\n" +
         "- \"not connected\" -> reconnect before diagnosing visibility\n\n" +

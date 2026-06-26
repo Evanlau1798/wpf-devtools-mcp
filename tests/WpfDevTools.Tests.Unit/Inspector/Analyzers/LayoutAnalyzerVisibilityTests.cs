@@ -38,35 +38,97 @@ public sealed class LayoutAnalyzerVisibilityTests
     }
 
     [StaFact]
-    public void DiagnoseVisibility_WhenElementIsClipped_ShouldReportClippingRootCause()
+    public void DiagnoseVisibility_WhenElementIsFullyClipped_ShouldReportClippingRootCause()
     {
         var finder = new ElementFinder();
         var root = new Window();
         var border = new Border
         {
-            Width = 150,
+            Width = 100,
             Height = 50,
             ClipToBounds = true,
-            Child = new TextBlock
+            Child = new Canvas
             {
-                Name = "ClippingTextSample",
-                Text = "This text is very long and will be clipped by the border because ClipToBounds is True",
-                TextWrapping = TextWrapping.NoWrap
+                Width = 220,
+                Height = 50,
+                Children =
+                {
+                    new Button
+                    {
+                        Name = "ClippingButtonSample",
+                        Content = "Outside",
+                        Width = 80,
+                        Height = 30
+                    }
+                }
             }
         };
+        var button = (Button)((Canvas)border.Child).Children[0];
+        Canvas.SetLeft(button, 140);
         root.Content = border;
         root.Show();
         root.UpdateLayout();
         try
         {
             var analyzer = new LayoutAnalyzer(finder);
-            var elementId = finder.GenerateElementId((TextBlock)border.Child);
+            var elementId = finder.GenerateElementId(button);
 
             var result = JsonSerializer.SerializeToElement(analyzer.DiagnoseVisibility(elementId));
 
             result.GetProperty("success").GetBoolean().Should().BeTrue();
             result.GetProperty("isUserVisible").GetBoolean().Should().BeFalse();
-            result.GetProperty("rootCause").GetString().Should().Contain("clipped");
+            result.GetProperty("rootCause").GetString().Should().Contain("fully clipped");
+        }
+        finally
+        {
+            root.Close();
+        }
+    }
+
+    [StaFact]
+    public void DiagnoseVisibility_WhenElementIsPartiallyClipped_ShouldRemainUserVisible()
+    {
+        var finder = new ElementFinder();
+        var root = new Window();
+        var border = new Border
+        {
+            Width = 100,
+            Height = 50,
+            ClipToBounds = true,
+            Child = new Canvas
+            {
+                Width = 160,
+                Height = 50,
+                Children =
+                {
+                    new Button
+                    {
+                        Name = "PartiallyClippedButtonSample",
+                        Content = "Partial",
+                        Width = 80,
+                        Height = 30
+                    }
+                }
+            }
+        };
+        var button = (Button)((Canvas)border.Child).Children[0];
+        Canvas.SetLeft(button, 60);
+        root.Content = border;
+        root.Show();
+        root.UpdateLayout();
+        try
+        {
+            var analyzer = new LayoutAnalyzer(finder);
+            var elementId = finder.GenerateElementId(button);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.DiagnoseVisibility(elementId));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("isUserVisible").GetBoolean().Should().BeTrue(result.GetRawText());
+            result.GetProperty("rootCause").ValueKind.Should().Be(JsonValueKind.Null);
+            result.GetProperty("clipping").GetProperty("severity").GetString().Should().Be("partial");
+            result.GetProperty("clipping").GetProperty("visibleRatio").GetDouble()
+                .Should().BeGreaterThan(0).And.BeLessThan(1);
         }
         finally
         {

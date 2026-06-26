@@ -214,13 +214,20 @@ public sealed partial class LayoutAnalyzer
             return ClippingDiagnosis.Full;
         }
 
-        var visibleRatio = Math.Clamp(
-            visibleBounds.Width * visibleBounds.Height / elementArea,
-            0d,
-            1d);
+        var visibleRatio = ClampRatio(visibleBounds.Width * visibleBounds.Height / elementArea);
         return visibleRatio >= 0.999
             ? ClippingDiagnosis.None
             : ClippingDiagnosis.Partial(visibleRatio);
+    }
+
+    private static double ClampRatio(double value)
+    {
+        if (value < 0d)
+        {
+            return 0d;
+        }
+
+        return value > 1d ? 1d : value;
     }
 
     private IReadOnlyList<AncestorVisibilityState> EnumerateAncestorStates(FrameworkElement element)

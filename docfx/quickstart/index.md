@@ -20,7 +20,7 @@ irm https://installer.wpf-mcptools.evanlau1798.com | iex
 For a pinned beta or preview pre-release, set the GitHub release tag explicitly:
 
 ```powershell
-$version = 'v1.0.0-beta.13'
+$version = 'v1.0.0-beta.14'
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 
@@ -52,7 +52,7 @@ Use this path when you already have a reviewed release archive.
 6. Extract the package and run the packaged installer with the original archive and metadata directory:
 
    ```powershell
-   $version = '1.0.0-beta.13'
+   $version = '1.0.0-beta.14'
    $arch = 'x64'
    $archive = (Resolve-Path ".\release_${version}_win-$arch.zip").Path
    $metadata = Split-Path -Parent $archive

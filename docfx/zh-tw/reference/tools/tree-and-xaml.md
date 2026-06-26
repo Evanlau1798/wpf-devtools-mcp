@@ -20,7 +20,7 @@
 - 需要看 template 產生出的 visual children 時，用 **template tree**
 - 需要找穩定的命名部件時，用 **namescope**
 - 需要檢查 dialog 或 secondary window 時，用 **`get_windows`**；將回傳的 window `elementId` 傳給 tree、scene 或其他 element-scoped 工具。
-- 只有在 scene、tree 或 search 工具已回傳目前 session 的 `elementId` 後，才使用 **serialize_to_xaml(elementId)** 取得該子樹的 XAML 近似表示。
+- 只有在 scene、tree 或 search 工具已回傳目前 session 的 `elementId` 後，才使用 **serialize_to_xaml(elementId)** 取得該子樹的安全 runtime XAML snapshot；它不是 design-time XAML 匯出。
 
 ## 預設輸出上限
 
@@ -32,7 +32,9 @@
 
 `find_elements` 也會在評估 match 前套用 traversal cap：`maxTraversalNodes` 預設為 `1000`，最高接受 `10000`。可選的 `query` 是有界線的便利搜尋，會比對 element type、`FrameworkElement.Name`、AutomationId、Text、Content、Header 等常見語意欄位；需要穩定自動化路徑時，仍優先使用 `typeName`、`elementName` 或 `automationId` 等精確 filters。若搜尋回傳 `traversalTruncated=true`，先檢查 `traversalNodeCount`，並優先縮小 root 或 filters，再考慮提高 traversal cap。
 
-`serialize_to_xaml` 會要求 `elementId`，並拒絕 `selector`、`maxDepth`、`maxNodes` 這類 selector-style 參數。請先用 `get_ui_summary`、`get_visual_tree`、`get_logical_tree` 或 `find_elements` 取得具體元素，避免意外序列化大型 root window。
+`serialize_to_xaml` 會要求 `elementId`，並拒絕 `selector`、`maxDepth`、`maxNodes` 這類 selector-style 參數。請先用 `get_ui_summary`、`get_visual_tree`、`get_logical_tree` 或 `find_elements` 取得具體元素，避免意外 snapshot 大型 root window。
+
+snapshot writer 不會呼叫 WPF `XamlWriter` round-trip serialization，因此可以檢查第三方控制項或 template-heavy 子樹，而不觸發 design-time serializer。請把輸出視為 bounded runtime view，而不是可寫回原始碼的 XAML。
 
 ## 常見陷阱
 

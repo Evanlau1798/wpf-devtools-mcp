@@ -1,6 +1,7 @@
 using Xunit;
 using FluentAssertions;
 using WpfDevTools.Inspector.Utilities;
+using System.ComponentModel;
 using System.Windows.Controls;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Utilities;
@@ -40,5 +41,47 @@ public class XamlSerializerTests
         result.Should().Contain("<StackPanel");
         result.Should().Contain("<Button");
         result.Should().Contain("<TextBox");
+    }
+
+    [StaFact]
+    public void SerializeToXaml_WithThirdPartyControl_ShouldAvoidRuntimeXamlWriterSideEffects()
+    {
+        var serializer = new XamlSerializer();
+        var control = new ThirdPartyNavigationLikeControl();
+
+        var result = serializer.SerializeToXaml(control);
+
+        result.Should().Contain("<ThirdPartyNavigationLikeControl");
+        result.Should().Contain("Navigation item");
+        control.DangerousPropertyWasRead.Should().BeFalse();
+    }
+
+    public sealed class ThirdPartyNavigationLikeControl : ContentControl
+    {
+        public ThirdPartyNavigationLikeControl()
+        {
+            Content = new StackPanel
+            {
+                Children =
+                {
+                    new Button { Content = "Navigation item" }
+                }
+            };
+        }
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
+        public string DangerousProperty
+        {
+            get
+            {
+                DangerousPropertyWasRead = true;
+                throw new InvalidOperationException("Runtime serializer touched a dangerous third-party property.");
+            }
+            set
+            {
+            }
+        }
+
+        public bool DangerousPropertyWasRead { get; private set; }
     }
 }

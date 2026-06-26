@@ -5,6 +5,7 @@ using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
+[Collection("ProcessEnvironment")]
 public sealed class InstalledReleaseTrustPolicyTests
 {
     [Fact]

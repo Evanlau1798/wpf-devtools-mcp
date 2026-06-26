@@ -171,6 +171,30 @@ public partial class ConnectToolTests : IDisposable
     }
 
     [Fact]
+    public async Task Execute_WithRawInjectionArchitectureMismatch_ShouldReturnBeforeDllValidation()
+    {
+        var dllValidatorCalled = false;
+        var injector = new FakeProcessInjector();
+        var targetArchitecture = Environment.Is64BitProcess
+            ? ProcessArchitecture.X86
+            : ProcessArchitecture.X64;
+        var tool = CreateTool(
+            injector: injector,
+            processDetector: new FakeProcessDetector(architecture: targetArchitecture),
+            dllPathValidator: _ => dllValidatorCalled = true);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("errorCode").GetString().Should().Be("ArchitectureMismatch");
+        resultJson.GetProperty("error").GetString().Should().Contain("Architecture mismatch");
+        resultJson.GetProperty("hint").GetString().Should().Contain("matching package architecture");
+        dllValidatorCalled.Should().BeFalse();
+        injector.InjectWithBootstrapCallCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Execute_WithElevatedTargetAccessDenied_ShouldExplainAdministratorRequirement()
     {
         var tool = CreateTool(

@@ -326,6 +326,7 @@ public abstract partial class PipeConnectedToolBase
             {
                 return MergePiggybackFailureDiagnostics(
                     result,
+                    processId,
                     ResolvePiggybackFailureType(drainPayload),
                     GetStringProperty(drainPayload, "errorCode"),
                     GetStringProperty(drainPayload, "error"));
@@ -383,6 +384,7 @@ public abstract partial class PipeConnectedToolBase
         {
             return MergePiggybackFailureDiagnostics(
                 result,
+                processId,
                 ResolvePiggybackFailureType(ex),
                 null,
                 ex.Message);

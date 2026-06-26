@@ -54,11 +54,9 @@ public sealed class GetBindingErrorsToolPendingEventsTests
                 }
             }));
         var tool = new GetBindingErrorsTool(connected.SessionManager);
-
         var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
             ToJsonElement(new { processId }),
             CancellationToken.None));
-
         await connected.ServerTask;
 
         connected.RequestMethods.Should().Equal("get_binding_errors", "drain_events");
@@ -112,7 +110,6 @@ public sealed class GetBindingErrorsToolPendingEventsTests
                 }
             }));
         var tool = new GetBindingErrorsTool(connected.SessionManager);
-
         var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
             ToJsonElement(new { processId }),
             CancellationToken.None));
@@ -155,11 +152,9 @@ public sealed class GetBindingErrorsToolPendingEventsTests
                 pendingEvents = new[] { new { eventType = "DpChange", elementId = "Button_1" } }
             }));
         var tool = new GetBindingErrorsTool(connected.SessionManager);
-
         var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
             ToJsonElement(new { processId }),
             CancellationToken.None));
-
         await connected.ServerTask;
 
         connected.RequestMethods.Should().Equal("get_binding_errors", "drain_events");
@@ -267,9 +262,11 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("errorCount").GetInt32().Should().Be(0);
         result.GetProperty("pendingEventsPiggybackFailed").GetBoolean().Should().BeTrue();
-        result.GetProperty("pendingEventsPiggybackFailureType").GetString().Should().Be("NonSuccessResponse");
+        result.GetProperty("pendingEventsPiggybackFailureType").GetString().Should().Be("Timeout");
         result.GetProperty("pendingEventsMayRemainBuffered").GetBoolean().Should().BeTrue();
         result.GetProperty("pendingEventsPiggybackSuggestedAction").GetString().Should().Contain("drain_events");
+        result.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
+        result.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
     }
 
     [Fact]
@@ -295,6 +292,9 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         result.GetProperty("pendingEventsPiggybackFailed").GetBoolean().Should().BeTrue();
         result.GetProperty("pendingEventsPiggybackFailureType").GetString().Should().Be("Timeout");
         result.GetProperty("pendingEventsMayRemainBuffered").GetBoolean().Should().BeTrue();
+        result.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
+        result.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
+        result.GetProperty("pendingEventsPiggybackSuggestedAction").GetString().Should().Contain("Reconnect");
     }
 
     [Fact]
@@ -335,6 +335,8 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         result.GetProperty("pendingEventsPiggybackFailed").GetBoolean().Should().BeTrue();
         result.GetProperty("pendingEventsPiggybackFailureType").GetString().Should().Be("TransportReset");
         result.GetProperty("pendingEventsMayRemainBuffered").GetBoolean().Should().BeTrue();
+        result.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
+        result.GetProperty("pendingEventsPiggybackSuggestedAction").GetString().Should().Contain("Reconnect");
     }
 
     private sealed class ConnectedBindingErrorsSession(

@@ -250,6 +250,11 @@ public sealed class StateSnapshotRestoreContractTests
         restoreResult.GetProperty("warnings").GetArrayLength().Should().Be(0);
         restoreResult.GetProperty("skippedViewModelProperties")[0].GetProperty("restoreDisposition").GetString().Should().Be("SkippedComplexReference");
         restoreResult.GetProperty("skippedViewModelProperties")[0].GetProperty("reason").GetString().Should().Contain("complex reference");
+        var nextSteps = restoreResult.GetProperty("nextSteps").EnumerateArray().ToArray();
+        nextSteps.Select(step => step.GetProperty("tool").GetString())
+            .Should().Contain(["get_viewmodel", "capture_state_snapshot"]);
+        nextSteps[0].GetProperty("reason").GetString().Should().Contain("SelectedTask");
+        nextSteps[0].GetProperty("reason").GetString().Should().Contain("complex reference");
         connected.RequestMethods.Should().Equal("get_viewmodel", "get_binding_errors", "get_validation_errors", "get_viewmodel");
     }
 

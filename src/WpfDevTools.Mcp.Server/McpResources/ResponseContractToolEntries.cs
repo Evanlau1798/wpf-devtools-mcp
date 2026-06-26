@@ -320,8 +320,8 @@ internal static class ResponseContractToolEntries
                 canonicalPayloadField = "result.structuredContent",
                 textFallbackField = "result.content[0].text",
                 contractResource = resourceUri,
-                topLevelFields = new[] { "success", "snapshotId", "restoreIncomplete", "stateAfterTimeoutUnknown", "requiresReconnect", "processId", "timeoutSeconds", "retryAfterSeconds", "retryAfter", "availableTokens", "availableEvents", "restoredDependencyPropertyCount", "restoredDependencyProperties", "skippedDependencyPropertyCount", "skippedDependencyProperties", "restoredViewModelPropertyCount", "restoredViewModelProperties", "skippedViewModelPropertyCount", "skippedViewModelProperties", "restoredFocus", "warnings" },
-                nestedResponsePaths = new[] { "restoredDependencyProperties[].propertyName", "skippedDependencyProperties[].reason", "restoredViewModelProperties[].verified" },
+                topLevelFields = new[] { "success", "snapshotId", "restoreIncomplete", "stateAfterTimeoutUnknown", "requiresReconnect", "processId", "timeoutSeconds", "retryAfterSeconds", "retryAfter", "availableTokens", "availableEvents", "restoredDependencyPropertyCount", "restoredDependencyProperties", "skippedDependencyPropertyCount", "skippedDependencyProperties", "restoredViewModelPropertyCount", "restoredViewModelProperties", "skippedViewModelPropertyCount", "skippedViewModelProperties", "restoredFocus", "warnings", "nextSteps" },
+                nestedResponsePaths = new[] { "restoredDependencyProperties[].propertyName", "skippedDependencyProperties[].reason", "restoredViewModelProperties[].verified", "skippedViewModelProperties[].restoreDisposition", "skippedViewModelProperties[].reason", "nextSteps[].tool" },
                 requestParameters = new[] { "snapshotId", "removeAfterRestore" }
             },
             new
@@ -332,8 +332,8 @@ internal static class ResponseContractToolEntries
                 textFallbackField = "result.content[0].text",
                 contractResource = resourceUri,
                 topLevelFields = new[] { "success", "executionMode", "executionPolicy", "stopOnError", "snapshotId", "mutationCount", "executedMutationCount", "successfulMutationCount", "failedMutationCount", "skippedMutationCount", "stateAfterTimeoutUnknown", "requiresReconnect", "processId", "timeoutSeconds", "retryAfterSeconds", "retryAfter", "availableTokens", "availableEvents", "mutations", "stateDiff", "rollback", "recovery" },
-                nestedResponsePaths = new[] { "mutations[].tool", "mutations[].success", "mutations[].stateAfterTimeoutUnknown", "stateDiff.snapshotId", "rollback.params.snapshotId", "recovery.tool", "recovery.retryAfterSeconds" },
-                requestParameters = new[] { "captureSnapshot", "includeDiff", "mutations", "trigger" }
+                nestedResponsePaths = new[] { "mutations[].tool", "mutations[].success", "mutations[].stateAfterTimeoutUnknown", "stateDiff.snapshotId", "rollback.params.snapshotId", "rollback.rollbackOnFailure", "rollback.succeeded", "recovery.tool", "recovery.retryAfterSeconds" },
+                requestParameters = new[] { "captureSnapshot", "includeDiff", "rollbackOnFailure", "mutations", "trigger" }
             },
             new
             {

@@ -203,16 +203,24 @@ public sealed partial class RestoreStateSnapshotTool(SessionManager sessionManag
                     sessionGeneration,
                     snapshot,
                     cancellationToken).ConfigureAwait(false);
+                var restoreDisposition = ClassifyRestoreDisposition(snapshot);
+                var reason = snapshot.SkipReason ?? $"Property '{snapshot.PropertyName}' is not writable.";
                 progress.SkippedViewModelProperties.Add(new
                 {
                     propertyName = snapshot.PropertyName,
-                    reason = snapshot.SkipReason ?? $"Property '{snapshot.PropertyName}' is not writable.",
-                    restoreDisposition = ClassifyRestoreDisposition(snapshot),
+                    reason,
+                    restoreDisposition,
                     verified = verification.verified,
                     expectedValue = snapshot.Value,
                     currentValue = verification.currentValue,
                     verificationSkippedReason = verification.skippedReason
                 });
+                progress.SkippedViewModelRestores.Add(new(
+                    snapshot.ElementId,
+                    snapshot.PropertyName,
+                    restoreDisposition,
+                    reason,
+                    verification.verified));
 
                 if (!verification.verified)
                 {
@@ -249,6 +257,12 @@ public sealed partial class RestoreStateSnapshotTool(SessionManager sessionManag
                 if (!verification.verified)
                 {
                     progress.Warnings.Add($"ViewModel restore verification failed for '{snapshot.PropertyName}'.");
+                    progress.FailedViewModelRestores.Add(new(
+                        snapshot.ElementId,
+                        snapshot.PropertyName,
+                        "ReadBackMismatch",
+                        "modify_viewmodel reported success but get_viewmodel did not read back the captured value.",
+                        false));
                 }
 
                 progress.RestoredViewModelPropertyCount++;

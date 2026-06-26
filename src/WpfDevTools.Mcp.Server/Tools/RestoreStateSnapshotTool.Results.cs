@@ -32,11 +32,26 @@ public sealed partial class RestoreStateSnapshotTool
 
     private static object[] CreateRestoreNextSteps(RestoreProgress progress)
     {
-        if (progress.FailedDependencyPropertyRestores.Count == 0)
+        var steps = new List<object>();
+        if (progress.FailedDependencyPropertyRestores.Count > 0)
         {
-            return [];
+            steps.AddRange(CreateDependencyPropertyRestoreNextSteps(progress));
         }
 
+        var viewModelFailure = progress.FailedViewModelRestores.FirstOrDefault()
+            ?? progress.SkippedViewModelRestores.FirstOrDefault(static failure =>
+                string.Equals(failure.RestoreDisposition, "SkippedComplexReference", StringComparison.Ordinal)
+                || !failure.Verified);
+        if (viewModelFailure != null)
+        {
+            steps.AddRange(CreateViewModelRestoreNextSteps(viewModelFailure));
+        }
+
+        return steps.ToArray();
+    }
+
+    private static object[] CreateDependencyPropertyRestoreNextSteps(RestoreProgress progress)
+    {
         var firstFailure = progress.FailedDependencyPropertyRestores[0];
         var propertyNames = progress.FailedDependencyPropertyRestores
             .Select(failure => failure.PropertyName)
@@ -58,6 +73,31 @@ public sealed partial class RestoreStateSnapshotTool
                 @params = new { elementId = firstFailure.ElementId, propertyNames },
                 reason = "For two-way binding targets, capture the DependencyProperty and the backing ViewModel property before mutating.",
                 expectedOutcome = "A later restore_state_snapshot can replay both the target property and source value."
+            }
+        ];
+    }
+
+    private static object[] CreateViewModelRestoreNextSteps(ViewModelRestoreFailure failure)
+    {
+        var reason = string.Equals(failure.RestoreDisposition, "SkippedComplexReference", StringComparison.Ordinal)
+            ? $"ViewModel property '{failure.PropertyName}' was skipped as a complex reference; modify_viewmodel cannot reconstruct object identity from the captured snapshot value."
+            : $"ViewModel property '{failure.PropertyName}' was not verified after restore_state_snapshot.";
+
+        return
+        [
+            new
+            {
+                tool = "get_viewmodel",
+                @params = new { elementId = failure.ElementId },
+                reason,
+                expectedOutcome = "Confirm the current value, type, and canWrite status before choosing an app-specific recovery path."
+            },
+            new
+            {
+                tool = "capture_state_snapshot",
+                @params = new { elementId = failure.ElementId, viewModelPropertyNames = new[] { failure.PropertyName } },
+                reason = $"Before mutating '{failure.PropertyName}' again, capture a fresh snapshot and prefer app commands or UI selection when the value is a complex reference.",
+                expectedOutcome = "A fresh baseline documents whether the property is rollback-safe or requires app-specific recovery."
             }
         ];
     }
@@ -117,10 +157,19 @@ public sealed partial class RestoreStateSnapshotTool
         public int RestoredViewModelPropertyCount { get; set; }
         public List<object> RestoredViewModelProperties { get; } = [];
         public List<object> SkippedViewModelProperties { get; } = [];
+        public List<ViewModelRestoreFailure> SkippedViewModelRestores { get; } = [];
+        public List<ViewModelRestoreFailure> FailedViewModelRestores { get; } = [];
         public bool RestoredFocus { get; set; }
         public List<string> Warnings { get; } = [];
         public List<FailedDependencyPropertyRestore> FailedDependencyPropertyRestores { get; } = [];
     }
 
     private sealed record FailedDependencyPropertyRestore(string? ElementId, string PropertyName);
+
+    private sealed record ViewModelRestoreFailure(
+        string? ElementId,
+        string PropertyName,
+        string RestoreDisposition,
+        string Reason,
+        bool Verified);
 }

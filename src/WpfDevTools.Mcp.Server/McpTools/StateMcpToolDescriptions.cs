@@ -29,7 +29,8 @@ internal static class StateMcpToolDescriptions
         "USE WHEN: Rolling back temporary DependencyProperty, ViewModel, or focus changes in the same session.\n" +
         "DO NOT USE: Across disconnected sessions, application restarts, or after the in-memory snapshot has expired.\n" +
         "RETENTION: Snapshots are kept for at most 30 minutes and the oldest snapshots are evicted when a process retains more than 20.\n\n" +
-        "EXPRESSION ROLLBACK: Binding-backed DependencyProperty expressions captured in the same session can be restored. When a two-way source property also needs to return to its baseline value, capture that ViewModel property in the same snapshot. Non-Binding expressions are still surfaced through skippedDependencyProperties with explicit reasons.\n\n" +
+        "EXPRESSION ROLLBACK: Binding-backed DependencyProperty expressions captured in the same session can be restored. When a two-way source property also needs to return to its baseline value, capture that ViewModel property in the same snapshot. Non-Binding expressions are still surfaced through skippedDependencyProperties with explicit reasons.\n" +
+        "VIEWMODEL LIMITS: Complex reference ViewModel properties may be skipped when object identity cannot be reconstructed from the captured value; skipped entries include restoreDisposition, reason, verification fields, and follow-up guidance for re-reading or recapturing the property.\n\n" +
         "RESPONSE SUMMARY:\n" +
         "  - success: boolean,\n" +
         "  - restoredDependencyPropertyCount: number,\n" +
@@ -39,9 +40,10 @@ internal static class StateMcpToolDescriptions
         "  - restoredViewModelPropertyCount: number,\n" +
         "  - restoredViewModelProperties: [{ propertyName, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
         "  - skippedViewModelPropertyCount: number,\n" +
-        "  - skippedViewModelProperties: [{ propertyName, reason, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
+        "  - skippedViewModelProperties: [{ propertyName, reason, restoreDisposition, verified: boolean, expectedValue, currentValue, verificationSkippedReason }],\n" +
         "  - restoredFocus: boolean,\n" +
-        "  - warnings: string[]\n\n" +
+        "  - warnings: string[],\n" +
+        "  - follow-up guidance for failed DependencyProperty verification or skipped complex ViewModel properties\n\n" +
         "ERRORS:\n" +
         "- \"snapshotId\" -> snapshot missing, expired, already removed, or created for another process; take a fresh snapshot with capture_state_snapshot. If restore conflicts persist, inspect get_dp_value_source and get_bindings before retrying\n" +
         "- \"not connected\" -> reconnect before restore\n\n" +

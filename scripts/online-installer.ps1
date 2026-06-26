@@ -26,7 +26,8 @@ param(
 
     [switch]$NonInteractive,
     [switch]$Force,
-    [switch]$OutputJson
+    [switch]$OutputJson,
+    [switch]$Help
 )
 
 $ErrorActionPreference = 'Stop'
@@ -36,6 +37,40 @@ $script:InstallRootWasSpecified = $PSBoundParameters.ContainsKey('InstallRoot')
 $script:PackageArchivePathWasSpecified = $PSBoundParameters.ContainsKey('PackageArchivePath')
 $script:TrustedReleaseMetadataDirectoryWasSpecified = $PSBoundParameters.ContainsKey('TrustedReleaseMetadataDirectory')
 $script:InstallerTestResponses = New-Object System.Collections.Generic.Queue[string]
+
+function Show-InstallerHelp {
+@'
+Usage:
+  irm https://installer.wpf-mcptools.evanlau1798.com | iex
+  & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) [options]
+  powershell -NoProfile -File .\install.ps1 [options]
+
+Actions:
+  -Action install        Install and register the MCP server. This is the default.
+  -Action uninstall      Remove one client registration and installed payload.
+  -Action full-uninstall Remove installer-owned registrations and payloads.
+  -Action plan           Print the non-mutating install plan as JSON.
+
+Common options:
+  -Version <tag|latest>  Release version or tag. Use -Prerelease for preview tags.
+  -Architecture <arch>   x64, x86, or arm64.
+  -Client <client>       claude-code, codex, cursor, vscode, visual-studio, claude-desktop, or other.
+  -InstallRoot <path>    Install root. Defaults to a per-user local app data path.
+  -PackageArchivePath <zip>
+                         Install from a reviewed local release archive.
+  -TrustedReleaseMetadataDirectory <path>
+                         Directory containing SHA256SUMS.txt and release-assets.json for the archive.
+  -NonInteractive        Do not prompt for input.
+  -Force                 Allow overwrite when the selected action supports it.
+  -OutputJson            Print machine-readable JSON for action results.
+  -Help                  Print this help text without installing or modifying state.
+'@ | Write-Output
+}
+
+if ($Help) {
+    Show-InstallerHelp
+    return
+}
 
 function Invoke-InstallerWebRequest {
     param(

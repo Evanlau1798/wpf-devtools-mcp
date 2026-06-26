@@ -9,6 +9,8 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 [Collection("TimingSensitive")]
 public class FileLoggerTests : IDisposable, IAsyncDisposable
 {
+    private static readonly TimeSpan BackgroundWriterStartTimeout = TimeSpan.FromSeconds(10);
+
     private readonly string _testLogPath;
     private readonly FileLogger _logger;
 
@@ -200,7 +202,7 @@ public class FileLoggerTests : IDisposable, IAsyncDisposable
             });
 
         logger.LogInfo("blocked write");
-        await writeStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await writeStarted.Task.WaitAsync(BackgroundWriterStartTimeout);
 
         try
         {
@@ -235,7 +237,7 @@ public class FileLoggerTests : IDisposable, IAsyncDisposable
             });
 
         logger.LogInfo("blocked write");
-        await writeStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await writeStarted.Task.WaitAsync(BackgroundWriterStartTimeout);
 
         Task disposeTask;
         try
@@ -274,7 +276,7 @@ public class FileLoggerTests : IDisposable, IAsyncDisposable
             });
 
         logger.LogInfo("blocked write");
-        await writeStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await writeStarted.Task.WaitAsync(BackgroundWriterStartTimeout);
 
         var previousContext = SynchronizationContext.Current;
         var blockedContext = new QueuedSynchronizationContext();

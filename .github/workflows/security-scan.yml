@@ -52,17 +52,7 @@ jobs:
     - name: Run .NET analyzer gate
       shell: pwsh
       run: |
-        $dotnet = Join-Path $env:DOTNET_ROOT 'dotnet.exe'
-        if (-not (Test-Path -LiteralPath $dotnet)) {
-          $dotnet = (Get-Command dotnet -ErrorAction Stop).Source
-        }
-
-        $dotnetDir = Split-Path -Parent $dotnet
-        $env:DOTNET_ROOT = $dotnetDir
-        $env:PATH = "$dotnetDir;$env:PATH"
-        $env:DOTNET_HOST_PATH = $dotnet
-        & $dotnet --info
-        & $dotnet format WpfDevTools.sln analyzers --verify-no-changes --severity error --no-restore
+        ./scripts/tools/security/Invoke-DotNetAnalyzerGate.ps1
 
     - name: Run PowerShell ScriptAnalyzer
       shell: pwsh

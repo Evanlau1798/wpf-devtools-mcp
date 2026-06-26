@@ -63,24 +63,36 @@ public sealed class GitHubActionsWorkflowSecurityTests
     public void SecurityScanWorkflow_ShouldRunStaticSecurityScanningBeyondNuGetAudit()
     {
         var workflow = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(".github/workflows/security-scan.yml"));
+        var dotNetAnalyzerGate = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(
+            "scripts/tools/security/Invoke-DotNetAnalyzerGate.ps1"));
         var scriptAnalyzerGate = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(
             "scripts/tools/security/Invoke-PowerShellScriptAnalyzerGate.ps1"));
         var secretScan = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(
             "scripts/tools/security/Invoke-RepositorySecretScan.ps1"));
 
         workflow.Should().Contain("security-scan:");
-        workflow.Should().Contain("dotnet format WpfDevTools.sln analyzers --verify-no-changes",
+        workflow.Should().Contain("Invoke-DotNetAnalyzerGate.ps1",
             "CI should run a .NET analyzer gate, not only restore-time NuGet vulnerability checks");
-        workflow.Should().Contain("Join-Path $env:DOTNET_ROOT 'dotnet.exe'",
+        dotNetAnalyzerGate.Should().Contain("'format'",
+            "the analyzer gate should run dotnet format rather than only dotnet restore");
+        dotNetAnalyzerGate.Should().Contain("'WpfDevTools.sln'");
+        dotNetAnalyzerGate.Should().Contain("'analyzers'");
+        dotNetAnalyzerGate.Should().Contain("'--verify-no-changes'");
+        dotNetAnalyzerGate.Should().Contain("'--severity'");
+        dotNetAnalyzerGate.Should().Contain("'error'");
+        dotNetAnalyzerGate.Should().Contain("'--no-restore'");
+        dotNetAnalyzerGate.Should().Contain("Join-Path $env:DOTNET_ROOT 'dotnet.exe'",
             "the analyzer gate should invoke the setup-dotnet CLI explicitly rather than relying on a mutable PATH");
-        workflow.Should().Contain("$dotnetDir = Split-Path -Parent $dotnet",
+        dotNetAnalyzerGate.Should().Contain("$dotnetDirectory = Split-Path -Parent $ResolvedDotNetPath",
             "hosted security scans must derive DOTNET_ROOT from the actual resolved dotnet executable");
-        workflow.Should().Contain("$env:DOTNET_ROOT = $dotnetDir",
+        dotNetAnalyzerGate.Should().Contain("$env:DOTNET_ROOT = $dotnetDirectory",
             "dotnet-format child CLI resolution should not depend on a possibly stale setup-dotnet environment variable");
-        workflow.Should().Contain("$env:PATH = \"$dotnetDir;$env:PATH\"",
+        dotNetAnalyzerGate.Should().Contain("$env:PATH = \"$dotnetDirectory;$env:PATH\"",
             "hosted security scans must make the resolved dotnet installation visible to dotnet-format child CLI resolution");
-        workflow.Should().Contain("$env:DOTNET_HOST_PATH = $dotnet",
+        dotNetAnalyzerGate.Should().Contain("$env:DOTNET_HOST_PATH = $ResolvedDotNetPath",
             "dotnet-format child processes need the resolved host path on GitHub hosted runners");
+        dotNetAnalyzerGate.Should().Contain("Unable to locate dotnet CLI",
+            "the hosted gate should retry the observed transient dotnet-format CLI lookup failure");
         workflow.Should().Contain("PSScriptAnalyzer",
             "PowerShell installer and release scripts should be statically scanned in CI");
         workflow.Should().Contain("Invoke-PowerShellScriptAnalyzerGate.ps1");

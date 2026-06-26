@@ -28,6 +28,8 @@
 
 `get_template_tree` uses the same default node and fan-out caps and accepts `maxNodes` plus `maxChildrenPerNode` when you need a smaller template payload. When a tree is capped, inspect `returnedNodeCount`, `omittedNodeCount`, `truncated`, and per-node `omittedChildCount` before deciding whether to request a narrower scope or higher caps.
 
+Use `get_template_tree` on a loaded templated control from the current visual tree. A single `ElementNotLoaded` or `No template visual tree found` result often means the chosen candidate is inactive, virtualized, or not template-backed; retry another loaded templated control before reporting a template-tree limitation in real-project validation.
+
 `find_elements` also applies a traversal cap before evaluating matches: `maxTraversalNodes` defaults to `1000` and is capped at `10000`. The optional `query` parameter is a bounded convenience search over common semantic fields such as element type, `FrameworkElement.Name`, AutomationId, Text, Content, and Header; use exact filters like `typeName`, `elementName`, or `automationId` when the automation path must be deterministic. When a search returns `traversalTruncated=true`, inspect `traversalNodeCount` and narrow the root or filters before raising the traversal cap.
 
 `serialize_to_xaml` intentionally requires `elementId` and rejects selector-style arguments such as `selector`, `maxDepth`, and `maxNodes`. Use `get_ui_summary`, `get_visual_tree`, `get_logical_tree`, or `find_elements` first so the tool serializes a specific live subtree instead of accidentally targeting a large root window.

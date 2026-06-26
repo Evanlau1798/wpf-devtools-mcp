@@ -105,7 +105,8 @@ internal static class TreeMcpToolDescriptions
         "Use this tool to inspect the WPF template tree of a runtime control and understand generated parts.\n\n" +
         TreeMetadata + "[Tree] Get the template Visual Tree of a templated WPF control (Button, ListBox, etc.). " +
         "Shows the internal rendering structure defined by the control's ControlTemplate.\n\n" +
-        "USE WHEN: You need to inspect how a control renders internally or find template parts.\n" +
+        "USE WHEN: You need to inspect how a loaded templated control renders internally or find template parts.\n" +
+        "TARGET SELECTION: Pick a loaded templated control from the current visual tree, such as a Button, ListBox, ComboBox, or TabControl. If ElementNotLoaded or \"No template visual tree found\" is returned for one candidate, choose another current loaded templated control before reporting a template-tree limitation.\n" +
         "DO NOT USE: On non-templated elements (will return empty); check element type first.\n\n" +
         "PERFORMANCE: Template traversal applies the same default 1000-node and 200-child fan-out caps as visual/logical tree tools; pass maxNodes or maxChildrenPerNode to narrow large template payloads.\n\n" +
         "RESPONSE SUMMARY:\n" +

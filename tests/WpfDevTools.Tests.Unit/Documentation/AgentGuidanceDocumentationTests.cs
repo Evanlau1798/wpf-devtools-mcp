@@ -59,6 +59,21 @@ public sealed class AgentGuidanceDocumentationTests
             "the primary agent-facing instructions should mention rate-limit backoff fields");
     }
 
+    [Fact]
+    public void AgentGuidance_ShouldRequireLoadedFocusableAndTemplateBackedTargetRetries()
+    {
+        var serverInstructions = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/ServerInstructions.cs"));
+        var interactionDescriptions = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools/InteractionMcpToolDescriptions.cs"));
+        var treeDescriptions = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools/TreeMcpToolDescriptions.cs"));
+        var guide = File.ReadAllText(GetRepoFilePath("docfx/guides/ai-agent-guide.md"));
+
+        serverInstructions.Should().Contain("Do not report a focus or template limitation from one failed target");
+        interactionDescriptions.Should().Contain("visible, enabled, focusable");
+        interactionDescriptions.Should().Contain("get_interaction_readiness");
+        treeDescriptions.Should().Contain("loaded templated control");
+        guide.Should().Contain("Retry with another loaded, focusable, or template-backed element");
+    }
+
     [Theory]
     [InlineData("docfx/reference/error-model.md")]
     [InlineData("docfx/zh-tw/reference/error-model.md")]

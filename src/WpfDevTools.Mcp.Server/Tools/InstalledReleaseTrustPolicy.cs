@@ -9,6 +9,7 @@ internal static class InstalledReleaseTrustPolicy
     private const string ReleaseChecksumOnly = "ReleaseChecksumOnly";
     private const string ReleaseChannel = "release";
     private const string ReleaseConfiguration = "Release";
+    private const string TrustedReleaseMetadataDirectoryEnvVar = "WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY";
 
     public static bool CanSkipSignatureForChecksumOnlyPayload(
         string dllPath,
@@ -216,6 +217,12 @@ internal static class InstalledReleaseTrustPolicy
         if (parentDirectory is not null)
         {
             yield return parentDirectory;
+        }
+
+        var trustedMetadataDirectory = Environment.GetEnvironmentVariable(TrustedReleaseMetadataDirectoryEnvVar);
+        if (!string.IsNullOrWhiteSpace(trustedMetadataDirectory))
+        {
+            yield return Path.GetFullPath(trustedMetadataDirectory);
         }
     }
 

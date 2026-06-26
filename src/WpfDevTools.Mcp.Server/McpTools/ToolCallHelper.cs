@@ -31,9 +31,9 @@ public static partial class ToolCallHelper
 {
     private const int WaitForDpChangeTimeoutHeadroomSeconds = 2;
     private const string SecurityVerificationHint =
-        "Checksum-only prerelease payloads need trusted release metadata. Keep SHA256SUMS.txt beside the original archive, or use the reviewed installer path.";
+        "Checksum-only prerelease payloads need trusted release metadata. Keep SHA256SUMS.txt beside the original archive, set WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY to that directory, or use the reviewed installer path.";
     private const string SecurityVerificationSuggestedAction =
-        "For portable validation, keep the extracted package in the same directory as the original archive and SHA256SUMS.txt. Otherwise run the online installer with -PackageArchivePath and -TrustedReleaseMetadataDirectory, then register the installed executable.";
+        "For portable validation, keep the extracted package in the same directory as the original archive and SHA256SUMS.txt, or set WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY to the directory that contains them. Otherwise run the online installer with -PackageArchivePath and -TrustedReleaseMetadataDirectory, then register the installed executable.";
 
     private static readonly ConcurrentDictionary<string, object> GlobalToolCache = new();
     private static ConditionalWeakTable<SessionManager, ConcurrentDictionary<string, object>> HostToolCaches = new();

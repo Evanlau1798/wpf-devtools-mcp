@@ -124,6 +124,8 @@ Policy gate：destructive。使用此工具前，需設定 `WPFDEVTOOLS_MCP_ALLO
 
 輸出欄位包含 `snapshotId` 與 `snapshotSummary`。Snapshot 存於記憶體、綁定 session，並且有保留數量與時間上限。
 
+最小 rollback 鏈：`capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot`。請把回傳的 `snapshotId` 明確傳給 diff 與 restore 呼叫。
+
 Rollback note：mutating 綁定的 `DependencyProperty` 時，binding 也可能更新 ViewModel source。如果 semantic rollback 需要同時還原 DependencyProperty expression 與 source value，mutation 前請把對應 source property 放入 `viewModelPropertyNames`。
 
 範例：
@@ -171,6 +173,8 @@ Policy gate：destructive。Server 必須先以 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTI
 
 輸出欄位包含 DependencyProperty changes、ViewModel changes、binding error deltas、validation changes、focus changes 與 duration。
 
+最小 rollback 鏈：`capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot`。
+
 範例：
 
 ```json
@@ -192,6 +196,8 @@ Policy gate：destructive。使用此工具前，需設定 `WPFDEVTOOLS_MCP_ALLO
 - `removeAfterRestore`：可選，預設為 `true`。
 
 輸出欄位包含 restored / skipped DependencyProperty values、restored / skipped ViewModel properties、focus restoration、warnings 與 verification flags。
+
+最小 rollback 鏈：`capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot`。
 
 範例：
 

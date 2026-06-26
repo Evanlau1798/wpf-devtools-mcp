@@ -60,6 +60,18 @@ public sealed class ScreenshotLifecycleDocumentationTests
         content.Should().Contain("file");
     }
 
+    [Theory]
+    [InlineData("docfx/reference/tools/interaction-events-layout.md")]
+    [InlineData("docfx/zh-tw/reference/tools/interaction-events-layout.md")]
+    [InlineData("src/WpfDevTools.Mcp.Server/McpTools/InteractionMcpToolDescriptions.cs")]
+    public void ElementScreenshotDocumentation_ShouldRejectAgentSelectedOutputPath(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("outputPath");
+        content.Should().Contain("resourceUri");
+    }
+
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 }

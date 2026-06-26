@@ -95,7 +95,17 @@ public sealed class ResponseContractResourceOperationalGuidanceTests
         guidance.GetProperty("metadata").GetProperty("noImageBytes").GetBoolean().Should().BeTrue();
         guidance.GetProperty("metadata").GetProperty("fileModeNextStep").GetBoolean().Should().BeTrue();
         guidance.GetProperty("file").GetProperty("preferredForPixelEvidence").GetBoolean().Should().BeTrue();
+        guidance.GetProperty("file").GetProperty("useWhen").GetString().Should().Contain("resourceUri");
         guidance.GetProperty("base64").GetProperty("inlineOnlyForSmallImages").GetBoolean().Should().BeTrue();
+
+        var unsupported = screenshotTool.GetProperty("unsupportedRequestParameters");
+        unsupported
+            .EnumerateArray()
+            .Single(entry => entry.GetProperty("name").GetString() == "outputPath")
+            .GetProperty("reason")
+            .GetString()
+            .Should()
+            .Contain("resourceUri");
     }
 
     private static void AssertPolicyProfile(JsonElement profiles, string name, params string[] envVars)

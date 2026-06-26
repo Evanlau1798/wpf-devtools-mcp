@@ -31,13 +31,36 @@ internal static class McpToolArgumentValidator
 
     private static readonly Dictionary<string, string[]> RequiredArgumentsByTool = new(StringComparer.Ordinal)
     {
-        ["get_event_handlers"] = ["eventName", "elementId"],
-        ["fire_routed_event"] = ["eventName", "elementId"],
-        ["get_state_diff"] = ["snapshotId"],
-        ["restore_state_snapshot"] = ["snapshotId"],
-        ["simulate_keyboard"] = ["key"],
+        ["clear_dp_value"] = ["propertyName"],
+        ["click_element"] = ["elementId"],
+        ["diagnose_visibility"] = ["elementId"],
+        ["drag_and_drop"] = ["sourceElementId", "targetElementId"],
         ["execute_command"] = ["commandName"],
-        ["serialize_to_xaml"] = ["elementId"]
+        ["fire_routed_event"] = ["eventName", "elementId"],
+        ["focus_element"] = ["elementId"],
+        ["force_binding_update"] = ["propertyName"],
+        ["get_affected_elements"] = ["propertyName"],
+        ["get_binding_value_chain"] = ["propertyName"],
+        ["get_clipping_info"] = ["elementId"],
+        ["get_dp_metadata"] = ["propertyName"],
+        ["get_element_snapshot"] = ["elementId"],
+        ["get_event_handlers"] = ["eventName", "elementId"],
+        ["get_interaction_readiness"] = ["elementId"],
+        ["get_resource_chain"] = ["resourceKey"],
+        ["get_state_diff"] = ["snapshotId"],
+        ["get_template_tree"] = ["elementId"],
+        ["get_triggers"] = ["elementId"],
+        ["highlight_element"] = ["elementId"],
+        ["modify_viewmodel"] = ["propertyName", "value"],
+        ["override_style_setter"] = ["propertyName", "value", "elementId"],
+        ["restore_state_snapshot"] = ["snapshotId"],
+        ["scroll_to_element"] = ["elementId"],
+        ["serialize_to_xaml"] = ["elementId"],
+        ["set_dp_value"] = ["propertyName", "value"],
+        ["simulate_keyboard"] = ["key"],
+        ["wait_for_dp_change"] = ["propertyName"],
+        ["wait_for_dp_change_after_mutation"] = ["propertyName", "triggerMutation"],
+        ["watch_dp_changes"] = ["propertyName"]
     };
 
     public static CallToolResult? Validate(
@@ -57,6 +80,13 @@ internal static class McpToolArgumentValidator
 
                 return CreateSerializeToXamlErrorResult(argument.Key);
             }
+        }
+
+        if (string.Equals(toolName, "element_screenshot", StringComparison.Ordinal)
+            && argumentArray is not null
+            && TryGetArgument(argumentArray, "outputPath", out _))
+        {
+            return CreateElementScreenshotOutputPathErrorResult();
         }
 
         if (toolName is not null
@@ -97,13 +127,7 @@ internal static class McpToolArgumentValidator
                 return true;
             }
 
-            if (argument.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
-            {
-                missingArgument = requiredArgument;
-                return true;
-            }
-
-            if (argument.ValueKind == JsonValueKind.String && argument.GetString()?.Length == 0)
+            if (IsMissingRequiredArgumentValue(requiredArgument, argument))
             {
                 missingArgument = requiredArgument;
                 return true;
@@ -112,6 +136,26 @@ internal static class McpToolArgumentValidator
 
         missingArgument = string.Empty;
         return false;
+    }
+
+    private static bool IsMissingRequiredArgumentValue(string requiredArgument, JsonElement argument)
+    {
+        if (argument.ValueKind == JsonValueKind.Undefined)
+        {
+            return true;
+        }
+
+        if (string.Equals(requiredArgument, "value", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (argument.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        return argument.ValueKind == JsonValueKind.String && argument.GetString()?.Length == 0;
     }
 
     private static bool TryGetArgument(
@@ -179,6 +223,16 @@ internal static class McpToolArgumentValidator
             payload.ErrorCode,
             payload.Hint,
             suggestedAction: payload.Hint);
+    }
+
+    private static CallToolResult CreateElementScreenshotOutputPathErrorResult()
+    {
+        const string hint = "element_screenshot file mode is resource-backed. Omit outputPath, call with outputMode='file', then read the returned resourceUri with resources/read.";
+        return ToolCallHelper.CreateStructuredErrorResult(
+            "Unknown argument 'outputPath' for element_screenshot. File mode returns a server-owned resourceUri and does not write to an agent-selected local path.",
+            ToolErrorCode.InvalidArgument.ToString(),
+            hint,
+            suggestedAction: hint);
     }
 
     private static ToolErrorPayload CreateFindElementsErrorPayload(string argumentName)

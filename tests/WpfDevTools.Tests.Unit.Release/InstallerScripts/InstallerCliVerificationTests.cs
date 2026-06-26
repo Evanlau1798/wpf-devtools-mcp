@@ -87,12 +87,19 @@ public sealed partial class InstallerScriptTests
             var fakeBin = Path.Combine(tempRoot, "bin");
             var timeoutMarker = Path.Combine(tempRoot, "claude-timeout-marker.log");
             var childPidPath = Path.Combine(tempRoot, "claude-child.pid");
+            var powershellPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+                "System32",
+                "WindowsPowerShell",
+                "v1.0",
+                "powershell.exe");
+            File.Exists(powershellPath).Should().BeTrue("the timeout fixture needs a deterministic child process host");
             Directory.CreateDirectory(fakeBin);
             File.WriteAllText(
                 Path.Combine(fakeBin, "claude.cmd"),
                 "@echo off" + Environment.NewLine +
                 "if \"%1 %2\"==\"mcp list\" (" + Environment.NewLine +
-                "  powershell -NoProfile -Command \"$PID | Set-Content -Path '" + childPidPath.Replace("'", "''") + "'; Start-Sleep -Seconds 30; Set-Content -Path '" + timeoutMarker.Replace("'", "''") + "' -Value done\"" + Environment.NewLine +
+                "  \"" + powershellPath + "\" -NoProfile -ExecutionPolicy Bypass -Command \"$PID | Set-Content -LiteralPath '" + childPidPath.Replace("'", "''") + "'; Start-Sleep -Seconds 30; Set-Content -LiteralPath '" + timeoutMarker.Replace("'", "''") + "' -Value done\"" + Environment.NewLine +
                 "  echo wpf-devtools" + Environment.NewLine +
                 "  exit /b 0" + Environment.NewLine +
                 ")" + Environment.NewLine +

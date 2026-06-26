@@ -91,7 +91,7 @@ Some tools sound similar but have different intent:
 - `simulate_keyboard` is best when keyboard focus matters, and `get_focus_state` should usually be checked first.
 - `drag_and_drop` is intended for controlled payload transfer and currently works best with explicit text payload scenarios.
 
-For real-project validation, treat target selection failures as a cue to retry a better current element. Retry with another loaded, focusable, or template-backed element before reporting a focus, keyboard, or template-tree limitation. Use `get_ui_summary`, `get_form_summary`, `get_interaction_readiness`, and `get_element_snapshot` to confirm the candidate is in the active rendered visual tree, visible, enabled, and compatible with the tool.
+For real-project validation, treat target selection failures as a cue to retry a better current element. Retry with another loaded, focusable, or template-backed element before reporting a focus, keyboard, or template-tree limitation. Use `get_ui_summary`, `get_form_summary`, `get_interaction_readiness`, and `get_element_snapshot(elementId)` after a concrete elementId is known to confirm the candidate is in the active rendered visual tree, visible, enabled, and compatible with the tool.
 
 ### 5. Parse structured results carefully
 

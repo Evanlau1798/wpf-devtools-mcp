@@ -33,7 +33,16 @@ public sealed partial class ResponseContractResourceTests
             "pendingEventsMayIncludePriorContext",
             "pendingEventsSuggestedAction",
             "pendingEventsAreAdvisory",
-            "pendingEventsSummary");
+            "pendingEventsSummary",
+            "pendingEventsPiggybackFailed",
+            "pendingEventsPiggybackFailureType",
+            "pendingEventsMayRemainBuffered",
+            "pendingEventsPiggybackRequiresReconnect",
+            "pendingEventsStateAfterTimeoutUnknown",
+            "pendingEventsPiggybackSuggestedAction",
+            "restoreRequired",
+            "restoreStatus",
+            "restoreSuggestedAction");
 
         var pendingEventsAdditiveContract = root.GetProperty("pendingEventsAdditiveContract");
         AssertArrayContains(
@@ -48,7 +57,13 @@ public sealed partial class ResponseContractResourceTests
             "pendingEventsMayIncludePriorContext",
             "pendingEventsSuggestedAction",
             "pendingEventsAreAdvisory",
-            "pendingEventsSummary");
+            "pendingEventsSummary",
+            "pendingEventsPiggybackFailed",
+            "pendingEventsPiggybackFailureType",
+            "pendingEventsMayRemainBuffered",
+            "pendingEventsPiggybackRequiresReconnect",
+            "pendingEventsStateAfterTimeoutUnknown",
+            "pendingEventsPiggybackSuggestedAction");
         pendingEventsAdditiveContract.GetProperty("piggybackScope").GetString().Should().Contain("default piggyback drain behavior");
         AssertArrayContains(pendingEventsAdditiveContract.GetProperty("illustrativeTools"), "get_binding_errors");
         pendingEventsAdditiveContract.GetProperty("pendingEventsOriginField").GetString().Should().Be("pendingEventsOrigin");
@@ -56,6 +71,14 @@ public sealed partial class ResponseContractResourceTests
         pendingEventsAdditiveContract.GetProperty("pendingEventsSuggestedActionField").GetString().Should().Be("pendingEventsSuggestedAction");
         pendingEventsAdditiveContract.GetProperty("pendingEventsAreAdvisoryField").GetString().Should().Be("pendingEventsAreAdvisory");
         pendingEventsAdditiveContract.GetProperty("pendingEventsSummaryField").GetString().Should().Be("pendingEventsSummary");
+        var mutationRestoreContract = root.GetProperty("mutationRestoreAdditiveContract");
+        AssertArrayContains(
+            mutationRestoreContract.GetProperty("topLevelFields"),
+            "restoreRequired",
+            "restoreStatus",
+            "restoreSuggestedAction");
+        mutationRestoreContract.GetProperty("restoreStatusValues")[0].GetString().Should().Be("notRestored");
+        mutationRestoreContract.GetProperty("guidance").GetString().Should().Contain("restore_state_snapshot");
         root.GetProperty("navigation").GetProperty("field").GetString().Should().Be("navigation");
         root.GetProperty("nextSteps").GetProperty("field").GetString().Should().Be("nextSteps");
     }

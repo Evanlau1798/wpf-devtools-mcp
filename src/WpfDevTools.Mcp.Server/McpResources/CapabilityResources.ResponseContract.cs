@@ -93,7 +93,16 @@ public static partial class CapabilityResources
                     "pendingEventsMayIncludePriorContext",
                     "pendingEventsSuggestedAction",
                     "pendingEventsAreAdvisory",
-                    "pendingEventsSummary"
+                    "pendingEventsSummary",
+                    "pendingEventsPiggybackFailed",
+                    "pendingEventsPiggybackFailureType",
+                    "pendingEventsMayRemainBuffered",
+                    "pendingEventsPiggybackRequiresReconnect",
+                    "pendingEventsStateAfterTimeoutUnknown",
+                    "pendingEventsPiggybackSuggestedAction",
+                    "restoreRequired",
+                    "restoreStatus",
+                    "restoreSuggestedAction"
                 }
             },
             policyProfiles = new[]
@@ -163,7 +172,13 @@ public static partial class CapabilityResources
                     "pendingEventsMayIncludePriorContext",
                     "pendingEventsSuggestedAction",
                     "pendingEventsAreAdvisory",
-                    "pendingEventsSummary"
+                    "pendingEventsSummary",
+                    "pendingEventsPiggybackFailed",
+                    "pendingEventsPiggybackFailureType",
+                    "pendingEventsMayRemainBuffered",
+                    "pendingEventsPiggybackRequiresReconnect",
+                    "pendingEventsStateAfterTimeoutUnknown",
+                    "pendingEventsPiggybackSuggestedAction"
                 },
                 piggybackScope = "any successful pipe-backed tool response that keeps default piggyback drain behavior",
                 illustrativeTools = new[] { "get_binding_errors" },
@@ -181,6 +196,21 @@ public static partial class CapabilityResources
                     "perform the action or mutation",
                     "call drain_events again to read only the action window"
                 }
+            },
+            mutationRestoreAdditiveContract = new
+            {
+                topLevelFields = new[]
+                {
+                    "restoreRequired",
+                    "restoreStatus",
+                    "restoreSuggestedAction"
+                },
+                restoreRequiredField = "restoreRequired",
+                restoreStatusField = "restoreStatus",
+                restoreStatusValues = new[] { "notRestored" },
+                restoreSuggestedActionField = "restoreSuggestedAction",
+                scope = "successful runtime mutation responses that leave application state changed",
+                guidance = "When restoreRequired is true and restoreStatus is notRestored, verify the intended effect and call restore_state_snapshot if the workflow must leave the app unchanged."
             },
             errorPayload = new
             {

@@ -325,13 +325,13 @@ function Get-ReleaseAssetRecordFromGitHub {
             -ArchiveHash $ArchiveHash)
 }
 
-function Get-ReleaseArchiveDownloadTimeoutSeconds {
-    $resolver = Get-Command 'Get-InstallerTimeoutSeconds' -ErrorAction SilentlyContinue
-    if ($null -ne $resolver) {
-        return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_DOWNLOAD_TIMEOUT_SEC' -DefaultValue 30 -MinimumValue 5 -MaximumValue 300)
-    }
+function Get-ReleaseArchiveDownloadTimeoutSeconds { $resolver = Get-Command 'Get-InstallerTimeoutSeconds' -ErrorAction SilentlyContinue; if ($null -ne $resolver) { return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_DOWNLOAD_TIMEOUT_SEC' -DefaultValue 30 -MinimumValue 5 -MaximumValue 300) }; return 30 }
 
-    return 30
+function Expand-InstallerArchive {
+    param([Parameter(Mandatory)] [string]$ArchivePath, [Parameter(Mandatory)] [string]$DestinationPath)
+    $previousProgressPreference = $ProgressPreference
+    try { $ProgressPreference = 'SilentlyContinue'; Expand-Archive -Path $ArchivePath -DestinationPath $DestinationPath -Force }
+    finally { $ProgressPreference = $previousProgressPreference }
 }
 
 function Get-LocalPackageTrustedReleaseMetadata {
@@ -404,7 +404,7 @@ function Resolve-PackageSession {
         $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'local-package' -ResolvedVersion $ResolvedVersion -ResolvedArchitecture $ResolvedArchitecture
         New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
         Assert-ArchiveSafeEntries -ArchivePath $archivePath -DestinationPath $extractRoot
-        Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
+        Expand-InstallerArchive -ArchivePath $archivePath -DestinationPath $extractRoot
         # PackageArchivePath installs may trust release metadata for archive
         # provenance, but payload signer pins must still come from an
         # independent trust root such as WPFDEVTOOLS_RELEASE_SIGNER_*.
@@ -451,7 +451,7 @@ function Resolve-PackageSession {
     $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'github-release' -ResolvedVersion ([string]$downloadDetails.ResolvedVersion) -ResolvedArchitecture $ResolvedArchitecture
     New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
     Assert-ArchiveSafeEntries -ArchivePath $archivePath -DestinationPath $extractRoot
-    Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
+    Expand-InstallerArchive -ArchivePath $archivePath -DestinationPath $extractRoot
     # GitHub release archives only enable DebugTrustedRootSkip after the archive
     # download passes checksum and zip-slip validation.
     return [ordered]@{

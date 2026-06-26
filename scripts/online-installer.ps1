@@ -373,7 +373,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:6944491c5b74fdd9a360d14161da90467ef437384c00391ac18e3d0914c96168'
+$script:InstallerHelperManifestCacheKey = 'sha256:9071db06c10e4a28cb5fa7c6d2119adc0cdeab4a58af0533f73974d6501170ba'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/online-installer.release-assets.ps1'
     'scripts/installer/Installer.BootstrapUi.ps1'
@@ -3213,6 +3213,21 @@ function Get-TuiHelperRequestTimeoutSeconds {
 function Get-ReleaseArchiveDownloadTimeoutSeconds {
     return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_DOWNLOAD_TIMEOUT_SEC' -DefaultValue 30 -MinimumValue 5 -MaximumValue 300)
 }
+function Expand-InstallerArchive {
+    param(
+        [Parameter(Mandatory)] [string]$ArchivePath,
+        [Parameter(Mandatory)] [string]$DestinationPath
+    )
+
+    $previousProgressPreference = $ProgressPreference
+    try {
+        $ProgressPreference = 'SilentlyContinue'
+        Expand-Archive -Path $ArchivePath -DestinationPath $DestinationPath -Force
+    }
+    finally {
+        $ProgressPreference = $previousProgressPreference
+    }
+}
 function Get-TuiHelperBootstrapTimeoutSeconds {
     return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_HELPER_BOOTSTRAP_TIMEOUT_SEC' -DefaultValue 20 -MinimumValue 3 -MaximumValue 120)
 }
@@ -4310,7 +4325,7 @@ function Resolve-PackageSession {
         $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'local-package' -ResolvedVersion $ResolvedVersion -ResolvedArchitecture $ResolvedArchitecture
         New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
         Assert-ArchiveSafeEntries -ArchivePath $archivePath -DestinationPath $extractRoot
-        Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
+        Expand-InstallerArchive -ArchivePath $archivePath -DestinationPath $extractRoot
         return [ordered]@{
             PackageDirectory = $extractRoot
             SessionRoot = $sessionRoot
@@ -4355,7 +4370,7 @@ function Resolve-PackageSession {
     $integrity = Assert-ArchiveIntegrity -ArchivePath $archivePath -DownloadSource 'github-release' -ResolvedVersion ([string]$downloadDetails.ResolvedVersion) -ResolvedArchitecture $ResolvedArchitecture
     New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
     Assert-ArchiveSafeEntries -ArchivePath $archivePath -DestinationPath $extractRoot
-    Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
+    Expand-InstallerArchive -ArchivePath $archivePath -DestinationPath $extractRoot
     return [ordered]@{
         PackageDirectory = $extractRoot
         SessionRoot = $sessionRoot

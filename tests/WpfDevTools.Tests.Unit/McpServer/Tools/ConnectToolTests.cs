@@ -156,6 +156,34 @@ public partial class ConnectToolTests : IDisposable
     }
 
     [Fact]
+    public void IsLikelySdkOnlyPackaging_WithDotnetMuxerExecutable_ShouldReturnFalse()
+    {
+        var root = Directory.CreateTempSubdirectory("wpf-devtools-dotnet-muxer-");
+        var executablePath = Path.Combine(root.FullName, "dotnet.exe");
+        File.WriteAllBytes(executablePath, Array.Empty<byte>());
+
+        try
+        {
+            var result = ConnectTool.IsLikelySdkOnlyPackaging(new WpfProcessInfo
+            {
+                ProcessId = 12345,
+                ProcessName = "dotnet",
+                Runtime = TargetRuntime.NetCore,
+                Architecture = ProcessArchitecture.X64,
+                IsWpfApplication = true,
+                ExecutablePath = executablePath
+            });
+
+            result.Should().BeFalse(
+                "framework-dependent WPF apps launched through dotnet.exe still run in an injectable process and should not consume the SDK-host probe timeout");
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Execute_WithArchitectureMismatch_ShouldReturnError()
     {
         var tool = CreateTool(injector:

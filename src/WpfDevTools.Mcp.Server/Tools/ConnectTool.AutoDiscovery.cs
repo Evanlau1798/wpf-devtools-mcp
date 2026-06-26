@@ -54,6 +54,11 @@ public sealed partial class ConnectTool
                 return false;
             }
 
+            if (string.Equals(baseName, "dotnet", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
             var runtimeConfigPath = Path.Combine(directory, baseName + ".runtimeconfig.json");
             var depsPath = Path.Combine(directory, baseName + ".deps.json");
 

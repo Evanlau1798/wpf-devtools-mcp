@@ -56,12 +56,14 @@ public sealed partial class InteractionE2eTests : SharedStateMcpE2eTestBase
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
         await ActivateBasicControlsTabAsync();
+        await SetBasicControlsInputAsync("Ready User", 32);
 
         var buttonElementId = await E2eTestHelpers.FindElementByNameAsync(
             _fixture.Client, _fixture.TestAppProcessId, "SaveButton");
 
         buttonElementId.Should().NotBeNull(
             "TestApp should expose SaveButton through the root namescope");
+        await AssertSaveButtonReadinessAsync(buttonElementId!, expectedReady: true);
 
         var result = await _fixture.Client.CallToolAsync(
             "click_element",
@@ -74,14 +76,43 @@ public sealed partial class InteractionE2eTests : SharedStateMcpE2eTestBase
     }
 
     [Fact]
+    public async Task ClickElement_OnDisabledSaveButton_ShouldFailClosedWithReadinessBlockers()
+    {
+        E2eTestHelpers.AssertFixtureReady(_fixture);
+        await ActivateBasicControlsTabAsync();
+        await SetBasicControlsInputAsync("", 0);
+
+        var buttonElementId = await E2eTestHelpers.FindElementByNameAsync(
+            _fixture.Client, _fixture.TestAppProcessId, "SaveButton");
+
+        buttonElementId.Should().NotBeNull(
+            "TestApp should expose SaveButton through the root namescope");
+        await AssertSaveButtonReadinessAsync(buttonElementId!, expectedReady: false);
+
+        var result = await _fixture.Client.CallToolAsync(
+            "click_element",
+            new { processId = _fixture.TestAppProcessId, elementId = buttonElementId });
+
+        _output.WriteLine($"disabled click_element result: {result.GetRawText()}");
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("InteractionNotReady");
+        result.GetProperty("errorData").GetProperty("blockers").EnumerateArray()
+            .Select(item => item.GetProperty("reason").GetString())
+            .Should().Contain("CommandCannotExecute");
+    }
+
+    [Fact]
     public async Task ClickElement_AfterSnapshotCapture_ShouldExposeMutationSessionContextRef()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
         await ActivateBasicControlsTabAsync();
+        await SetBasicControlsInputAsync("Snapshot User", 41);
 
         var buttonElementId = await E2eTestHelpers.FindElementByNameAsync(
             _fixture.Client, _fixture.TestAppProcessId, "SaveButton");
         buttonElementId.Should().NotBeNull("TestApp should expose SaveButton through the root namescope");
+        await AssertSaveButtonReadinessAsync(buttonElementId!, expectedReady: true);
 
         var capture = await _fixture.Client.CallToolAsync(
             "capture_state_snapshot",
@@ -204,5 +235,44 @@ public sealed partial class InteractionE2eTests : SharedStateMcpE2eTestBase
             "click_element",
             new { processId = _fixture.TestAppProcessId, elementId = tabId, navigation = false });
         result.GetProperty("success").GetBoolean().Should().BeTrue();
+    }
+
+    private async Task SetBasicControlsInputAsync(string name, int age)
+    {
+        var nameResult = await _fixture.Client.CallToolAsync(
+            "modify_viewmodel",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyName = "Name",
+                value = name
+            });
+        E2eTestHelpers.EnsureToolSucceeded(nameResult, "modify_viewmodel", "Name");
+
+        var ageResult = await _fixture.Client.CallToolAsync(
+            "modify_viewmodel",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                propertyName = "Age",
+                value = age
+            });
+        E2eTestHelpers.EnsureToolSucceeded(ageResult, "modify_viewmodel", "Age");
+    }
+
+    private async Task AssertSaveButtonReadinessAsync(string buttonElementId, bool expectedReady)
+    {
+        var readiness = await _fixture.Client.CallToolAsync(
+            "get_interaction_readiness",
+            new
+            {
+                processId = _fixture.TestAppProcessId,
+                elementId = buttonElementId
+            });
+
+        readiness.GetProperty("success").GetBoolean().Should().BeTrue(readiness.GetRawText());
+        readiness.GetProperty("isReady").GetBoolean().Should().Be(
+            expectedReady,
+            readiness.GetRawText());
     }
 }

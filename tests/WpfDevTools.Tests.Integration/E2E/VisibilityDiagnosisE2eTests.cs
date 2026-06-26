@@ -28,7 +28,7 @@ public sealed class VisibilityDiagnosisE2eTests
     }
 
     [Fact]
-    public async Task DiagnoseVisibility_ShouldReportClippingBlocker()
+    public async Task DiagnoseVisibility_ShouldReportPartialClippingAsVisibleWithMetadata()
     {
         E2eTestHelpers.AssertFixtureReady(_fixture);
 
@@ -36,8 +36,14 @@ public sealed class VisibilityDiagnosisE2eTests
         var result = await DiagnoseVisibilityAsync("ClippingTextSample");
 
         Assert.True(result.GetProperty("success").GetBoolean(), result.GetRawText());
-        result.GetProperty("isUserVisible").GetBoolean().Should().BeFalse();
-        result.GetProperty("rootCause").GetString().Should().MatchRegex("(?i)clip");
+        result.GetProperty("isUserVisible").GetBoolean().Should().BeTrue(result.GetRawText());
+        result.GetProperty("rootCause").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Null);
+
+        var clipping = result.GetProperty("clipping");
+        clipping.GetProperty("severity").GetString().Should().Be("partial");
+        clipping.GetProperty("isClipped").GetBoolean().Should().BeTrue();
+        clipping.GetProperty("isFullyClipped").GetBoolean().Should().BeFalse();
+        clipping.GetProperty("visibleRatio").GetDouble().Should().BeGreaterThan(0).And.BeLessThan(1);
     }
 
     [Fact]

@@ -55,6 +55,12 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
             {
                 if (element is ButtonBase button)
                 {
+                    var readinessError = CreateClickReadinessError(button, elementId);
+                    if (readinessError is not null)
+                    {
+                        return readinessError;
+                    }
+
                     // OnClick() handles both RaiseEvent(ClickEvent) and Command execution.
                     // Do NOT call Command.Execute separately — it would double-execute.
                     ButtonBaseClickHelper.InvokeOnClick(button);
@@ -73,6 +79,12 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
 
                 if (element is TabItem tabItem)
                 {
+                    var readinessError = CreateClickReadinessError(tabItem, elementId);
+                    if (readinessError is not null)
+                    {
+                        return readinessError;
+                    }
+
                     tabItem.IsSelected = true;
                     tabItem.Focus();
 
@@ -94,6 +106,52 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                     "Verify the element is enabled and still attached to the current visual tree before retrying.");
             }
         });
+    }
+
+    private object? CreateClickReadinessError(FrameworkElement element, string? elementId)
+    {
+        var resolvedElementId = elementId ?? _elementFinder.GenerateElementId(element);
+        var blockers = new List<object>();
+
+        if (!element.IsEnabled)
+        {
+            blockers.Add(CreateBlocker("ElementDisabled", "Element IsEnabled is false."));
+        }
+
+        if (element.Visibility != Visibility.Visible)
+        {
+            blockers.Add(CreateBlocker("ElementHidden", $"Element Visibility is {element.Visibility}."));
+        }
+
+        if (element.Opacity <= 0)
+        {
+            blockers.Add(CreateBlocker("ElementTransparent", "Element Opacity is 0."));
+        }
+
+        if (!element.IsHitTestVisible)
+        {
+            blockers.Add(CreateBlocker("HitTestingDisabled", "Element IsHitTestVisible is false."));
+        }
+
+        if (element.IsLoaded && (element.ActualWidth <= 0 || element.ActualHeight <= 0))
+        {
+            var reason = SceneSummaryElementHelpers.GetLayoutSizeBlockerReason(element);
+            blockers.Add(CreateBlocker(reason, "Element has zero ActualWidth or ActualHeight."));
+        }
+
+        var commandReadiness = CreateCommandReadiness(element, resolvedElementId, out var canExecute);
+        if (canExecute == false)
+        {
+            blockers.Add(CreateBlocker("CommandCannotExecute", "The bound ICommand.CanExecute returned false."));
+        }
+
+        return blockers.Count == 0
+            ? null
+            : ToolErrorFactory.InteractionNotReady(
+                resolvedElementId,
+                element.GetType().Name,
+                blockers,
+                commandReadiness);
     }
 
     private void EnqueueRoutedEventRecord(string elementId, UIElement element, RoutedEvent routedEvent)

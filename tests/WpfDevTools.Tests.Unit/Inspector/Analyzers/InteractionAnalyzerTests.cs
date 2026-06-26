@@ -96,6 +96,51 @@ public class InteractionAnalyzerTests
     }
 
     [StaFact]
+    public void ClickElement_WithDisabledButton_ShouldFailClosed()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var clicked = false;
+        var button = new Button
+        {
+            IsEnabled = false
+        };
+        button.Click += (_, _) => clicked = true;
+        var elementId = finder.GenerateElementId(button);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.ClickElement(elementId));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse(result.GetRawText());
+        result.GetProperty("errorCode").GetString().Should().Be("InteractionNotReady");
+        result.GetProperty("errorData").GetProperty("blockers").EnumerateArray()
+            .Select(blocker => blocker.GetProperty("reason").GetString())
+            .Should().Contain("ElementDisabled");
+        clicked.Should().BeFalse("click_element must not bypass a disabled target");
+    }
+
+    [StaFact]
+    public void ClickElement_WithCannotExecuteCommand_ShouldFailClosed()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var executeCount = 0;
+        var button = new Button
+        {
+            Command = new TestCommand(() => executeCount++, canExecute: false)
+        };
+        var elementId = finder.GenerateElementId(button);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.ClickElement(elementId));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse(result.GetRawText());
+        result.GetProperty("errorCode").GetString().Should().Be("InteractionNotReady");
+        result.GetProperty("errorData").GetProperty("blockers").EnumerateArray()
+            .Select(blocker => blocker.GetProperty("reason").GetString())
+            .Should().Contain("CommandCannotExecute");
+        executeCount.Should().Be(0, "click_element must not execute a blocked command");
+    }
+
+    [StaFact]
     public void ScrollToElement_WithValidElement_ShouldBringIntoView()
     {
         // Arrange
@@ -393,10 +438,12 @@ public class InteractionAnalyzerTests
     private sealed class TestCommand : ICommand
     {
         private readonly Action _execute;
+        private readonly bool _canExecute;
 
-        public TestCommand(Action execute)
+        public TestCommand(Action execute, bool canExecute = true)
         {
             _execute = execute;
+            _canExecute = canExecute;
         }
 
         public event EventHandler? CanExecuteChanged
@@ -405,7 +452,7 @@ public class InteractionAnalyzerTests
             remove { }
         }
 
-        public bool CanExecute(object? parameter) => true;
+        public bool CanExecute(object? parameter) => _canExecute;
 
         public void Execute(object? parameter) => _execute();
     }

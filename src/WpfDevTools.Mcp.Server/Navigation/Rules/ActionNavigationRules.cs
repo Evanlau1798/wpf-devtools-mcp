@@ -352,6 +352,7 @@ internal static class ActionNavigationRules
         return TryGetString(payload, "errorCode", out var errorCode)
             && (string.Equals(errorCode, "ElementNotLoaded", StringComparison.Ordinal)
                 || string.Equals(errorCode, "ElementNotClickable", StringComparison.Ordinal)
+                || string.Equals(errorCode, "InteractionNotReady", StringComparison.Ordinal)
                 || string.Equals(errorCode, "ElementNotVisible", StringComparison.Ordinal));
     }
 

@@ -63,6 +63,26 @@ public static class ToolErrorFactory
         new { elementType });
 
     /// <summary>
+    /// Create an interaction readiness failure for a supported target.
+    /// </summary>
+    public static ToolErrorPayload InteractionNotReady(
+        string elementId,
+        string elementType,
+        IReadOnlyList<object> blockers,
+        object? commandReadiness = null) => Create(
+        ToolErrorCode.InteractionNotReady,
+        "Element is not ready for click interaction",
+        "Call get_interaction_readiness for the target, resolve the listed blockers, then retry click_element.",
+        new
+        {
+            elementId,
+            elementType,
+            blockers,
+            commandReadiness,
+            readinessBypassed = false
+        });
+
+    /// <summary>
     /// Create a command-not-found error payload.
     /// </summary>
     public static ToolErrorPayload CommandNotFound(string commandName) => Create(

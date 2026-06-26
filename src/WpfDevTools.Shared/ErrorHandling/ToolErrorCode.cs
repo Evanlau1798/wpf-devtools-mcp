@@ -46,6 +46,11 @@ public enum ToolErrorCode
     ElementNotClickable,
 
     /// <summary>
+    /// The target element supports the requested interaction but is not currently ready.
+    /// </summary>
+    InteractionNotReady,
+
+    /// <summary>
     /// The requested ViewModel command does not exist on the target DataContext.
     /// </summary>
     CommandNotFound,

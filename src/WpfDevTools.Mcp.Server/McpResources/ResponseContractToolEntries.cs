@@ -371,6 +371,15 @@ internal static class ResponseContractToolEntries
                     "maxWidth",
                     "maxHeight"
                 },
+                unsupportedRequestParameters = new[]
+                {
+                    new
+                    {
+                        name = "outputPath",
+                        reason = "File mode returns a server-owned resourceUri and does not write to an agent-selected local path.",
+                        suggestedAction = "Omit outputPath, call with outputMode='file', then read the returned resourceUri with resources/read."
+                    }
+                },
                 outputVariants = new[]
                 {
                     new

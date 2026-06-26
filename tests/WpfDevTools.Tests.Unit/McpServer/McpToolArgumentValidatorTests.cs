@@ -95,6 +95,27 @@ public sealed class McpToolArgumentValidatorTests
         result.Should().BeNull();
     }
 
+    [Fact]
+    public void Validate_ElementScreenshotOutputPath_ShouldReturnActionableInvalidArgument()
+    {
+        var arguments = ToArguments(new
+        {
+            processId = 12345,
+            outputMode = "file",
+            outputPath = "C:\\temp\\shot.png"
+        });
+
+        var result = McpToolArgumentValidator.Validate("element_screenshot", arguments);
+
+        result.Should().NotBeNull("file mode is resource-backed and must not silently ignore outputPath");
+        result!.IsError.Should().BeTrue();
+        var payload = result.StructuredContent!.Value;
+        payload.GetProperty("success").GetBoolean().Should().BeFalse();
+        payload.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        payload.GetProperty("error").GetString().Should().Contain("outputPath");
+        payload.GetProperty("hint").GetString().Should().Contain("resourceUri");
+    }
+
     [Theory]
     [InlineData("click_element", "elementId")]
     [InlineData("scroll_to_element", "elementId")]

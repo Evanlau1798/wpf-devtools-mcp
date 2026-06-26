@@ -82,6 +82,13 @@ internal static class McpToolArgumentValidator
             }
         }
 
+        if (string.Equals(toolName, "element_screenshot", StringComparison.Ordinal)
+            && argumentArray is not null
+            && TryGetArgument(argumentArray, "outputPath", out _))
+        {
+            return CreateElementScreenshotOutputPathErrorResult();
+        }
+
         if (toolName is not null
             && RequiredArgumentsByTool.TryGetValue(toolName, out var requiredArguments)
             && TryFindMissingRequiredArgument(argumentArray, requiredArguments, out var missingArgument))
@@ -202,6 +209,16 @@ internal static class McpToolArgumentValidator
             payload.ErrorCode,
             payload.Hint,
             suggestedAction: payload.Hint);
+    }
+
+    private static CallToolResult CreateElementScreenshotOutputPathErrorResult()
+    {
+        const string hint = "element_screenshot file mode is resource-backed. Omit outputPath, call with outputMode='file', then read the returned resourceUri with resources/read.";
+        return ToolCallHelper.CreateStructuredErrorResult(
+            "Unknown argument 'outputPath' for element_screenshot. File mode returns a server-owned resourceUri and does not write to an agent-selected local path.",
+            ToolErrorCode.InvalidArgument.ToString(),
+            hint,
+            suggestedAction: hint);
     }
 
     private static ToolErrorPayload CreateFindElementsErrorPayload(string argumentName)

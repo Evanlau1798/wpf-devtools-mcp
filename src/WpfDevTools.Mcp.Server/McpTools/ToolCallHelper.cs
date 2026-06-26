@@ -30,6 +30,10 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static partial class ToolCallHelper
 {
     private const int WaitForDpChangeTimeoutHeadroomSeconds = 2;
+    private const string SecurityVerificationHint =
+        "Checksum-only prerelease payloads need trusted release metadata. Keep SHA256SUMS.txt beside the original archive, or use the reviewed installer path.";
+    private const string SecurityVerificationSuggestedAction =
+        "For portable validation, keep the extracted package in the same directory as the original archive and SHA256SUMS.txt. Otherwise run the online installer with -PackageArchivePath and -TrustedReleaseMetadataDirectory, then register the installed executable.";
 
     private static readonly ConcurrentDictionary<string, object> GlobalToolCache = new();
     private static ConditionalWeakTable<SessionManager, ConcurrentDictionary<string, object>> HostToolCaches = new();
@@ -227,12 +231,13 @@ public static partial class ToolCallHelper
             // to prevent localized OS text or internal details from leaking to clients
             var (errorCode, sanitizedMessage) = ClassifyException(ex);
 
-            var exceptionPayload = NormalizeToolPayload(toolName, args, JsonSerializer.SerializeToElement(new
-            {
-                success = false,
-                error = sanitizedMessage,
-                errorCode
-            }, SerializerOptions), includeNavigation ? ToolNavigationEnvelope.Empty : null);
+            var exceptionPayload = NormalizeToolPayload(
+                toolName,
+                args,
+                JsonSerializer.SerializeToElement(
+                    BuildExceptionPayload(errorCode, sanitizedMessage),
+                    SerializerOptions),
+                includeNavigation ? ToolNavigationEnvelope.Empty : null);
             RecordRequestMetrics(metricsCollector, toolName, sw.ElapsedMilliseconds, false, exceptionPayload);
 
             return new CallToolResult()
@@ -380,6 +385,25 @@ public static partial class ToolCallHelper
             System.Security.Cryptography.CryptographicException => ("SecurityError", "Security verification failed"),
             _ => ("InternalError", "An internal error occurred during tool execution")
         };
+    }
+
+    private static Dictionary<string, object?> BuildExceptionPayload(string errorCode, string error)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["success"] = false,
+            ["error"] = error,
+            ["errorCode"] = errorCode
+        };
+
+        if (string.Equals(errorCode, "SecurityError", StringComparison.Ordinal)
+            && string.Equals(error, "Security verification failed", StringComparison.Ordinal))
+        {
+            payload["hint"] = SecurityVerificationHint;
+            payload["suggestedAction"] = SecurityVerificationSuggestedAction;
+        }
+
+        return payload;
     }
 
     /// <summary>

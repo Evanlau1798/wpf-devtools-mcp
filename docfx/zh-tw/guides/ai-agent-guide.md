@@ -89,6 +89,8 @@ gate `get_viewmodel` 與 `get_commands`。`execute_command` 必須同時啟用
 - `simulate_keyboard` 適合焦點與鍵盤狀態很重要的場景，而 `get_focus_state` 通常應該先確認一次。
 - `drag_and_drop` 目前最適合明確文字 payload 的受控拖放流程。
 
+進行 real-project validation 時，target selection 失敗通常代表要換一個更合適的目前元素。回報 focus、keyboard 或 template-tree 限制前，請先 Retry with another loaded, focusable, or template-backed element。使用 `get_ui_summary`、`get_form_summary`、`get_interaction_readiness`，並在已取得具體 `elementId` 後呼叫 `get_element_snapshot(elementId)`，確認候選元素位於 active rendered visual tree、可見、啟用，且符合工具語意。
+
 ### 5. 仔細解析結構化回應
 
 工具呼叫可能在多個層級失敗：

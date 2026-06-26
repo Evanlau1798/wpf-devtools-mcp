@@ -174,6 +174,7 @@ public abstract partial class PipeConnectedToolBase
 
     private static object MergePiggybackFailureDiagnostics(
         object primaryResult,
+        int processId,
         string failureType,
         string? errorCode,
         string? errorMessage)
@@ -188,6 +189,8 @@ public abstract partial class PipeConnectedToolBase
 
             var buffer = new ArrayBufferWriter<byte>();
             using var writer = new Utf8JsonWriter(buffer);
+            var requiresReconnect = PiggybackFailureRequiresReconnect(failureType);
+            var suggestedAction = BuildPiggybackFailureSuggestedAction(processId, requiresReconnect);
             writer.WriteStartObject();
 
             foreach (var property in primaryPayload.EnumerateObject())
@@ -195,9 +198,14 @@ public abstract partial class PipeConnectedToolBase
                 if (property.NameEquals("pendingEventsPiggybackFailed")
                     || property.NameEquals("pendingEventsPiggybackFailureType")
                     || property.NameEquals("pendingEventsMayRemainBuffered")
+                    || property.NameEquals("pendingEventsPiggybackRequiresReconnect")
+                    || property.NameEquals("pendingEventsStateAfterTimeoutUnknown")
                     || property.NameEquals("pendingEventsPiggybackSuggestedAction")
                     || property.NameEquals("pendingEventsPiggybackErrorCode")
-                    || property.NameEquals("pendingEventsPiggybackError"))
+                    || property.NameEquals("pendingEventsPiggybackError")
+                    || (requiresReconnect && property.NameEquals("requiresReconnect"))
+                    || (requiresReconnect && property.NameEquals("stateAfterTimeoutUnknown"))
+                    || (requiresReconnect && property.NameEquals("suggestedAction")))
                 {
                     continue;
                 }
@@ -208,9 +216,16 @@ public abstract partial class PipeConnectedToolBase
             writer.WriteBoolean("pendingEventsPiggybackFailed", true);
             writer.WriteString("pendingEventsPiggybackFailureType", failureType);
             writer.WriteBoolean("pendingEventsMayRemainBuffered", true);
-            writer.WriteString(
-                "pendingEventsPiggybackSuggestedAction",
-                "Call drain_events explicitly to recover any buffered pending events before relying on event absence.");
+            writer.WriteBoolean("pendingEventsPiggybackRequiresReconnect", requiresReconnect);
+            writer.WriteString("pendingEventsPiggybackSuggestedAction", suggestedAction);
+            if (requiresReconnect)
+            {
+                writer.WriteBoolean("requiresReconnect", true);
+                writer.WriteBoolean("stateAfterTimeoutUnknown", true);
+                writer.WriteBoolean("pendingEventsStateAfterTimeoutUnknown", true);
+                writer.WriteString("suggestedAction", suggestedAction);
+            }
+
             if (!string.IsNullOrWhiteSpace(errorCode))
             {
                 writer.WriteString("pendingEventsPiggybackErrorCode", errorCode);
@@ -233,10 +248,16 @@ public abstract partial class PipeConnectedToolBase
         }
     }
 
-    private static string ResolvePiggybackFailureType(JsonElement payload) =>
-        string.Equals(GetStringProperty(payload, "errorCode"), "TransportReset", StringComparison.Ordinal)
-            ? "TransportReset"
-            : "NonSuccessResponse";
+    private static string ResolvePiggybackFailureType(JsonElement payload)
+    {
+        var errorCode = GetStringProperty(payload, "errorCode");
+        return errorCode switch
+        {
+            "Timeout" => "Timeout",
+            "TransportReset" => "TransportReset",
+            _ => "NonSuccessResponse"
+        };
+    }
 
     private static string ResolvePiggybackFailureType(Exception ex) => ex switch
     {
@@ -244,4 +265,13 @@ public abstract partial class PipeConnectedToolBase
         System.IO.IOException or ObjectDisposedException or InvalidOperationException => "TransportReset",
         _ => ex.GetType().Name
     };
+
+    private static bool PiggybackFailureRequiresReconnect(string failureType) =>
+        string.Equals(failureType, "Timeout", StringComparison.Ordinal)
+        || string.Equals(failureType, "TransportReset", StringComparison.Ordinal);
+
+    private static string BuildPiggybackFailureSuggestedAction(int processId, bool requiresReconnect) =>
+        requiresReconnect
+            ? $"Reconnect to process {processId}, re-read target state, then call drain_events explicitly before relying on event absence."
+            : "Call drain_events explicitly to recover any buffered pending events before relying on event absence.";
 }

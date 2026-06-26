@@ -52,6 +52,7 @@ internal static class InteractionMcpToolDescriptions
         "Use this tool to move focus to a specific WPF element before keyboard-driven runtime inspection.\n\n" +
         InteractionMetadata + "[Interaction] Move logical focus to a specific WPF element.\n\n" +
         "USE WHEN: Restoring focus after a mutation sequence, or preparing a keyboard-driven workflow.\n" +
+        "TARGET SELECTION: Use get_ui_summary or get_form_summary first, then get_interaction_readiness when uncertain. Choose a visible, enabled, focusable control from the active rendered visual tree; if one candidate returns ElementNotLoaded or cannot receive keyboard focus, retry another loaded focusable target before reporting a product limitation.\n" +
         "DO NOT USE: On elements that cannot receive focus.\n\n" +
         "RESPONSE SUMMARY:\n" +
         "  - success: boolean,\n" +
@@ -110,6 +111,7 @@ internal static class InteractionMcpToolDescriptions
         InteractionMetadata + "[Interaction] Simulate a keyboard key press on an element. " +
         "Key parameter uses WPF Key enum names.\n\n" +
         "USE WHEN: Testing keyboard shortcuts, Enter key submission, Tab navigation, or key event handlers.\n" +
+        "TARGET SELECTION: Use get_focus_state and focus_element only on visible, enabled, focusable controls in the active rendered visual tree. Use get_interaction_readiness for uncertain targets, and retry another loaded focusable element before treating a real-project keyboard workflow as unsupported.\n" +
         "DO NOT USE: For text input (use set_dp_value on Text property instead).\n\n" +
         "WARNING: This triggers real application logic.\n\n" +
         "SEMANTIC EFFECTS: semanticEffectObserved=true when: Tab moves focus, " +

@@ -12,6 +12,8 @@
 
 當流程和鍵盤輸入、預設按鈕、tab 導覽或多視窗切換有關時，`get_focus_state` 與 `focus_element` 會很重要。
 
+對 `focus_element` 與 `simulate_keyboard`，請從 active rendered visual tree 中選擇 visible、enabled、focusable 的控制項。若某個 real-project target 回 `ElementNotLoaded` 或無法取得鍵盤焦點，先用 `get_interaction_readiness`，或在已取得具體 `elementId` 後呼叫 `get_element_snapshot(elementId)` 檢查，再換另一個已載入且可 focus 的候選元素重試，不要只因單一候選失敗就判定 workflow 有限制。
+
 `element_screenshot` 預設使用 `outputMode: "metadata"`，也支援 `"file"` 或 `"base64"`。Metadata 回應會包含 dimensions、`format`、`rendered: false`、`byteLength: 0`，並在需要 pixel evidence 時提供以 `outputMode: "file"` 重呼叫的 `nextSteps`，不會 render PNG bytes；metadata mode 不會回傳 `screenshotId`、`resourceUri` 或 `wpf://screenshots/{screenshotId}` handle。File 與 base64 回應會 render pixels，包含 `rendered: true`、dimensions、`format` 與 `byteLength`；file mode 會回傳 `screenshotId`、`resourceUri`、`fileName`、`expiresAtUtc`、`localPathRedacted: true` 與 `sha256`，base64 mode 只會在小型 inline PNG payload 時回傳 `base64Image`。較大的截圖請使用 file mode，讓 client 取得 session-scoped resource handle，而不是 inline pixels。需要證明 screenshot resource lifecycle 的 validation agent 應使用 `outputMode: "file"` 後再呼叫 `resources/read`；metadata mode 是刻意不 render 的 shape/availability probe。File mode 是 MCP server-owned retained screenshot resource：server 會提供 per-process server-issued lease root，並由 `SessionManager` 在 24 小時後到期、將每個 MCP server session 限制在最多 100 筆、在 evicted 或 expired 時刪除 retained PNG file，並在 target session disconnect 或 server session manager dispose 時清除。這個 lifecycle 由 `SessionManager` 管理，not by the Inspector default screenshot cache。
 
 ## 狀態快照與批次 mutation
@@ -23,6 +25,8 @@
 這三個 tool 實際註冊在 State/Mutation 類別下（參見 `src/WpfDevTools.Mcp.Server/McpTools/StateMcpTools.cs` 與 `MutationBatchMcpTools.cs`）。之所以和 Interaction 一起列出，是因為它們是 destructive UI 互動的首選保護機制。
 
 當你要做可能需要回復的 UI mutation 時，建議先用 `capture_state_snapshot`，結束後再視需要呼叫 `restore_state_snapshot`。
+
+Mutation success response 可能包含 `restoreRequired: true`、`restoreStatus: "notRestored"` 與 `restoreSuggestedAction`。這代表工具已改變 runtime state，server 並不會自動幫你還原。若 app 必須保持不變，且目前有 active snapshot，先用 `get_state_diff` 驗證，再呼叫 `restore_state_snapshot`。
 
 當你需要在單一工具呼叫中執行有順序的多個 live mutation 時，請使用 `batch_mutate`。它比在同一個 agent step 中臨時拼接多個 destructive 呼叫更安全，因為 server 會明確驗證並按順序執行每個操作。
 

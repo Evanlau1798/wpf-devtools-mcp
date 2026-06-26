@@ -118,6 +118,7 @@ public static class ServerInstructions
         - wait_for_dp_change is now read-only; if you need the old triggerMutation-style serialized mutation-plus-wait flow, use wait_for_dp_change_after_mutation instead
         - If get_dp_value_source reports isExpression=true, treat set_dp_value as a temporary override. Binding-backed expressions can usually be restored later in the same session with clear_dp_value or restore_state_snapshot; for two-way bindings, also snapshot the relevant ViewModel property when you need deterministic semantic rollback of the source value. Non-Binding expressions remain an explicit capability boundary
         - focus_element and simulate_keyboard require the target to be attached to the active rendered visual tree; activate inactive tabs before focus-sensitive actions
+        - Do not report a focus or template limitation from one failed target. For real-project validation, retry with another current element that is loaded, visible, enabled, focusable, or template-backed as required by the tool before classifying the workflow as limited.
         - Treat scroll_to_element, highlight_element, and drag_and_drop as session-stateful interaction tools. capture_state_snapshot does not restore scroll position, temporary highlight adorners, or OS pointer/input fidelity; verify effects explicitly and close injected target apps before installer full-uninstall when binaries may be locked
         - Remember: all destructive changes are runtime-only and NOT persisted to XAML
 
@@ -173,6 +174,7 @@ public static class ServerInstructions
         - By default, tool responses include the additive `navigation` envelope; prefer `navigation.recommended` as the preferred follow-up surface when present instead of ad hoc tool guessing.
         - By default, tool responses also include compatibility `nextSteps`; expect `nextSteps: []` when no deterministic guidance exists.
         - session-aware `nextSteps` may include `preconditions`, `expectedOutcome`, `workflowId`, `prefetchTools`, `whyNow`, and confidence; all are advisory.
+        - Runtime mutation success responses can include restoreRequired=true, restoreStatus=notRestored, and restoreSuggestedAction; if the app must be left unchanged, follow navigation.recommended through get_state_diff and restore_state_snapshot after verification.
         - `navigation` includes recommended/alternatives/prefetchTools plus descriptive `contextRefs`; `nextSteps` remains a compatibility field.
         - If you already know the next step, get_binding_errors accepts navigation=false. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the tool schema today.
         - Compatibility aliases include currentValue -> effectiveValue, typeName -> viewModelType, avgRenderTime -> averageFrameTime, count -> totalCount, and renderTimeMs -> renderTime.

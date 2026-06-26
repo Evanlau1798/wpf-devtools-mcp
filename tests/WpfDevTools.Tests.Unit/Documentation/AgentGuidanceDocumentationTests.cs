@@ -57,6 +57,37 @@ public sealed class AgentGuidanceDocumentationTests
             "the primary agent-facing instructions should describe timeout recovery cases where target state is unknown");
         serverInstructions.Should().Contain("retryAfterSeconds",
             "the primary agent-facing instructions should mention rate-limit backoff fields");
+        serverInstructions.Should().Contain("restoreRequired",
+            "mutation success responses should advertise whether restore is needed when the app must be left unchanged");
+        serverInstructions.Should().Contain("restoreStatus",
+            "mutation success responses should advertise the current restore state");
+    }
+
+    [Fact]
+    public void AgentGuidance_ShouldRequireLoadedFocusableAndTemplateBackedTargetRetries()
+    {
+        var serverInstructions = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/ServerInstructions.cs"));
+        var interactionDescriptions = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools/InteractionMcpToolDescriptions.cs"));
+        var treeDescriptions = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools/TreeMcpToolDescriptions.cs"));
+        var guide = File.ReadAllText(GetRepoFilePath("docfx/guides/ai-agent-guide.md"));
+
+        serverInstructions.Should().Contain("Do not report a focus or template limitation from one failed target");
+        interactionDescriptions.Should().Contain("visible, enabled, focusable");
+        interactionDescriptions.Should().Contain("get_interaction_readiness");
+        treeDescriptions.Should().Contain("loaded templated control");
+        guide.Should().Contain("Retry with another loaded, focusable, or template-backed element");
+    }
+
+    [Theory]
+    [InlineData("docfx/reference/tools/interaction-events-layout.md")]
+    [InlineData("docfx/zh-tw/reference/tools/interaction-events-layout.md")]
+    public void InteractionReferencePages_ShouldDocumentMutationRestoreStatusFields(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("restoreRequired");
+        content.Should().Contain("restoreStatus");
+        content.Should().Contain("restore_state_snapshot");
     }
 
     [Theory]

@@ -369,6 +369,10 @@ public partial class ToolCallHelperTests
         var structured = result.StructuredContent!.Value;
         structured.GetProperty("errorCode").GetString().Should().Be("SecurityError");
         structured.GetProperty("error").GetString().Should().NotContain("localized OS error text");
+        structured.GetProperty("hint").GetString().Should().Contain("SHA256SUMS.txt");
+        structured.GetProperty("suggestedAction").GetString().Should().Contain("-PackageArchivePath");
+        structured.GetProperty("suggestedAction").GetString().Should().Contain("-TrustedReleaseMetadataDirectory");
+        structured.GetProperty("recovery").GetProperty("suggestedAction").GetString().Should().Contain("original archive");
     }
 
     [Fact]

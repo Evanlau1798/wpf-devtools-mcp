@@ -15,10 +15,12 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
     private readonly BatchMutationExecutor _mutationExecutor;
     private readonly BatchJsonExecutor _snapshotExecutor;
     private readonly BatchJsonExecutor _stateDiffExecutor;
+    private readonly BatchJsonExecutor _restoreExecutor;
 
     public BatchMutateTool(SessionManager sessionManager)
         : this(
             sessionManager,
+            null,
             null,
             null,
             null)
@@ -29,12 +31,14 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
         SessionManager sessionManager,
         BatchMutationExecutor? mutationExecutor,
         BatchJsonExecutor? snapshotExecutor,
-        BatchJsonExecutor? stateDiffExecutor)
+        BatchJsonExecutor? stateDiffExecutor,
+        BatchJsonExecutor? restoreExecutor = null)
         : base(sessionManager)
     {
         _mutationExecutor = mutationExecutor ?? ExecuteMutationAsync;
         _snapshotExecutor = snapshotExecutor ?? ExecuteCaptureSnapshotAsync;
         _stateDiffExecutor = stateDiffExecutor ?? ExecuteStateDiffAsync;
+        _restoreExecutor = restoreExecutor ?? ExecuteRestoreSnapshotAsync;
     }
 
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
@@ -229,7 +233,14 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
         var overallSuccess = failedMutationCount == 0
             && !diffFailed
             && !stateAfterTimeoutUnknown;
-        var rollback = BuildRollback(processId, snapshotId, !overallSuccess);
+        var automaticRollback = await ApplyAutomaticRollbackAsync(
+            processId,
+            snapshotId,
+            request.RollbackOnFailure,
+            !overallSuccess,
+            stateAfterTimeoutUnknown,
+            cancellationToken).ConfigureAwait(false);
+        var rollback = BuildRollback(processId, snapshotId, !overallSuccess, automaticRollback);
         var failureErrorCode = firstFailureErrorCode
             ?? (stateAfterTimeoutUnknown ? "Timeout" : failedMutationCount > 0 ? "BatchStepFailed" : "DiffFailed");
         var failure = overallSuccess
@@ -243,7 +254,8 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
                     : failedMutationCount > 0
                     ? $"Batch mutation step failed for {firstFailureContext}. {firstFailureError}".Trim()
                     : $"batch_mutate failed while running get_state_diff. {firstFailureError ?? GetOptionalString((JsonElement)stateDiff!, "error")}".Trim(),
-                firstFailureRecovery);
+                firstFailureRecovery,
+                automaticRollback);
 
         return new
         {
@@ -274,6 +286,63 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
             rollback,
             mutations = mutationResults
         };
+    }
+
+    private async Task<AutomaticRollbackStatus?> ApplyAutomaticRollbackAsync(
+        int processId,
+        string? snapshotId,
+        bool rollbackOnFailure,
+        bool shouldRollback,
+        bool stateAfterTimeoutUnknown,
+        CancellationToken cancellationToken)
+    {
+        if (!rollbackOnFailure || !shouldRollback)
+        {
+            return null;
+        }
+
+        if (stateAfterTimeoutUnknown)
+        {
+            return AutomaticRollbackStatus.Skipped(
+                "Automatic rollback was skipped because runtime state may be unknown after a timeout or transport failure.");
+        }
+
+        if (!TryGetRetainedRollbackSnapshotId(processId, snapshotId, out var retainedSnapshotId, out var reason)
+            || string.IsNullOrWhiteSpace(retainedSnapshotId))
+        {
+            return AutomaticRollbackStatus.Skipped(reason);
+        }
+
+        try
+        {
+            var restoreResult = ToJsonElement(await _restoreExecutor(
+                JsonSerializer.SerializeToElement(new
+                {
+                    processId,
+                    snapshotId = retainedSnapshotId,
+                    removeAfterRestore = true
+                }),
+                cancellationToken).ConfigureAwait(false));
+
+            return AutomaticRollbackStatus.Completed(
+                IsSuccess(restoreResult),
+                restoreResult.Clone(),
+                IsSuccess(restoreResult)
+                    ? "Automatic rollback already applied; the captured snapshot was restored before this response."
+                    : "Automatic rollback was attempted but restore_state_snapshot did not report success.");
+        }
+        catch (Exception ex)
+        {
+            return AutomaticRollbackStatus.Completed(
+                false,
+                JsonSerializer.SerializeToElement(new
+                {
+                    success = false,
+                    error = $"Automatic rollback failed: {ex.Message}",
+                    errorCode = ex is OperationCanceledException or TimeoutException ? "Timeout" : "OperationFailed"
+                }),
+                "Automatic rollback was attempted but failed before restore_state_snapshot completed.");
+        }
     }
 
     private async Task<object> ExecuteMutationAsync(string toolName, JsonElement args, CancellationToken cancellationToken)
@@ -317,6 +386,9 @@ public sealed partial class BatchMutateTool : PipeConnectedToolBase
         var trigger = GetOptionalString(args, "trigger");
         return new GetStateDiffTool(_sessionManager).ExecuteAsync(processId, snapshotId, trigger, cancellationToken);
     }
+
+    private Task<object> ExecuteRestoreSnapshotAsync(JsonElement args, CancellationToken cancellationToken) =>
+        new RestoreStateSnapshotTool(_sessionManager).ExecuteAsync(args, cancellationToken);
 
     private static JsonElement BuildMutationArgs(BatchMutationRequest request, BatchMutationStep mutation)
     {

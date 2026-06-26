@@ -165,7 +165,11 @@ internal static partial class McpToolOutputSchemas
             ["tool"] = String("Recommended rollback tool."),
             ["args"] = MapOf("Rollback tool arguments.", JsonValue()),
             ["params"] = MapOf("Rollback tool arguments using MCP-compatible naming.", JsonValue()),
-            ["reason"] = String("Reason rollback is unavailable when applicable.")
+            ["reason"] = String("Reason rollback is unavailable when applicable."),
+            ["rollbackOnFailure"] = Boolean("Whether automatic rollback was requested."),
+            ["attempted"] = Boolean("Whether automatic rollback was attempted."),
+            ["succeeded"] = Boolean("Whether automatic rollback succeeded."),
+            ["result"] = MapOf("restore_state_snapshot result when automatic rollback was attempted.", JsonValue())
         });
 
     private static object Recovery()
@@ -186,6 +190,9 @@ internal static partial class McpToolOutputSchemas
             ["nextTools"] = ArrayOfString("Suggested follow-up tools."),
             ["tool"] = String("Recommended recovery tool."),
             ["params"] = MapOf("Recommended recovery tool parameters.", JsonValue()),
+            ["rollbackOnFailure"] = Boolean("Whether automatic rollback was requested."),
+            ["attempted"] = Boolean("Whether automatic rollback was attempted."),
+            ["succeeded"] = Boolean("Whether automatic rollback succeeded."),
             ["details"] = MapOf("Additional recovery details.", JsonValue())
         });
 

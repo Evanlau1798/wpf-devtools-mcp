@@ -89,6 +89,7 @@ public sealed partial class BatchMutateTool
         }
 
         var includeDiff = ParseBoolParam(arguments, "includeDiff") ?? false;
+        var rollbackOnFailure = ParseBoolParam(arguments, "rollbackOnFailure") ?? false;
         BatchMutationSnapshot? captureSnapshot = null;
         if (!JsonCompatibilityPayloadParser.TryParseOptionalObjectProperty(
                 root,
@@ -116,6 +117,11 @@ public sealed partial class BatchMutateTool
             return (null, CreateInvalidParamError("includeDiff requires captureSnapshot so the batch has a baseline snapshot."));
         }
 
+        if (rollbackOnFailure && captureSnapshot is null)
+        {
+            return (null, CreateInvalidParamError("rollbackOnFailure requires captureSnapshot so the batch has a rollback baseline."));
+        }
+
         var diffTrigger = ParseStringParam(arguments, "trigger") ?? "batch_mutate";
 
         return (new BatchMutationRequest(
@@ -124,6 +130,7 @@ public sealed partial class BatchMutateTool
             mutations,
             captureSnapshot,
             includeDiff,
+            rollbackOnFailure,
             diffTrigger), null);
     }
 

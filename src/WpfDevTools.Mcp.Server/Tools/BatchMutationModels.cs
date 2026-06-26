@@ -8,6 +8,7 @@ internal sealed record BatchMutationRequest(
     IReadOnlyList<BatchMutationStep> Mutations,
     BatchMutationSnapshot? CaptureSnapshot,
     bool IncludeDiff,
+    bool RollbackOnFailure,
     string DiffTrigger);
 
 internal sealed record BatchMutationStep(

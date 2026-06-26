@@ -1,12 +1,31 @@
+using System.Text.Json;
+
 namespace WpfDevTools.Mcp.Server.Tools;
 
 public sealed partial class BatchMutateTool
 {
-    private object? BuildRollback(int processId, string? capturedSnapshotId, bool shouldOfferRollback)
+    private object? BuildRollback(
+        int processId,
+        string? capturedSnapshotId,
+        bool shouldOfferRollback,
+        AutomaticRollbackStatus? automaticRollback)
     {
         if (!shouldOfferRollback)
         {
             return null;
+        }
+
+        if (automaticRollback?.Succeeded == true)
+        {
+            return new
+            {
+                available = false,
+                reason = automaticRollback.Reason,
+                rollbackOnFailure = true,
+                attempted = true,
+                succeeded = true,
+                result = automaticRollback.Result
+            };
         }
 
         if (!TryGetRetainedRollbackSnapshotId(processId, capturedSnapshotId, out var snapshotId, out var reason))
@@ -14,7 +33,11 @@ public sealed partial class BatchMutateTool
             return new
             {
                 available = false,
-                reason
+                reason = automaticRollback?.Reason ?? reason,
+                rollbackOnFailure = automaticRollback?.Requested,
+                attempted = automaticRollback?.Attempted,
+                succeeded = automaticRollback?.Succeeded,
+                result = automaticRollback?.Result
             };
         }
 
@@ -27,15 +50,53 @@ public sealed partial class BatchMutateTool
             {
                 processId,
                 snapshotId
-            }
+            },
+            rollbackOnFailure = automaticRollback?.Requested,
+            attempted = automaticRollback?.Attempted,
+            succeeded = automaticRollback?.Succeeded,
+            result = automaticRollback?.Result,
+            reason = automaticRollback?.Reason
         };
     }
 
     private object? BuildRecovery(
         int processId,
         string? capturedSnapshotId,
-        ToolRecoveryProjection? projection)
+        ToolRecoveryProjection? projection,
+        AutomaticRollbackStatus? automaticRollback)
     {
+        if (automaticRollback?.Succeeded == true)
+        {
+            return new
+            {
+                suggestedAction = "Automatic rollback completed. Inspect current state before retrying batch_mutate.",
+                hint = automaticRollback.Reason,
+                rollbackOnFailure = true,
+                attempted = true,
+                succeeded = true
+            };
+        }
+
+        if (automaticRollback?.Attempted == true && automaticRollback.Succeeded == false)
+        {
+            return new
+            {
+                suggestedAction = "Automatic rollback failed. Inspect rollback.result and manually verify runtime state before retrying.",
+                hint = automaticRollback.Reason,
+                rollbackOnFailure = true,
+                attempted = true,
+                succeeded = false,
+                requiresReconnect = projection?.RequiresReconnect,
+                stateAfterTimeoutUnknown = projection?.StateAfterTimeoutUnknown,
+                processId = projection?.ProcessId,
+                timeoutSeconds = projection?.TimeoutSeconds,
+                retryAfterSeconds = projection?.RetryAfterSeconds,
+                retryAfter = projection?.RetryAfter,
+                availableTokens = projection?.AvailableTokens,
+                availableEvents = projection?.AvailableEvents
+            };
+        }
+
         if (!TryGetRetainedRollbackSnapshotId(processId, capturedSnapshotId, out var snapshotId, out var reason))
         {
             return new
@@ -80,8 +141,9 @@ public sealed partial class BatchMutateTool
         string? snapshotId,
         string errorCode,
         string error,
-        ToolRecoveryProjection? projection) =>
-        new(error, errorCode, BuildRecovery(processId, snapshotId, projection), projection);
+        ToolRecoveryProjection? projection,
+        AutomaticRollbackStatus? automaticRollback) =>
+        new(error, errorCode, BuildRecovery(processId, snapshotId, projection, automaticRollback), projection);
 
     private bool TryGetRetainedRollbackSnapshotId(
         int processId,
@@ -118,4 +180,18 @@ public sealed partial class BatchMutateTool
         string ErrorCode,
         object? Recovery,
         ToolRecoveryProjection? Projection);
+
+    private sealed record AutomaticRollbackStatus(
+        bool Requested,
+        bool Attempted,
+        bool Succeeded,
+        JsonElement? Result,
+        string Reason)
+    {
+        public static AutomaticRollbackStatus Skipped(string reason) =>
+            new(Requested: true, Attempted: false, Succeeded: false, Result: null, Reason: reason);
+
+        public static AutomaticRollbackStatus Completed(bool succeeded, JsonElement result, string reason) =>
+            new(Requested: true, Attempted: true, Succeeded: succeeded, Result: result, Reason: reason);
+    }
 }

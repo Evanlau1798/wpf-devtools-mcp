@@ -374,6 +374,16 @@ public partial class ToolCallHelperTests
         structured.GetProperty("suggestedAction").GetString().Should().Contain("-TrustedReleaseMetadataDirectory");
         structured.GetProperty("suggestedAction").GetString().Should().Contain("WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY");
         structured.GetProperty("recovery").GetProperty("suggestedAction").GetString().Should().Contain("original archive");
+
+        var recommended = structured.GetProperty("navigation").GetProperty("recommended");
+        recommended.GetArrayLength().Should().BeGreaterThan(0);
+        var firstStep = recommended[0];
+        firstStep.GetProperty("tool").GetString().Should().Be("get_processes");
+        firstStep.GetProperty("reason").GetString().Should().Contain("release metadata");
+        firstStep.GetProperty("preconditions").EnumerateArray()
+            .Select(precondition => precondition.GetString())
+            .Should().Contain(precondition => precondition!.Contains("SHA256SUMS.txt"));
+        structured.GetProperty("nextSteps")[0].GetProperty("tool").GetString().Should().Be("get_processes");
     }
 
     [Fact]

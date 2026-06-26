@@ -69,6 +69,16 @@ public class McpToolsWrapperTests : IDisposable
         result.IsError.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task SelectActiveProcess_WithoutProcessId_ShouldReturnStructuredMissingRequiredParameter()
+    {
+        var result = await ProcessMcpTools.SelectActiveProcess(_sessionManager);
+
+        result.IsError.Should().BeTrue();
+        result.StructuredContent.Should().NotBeNull();
+        result.StructuredContent!.Value.GetProperty("errorCode").GetString().Should().Be("MissingRequiredParameter");
+    }
+
     // === Tree Tools ===
 
     [Fact]

@@ -148,6 +148,24 @@ public sealed class McpToolArgumentValidatorTests
         payload.GetProperty("suggestedAction").GetString().Should().Contain(missingArgument);
     }
 
+    [Theory]
+    [InlineData("modify_viewmodel", "{\"propertyName\":\"Name\",\"value\":null}")]
+    [InlineData("modify_viewmodel", "{\"propertyName\":\"Name\",\"value\":\"\"}")]
+    [InlineData("set_dp_value", "{\"propertyName\":\"Text\",\"value\":null}")]
+    [InlineData("set_dp_value", "{\"propertyName\":\"Text\",\"value\":\"\"}")]
+    [InlineData("override_style_setter", "{\"elementId\":\"Input_1\",\"propertyName\":\"ToolTip\",\"value\":null}")]
+    public void Validate_ValueArgumentPresentWithNullOrEmptyPayload_ShouldAllowCall(
+        string toolName,
+        string argumentsJson)
+    {
+        var arguments = ToArguments(argumentsJson);
+        arguments["processId"] = JsonSerializer.SerializeToElement(12345);
+
+        var result = McpToolArgumentValidator.Validate(toolName, arguments);
+
+        result.Should().BeNull("a present value argument can intentionally write null or an empty string");
+    }
+
     private static Dictionary<string, JsonElement> ToArguments(object value)
         => JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
             JsonSerializer.Serialize(value))!;

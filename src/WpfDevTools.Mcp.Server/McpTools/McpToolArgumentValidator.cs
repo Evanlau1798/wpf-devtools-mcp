@@ -127,13 +127,7 @@ internal static class McpToolArgumentValidator
                 return true;
             }
 
-            if (argument.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
-            {
-                missingArgument = requiredArgument;
-                return true;
-            }
-
-            if (argument.ValueKind == JsonValueKind.String && argument.GetString()?.Length == 0)
+            if (IsMissingRequiredArgumentValue(requiredArgument, argument))
             {
                 missingArgument = requiredArgument;
                 return true;
@@ -142,6 +136,26 @@ internal static class McpToolArgumentValidator
 
         missingArgument = string.Empty;
         return false;
+    }
+
+    private static bool IsMissingRequiredArgumentValue(string requiredArgument, JsonElement argument)
+    {
+        if (argument.ValueKind == JsonValueKind.Undefined)
+        {
+            return true;
+        }
+
+        if (string.Equals(requiredArgument, "value", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (argument.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        return argument.ValueKind == JsonValueKind.String && argument.GetString()?.Length == 0;
     }
 
     private static bool TryGetArgument(

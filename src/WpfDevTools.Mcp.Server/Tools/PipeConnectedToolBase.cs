@@ -419,7 +419,6 @@ public abstract partial class PipeConnectedToolBase
         {
             return JsonSerializer.SerializeToElement(TrimMinimalMutationPayload(payload));
         }
-
         if (detailMode == MutationDetailMode.Compact)
         {
             if (usedFallback)
@@ -427,6 +426,7 @@ public abstract partial class PipeConnectedToolBase
                 payload["usedFallback"] = true;
             }
 
+            AddMutationRestoreGuidance(payload);
             return JsonSerializer.SerializeToElement(payload);
         }
 
@@ -435,7 +435,7 @@ public abstract partial class PipeConnectedToolBase
         payload["observedEffect"] = element.Clone();
         payload["usedFallback"] = usedFallback;
         payload["notes"] = notes;
-
+        AddMutationRestoreGuidance(payload);
         return JsonSerializer.SerializeToElement(payload);
     }
 

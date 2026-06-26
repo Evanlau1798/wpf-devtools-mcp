@@ -26,6 +26,8 @@
 
 當你要做可能需要回復的 UI mutation 時，建議先用 `capture_state_snapshot`，結束後再視需要呼叫 `restore_state_snapshot`。
 
+Mutation success response 可能包含 `restoreRequired: true`、`restoreStatus: "notRestored"` 與 `restoreSuggestedAction`。這代表工具已改變 runtime state，server 並不會自動幫你還原。若 app 必須保持不變，且目前有 active snapshot，先用 `get_state_diff` 驗證，再呼叫 `restore_state_snapshot`。
+
 當你需要在單一工具呼叫中執行有順序的多個 live mutation 時，請使用 `batch_mutate`。它比在同一個 agent step 中臨時拼接多個 destructive 呼叫更安全，因為 server 會明確驗證並按順序執行每個操作。
 
 互動類工具的回應現在也會帶出 `nextSteps` 與 `navigation`。當回應已提供 follow-up guidance 時，請優先遵循它，而不是回到固定的手工驗證清單。

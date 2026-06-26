@@ -28,4 +28,23 @@ public sealed class McpToolOutputSchemaPendingEventsTests
             .TryGetProperty(propertyName, out _)
             .Should().BeTrue($"{propertyName} is emitted when piggyback drain recovery is needed");
     }
+
+    [Theory]
+    [InlineData("restoreRequired")]
+    [InlineData("restoreStatus")]
+    [InlineData("restoreSuggestedAction")]
+    public void Apply_ShouldExposeMutationRestoreStatusFields(string propertyName)
+    {
+        var tool = new Tool
+        {
+            Name = "set_dp_value",
+            InputSchema = JsonSerializer.SerializeToElement(new { type = "object" })
+        };
+
+        McpToolOutputSchemas.Apply(tool);
+
+        tool.OutputSchema!.Value.GetProperty("properties")
+            .TryGetProperty(propertyName, out _)
+            .Should().BeTrue($"{propertyName} is emitted by mutation success responses");
+    }
 }

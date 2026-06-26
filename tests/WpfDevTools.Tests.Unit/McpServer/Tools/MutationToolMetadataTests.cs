@@ -33,6 +33,9 @@ public class MutationToolMetadataTests
         json.GetProperty("propertyName").GetString().Should().Be("Width");
         json.GetProperty("oldValue").GetInt32().Should().Be(50);
         json.GetProperty("newValue").GetInt32().Should().Be(100);
+        json.GetProperty("restoreRequired").GetBoolean().Should().BeTrue();
+        json.GetProperty("restoreStatus").GetString().Should().Be("notRestored");
+        json.GetProperty("restoreSuggestedAction").GetString().Should().Contain("restore_state_snapshot");
         json.TryGetProperty("requestedInput", out _).Should().BeFalse();
         json.TryGetProperty("effectiveInput", out _).Should().BeFalse();
         json.TryGetProperty("observedEffect", out _).Should().BeFalse();
@@ -66,6 +69,8 @@ public class MutationToolMetadataTests
         json.GetProperty("observedEffect").GetProperty("oldValue").GetInt32().Should().Be(50);
         json.GetProperty("usedFallback").GetBoolean().Should().BeFalse();
         json.GetProperty("notes").GetString().Should().Contain("Runtime-only");
+        json.GetProperty("restoreRequired").GetBoolean().Should().BeTrue();
+        json.GetProperty("restoreStatus").GetString().Should().Be("notRestored");
     }
 
     [Fact]
@@ -225,6 +230,8 @@ public class MutationToolMetadataTests
         json.TryGetProperty("observedEffect", out _).Should().BeFalse();
         json.TryGetProperty("notes", out _).Should().BeFalse();
         json.TryGetProperty("usedFallback", out _).Should().BeFalse();
+        json.GetProperty("restoreRequired").GetBoolean().Should().BeTrue();
+        json.GetProperty("restoreStatus").GetString().Should().Be("notRestored");
     }
 
     [Fact]
@@ -263,6 +270,8 @@ public class MutationToolMetadataTests
         json.TryGetProperty("observedEffect", out _).Should().BeFalse();
         json.TryGetProperty("notes", out _).Should().BeFalse();
         json.TryGetProperty("usedFallback", out _).Should().BeFalse();
+        json.TryGetProperty("restoreRequired", out _).Should().BeFalse();
+        json.TryGetProperty("restoreStatus", out _).Should().BeFalse();
     }
 
     [Fact]

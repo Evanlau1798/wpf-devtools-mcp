@@ -26,6 +26,8 @@ These tools are registered under the State/Mutation category (see `src/WpfDevToo
 
 `capture_state_snapshot` and `restore_state_snapshot` are the preferred guard rails before trying UI mutations that may need rollback.
 
+Mutation success responses may include `restoreRequired: true`, `restoreStatus: "notRestored"`, and `restoreSuggestedAction`. These fields mean the tool changed runtime state and the server has not restored it for you. If the app must be left unchanged, use `get_state_diff` when a snapshot is active, then call `restore_state_snapshot` after verification.
+
 Use `batch_mutate` when you need an ordered sequence of live mutations inside one tool call. It is safer than improvising multiple destructive calls in a single agent turn because the server validates and executes the operations sequentially.
 
 Interaction tool responses now also carry `nextSteps` and `navigation`. When the tool already recommends the follow-up, prefer that guidance over a fixed manual verification checklist.

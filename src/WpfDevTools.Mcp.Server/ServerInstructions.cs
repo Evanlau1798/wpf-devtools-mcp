@@ -174,6 +174,7 @@ public static class ServerInstructions
         - By default, tool responses include the additive `navigation` envelope; prefer `navigation.recommended` as the preferred follow-up surface when present instead of ad hoc tool guessing.
         - By default, tool responses also include compatibility `nextSteps`; expect `nextSteps: []` when no deterministic guidance exists.
         - session-aware `nextSteps` may include `preconditions`, `expectedOutcome`, `workflowId`, `prefetchTools`, `whyNow`, and confidence; all are advisory.
+        - Runtime mutation success responses can include restoreRequired=true, restoreStatus=notRestored, and restoreSuggestedAction; if the app must be left unchanged, follow navigation.recommended through get_state_diff and restore_state_snapshot after verification.
         - `navigation` includes recommended/alternatives/prefetchTools plus descriptive `contextRefs`; `nextSteps` remains a compatibility field.
         - If you already know the next step, get_binding_errors accepts navigation=false. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the tool schema today.
         - Compatibility aliases include currentValue -> effectiveValue, typeName -> viewModelType, avgRenderTime -> averageFrameTime, count -> totalCount, and renderTimeMs -> renderTime.

@@ -31,13 +31,36 @@ internal static class McpToolArgumentValidator
 
     private static readonly Dictionary<string, string[]> RequiredArgumentsByTool = new(StringComparer.Ordinal)
     {
-        ["get_event_handlers"] = ["eventName", "elementId"],
-        ["fire_routed_event"] = ["eventName", "elementId"],
-        ["get_state_diff"] = ["snapshotId"],
-        ["restore_state_snapshot"] = ["snapshotId"],
-        ["simulate_keyboard"] = ["key"],
+        ["clear_dp_value"] = ["propertyName"],
+        ["click_element"] = ["elementId"],
+        ["diagnose_visibility"] = ["elementId"],
+        ["drag_and_drop"] = ["sourceElementId", "targetElementId"],
         ["execute_command"] = ["commandName"],
-        ["serialize_to_xaml"] = ["elementId"]
+        ["fire_routed_event"] = ["eventName", "elementId"],
+        ["focus_element"] = ["elementId"],
+        ["force_binding_update"] = ["propertyName"],
+        ["get_affected_elements"] = ["propertyName"],
+        ["get_binding_value_chain"] = ["propertyName"],
+        ["get_clipping_info"] = ["elementId"],
+        ["get_dp_metadata"] = ["propertyName"],
+        ["get_element_snapshot"] = ["elementId"],
+        ["get_event_handlers"] = ["eventName", "elementId"],
+        ["get_interaction_readiness"] = ["elementId"],
+        ["get_resource_chain"] = ["resourceKey"],
+        ["get_state_diff"] = ["snapshotId"],
+        ["get_template_tree"] = ["elementId"],
+        ["get_triggers"] = ["elementId"],
+        ["highlight_element"] = ["elementId"],
+        ["modify_viewmodel"] = ["propertyName", "value"],
+        ["override_style_setter"] = ["propertyName", "value", "elementId"],
+        ["restore_state_snapshot"] = ["snapshotId"],
+        ["scroll_to_element"] = ["elementId"],
+        ["serialize_to_xaml"] = ["elementId"],
+        ["set_dp_value"] = ["propertyName", "value"],
+        ["simulate_keyboard"] = ["key"],
+        ["wait_for_dp_change"] = ["propertyName"],
+        ["wait_for_dp_change_after_mutation"] = ["propertyName", "triggerMutation"],
+        ["watch_dp_changes"] = ["propertyName"]
     };
 
     public static CallToolResult? Validate(

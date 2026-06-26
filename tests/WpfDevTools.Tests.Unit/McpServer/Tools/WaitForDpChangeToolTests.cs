@@ -248,19 +248,38 @@ public sealed class WaitForDpChangeToolTests
         const int processId = 4848;
         using var connected = await CreateConnectedSessionAsync(processId);
         var waitTool = new WaitForDpChangeTool(connected.SessionManager);
-        using var cancellation = new CancellationTokenSource(75);
+        using var cancellation = new CancellationTokenSource();
+        var pollDelayReached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var previousBeforePollDelay = WaitForDpChangeTool.BeforePollDelayForTesting;
+        WaitForDpChangeTool.BeforePollDelayForTesting = () =>
+        {
+            pollDelayReached.TrySetResult();
+            return Task.CompletedTask;
+        };
 
-        var act = () => waitTool.ExecuteAsync(
-            ToJsonElement(new
-            {
-                processId,
-                propertyName = "Text",
-                timeoutMs = 1000,
-                pollIntervalMs = 500
-            }),
-            cancellation.Token);
+        try
+        {
+            var waitTask = waitTool.ExecuteAsync(
+                ToJsonElement(new
+                {
+                    processId,
+                    propertyName = "Text",
+                    timeoutMs = 1000,
+                    pollIntervalMs = 500
+                }),
+                cancellation.Token);
 
-        await act.Should().ThrowAsync<OperationCanceledException>();
+            await pollDelayReached.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            cancellation.Cancel();
+
+            var act = () => waitTask;
+            await act.Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            WaitForDpChangeTool.BeforePollDelayForTesting = previousBeforePollDelay;
+        }
+
         connected.RequestMethods.Should().ContainSingle(method => method == "get_dp_value_source");
     }
 }

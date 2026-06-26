@@ -34,7 +34,7 @@ SDK-hosted reuse 透過 named pipes 通訊；target-side host 已啟動後，不
 <InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
 
-不要註冊解壓 archive 內的 package-local executable。對 checksum-only prerelease，請讓 archive 與 trusted sidecars 位於同一目錄，並用 packaged installer 搭配 `-PackageArchivePath` 與 `-TrustedReleaseMetadataDirectory` 執行，讓 runtime trust 在 raw injection 前完成解析。
+一般 client registration 建議使用 installed executable。對 checksum-only prerelease portable 驗證，只有在解壓後 package 與原始 archive 及 `SHA256SUMS.txt` 放在同一目錄時，才使用 package-local `run.bat` 或 `bin\wpf-devtools-<arch>.exe`；否則請用 packaged installer 搭配 `-PackageArchivePath` 與 `-TrustedReleaseMetadataDirectory` 執行，讓 runtime trust 在 raw injection 前完成解析。
 
 ## elevated target 與系統管理員權限不一致
 

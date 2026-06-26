@@ -150,6 +150,38 @@ public sealed class PreReleaseInstallerDocumentationTests
     }
 
     [Theory]
+    [InlineData(
+        "docfx/quickstart/index.md",
+        "package-local `run.bat` or `bin\\wpf-devtools-<arch>.exe`",
+        "same directory as the original archive and `SHA256SUMS.txt`")]
+    [InlineData(
+        "docfx/guides/troubleshooting.md",
+        "package-local `run.bat` or `bin\\wpf-devtools-<arch>.exe`",
+        "same directory as the original archive and `SHA256SUMS.txt`")]
+    [InlineData(
+        "docfx/zh-tw/quickstart/index.md",
+        "package-local `run.bat` 或 `bin\\wpf-devtools-<arch>.exe`",
+        "與原始 archive 及 `SHA256SUMS.txt` 放在同一目錄")]
+    [InlineData(
+        "docfx/zh-tw/guides/troubleshooting.md",
+        "package-local `run.bat` 或 `bin\\wpf-devtools-<arch>.exe`",
+        "與原始 archive 及 `SHA256SUMS.txt` 放在同一目錄")]
+    public void PortablePrereleaseDocs_ShouldDescribePackageLocalChecksumTrustBoundary(
+        string relativePath,
+        string portableEntrypoint,
+        string sidecarBoundary)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain(portableEntrypoint,
+            $"{relativePath} should not imply package-local prerelease execution is always invalid");
+        content.Should().Contain(sidecarBoundary,
+            $"{relativePath} should tie portable package-local trust to the original archive and checksum sidecar");
+        content.Should().NotContain("Do not register a package-local executable");
+        content.Should().NotContain("不要註冊解壓 archive 內的 package-local executable");
+    }
+
+    [Theory]
     [InlineData("AGENT_INSTALL.md")]
     [InlineData("docfx/index.md")]
     [InlineData("docfx/quickstart/index.md")]

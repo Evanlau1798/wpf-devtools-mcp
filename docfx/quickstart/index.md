@@ -70,7 +70,7 @@ Use this path when you already have a reviewed release archive.
      -TrustedReleaseMetadataDirectory $metadata
    ```
 
-Register the installed executable from `<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe`. Do not register a package-local executable from the extracted archive; prerelease checksum trust is resolved by the installer and trusted sidecars.
+Prefer registering the installed executable from `<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe`. For portable validation without installing, package-local `run.bat` or `bin\wpf-devtools-<arch>.exe` can be used only while the extracted package stays in the same directory as the original archive and `SHA256SUMS.txt`, and the manifest, executable, inspector, and bootstrapper payload bytes still match the verified ZIP.
 
 ## Register a client
 
@@ -120,6 +120,6 @@ The server fails closed unless the corresponding policy is explicitly enabled.
 
 - If `connect()` fails, verify `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` uses exact local absolute executable paths.
 - If a client cannot find the server, copy from the generated `client-registration` artifact instead of retyping the path.
-- If `connect()` returns `SecurityError: Security verification failed` after a manual package install, verify the client is registered to the installed path under `<InstallRoot>\<arch>\current\bin\`, not to the extracted archive's package-local executable.
+- If `connect()` returns `SecurityError: Security verification failed` after a manual package install, verify the installed path under `<InstallRoot>\<arch>\current\bin\`. For package-local `run.bat` or `bin\wpf-devtools-<arch>.exe`, keep the extracted package in the same directory as the original archive and `SHA256SUMS.txt`; otherwise use the packaged installer path.
 - Architecture matching is mandatory for raw injection/bootstrapper fallback. SDK-hosted reuse communicates over named pipes and does not require a bitness-matched bootstrapper attach.
 - If local execution policy blocks a reviewed local script, inspect the script and use a process-scoped policy override only from a trusted shell. Keep the normal path on `run.bat` or `pwsh -NoProfile -File`.

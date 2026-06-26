@@ -10,6 +10,7 @@ internal static class SceneDiagnosticsMcpToolDescriptions
         "[Scene] Compute semantic before/after differences for tracked DependencyProperty values, ViewModel properties, focus, binding errors, and validation errors.\n\n" +
         "USE WHEN: After click_element, execute_command, modify_viewmodel, or manual debugging steps when you need to know what changed.\n" +
         "DO NOT USE: As a replacement for capture_state_snapshot; you must capture a snapshot first.\n\n" +
+        "MINIMAL ROLLBACK CHAIN: capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot. get_state_diff requires the explicit snapshotId returned by capture_state_snapshot or batch_mutate.\n\n" +
         "RESPONSE SUMMARY:\n" +
         "  - success: boolean,\n" +
         "  - snapshotId: string,\n" +

@@ -124,6 +124,8 @@ Parameters:
 
 Output fields include `snapshotId` and `snapshotSummary`. Snapshots are in-memory, session-scoped, and retained for a bounded time.
 
+Minimal rollback chain: `capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot`. Pass the returned `snapshotId` explicitly to both diff and restore calls.
+
 Rollback note: when mutating a bound `DependencyProperty`, the binding can update its ViewModel source as well. If semantic rollback must restore both the DependencyProperty expression and source value, include the matching source property in `viewModelPropertyNames` before the mutation.
 
 Example:
@@ -171,6 +173,8 @@ Parameters:
 
 Output fields include DependencyProperty changes, ViewModel changes, binding error deltas, validation changes, focus changes, and duration.
 
+Minimal rollback chain: `capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot`.
+
 Example:
 
 ```json
@@ -192,6 +196,8 @@ Parameters:
 - `removeAfterRestore` optional, default `true`.
 
 Output fields include restored and skipped DependencyProperty values, restored and skipped ViewModel properties, focus restoration, warnings, and verification flags.
+
+Minimal rollback chain: `capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot`.
 
 Example:
 

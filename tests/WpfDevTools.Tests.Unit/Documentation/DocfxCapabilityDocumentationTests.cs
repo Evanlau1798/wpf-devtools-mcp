@@ -336,6 +336,28 @@ public sealed class DocfxCapabilityDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/reference/tools/scene-and-state.md")]
+    [InlineData("docfx/zh-tw/reference/tools/scene-and-state.md")]
+    [InlineData("docfx/guides/common-workflows.md")]
+    [InlineData("docfx/zh-tw/guides/common-workflows.md")]
+    public void SnapshotWorkflowPages_ShouldShowExplicitSnapshotIdChain(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot");
+    }
+
+    [Fact]
+    public void SnapshotToolDescriptions_ShouldShowExplicitSnapshotIdChain()
+    {
+        const string chain = "capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot";
+
+        StateMcpToolDescriptions.CaptureStateSnapshot.Should().Contain(chain);
+        SceneDiagnosticsMcpToolDescriptions.GetStateDiff.Should().Contain(chain);
+        StateMcpToolDescriptions.RestoreStateSnapshot.Should().Contain(chain);
+    }
+
+    [Theory]
     [InlineData("docfx/guides/troubleshooting.md", "elevated", "Access denied", "SDK mode", "project-scoped")]
     [InlineData("docfx/zh-tw/guides/troubleshooting.md", "系統管理員", "Access denied", "SDK mode", "project-scoped")]
     public void TroubleshootingPages_ShouldCoverElevationAndRegistrationConstraints(

@@ -18,7 +18,7 @@ public static class MutationBatchMcpTools
     public static Task<CallToolResult> BatchMutate(
         SessionManager sessionManager,
         [Description("Mutation steps as a JSON array. Each step must include tool (string) and may include label (string) plus args (object), not arguments. Example: [{ \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Width\", \"value\": 100 } }]")] JsonElement? mutations = null,
-        [Description("Optional capture_state_snapshot request as a JSON object. Required when includeDiff=true. Example: { \"propertyNames\": [\"Text\"], \"viewModelPropertyNames\": [\"Name\"] }")] JsonElement? captureSnapshot = null,
+        [Description("Optional capture_state_snapshot request as a JSON object, or true to infer a single-element snapshot from mutation propertyName values. Required when includeDiff=true. Example: { \"propertyNames\": [\"Text\"], \"viewModelPropertyNames\": [\"Name\"] }")] JsonElement? captureSnapshot = null,
         [Description("Optional flag to run get_state_diff after all mutations succeed. Requires captureSnapshot.")] bool includeDiff = false,
         [Description("Optional trigger label forwarded to get_state_diff. Defaults to 'batch_mutate'.")] string? trigger = null,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,

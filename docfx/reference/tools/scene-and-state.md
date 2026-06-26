@@ -145,7 +145,7 @@ Policy gate: destructive. The server must allow destructive tools with `WPFDEVTO
 Parameters:
 
 - `mutations` required array of supported mutation steps.
-- `captureSnapshot` optional snapshot request.
+- `captureSnapshot` optional snapshot request. Use an object for exact rollback scope. `captureSnapshot: true` is a shortcut only when the batch targets a single element and the server can infer `propertyNames` or `viewModelPropertyNames` from mutation `args.propertyName`.
 - `includeDiff` optional; requires `captureSnapshot`.
 - `trigger`, `processId`, and default `elementId` optional.
 
@@ -155,6 +155,12 @@ Example:
 
 ```json
 { "captureSnapshot": { "elementId": "NameTextBox", "propertyNames": ["Text"] }, "includeDiff": true, "mutations": [{ "tool": "set_dp_value", "args": { "elementId": "NameTextBox", "propertyName": "Text", "value": "Alice" } }] }
+```
+
+Single-element shortcut:
+
+```json
+{ "captureSnapshot": true, "includeDiff": true, "mutations": [{ "tool": "set_dp_value", "args": { "elementId": "NameTextBox", "propertyName": "Text", "value": "Alice" } }] }
 ```
 
 Recovery path: if a step fails after earlier mutations succeeded, inspect `rollback` and call `restore_state_snapshot` when a retained snapshot is available.

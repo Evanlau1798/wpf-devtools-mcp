@@ -91,9 +91,10 @@ public sealed partial class BatchMutateTool
         var includeDiff = ParseBoolParam(arguments, "includeDiff") ?? false;
         var rollbackOnFailure = ParseBoolParam(arguments, "rollbackOnFailure") ?? false;
         BatchMutationSnapshot? captureSnapshot = null;
-        if (!JsonCompatibilityPayloadParser.TryParseOptionalObjectProperty(
+        if (!TryParseCaptureSnapshotElement(
                 root,
-                "captureSnapshot",
+                mutations,
+                defaultElementId,
                 out var captureSnapshotElement,
                 out var hasCaptureSnapshot,
                 out var captureSnapshotError))
@@ -132,6 +133,153 @@ public sealed partial class BatchMutateTool
             includeDiff,
             rollbackOnFailure,
             diffTrigger), null);
+    }
+
+    private static bool TryParseCaptureSnapshotElement(
+        JsonElement root,
+        IReadOnlyList<BatchMutationStep> mutations,
+        string? defaultElementId,
+        out JsonElement captureSnapshotElement,
+        out bool hasCaptureSnapshot,
+        out string? errorMessage)
+    {
+        captureSnapshotElement = default;
+        hasCaptureSnapshot = false;
+        errorMessage = null;
+
+        if (!root.TryGetProperty("captureSnapshot", out var rawCaptureSnapshot))
+        {
+            return true;
+        }
+
+        if (rawCaptureSnapshot.ValueKind is JsonValueKind.False or JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (rawCaptureSnapshot.ValueKind == JsonValueKind.True)
+        {
+            hasCaptureSnapshot = true;
+            return TryInferCaptureSnapshotElement(
+                mutations,
+                defaultElementId,
+                out captureSnapshotElement,
+                out errorMessage);
+        }
+
+        return JsonCompatibilityPayloadParser.TryParseOptionalObjectProperty(
+            root,
+            "captureSnapshot",
+            out captureSnapshotElement,
+            out hasCaptureSnapshot,
+            out errorMessage);
+    }
+
+    private static bool TryInferCaptureSnapshotElement(
+        IReadOnlyList<BatchMutationStep> mutations,
+        string? defaultElementId,
+        out JsonElement captureSnapshotElement,
+        out string? errorMessage)
+    {
+        captureSnapshotElement = default;
+        errorMessage = null;
+
+        var elementIds = new List<string>();
+        var seenElementIds = new HashSet<string>(StringComparer.Ordinal);
+        var propertyNames = new List<string>();
+        var seenPropertyNames = new HashSet<string>(StringComparer.Ordinal);
+        var viewModelPropertyNames = new List<string>();
+        var seenViewModelPropertyNames = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var mutation in mutations)
+        {
+            var mutationElementId = GetMutationElementId(mutation, defaultElementId);
+            if (!string.IsNullOrWhiteSpace(mutationElementId) && seenElementIds.Add(mutationElementId))
+            {
+                elementIds.Add(mutationElementId);
+            }
+
+            if (RequiresDependencyPropertySnapshot(mutation.Tool))
+            {
+                if (!TryAddMutationPropertyName(mutation, propertyNames, seenPropertyNames, out errorMessage))
+                {
+                    return false;
+                }
+            }
+            else if (string.Equals(mutation.Tool, "modify_viewmodel", StringComparison.Ordinal))
+            {
+                if (!TryAddMutationPropertyName(
+                        mutation,
+                        viewModelPropertyNames,
+                        seenViewModelPropertyNames,
+                        out errorMessage))
+                {
+                    return false;
+                }
+            }
+        }
+
+        if (elementIds.Count > 1 && (propertyNames.Count > 0 || viewModelPropertyNames.Count > 0))
+        {
+            errorMessage = "captureSnapshot=true can infer rollback state only when property mutations target a single element. Provide an explicit captureSnapshot object for multi-element batches.";
+            return false;
+        }
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["includeFocus"] = true
+        };
+
+        if (elementIds.Count == 1)
+        {
+            payload["elementId"] = elementIds[0];
+        }
+
+        if (propertyNames.Count > 0)
+        {
+            payload["propertyNames"] = propertyNames;
+        }
+
+        if (viewModelPropertyNames.Count > 0)
+        {
+            payload["viewModelPropertyNames"] = viewModelPropertyNames;
+        }
+
+        captureSnapshotElement = JsonSerializer.SerializeToElement(payload);
+        return true;
+    }
+
+    private static string? GetMutationElementId(BatchMutationStep mutation, string? defaultElementId)
+    {
+        var elementId = GetOptionalString(mutation.Args, "elementId");
+        return !string.IsNullOrWhiteSpace(elementId)
+            ? elementId
+            : defaultElementId;
+    }
+
+    private static bool RequiresDependencyPropertySnapshot(string tool) =>
+        tool is "set_dp_value" or "clear_dp_value" or "override_style_setter";
+
+    private static bool TryAddMutationPropertyName(
+        BatchMutationStep mutation,
+        List<string> propertyNames,
+        HashSet<string> seenPropertyNames,
+        out string? errorMessage)
+    {
+        errorMessage = null;
+        var propertyName = GetOptionalString(mutation.Args, "propertyName");
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            errorMessage = $"captureSnapshot=true cannot infer rollback state because mutation step {mutation.Index} ({mutation.Tool}) is missing propertyName. Provide an explicit captureSnapshot object.";
+            return false;
+        }
+
+        if (seenPropertyNames.Add(propertyName))
+        {
+            propertyNames.Add(propertyName);
+        }
+
+        return true;
     }
 
     private static bool TryParseMutationsElement(

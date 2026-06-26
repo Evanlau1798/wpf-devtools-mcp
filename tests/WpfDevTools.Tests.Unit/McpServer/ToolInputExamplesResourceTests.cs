@@ -78,7 +78,7 @@ public sealed class ToolInputExamplesResourceTests
             examplesByTool.TryGetProperty(toolName, out var examples).Should().BeTrue(
                 $"{toolName} has an exact high-value output contract and should have machine-readable input examples");
             examples.ValueKind.Should().Be(JsonValueKind.Array);
-            examples.GetArrayLength().Should().BeInRange(1, 3);
+            examples.GetArrayLength().Should().BeInRange(1, 4);
 
             foreach (var example in examples.EnumerateArray())
             {
@@ -150,6 +150,8 @@ public sealed class ToolInputExamplesResourceTests
 
         batchExamples.EnumerateArray().Any(HasSequentialRollbackBatchExample)
             .Should().BeTrue("agents need a multi-step rollback-safe batch example with diff capture");
+        batchExamples.EnumerateArray().Any(HasInferredSnapshotBatchExample)
+            .Should().BeTrue("agents need a terse captureSnapshot=true example for single-target property batches");
         batchExamples.EnumerateArray().Any(HasStringifiedMutationsExample)
             .Should().BeTrue("text-only clients need a valid stringified mutations example");
     }
@@ -245,6 +247,7 @@ public sealed class ToolInputExamplesResourceTests
         if (!arguments.TryGetProperty("captureSnapshot", out var captureSnapshot)
             || !arguments.TryGetProperty("includeDiff", out var includeDiff)
             || !includeDiff.GetBoolean()
+            || captureSnapshot.ValueKind != JsonValueKind.Object
             || !captureSnapshot.TryGetProperty("viewModelPropertyNames", out var viewModelPropertyNames)
             || !viewModelPropertyNames.EnumerateArray().Any(item => item.GetString() == "SearchText")
             || !arguments.TryGetProperty("mutations", out var mutations)
@@ -257,6 +260,27 @@ public sealed class ToolInputExamplesResourceTests
         return mutations.EnumerateArray()
             .Select(mutation => mutation.GetProperty("args"))
             .All(args => !args.TryGetProperty("processId", out _));
+    }
+
+    private static bool HasInferredSnapshotBatchExample(JsonElement example)
+    {
+        var arguments = example.GetProperty("arguments");
+        if (!arguments.TryGetProperty("captureSnapshot", out var captureSnapshot)
+            || captureSnapshot.ValueKind != JsonValueKind.True
+            || !arguments.TryGetProperty("includeDiff", out var includeDiff)
+            || !includeDiff.GetBoolean()
+            || !arguments.TryGetProperty("mutations", out var mutations)
+            || mutations.ValueKind != JsonValueKind.Array
+            || mutations.GetArrayLength() != 1)
+        {
+            return false;
+        }
+
+        var args = mutations[0].GetProperty("args");
+        return args.TryGetProperty("elementId", out var elementId)
+               && elementId.GetString() == "SearchTextBox"
+               && args.TryGetProperty("propertyName", out var propertyName)
+               && propertyName.GetString() == "Text";
     }
 
     private static bool HasStringifiedMutationsExample(JsonElement example)

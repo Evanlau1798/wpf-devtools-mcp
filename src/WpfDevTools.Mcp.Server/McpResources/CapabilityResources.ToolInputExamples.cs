@@ -231,6 +231,35 @@ public static partial class CapabilityResources
                     },
                     new
                     {
+                        name = "Use inferred snapshot for one DependencyProperty target",
+                        policyGates = new[]
+                        {
+                            "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS",
+                            "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS"
+                        },
+                        arguments = new
+                        {
+                            processId = 12345,
+                            captureSnapshot = true,
+                            includeDiff = true,
+                            mutations = new object[]
+                            {
+                                new
+                                {
+                                    tool = "set_dp_value",
+                                    label = "Set search text",
+                                    args = new
+                                    {
+                                        elementId = "SearchTextBox",
+                                        propertyName = "Text",
+                                        value = "Ready"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    new
+                    {
                         name = "Run ordered search edit with rollback snapshot and diff",
                         policyGates = new[]
                         {

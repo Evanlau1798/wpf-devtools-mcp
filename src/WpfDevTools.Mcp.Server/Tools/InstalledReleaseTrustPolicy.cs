@@ -1,3 +1,5 @@
+using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace WpfDevTools.Mcp.Server.Tools;
@@ -36,6 +38,10 @@ internal static class InstalledReleaseTrustPolicy
         {
             return false;
         }
+        catch (InvalidDataException)
+        {
+            return false;
+        }
         catch (JsonException)
         {
             return false;
@@ -65,44 +71,27 @@ internal static class InstalledReleaseTrustPolicy
         }
 
         var currentDirectory = Directory.GetParent(binDirectory)?.FullName;
-        var installBase = currentDirectory is null
-            ? null
-            : Directory.GetParent(currentDirectory)?.FullName;
-        if (currentDirectory is null || installBase is null)
+        if (currentDirectory is null)
         {
             return false;
         }
 
         var packageManifestPath = Path.Combine(binDirectory, "manifest.json");
-        var installManifestPath = Path.Combine(installBase, "install-manifest.json");
-        if (!File.Exists(packageManifestPath) || !File.Exists(installManifestPath))
+        if (!File.Exists(packageManifestPath))
         {
             return false;
         }
 
         using var packageManifest = JsonDocument.Parse(File.ReadAllText(packageManifestPath));
-        using var installManifest = JsonDocument.Parse(File.ReadAllText(installManifestPath));
         var packageRoot = packageManifest.RootElement;
-        var installRoot = installManifest.RootElement;
 
-        if (!IsChecksumOnlyReleaseManifest(packageRoot)
-            || !IsChecksumOnlyReleaseManifest(installRoot)
-            || !ManifestValuesMatch(packageRoot, installRoot, "version")
-            || !ManifestValuesMatch(packageRoot, installRoot, "architecture"))
+        if (!IsChecksumOnlyReleaseManifest(packageRoot))
         {
             return false;
         }
 
-        var installDir = GetString(installRoot, "installDir");
-        var installedExecutable = GetString(installRoot, "executable");
         var normalizedCurrentDirectory = NormalizeDirectory(currentDirectory);
         var normalizedProcessPath = NormalizeFile(processPath);
-        if (!PathEquals(installDir, normalizedCurrentDirectory)
-            || !PathEquals(installedExecutable, normalizedProcessPath))
-        {
-            return false;
-        }
-
         var packageExecutable = ResolvePackageRelativePath(
             normalizedCurrentDirectory,
             GetString(packageRoot, "entryExecutable"));
@@ -112,8 +101,206 @@ internal static class InstalledReleaseTrustPolicy
         }
 
         var normalizedDllPath = NormalizeFile(dllPath);
-        return EnumerateManifestPayloads(packageRoot, normalizedCurrentDirectory)
-            .Any(payloadPath => PathEquals(payloadPath, normalizedDllPath));
+        var payloadRelativePath = EnumerateManifestPayloadRelativePaths(packageRoot)
+            .FirstOrDefault(relativePath => PathEquals(
+                ResolvePackageRelativePath(normalizedCurrentDirectory, relativePath),
+                normalizedDllPath));
+        if (payloadRelativePath is null)
+        {
+            return false;
+        }
+
+        return CanSkipInstalledChecksumOnlyPayload(
+                   packageRoot,
+                   normalizedCurrentDirectory,
+                   normalizedProcessPath)
+               || CanSkipPortableChecksumOnlyPayload(
+                   packageRoot,
+                   packageManifestPath,
+                   normalizedCurrentDirectory,
+                   normalizedProcessPath,
+                   normalizedDllPath,
+                   payloadRelativePath);
+    }
+
+    private static bool CanSkipInstalledChecksumOnlyPayload(
+        JsonElement packageRoot,
+        string currentDirectory,
+        string processPath)
+    {
+        var installBase = Directory.GetParent(currentDirectory)?.FullName;
+        if (installBase is null)
+        {
+            return false;
+        }
+
+        var installManifestPath = Path.Combine(installBase, "install-manifest.json");
+        if (!File.Exists(installManifestPath))
+        {
+            return false;
+        }
+
+        using var installManifest = JsonDocument.Parse(File.ReadAllText(installManifestPath));
+        var installRoot = installManifest.RootElement;
+
+        if (!IsChecksumOnlyReleaseManifest(installRoot)
+            || !ManifestValuesMatch(packageRoot, installRoot, "version")
+            || !ManifestValuesMatch(packageRoot, installRoot, "architecture"))
+        {
+            return false;
+        }
+
+        var installDir = GetString(installRoot, "installDir");
+        var installedExecutable = GetString(installRoot, "executable");
+        return PathEquals(installDir, currentDirectory)
+               && PathEquals(installedExecutable, processPath);
+    }
+
+    private static bool CanSkipPortableChecksumOnlyPayload(
+        JsonElement packageRoot,
+        string packageManifestPath,
+        string packageDirectory,
+        string processPath,
+        string dllPath,
+        string payloadRelativePath)
+    {
+        var archiveName = GetPortableArchiveName(packageRoot);
+        if (archiveName is null)
+        {
+            return false;
+        }
+
+        foreach (var releaseDirectory in EnumeratePortableReleaseDirectories(packageDirectory))
+        {
+            var archivePath = Path.Combine(releaseDirectory, archiveName);
+            var shaSidecarPath = Path.Combine(releaseDirectory, "SHA256SUMS.txt");
+            if (!File.Exists(archivePath) || !File.Exists(shaSidecarPath))
+            {
+                continue;
+            }
+
+            if (!VerifyArchiveHashSidecar(archivePath, shaSidecarPath, archiveName))
+            {
+                continue;
+            }
+
+            var executableRelativePath = GetString(packageRoot, "entryExecutable");
+            if (VerifyArchiveEntryMatchesFile(archivePath, "bin/manifest.json", packageManifestPath)
+                && VerifyArchiveEntryMatchesFile(archivePath, executableRelativePath, processPath)
+                && VerifyArchiveEntryMatchesFile(archivePath, payloadRelativePath, dllPath))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string? GetPortableArchiveName(JsonElement packageRoot)
+    {
+        var version = GetString(packageRoot, "version");
+        var architecture = GetString(packageRoot, "architecture");
+        if (string.IsNullOrWhiteSpace(version) || string.IsNullOrWhiteSpace(architecture))
+        {
+            return null;
+        }
+
+        return $"release_{version}_win-{architecture}.zip";
+    }
+
+    private static IEnumerable<string> EnumeratePortableReleaseDirectories(string packageDirectory)
+    {
+        yield return packageDirectory;
+
+        var parentDirectory = Directory.GetParent(packageDirectory)?.FullName;
+        if (parentDirectory is not null)
+        {
+            yield return parentDirectory;
+        }
+    }
+
+    private static bool VerifyArchiveHashSidecar(
+        string archivePath,
+        string shaSidecarPath,
+        string archiveName)
+    {
+        var expectedHash = ReadExpectedSha256(shaSidecarPath, archiveName);
+        if (expectedHash is null)
+        {
+            return false;
+        }
+
+        using var archiveStream = File.OpenRead(archivePath);
+        var actualHash = Convert.ToHexString(SHA256.HashData(archiveStream));
+        return string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? ReadExpectedSha256(string shaSidecarPath, string archiveName)
+    {
+        foreach (var line in File.ReadLines(shaSidecarPath))
+        {
+            var parts = line.Split(
+                [' ', '\t'],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length < 2)
+            {
+                continue;
+            }
+
+            var candidateName = parts[^1].TrimStart('*');
+            if (string.Equals(candidateName, archiveName, StringComparison.OrdinalIgnoreCase)
+                && parts[0].Length == 64
+                && parts[0].All(Uri.IsHexDigit))
+            {
+                return parts[0];
+            }
+        }
+
+        return null;
+    }
+
+    private static bool VerifyArchiveEntryMatchesFile(
+        string archivePath,
+        string? relativePath,
+        string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return false;
+        }
+
+        var entryName = NormalizeZipEntryName(relativePath);
+        if (entryName is null)
+        {
+            return false;
+        }
+
+        using var archive = ZipFile.OpenRead(archivePath);
+        var entry = archive.GetEntry(entryName);
+        if (entry is null)
+        {
+            return false;
+        }
+
+        using var entryStream = entry.Open();
+        using var fileStream = File.OpenRead(filePath);
+        var entryHash = Convert.ToHexString(SHA256.HashData(entryStream));
+        var fileHash = Convert.ToHexString(SHA256.HashData(fileStream));
+        return string.Equals(entryHash, fileHash, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? NormalizeZipEntryName(string relativePath)
+    {
+        if (Path.IsPathRooted(relativePath))
+        {
+            return null;
+        }
+
+        var entryName = relativePath.Replace('\\', '/').TrimStart('/');
+        return entryName.Contains("../", StringComparison.Ordinal)
+               || entryName.Equals("..", StringComparison.Ordinal)
+            ? null
+            : entryName;
     }
 
     private static bool IsChecksumOnlyReleaseManifest(JsonElement manifest)
@@ -129,21 +316,11 @@ internal static class InstalledReleaseTrustPolicy
                && string.Equals(leftValue, rightValue, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static IEnumerable<string> EnumerateManifestPayloads(JsonElement packageManifest, string installDirectory)
+    private static IEnumerable<string?> EnumerateManifestPayloadRelativePaths(JsonElement packageManifest)
     {
-        foreach (var relativePath in new[]
-        {
-            GetNestedString(packageManifest, "inspector", "net8"),
-            GetNestedString(packageManifest, "inspector", "net48"),
-            GetString(packageManifest, "bootstrapper")
-        })
-        {
-            var resolvedPath = ResolvePackageRelativePath(installDirectory, relativePath);
-            if (resolvedPath is not null)
-            {
-                yield return resolvedPath;
-            }
-        }
+        yield return GetNestedString(packageManifest, "inspector", "net8");
+        yield return GetNestedString(packageManifest, "inspector", "net48");
+        yield return GetString(packageManifest, "bootstrapper");
     }
 
     private static string? ResolvePackageRelativePath(string installDirectory, string? relativePath)

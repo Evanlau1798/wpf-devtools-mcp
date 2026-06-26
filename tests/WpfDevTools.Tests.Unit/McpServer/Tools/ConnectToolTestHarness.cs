@@ -88,7 +88,10 @@ public partial class ConnectToolTests
         ReplaceSessionManagerPipeClient(sessionManager, processId, replacement);
     }
 
-    private sealed class FakeProcessDetector(bool isElevated = false, string? executablePath = null) : WpfProcessDetector
+    private sealed class FakeProcessDetector(
+        bool isElevated = false,
+        string? executablePath = null,
+        ProcessArchitecture architecture = ProcessArchitecture.X64) : WpfProcessDetector
     {
         public override WpfProcessInfo? GetProcessInfo(int processId)
         {
@@ -96,7 +99,7 @@ public partial class ConnectToolTests
             {
                 ProcessId = processId,
                 ProcessName = "TestApp",
-                Architecture = ProcessArchitecture.X64,
+                Architecture = architecture,
                 Runtime = TargetRuntime.NetCore,
                 IsWpfApplication = true,
                 IsElevated = isElevated,

@@ -12,7 +12,7 @@ public sealed class PreReleaseInstallerDocumentationTests
     private const string PreviewPrereleaseInstallerCommand =
         "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease";
     private const string PinnedPrereleaseVersionExample =
-        "$version = 'v1.0.0-beta.14'";
+        "$version = 'v1.0.0-beta.15'";
     private const string PinnedPrereleaseInstallerCommand =
         "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease";
     private const string EnglishArm64PreviewWarning =
@@ -181,6 +181,22 @@ public sealed class PreReleaseInstallerDocumentationTests
             $"{relativePath} should document the explicit metadata directory path so agents do not need to copy sidecars beside the extracted package");
         content.Should().NotContain("Do not register a package-local executable");
         content.Should().NotContain("不要註冊解壓 archive 內的 package-local executable");
+    }
+
+    [Theory]
+    [InlineData("docfx/quickstart/index.md")]
+    [InlineData("docfx/zh-tw/quickstart/index.md")]
+    public void ManualVerifiedQuickstartInstall_ShouldUsePublicInstallerAliasInsteadOfPackageLocalInstallScript(
+        string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com)))",
+            $"{relativePath} should keep manual verified install on the reviewed public installer entrypoint");
+        content.Should().Contain("-PackageArchivePath $archive");
+        content.Should().Contain("-TrustedReleaseMetadataDirectory $metadata");
+        content.Should().NotContain("Join-Path $packageRoot 'bin\\install.ps1'",
+            $"{relativePath} should not conflict with the agent install contract by using the package-local installer as the install command");
     }
 
     [Theory]

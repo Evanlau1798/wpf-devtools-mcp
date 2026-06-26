@@ -74,6 +74,43 @@ public class DllCandidateResolverTests
     }
 
     [Fact]
+    public void EnumerateCandidates_WithReleasePackageManifest_ShouldNotIncludeWorkspaceArtifacts()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var solutionRoot = Path.Combine(root, "repo");
+        var serverDir = Path.Combine(solutionRoot, "tmp", "install", "x64", "current", "bin");
+        Directory.CreateDirectory(serverDir);
+        File.WriteAllText(Path.Combine(solutionRoot, "WpfDevTools.sln"), string.Empty);
+        File.WriteAllText(Path.Combine(serverDir, "manifest.json"), ReleaseManifestJson);
+
+        try
+        {
+            var inspectorCandidates = DllCandidateResolver.EnumerateInspectorCandidates(serverDir).ToArray();
+            var bootstrapperCandidates = DllCandidateResolver.EnumerateBootstrapperCandidates(serverDir).ToArray();
+
+            inspectorCandidates.Should().NotContain(Path.GetFullPath(Path.Combine(
+                solutionRoot,
+                "src",
+                "WpfDevTools.Inspector",
+                "bin",
+                "Release",
+                "net48",
+                "WpfDevTools.Inspector.dll")));
+            bootstrapperCandidates.Should().NotContain(Path.GetFullPath(Path.Combine(
+                solutionRoot,
+                "artifacts",
+                "bootstrapper",
+                "Release",
+                "Win32",
+                "WpfDevTools.Bootstrapper.x86.dll")));
+        }
+        finally
+        {
+            DeleteDirectoryWithRetry(root);
+        }
+    }
+
+    [Fact]
     public void EnumerateInspectorCandidates_ShouldIncludeWorkspaceDebugInspectorArtifact()
     {
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -163,4 +200,22 @@ public class DllCandidateResolverTests
             }
         }
     }
+
+    private const string ReleaseManifestJson = """
+        {
+          "name": "wpf-devtools",
+          "version": "1.0.0-beta.14",
+          "architecture": "x64",
+          "runtimeId": "win-x64",
+          "channel": "release",
+          "buildConfiguration": "Release",
+          "signaturePolicy": "ReleaseChecksumOnly",
+          "entryExecutable": "bin/wpf-devtools-x64.exe",
+          "inspector": {
+            "net8": "bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll",
+            "net48": "bin/inspectors/net48/WpfDevTools.Inspector.dll"
+          },
+          "bootstrapper": "bin/bootstrapper/x64/WpfDevTools.Bootstrapper.x64.dll"
+        }
+        """;
 }

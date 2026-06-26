@@ -1,3 +1,4 @@
+using System.Text.Json;
 using WpfDevTools.Shared.IO;
 
 namespace WpfDevTools.Mcp.Server.Tools;
@@ -13,6 +14,11 @@ internal static class DllCandidateResolver
         yield return Path.GetFullPath(Path.Combine(serverDir, "WpfDevTools.Inspector.dll"));
         yield return Path.GetFullPath(Path.Combine(serverDir, "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll"));
         yield return Path.GetFullPath(Path.Combine(serverDir, "inspectors", "net48", "WpfDevTools.Inspector.dll"));
+
+        if (IsReleasePackageDirectory(serverDir))
+        {
+            yield break;
+        }
 
         var configurations = GetPreferredBuildConfigurations(serverDir);
         foreach (var solutionRoot in RepositoryLayoutLocator.EnumerateSolutionRoots(serverDir))
@@ -42,6 +48,11 @@ internal static class DllCandidateResolver
         yield return Path.GetFullPath(Path.Combine(serverDir, "bootstrapper", "x64", "WpfDevTools.Bootstrapper.x64.dll"));
         yield return Path.GetFullPath(Path.Combine(serverDir, "bootstrapper", "x86", "WpfDevTools.Bootstrapper.x86.dll"));
         yield return Path.GetFullPath(Path.Combine(serverDir, "bootstrapper", "arm64", "WpfDevTools.Bootstrapper.arm64.dll"));
+
+        if (IsReleasePackageDirectory(serverDir))
+        {
+            yield break;
+        }
 
         var configurations = GetPreferredBuildConfigurations(serverDir);
         foreach (var solutionRoot in RepositoryLayoutLocator.EnumerateSolutionRoots(serverDir))
@@ -73,6 +84,43 @@ internal static class DllCandidateResolver
             .Where(configuration => !string.IsNullOrWhiteSpace(configuration))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray()!;
+    }
+
+    private static bool IsReleasePackageDirectory(string serverDir)
+    {
+        var manifestPath = Path.Combine(serverDir, "manifest.json");
+        if (!File.Exists(manifestPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
+            var root = document.RootElement;
+            return StringPropertyEquals(root, "name", "wpf-devtools")
+                   && StringPropertyEquals(root, "channel", "release")
+                   && StringPropertyEquals(root, "buildConfiguration", "Release");
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static bool StringPropertyEquals(JsonElement root, string propertyName, string expected)
+    {
+        return root.TryGetProperty(propertyName, out var value)
+               && value.ValueKind == JsonValueKind.String
+               && string.Equals(value.GetString(), expected, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? TryGetBuildConfiguration(string serverDir)

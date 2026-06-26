@@ -156,6 +156,34 @@ public partial class ConnectToolTests : IDisposable
     }
 
     [Fact]
+    public void IsLikelySdkOnlyPackaging_WithDotnetMuxerExecutable_ShouldReturnFalse()
+    {
+        var root = Directory.CreateTempSubdirectory("wpf-devtools-dotnet-muxer-");
+        var executablePath = Path.Combine(root.FullName, "dotnet.exe");
+        File.WriteAllBytes(executablePath, Array.Empty<byte>());
+
+        try
+        {
+            var result = ConnectTool.IsLikelySdkOnlyPackaging(new WpfProcessInfo
+            {
+                ProcessId = 12345,
+                ProcessName = "dotnet",
+                Runtime = TargetRuntime.NetCore,
+                Architecture = ProcessArchitecture.X64,
+                IsWpfApplication = true,
+                ExecutablePath = executablePath
+            });
+
+            result.Should().BeFalse(
+                "framework-dependent WPF apps launched through dotnet.exe still run in an injectable process and should not consume the SDK-host probe timeout");
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Execute_WithArchitectureMismatch_ShouldReturnError()
     {
         var tool = CreateTool(injector:
@@ -168,6 +196,30 @@ public partial class ConnectToolTests : IDisposable
         var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
         resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
         resultJson.GetProperty("error").GetString().Should().Contain("Architecture mismatch");
+    }
+
+    [Fact]
+    public async Task Execute_WithRawInjectionArchitectureMismatch_ShouldReturnBeforeDllValidation()
+    {
+        var dllValidatorCalled = false;
+        var injector = new FakeProcessInjector();
+        var targetArchitecture = Environment.Is64BitProcess
+            ? ProcessArchitecture.X86
+            : ProcessArchitecture.X64;
+        var tool = CreateTool(
+            injector: injector,
+            processDetector: new FakeProcessDetector(architecture: targetArchitecture),
+            dllPathValidator: _ => dllValidatorCalled = true);
+
+        var result = await tool.ExecuteAsync(ToJsonElement(new { processId = 12345 }), CancellationToken.None);
+
+        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
+        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
+        resultJson.GetProperty("errorCode").GetString().Should().Be("ArchitectureMismatch");
+        resultJson.GetProperty("error").GetString().Should().Contain("Architecture mismatch");
+        resultJson.GetProperty("hint").GetString().Should().Contain("matching package architecture");
+        dllValidatorCalled.Should().BeFalse();
+        injector.InjectWithBootstrapCallCount.Should().Be(0);
     }
 
     [Fact]

@@ -211,6 +211,12 @@ public sealed partial class ConnectTool
             return CreateValidationFailure(processId, context, validationError);
         }
 
+        var architectureFailure = CreateRawInjectionArchitectureFailure(processId, context);
+        if (architectureFailure != null)
+        {
+            return architectureFailure;
+        }
+
         var planFailure = TryBuildInjectionPlan(processId, context.ProcessInfo, out var request);
         if (planFailure != null)
         {

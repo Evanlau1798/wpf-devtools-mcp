@@ -230,6 +230,9 @@ public static partial class ToolCallHelper
             // Classify exception into stable error code and sanitized message
             // to prevent localized OS text or internal details from leaking to clients
             var (errorCode, sanitizedMessage) = ClassifyException(ex);
+            var exceptionNavigation = includeNavigation
+                ? BuildExceptionNavigation(errorCode, args)
+                : null;
 
             var exceptionPayload = NormalizeToolPayload(
                 toolName,
@@ -237,7 +240,7 @@ public static partial class ToolCallHelper
                 JsonSerializer.SerializeToElement(
                     BuildExceptionPayload(errorCode, sanitizedMessage),
                     SerializerOptions),
-                includeNavigation ? ToolNavigationEnvelope.Empty : null);
+                exceptionNavigation);
             RecordRequestMetrics(metricsCollector, toolName, sw.ElapsedMilliseconds, false, exceptionPayload);
 
             return new CallToolResult()

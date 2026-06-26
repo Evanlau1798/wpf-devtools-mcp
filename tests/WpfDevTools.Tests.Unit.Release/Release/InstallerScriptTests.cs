@@ -91,6 +91,44 @@ public sealed partial class InstallerScriptTests
     }
 
     [Fact]
+    public void PackageLocalInstallerHelp_ShouldPrintUsageWithoutInstalling()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var packageBinDir = Path.Combine(tempRoot, "package", "bin");
+            Directory.CreateDirectory(packageBinDir);
+            var installScriptPath = Path.Combine(packageBinDir, "install.ps1");
+            File.Copy(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                installScriptPath,
+                overwrite: true);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                installScriptPath,
+                ["-Help", "-InstallRoot", installRoot],
+                CreateInstallerEnvironment(
+                    tempRoot,
+                    new Dictionary<string, string?>
+                    {
+                        ["WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY"] = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer")
+                    }));
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("Usage:")
+                .And.Contain("-PackageArchivePath")
+                .And.Contain("-TrustedReleaseMetadataDirectory");
+            result.Stderr.Should().NotContain("Package does not contain");
+            Directory.Exists(installRoot).Should().BeFalse();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void OnlineInstaller_ShouldWriteAbsolutePathsWhenInstallRootIsRelative()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

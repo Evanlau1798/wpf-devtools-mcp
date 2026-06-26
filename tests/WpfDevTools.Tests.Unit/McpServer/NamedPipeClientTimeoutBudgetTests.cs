@@ -274,12 +274,13 @@ public class NamedPipeClientTimeoutBudgetTests : IDisposable
             requestTimeout: TimeSpan.FromSeconds(10));
         using var requestLifetime = new CancellationTokenSource();
         var requestObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var serverConnected = server.WaitForConnectionAsync(requestLifetime.Token);
 
         var serverTask = Task.Run(async () =>
         {
             try
             {
-                await server.WaitForConnectionAsync(requestLifetime.Token);
+                await serverConnected;
                 await MessageFraming.ReadMessageAsync(server, requestLifetime.Token);
                 requestObserved.TrySetResult();
                 await Task.Delay(Timeout.InfiniteTimeSpan, requestLifetime.Token);
@@ -295,7 +296,8 @@ public class NamedPipeClientTimeoutBudgetTests : IDisposable
         });
 
         var connected = await client.ConnectAsync(TimeSpan.FromSeconds(2), maxRetries: 1);
-        connected.Should().BeTrue();
+        connected.Should().BeTrue(
+            "the test server must already be accepting the pipe connection before the client attempts to connect");
 
         var sendTask = client.SendRequestAsync("ping", "dispose-timeout-test", new { }, requestLifetime.Token);
         await requestObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));

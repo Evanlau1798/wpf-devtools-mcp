@@ -184,6 +184,22 @@ public sealed class PreReleaseInstallerDocumentationTests
     }
 
     [Theory]
+    [InlineData("docfx/quickstart/index.md")]
+    [InlineData("docfx/zh-tw/quickstart/index.md")]
+    public void ManualVerifiedQuickstartInstall_ShouldUsePublicInstallerAliasInsteadOfPackageLocalInstallScript(
+        string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com)))",
+            $"{relativePath} should keep manual verified install on the reviewed public installer entrypoint");
+        content.Should().Contain("-PackageArchivePath $archive");
+        content.Should().Contain("-TrustedReleaseMetadataDirectory $metadata");
+        content.Should().NotContain("Join-Path $packageRoot 'bin\\install.ps1'",
+            $"{relativePath} should not conflict with the agent install contract by using the package-local installer as the install command");
+    }
+
+    [Theory]
     [InlineData("AGENT_INSTALL.md")]
     [InlineData("docfx/index.md")]
     [InlineData("docfx/quickstart/index.md")]

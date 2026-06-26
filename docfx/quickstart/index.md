@@ -49,19 +49,16 @@ Use this path when you already have a reviewed release archive.
 3. Verify the archive hash against `SHA256SUMS.txt` and release metadata in `release-assets.json`.
 4. Review both SBOMs: `release-sbom.spdx.json` for release assets and `package-sbom.spdx.json` for package/dependency/payload contents.
 5. Verify the release trust mode. `Signed` packages require signer verification with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`; `ReleaseChecksumOnly` beta prereleases require SHA256 release metadata in the GitHub Release notes and `release-assets.json`.
-6. Extract the package and run the packaged installer with the original archive and metadata directory:
+6. Run the reviewed public installer entrypoint with the original archive and metadata directory:
 
    ```powershell
    $version = '1.0.0-beta.14'
    $arch = 'x64'
    $archive = (Resolve-Path ".\release_${version}_win-$arch.zip").Path
    $metadata = Split-Path -Parent $archive
-   $packageRoot = Join-Path $metadata "release_${version}_win-$arch"
    $installRoot = Join-Path $env:LOCALAPPDATA 'WpfDevToolsMcp'
 
-   Expand-Archive -Path $archive -DestinationPath $packageRoot -Force
-
-   powershell -NoProfile -File (Join-Path $packageRoot 'bin\install.ps1') `
+   & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) `
      -Action install `
      -Architecture $arch `
      -Client other `

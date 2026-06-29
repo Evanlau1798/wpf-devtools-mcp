@@ -85,6 +85,11 @@ internal per-process rate limiter cache 上限為 1000 筆；滿額時會淘汰 
 - 用途：加上預期 release signer certificate subject 檢查。
 - 備註：只能作為 additional constraint；package-local install 仍需要 thumbprint trust root。
 
+### WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY
+
+- 用途：讓 portable checksum-only package run 找到 trusted release metadata。
+- 備註：只有在 package-local `run.bat` 或 `bin\wpf-devtools-<arch>.exe` 與原始 release sidecars 分離時才使用。該目錄必須包含原始 archive 與 `SHA256SUMS.txt` 等 checksum metadata。這不能取代 signed production package 的 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
+
 ### WPFDEVTOOLS_CLAUDE_COMMAND_PATH
 
 - 用途：提供可信任的 Claude CLI 絕對路徑。

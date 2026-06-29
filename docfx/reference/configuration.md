@@ -85,6 +85,11 @@ The internal per-process rate limiter cache is capped at 1000 entries and evicts
 - Purpose: Adds an expected release signer certificate subject check.
 - Notes: Additional constraint only. Package-local installs still require a thumbprint trust root.
 
+### WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY
+
+- Purpose: Points portable checksum-only package runs to trusted release metadata.
+- Notes: Use only when running a package-local `run.bat` or `bin\wpf-devtools-<arch>.exe` away from the original release sidecars. The directory must contain the original archive and checksum metadata such as `SHA256SUMS.txt`. This does not replace `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` for signed production packages.
+
 ### WPFDEVTOOLS_CLAUDE_COMMAND_PATH
 
 - Purpose: Supplies a trusted absolute Claude CLI path.

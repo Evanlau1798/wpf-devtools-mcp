@@ -26,6 +26,7 @@ public sealed class ConfigurationReferenceDocumentationTests
             "WPFDEVTOOLS_SKIP_ELEVATION",
             "WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT",
             "WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT",
+            "WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY",
             "WPFDEVTOOLS_CLAUDE_COMMAND_PATH",
             "WPFDEVTOOLS_CODEX_COMMAND_PATH"
         };

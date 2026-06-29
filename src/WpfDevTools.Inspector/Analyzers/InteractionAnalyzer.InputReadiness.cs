@@ -27,11 +27,18 @@ public sealed partial class InteractionAnalyzer
             return null;
         }
 
-        if (!uiElement.Focusable || !uiElement.IsEnabled)
+        if (!uiElement.IsEnabled)
         {
             return ToolErrorFactory.InvalidArgument(
                 "Element cannot receive keyboard focus",
-                "Choose a visible, enabled, focusable control such as TextBox, Button, or ComboBox.");
+                $"The target {uiElement.GetType().Name} is resolved but IsEnabled is false. Call get_interaction_readiness for blockers, enable or activate the owning UI state, then retry focus_element.");
+        }
+
+        if (!uiElement.Focusable)
+        {
+            return ToolErrorFactory.InvalidArgument(
+                "Element cannot receive keyboard focus",
+                $"The target {uiElement.GetType().Name} is resolved but Focusable is false. Call get_interaction_readiness for blockers, target a focusable descendant, or verify the control template before retrying focus_element.");
         }
 
         return null;

@@ -100,7 +100,8 @@ public sealed partial class RestoreStateSnapshotTool(SessionManager sessionManag
                     {
                         elementId = snapshot.ElementId,
                         propertyName = snapshot.PropertyName,
-                        restoreToken = snapshot.ExpressionRestoreToken
+                        restoreToken = snapshot.ExpressionRestoreToken,
+                        targetValue = snapshot.CurrentValue
                     },
                     cancellationToken,
                     piggybackPendingEvents: false).ConfigureAwait(false));

@@ -42,7 +42,12 @@ public sealed partial class DependencyPropertyAnalyzer
         });
     }
 
-    internal object RestoreExpression(string propertyName, string restoreToken, string? elementId = null)
+    internal object RestoreExpression(
+        string propertyName,
+        string restoreToken,
+        string? elementId = null,
+        object? targetValue = null,
+        bool hasTargetValue = false)
     {
         return InvokeOnUIThread<object>(() =>
         {
@@ -51,7 +56,16 @@ public sealed partial class DependencyPropertyAnalyzer
                 return error!;
             }
 
-            if (!TryRestoreCapturedExpression(depObj!, dp!, restoreToken, consumeRollbackToken: false, out var expressionKind, out var currentValue, out var restoreError))
+            if (!TryRestoreCapturedExpression(
+                    depObj!,
+                    dp!,
+                    restoreToken,
+                    consumeRollbackToken: false,
+                    targetValue,
+                    hasTargetValue,
+                    out var expressionKind,
+                    out var currentValue,
+                    out var restoreError))
             {
                 return ToolErrorFactory.OperationFailed(
                     "restore expression-backed property",
@@ -147,7 +161,8 @@ public sealed partial class DependencyPropertyAnalyzer
             new WeakReference<DependencyObject>(depObj),
             dp,
             clonedBinding,
-            expressionKind);
+            expressionKind,
+            FormatResponseValue(depObj.GetValue(dp)));
         RememberLatestRollbackToken(depObj, dp, requestElementId, requestPropertyName, restoreToken);
         CleanupCapturedExpressionsIfNeeded();
         return true;
@@ -170,6 +185,8 @@ public sealed partial class DependencyPropertyAnalyzer
         DependencyProperty dp,
         string restoreToken,
         bool consumeRollbackToken,
+        object? targetValue,
+        bool hasTargetValue,
         out string? expressionKind,
         out object? currentValue,
         out string? restoreError)
@@ -209,7 +226,10 @@ public sealed partial class DependencyPropertyAnalyzer
             }
 
             BindingOperations.SetBinding(depObj, dp, restoreBinding);
-            BindingOperations.GetBindingExpressionBase(depObj, dp)?.UpdateTarget();
+            var bindingExpression = BindingOperations.GetBindingExpressionBase(depObj, dp);
+            bindingExpression?.UpdateTarget();
+            TryRestoreBindingSourceValue(depObj, dp, bindingExpression, capturedState, targetValue, hasTargetValue);
+            bindingExpression?.UpdateTarget();
             depObj.Dispatcher.Invoke(() => { }, DispatcherPriority.Background);
             expressionKind = capturedState.ExpressionKind;
             currentValue = depObj.GetValue(dp);
@@ -256,6 +276,8 @@ public sealed partial class DependencyPropertyAnalyzer
             dp,
             restoreToken,
             consumeRollbackToken: true,
+            targetValue: null,
+            hasTargetValue: false,
             out expressionKind,
             out currentValue,
             out restoreError);
@@ -334,7 +356,40 @@ public sealed partial class DependencyPropertyAnalyzer
         WeakReference<DependencyObject> ElementReference,
         DependencyProperty Property,
         BindingBase Binding,
-        string ExpressionKind);
+        string ExpressionKind,
+        string? CapturedTargetValue);
+
+    private static void TryRestoreBindingSourceValue(
+        DependencyObject depObj,
+        DependencyProperty dp,
+        BindingExpressionBase? bindingExpression,
+        CapturedExpressionState capturedState,
+        object? targetValue,
+        bool hasTargetValue)
+    {
+        if (bindingExpression == null || !CanRestoreBindingSource(capturedState.Binding))
+        {
+            return;
+        }
+
+        var restoreValue = hasTargetValue ? targetValue : capturedState.CapturedTargetValue;
+        try
+        {
+            depObj.SetCurrentValue(dp, ConvertValue(restoreValue, dp.PropertyType));
+            bindingExpression.UpdateSource();
+        }
+        catch
+        {
+            // Some bindings are target-only or cannot ConvertBack. Verification reports any remaining mismatch.
+        }
+    }
+
+    private static bool CanRestoreBindingSource(BindingBase bindingBase) => bindingBase switch
+    {
+        Binding binding => binding.Mode is not BindingMode.OneWay and not BindingMode.OneTime,
+        MultiBinding binding => binding.Mode is not BindingMode.OneWay and not BindingMode.OneTime,
+        _ => false
+    };
 
     private static BindingBase? CreatePreviewRestoreBinding(BindingBase bindingBase) => bindingBase switch
     {

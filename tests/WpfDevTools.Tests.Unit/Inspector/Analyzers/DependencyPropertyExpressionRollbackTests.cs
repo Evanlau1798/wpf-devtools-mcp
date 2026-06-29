@@ -137,6 +137,35 @@ public sealed class DependencyPropertyExpressionRollbackTests
     }
 
     [StaFact]
+    public void RestoreExpression_ShouldPushCapturedTargetValueBackToTwoWaySource()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new DependencyPropertyAnalyzer(finder);
+        var viewModel = new NotifyingViewModel { Name = "Alice" };
+        var textBox = new TextBox
+        {
+            DataContext = viewModel
+        };
+        BindingOperations.SetBinding(textBox, TextBox.TextProperty, new Binding(nameof(NotifyingViewModel.Name))
+        {
+            Mode = BindingMode.TwoWay,
+            UpdateSourceTrigger = UpdateSourceTrigger.Explicit
+        });
+        var elementId = finder.GenerateElementId(textBox);
+        var captureResult = JsonSerializer.SerializeToElement(analyzer.CaptureExpressionRestore("Text", elementId));
+        var restoreToken = captureResult.GetProperty("restoreToken").GetString();
+        viewModel.Name = "Bob";
+        textBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+
+        var restoreResult = JsonSerializer.SerializeToElement(
+            analyzer.RestoreExpression("Text", restoreToken!, elementId));
+
+        restoreResult.GetProperty("success").GetBoolean().Should().BeTrue(restoreResult.GetRawText());
+        restoreResult.GetProperty("currentValue").GetString().Should().Be("Alice");
+        viewModel.Name.Should().Be("Alice");
+    }
+
+    [StaFact]
     public void ResolveBindingBaseForCapture_ShouldFallbackToParentBindingBase_WhenBindingBaseUnavailable()
     {
         var border = new Border();

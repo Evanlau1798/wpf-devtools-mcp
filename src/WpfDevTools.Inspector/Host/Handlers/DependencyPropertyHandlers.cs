@@ -124,6 +124,10 @@ public class DependencyPropertyHandlers : IRequestHandler
         var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
         var propertyName = ParameterHelpers.GetStringParam(@params, "propertyName");
         var restoreToken = ParameterHelpers.GetStringParam(@params, "restoreToken");
+        var hasTargetValue = @params.HasValue && @params.Value.TryGetProperty("targetValue", out _);
+        var targetValue = hasTargetValue
+            ? ParameterHelpers.GetObjectParam<object>(@params, "targetValue")
+            : null;
 
         if (string.IsNullOrEmpty(propertyName))
             throw new ArgumentException("Missing required parameter: propertyName");
@@ -132,7 +136,12 @@ public class DependencyPropertyHandlers : IRequestHandler
             throw new ArgumentException("Missing required parameter: restoreToken");
 
         return await Task.Run(() =>
-            _dependencyPropertyAnalyzer.RestoreExpression(propertyName!, restoreToken!, elementId), cancellationToken).ConfigureAwait(false);
+            _dependencyPropertyAnalyzer.RestoreExpression(
+                propertyName!,
+                restoreToken!,
+                elementId,
+                targetValue,
+                hasTargetValue), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<object> HandleGetDpMetadataAsync(JsonElement? @params, CancellationToken cancellationToken)

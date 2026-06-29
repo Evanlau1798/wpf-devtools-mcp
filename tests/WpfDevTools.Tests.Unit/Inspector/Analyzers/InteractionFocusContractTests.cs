@@ -99,4 +99,32 @@ public sealed class InteractionFocusContractTests
             window.Close();
         }
     }
+
+    [StaFact]
+    public void FocusElement_WithNonFocusableTextBox_ShouldReturnSpecificFocusabilityHint()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 240, Height = 180 };
+        var textBox = new TextBox { Focusable = false, Text = "Search" };
+        window.Content = textBox;
+        window.Show();
+
+        try
+        {
+            var textBoxId = finder.GenerateElementId(textBox);
+
+            var focusResult = JsonSerializer.SerializeToElement(analyzer.FocusElement(textBoxId));
+
+            focusResult.GetProperty("success").GetBoolean().Should().BeFalse();
+            focusResult.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+            focusResult.GetProperty("hint").GetString().Should().Contain("Focusable");
+            focusResult.GetProperty("hint").GetString().Should().Contain("get_interaction_readiness");
+            focusResult.GetProperty("hint").GetString().Should().NotContain("Choose a focusable control such as TextBox");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
 }

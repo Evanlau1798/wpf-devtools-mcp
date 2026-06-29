@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -22,13 +21,6 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
 {
     private readonly ElementFinder _elementFinder;
     private readonly IAuditLoggerService _auditLogger;
-
-    // Security: Regex pattern to detect sensitive property names
-    // Matches common sensitive property tokens, including PascalCase/camelCase compounds.
-    // Examples: Password, UserPassword, ApiToken, SecretKey, ConnectionString
-    private static readonly Regex SensitivePropertyPattern = new Regex(
-        @"password|pwd|secret|token|key|credential|auth|session|cookie|api[-_]?key|connection[-_]?string",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
 
     /// <summary>
     /// Initializes a new instance of <see cref="MvvmAnalyzer"/> with the specified element finder.
@@ -354,7 +346,7 @@ public sealed partial class MvvmAnalyzer : DispatcherAnalyzerBase
                 }
 
                 // SECURITY: Check property name against sensitive property pattern
-                if (SensitivePropertyPattern.IsMatch(propertyName))
+                if (IsSensitivePropertyName(propertyName))
                 {
                     // Log security violation
                     _auditLogger.LogSecurityEvent("PropertyModification",

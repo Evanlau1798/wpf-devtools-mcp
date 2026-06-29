@@ -2,6 +2,8 @@
   href: index.md
 - name: HandyControl Real-Project E2E
   href: 2026-06-30-agent-feedback-handycontrol-real-project-e2e.md
+- name: wpfui Edge-Case E2E
+  href: 2026-06-30-agent-feedback-wpfui-edgecase-e2e.md
 - name: MahApps.Metro Real-Project E2E
   href: 2026-06-29-agent-feedback-mahapps-real-project-e2e.md
 - name: MaterialDesignInXAML Real-Project E2E

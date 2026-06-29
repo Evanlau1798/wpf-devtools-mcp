@@ -6,8 +6,8 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public sealed class AgentFeedbackDocumentationTests
 {
     [Theory]
-    [InlineData("docfx/agent-feedback/index.md", "Agent Feedback", "2026-03-17-agent-feedback-63-tool-e2e-validation.md", "2026-06-24-agent-feedback-security-deep-scan.md", "2026-06-29-agent-feedback-mahapps-real-project-e2e.md", "2026-06-29-agent-feedback-materialdesign-real-project-e2e.md", "2026-06-30-agent-feedback-handycontrol-real-project-e2e.md")]
-    [InlineData("docfx/zh-tw/agent-feedback/index.md", "Agent 使用心得", "2026-03-17-agent-feedback-63-tool-e2e-validation.md", "2026-06-24-agent-feedback-security-deep-scan.md", "2026-06-29-agent-feedback-mahapps-real-project-e2e.md", "2026-06-29-agent-feedback-materialdesign-real-project-e2e.md", "2026-06-30-agent-feedback-handycontrol-real-project-e2e.md")]
+    [InlineData("docfx/agent-feedback/index.md", "Agent Feedback", "2026-03-17-agent-feedback-63-tool-e2e-validation.md", "2026-06-24-agent-feedback-security-deep-scan.md", "2026-06-29-agent-feedback-mahapps-real-project-e2e.md", "2026-06-29-agent-feedback-materialdesign-real-project-e2e.md", "2026-06-30-agent-feedback-handycontrol-real-project-e2e.md", "2026-06-30-agent-feedback-wpfui-edgecase-e2e.md")]
+    [InlineData("docfx/zh-tw/agent-feedback/index.md", "Agent 使用心得", "2026-03-17-agent-feedback-63-tool-e2e-validation.md", "2026-06-24-agent-feedback-security-deep-scan.md", "2026-06-29-agent-feedback-mahapps-real-project-e2e.md", "2026-06-29-agent-feedback-materialdesign-real-project-e2e.md", "2026-06-30-agent-feedback-handycontrol-real-project-e2e.md", "2026-06-30-agent-feedback-wpfui-edgecase-e2e.md")]
     public void AgentFeedbackIndexPages_ShouldBeEntryPagesOnly(
         string relativePath,
         string expectedHeading,
@@ -15,7 +15,8 @@ public sealed class AgentFeedbackDocumentationTests
         string secondReportHref,
         string thirdReportHref,
         string fourthReportHref,
-        string fifthReportHref)
+        string fifthReportHref,
+        string sixthReportHref)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
@@ -25,6 +26,7 @@ public sealed class AgentFeedbackDocumentationTests
         content.Should().Contain(thirdReportHref);
         content.Should().Contain(fourthReportHref);
         content.Should().Contain(fifthReportHref);
+        content.Should().Contain(sixthReportHref);
         content.Should().NotContain("Template");
         content.Should().NotContain("範本");
         content.Should().NotContain("Suggested report skeleton");
@@ -65,6 +67,7 @@ public sealed class AgentFeedbackDocumentationTests
                 "docfx/agent-feedback/2026-06-29-agent-feedback-mahapps-real-project-e2e.md",
                 "docfx/agent-feedback/2026-06-29-agent-feedback-materialdesign-real-project-e2e.md",
                 "docfx/agent-feedback/2026-06-30-agent-feedback-handycontrol-real-project-e2e.md",
+                "docfx/agent-feedback/2026-06-30-agent-feedback-wpfui-edgecase-e2e.md",
                 "docfx/agent-feedback/assets/2026-06-29-mahapps-focused-screenshot.png",
                 "docfx/agent-feedback/assets/2026-06-29-mahapps-root-window.png",
                 "docfx/agent-feedback/assets/2026-06-29-materialdesign-main-window.png",
@@ -72,6 +75,8 @@ public sealed class AgentFeedbackDocumentationTests
                 "docfx/agent-feedback/assets/handycontrol-2026-06-30/main-window.png",
                 "docfx/agent-feedback/assets/handycontrol-2026-06-30/mcp-element-screenshot.png",
                 "docfx/agent-feedback/assets/handycontrol-2026-06-30/post-mutation-window.png",
+                "docfx/agent-feedback/assets/wpfui-edgecase-2026-06-30/main-window.png",
+                "docfx/agent-feedback/assets/wpfui-edgecase-2026-06-30/mcp-hero-screenshot.png",
                 "docfx/agent-feedback/index.md",
                 "docfx/agent-feedback/toc.yml",
                 "docfx/zh-tw/agent-feedback/2026-03-17-agent-feedback-63-tool-e2e-validation.md",
@@ -79,6 +84,7 @@ public sealed class AgentFeedbackDocumentationTests
                 "docfx/zh-tw/agent-feedback/2026-06-29-agent-feedback-mahapps-real-project-e2e.md",
                 "docfx/zh-tw/agent-feedback/2026-06-29-agent-feedback-materialdesign-real-project-e2e.md",
                 "docfx/zh-tw/agent-feedback/2026-06-30-agent-feedback-handycontrol-real-project-e2e.md",
+                "docfx/zh-tw/agent-feedback/2026-06-30-agent-feedback-wpfui-edgecase-e2e.md",
                 "docfx/zh-tw/agent-feedback/index.md",
             ],
             "only the approved feedback reports and compact entry pages should be tracked");

@@ -48,7 +48,7 @@ public sealed partial class MvvmAnalyzer
             {
                 if (tokenStart >= 0)
                 {
-                    yield return propertyName[tokenStart..index];
+                    yield return propertyName.Substring(tokenStart, index - tokenStart);
                     tokenStart = -1;
                 }
 
@@ -64,14 +64,14 @@ public sealed partial class MvvmAnalyzer
             var previous = propertyName[index - 1];
             if (char.IsUpper(current) && (char.IsLower(previous) || char.IsDigit(previous)))
             {
-                yield return propertyName[tokenStart..index];
+                yield return propertyName.Substring(tokenStart, index - tokenStart);
                 tokenStart = index;
             }
         }
 
         if (tokenStart >= 0)
         {
-            yield return propertyName[tokenStart..];
+            yield return propertyName.Substring(tokenStart);
         }
     }
 }

@@ -1,5 +1,7 @@
 - name: 5-Minute Setup
   href: index.md
+- name: Manual Verified Install
+  href: manual-install.md
 - name: AI Agent Clients
   href: ai-agent-clients.md
 - name: SDK-Hosted Inspector

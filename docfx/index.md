@@ -12,13 +12,13 @@ Install the latest stable release:
 irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-The installer resolves the reviewed online installer, verifies the versioned package metadata, and installs the packaged executable. For manual installation, download `release_<version>_win-<arch>.zip`, verify the adjacent sidecars, extract the package, and run `run.bat` from the extracted folder.
+The installer resolves the reviewed online installer, verifies the versioned package metadata for `release_<version>_win-<arch>.zip`, and installs the packaged executable.
 
 ARM64 archives may be published as preview assets, but they are not guaranteed stable because practical Windows-on-ARM runtime validation hardware is not currently available.
 
-For manual production review, keep these files adjacent to the archive before extraction: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `package-sbom.spdx.json`.
+Manual verified install is a separate path for reviewed archives. Keep `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `package-sbom.spdx.json` next to the archive, then follow [Manual Verified Install](quickstart/manual-install.md).
 
-`release-sbom.spdx.json` describes the release asset/archive inventory. `package-sbom.spdx.json` describes the package, dependency, script, assembly, and payload contents. Stable production packages use `Signed` payload verification with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`; beta prereleases may use `ReleaseChecksumOnly` when public SHA256 release metadata verifies the archive.
+Release trust is still explicit on that path: `Signed` packages require `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`, while `ReleaseChecksumOnly` beta packages rely on SHA256 release metadata. Use package-local `run.bat` only after sidecar verification.
 
 ## Choose your path
 
@@ -26,6 +26,7 @@ For manual production review, keep these files adjacent to the archive before ex
 | --- | --- |
 | Read the full guide in Traditional Chinese | [繁體中文文件](zh-tw/index.md) |
 | Install and verify the first session | [5-Minute Setup](quickstart/index.md) |
+| Install from a reviewed local archive | [Manual Verified Install](quickstart/manual-install.md) |
 | Register an MCP client | [AI Agent Clients](quickstart/ai-agent-clients.md) |
 | Reuse an Inspector hosted by my app | [SDK-Hosted Inspector](quickstart/sdk-hosted-inspector.md) |
 | Review security gates | [Security Model](production/security.md) |

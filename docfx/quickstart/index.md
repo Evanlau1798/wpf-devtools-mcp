@@ -42,32 +42,21 @@ ARM64 archives may be published as preview assets, but they are not guaranteed s
 
 ## Manual verified package install
 
-Use this path when you already have a reviewed release archive.
+Use this path only when you already have a reviewed release archive. You need `release_<version>_win-<arch>.zip` plus `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `package-sbom.spdx.json` before extraction.
 
-1. Download `release_<version>_win-<arch>.zip`.
-2. Keep these adjacent sidecars beside the archive: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `package-sbom.spdx.json`.
-3. Verify the archive hash against `SHA256SUMS.txt` and release metadata in `release-assets.json`.
-4. Review both SBOMs: `release-sbom.spdx.json` for release assets and `package-sbom.spdx.json` for package/dependency/payload contents.
-5. Verify the release trust mode. `Signed` packages require signer verification with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`; `ReleaseChecksumOnly` beta prereleases require SHA256 release metadata in the GitHub Release notes and `release-assets.json`.
-6. Run the reviewed public installer entrypoint with the original archive and metadata directory:
+Trust mode must be explicit: `Signed` packages require `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`, and `ReleaseChecksumOnly` beta packages require SHA256 release metadata from the GitHub Release sidecars or a trusted metadata directory.
 
-   ```powershell
-   $version = '1.0.0-beta.17'
-   $arch = 'x64'
-   $archive = (Resolve-Path ".\release_${version}_win-$arch.zip").Path
-   $metadata = Split-Path -Parent $archive
-   $installRoot = Join-Path $env:LOCALAPPDATA 'WpfDevToolsMcp'
+```powershell
+$archive = '.\release\release_<version>_win-<arch>.zip'
+$metadata = '.\release'
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) `
+  -PackageArchivePath $archive `
+  -TrustedReleaseMetadataDirectory $metadata
+```
 
-   & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) `
-     -Action install `
-     -Architecture $arch `
-     -Client other `
-     -InstallRoot $installRoot `
-     -PackageArchivePath $archive `
-     -TrustedReleaseMetadataDirectory $metadata
-   ```
+For portable checksum-only validation, use package-local `run.bat` or `bin\wpf-devtools-<arch>.exe` only when the extracted package remains in the same directory as the original archive and `SHA256SUMS.txt`, or when `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY` points to that metadata directory.
 
-Prefer registering the installed executable from `<InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe`. For portable validation without installing, package-local `run.bat` or `bin\wpf-devtools-<arch>.exe` can be used only while the extracted package stays in the same directory as the original archive and `SHA256SUMS.txt`, or while `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY` points to the directory containing that original archive and `SHA256SUMS.txt`. In both cases, the manifest, executable, inspector, and bootstrapper payload bytes must still match the verified ZIP.
+Follow the smaller [Manual Verified Install](manual-install.md) page for the sidecar checks, trust-mode decision, local archive install command, and portable package rules.
 
 ## Register a client
 
@@ -117,6 +106,6 @@ The server fails closed unless the corresponding policy is explicitly enabled.
 
 - If `connect()` fails, verify `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` uses exact local absolute executable paths.
 - If a client cannot find the server, copy from the generated `client-registration` artifact instead of retyping the path.
-- If `connect()` returns `SecurityError: Security verification failed` after a manual package install, verify the installed path under `<InstallRoot>\<arch>\current\bin\`. For package-local `run.bat` or `bin\wpf-devtools-<arch>.exe`, keep the extracted package in the same directory as the original archive and `SHA256SUMS.txt`, or set `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY` to that metadata directory before starting the server; otherwise use the packaged installer path.
+- If `connect()` returns `SecurityError: Security verification failed` after a manual package install, verify the installed path under `<InstallRoot>\<arch>\current\bin\`. Portable package checks are covered in [Manual Verified Install](manual-install.md).
 - Architecture matching is mandatory for raw injection/bootstrapper fallback. SDK-hosted reuse communicates over named pipes and does not require a bitness-matched bootstrapper attach.
 - If local execution policy blocks a reviewed local script, inspect the script and use a process-scoped policy override only from a trusted shell. Keep the normal path on `run.bat` or `pwsh -NoProfile -File`.

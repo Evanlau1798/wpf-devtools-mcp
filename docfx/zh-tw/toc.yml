@@ -6,6 +6,8 @@
   items:
     - name: 5 分鐘快速開始
       href: quickstart/index.md
+    - name: 手動驗證安裝
+      href: quickstart/manual-install.md
     - name: AI Agent Clients
       href: quickstart/ai-agent-clients.md
     - name: SDK-Hosted Inspector

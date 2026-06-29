@@ -49,6 +49,8 @@ For manual production review, keep these files adjacent to the archive before ex
 
 `release-sbom.spdx.json` describes the release asset/archive inventory. `package-sbom.spdx.json` describes the package, dependency, script, assembly, and payload contents. `Signed` packages require the independent `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` trust root. Beta prereleases may use `ReleaseChecksumOnly` only when SHA256 release metadata from GitHub Release sidecars or a trusted metadata directory verifies the archive. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only an additional constraint after the thumbprint is pinned.
 
+For the user-facing checklist, use `docfx/quickstart/manual-install.md`. For the full artifact contract, use `docfx/production/release-layout.md`.
+
 ## Approved install command shapes
 
 Stable release alias after explicit user approval:
@@ -73,7 +75,7 @@ pwsh -NoProfile -File .\scripts\online-installer.ps1 `
 
 Use `powershell.exe -NoProfile -File` with the same arguments when PowerShell 7 is unavailable on the reviewed Windows host.
 
-Prerelease/debug trust boundary: when a noninteractive install must prove a dev/Debug package before `DebugTrustedRootSkip` is honored, use the reviewed local package command above so the online installer validates the ZIP against `-TrustedReleaseMetadataDirectory` before extraction. Do not use `bin\install.ps1`, `bin/install.ps1`, or `run.bat` as the noninteractive prerelease/debug trust path. Those package-local entrypoints are useful after separate sidecar verification, but they cannot by themselves prove which archive produced the extracted files.
+When a noninteractive install must prove a local package before extraction, use the reviewed local package command above so the online installer validates the ZIP against `-TrustedReleaseMetadataDirectory`. Do not use `bin\install.ps1`, `bin/install.ps1`, or `run.bat` as the noninteractive prerelease/debug trust path. `DebugTrustedRootSkip` is a development package policy, not a shortcut around archive verification.
 
 Package-local fallback after sidecar verification:
 

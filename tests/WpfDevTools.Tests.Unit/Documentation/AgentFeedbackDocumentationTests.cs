@@ -6,19 +6,21 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public sealed class AgentFeedbackDocumentationTests
 {
     [Theory]
-    [InlineData("docfx/agent-feedback/index.md", "Agent Feedback", "2026-03-17-agent-feedback-63-tool-e2e-validation.md", "2026-06-24-agent-feedback-security-deep-scan.md")]
-    [InlineData("docfx/zh-tw/agent-feedback/index.md", "Agent 使用心得", "2026-03-17-agent-feedback-63-tool-e2e-validation.md", "2026-06-24-agent-feedback-security-deep-scan.md")]
+    [InlineData("docfx/agent-feedback/index.md", "Agent Feedback", "2026-03-17-agent-feedback-63-tool-e2e-validation.md", "2026-06-24-agent-feedback-security-deep-scan.md", "2026-06-29-agent-feedback-mahapps-real-project-e2e.md")]
+    [InlineData("docfx/zh-tw/agent-feedback/index.md", "Agent 使用心得", "2026-03-17-agent-feedback-63-tool-e2e-validation.md", "2026-06-24-agent-feedback-security-deep-scan.md", "2026-06-29-agent-feedback-mahapps-real-project-e2e.md")]
     public void AgentFeedbackIndexPages_ShouldBeEntryPagesOnly(
         string relativePath,
         string expectedHeading,
         string firstReportHref,
-        string secondReportHref)
+        string secondReportHref,
+        string thirdReportHref)
     {
         var content = File.ReadAllText(GetRepoFilePath(relativePath));
 
         content.Should().Contain(expectedHeading);
         content.Should().Contain(firstReportHref);
         content.Should().Contain(secondReportHref);
+        content.Should().Contain(thirdReportHref);
         content.Should().NotContain("Template");
         content.Should().NotContain("範本");
         content.Should().NotContain("Suggested report skeleton");
@@ -56,10 +58,14 @@ public sealed class AgentFeedbackDocumentationTests
             [
                 "docfx/agent-feedback/2026-03-17-agent-feedback-63-tool-e2e-validation.md",
                 "docfx/agent-feedback/2026-06-24-agent-feedback-security-deep-scan.md",
+                "docfx/agent-feedback/2026-06-29-agent-feedback-mahapps-real-project-e2e.md",
+                "docfx/agent-feedback/assets/2026-06-29-mahapps-focused-screenshot.png",
+                "docfx/agent-feedback/assets/2026-06-29-mahapps-root-window.png",
                 "docfx/agent-feedback/index.md",
                 "docfx/agent-feedback/toc.yml",
                 "docfx/zh-tw/agent-feedback/2026-03-17-agent-feedback-63-tool-e2e-validation.md",
                 "docfx/zh-tw/agent-feedback/2026-06-24-agent-feedback-security-deep-scan.md",
+                "docfx/zh-tw/agent-feedback/2026-06-29-agent-feedback-mahapps-real-project-e2e.md",
                 "docfx/zh-tw/agent-feedback/index.md",
             ],
             "only the approved feedback reports and compact entry pages should be tracked");

@@ -38,9 +38,7 @@ Before installation, ask the user to confirm:
 
 ## Release artifacts
 
-For manual production review, keep these files adjacent to the archive before extraction: `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `package-sbom.spdx.json`.
-
-`release-sbom.spdx.json` describes the release asset/archive inventory. `package-sbom.spdx.json` describes package, dependency, script, assembly, and payload contents. `Signed` packages require signer-pin verification with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`. Beta prereleases may use `ReleaseChecksumOnly` only when SHA256 release metadata from GitHub Release sidecars or a trusted metadata directory verifies the archive.
+For manual package review, keep `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `package-sbom.spdx.json` together. `Signed` packages require `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`; `ReleaseChecksumOnly` beta packages require SHA256 release metadata from GitHub Release sidecars or a trusted metadata directory. Use [Manual Verified Install](../quickstart/manual-install.md) for the user-facing checklist and [Release Layout](../production/release-layout.md) for the full artifact contract.
 
 ## Install after approval
 
@@ -66,7 +64,7 @@ pwsh -NoProfile -File .\scripts\online-installer.ps1 `
 
 Use `powershell.exe -NoProfile -File` with the same arguments when PowerShell 7 is unavailable on the reviewed Windows host.
 
-Prerelease/debug trust boundary: when a noninteractive install must prove a dev/Debug package before `DebugTrustedRootSkip` is honored, use the reviewed local package command above so the online installer validates the ZIP against `-TrustedReleaseMetadataDirectory` before extraction. Do not use `bin\install.ps1`, `bin/install.ps1`, or `run.bat` as the noninteractive prerelease/debug trust path. Those package-local entrypoints are useful after separate sidecar verification, but they cannot by themselves prove which archive produced the extracted files.
+Use the reviewed local package command when the installer must prove a local archive before extraction. Do not use `bin\install.ps1`, `bin/install.ps1`, or `run.bat` as the noninteractive prerelease/debug trust path. `DebugTrustedRootSkip` is a development package policy, not a shortcut around archive verification.
 
 Package-local fallback:
 
@@ -99,5 +97,5 @@ Do not report private keys, PFX passwords, GitHub secrets, auth secrets, or cert
 ## Copyable prompt
 
 ```text
-Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, or powershell.exe -NoProfile -File with the same arguments when PowerShell 7 is unavailable. Present a plan with version, architecture, install root, client id, release archive, sidecars, and release trust policy. Ask for confirmation before mutation. After approval, use the stable installer alias, a reviewed local package command, or package-local run.bat. Report generated registration artifacts and do not print secrets.
+Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, or powershell.exe -NoProfile -File with the same arguments when PowerShell 7 is unavailable. Present version, architecture, install root, client id, release archive, sidecars, and release trust policy. Ask for confirmation before mutation. After approval, use the stable installer alias or the reviewed local package command. Use package-local run.bat only after sidecar verification. Report generated registration artifacts and do not print secrets.
 ```

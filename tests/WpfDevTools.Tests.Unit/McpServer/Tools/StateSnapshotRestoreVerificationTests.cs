@@ -280,6 +280,69 @@ public sealed class StateSnapshotRestoreVerificationTests
             "get_dp_value_source");
     }
 
+    [Fact]
+    public async Task RestoreStateSnapshot_ShouldPassCapturedValueWhenRestoringBindingExpression()
+    {
+        var processId = NextSyntheticProcessId();
+        var boundSourceValue = "CodexE2E-DP";
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request =>
+            {
+                switch (request.Method)
+                {
+                    case "restore_dp_expression":
+                        if (request.Params!.Value.TryGetProperty("targetValue", out var targetValue))
+                        {
+                            boundSourceValue = targetValue.GetString()!;
+                        }
+
+                        return new
+                        {
+                            success = true,
+                            propertyName = "Text",
+                            restoredExpression = true,
+                            currentValue = boundSourceValue
+                        };
+                    case "get_dp_value_source":
+                        return new
+                        {
+                            success = true,
+                            propertyName = "Text",
+                            currentValue = boundSourceValue,
+                            baseValueSource = "TemplateBinding",
+                            isExpression = true
+                        };
+                    default:
+                        return new { success = false, error = $"Unexpected method '{request.Method}'." };
+                }
+            });
+
+        const string snapshotId = "snapshot_bound_dp_source_polluted";
+        connected.SessionManager.SaveStateSnapshot(processId, CreateSnapshot(
+            snapshotId,
+            dependencyProperties:
+            [
+                new StoredDependencyPropertySnapshot(
+                    "TextBox_1",
+                    "Text",
+                    HadLocalValue: false,
+                    LocalValue: null,
+                    CurrentValue: "",
+                    BaseValueSource: "TemplateBinding",
+                    IsExpression: true,
+                    ExpressionRestoreToken: "binding-token",
+                    ExpressionKind: "Binding")
+            ]));
+
+        var result = JsonSerializer.SerializeToElement(await new RestoreStateSnapshotTool(connected.SessionManager)
+            .ExecuteAsync(ToJsonElement(new { processId, snapshotId }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("warnings").GetArrayLength().Should().Be(0);
+        connected.RequestMethods.Should().Equal("restore_dp_expression", "get_dp_value_source");
+    }
+
     private static StoredStateSnapshot CreateSnapshot(
         string snapshotId,
         IReadOnlyList<StoredDependencyPropertySnapshot>? dependencyProperties = null,

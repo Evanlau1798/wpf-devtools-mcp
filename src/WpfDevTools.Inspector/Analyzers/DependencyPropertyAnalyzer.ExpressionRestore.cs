@@ -134,6 +134,7 @@ public sealed partial class DependencyPropertyAnalyzer
         restoreToken = string.Empty;
         expressionKind = string.Empty;
 
+        var valueSource = DependencyPropertyHelper.GetValueSource(depObj, dp);
         var bindingBase = ResolveBindingBaseForCapture(
             BindingOperations.GetBindingBase(depObj, dp),
             BindingOperations.GetBindingExpressionBase(depObj, dp));
@@ -162,7 +163,8 @@ public sealed partial class DependencyPropertyAnalyzer
             dp,
             clonedBinding,
             expressionKind,
-            FormatResponseValue(depObj.GetValue(dp)));
+            FormatResponseValue(depObj.GetValue(dp)),
+            valueSource.BaseValueSource);
         RememberLatestRollbackToken(depObj, dp, requestElementId, requestPropertyName, restoreToken);
         CleanupCapturedExpressionsIfNeeded();
         return true;
@@ -211,6 +213,19 @@ public sealed partial class DependencyPropertyAnalyzer
 
         try
         {
+            if (capturedState.BaseValueSource == BaseValueSource.ParentTemplate)
+            {
+                return TryRestoreParentTemplateExpression(
+                    depObj,
+                    dp,
+                    capturedState,
+                    targetValue,
+                    hasTargetValue,
+                    out expressionKind,
+                    out currentValue,
+                    out restoreError);
+            }
+
             depObj.ClearValue(dp);
 
             if (CreatePreviewRestoreBinding(capturedState.Binding) is { } previewBinding)
@@ -357,7 +372,74 @@ public sealed partial class DependencyPropertyAnalyzer
         DependencyProperty Property,
         BindingBase Binding,
         string ExpressionKind,
-        string? CapturedTargetValue);
+        string? CapturedTargetValue,
+        BaseValueSource BaseValueSource);
+
+    private static bool TryRestoreParentTemplateExpression(
+        DependencyObject depObj, DependencyProperty dp, CapturedExpressionState capturedState,
+        object? targetValue, bool hasTargetValue,
+        out string? expressionKind, out object? currentValue, out string? restoreError)
+    {
+        expressionKind = null;
+        currentValue = null;
+        restoreError = null;
+
+        try
+        {
+            depObj.ClearValue(dp);
+            TryRestoreTemplatedParentSourceValue(depObj, capturedState.Binding, targetValue, hasTargetValue);
+            depObj.Dispatcher.Invoke(() => { }, DispatcherPriority.Background);
+
+            var valueSource = DependencyPropertyHelper.GetValueSource(depObj, dp);
+            if (!valueSource.IsExpression || valueSource.BaseValueSource != BaseValueSource.ParentTemplate)
+            {
+                restoreError = "The original templated-parent expression did not reappear after clearing the local value.";
+                return false;
+            }
+
+            expressionKind = capturedState.ExpressionKind;
+            currentValue = depObj.GetValue(dp);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            restoreError = ex.Message;
+            return false;
+        }
+    }
+
+    private static void TryRestoreTemplatedParentSourceValue(
+        DependencyObject depObj, BindingBase bindingBase, object? targetValue, bool hasTargetValue)
+    {
+        if (!hasTargetValue ||
+            bindingBase is not Binding binding ||
+            binding.RelativeSource?.Mode != RelativeSourceMode.TemplatedParent ||
+            binding.Path?.Path is not { Length: > 0 } sourcePropertyName ||
+            sourcePropertyName.Contains('.') ||
+            sourcePropertyName.Contains('['))
+        {
+            return;
+        }
+
+        var templatedParent = depObj switch
+        {
+            FrameworkElement frameworkElement => frameworkElement.TemplatedParent as DependencyObject,
+            FrameworkContentElement frameworkContentElement => frameworkContentElement.TemplatedParent as DependencyObject,
+            _ => null
+        };
+        if (templatedParent == null)
+        {
+            return;
+        }
+
+        var sourceDp = FindDependencyProperty(templatedParent, sourcePropertyName);
+        if (sourceDp == null || sourceDp.ReadOnly)
+        {
+            return;
+        }
+
+        templatedParent.SetCurrentValue(sourceDp, ConvertValue(targetValue, sourceDp.PropertyType));
+    }
 
     private static void TryRestoreBindingSourceValue(
         DependencyObject depObj,

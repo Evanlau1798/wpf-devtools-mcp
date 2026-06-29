@@ -5,6 +5,7 @@ using System.Collections;
 using System.Reflection;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Media;
 using System.Windows;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
@@ -166,6 +167,50 @@ public sealed class DependencyPropertyExpressionRollbackTests
     }
 
     [StaFact]
+    public void RestoreExpression_ShouldRestoreTemplateBindingBaseSource_AfterSetValueReplacedIt()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new DependencyPropertyAnalyzer(finder);
+        var host = new TemplateHost
+        {
+            SearchText = "Alice",
+            Template = BuildTemplateBindingTemplate()
+        };
+        host.ApplyTemplate().Should().BeTrue();
+        host.Measure(new Size(200, 48));
+        host.Arrange(new Rect(0, 0, 200, 48));
+        host.UpdateLayout();
+        var textBox = FindVisualChild<TextBox>(host);
+        if (textBox is null)
+        {
+            throw new InvalidOperationException("Template child TextBox was not created.");
+        }
+
+        var elementId = finder.GenerateElementId(textBox);
+
+        var beforeResult = JsonSerializer.SerializeToElement(analyzer.GetValueSource("Text", elementId));
+        var captureResult = JsonSerializer.SerializeToElement(analyzer.CaptureExpressionRestore("Text", elementId));
+        var restoreToken = captureResult.GetProperty("restoreToken").GetString();
+        var setResult = JsonSerializer.SerializeToElement(analyzer.SetValue("Text", "Bob", elementId));
+
+        var restoreResult = JsonSerializer.SerializeToElement(
+            analyzer.RestoreExpression("Text", restoreToken!, elementId, "Alice", hasTargetValue: true));
+        var afterResult = JsonSerializer.SerializeToElement(analyzer.GetValueSource("Text", elementId));
+
+        beforeResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        beforeResult.GetProperty("baseValueSource").GetString().Should().Be("TemplateBinding");
+        captureResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        captureResult.GetProperty("canRestore").GetBoolean().Should().BeTrue();
+        setResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        setResult.GetProperty("replacedExpression").GetBoolean().Should().BeTrue();
+        restoreResult.GetProperty("success").GetBoolean().Should().BeTrue(restoreResult.GetRawText());
+        afterResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        afterResult.GetProperty("isExpression").GetBoolean().Should().BeTrue();
+        afterResult.GetProperty("currentValue").GetString().Should().Be("Alice");
+        afterResult.GetProperty("baseValueSource").GetString().Should().Be("TemplateBinding");
+    }
+
+    [StaFact]
     public void ResolveBindingBaseForCapture_ShouldFallbackToParentBindingBase_WhenBindingBaseUnavailable()
     {
         var border = new Border();
@@ -214,6 +259,57 @@ public sealed class DependencyPropertyExpressionRollbackTests
     private sealed class VisibilityViewModel
     {
         public bool IsGhostVisible { get; init; }
+    }
+
+    private sealed class TemplateHost : Control
+    {
+        public static readonly DependencyProperty SearchTextProperty = DependencyProperty.Register(
+            nameof(SearchText),
+            typeof(string),
+            typeof(TemplateHost),
+            new FrameworkPropertyMetadata(string.Empty));
+
+        public string SearchText
+        {
+            get => (string)GetValue(SearchTextProperty);
+            set => SetValue(SearchTextProperty, value);
+        }
+    }
+
+    private static ControlTemplate BuildTemplateBindingTemplate()
+    {
+        var textBoxFactory = new FrameworkElementFactory(typeof(TextBox));
+        textBoxFactory.SetValue(FrameworkElement.NameProperty, "PART_TextBox");
+        textBoxFactory.SetBinding(TextBox.TextProperty, new Binding(nameof(TemplateHost.SearchText))
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent),
+            Mode = BindingMode.OneWay
+        });
+        return new ControlTemplate(typeof(TemplateHost))
+        {
+            VisualTree = textBoxFactory
+        };
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            var nested = FindVisualChild<T>(child);
+            if (nested != null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
     }
 
     private static void RemoveLatestRollbackTokenObjectKeys()

@@ -32,6 +32,8 @@ The installer detects the host architecture, asks for the target MCP client, ins
 <InstallRoot>\<arch>\client-registration\
 ```
 
+Normal installs do not require downloading the release ZIP or release sidecars manually.
+
 The installed server path normally resolves to:
 
 ```text

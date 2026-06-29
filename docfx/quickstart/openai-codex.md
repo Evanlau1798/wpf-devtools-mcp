@@ -2,6 +2,8 @@
 
 Install WPF DevTools with [5-Minute Setup](index.md), then use the generated Codex registration command.
 
+For normal Codex setup, use the installer path from 5-Minute Setup instead of portable ZIP extraction. Portable ZIP checks are only for reviewed local archives or offline validation.
+
 ## Register
 
 The installer writes:

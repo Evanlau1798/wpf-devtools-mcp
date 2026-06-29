@@ -12,7 +12,7 @@ WPF DevTools MCP Server 是 Windows-only 的 Model Context Protocol server，用
 irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-Installer 會解析已審查的 online installer，驗證 `release_<version>_win-<arch>.zip` 的版本化 package metadata，並安裝封裝後的 executable。
+Installer 會解析已審查的 online installer，驗證 `release_<version>_win-<arch>.zip` 的版本化 package metadata，並安裝封裝後的 executable。一般安裝不需要手動下載 release ZIP。
 
 ARM64 發行檔可作為 preview asset 提供，但目前不保證穩定性，因為尚無可行的 Windows-on-ARM runtime 驗證硬體。
 

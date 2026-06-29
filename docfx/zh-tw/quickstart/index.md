@@ -32,6 +32,8 @@ Installer 會偵測 host architecture、詢問 MCP client、安裝 packaged exec
 <InstallRoot>\<arch>\client-registration\
 ```
 
+一般安裝不需要手動下載 release ZIP 或 release sidecar。
+
 安裝後 server path 通常是：
 
 ```text

@@ -93,6 +93,57 @@ public sealed class AgentInstallDocumentationTests
     [Theory]
     [InlineData(
         "AGENT_INSTALL.md",
+        "default online installer path",
+        "does not need the agent to download release archives or sidecars first",
+        "reviewed local package")]
+    [InlineData(
+        "docfx/guides/agent-assisted-install.md",
+        "default online installer path",
+        "does not need the agent to download release archives or sidecars first",
+        "reviewed local package")]
+    [InlineData(
+        "docfx/zh-tw/guides/agent-assisted-install.md",
+        "預設 online installer path",
+        "不需要 agent 先下載 release archive 或 sidecar",
+        "已審查本機 package")]
+    public void AgentInstallDocs_ShouldPreferOnlineInstallerForNormalSetup(
+        string file,
+        string defaultPathPhrase,
+        string noPreDownloadPhrase,
+        string localArchivePhrase)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(file));
+
+        content.Should().Contain(defaultPathPhrase,
+            $"{file} should keep the low-friction installer alias as the normal agent path");
+        content.Should().Contain(noPreDownloadPhrase,
+            $"{file} should not make GitHub asset collection a prerequisite for the online installer path");
+
+        var defaultPathIndex = content.IndexOf(defaultPathPhrase, StringComparison.OrdinalIgnoreCase);
+        var localArchiveIndex = content.IndexOf(localArchivePhrase, StringComparison.OrdinalIgnoreCase);
+        defaultPathIndex.Should().BeGreaterThanOrEqualTo(0);
+        localArchiveIndex.Should().BeGreaterThan(defaultPathIndex,
+            $"{file} should present local archive verification as a fallback, not the first path");
+    }
+
+    [Theory]
+    [InlineData("docfx/quickstart/openai-codex.md", "normal Codex setup")]
+    [InlineData("docfx/zh-tw/quickstart/openai-codex.md", "一般 Codex setup")]
+    public void CodexQuickstarts_ShouldTellAgentsToAvoidPortableZipForNormalSetup(
+        string file,
+        string normalSetupPhrase)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(file));
+
+        content.Should().Contain("5-Minute Setup");
+        content.Should().Contain("portable ZIP");
+        content.Should().Contain(normalSetupPhrase,
+            $"{file} should steer agents away from the friction-prone portable extraction path");
+    }
+
+    [Theory]
+    [InlineData(
+        "AGENT_INSTALL.md",
         "Do not use `bin\\install.ps1`, `bin/install.ps1`, or `run.bat` as the noninteractive prerelease/debug trust path.")]
     [InlineData(
         "docfx/guides/agent-assisted-install.md",

@@ -12,6 +12,14 @@
 
 ## Read-only planning command
 
+一般使用者 setup 請透過 public installer entrypoint 執行 read-only plan：
+
+```powershell
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Action plan -OutputJson
+```
+
+若你正在審查已 checkout 的 source tree，而不是協助一般使用者，才使用本機 script path：
+
 ```powershell
 pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson
 ```
@@ -42,10 +50,19 @@ Supported client ids 為 `claude-code`、`codex`、`cursor`、`vscode`、`visual
 
 ## 使用者核准後安裝
 
-使用者明確核准後，可使用 stable release alias：
+使用者明確核准後，預設 online installer path 為：
 
 ```powershell
 irm https://installer.wpf-mcptools.evanlau1798.com | iex
+```
+
+預設 online installer path 不需要 agent 先下載 release archive 或 sidecar。Installer 會解析所選 GitHub Release package、驗證 release metadata、安裝 packaged executable，並寫出 generated `client-registration` artifacts。
+
+Pinned public pre-release：
+
+```powershell
+$version = 'v1.0.0-beta.17'
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 
 ARM64 發行檔可作為 preview asset 提供，但目前不保證穩定性，因為尚無可行的 Windows-on-ARM runtime 驗證硬體。
@@ -79,7 +96,8 @@ Package-local fallback：
 - installed executable path
 - generated registration artifact path
 - selected client id
-- release sidecar verification result
+- selected installer path：預設 online installer path 或已審查本機 package
+- 使用本機 sidecar 時的 release sidecar verification result
 - release trust mode checked
 - 是否仍需要 manual registration step
 
@@ -97,5 +115,5 @@ Package-local fallback：
 ## 可複製 prompt
 
 ```text
-Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, or powershell.exe -NoProfile -File with the same arguments when PowerShell 7 is unavailable. Present version, architecture, install root, client id, release archive, sidecars, and release trust policy. Ask for confirmation before mutation. After approval, use the stable installer alias or the reviewed local package command. Use package-local run.bat only after sidecar verification. Report generated registration artifacts and do not print secrets.
+Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run the public installer with -Action plan -OutputJson for read-only discovery. Use the default online installer path unless the user explicitly asks for a reviewed local archive. Ask for confirmation before mutation. After approval, use the stable installer alias or pinned pre-release alias; use the reviewed local package command only for local archives. Use package-local run.bat only after sidecar verification. Report generated registration artifacts and do not print secrets.
 ```

@@ -2,6 +2,8 @@
 
 請先依照 [5 分鐘快速開始](index.md) 安裝 WPF DevTools，再使用 generated Codex registration command。
 
+一般 Codex setup 請使用 5-Minute Setup 的 installer path，不要使用 portable ZIP extraction。Portable ZIP checks 只適用於已審查本機 archive 或 offline validation。
+
 ## Register
 
 Installer 會寫入：

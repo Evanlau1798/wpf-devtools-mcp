@@ -12,7 +12,7 @@ Install the latest stable release:
 irm https://installer.wpf-mcptools.evanlau1798.com | iex
 ```
 
-The installer resolves the reviewed online installer, verifies the versioned package metadata for `release_<version>_win-<arch>.zip`, and installs the packaged executable.
+The installer resolves the reviewed online installer, verifies the versioned package metadata for `release_<version>_win-<arch>.zip`, and installs the packaged executable. Normal installs do not require downloading the release ZIP manually.
 
 ARM64 archives may be published as preview assets, but they are not guaranteed stable because practical Windows-on-ARM runtime validation hardware is not currently available.
 

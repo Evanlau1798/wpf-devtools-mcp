@@ -19,7 +19,13 @@ Supported client ids:
 ## Required flow
 
 1. Confirm the host is Windows and detect `x64`, `x86`, or `arm64`.
-2. Run read-only installer discovery:
+2. Run read-only installer discovery with the public installer entrypoint:
+
+   ```powershell
+   & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Action plan -OutputJson
+   ```
+
+   If you are reviewing a checked-out source tree instead of helping a normal user, the local script path is also valid:
 
    ```powershell
    pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson
@@ -33,8 +39,8 @@ Supported client ids:
 
 3. Present the plan: version, release channel, architecture, install root, client id, detected clients, and whether registration will be written.
 4. Ask for explicit user confirmation before any mutation.
-5. Acquire the release package and sidecars for the selected version and architecture.
-6. Verify the archive hash, release metadata, SBOMs, and release trust policy.
+5. Use the default online installer path unless the user explicitly asks for a reviewed local archive or offline/manual package validation. The default online installer path does not need the agent to download release archives or sidecars first; the installer resolves and verifies the selected GitHub Release package.
+6. For a reviewed local archive only, acquire the release package and sidecars for the selected version and architecture, then verify the archive hash, release metadata, SBOMs, and release trust policy.
 7. Run the approved install path only after confirmation.
 
 ## Release artifacts to verify
@@ -53,10 +59,17 @@ For the user-facing checklist, use `docfx/quickstart/manual-install.md`. For the
 
 ## Approved install command shapes
 
-Stable release alias after explicit user approval:
+Default online installer path after explicit user approval:
 
 ```powershell
 irm https://installer.wpf-mcptools.evanlau1798.com | iex
+```
+
+Pinned public pre-release after explicit user approval:
+
+```powershell
+$version = 'v1.0.0-beta.17'
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 
 ARM64 archives may be published as preview assets, but they are not guaranteed stable because practical Windows-on-ARM runtime validation hardware is not currently available.
@@ -91,8 +104,9 @@ Report:
 
 - detected platform and architecture
 - selected version, architecture, install root, and client id
-- release archive and sidecar paths
-- hash, metadata, release SBOM, package SBOM, and release trust verification results
+- selected installer path: default online installer path or reviewed local package
+- for a reviewed local package, release archive and sidecar paths
+- hash, metadata, release SBOM, package SBOM, and release trust verification results when local sidecars are used
 - exact install command approved by the user
 - installed executable path and generated `client-registration` artifact path
 
@@ -100,7 +114,7 @@ Never print or request private keys, PFX passwords, GitHub secrets, certificate 
 
 ## Prohibited
 
-- Do not execute remote install commands before matching release assets exist and the user approves the plan.
+- Do not execute mutating remote install commands before the user approves the plan.
 - Do not modify client configuration before confirmation.
 - Do not use a source-tree server executable as the installed package path.
 - Do not call self-signed certificates production-trusted; they are only for local development.

@@ -12,6 +12,14 @@ This page is for AI agents that help a user install WPF DevTools MCP. It is inte
 
 ## Read-only planning command
 
+For normal user setup, run the read-only plan through the public installer entrypoint:
+
+```powershell
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Action plan -OutputJson
+```
+
+If you are reviewing a checked-out source tree instead of helping a normal user, the local script path is also valid:
+
 ```powershell
 pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson
 ```
@@ -42,10 +50,19 @@ For manual package review, keep `release_<version>_win-<arch>.zip`, `SHA256SUMS.
 
 ## Install after approval
 
-Stable release alias after explicit user approval:
+Default online installer path after explicit user approval:
 
 ```powershell
 irm https://installer.wpf-mcptools.evanlau1798.com | iex
+```
+
+The default online installer path does not need the agent to download release archives or sidecars first. It resolves the selected GitHub Release package, verifies release metadata, installs the packaged executable, and writes generated `client-registration` artifacts.
+
+Pinned public pre-release after explicit user approval:
+
+```powershell
+$version = 'v1.0.0-beta.17'
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 
 ARM64 archives may be published as preview assets, but they are not guaranteed stable because practical Windows-on-ARM runtime validation hardware is not currently available.
@@ -79,7 +96,8 @@ After installation, report:
 - installed executable path
 - generated registration artifact path
 - selected client id
-- release sidecar verification result
+- selected installer path: default online installer path or reviewed local package
+- release sidecar verification result when local sidecars are used
 - release trust mode checked
 - any manual registration step still required
 
@@ -97,5 +115,5 @@ Do not report private keys, PFX passwords, GitHub secrets, auth secrets, or cert
 ## Copyable prompt
 
 ```text
-Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run pwsh -NoProfile -File .\scripts\online-installer.ps1 -Action plan -OutputJson for read-only discovery, or powershell.exe -NoProfile -File with the same arguments when PowerShell 7 is unavailable. Present version, architecture, install root, client id, release archive, sidecars, and release trust policy. Ask for confirmation before mutation. After approval, use the stable installer alias or the reviewed local package command. Use package-local run.bat only after sidecar verification. Report generated registration artifacts and do not print secrets.
+Read AGENT_INSTALL.md and docfx/guides/agent-assisted-install.md. Do not install yet. Run the public installer with -Action plan -OutputJson for read-only discovery. Use the default online installer path unless the user explicitly asks for a reviewed local archive. Ask for confirmation before mutation. After approval, use the stable installer alias or pinned pre-release alias; use the reviewed local package command only for local archives. Use package-local run.bat only after sidecar verification. Report generated registration artifacts and do not print secrets.
 ```

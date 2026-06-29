@@ -28,7 +28,7 @@ $version = 'v1.0.0-beta.17'
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 
-Both commands use the reviewed HTTPS installer alias and install versioned GitHub Release assets.
+Both commands use the reviewed HTTPS installer alias and install versioned GitHub Release assets. Normal installs do not require downloading the release ZIP manually.
 
 Beta pre-release assets may use SHA256 release metadata until paid Authenticode signing is available; stable releases remain Signed packages once signing is configured.
 

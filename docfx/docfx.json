@@ -33,6 +33,7 @@
       {
         "files": [
           "styles/**",
+          "agent-feedback/assets/**",
           "CNAME"
         ]
       }

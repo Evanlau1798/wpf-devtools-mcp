@@ -1,5 +1,7 @@
 - name: Agent Feedback
   href: index.md
+- name: MahApps.Metro Real-Project E2E
+  href: 2026-06-29-agent-feedback-mahapps-real-project-e2e.md
 - name: 63-Tool E2E Validation
   href: 2026-03-17-agent-feedback-63-tool-e2e-validation.md
 - name: Security Deep Scan

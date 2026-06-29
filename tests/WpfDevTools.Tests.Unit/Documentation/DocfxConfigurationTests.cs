@@ -16,12 +16,17 @@ public sealed class DocfxConfigurationTests
             "the generated API TOC is too large for the top navbar and belongs in section navigation");
         content.Should().Contain("href: zh-tw/index.md");
         content.Should().Contain("href: quickstart/index.md");
+        content.Should().Contain("href: guides/ai-agent-guide.md");
         content.Should().Contain("href: reference/tools/index.md");
     }
 
     [Theory]
     [InlineData("docfx/quickstart/toc.yml", "sdk-hosted-inspector.md")]
+    [InlineData("docfx/guides/toc.yml", "ai-agent-guide.md")]
+    [InlineData("docfx/guides/toc.yml", "agent-assisted-install.md")]
+    [InlineData("docfx/guides/toc.yml", "troubleshooting.md")]
     [InlineData("docfx/production/toc.yml", "bootstrap-and-injection.md")]
+    [InlineData("docfx/reference/toc.yml", "mcp-contracts.md")]
     [InlineData("docfx/reference/toc.yml", "tools/interaction-events-layout.md")]
     [InlineData("docfx/reference/toc.yml", "../api/toc.yml")]
     [InlineData("docfx/architecture/toc.yml", "adrs/adr-006-stdio-session-state.md")]

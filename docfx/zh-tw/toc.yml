@@ -12,6 +12,18 @@
       href: quickstart/ai-agent-clients.md
     - name: SDK-Hosted Inspector
       href: quickstart/sdk-hosted-inspector.md
+- name: AI Agent 指南
+  items:
+    - name: AI Agent 使用指南
+      href: guides/ai-agent-guide.md
+    - name: Agent 輔助安裝
+      href: guides/agent-assisted-install.md
+    - name: 疑難排解
+      href: guides/troubleshooting.md
+    - name: MCP Contracts 與 Navigation
+      href: reference/mcp-contracts.md
+    - name: 錯誤模型
+      href: reference/error-model.md
 - name: 生產環境
   items:
     - name: 安全模型
@@ -44,6 +56,8 @@
       href: reference/tools/interaction-events-layout.md
     - name: 設定參考
       href: reference/configuration.md
+    - name: MCP Contracts 與 Navigation
+      href: reference/mcp-contracts.md
     - name: 錯誤模型
       href: reference/error-model.md
     - name: API 參考
@@ -74,5 +88,3 @@
       href: contributors/documentation-style.md
     - name: Public-Path Runtime Security
       href: contributors/public-path-runtime-security.md
-    - name: Agent 輔助安裝
-      href: guides/agent-assisted-install.md

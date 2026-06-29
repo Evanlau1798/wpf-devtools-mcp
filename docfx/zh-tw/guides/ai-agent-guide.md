@@ -115,6 +115,8 @@ gate `get_viewmodel` 與 `get_commands`。`execute_command` 必須同時啟用
 - resources，例如 `wpf://capabilities`
 - contract resources，例如 `wpf://contracts/tools` 與 `wpf://contracts/response`
 
+若需要集中查看這些名稱與 response fields，請見 [MCP Contracts 與 Navigation](../reference/mcp-contracts.md)。
+
 某些 client 可能會把它們顯示成 `/mcp__wpf-devtools__debug_binding_issue` 或 `@wpf-devtools:capabilities` 這類 client-specific shortcut，但可攜的標準契約仍然是 prompt 名稱與 resource URI 本身。
 
 使用 `wpf://contracts/tools` 讀取 generated tool manifest；使用 `wpf://contracts/response` 讀取 response envelope、navigation metadata、compatibility aliases 與 error recovery fields。

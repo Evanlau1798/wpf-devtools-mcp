@@ -4,6 +4,8 @@
   href: zh-tw/index.md
 - name: Quickstart
   href: quickstart/index.md
+- name: AI Agent Guide
+  href: guides/ai-agent-guide.md
 - name: Production
   href: production/security.md
 - name: Reference

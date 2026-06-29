@@ -14,6 +14,8 @@
   href: tools/interaction-events-layout.md
 - name: Configuration Reference
   href: configuration.md
+- name: MCP Contracts and Navigation
+  href: mcp-contracts.md
 - name: Error Model
   href: error-model.md
 - name: API Reference

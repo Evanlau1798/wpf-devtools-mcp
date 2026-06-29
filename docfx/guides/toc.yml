@@ -1,0 +1,6 @@
+- name: AI Agent Guide
+  href: ai-agent-guide.md
+- name: Agent-Assisted Install
+  href: agent-assisted-install.md
+- name: Troubleshooting
+  href: troubleshooting.md

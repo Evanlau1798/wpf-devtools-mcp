@@ -9,7 +9,9 @@ public sealed class AiFriendlyQuickstartDocumentationTests
         "irm https://installer.wpf-mcptools.evanlau1798.com | iex";
 
     [Theory]
+    [InlineData("docfx/reference/mcp-contracts.md")]
     [InlineData("docfx/reference/tools/index.md")]
+    [InlineData("docfx/zh-tw/reference/mcp-contracts.md")]
     [InlineData("docfx/zh-tw/reference/tools/index.md")]
     [InlineData("docfx/guides/ai-agent-guide.md")]
     [InlineData("docfx/zh-tw/guides/ai-agent-guide.md")]
@@ -86,6 +88,27 @@ public sealed class AiFriendlyQuickstartDocumentationTests
         traditionalChineseGuide.Should().Contain("不適用時機");
         traditionalChineseGuide.Should().Contain("wpf://contracts/tools");
         traditionalChineseGuide.Should().Contain("wpf://contracts/response");
+    }
+
+    [Theory]
+    [InlineData("docfx/reference/mcp-contracts.md")]
+    [InlineData("docfx/zh-tw/reference/mcp-contracts.md")]
+    public void McpContractReference_ShouldCentralizeDiscoveryResourcesPromptsAndNavigation(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("wpf://contracts/tools");
+        content.Should().Contain("wpf://contracts/response");
+        content.Should().Contain("wpf://capabilities");
+        content.Should().Contain("debug_binding_issue");
+        content.Should().Contain("navigation.recommended");
+        content.Should().Contain("navigation.alternatives");
+        content.Should().Contain("prefetchTools");
+        content.Should().Contain("contextRefs");
+        content.Should().Contain("nextSteps");
+        content.Should().Contain("structuredContent");
+        content.Should().Contain("get_binding_errors");
+        content.Should().Contain("navigation=false");
     }
 
     [Fact]

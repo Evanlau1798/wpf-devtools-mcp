@@ -28,6 +28,8 @@ Release trust is still explicit on that path: `Signed` packages require `WPFDEVT
 | Install and verify the first session | [5-Minute Setup](quickstart/index.md) |
 | Install from a reviewed local archive | [Manual Verified Install](quickstart/manual-install.md) |
 | Register an MCP client | [AI Agent Clients](quickstart/ai-agent-clients.md) |
+| Give an agent the runtime workflow contract | [AI Agent Guide](guides/ai-agent-guide.md) |
+| Inspect MCP resources, prompts, and navigation fields | [MCP Contracts and Navigation](reference/mcp-contracts.md) |
 | Reuse an Inspector hosted by my app | [SDK-Hosted Inspector](quickstart/sdk-hosted-inspector.md) |
 | Review security gates | [Security Model](production/security.md) |
 | Deploy a reviewed package | [Deployment Guide](production/deployment.md) |

@@ -20,7 +20,7 @@ irm https://installer.wpf-mcptools.evanlau1798.com | iex
 若要 pin 特定 beta 或 preview pre-release，請明確設定 GitHub release tag：
 
 ```powershell
-$version = 'v1.0.0-beta.17'
+$version = 'v1.0.0-beta.19'
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 

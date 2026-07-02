@@ -1,5 +1,7 @@
 - name: Agent Feedback
   href: index.md
+- name: ScreenToGif Real-Project E2E
+  href: 2026-06-30-agent-feedback-screentogif-real-project-e2e.md
 - name: HandyControl Real-Project E2E
   href: 2026-06-30-agent-feedback-handycontrol-real-project-e2e.md
 - name: wpfui Edge-Case E2E

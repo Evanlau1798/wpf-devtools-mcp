@@ -16,6 +16,8 @@
   items:
     - name: AI Agent 使用指南
       href: guides/ai-agent-guide.md
+    - name: 常見工作流程
+      href: guides/common-workflows.md
     - name: Agent 輔助安裝
       href: guides/agent-assisted-install.md
     - name: 疑難排解
@@ -60,6 +62,8 @@
       href: reference/mcp-contracts.md
     - name: 錯誤模型
       href: reference/error-model.md
+    - name: 詞彙表
+      href: reference/glossary.md
     - name: API 參考
       href: ../api/toc.yml
 - name: Agent 使用心得

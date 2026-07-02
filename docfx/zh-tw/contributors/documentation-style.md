@@ -34,3 +34,37 @@
 - `docfx/` 是公開文件來源。
 - `docs/` 保留給工程研究、規劃與 review 歷程。
 - 若 ADR 含有內部細節，公開文件應做摘要或重寫，而不是整份原封不動搬過來。
+
+## 讀者路徑 checklist
+
+送出文件 PR 前，請檢查讀者路徑：
+
+- 第一次使用者能不能不讀 release engineering 細節，就完成 happy path？
+- 頁面有沒有告訴 Agent 第一個該呼叫的 tool，以及何時不該呼叫？
+- 需要安全 gate 的 workflow，是否在 workflow 前先說明 gate？
+- 頁面是否改用 deeper reference link，而不是重複大量 contract text？
+- 如果新術語出現超過一次，是否應加入 [詞彙表](../reference/glossary.md)？
+
+## 繁中術語政策
+
+繁中頁面以繁體中文為主，但當程式碼、環境變數或 MCP contract 使用英文時，保留穩定英文技術詞。
+
+建議模式：
+
+1. 第一次出現：中文加英文，例如 `目標應用程式（target）` 或 `預設拒絕（fail closed）`。
+2. 後續出現：固定使用較短的同一個詞。
+3. Environment variables、tool names、resource URIs、JSON fields 必須完全照實作名稱。
+4. 同一頁不要替同一概念混用多種翻譯。
+
+建議用詞：
+
+| English | 繁中寫法 |
+| --- | --- |
+| Windows-only | 僅支援 Windows |
+| Model Context Protocol server | Model Context Protocol（MCP）伺服器 |
+| target | 目標應用程式（target），後續固定用 `target` 或 `目標` |
+| fail closed | 預設拒絕（fail closed） |
+| policy gate | policy gate 或安全 gate；同一頁二擇一固定 |
+| allowlist | allowlist；第一次說明為 exact path allowlist |
+| mutation | mutation；第一次說明為 runtime state change |
+| structuredContent | 保留 `structuredContent` |

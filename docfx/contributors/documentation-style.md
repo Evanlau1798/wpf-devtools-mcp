@@ -34,3 +34,37 @@ For this repository, the official C# SDK attributes are only the first layer of 
 - `docfx/` is the public documentation source.
 - `docs/` remains the engineering research and planning area.
 - ADRs should be summarized or rewritten for public readability instead of copied wholesale when they contain internal-only detail.
+
+## Reader-path checklist
+
+Before opening a documentation PR, check the reader path:
+
+- Can a first-time user finish the happy path without reading release engineering details?
+- Does the page tell agents which tool to call first, and when not to call it?
+- Are security gates explained before the first workflow that needs them?
+- Does the page link to a deeper reference instead of repeating long contract text?
+- If a new term appears more than once, should it be added to [Glossary](../reference/glossary.md)?
+
+## Traditional Chinese terminology policy
+
+Use Traditional Chinese as the base language, then keep stable English technical terms where the code, environment variable, or MCP contract uses English.
+
+Recommended pattern:
+
+1. First use: write Chinese plus English in parentheses, for example `目標應用程式（target）` or `預設拒絕（fail closed）`.
+2. Later uses: keep the shorter chosen term consistently.
+3. Environment variables, tool names, resource URIs, and JSON fields stay exactly as implemented.
+4. Avoid mixing several translations for the same concept in one page.
+
+Preferred terms:
+
+| English | Traditional Chinese style |
+| --- | --- |
+| Windows-only | 僅支援 Windows |
+| Model Context Protocol server | Model Context Protocol（MCP）伺服器 |
+| target | 目標應用程式（target）, then `target` or `目標` consistently |
+| fail closed | 預設拒絕（fail closed） |
+| policy gate | policy gate or 安全 gate; choose one per page |
+| allowlist | allowlist; explain as exact path allowlist on first use |
+| mutation | mutation; first explain as runtime state change |
+| structuredContent | keep as `structuredContent` |

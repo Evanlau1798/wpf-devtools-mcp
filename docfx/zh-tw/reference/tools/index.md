@@ -32,6 +32,20 @@
 
 如果只是需要擴大 auto-discovery 範圍，請優先用 `connect(windowFilter='all')`；`get_processes(windowFilter)` 保留給明確 disambiguation 或 metadata-first selection。
 
+## 先用意圖選工具
+
+使用能回答問題的最小 workflow。先用 scene-level aggregation，再考慮 dump tree 或 screenshot。
+
+| 意圖 | 第一個 tool | 常見 follow-up | 補充 |
+| --- | --- | --- | --- |
+| 確認目前連到哪個 app | `connect` | `get_active_process` | Target access 仍需要 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`。 |
+| 理解目前畫面 | `get_ui_summary` | `find_elements`，再 `get_element_snapshot(elementId)` | 對 Agent 來說是好的預設，因為語意化且 compact。 |
+| 診斷 binding failures | `get_binding_errors` | `get_affected_elements`、`get_bindings`、`get_datacontext_chain` | 除非 summary 不足，先維持 compact mode。 |
+| 解釋非預期 visual value | `get_dp_value_source` | `get_applied_styles`、`get_resource_chain`、`get_triggers` | 用於 precedence 或 style 不清楚時。 |
+| 驗證 click 或 keyboard action | `get_interaction_readiness` | `click_element`、`drain_events`、`get_state_diff` | 只有在已知具體 `elementId` 後才使用。 |
+| 做 rollback-safe changes | `capture_state_snapshot` | `batch_mutate`、`get_state_diff`、`restore_state_snapshot` | 需要對應 destructive 與 read gates。 |
+| 跟完整 recipe | 看 [常見工作流程](../../guides/common-workflows.md) | 先跟 `navigation.recommended` | Workflow pages 是 baseline；tool response 仍是權威。 |
+
 ## 類別速覽
 
 | 類別 | 常見第一個呼叫 | 用途 |

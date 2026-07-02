@@ -18,5 +18,7 @@
   href: mcp-contracts.md
 - name: Error Model
   href: error-model.md
+- name: Glossary
+  href: glossary.md
 - name: API Reference
   href: ../api/toc.yml

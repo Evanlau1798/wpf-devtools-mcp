@@ -31,6 +31,28 @@ MCP 端透過官方 C# SDK 使用 STDIO。`connect()` 附加或重用 target-sid
 - **WpfDevTools.Inspector.Sdk/**：由擁有 target app source code 的使用者主動啟用的 SDK-hosted Inspector 入口
 - **WpfDevTools.Shared/**：IPC 契約、enum、共用 helper 與安全型別
 
+## 實作對照表
+
+| 層級 | 對使用者的角色 | 主要實作位置 | 補充 |
+| --- | --- | --- | --- |
+| MCP Server | 提供 tools、resources、prompts、安全 gates 與 response navigation | `src/WpfDevTools.Mcp.Server` | MCP client 透過 STDIO 與這一層溝通。 |
+| Inspector | 在 target process 內讀取 WPF 原生 runtime state，並執行已核准的互動 | `src/WpfDevTools.Inspector` | 會跑在 target WPF Dispatcher 上，因此可以直接檢查 bindings、templates 與 DependencyProperty precedence。 |
+| Injector | 選擇 target runtime path，並協調 raw injection fallback | `src/WpfDevTools.Injector` | 只有 target policy 允許已審查 executable path 後才會使用。 |
+| Bootstrapper | 從 native startup 橋接到 managed Inspector runtime | `src/WpfDevTools.Bootstrapper` | Raw injection 需要時，architecture matching 很重要。 |
+| SDK-hosted Inspector | 讓你擁有的 app 自行啟動 Inspector | `src/WpfDevTools.Inspector.Sdk` | 自有 production app 優先使用此路徑，因為不需要開啟 raw injection。 |
+| Shared contracts | 維持 IPC contracts、common enums、framing helpers 與安全型別 | `src/WpfDevTools.Shared` | Public API docs 只從被選定的 shared/SDK projects 產生。 |
+
+## 選擇 runtime path
+
+| 情境 | 優先選擇 | 原因 |
+| --- | --- | --- |
+| 你擁有 WPF app source | SDK-hosted reuse | App 主動啟動 Inspector，不需要開啟 raw injection。 |
+| 需要診斷未改動的本機 WPF app | Raw injection fallback | 適合 zero-instrumentation diagnostics，但需要 exact target allowlist 與 matching bootstrapper architecture。 |
+| 需要先理解畫面或 binding context | `connect` 後跑 `get_ui_summary` | Scene summary 可在 tree-heavy inspection 前提供語意上下文。 |
+| 需要理解 wire response | MCP contract resources | 使用 `wpf://contracts/tools` 與 `wpf://contracts/response`，不要靠手動記憶。 |
+
+相關頁面：[IPC 與通訊協定](ipc.md)、[Injection 與 Runtime 選擇](injection.md)、[安全模型](../production/security.md)、[工具總覽](../reference/tools/index.md) 與 [詞彙表](../reference/glossary.md)。
+
 ## 設計目標
 
 - 維持 AI-Friendly 的 MCP 契約。

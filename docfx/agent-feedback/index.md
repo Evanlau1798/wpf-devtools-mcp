@@ -2,6 +2,7 @@
 
 Reviewed agent feedback reports retained for public documentation.
 
+- [ScreenToGif Real-Project E2E](2026-06-30-agent-feedback-screentogif-real-project-e2e.md)
 - [HandyControl Real-Project E2E](2026-06-30-agent-feedback-handycontrol-real-project-e2e.md)
 - [wpfui Edge-Case E2E](2026-06-30-agent-feedback-wpfui-edgecase-e2e.md)
 - [MahApps.Metro Real-Project E2E](2026-06-29-agent-feedback-mahapps-real-project-e2e.md)

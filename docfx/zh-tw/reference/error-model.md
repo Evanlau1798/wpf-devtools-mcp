@@ -1,5 +1,19 @@
 # 錯誤模型
 
+## 先從症狀判斷
+
+工具失敗時，先把看得到的症狀對應到可能原因與第一個處理動作，再往下檢查詳細欄位。
+
+| 錯誤或症狀 | 可能原因 | 第一個動作 |
+| --- | --- | --- |
+| `connect` 回傳 `SecurityError` | target 不在 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`，或 installed package / security check 失敗 | 確認 exact local absolute executable path，並確認 installed server path 位於 `<InstallRoot>\<arch>\current\bin\`。 |
+| `InvalidPolicyConfiguration` | policy environment variable 格式錯誤 | 修正 variable value、移除 ambiguous entries，然後重啟 MCP server/client process。 |
+| `ArchitectureMismatch` | Raw injection 需要與 target process bitness 相同的 bootstrapper | 使用 matching x86/x64 package；如果是自有 app，優先改用 SDK-hosted reuse。 |
+| `PipeReadyTimeout` | Bootstrap 已啟動，但 Inspector pipe 沒有在時間內 ready | 重新 connect，確認 elevation / architecture，並讀取 `recovery.requiresReconnect` 與 `recovery.timeoutSeconds`。 |
+| `InteractionNotReady` 或互動後沒有可見效果 | element 可能 hidden、disabled、blocked、offscreen，或不是你真正想操作的元素 | 已取得具體 `elementId` 後，先跑 `get_interaction_readiness` 或 `get_element_snapshot(elementId)`。 |
+| Mutation timeout 且 state unknown | request 可能在 timeout 前已改變 target state | 重新連線、重新讀取 state，並以 `recovery.stateAfterTimeoutUnknown` 為準。 |
+| Rate limit response | session 超過 server-side limit | 依 `recovery.retryAfterSeconds` 或 `recovery.retryAfter` back off。 |
+
 ## 失敗層級
 
 一個工具呼叫可能在多個層級失敗：

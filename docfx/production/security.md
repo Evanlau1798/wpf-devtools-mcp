@@ -38,6 +38,17 @@ Raw DLL injection into arbitrary same-user WPF processes is blocked by default.
 
 The server evaluates high-risk MCP `tools/call` requests before dispatching them to tool implementations.
 
+| Gate | Default | Enables | Main risk controlled | Common first tool |
+| --- | --- | --- | --- | --- |
+| `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | Required for target access | `connect()` targets by exact local absolute executable path | Process identity and window metadata disclosure | `connect` |
+| `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS` | `false` | UI text, binding values, DP values, event payloads, scene/tree summaries, runtime state | Sensitive UI or application data leaving the target process | `get_ui_summary` |
+| `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | `false` | Screenshot metadata/file/base64 output through `element_screenshot` | Pixel data leakage | `element_screenshot` |
+| `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | `false` | ViewModel, command, DataContext chain, and ViewModel-triggered snapshot/batch operations | Runtime business state exposure or command misuse | `get_viewmodel` |
+| `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | `false` | Approved interaction, mutation, render measurement, state snapshots, event drain, and batch mutation | Target app state changes | `click_element`, `batch_mutate` |
+| `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Disabled | Raw injection fallback into exact reviewed executable paths | Unexpected code loading into an app process | `connect` |
+
+Use the smallest gate set that matches the diagnostic task. For example, scene-level binding triage usually needs the target allowlist and sensitive reads, but not screenshots, ViewModel inspection, destructive tools, or raw injection.
+
 - `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` restricts all `connect()` targets to exact local absolute executable paths and applies before SDK-hosted reuse or raw injection. Unset values fail closed with `SecurityError`; malformed configured entries fail closed with `InvalidPolicyConfiguration`.
 - `get_processes` and `connect()` auto-discovery apply this target policy before returning process names, window titles, architecture/runtime metadata, or candidate details. Denied targets are redacted to aggregate counts.
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` opts into runtime mutation, interaction, render-measurement, and session state-consuming tools, including `set_dp_value`, `click_element`, `execute_command`, `measure_element_render_time`, `capture_state_snapshot`, `restore_state_snapshot`, `drain_events`, and `batch_mutate`.

@@ -32,6 +32,20 @@ Use `get_processes(windowFilter)` only when more than one WPF target is availabl
 
 If you only need broader auto-discovery, prefer `connect(windowFilter='all')` and keep `get_processes(windowFilter)` for explicit disambiguation or metadata-first selection.
 
+## Start by intent
+
+Use the smallest workflow that answers the question. Prefer scene-level aggregation before tree dumps or screenshots.
+
+| Intent | First tool | Common follow-up | Details |
+| --- | --- | --- | --- |
+| Confirm what app is connected | `connect` | `get_active_process` | Target access still requires `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`. |
+| Understand the current screen | `get_ui_summary` | `find_elements`, then `get_element_snapshot(elementId)` | Good default for agents because it is semantic and compact. |
+| Diagnose binding failures | `get_binding_errors` | `get_affected_elements`, `get_bindings`, `get_datacontext_chain` | Keep compact mode unless the summary is insufficient. |
+| Explain an unexpected visual value | `get_dp_value_source` | `get_applied_styles`, `get_resource_chain`, `get_triggers` | Use when precedence or styles are unclear. |
+| Validate a click or keyboard action | `get_interaction_readiness` | `click_element`, `drain_events`, `get_state_diff` | Use only after a concrete elementId is known. |
+| Make rollback-safe changes | `capture_state_snapshot` | `batch_mutate`, `get_state_diff`, `restore_state_snapshot` | Requires the relevant destructive and read gates. |
+| Follow a full recipe | See [Common Workflows](../../guides/common-workflows.md) | Follow `navigation.recommended` first | Workflow pages are baselines; tool responses remain authoritative. |
+
 ## Categories at a glance
 
 | Category | Typical first call | Why |

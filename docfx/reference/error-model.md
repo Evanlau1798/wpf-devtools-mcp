@@ -1,5 +1,19 @@
 ﻿# Error Model
 
+## Start with the symptom
+
+When a tool fails, first map the visible symptom to a likely cause and one concrete next action. Then inspect the detailed fields below.
+
+| Error or symptom | Likely cause | First action |
+| --- | --- | --- |
+| `SecurityError` on `connect` | The target is not in `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`, or the installed package/security check failed | Verify the exact local absolute executable path and the installed server path under `<InstallRoot>\<arch>\current\bin\`. |
+| `InvalidPolicyConfiguration` | A policy environment variable is malformed | Fix the variable value, remove ambiguous entries, and restart the MCP server/client process. |
+| `ArchitectureMismatch` | Raw injection needs a bootstrapper that matches the target process bitness | Use the matching x86/x64 package, or prefer SDK-hosted reuse for an app you own. |
+| `PipeReadyTimeout` | Bootstrap started but the Inspector pipe did not become ready in time | Reconnect, verify elevation/architecture, and read `recovery.requiresReconnect` and `recovery.timeoutSeconds`. |
+| `InteractionNotReady` or an interaction has no visible effect | The element is hidden, disabled, blocked, offscreen, or not the element you intended | Run `get_interaction_readiness` or `get_element_snapshot(elementId)` after identifying a concrete elementId. |
+| Mutation timeout with unknown state | The request may still have changed the target before timing out | Reconnect, re-read state, and treat `recovery.stateAfterTimeoutUnknown` as authoritative. |
+| Rate limit response | The session exceeded a server-side limit | Back off using `recovery.retryAfterSeconds` or `recovery.retryAfter`. |
+
 ## Layers of failure
 
 A tool call can fail at more than one layer:

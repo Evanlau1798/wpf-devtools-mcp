@@ -1,5 +1,7 @@
 - name: AI Agent Guide
   href: ai-agent-guide.md
+- name: Common Workflows
+  href: common-workflows.md
 - name: Agent-Assisted Install
   href: agent-assisted-install.md
 - name: Troubleshooting

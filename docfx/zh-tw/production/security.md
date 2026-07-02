@@ -38,6 +38,17 @@ MCP client 預設是不可信任的（untrusted by default）。Tool description
 
 server 會在把高風險 MCP `tools/call` 派送到 tool implementation 前先做政策檢查。
 
+| Gate | 預設 | 啟用能力 | 控制的主要風險 | 常見第一個 tool |
+| --- | --- | --- | --- | --- |
+| `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | target access 必要 | 用 exact local absolute executable path 允許 `connect()` target | process identity 與 window metadata 外洩 | `connect` |
+| `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS` | `false` | UI text、binding values、DP values、event payloads、scene/tree summaries、runtime state | sensitive UI 或 application data 離開 target process | `get_ui_summary` |
+| `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | `false` | 透過 `element_screenshot` 回傳 screenshot metadata/file/base64 | pixel data 外洩 | `element_screenshot` |
+| `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | `false` | ViewModel、command、DataContext chain，以及 ViewModel-triggered snapshot/batch operations | runtime business state 暴露或 command 誤用 | `get_viewmodel` |
+| `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | `false` | 已核准的 interaction、mutation、render measurement、state snapshots、event drain、batch mutation | target app state 被改變 | `click_element`、`batch_mutate` |
+| `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | 停用 | 對 exact reviewed executable path 啟用 raw injection fallback | unexpected code loading into app process | `connect` |
+
+請只啟用符合診斷任務的最小 gate set。例如 scene-level binding triage 通常只需要 target allowlist 與 sensitive reads，不需要 screenshots、ViewModel inspection、destructive tools 或 raw injection。
+
 - `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 會把所有 `connect()` target 限制在 exact local absolute executable path 清單內，且會在 SDK-hosted reuse 或 raw injection 前套用；未設定會以 `SecurityError` fail closed，malformed entry 會以 `InvalidPolicyConfiguration` fail closed。
 - `get_processes` 與 `connect()` auto-discovery 會先套用 target policy，再回傳 process name、window title、architecture/runtime metadata 或 candidate details。Denied targets 會 redacted，只會以 aggregate counts 呈現。
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` 會 opt in runtime mutation、interaction、render-measurement 與 session state-consuming tools，例如 `set_dp_value`、`click_element`、`execute_command`、`measure_element_render_time`、`capture_state_snapshot`、`restore_state_snapshot`、`drain_events`、`batch_mutate`。

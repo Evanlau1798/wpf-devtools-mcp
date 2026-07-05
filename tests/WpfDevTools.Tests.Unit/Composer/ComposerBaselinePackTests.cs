@@ -112,6 +112,21 @@ public sealed class ComposerBaselinePackTests
         }
     }
 
+    [Fact]
+    public void BuiltinWpfUiBaseline_ShouldNotContainLocalMachinePaths()
+    {
+        var metadataFiles = Directory.EnumerateFiles(GetRepoFilePath(BaselineRoot), "*", SearchOption.AllDirectories)
+            .Where(path => path.EndsWith(".json", StringComparison.Ordinal) || path.EndsWith(".txt", StringComparison.Ordinal))
+            .Concat([GetRepoFilePath(Path.Combine(PackRoot, "source.lock.json"))]);
+
+        foreach (var path in metadataFiles)
+        {
+            File.ReadAllText(path).Should().NotMatchRegex(
+                @"(?<![A-Za-z])[A-Za-z]:[\\/]",
+                $"{Path.GetRelativePath(GetRepoFilePath("."), path)} should be portable committed metadata");
+        }
+    }
+
     private static readonly (string BlockKind, string SlotName, string AllowedKind)[] RequiredSlotKinds =
     [
         ("wpfui.navigationView", "items", "wpfui.navigationViewItem"),

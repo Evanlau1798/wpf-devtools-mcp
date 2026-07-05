@@ -58,6 +58,17 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                 [new ApplyBlueprintIssue("$.projectRoot", authorization.Code, authorization.Message, authorization.RepairSuggestion)]);
         }
 
+        if (ProjectWritePolicy.FindReparsePoint(projectRoot, targetPath) is { } reparsePoint)
+        {
+            return ApplyBlueprintResult.Invalid(
+                dryRun: false,
+                [new ApplyBlueprintIssue(
+                    "$.targetPath",
+                    "ProjectPathUsesReparsePoint",
+                    $"Project write path uses a reparse point: {reparsePoint}.",
+                    "Choose a targetPath whose existing parent directories are ordinary directories inside the reviewed projectRoot.")]);
+        }
+
         var backupPath = WriteViewFile(projectRoot, targetPath, generatedXaml);
         return ApplyBlueprintResult.CreateValid(
             dryRun: false,
@@ -267,6 +278,64 @@ internal static class ProjectWritePolicy
         var rootWithSeparator = normalizedRoot + Path.DirectorySeparatorChar;
         var normalizedCandidate = Path.GetFullPath(candidate);
         return normalizedCandidate.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string? FindReparsePoint(string root, string candidate)
+    {
+        var normalizedRoot = NormalizeRoot(root);
+        var current = normalizedRoot;
+        if (HasReparsePoint(current))
+        {
+            return current;
+        }
+
+        var targetParent = Path.GetDirectoryName(Path.GetFullPath(candidate));
+        if (string.IsNullOrWhiteSpace(targetParent))
+        {
+            return null;
+        }
+
+        var relativeParent = Path.GetRelativePath(normalizedRoot, targetParent);
+        foreach (var part in relativeParent.Split(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (part == ".")
+            {
+                continue;
+            }
+
+            current = Path.Combine(current, part);
+            if (!Directory.Exists(current))
+            {
+                break;
+            }
+
+            if (HasReparsePoint(current))
+            {
+                return current;
+            }
+        }
+
+        return File.Exists(candidate) && HasReparsePoint(candidate)
+            ? candidate
+            : null;
+    }
+
+    private static bool HasReparsePoint(string path)
+    {
+        try
+        {
+            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
+        }
     }
 
     private static AllowedProjectRoots ParseAllowedRoots(string? configuredRoots)

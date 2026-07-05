@@ -141,6 +141,61 @@ public sealed class ComposerApplyDryRunTests
     }
 
     [Fact]
+    public void ApplyBlueprint_ShouldWriteInsideAllowedProjectRootWhenTargetDirectoryIsMissing()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var projectRoot = Path.Combine(tempRoot, "project");
+            using var writes = new EnvironmentVariableScope(McpServerConfiguration.AllowProjectWritesEnvVar, "true");
+            using var roots = new EnvironmentVariableScope(McpServerConfiguration.AllowedProjectRootsEnvVar, projectRoot);
+            var service = new UiBlueprintApplyService(CreateRegistry());
+
+            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, DryRun: false));
+
+            result.Success.Should().BeTrue();
+            File.Exists(Path.Combine(projectRoot, "Views", "GeneratedView.xaml")).Should().BeTrue();
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void ApplyBlueprint_ShouldRejectReparsePointTargetParent()
+    {
+        var tempRoot = CreateTempDirectory();
+        var viewsPath = Path.Combine(tempRoot, "project", "Views");
+        try
+        {
+            var projectRoot = Path.Combine(tempRoot, "project");
+            var outsideRoot = Path.Combine(tempRoot, "outside");
+            Directory.CreateDirectory(projectRoot);
+            Directory.CreateDirectory(outsideRoot);
+            CreateDirectoryJunction(viewsPath, outsideRoot);
+            using var writes = new EnvironmentVariableScope(McpServerConfiguration.AllowProjectWritesEnvVar, "true");
+            using var roots = new EnvironmentVariableScope(McpServerConfiguration.AllowedProjectRootsEnvVar, projectRoot);
+            var service = new UiBlueprintApplyService(CreateRegistry());
+
+            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, DryRun: false));
+
+            result.Success.Should().BeFalse();
+            result.Errors.Should().Contain(error => error.Code == "ProjectPathUsesReparsePoint");
+            File.Exists(Path.Combine(outsideRoot, "GeneratedView.xaml")).Should().BeFalse();
+        }
+        finally
+        {
+            if (Directory.Exists(viewsPath))
+            {
+                Directory.Delete(viewsPath);
+            }
+
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public async Task ApplyUiBlueprintTool_ShouldReturnStructuredDryRun()
     {
         var tempRoot = CreateTempDirectory();
@@ -202,6 +257,20 @@ public sealed class ComposerApplyDryRunTests
         {
             Directory.Delete(path, recursive: true);
         }
+    }
+
+    private static void CreateDirectoryJunction(string linkPath, string targetPath)
+    {
+        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe")
+        {
+            ArgumentList = { "/c", "mklink", "/J", linkPath, targetPath },
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        })!;
+        process.WaitForExit();
+        process.ExitCode.Should().Be(0, process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd());
     }
 
     private sealed class EnvironmentVariableScope : IDisposable

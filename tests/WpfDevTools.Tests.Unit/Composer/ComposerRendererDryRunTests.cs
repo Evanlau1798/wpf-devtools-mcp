@@ -60,6 +60,22 @@ public sealed class ComposerRendererDryRunTests
     }
 
     [Fact]
+    public void RenderBlueprint_ShouldOmitEmptyPropertyElementSlot()
+    {
+        var renderer = new UiBlueprintRenderer(CreateRegistry());
+
+        var result = renderer.Render(new RenderBlueprintRequest(Blueprint("""
+            {
+              "kind": "wpfui.button",
+              "properties": { "text": "Save" }
+            }
+            """)));
+
+        result.Success.Should().BeTrue();
+        result.Xaml.Should().NotContain("<ui:Button.Icon>");
+    }
+
+    [Fact]
     public void RenderBlueprint_ShouldRenderDataGridColumnsAsPropertyElement()
     {
         var renderer = new UiBlueprintRenderer(CreateRegistry());

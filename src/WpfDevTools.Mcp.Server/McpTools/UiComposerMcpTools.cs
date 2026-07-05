@@ -5,6 +5,7 @@ using WpfDevTools.Mcp.Server.Composer.Apply;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Catalog;
 using WpfDevTools.Mcp.Server.Composer.Packs;
+using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
@@ -148,6 +149,28 @@ public static class UiComposerMcpTools
             timeoutSeconds: 10);
     }
 
+    [McpServerTool(Name = "preview_ui_blueprint", Title = "Preview UI Composer Blueprint Compile Smoke", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [Description(UiComposerMcpToolDescriptions.PreviewUiBlueprint)]
+    public static Task<CallToolResult> PreviewUiBlueprint(
+        [Description("UI blueprint JSON text to compile in a temporary preview project.")] string blueprintJson,
+        [Description("When true, runs dotnet restore for the temporary preview project before build. When false, build runs with --no-restore and reports missing assets diagnostics.")] bool restoreEnabled = true,
+        [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
+        [Description("Optional LocalApplicationData root override for user-global packs.")] string? localAppDataRoot = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("blueprintJson", blueprintJson),
+            ("restoreEnabled", restoreEnabled),
+            ("projectRoot", projectRoot),
+            ("localAppDataRoot", localAppDataRoot));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(PreviewBlueprint(blueprintJson, restoreEnabled, projectRoot, localAppDataRoot)),
+            args,
+            cancellationToken,
+            timeoutSeconds: 60);
+    }
+
     private static object ListPacks(string? projectRoot, string? localAppDataRoot)
     {
         var registry = CreateRegistry(projectRoot, localAppDataRoot);
@@ -261,6 +284,14 @@ public static class UiComposerMcpTools
         string? localAppDataRoot)
         => new UiBlueprintApplyService(CreateRegistry(projectRoot, localAppDataRoot))
             .Apply(new ApplyBlueprintRequest(blueprintJson, projectRoot, targetPath, dryRun));
+
+    private static object PreviewBlueprint(
+        string blueprintJson,
+        bool restoreEnabled,
+        string? projectRoot,
+        string? localAppDataRoot)
+        => new UiBlueprintPreviewService(CreateRegistry(projectRoot, localAppDataRoot))
+            .Preview(new PreviewBlueprintRequest(blueprintJson, restoreEnabled));
 
     private static PackRegistry CreateRegistry(string? projectRoot, string? localAppDataRoot)
     {

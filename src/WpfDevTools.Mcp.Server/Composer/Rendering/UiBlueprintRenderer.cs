@@ -13,6 +13,10 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
         @"\{\{\s*(?<name>[A-Za-z0-9_.-]+)\s*\}\}",
         RegexOptions.CultureInvariant);
 
+    private static readonly Regex EmptyPropertyElementPattern = new(
+        @"\s*<(?<prefix>[A-Za-z_][A-Za-z0-9_]*):(?<type>[A-Za-z_][A-Za-z0-9_]*)\.(?<property>[A-Za-z_][A-Za-z0-9_]*)>\s*</\k<prefix>:\k<type>\.\k<property>>",
+        RegexOptions.CultureInvariant);
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
@@ -87,8 +91,9 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
             return string.Empty;
         }
 
-        return TokenPattern.Replace(templateResult.Template.Content, match =>
+        var rendered = TokenPattern.Replace(templateResult.Template.Content, match =>
             ResolveToken(match.Groups["name"].Value, node, block, path, packs, context, errors));
+        return EmptyPropertyElementPattern.Replace(rendered, string.Empty);
     }
 
     private string ResolveToken(

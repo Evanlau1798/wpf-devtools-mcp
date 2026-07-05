@@ -40,6 +40,26 @@ public sealed class ComposerPreviewCompileTests
     }
 
     [Fact]
+    public async Task PreviewBlueprintAsync_WhenCancelled_ShouldReturnDiagnosticAndDeleteTempRoot()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-preview-cancel-" + Guid.NewGuid().ToString("N"));
+        var service = new UiBlueprintPreviewService(CreateRegistry());
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var result = await service.PreviewAsync(
+            new PreviewBlueprintRequest(ButtonBlueprint(), TemporaryRoot: tempRoot),
+            cancellation.Token);
+
+        result.Success.Should().BeTrue();
+        result.BuildSucceeded.Should().BeFalse();
+        result.BuildOutput.Should().Contain("cancelled");
+        result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "PreviewCancelled");
+        result.PreviewHost.Status.Should().Be("cancelled");
+        Directory.Exists(tempRoot).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task PreviewUiBlueprintTool_ShouldReturnStructuredCompileResult()
     {
         var result = await UiComposerMcpTools.PreviewUiBlueprint(

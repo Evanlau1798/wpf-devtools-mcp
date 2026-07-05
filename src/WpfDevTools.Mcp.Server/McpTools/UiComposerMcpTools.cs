@@ -165,7 +165,7 @@ public static class UiComposerMcpTools
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(PreviewBlueprint(blueprintJson, restoreEnabled, projectRoot, localAppDataRoot)),
+            (_, token) => PreviewBlueprint(blueprintJson, restoreEnabled, projectRoot, localAppDataRoot, token),
             args,
             cancellationToken,
             timeoutSeconds: 60);
@@ -285,13 +285,15 @@ public static class UiComposerMcpTools
         => new UiBlueprintApplyService(CreateRegistry(projectRoot, localAppDataRoot))
             .Apply(new ApplyBlueprintRequest(blueprintJson, projectRoot, targetPath, dryRun));
 
-    private static object PreviewBlueprint(
+    private static async Task<object> PreviewBlueprint(
         string blueprintJson,
         bool restoreEnabled,
         string? projectRoot,
-        string? localAppDataRoot)
-        => new UiBlueprintPreviewService(CreateRegistry(projectRoot, localAppDataRoot))
-            .Preview(new PreviewBlueprintRequest(blueprintJson, restoreEnabled));
+        string? localAppDataRoot,
+        CancellationToken cancellationToken)
+        => await new UiBlueprintPreviewService(CreateRegistry(projectRoot, localAppDataRoot))
+            .PreviewAsync(new PreviewBlueprintRequest(blueprintJson, restoreEnabled), cancellationToken)
+            .ConfigureAwait(false);
 
     private static PackRegistry CreateRegistry(string? projectRoot, string? localAppDataRoot)
     {

@@ -11,6 +11,11 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
     private const int BuildTimeoutSeconds = 60;
 
     public PreviewBlueprintResult Preview(PreviewBlueprintRequest request)
+        => PreviewAsync(request).GetAwaiter().GetResult();
+
+    public async Task<PreviewBlueprintResult> PreviewAsync(
+        PreviewBlueprintRequest request,
+        CancellationToken cancellationToken = default)
     {
         var render = new UiBlueprintRenderer(registry)
             .Render(new RenderBlueprintRequest(request.BlueprintJson));
@@ -27,16 +32,45 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
                     rendererTemplatePath)).ToArray());
         }
 
-        var tempRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-composer-preview-" + Guid.NewGuid().ToString("N"));
+        var tempRoot = request.TemporaryRoot
+            ?? Path.Combine(Path.GetTempPath(), "wpfdevtools-composer-preview-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempRoot);
+        var output = new StringBuilder();
         try
         {
             WritePreviewProject(tempRoot, render.Xaml);
-            var output = new StringBuilder();
-            var restoreSucceeded = !request.RestoreEnabled || RunDotnet(tempRoot, ["restore", "PreviewHost.csproj", "--ignore-failed-sources", "-v:minimal"], output);
-            var buildSucceeded = restoreSucceeded
-                && RunDotnet(tempRoot, ["build", "PreviewHost.csproj", "--no-restore", "-v:minimal"], output);
+            cancellationToken.ThrowIfCancellationRequested();
+            var restoreSucceeded = true;
+            var cancelled = false;
+            if (request.RestoreEnabled)
+            {
+                var restore = await RunDotnetAsync(
+                    tempRoot,
+                    ["restore", "PreviewHost.csproj", "--ignore-failed-sources", "-v:minimal"],
+                    output,
+                    cancellationToken).ConfigureAwait(false);
+                restoreSucceeded = restore.Succeeded;
+                cancelled = restore.Cancelled;
+            }
+
+            var buildSucceeded = false;
+            if (!cancelled && restoreSucceeded)
+            {
+                var build = await RunDotnetAsync(
+                    tempRoot,
+                    ["build", "PreviewHost.csproj", "--no-restore", "-v:minimal"],
+                    output,
+                    cancellationToken).ConfigureAwait(false);
+                buildSucceeded = build.Succeeded;
+                cancelled = build.Cancelled;
+            }
+
             var buildOutput = output.ToString();
+            if (cancelled)
+            {
+                return CreateCancelledResult(request.RestoreEnabled, render.Xaml, buildOutput, rendererTemplatePath);
+            }
+
             var diagnostics = CreateDiagnostics(buildSucceeded, buildOutput, rendererTemplatePath, render.Xaml);
 
             return new PreviewBlueprintResult(
@@ -49,11 +83,16 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
                 Diagnostics: diagnostics,
                 PreviewHost: new PreviewHostResult(buildSucceeded ? "compiled" : "not-started", Started: false));
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            output.AppendLine("preview compile cancelled.");
+            return CreateCancelledResult(request.RestoreEnabled, render.Xaml, output.ToString(), rendererTemplatePath);
+        }
         finally
         {
             if (!request.KeepArtifacts && Directory.Exists(tempRoot))
             {
-                Directory.Delete(tempRoot, recursive: true);
+                DeleteDirectoryBestEffort(tempRoot);
             }
         }
     }
@@ -122,6 +161,24 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
         return diagnostics;
     }
 
+    private static PreviewBlueprintResult CreateCancelledResult(
+        bool restoreEnabled,
+        string xaml,
+        string buildOutput,
+        string rendererTemplatePath)
+        => new(
+            Success: true,
+            Valid: true,
+            BuildSucceeded: false,
+            RestoreEnabled: restoreEnabled,
+            BuildOutput: buildOutput,
+            Xaml: xaml,
+            Diagnostics:
+            [
+                new("PreviewCancelled", "Preview compile was cancelled before completion.", "$.layout", rendererTemplatePath)
+            ],
+            PreviewHost: new PreviewHostResult("cancelled", Started: false));
+
     private static string? FirstNonEmptyLine(string value)
         => value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
             .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line));
@@ -180,7 +237,11 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
             Environment.NewLine,
             value.Split(["\r\n", "\n"], StringSplitOptions.None).Select(line => indentation + line));
 
-    private static bool RunDotnet(string workingDirectory, string[] arguments, StringBuilder output)
+    private static async Task<DotnetCommandResult> RunDotnetAsync(
+        string workingDirectory,
+        string[] arguments,
+        StringBuilder output,
+        CancellationToken cancellationToken)
     {
         using var process = new Process();
         process.StartInfo = new ProcessStartInfo("dotnet")
@@ -199,23 +260,70 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
         process.Start();
         var standardOutput = process.StandardOutput.ReadToEndAsync();
         var standardError = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(BuildTimeoutSeconds * 1000))
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(BuildTimeoutSeconds));
+        try
         {
-            try
+            await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await StopProcessAsync(process).ConfigureAwait(false);
+            output.Append(await standardOutput.ConfigureAwait(false));
+            output.Append(await standardError.ConfigureAwait(false));
+            output.AppendLine($"dotnet {string.Join(' ', arguments)} cancelled.");
+            return new DotnetCommandResult(false, Cancelled: true);
+        }
+        catch (OperationCanceledException)
+        {
+            await StopProcessAsync(process).ConfigureAwait(false);
+            output.Append(await standardOutput.ConfigureAwait(false));
+            output.Append(await standardError.ConfigureAwait(false));
+
+            output.AppendLine($"dotnet {string.Join(' ', arguments)} timed out after {BuildTimeoutSeconds} seconds.");
+            return new DotnetCommandResult(false, Cancelled: false);
+        }
+
+        output.Append(await standardOutput.ConfigureAwait(false));
+        output.Append(await standardError.ConfigureAwait(false));
+        return new DotnetCommandResult(process.ExitCode == 0, Cancelled: false);
+    }
+
+    private static async Task StopProcessAsync(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
             {
                 process.Kill(entireProcessTree: true);
             }
-            catch (InvalidOperationException)
-            {
-            }
 
-            output.AppendLine($"dotnet {string.Join(' ', arguments)} timed out after {BuildTimeoutSeconds} seconds.");
-            return false;
+            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
         }
+        catch (InvalidOperationException)
+        {
+        }
+    }
 
-        output.Append(standardOutput.GetAwaiter().GetResult());
-        output.Append(standardError.GetAwaiter().GetResult());
-        return process.ExitCode == 0;
+    private static void DeleteDirectoryBestEffort(string tempRoot)
+    {
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                Directory.Delete(tempRoot, recursive: true);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt == 2)
+                {
+                    return;
+                }
+
+                Thread.Sleep(100);
+            }
+        }
     }
 
     private const string WpfUiStubs =
@@ -359,7 +467,10 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
 internal sealed record PreviewBlueprintRequest(
     string BlueprintJson,
     bool RestoreEnabled = true,
-    bool KeepArtifacts = false);
+    bool KeepArtifacts = false,
+    string? TemporaryRoot = null);
+
+internal sealed record DotnetCommandResult(bool Succeeded, bool Cancelled);
 
 internal sealed record PreviewBlueprintResult(
     bool Success,

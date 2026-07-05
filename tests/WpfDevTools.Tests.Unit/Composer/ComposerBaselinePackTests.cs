@@ -75,6 +75,7 @@ public sealed class ComposerBaselinePackTests
     [Fact]
     public void BuiltinWpfUiBaseline_ShouldKeepReleaseReportsAndUtf8Json()
     {
+        using var pack = ReadJson(Path.Combine(PackRoot, "pack.json"));
         using var validation = ReadJson(Path.Combine(BaselineRoot, "reports", "wpfui-0.1.0.validation-report.json"));
         using var coverage = ReadJson(Path.Combine(BaselineRoot, "reports", "wpfui-0.1.0.coverage-audit.json"));
         using var readiness = ReadJson(Path.Combine(BaselineRoot, "reports", "wpfui-0.1.0.readiness.json"));
@@ -91,6 +92,19 @@ public sealed class ComposerBaselinePackTests
             entry.FullName.StartsWith("wpfui/0.1.0/", StringComparison.Ordinal)
             && !entry.FullName.Contains('\\'));
         archive.Entries.Select(entry => entry.FullName).Should().Contain("wpfui/0.1.0/pack.json");
+        GetStringArray(pack.RootElement, "recipes").Should().HaveCount(5);
+        readiness.RootElement.GetProperty("summary").GetProperty("recipeCount").GetInt32().Should().Be(5);
+        coverage.RootElement.GetProperty("summary").GetProperty("recipeCount").GetInt32().Should().Be(5);
+        var builtInRecipeFiles = Directory.GetFiles(Path.Combine(GetRepoFilePath(PackRoot), "recipes"), "*.recipe.json")
+            .Select(Path.GetFileName)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var archiveRecipeFiles = archive.Entries
+            .Where(entry => entry.FullName.StartsWith("wpfui/0.1.0/recipes/", StringComparison.Ordinal))
+            .Select(entry => entry.FullName.Split('/').Last())
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        archiveRecipeFiles.Should().Equal(builtInRecipeFiles);
 
         foreach (var path in Directory.EnumerateFiles(GetRepoFilePath("packs"), "*.json", SearchOption.AllDirectories))
         {

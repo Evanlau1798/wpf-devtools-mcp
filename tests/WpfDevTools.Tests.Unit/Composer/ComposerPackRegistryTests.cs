@@ -24,6 +24,7 @@ public sealed class ComposerPackRegistryTests
         try
         {
             var archivePath = GetRepoFilePath("packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip");
+            using var archive = ZipFile.OpenRead(archivePath);
             var destinationRoot = Path.Combine(tempRoot, "packs");
 
             var plan = PackImportService.CreateDryRunPlan(archivePath, destinationRoot);
@@ -31,8 +32,9 @@ public sealed class ComposerPackRegistryTests
             plan.PackId.Should().Be("wpfui");
             plan.Version.Should().Be("0.1.0");
             plan.DryRun.Should().BeTrue();
-            plan.FilePlan.Should().HaveCount(30);
+            plan.FilePlan.Should().HaveCount(archive.Entries.Count);
             plan.FilePlan.Should().Contain(item => item.RelativePath == "pack.json");
+            plan.FilePlan.Should().Contain(item => item.RelativePath == "recipes/tabbedSettings.recipe.json");
             plan.WouldModifyProjectFiles.Should().BeFalse();
             plan.WouldRunNuGetRestore.Should().BeFalse();
             Directory.Exists(destinationRoot).Should().BeFalse("dry-run import must not write files");

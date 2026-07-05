@@ -125,7 +125,7 @@ public static class UiComposerMcpTools
             timeoutSeconds: 10);
     }
 
-    [McpServerTool(Name = "apply_ui_blueprint", Title = "Apply UI Composer Blueprint", OpenWorld = false, ReadOnly = false, Destructive = false, UseStructuredContent = true)]
+    [McpServerTool(Name = "apply_ui_blueprint", Title = "Apply UI Composer Blueprint", OpenWorld = false, ReadOnly = false, Destructive = true, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.ApplyUiBlueprint)]
     public static Task<CallToolResult> ApplyUiBlueprint(
         [Description("UI blueprint JSON text to apply.")] string blueprintJson,

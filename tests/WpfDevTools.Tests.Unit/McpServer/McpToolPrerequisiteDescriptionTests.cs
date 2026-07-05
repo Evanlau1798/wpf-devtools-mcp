@@ -38,6 +38,19 @@ public sealed class McpToolPrerequisiteDescriptionTests
             "AI clients need a consistent, greppable prerequisite marker for tools that require a connected inspector session");
     }
 
+    [Fact]
+    public void ApplyUiBlueprintDescription_ShouldNameDestructiveAndProjectWriteGates()
+    {
+        var description = GetMcpTools()
+            .Single(tool => string.Equals(tool.Name, "apply_ui_blueprint", StringComparison.Ordinal))
+            .Description;
+
+        description.Should().Contain(McpServerConfiguration.AllowDestructiveToolsEnvVar);
+        description.Should().Contain(McpServerConfiguration.AllowProjectWritesEnvVar);
+        description.Should().Contain(McpServerConfiguration.AllowedProjectRootsEnvVar);
+        description.Should().Contain("Non-dry-run writes");
+    }
+
     private static IEnumerable<(string Name, string Description)> GetMcpTools()
     {
         var assembly = typeof(WpfDevTools.Mcp.Server.ServerInstructions).Assembly;

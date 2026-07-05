@@ -91,13 +91,13 @@ internal sealed class McpToolExecutionPolicy
             }
         }
 
-        if (DestructiveTools.Contains(toolName))
+        if (RequiresDestructiveGate(toolName, arguments))
         {
             var decision = EvaluateGate(
                 _destructiveTools,
                 toolName,
                 policyCategory: McpToolPolicyTags.DestructiveTools,
-                capabilityDescription: "mutate the running target application");
+                capabilityDescription: "mutate the running target application or persist generated project files");
             if (!decision.IsAllowed)
             {
                 return decision;
@@ -132,6 +132,36 @@ internal sealed class McpToolExecutionPolicy
         return string.Equals(toolName, "batch_mutate", StringComparison.Ordinal)
             && (TryGetObjectArgument(arguments, "captureSnapshot", out _)
                 || BatchMutateReturnsSensitiveRead(arguments));
+    }
+
+    private static bool RequiresDestructiveGate(
+        string toolName,
+        IDictionary<string, JsonElement>? arguments)
+    {
+        if (!DestructiveTools.Contains(toolName))
+        {
+            return false;
+        }
+
+        return !string.Equals(toolName, "apply_ui_blueprint", StringComparison.Ordinal)
+               || IsApplyUiBlueprintWrite(arguments);
+    }
+
+    private static bool IsApplyUiBlueprintWrite(IDictionary<string, JsonElement>? arguments)
+    {
+        if (arguments?.TryGetValue("dryRun", out var dryRun) != true)
+        {
+            return false;
+        }
+
+        if (dryRun.ValueKind == JsonValueKind.False)
+        {
+            return true;
+        }
+
+        return dryRun.ValueKind == JsonValueKind.String
+               && bool.TryParse(dryRun.GetString(), out var parsedDryRun)
+               && !parsedDryRun;
     }
 
     private static bool RequiresViewModelInspection(

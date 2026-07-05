@@ -17,6 +17,11 @@ public sealed class McpToolExecutionPolicyTests
         "select_active_process"
     };
 
+    private static readonly HashSet<string> ArgumentSensitiveDestructiveTools = new(StringComparer.Ordinal)
+    {
+        "apply_ui_blueprint"
+    };
+
     [Theory]
     [InlineData("click_element")]
     [InlineData("set_dp_value")]
@@ -329,6 +334,42 @@ public sealed class McpToolExecutionPolicyTests
     }
 
     [Fact]
+    public void EvaluateToolCall_WhenApplyBlueprintWritesAndDestructiveToolsAreDisabled_ShouldDeny()
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "false",
+            allowScreenshots: null,
+            allowViewModelInspection: null);
+        using var document = JsonDocument.Parse("{\"dryRun\":false}");
+        var arguments = document.RootElement.EnumerateObject()
+            .ToDictionary(property => property.Name, property => property.Value.Clone());
+
+        var decision = policy.EvaluateToolCall("apply_ui_blueprint", arguments);
+
+        decision.IsAllowed.Should().BeFalse();
+        decision.ErrorCode.Should().Be("SecurityError");
+        decision.PolicyCategory.Should().Be("destructive-tools");
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"dryRun\":true}")]
+    public void EvaluateToolCall_WhenApplyBlueprintDryRunAndDestructiveToolsAreDisabled_ShouldAllow(string argumentsJson)
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "false",
+            allowScreenshots: null,
+            allowViewModelInspection: null);
+        using var document = JsonDocument.Parse(argumentsJson);
+        var arguments = document.RootElement.EnumerateObject()
+            .ToDictionary(property => property.Name, property => property.Value.Clone());
+
+        var decision = policy.EvaluateToolCall("apply_ui_blueprint", arguments);
+
+        decision.IsAllowed.Should().BeTrue();
+    }
+
+    [Fact]
     public void DestructivePolicy_ShouldCoverDestructiveMcpMetadataExceptSessionLifecycleTools()
     {
         var policy = McpToolExecutionPolicy.FromConfiguredValues(
@@ -340,8 +381,12 @@ public sealed class McpToolExecutionPolicyTests
 
         destructiveTools.Should().Contain(DestructivePolicyExceptions,
             "session lifecycle tools are intentionally governed by target/session policy instead of the destructive mutation gate");
+        destructiveTools.Should().Contain(ArgumentSensitiveDestructiveTools,
+            "argument-sensitive project write tools must still advertise destructive MCP metadata");
 
-        foreach (var toolName in destructiveTools.Except(DestructivePolicyExceptions, StringComparer.Ordinal))
+        foreach (var toolName in destructiveTools
+                     .Except(DestructivePolicyExceptions, StringComparer.Ordinal)
+                     .Except(ArgumentSensitiveDestructiveTools, StringComparer.Ordinal))
         {
             var decision = policy.EvaluateToolCall(toolName);
 

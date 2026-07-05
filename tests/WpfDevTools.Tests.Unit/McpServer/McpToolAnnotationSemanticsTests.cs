@@ -8,6 +8,20 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public class McpToolAnnotationSemanticsTests
 {
     [Fact]
+    public void ApplyUiBlueprint_ShouldAdvertiseDestructiveCapableProjectWrites()
+    {
+        var method = typeof(UiComposerMcpTools).GetMethod(nameof(UiComposerMcpTools.ApplyUiBlueprint));
+        method.Should().NotBeNull();
+
+        var attribute = method!.GetCustomAttribute<McpServerToolAttribute>();
+        attribute.Should().NotBeNull();
+        attribute!.ReadOnly.Should().BeFalse(
+            "apply_ui_blueprint can persist generated XAML when dryRun is false");
+        attribute.Destructive.Should().BeTrue(
+            "apply_ui_blueprint is destructive-capable even though dryRun defaults to true");
+    }
+
+    [Fact]
     public void WatchDpChanges_ShouldAdvertiseStatefulNonDestructiveRegistration()
     {
         var method = typeof(DependencyPropertyMcpTools).GetMethod(nameof(DependencyPropertyMcpTools.WatchDpChanges));

@@ -136,20 +136,20 @@ internal static class UiComposerMcpToolDescriptions
 
         CATEGORY: UI Composer
 
-        USE WHEN: You need a project file plan for generated XAML and want writes blocked unless explicit project-write gates are configured.
+        USE WHEN: You need a project file plan for generated XAML and want writes blocked unless explicit destructive and project-write gates are configured.
 
-        DO NOT USE: Do not use this as a general filesystem writer. Non-dry-run writes require WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true and an exact WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS match.
+        DO NOT USE: Do not use this as a general filesystem writer. Non-dry-run writes require WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true, WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true, and an exact WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS match.
 
         RESPONSE SUMMARY:
         - Dry-run is the default and returns filePlan, resourcePlan, requiredNuGetPackages, and viewModelBindingContract without writing files.
-        - Non-dry-run writes are restricted to targetPath under projectRoot and create a backup when updating an existing view file.
+        - Non-dry-run writes persist generated XAML, are restricted to targetPath under projectRoot, and create a backup when updating an existing view file.
         - Generated files include WPFDEVTOOLS_BLUEPRINT_SOURCE and WPFDEVTOOLS_SAFE_SLOT markers for reversible repair-first workflows.
 
         REQUEST OPTIONS:
         - blueprintJson is required and must contain schemaVersion wpfdevtools.ui-blueprint.v1.
         - projectRoot is required and must be the reviewed local WPF project root.
         - targetPath optionally supplies the target XAML file path; it must stay inside projectRoot.
-        - dryRun defaults to true. Set false only after reviewing the returned plan and configuring project-write gates.
+        - dryRun defaults to true. Set false only after reviewing the returned plan and configuring destructive plus project-write gates.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:

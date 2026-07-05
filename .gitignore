@@ -11,6 +11,7 @@ release/
 
 #docs
 docs/
+references/
 
 # IDE
 .vs/

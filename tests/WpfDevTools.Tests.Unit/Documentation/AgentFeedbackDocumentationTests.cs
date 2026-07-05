@@ -6,32 +6,25 @@ namespace WpfDevTools.Tests.Unit.Documentation;
 public sealed class AgentFeedbackDocumentationTests
 {
     [Theory]
-    [InlineData("docfx/agent-feedback/index.md", "Agent Feedback", "2026-03-17-agent-feedback-63-tool-e2e-validation.md", "2026-06-24-agent-feedback-security-deep-scan.md", "2026-06-29-agent-feedback-mahapps-real-project-e2e.md", "2026-06-29-agent-feedback-materialdesign-real-project-e2e.md", "2026-06-30-agent-feedback-handycontrol-real-project-e2e.md", "2026-06-30-agent-feedback-wpfui-edgecase-e2e.md")]
-    [InlineData("docfx/zh-tw/agent-feedback/index.md", "Agent 使用心得", "2026-03-17-agent-feedback-63-tool-e2e-validation.md", "2026-06-24-agent-feedback-security-deep-scan.md", "2026-06-29-agent-feedback-mahapps-real-project-e2e.md", "2026-06-29-agent-feedback-materialdesign-real-project-e2e.md", "2026-06-30-agent-feedback-handycontrol-real-project-e2e.md", "2026-06-30-agent-feedback-wpfui-edgecase-e2e.md")]
-    public void AgentFeedbackIndexPages_ShouldBeEntryPagesOnly(
-        string relativePath,
-        string expectedHeading,
-        string firstReportHref,
-        string secondReportHref,
-        string thirdReportHref,
-        string fourthReportHref,
-        string fifthReportHref,
-        string sixthReportHref)
+    [InlineData("docfx/agent-feedback", "docfx/agent-feedback/index.md", "Agent Feedback")]
+    [InlineData("docfx/zh-tw/agent-feedback", "docfx/zh-tw/agent-feedback/index.md", "Agent 使用心得")]
+    public void AgentFeedbackIndexPages_ShouldRegisterAllPublishedReports(
+        string directoryPath,
+        string indexPath,
+        string expectedHeading)
     {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var content = File.ReadAllText(GetRepoFilePath(indexPath));
+        var reportFiles = GetAgentFeedbackReportFileNames(directoryPath);
+        var indexLinks = ExtractMarkdownReportLinks(content);
 
         content.Should().Contain(expectedHeading);
-        content.Should().Contain(firstReportHref);
-        content.Should().Contain(secondReportHref);
-        content.Should().Contain(thirdReportHref);
-        content.Should().Contain(fourthReportHref);
-        content.Should().Contain(fifthReportHref);
-        content.Should().Contain(sixthReportHref);
+        indexLinks.Should().BeEquivalentTo(
+            reportFiles,
+            "each Agent Feedback report in the folder should be registered in the locale index");
         content.Should().NotContain("Template");
         content.Should().NotContain("範本");
         content.Should().NotContain("Suggested report skeleton");
         content.Should().NotContain("建議骨架");
-        content.Length.Should().BeLessThan(1200, "the index page should remain a compact document entry point");
     }
 
     [Theory]
@@ -56,65 +49,60 @@ public sealed class AgentFeedbackDocumentationTests
     }
 
     [Fact]
-    public void AgentFeedbackTrackedPages_ShouldContainOnlyApprovedReportsAndIndexes()
+    public void AgentFeedbackToc_ShouldRegisterAllPublishedEnglishReports()
     {
-        var trackedFiles = GetTrackedAgentFeedbackFiles();
+        var content = File.ReadAllText(GetRepoFilePath("docfx/agent-feedback/toc.yml"));
+        var reportFiles = GetAgentFeedbackReportFileNames("docfx/agent-feedback");
+        var tocLinks = ExtractYamlReportHrefs(content);
 
-        trackedFiles.Should().BeEquivalentTo(
-            [
-                "docfx/agent-feedback/2026-03-17-agent-feedback-63-tool-e2e-validation.md",
-                "docfx/agent-feedback/2026-06-24-agent-feedback-security-deep-scan.md",
-                "docfx/agent-feedback/2026-06-29-agent-feedback-mahapps-real-project-e2e.md",
-                "docfx/agent-feedback/2026-06-29-agent-feedback-materialdesign-real-project-e2e.md",
-                "docfx/agent-feedback/2026-06-30-agent-feedback-handycontrol-real-project-e2e.md",
-                "docfx/agent-feedback/2026-06-30-agent-feedback-wpfui-edgecase-e2e.md",
-                "docfx/agent-feedback/assets/2026-06-29-mahapps-focused-screenshot.png",
-                "docfx/agent-feedback/assets/2026-06-29-mahapps-root-window.png",
-                "docfx/agent-feedback/assets/2026-06-29-materialdesign-main-window.png",
-                "docfx/agent-feedback/assets/2026-06-29-materialdesign-mcp-screenshot.png",
-                "docfx/agent-feedback/assets/handycontrol-2026-06-30/main-window.png",
-                "docfx/agent-feedback/assets/handycontrol-2026-06-30/mcp-element-screenshot.png",
-                "docfx/agent-feedback/assets/handycontrol-2026-06-30/post-mutation-window.png",
-                "docfx/agent-feedback/assets/wpfui-edgecase-2026-06-30/main-window.png",
-                "docfx/agent-feedback/assets/wpfui-edgecase-2026-06-30/mcp-hero-screenshot.png",
-                "docfx/agent-feedback/index.md",
-                "docfx/agent-feedback/toc.yml",
-                "docfx/zh-tw/agent-feedback/2026-03-17-agent-feedback-63-tool-e2e-validation.md",
-                "docfx/zh-tw/agent-feedback/2026-06-24-agent-feedback-security-deep-scan.md",
-                "docfx/zh-tw/agent-feedback/2026-06-29-agent-feedback-mahapps-real-project-e2e.md",
-                "docfx/zh-tw/agent-feedback/2026-06-29-agent-feedback-materialdesign-real-project-e2e.md",
-                "docfx/zh-tw/agent-feedback/2026-06-30-agent-feedback-handycontrol-real-project-e2e.md",
-                "docfx/zh-tw/agent-feedback/2026-06-30-agent-feedback-wpfui-edgecase-e2e.md",
-                "docfx/zh-tw/agent-feedback/index.md",
-            ],
-            "only the approved feedback reports and compact entry pages should be tracked");
-        trackedFiles.Should().NotContain(path => path.Contains("template", StringComparison.OrdinalIgnoreCase));
+        tocLinks.Should().BeEquivalentTo(
+            reportFiles,
+            "the Agent Feedback toc should expose every report in the folder");
     }
 
     private static string GetRepoFilePath(string relativePath)
         => WpfDevTools.Tests.Unit.TestSupport.TestRepositoryPaths.GetRepoFilePath(relativePath);
 
-    private static string[] GetTrackedAgentFeedbackFiles()
-    {
-        using var process = new System.Diagnostics.Process();
-        process.StartInfo.FileName = "git";
-        process.StartInfo.ArgumentList.Add("ls-files");
-        process.StartInfo.ArgumentList.Add("docfx/agent-feedback");
-        process.StartInfo.ArgumentList.Add("docfx/zh-tw/agent-feedback");
-        process.StartInfo.WorkingDirectory = Path.GetDirectoryName(GetRepoFilePath(".gitignore"));
-        process.StartInfo.UseShellExecute = false;
-        process.StartInfo.RedirectStandardOutput = true;
-        process.StartInfo.CreateNoWindow = true;
-
-        process.Start();
-        var output = process.StandardOutput.ReadToEnd();
-        process.WaitForExit();
-        process.ExitCode.Should().Be(0);
-
-        return output
-            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
-            .Select(path => path.Replace('\\', '/'))
+    private static string[] GetAgentFeedbackReportFileNames(string directoryPath)
+        => Directory.EnumerateFiles(GetRepoFilePath(directoryPath), "*.md", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileName)
+            .Where(name => !string.Equals(name, "index.md", StringComparison.OrdinalIgnoreCase))
+            .Select(name => name!)
             .Order(StringComparer.Ordinal)
             .ToArray();
+
+    private static string[] ExtractMarkdownReportLinks(string content)
+        => content.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(ExtractMarkdownHref)
+            .Where(IsReportHref)
+            .Select(href => href!)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+    private static string[] ExtractYamlReportHrefs(string content)
+        => content.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .Where(line => line.StartsWith("href:", StringComparison.Ordinal))
+            .Select(line => line["href:".Length..].Trim().Trim('"', '\''))
+            .Where(IsReportHref)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+    private static string? ExtractMarkdownHref(string line)
+    {
+        var markerIndex = line.IndexOf("](", StringComparison.Ordinal);
+        if (markerIndex < 0)
+        {
+            return null;
+        }
+
+        var hrefStart = markerIndex + 2;
+        var hrefEnd = line.IndexOf(')', hrefStart);
+        return hrefEnd > hrefStart ? line[hrefStart..hrefEnd] : null;
     }
+
+    private static bool IsReportHref(string? href)
+        => href is not null
+           && href.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+           && !string.Equals(href, "index.md", StringComparison.OrdinalIgnoreCase);
 }

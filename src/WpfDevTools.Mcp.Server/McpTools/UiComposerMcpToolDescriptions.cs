@@ -104,4 +104,29 @@ internal static class UiComposerMcpToolDescriptions
         - {"recipeId":"wpfui.shellWithNavigation"}
         - {"recipeId":"wpfui.dataGridPage","inputs":{"itemsSource":"{Binding Orders}","emptyText":"No orders"}}
         """;
+
+    public const string RenderUiBlueprint =
+        """
+        Use this tool to render a WPF DevTools Composer UI blueprint to XAML in dry-run mode.
+
+        CATEGORY: UI Composer
+
+        USE WHEN: You have a validated blueprint or expanded recipe and need generated XAML plus a file plan before any guarded apply workflow.
+
+        DO NOT USE: Do not use this to write project files. This tool always returns a dry-run plan and does not modify the filesystem.
+
+        RESPONSE SUMMARY:
+        - Returns success, valid, dryRun, xaml, filePlan, requiredResources, requiredNuGetPackages, validation, errors, and diagnostics.
+        - Renderer errors include jsonPath and block/template-oriented recovery guidance.
+        - filePlan.wouldWriteFiles is always false.
+
+        REQUEST OPTIONS:
+        - blueprintJson is required and must contain schemaVersion wpfdevtools.ui-blueprint.v1.
+        - targetPath optionally supplies a target XAML path suggestion; the renderer does not write it.
+        - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
+        - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
+
+        EXAMPLES:
+        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}"}
+        """;
 }

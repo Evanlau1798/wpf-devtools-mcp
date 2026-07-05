@@ -20,8 +20,21 @@ internal sealed class UiPackManifest : ComposerJsonDocument
     public string Id { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public string Version { get; set; } = string.Empty;
+    public UiPackNuGetPackage[] NugetPackages { get; set; } = [];
+    public UiPackResourceSetup ResourceSetup { get; set; } = new();
     public string[] Blocks { get; set; } = [];
     public string[] Recipes { get; set; } = [];
+}
+
+internal sealed class UiPackNuGetPackage
+{
+    public string Id { get; set; } = string.Empty;
+    public string VersionRange { get; set; } = string.Empty;
+}
+
+internal sealed class UiPackResourceSetup
+{
+    public string[] ApplicationMergedDictionaries { get; set; } = [];
 }
 
 internal sealed class UiBlockDefinition : ComposerJsonDocument

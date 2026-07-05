@@ -4,6 +4,7 @@ using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Catalog;
 using WpfDevTools.Mcp.Server.Composer.Packs;
+using WpfDevTools.Mcp.Server.Composer.Rendering;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
@@ -100,6 +101,28 @@ public static class UiComposerMcpTools
             timeoutSeconds: 10);
     }
 
+    [McpServerTool(Name = "render_ui_blueprint", Title = "Render UI Composer Blueprint Dry Run", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [Description(UiComposerMcpToolDescriptions.RenderUiBlueprint)]
+    public static Task<CallToolResult> RenderUiBlueprint(
+        [Description("UI blueprint JSON text to render in dry-run mode.")] string blueprintJson,
+        [Description("Optional target XAML file path suggestion. The renderer does not write this file.")] string? targetPath = null,
+        [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
+        [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("blueprintJson", blueprintJson),
+            ("targetPath", targetPath),
+            ("projectRoot", projectRoot),
+            ("localAppDataRoot", localAppDataRoot));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(RenderBlueprint(blueprintJson, targetPath, projectRoot, localAppDataRoot)),
+            args,
+            cancellationToken,
+            timeoutSeconds: 10);
+    }
+
     private static object ListPacks(string? projectRoot, string? localAppDataRoot)
     {
         var registry = CreateRegistry(projectRoot, localAppDataRoot);
@@ -177,6 +200,30 @@ public static class UiComposerMcpTools
             validation = result.Validation,
             errors = result.Errors,
             warnings = result.Warnings,
+            diagnostics = result.Diagnostics
+        };
+    }
+
+    private static object RenderBlueprint(
+        string blueprintJson,
+        string? targetPath,
+        string? projectRoot,
+        string? localAppDataRoot)
+    {
+        var result = new UiBlueprintRenderer(CreateRegistry(projectRoot, localAppDataRoot))
+            .Render(new RenderBlueprintRequest(blueprintJson, targetPath));
+
+        return new
+        {
+            success = true,
+            valid = result.Valid,
+            result.DryRun,
+            result.Xaml,
+            result.FilePlan,
+            result.RequiredResources,
+            result.RequiredNuGetPackages,
+            validation = result.Validation,
+            errors = result.Errors,
             diagnostics = result.Diagnostics
         };
     }

@@ -1,6 +1,6 @@
 # Tool Reference Overview
 
-The server currently exposes 68 tools across twelve categories.
+The server currently exposes 69 tools across twelve categories.
 
 ## Categories
 
@@ -45,7 +45,7 @@ Use the smallest workflow that answers the question. Prefer scene-level aggregat
 | Explain an unexpected visual value | `get_dp_value_source` | `get_applied_styles`, `get_resource_chain`, `get_triggers` | Use when precedence or styles are unclear. |
 | Validate a click or keyboard action | `get_interaction_readiness` | `click_element`, `drain_events`, `get_state_diff` | Use only after a concrete elementId is known. |
 | Make rollback-safe changes | `capture_state_snapshot` | `batch_mutate`, `get_state_diff`, `restore_state_snapshot` | Requires the relevant destructive and read gates. |
-| Expand Composer recipes | `list_ui_block_packs` | `get_ui_block_catalog`, `expand_ui_recipe`, `validate_ui_blueprint` | Lists installed UI packs and recipes, expands a starter recipe, then validates blueprint JSON before rendering or apply workflows. |
+| Expand and render Composer recipes | `list_ui_block_packs` | `get_ui_block_catalog`, `expand_ui_recipe`, `validate_ui_blueprint`, `render_ui_blueprint` | Lists installed UI packs and recipes, expands a starter recipe, validates blueprint JSON, then dry-runs XAML rendering before apply workflows. |
 | Follow a full recipe | See [Common Workflows](../../guides/common-workflows.md) | Follow `navigation.recommended` first | Workflow pages are baselines; tool responses remain authoritative. |
 
 ## Categories at a glance
@@ -63,7 +63,7 @@ Use the smallest workflow that answers the question. Prefer scene-level aggregat
 | MVVM | `get_viewmodel` | Inspect data and commands behind a view |
 | Performance | `get_render_stats` | Start performance triage |
 | State & Scene Diagnostics | `get_ui_summary` | Start with semantic context before using tree-heavy inspection |
-| UI Composer | `list_ui_block_packs`, `get_ui_block_catalog`, `expand_ui_recipe`, `validate_ui_blueprint` | Discover UI block packs, inspect recipes and composition rules, then expand and validate blueprints before rendering |
+| UI Composer | `list_ui_block_packs`, `get_ui_block_catalog`, `expand_ui_recipe`, `validate_ui_blueprint`, `render_ui_blueprint` | Discover UI block packs, inspect recipes and composition rules, then expand, validate, and dry-run render blueprints |
 
 ## Navigation model
 
@@ -97,8 +97,8 @@ If a tool signature, policy gate, or response schema changes, update the relevan
 
 These values are generated from the runtime MCP contract resources. If a tool is added or renamed, a method signature changes, policy gates move, or response fields change, the documentation tests require this snapshot to be regenerated.
 
-- `wpf://contracts/tools` SHA-256: `2cf3469cd960032819bc869b665bace7ee0310aa08700afe7b9b1f9e0f3e52a7`
-- `wpf://contracts/response` SHA-256: `45e2f56b5384f3974f5c65583d6752a6e38a483b51c56d97f623454c620f7415`
+- `wpf://contracts/tools` SHA-256: `a5b4268af57569c2c51e398ac2da6335785c0862c47cda6d8d9e5b60fa901257`
+- `wpf://contracts/response` SHA-256: `f823a856f45aa2449be341771e47e0c24ceafdab94d9b884de2ece58eb679c5a`
 - Validation scope: `toolCount`, `name`, `title`, `parameters`, `requiredParameters`, `inputSchemaHash`, `outputSchemaHash`, `capabilityTags`, `policyCapabilityTags`, `annotations`, `parameterConstraints`, `parameterVocabularies`, and `highValueTools`.
 
 Use the category pages for the most important tools, semantics, and gotchas.

@@ -1,4 +1,4 @@
 <ui:DataGrid ItemsSource="{{itemsSource}}">
-  {{slot.columns}}
+  <ui:DataGrid.Columns>{{slot.columns}}</ui:DataGrid.Columns>
   {{slot.emptyState}}
 </ui:DataGrid>

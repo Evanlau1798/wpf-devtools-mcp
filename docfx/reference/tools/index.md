@@ -1,6 +1,6 @@
 # Tool Reference Overview
 
-The server currently exposes 64 tools across eleven categories.
+The server currently exposes 65 tools across twelve categories.
 
 ## Categories
 
@@ -15,6 +15,7 @@ The server currently exposes 64 tools across eleven categories.
 9. MVVM
 10. Performance
 11. State & Scene Diagnostics
+12. UI Composer
 
 ## Recommended order of use
 
@@ -44,6 +45,7 @@ Use the smallest workflow that answers the question. Prefer scene-level aggregat
 | Explain an unexpected visual value | `get_dp_value_source` | `get_applied_styles`, `get_resource_chain`, `get_triggers` | Use when precedence or styles are unclear. |
 | Validate a click or keyboard action | `get_interaction_readiness` | `click_element`, `drain_events`, `get_state_diff` | Use only after a concrete elementId is known. |
 | Make rollback-safe changes | `capture_state_snapshot` | `batch_mutate`, `get_state_diff`, `restore_state_snapshot` | Requires the relevant destructive and read gates. |
+| Discover Composer packs | `list_ui_block_packs` | `get_ui_block_catalog` when catalog support is available | Lists built-in, project-local, and user-global UI block packs before blueprint work. |
 | Follow a full recipe | See [Common Workflows](../../guides/common-workflows.md) | Follow `navigation.recommended` first | Workflow pages are baselines; tool responses remain authoritative. |
 
 ## Categories at a glance
@@ -61,6 +63,7 @@ Use the smallest workflow that answers the question. Prefer scene-level aggregat
 | MVVM | `get_viewmodel` | Inspect data and commands behind a view |
 | Performance | `get_render_stats` | Start performance triage |
 | State & Scene Diagnostics | `get_ui_summary` | Start with semantic context before using tree-heavy inspection |
+| UI Composer | `list_ui_block_packs` | Discover available UI block packs and provenance before composition |
 
 ## Navigation model
 
@@ -94,8 +97,8 @@ If a tool signature, policy gate, or response schema changes, update the relevan
 
 These values are generated from the runtime MCP contract resources. If a tool is added or renamed, a method signature changes, policy gates move, or response fields change, the documentation tests require this snapshot to be regenerated.
 
-- `wpf://contracts/tools` SHA-256: `150b755cb01ac147c367637c68f3a76a04648e29db604d3776db0828ad731dcc`
-- `wpf://contracts/response` SHA-256: `456920009a47782c3e629b69fb132f4c101e40de0479717fb2643500f69a0378`
+- `wpf://contracts/tools` SHA-256: `24acb376e28f3943cf941900a832f55723971bfb060887e2e038dce721717319`
+- `wpf://contracts/response` SHA-256: `7dc889d3e56a014d58008d1eb7a0ef73e1180a4b9a89e7b54346777f0dd0d3c3`
 - Validation scope: `toolCount`, `name`, `title`, `parameters`, `requiredParameters`, `inputSchemaHash`, `outputSchemaHash`, `capabilityTags`, `policyCapabilityTags`, `annotations`, `parameterConstraints`, `parameterVocabularies`, and `highValueTools`.
 
 Use the category pages for the most important tools, semantics, and gotchas.

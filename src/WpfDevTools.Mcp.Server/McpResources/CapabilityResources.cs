@@ -103,7 +103,7 @@ public static partial class CapabilityResources
         6. Use `get_form_summary` for form readiness or `get_bindings(elementId)` for binding-specific follow-up.
         7. Search or load specialized tools only after the scene or binding result narrows the task.
 
-        Keep `connect`, `get_ui_summary`, `get_element_snapshot`, `get_bindings`, and `get_form_summary` as the primary always-visible tools. Use `wpf://contracts/tools` for the canonical manifest, categories, capability tags, policy gates, and per-tool schemas before loading the rest of the 64-tool catalog.
+        Keep `connect`, `get_ui_summary`, `get_element_snapshot`, `get_bindings`, and `get_form_summary` as the primary always-visible tools. Use `wpf://contracts/tools` for the canonical manifest, categories, capability tags, policy gates, and per-tool schemas before loading the rest of the full tool catalog.
         """;
 
 

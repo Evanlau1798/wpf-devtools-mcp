@@ -203,7 +203,7 @@ internal static class McpToolCapabilityCatalog
             tags.Add("accepts-mutation-step");
         }
 
-        if (!string.Equals(attribute.Name, "get_processes", StringComparison.Ordinal))
+        if (attribute.Name is not "get_processes" and not "list_ui_block_packs")
         {
             tags.Add("requires-target");
         }
@@ -266,6 +266,13 @@ internal static class McpToolCapabilityCatalog
         if (declaringTypeName.Contains("Performance", StringComparison.Ordinal))
         {
             tags.Add("performance");
+        }
+
+        if (declaringTypeName.Contains("UiComposer", StringComparison.Ordinal) ||
+            toolName.Contains("ui_block", StringComparison.Ordinal))
+        {
+            tags.Add("composer");
+            tags.Add("ui-pack");
         }
 
         if (IsStateConsumingTool(toolName))

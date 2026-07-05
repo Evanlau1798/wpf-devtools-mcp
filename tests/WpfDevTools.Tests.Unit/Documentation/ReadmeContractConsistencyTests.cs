@@ -25,7 +25,8 @@ public sealed class ReadmeContractConsistencyTests
             ["MVVM"] = "MVVM",
             ["Performance"] = "Performance",
             ["State"] = "State & Scene Diagnostics",
-            ["Scene Diagnostics"] = "State & Scene Diagnostics"
+            ["Scene Diagnostics"] = "State & Scene Diagnostics",
+            ["UI Composer"] = "UI Composer"
         };
 
     [Fact]
@@ -46,7 +47,7 @@ public sealed class ReadmeContractConsistencyTests
 
         readme.Should().Contain($"{totalCount} MCP tools");
         readme.Should().NotContain("| Process Management | 5 |");
-        toolReference.Should().Contain($"The server currently exposes {totalCount} tools across eleven categories.");
+        toolReference.Should().Contain($"The server currently exposes {totalCount} tools across twelve categories.");
 
         foreach (var category in toolCounts)
         {

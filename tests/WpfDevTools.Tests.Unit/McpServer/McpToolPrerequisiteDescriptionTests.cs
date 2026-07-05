@@ -15,7 +15,8 @@ public sealed class McpToolPrerequisiteDescriptionTests
     {
         "get_processes",
         "get_active_process",
-        "connect"
+        "connect",
+        "list_ui_block_packs"
     };
 
     [Fact]

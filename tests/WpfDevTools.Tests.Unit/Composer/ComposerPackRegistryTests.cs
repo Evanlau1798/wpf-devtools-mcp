@@ -1,0 +1,284 @@
+using System.IO.Compression;
+using FluentAssertions;
+using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Mcp.Server.Composer.Packs;
+using WpfDevTools.Tests.Unit.TestSupport;
+using Xunit;
+
+namespace WpfDevTools.Tests.Unit.Composer;
+
+public sealed class ComposerPackRegistryTests
+{
+    [Fact]
+    public void PackPathContract_ShouldUseDocumentedRoots()
+    {
+        ComposerPackPaths.BuiltinRoot("C:/repo").Should().Be(Path.GetFullPath("C:/repo/packs/builtin"));
+        ComposerPackPaths.ProjectLocalRoot("C:/app").Should().Be(Path.GetFullPath("C:/app/.wpfdevtools/packs"));
+        ComposerPackPaths.UserGlobalRoot("C:/local").Should().Be(Path.GetFullPath("C:/local/WpfDevTools/Composer/Packs"));
+    }
+
+    [Fact]
+    public void PackImportService_ShouldReturnDryRunFilePlanWithoutWriting()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var archivePath = GetRepoFilePath("packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip");
+            var destinationRoot = Path.Combine(tempRoot, "packs");
+
+            var plan = PackImportService.CreateDryRunPlan(archivePath, destinationRoot);
+
+            plan.PackId.Should().Be("wpfui");
+            plan.Version.Should().Be("0.1.0");
+            plan.DryRun.Should().BeTrue();
+            plan.FilePlan.Should().HaveCount(30);
+            plan.FilePlan.Should().Contain(item => item.RelativePath == "pack.json");
+            plan.WouldModifyProjectFiles.Should().BeFalse();
+            plan.WouldRunNuGetRestore.Should().BeFalse();
+            Directory.Exists(destinationRoot).Should().BeFalse("dry-run import must not write files");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void PackImportService_ShouldRejectZipSlipEntries()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var archivePath = Path.Combine(tempRoot, "bad.zip");
+            using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            {
+                var entry = archive.CreateEntry("../evil.txt");
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write("bad");
+            }
+
+            var act = () => PackImportService.CreateDryRunPlan(archivePath, Path.Combine(tempRoot, "packs"));
+
+            act.Should().Throw<InvalidDataException>()
+                .WithMessage("*Unsafe archive entry*evil.txt*");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void PackRegistry_ShouldDiscoverBuiltInWpfUiPackWithMetadata()
+    {
+        var registry = PackRegistry.ForRepository(GetRepoFilePath("."));
+
+        var result = registry.ListPacks();
+
+        result.Diagnostics.Should().BeEmpty();
+        var pack = result.Packs.Should().ContainSingle(p => p.Id == "wpfui").Subject;
+        pack.Version.Should().Be("0.1.0");
+        pack.Scope.Should().Be(PackScope.Builtin);
+        pack.BlockCount.Should().Be(13);
+        pack.ReadinessValid.Should().BeTrue();
+        pack.SourceRepository.Should().Be("https://github.com/lepoco/wpfui");
+    }
+
+    [Fact]
+    public void PackRegistry_ShouldLoadPackArtifactsAndRendererTemplateMetadata()
+    {
+        var registry = PackRegistry.ForRepository(GetRepoFilePath("."));
+
+        var result = registry.ListPacks();
+
+        var pack = result.Packs.Single(p => p.Id == "wpfui");
+        pack.BlockKinds.Should().Contain("wpfui.navigationView");
+        pack.RecipeCount.Should().Be(1);
+        pack.ExampleCount.Should().Be(1);
+        pack.RendererCount.Should().Be(13);
+    }
+
+    [Fact]
+    public void PackRegistry_ShouldRejectRendererTemplatesOutsidePackRoot()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var projectRoot = Path.Combine(tempRoot, "project");
+            CopyPackTo(ComposerPackPaths.ProjectLocalRoot(projectRoot), enabled: true);
+            File.WriteAllText(
+                Path.Combine(ComposerPackPaths.ProjectLocalRoot(projectRoot), "wpfui", "0.1.0", "blocks", "button.block.json"),
+                """
+                {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"wpfui.button","displayName":"Button","category":"input","properties":{},"slots":{},"renderer":{"xamlTemplate":"../outside.xaml.sbn"},"sourceHints":[]}
+                """);
+
+            var registry = new PackRegistry(
+                ComposerPackPaths.BuiltinRoot(tempRoot),
+                ComposerPackPaths.ProjectLocalRoot(projectRoot));
+
+            var result = registry.ListPacks();
+
+            result.Packs.Should().BeEmpty();
+            result.Diagnostics.Should().Contain(diagnostic => diagnostic.Contains("escapes pack root", StringComparison.Ordinal));
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void PackRegistry_ShouldApplyProjectUserBuiltinPrecedenceAndSkipDisabledPacks()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var projectRoot = Path.Combine(tempRoot, "project");
+            var userRoot = Path.Combine(tempRoot, "local");
+            CopyPackTo(ComposerPackPaths.ProjectLocalRoot(projectRoot), enabled: false);
+            CopyPackTo(ComposerPackPaths.UserGlobalRoot(userRoot), enabled: true);
+
+            var registry = new PackRegistry(
+                ComposerPackPaths.BuiltinRoot(GetRepoFilePath(".")),
+                ComposerPackPaths.ProjectLocalRoot(projectRoot),
+                ComposerPackPaths.UserGlobalRoot(userRoot));
+
+            var result = registry.ListPacks();
+
+            result.Diagnostics.Should().Contain(diagnostic => diagnostic.Contains("disabled", StringComparison.OrdinalIgnoreCase));
+            result.Packs.Single(pack => pack.Id == "wpfui").Scope.Should().Be(PackScope.UserGlobal);
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void PackRegistry_ShouldSupportMultiplePacksAndReportDifferentVersions()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+                var projectRoot = Path.Combine(tempRoot, "project");
+                var userRoot = Path.Combine(tempRoot, "local");
+            CreateMinimalPack(ComposerPackPaths.ProjectLocalRoot(projectRoot), "wpfui", "9.9.9");
+            CreateMinimalPack(ComposerPackPaths.ProjectLocalRoot(projectRoot), "sample", "1.0.0");
+            CopyPackTo(ComposerPackPaths.UserGlobalRoot(userRoot), enabled: true);
+
+            var registry = new PackRegistry(
+                ComposerPackPaths.BuiltinRoot(tempRoot),
+                ComposerPackPaths.ProjectLocalRoot(projectRoot),
+                ComposerPackPaths.UserGlobalRoot(userRoot));
+
+            var result = registry.ListPacks();
+
+            result.Packs.Select(pack => pack.Id).Should().BeEquivalentTo("sample", "wpfui");
+            result.Packs.Single(pack => pack.Id == "wpfui").Scope.Should().Be(PackScope.ProjectLocal);
+            result.Diagnostics.Should().Contain(diagnostic => diagnostic.Contains("multiple versions", StringComparison.Ordinal));
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public async Task ListUiBlockPacksTool_ShouldReturnBuiltInWpfUiPack()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var result = await UiComposerMcpTools.ListUiBlockPacks(
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+
+            result.IsError.Should().BeFalse();
+            var payload = result.StructuredContent!.Value;
+            payload.GetProperty("success").GetBoolean().Should().BeTrue();
+            payload.GetProperty("packCount").GetInt32().Should().BeGreaterOrEqualTo(1);
+            payload.GetProperty("packs").EnumerateArray()
+                .Should().Contain(pack => pack.GetProperty("id").GetString() == "wpfui"
+                    && pack.GetProperty("version").GetString() == "0.1.0"
+                    && pack.GetProperty("blockCount").GetInt32() == 13);
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    private static void CopyPackTo(string packRoot, bool enabled)
+    {
+        var destination = Path.Combine(packRoot, "wpfui", "0.1.0");
+        CopyDirectory(GetRepoFilePath("packs/builtin/wpfui/0.1.0"), destination);
+        File.WriteAllText(
+            Path.Combine(destination, "install.manifest.json"),
+            $$"""
+            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"wpfui","version":"0.1.0","scope":"project","path":"{{destination.Replace("\\", "\\\\")}}","enabled":{{enabled.ToString().ToLowerInvariant()}}}
+            """);
+    }
+
+    private static void CreateMinimalPack(string packRoot, string packId, string version)
+    {
+        var destination = Path.Combine(packRoot, packId, version);
+        Directory.CreateDirectory(Path.Combine(destination, "blocks"));
+        Directory.CreateDirectory(Path.Combine(destination, "renderers", "xaml"));
+        Directory.CreateDirectory(Path.Combine(destination, "recipes"));
+        Directory.CreateDirectory(Path.Combine(destination, "examples"));
+
+        File.WriteAllText(
+            Path.Combine(destination, "pack.json"),
+            $$"""
+            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"{{packId}}","displayName":"Sample Pack","version":"{{version}}","blocks":["{{packId}}.text"],"recipes":[]}
+            """);
+        File.WriteAllText(
+            Path.Combine(destination, "source.lock.json"),
+            """
+            {"schemaVersion":"wpfdevtools.source-lock.v1","sources":[{"name":"Sample","url":"https://example.invalid/sample","version":"1.0.0","paths":["src"]}],"transformPolicy":{}}
+            """);
+        File.WriteAllText(
+            Path.Combine(destination, "blocks", "text.block.json"),
+            $$"""
+            {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"{{packId}}.text","displayName":"Text","category":"text","properties":{},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/text.xaml.sbn"},"sourceHints":[]}
+            """);
+        File.WriteAllText(Path.Combine(destination, "renderers", "xaml", "text.xaml.sbn"), "<TextBlock />");
+        File.WriteAllText(
+            Path.Combine(destination, "install.manifest.json"),
+            $$"""
+            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"{{packId}}","version":"{{version}}","scope":"project","path":"{{destination.Replace("\\", "\\\\")}}","enabled":true}
+            """);
+    }
+
+    private static void CopyDirectory(string source, string destination)
+    {
+        Directory.CreateDirectory(destination);
+        foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(directory.Replace(source, destination));
+        }
+
+        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+        {
+            File.Copy(file, file.Replace(source, destination), overwrite: true);
+        }
+    }
+
+    private static string CreateTempDirectory()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "wpfdevtools-composer-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    private static void DeleteDirectory(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
+    private static string GetRepoFilePath(string relativePath)
+        => TestRepositoryPaths.GetRepoFilePath(relativePath);
+}

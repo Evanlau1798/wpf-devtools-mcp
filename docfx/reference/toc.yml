@@ -12,6 +12,8 @@
   href: tools/scene-and-state.md
 - name: Interaction, Event, Layout, and Performance Tools
   href: tools/interaction-events-layout.md
+- name: UI Composer Tools
+  href: tools/ui-composer.md
 - name: Configuration Reference
   href: configuration.md
 - name: MCP Contracts and Navigation

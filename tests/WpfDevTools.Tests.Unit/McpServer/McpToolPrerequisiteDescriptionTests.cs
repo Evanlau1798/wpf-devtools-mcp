@@ -20,7 +20,8 @@ public sealed class McpToolPrerequisiteDescriptionTests
         "get_ui_block_catalog",
         "validate_ui_blueprint",
         "expand_ui_recipe",
-        "render_ui_blueprint"
+        "render_ui_blueprint",
+        "apply_ui_blueprint"
     };
 
     [Fact]

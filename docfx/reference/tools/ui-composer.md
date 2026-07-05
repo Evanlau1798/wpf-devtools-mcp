@@ -65,3 +65,17 @@ Request options:
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
 The response keeps `success=true` for a completed render call and reports render validity in `valid`. Successful results include `xaml`, `requiredNuGetPackages`, `requiredResources`, and a `filePlan` with `wouldWriteFiles=false`. Invalid results return validation or render issues with `jsonPath`, `code`, `message`, and `repairSuggestion`.
+
+## `apply_ui_blueprint`
+
+Produces a guarded apply plan for a UI blueprint. The default is dry-run, so agents can inspect the generated view file path, required resources, package plan, and binding contract stub before any write is allowed.
+
+Request options:
+
+- `blueprintJson`: required UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`.
+- `projectRoot`: required local WPF project root used for path planning and write allowlist checks.
+- `targetPath`: optional target XAML file path. It must stay inside `projectRoot`.
+- `dryRun`: optional boolean that defaults to true.
+- `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
+
+Non-dry-run writes require `WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true` and an exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match. The tool rejects paths outside `projectRoot`, creates a backup when updating an existing view, includes a `WPFDEVTOOLS_BLUEPRINT_SOURCE` header, preserves `WPFDEVTOOLS_SAFE_SLOT` manual-edit markers, and does not run NuGet restore.

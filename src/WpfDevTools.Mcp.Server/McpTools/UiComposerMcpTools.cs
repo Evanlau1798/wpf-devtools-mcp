@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using WpfDevTools.Mcp.Server.Composer.Apply;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Catalog;
 using WpfDevTools.Mcp.Server.Composer.Packs;
@@ -123,6 +124,30 @@ public static class UiComposerMcpTools
             timeoutSeconds: 10);
     }
 
+    [McpServerTool(Name = "apply_ui_blueprint", Title = "Apply UI Composer Blueprint", OpenWorld = false, ReadOnly = false, Destructive = false, UseStructuredContent = true)]
+    [Description(UiComposerMcpToolDescriptions.ApplyUiBlueprint)]
+    public static Task<CallToolResult> ApplyUiBlueprint(
+        [Description("UI blueprint JSON text to apply.")] string blueprintJson,
+        [Description("Local WPF project root used for file planning and write allowlist checks.")] string projectRoot,
+        [Description("Optional target XAML file path. Defaults to <projectRoot>/Views/<blueprint name>.xaml.")] string? targetPath = null,
+        [Description("When true or omitted, returns a dry-run plan without writing files.")] bool dryRun = true,
+        [Description("Optional LocalApplicationData root override for user-global packs.")] string? localAppDataRoot = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("blueprintJson", blueprintJson),
+            ("projectRoot", projectRoot),
+            ("targetPath", targetPath),
+            ("dryRun", dryRun),
+            ("localAppDataRoot", localAppDataRoot));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(ApplyBlueprint(blueprintJson, projectRoot, targetPath, dryRun, localAppDataRoot)),
+            args,
+            cancellationToken,
+            timeoutSeconds: 10);
+    }
+
     private static object ListPacks(string? projectRoot, string? localAppDataRoot)
     {
         var registry = CreateRegistry(projectRoot, localAppDataRoot);
@@ -227,6 +252,15 @@ public static class UiComposerMcpTools
             diagnostics = result.Diagnostics
         };
     }
+
+    private static object ApplyBlueprint(
+        string blueprintJson,
+        string projectRoot,
+        string? targetPath,
+        bool dryRun,
+        string? localAppDataRoot)
+        => new UiBlueprintApplyService(CreateRegistry(projectRoot, localAppDataRoot))
+            .Apply(new ApplyBlueprintRequest(blueprintJson, projectRoot, targetPath, dryRun));
 
     private static PackRegistry CreateRegistry(string? projectRoot, string? localAppDataRoot)
     {

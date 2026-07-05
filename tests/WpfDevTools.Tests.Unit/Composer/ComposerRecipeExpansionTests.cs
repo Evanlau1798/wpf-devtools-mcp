@@ -39,18 +39,26 @@ public sealed class ComposerRecipeExpansionTests
     [Fact]
     public async Task GetUiBlockCatalogTool_ShouldReturnRecipesWhenRequested()
     {
-        var catalog = await UiComposerMcpTools.GetUiBlockCatalog(
-            packIds: ["wpfui"],
-            includeRecipes: true,
-            localAppDataRoot: CreateTempDirectory(),
-            cancellationToken: CancellationToken.None);
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var catalog = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["wpfui"],
+                includeRecipes: true,
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
 
-        var payload = catalog.StructuredContent!.Value;
+            var payload = catalog.StructuredContent!.Value;
 
-        payload.GetProperty("success").GetBoolean().Should().BeTrue();
-        payload.GetProperty("recipeCount").GetInt32().Should().Be(5);
-        payload.GetProperty("recipes").EnumerateArray()
-            .Should().Contain(recipe => recipe.GetProperty("id").GetString() == "wpfui.dialogFlow");
+            payload.GetProperty("success").GetBoolean().Should().BeTrue();
+            payload.GetProperty("recipeCount").GetInt32().Should().Be(5);
+            payload.GetProperty("recipes").EnumerateArray()
+                .Should().Contain(recipe => recipe.GetProperty("id").GetString() == "wpfui.dialogFlow");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
     }
 
     [Fact]

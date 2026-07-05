@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wpfdevtools.ui-block.v1.schema.json",
+  "title": "WPF DevTools UI Block v1",
+  "type": "object",
+  "required": ["schemaVersion"],
+  "properties": {
+    "schemaVersion": { "const": "wpfdevtools.ui-block.v1" }
+  },
+  "additionalProperties": true,
+  "x-source": {
+    "repository": "https://github.com/Evanlau1798/wpf-devtools-extension-pack-creator",
+    "ref": "fix/source-inventory-coverage-audit",
+    "commit": "680cc9d24f3c97f0403defdfff7ef16f63de7c3f"
+  }
+}

@@ -79,7 +79,7 @@ public sealed class ComposerBaselinePackTests
         using var coverage = ReadJson(Path.Combine(BaselineRoot, "reports", "wpfui-0.1.0.coverage-audit.json"));
         using var readiness = ReadJson(Path.Combine(BaselineRoot, "reports", "wpfui-0.1.0.readiness.json"));
         using var archive = ZipFile.OpenRead(GetRepoFilePath(Path.Combine(BaselineRoot, "archives", "wpfui-0.1.0.zip")));
-        var reportPath = GetRepoFilePath(Path.Combine(BaselineRoot, "wpfui-0.1.0-generation-report.md"));
+        var reportPath = GetRepoFilePath(Path.Combine(BaselineRoot, "wpfui-0.1.0-generation-report.txt"));
 
         validation.RootElement.GetProperty("valid").GetBoolean().Should().BeTrue();
         validation.RootElement.GetProperty("strict").GetBoolean().Should().BeTrue();

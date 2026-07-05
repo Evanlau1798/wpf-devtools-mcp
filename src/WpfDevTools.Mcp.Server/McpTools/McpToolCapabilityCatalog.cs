@@ -203,7 +203,7 @@ internal static class McpToolCapabilityCatalog
             tags.Add("accepts-mutation-step");
         }
 
-        if (attribute.Name is not "get_processes" and not "list_ui_block_packs")
+        if (attribute.Name is not "get_processes" and not "list_ui_block_packs" and not "get_ui_block_catalog")
         {
             tags.Add("requires-target");
         }

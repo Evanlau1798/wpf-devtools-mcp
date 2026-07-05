@@ -25,4 +25,32 @@ internal static class UiComposerMcpToolDescriptions
         - {"projectRoot":"C:\\repo\\MyWpfApp"}
         - {"localAppDataRoot":"C:\\Users\\me\\AppData\\Local"}
         """;
+
+    public const string GetUiBlockCatalog =
+        """
+        Use this tool to inspect WPF DevTools Composer block definitions, properties, slots, allowedKinds, renderer availability, and source provenance before composing a blueprint.
+
+        CATEGORY: UI Composer
+
+        USE WHEN: You need available block kinds, per-block properties, slot composition rules, renderer availability, or source hints from installed Composer UI packs.
+
+        DO NOT USE: Do not use this for live WPF runtime inspection or to read third-party source code. Use scene tools for running target state.
+
+        RESPONSE SUMMARY:
+        - Returns success, itemCount, items, and diagnostics.
+        - Each item includes packId, packVersion, kind, displayName, category, properties, slots, allowedKinds, rendererAvailable, and sourceHintSummary.
+        - Catalog source hints are path summaries only and do not include copied third-party source text.
+
+        REQUEST OPTIONS:
+        - packIds optionally filters by pack id.
+        - category optionally filters by block category.
+        - kindPrefix optionally filters by block kind prefix.
+        - composableOnly=true returns only blocks with available renderer templates.
+        - kind optionally returns single-block detail for an exact pack-qualified block kind.
+
+        EXAMPLES:
+        - {"packIds":["wpfui"],"category":"navigation"}
+        - {"kind":"wpfui.button"}
+        - {"kindPrefix":"wpfui.navigation","composableOnly":true}
+        """;
 }

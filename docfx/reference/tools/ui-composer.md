@@ -12,3 +12,17 @@ Request options:
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
 The tool omits absolute pack root paths from its public payload. Use `structuredContent` as the canonical result and treat `content[0].text` as a compact fallback.
+
+## `get_ui_block_catalog`
+
+Returns block catalog entries from enabled Composer packs. Use it after `list_ui_block_packs` when an agent needs concrete block kinds, properties, slot names, `allowedKinds`, renderer availability, or source hint summaries before creating a blueprint.
+
+Request options:
+
+- `packIds`: optional pack id filter, such as `["wpfui"]`.
+- `category`: optional block category filter.
+- `kindPrefix`: optional pack-qualified kind prefix.
+- `composableOnly`: when true, returns only blocks with an available renderer template.
+- `kind`: optional exact pack-qualified block kind for single-block detail.
+
+Catalog entries include source hint paths only. They do not copy third-party source code into tool output.

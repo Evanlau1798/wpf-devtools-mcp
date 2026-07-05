@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "wpfdevtools.ui-recipe.v1",
+  "id": "wpfui.dialogFlow",
+  "displayName": "Dialog Flow Starter",
+  "description": "A WPF UI ContentDialog with text content and a primary action.",
+  "packId": "wpfui",
+  "inputs": {
+    "title": { "type": "string", "default": "Confirm" },
+    "message": { "type": "string", "default": "Continue with this action?" },
+    "primaryAction": { "type": "string", "default": "Continue" }
+  },
+  "requiredPacks": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+  "expandsTo": {
+    "kind": "wpfui.contentDialog",
+    "properties": { "title": "{{title}}" },
+    "slots": {
+      "content": [{ "kind": "text", "properties": { "value": "{{message}}" } }],
+      "actions": [{ "kind": "wpfui.button", "properties": { "text": "{{primaryAction}}" } }]
+    }
+  }
+}

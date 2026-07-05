@@ -46,7 +46,7 @@ public sealed class ComposerBaselinePackTests
         Directory.GetFiles(Path.Combine(packRoot, "renderers", "xaml"), "*.xaml.sbn")
             .Should().HaveCount(13);
         Directory.GetFiles(Path.Combine(packRoot, "recipes"), "*.recipe.json")
-            .Should().HaveCount(1);
+            .Should().HaveCount(5);
         Directory.GetFiles(Path.Combine(packRoot, "examples"), "*.ui.json")
             .Should().HaveCount(1);
 

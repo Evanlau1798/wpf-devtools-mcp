@@ -93,7 +93,7 @@ public sealed class ComposerPackRegistryTests
 
         var pack = result.Packs.Single(p => p.Id == "wpfui");
         pack.BlockKinds.Should().Contain("wpfui.navigationView");
-        pack.RecipeCount.Should().Be(1);
+        pack.RecipeCount.Should().Be(5);
         pack.ExampleCount.Should().Be(1);
         pack.RendererCount.Should().Be(13);
     }

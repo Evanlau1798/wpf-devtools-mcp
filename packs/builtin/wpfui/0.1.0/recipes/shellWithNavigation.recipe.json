@@ -1,1 +1,32 @@
-{"schemaVersion":"wpfdevtools.ui-recipe.v1","id":"wpfui.shellWithNavigation","displayName":"WPF UI Shell With Navigation","description":"A minimal WPF UI shell with title bar and navigation view.","packId":"wpfui","requiredPacks":[{"id":"wpfui","version":"0.1.0","required":true,"role":"primary"}],"expandsTo":{"kind":"wpfui.fluentWindow","slots":{"content":[{"kind":"wpfui.navigationView"}],"titleBar":[{"kind":"wpfui.titleBar"}]}}}
+{
+  "schemaVersion": "wpfdevtools.ui-recipe.v1",
+  "id": "wpfui.shellWithNavigation",
+  "displayName": "WPF UI Shell With Navigation",
+  "description": "A minimal WPF UI shell with title bar and navigation view.",
+  "packId": "wpfui",
+  "inputs": {
+    "title": { "type": "string", "default": "WPF UI App" },
+    "homeText": { "type": "string", "default": "Home" }
+  },
+  "requiredPacks": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+  "expandsTo": {
+    "kind": "wpfui.fluentWindow",
+    "properties": { "title": "{{title}}" },
+    "slots": {
+      "titleBar": [{ "kind": "wpfui.titleBar", "properties": { "title": "{{title}}" } }],
+      "content": [{
+        "kind": "wpfui.navigationView",
+        "slots": {
+          "items": [{
+            "kind": "wpfui.navigationViewItem",
+            "slots": {
+              "content": [{ "kind": "text", "properties": { "value": "{{homeText}}" } }],
+              "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "Home24" } }]
+            }
+          }],
+          "content": [{ "kind": "wpfui.card" }]
+        }
+      }]
+    }
+  }
+}

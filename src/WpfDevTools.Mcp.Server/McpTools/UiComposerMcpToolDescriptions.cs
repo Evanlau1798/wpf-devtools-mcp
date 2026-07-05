@@ -47,11 +47,12 @@ internal static class UiComposerMcpToolDescriptions
         - kindPrefix optionally filters by block kind prefix.
         - composableOnly=true returns only blocks with available renderer templates.
         - kind optionally returns single-block detail for an exact pack-qualified block kind.
+        - includeRecipes=true includes recipe catalog entries that can be passed to expand_ui_recipe.
 
         EXAMPLES:
         - {"packIds":["wpfui"],"category":"navigation"}
         - {"kind":"wpfui.button"}
-        - {"kindPrefix":"wpfui.navigation","composableOnly":true}
+        - {"kindPrefix":"wpfui.navigation","composableOnly":true,"includeRecipes":true}
         """;
 
     public const string ValidateUiBlueprint =
@@ -76,5 +77,31 @@ internal static class UiComposerMcpToolDescriptions
 
         EXAMPLES:
         - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}"}
+        """;
+
+    public const string ExpandUiRecipe =
+        """
+        Use this tool to expand a WPF DevTools Composer starter recipe into a blueprint and immediately validate the expanded result.
+
+        CATEGORY: UI Composer
+
+        USE WHEN: You want to start from a known UI pattern, such as a navigation shell, dashboard card, data grid page, dialog flow, or tabbed settings view, instead of authoring a blueprint from scratch.
+
+        DO NOT USE: Do not use this for rendering, writing files, or mutating a WPF project. Use render_ui_blueprint or apply_ui_blueprint in later guarded workflows.
+
+        RESPONSE SUMMARY:
+        - Returns success, valid, recipeId, blueprint, validation, errors, warnings, and diagnostics.
+        - valid=false means expansion completed but the recipe or expanded blueprint did not pass validation.
+        - The expanded blueprint is a full blueprint document with packs, primaryPack, layout, and metadata.
+
+        REQUEST OPTIONS:
+        - recipeId is required and must be a pack-qualified recipe id from get_ui_block_catalog(includeRecipes=true).
+        - inputs optionally provides JSON values for recipe inputs; omitted inputs use recipe defaults when available.
+        - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
+        - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
+
+        EXAMPLES:
+        - {"recipeId":"wpfui.shellWithNavigation"}
+        - {"recipeId":"wpfui.dataGridPage","inputs":{"itemsSource":"{Binding Orders}","emptyText":"No orders"}}
         """;
 }

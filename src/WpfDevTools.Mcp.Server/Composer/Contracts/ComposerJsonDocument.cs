@@ -67,8 +67,21 @@ internal sealed class UiRecipeDefinition : ComposerJsonDocument
     public string Id { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public string PackId { get; set; } = string.Empty;
+    public Dictionary<string, UiRecipeInput> Inputs { get; set; } = new(StringComparer.Ordinal);
     public ComposerPackReference[] RequiredPacks { get; set; } = [];
     public JsonElement ExpandsTo { get; set; }
+}
+
+internal sealed class UiRecipeInput
+{
+    public string Type { get; set; } = "string";
+    public bool Required { get; set; }
+    public JsonElement? Default { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public string[] AllowedValues { get; set; } = [];
+
+    [JsonPropertyName("enum")]
+    public string[] EnumValues { get; set; } = [];
 }
 
 internal sealed class UiBlueprint : ComposerJsonDocument

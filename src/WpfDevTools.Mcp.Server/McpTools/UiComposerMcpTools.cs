@@ -36,6 +36,7 @@ public static class UiComposerMcpTools
         [Description("Optional block kind prefix filter, such as wpfui.navigation.")] string? kindPrefix = null,
         [Description("When true, returns only blocks with an available renderer template.")] bool composableOnly = false,
         [Description("Optional exact block kind for single-block detail, such as wpfui.button.")] string? kind = null,
+        [Description("When true, includes recipe catalog entries from the same pack scope in the response.")] bool includeRecipes = false,
         [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
@@ -46,11 +47,12 @@ public static class UiComposerMcpTools
             ("kindPrefix", kindPrefix),
             ("composableOnly", composableOnly),
             ("kind", kind),
+            ("includeRecipes", includeRecipes),
             ("projectRoot", projectRoot),
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(GetCatalog(packIds, category, kindPrefix, composableOnly, kind, projectRoot, localAppDataRoot)),
+            (_, _) => Task.FromResult<object>(GetCatalog(packIds, category, kindPrefix, composableOnly, kind, includeRecipes, projectRoot, localAppDataRoot)),
             args,
             cancellationToken,
             timeoutSeconds: 10);
@@ -76,6 +78,28 @@ public static class UiComposerMcpTools
             timeoutSeconds: 10);
     }
 
+    [McpServerTool(Name = "expand_ui_recipe", Title = "Expand UI Composer Recipe", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [Description(UiComposerMcpToolDescriptions.ExpandUiRecipe)]
+    public static Task<CallToolResult> ExpandUiRecipe(
+        [Description("Pack-qualified recipe id, such as wpfui.shellWithNavigation.")] string recipeId,
+        [Description("Optional JSON object containing recipe input values. Omit to use recipe defaults.")] System.Text.Json.JsonElement? inputs = null,
+        [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
+        [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("recipeId", recipeId),
+            ("inputs", inputs),
+            ("projectRoot", projectRoot),
+            ("localAppDataRoot", localAppDataRoot));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(ExpandRecipe(recipeId, inputs, projectRoot, localAppDataRoot)),
+            args,
+            cancellationToken,
+            timeoutSeconds: 10);
+    }
+
     private static object ListPacks(string? projectRoot, string? localAppDataRoot)
     {
         var registry = CreateRegistry(projectRoot, localAppDataRoot);
@@ -96,17 +120,24 @@ public static class UiComposerMcpTools
         string? kindPrefix,
         bool composableOnly,
         string? kind,
+        bool includeRecipes,
         string? projectRoot,
         string? localAppDataRoot)
     {
-        var catalog = new BlockCatalogService(CreateRegistry(projectRoot, localAppDataRoot));
+        var registry = CreateRegistry(projectRoot, localAppDataRoot);
+        var catalog = new BlockCatalogService(registry);
         var result = catalog.GetCatalog(new BlockCatalogQuery(packIds, category, kindPrefix, composableOnly, kind));
+        var recipes = includeRecipes
+            ? new RecipeCatalogService(registry).GetCatalog(new RecipeCatalogQuery(packIds)).Items
+            : [];
 
         return new
         {
             success = true,
             itemCount = result.Items.Count,
             items = result.Items,
+            recipeCount = recipes.Count,
+            recipes,
             diagnostics = result.Diagnostics
         };
     }
@@ -122,6 +153,28 @@ public static class UiComposerMcpTools
             valid = result.Success,
             errorCount = result.Errors.Count,
             warningCount = result.Warnings.Count,
+            errors = result.Errors,
+            warnings = result.Warnings,
+            diagnostics = result.Diagnostics
+        };
+    }
+
+    private static object ExpandRecipe(
+        string recipeId,
+        System.Text.Json.JsonElement? inputs,
+        string? projectRoot,
+        string? localAppDataRoot)
+    {
+        var result = new RecipeExpansionService(CreateRegistry(projectRoot, localAppDataRoot))
+            .Expand(new RecipeExpansionRequest(recipeId, inputs));
+
+        return new
+        {
+            success = true,
+            valid = result.Success,
+            result.RecipeId,
+            blueprint = result.Blueprint,
+            validation = result.Validation,
             errors = result.Errors,
             warnings = result.Warnings,
             diagnostics = result.Diagnostics

@@ -24,6 +24,7 @@ Request options:
 - `kindPrefix`: optional pack-qualified kind prefix.
 - `composableOnly`: when true, returns only blocks with an available renderer template.
 - `kind`: optional exact pack-qualified block kind for single-block detail.
+- `includeRecipes`: when true, also returns recipe catalog entries for use with `expand_ui_recipe`.
 
 Catalog entries include source hint paths only. They do not copy third-party source code into tool output.
 
@@ -38,3 +39,16 @@ Request options:
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
 The response keeps `success=true` for a completed validation call and reports blueprint validity in `valid`. Validation issues include `jsonPath`, `code`, `message`, `repairSuggestion`, and relevant `allowedKinds` or `allowedValues`.
+
+## `expand_ui_recipe`
+
+Expands a starter recipe into a full UI blueprint and runs blueprint validation immediately. Use `get_ui_block_catalog` with `includeRecipes=true` to discover recipe ids and inputs before calling this tool.
+
+Request options:
+
+- `recipeId`: required pack-qualified recipe id, such as `wpfui.shellWithNavigation`.
+- `inputs`: optional JSON object with recipe input values. Omitted inputs use recipe defaults when available.
+- `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
+- `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
+
+The response includes `valid`, `recipeId`, the expanded `blueprint`, and the nested validation result. Built-in WPF UI starter recipes cover navigation shell, dashboard card, data grid page, dialog flow, and tabbed settings patterns.

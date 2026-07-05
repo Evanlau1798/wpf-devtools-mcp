@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "wpfdevtools.ui-recipe.v1",
+  "id": "wpfui.tabbedSettings",
+  "displayName": "Tabbed Settings Starter",
+  "description": "A WPF UI TabView with two settings tabs.",
+  "packId": "wpfui",
+  "inputs": {
+    "generalTitle": { "type": "string", "default": "General" },
+    "securityTitle": { "type": "string", "default": "Security" }
+  },
+  "requiredPacks": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+  "expandsTo": {
+    "kind": "wpfui.tabView",
+    "slots": {
+      "items": [
+        {
+          "kind": "wpfui.tabViewItem",
+          "slots": {
+            "header": [{ "kind": "text", "properties": { "value": "{{generalTitle}}" } }],
+            "content": [{ "kind": "wpfui.card" }]
+          }
+        },
+        {
+          "kind": "wpfui.tabViewItem",
+          "slots": {
+            "header": [{ "kind": "text", "properties": { "value": "{{securityTitle}}" } }],
+            "content": [{ "kind": "wpfui.card" }]
+          }
+        }
+      ]
+    }
+  }
+}

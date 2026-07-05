@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "wpfdevtools.ui-recipe.v1",
+  "id": "wpfui.dataGridPage",
+  "displayName": "Data Grid Page Starter",
+  "description": "A WPF UI DataGrid fragment with binding and empty-state text.",
+  "packId": "wpfui",
+  "inputs": {
+    "itemsSource": { "type": "binding", "default": "{Binding Items}" },
+    "emptyText": { "type": "string", "default": "No rows" }
+  },
+  "requiredPacks": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+  "expandsTo": {
+    "kind": "wpfui.dataGrid",
+    "properties": { "itemsSource": "{{itemsSource}}" },
+    "slots": {
+      "emptyState": [{ "kind": "wpfui.textBlock", "properties": { "text": "{{emptyText}}" } }],
+      "columns": [{ "kind": "template" }]
+    }
+  }
+}

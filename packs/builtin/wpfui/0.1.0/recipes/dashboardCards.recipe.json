@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "wpfdevtools.ui-recipe.v1",
+  "id": "wpfui.dashboardCards",
+  "displayName": "Dashboard Card Starter",
+  "description": "A WPF UI card with header, body text, and a primary action.",
+  "packId": "wpfui",
+  "inputs": {
+    "heading": { "type": "string", "default": "Overview" },
+    "body": { "type": "string", "default": "Summarize the current state." },
+    "actionText": { "type": "string", "default": "Open" }
+  },
+  "requiredPacks": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+  "expandsTo": {
+    "kind": "wpfui.card",
+    "slots": {
+      "header": [{ "kind": "wpfui.textBlock", "properties": { "text": "{{heading}}" } }],
+      "content": [{ "kind": "wpfui.textBlock", "properties": { "text": "{{body}}" } }],
+      "actions": [{ "kind": "wpfui.button", "properties": { "text": "{{actionText}}" } }]
+    }
+  }
+}

@@ -17,7 +17,8 @@ public sealed class McpToolPrerequisiteDescriptionTests
         "get_active_process",
         "connect",
         "list_ui_block_packs",
-        "get_ui_block_catalog"
+        "get_ui_block_catalog",
+        "validate_ui_blueprint"
     };
 
     [Fact]

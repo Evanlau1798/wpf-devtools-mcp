@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Catalog;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 
@@ -55,6 +56,26 @@ public static class UiComposerMcpTools
             timeoutSeconds: 10);
     }
 
+    [McpServerTool(Name = "validate_ui_blueprint", Title = "Validate UI Composer Blueprint", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [Description(UiComposerMcpToolDescriptions.ValidateUiBlueprint)]
+    public static Task<CallToolResult> ValidateUiBlueprint(
+        [Description("UI blueprint JSON text to validate against installed Composer pack contracts.")] string blueprintJson,
+        [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
+        [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("blueprintJson", blueprintJson),
+            ("projectRoot", projectRoot),
+            ("localAppDataRoot", localAppDataRoot));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(ValidateBlueprint(blueprintJson, projectRoot, localAppDataRoot)),
+            args,
+            cancellationToken,
+            timeoutSeconds: 10);
+    }
+
     private static object ListPacks(string? projectRoot, string? localAppDataRoot)
     {
         var registry = CreateRegistry(projectRoot, localAppDataRoot);
@@ -86,6 +107,23 @@ public static class UiComposerMcpTools
             success = true,
             itemCount = result.Items.Count,
             items = result.Items,
+            diagnostics = result.Diagnostics
+        };
+    }
+
+    private static object ValidateBlueprint(string blueprintJson, string? projectRoot, string? localAppDataRoot)
+    {
+        var validator = new BlueprintValidationService(CreateRegistry(projectRoot, localAppDataRoot));
+        var result = validator.Validate(blueprintJson);
+
+        return new
+        {
+            success = true,
+            valid = result.Success,
+            errorCount = result.Errors.Count,
+            warningCount = result.Warnings.Count,
+            errors = result.Errors,
+            warnings = result.Warnings,
             diagnostics = result.Diagnostics
         };
     }

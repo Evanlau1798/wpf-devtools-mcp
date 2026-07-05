@@ -50,7 +50,7 @@ public class ReadmeDocumentationTests
         var content = File.ReadAllText(GetRepoFilePath("README.md"));
 
         content.Should().Contain("STDIO");
-        content.Should().Contain("66 MCP tools");
+        content.Should().Contain("67 MCP tools");
         content.Should().Contain("Security defaults fail closed");
         content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
         content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS");

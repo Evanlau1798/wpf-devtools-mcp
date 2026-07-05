@@ -40,6 +40,10 @@ internal sealed class UiBlockProperty
     public string Type { get; set; } = string.Empty;
     public bool Required { get; set; }
     public JsonElement? Default { get; set; }
+    public string[] AllowedValues { get; set; } = [];
+
+    [JsonPropertyName("enum")]
+    public string[] EnumValues { get; set; } = [];
 }
 
 internal sealed class UiBlockSlot
@@ -73,13 +77,16 @@ internal sealed class UiBlueprint : ComposerJsonDocument
     public ComposerPackReference[] Packs { get; set; } = [];
     public string PrimaryPack { get; set; } = string.Empty;
     public UiBlueprintNode Layout { get; set; } = new();
+    public Dictionary<string, JsonElement> Metadata { get; set; } = new(StringComparer.Ordinal);
 }
 
 internal sealed class UiBlueprintNode
 {
     public string Kind { get; set; } = string.Empty;
     public Dictionary<string, JsonElement> Properties { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, JsonElement> Bindings { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, UiBlueprintNode[]> Slots { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, JsonElement> Metadata { get; set; } = new(StringComparer.Ordinal);
 }
 
 internal sealed class ComposerPackReference

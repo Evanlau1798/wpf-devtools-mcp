@@ -53,4 +53,28 @@ internal static class UiComposerMcpToolDescriptions
         - {"kind":"wpfui.button"}
         - {"kindPrefix":"wpfui.navigation","composableOnly":true}
         """;
+
+    public const string ValidateUiBlueprint =
+        """
+        Use this tool to validate a WPF DevTools Composer UI blueprint against installed pack contracts before rendering or applying generated XAML.
+
+        CATEGORY: UI Composer
+
+        USE WHEN: You have blueprint JSON and need pack resolution, block kind, slot, property type, enum, required property, and repair guidance checks.
+
+        DO NOT USE: Do not use this for live WPF runtime inspection or mutation. Use connect and scene tools for a running target application.
+
+        RESPONSE SUMMARY:
+        - Returns success, valid, errorCount, warningCount, errors, warnings, and diagnostics.
+        - Errors and warnings include jsonPath, code, message, repairSuggestion, and relevant allowedKinds or allowedValues.
+        - valid=false is a validation result, not an MCP transport failure.
+
+        REQUEST OPTIONS:
+        - blueprintJson is required and must contain schemaVersion wpfdevtools.ui-blueprint.v1.
+        - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
+        - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
+
+        EXAMPLES:
+        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}"}
+        """;
 }

@@ -1,0 +1,4 @@
+<ui:NavigationViewItem TargetPageTag="{{targetPageTag}}">
+  <ui:NavigationViewItem.Icon>{{slot.icon}}</ui:NavigationViewItem.Icon>
+  {{slot.content}}
+</ui:NavigationViewItem>

@@ -1,0 +1,3 @@
+<ui:TitleBar Title="{{title}}">
+  {{slot.actions}}
+</ui:TitleBar>

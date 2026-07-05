@@ -1,0 +1,3 @@
+<ui:TabView SelectedIndex="{{selectedIndex}}">
+  {{slot.items}}
+</ui:TabView>

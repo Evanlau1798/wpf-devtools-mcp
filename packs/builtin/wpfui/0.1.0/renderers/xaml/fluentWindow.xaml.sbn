@@ -1,0 +1,4 @@
+<ui:FluentWindow Title="{{title}}">
+  {{slot.titleBar}}
+  {{slot.content}}
+</ui:FluentWindow>

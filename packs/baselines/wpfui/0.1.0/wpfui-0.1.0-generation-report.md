@@ -1,0 +1,77 @@
+# WPF UI 0.1.0 Generation Report
+
+## Generation Steps
+
+1. Read installed skill from `C:/Users/sl306/.codex/skills/wpf-extension-pack-creator`.
+2. Read required references: extraction policy, contract overview, multi-pack resolution, source inventory and coverage audit, quality levels, default semantic baseline, renderer template rules, provenance and license.
+3. Ran source inventory against `tmp/wpfui-main` and wrote `out/inventory/wpfui.source-inventory.json`.
+4. Ran XAML pattern scan against `tmp/wpfui-main` and wrote `out/inventory/wpfui.xaml-patterns.json`.
+5. Generated semantic release-baseline pack under `out/packs/wpfui/0.1.0/`.
+6. Normalized pack JSON files.
+7. Ran strict validation.
+8. Ran source-inventory coverage audit.
+9. Packaged normalized archive to `out/archives/wpfui-0.1.0.zip`.
+10. Ran release readiness gate after this report existed.
+
+## Validation Commands and Results
+
+```text
+python C:/Users/sl306/.codex/skills/wpf-extension-pack-creator/scripts/inventory_source.py G:/test-wpf-devtools-extension-pack-creator/tmp/wpfui-main --pack-id wpfui --out G:/test-wpf-devtools-extension-pack-creator/out/inventory/wpfui.source-inventory.json
+exit code: 0
+
+python C:/Users/sl306/.codex/skills/wpf-extension-pack-creator/scripts/scan_xaml_patterns.py G:/test-wpf-devtools-extension-pack-creator/tmp/wpfui-main --out G:/test-wpf-devtools-extension-pack-creator/out/inventory/wpfui.xaml-patterns.json
+exit code: 0
+
+python C:/Users/sl306/.codex/skills/wpf-extension-pack-creator/scripts/normalize_pack.py G:/test-wpf-devtools-extension-pack-creator/out/packs/wpfui/0.1.0
+exit code: 0
+
+python C:/Users/sl306/.codex/skills/wpf-extension-pack-creator/scripts/validate_pack.py G:/test-wpf-devtools-extension-pack-creator/out/packs/wpfui/0.1.0 --strict --report G:/test-wpf-devtools-extension-pack-creator/out/reports/wpfui-0.1.0.validation-report.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python C:/Users/sl306/.codex/skills/wpf-extension-pack-creator/scripts/audit_pack_coverage.py G:/test-wpf-devtools-extension-pack-creator/out/packs/wpfui/0.1.0 --source-inventory G:/test-wpf-devtools-extension-pack-creator/out/inventory/wpfui.source-inventory.json --report G:/test-wpf-devtools-extension-pack-creator/out/reports/wpfui-0.1.0.coverage-audit.json
+exit code: 0; valid: true; errors: 0; warnings: 1
+
+python C:/Users/sl306/.codex/skills/wpf-extension-pack-creator/scripts/package_pack.py G:/test-wpf-devtools-extension-pack-creator/out/packs/wpfui/0.1.0 --out G:/test-wpf-devtools-extension-pack-creator/out/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 30; root: wpfui/0.1.0/
+
+python C:/Users/sl306/.codex/skills/wpf-extension-pack-creator/scripts/check_pack_readiness.py G:/test-wpf-devtools-extension-pack-creator/out/packs/wpfui/0.1.0 --level release --archive G:/test-wpf-devtools-extension-pack-creator/out/archives/wpfui-0.1.0.zip --e2e-report G:/test-wpf-devtools-extension-pack-creator/out/wpfui-0.1.0-generation-report.md --required-block wpfui.button --required-block wpfui.titleBar --required-block wpfui.symbolIcon --required-block wpfui.dataGrid --required-block wpfui.snackbar --required-slot wpfui.card.header --required-slot wpfui.navigationView.items --required-slot wpfui.navigationViewItem.icon --required-slot wpfui.tabView.items --required-slot wpfui.contentDialog.content --required-slot wpfui.fluentWindow.content --required-slot wpfui.dataGrid.columns --required-slot wpfui.dataGrid.emptyState --required-slot wpfui.snackbar.content --required-slot wpfui.snackbar.actions --required-slot-kind wpfui.navigationView.items=wpfui.navigationViewItem --required-slot-kind wpfui.navigationViewItem.icon=wpfui.symbolIcon --required-slot-kind wpfui.tabView.items=wpfui.tabViewItem --required-slot-kind wpfui.contentDialog.actions=wpfui.button --required-slot-kind wpfui.fluentWindow.titleBar=wpfui.titleBar --required-slot-kind wpfui.snackbar.actions=wpfui.button --report G:/test-wpf-devtools-extension-pack-creator/out/reports/wpfui-0.1.0.readiness.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+```
+
+## Counts
+
+- Blocks: 13
+- Renderers: 13
+- Recipes: 1
+- Examples: 1
+- Eligible source candidate kinds: 87
+- Generated from candidates: 13
+- Style-only generated blocks: 0
+- Missing eligible candidates: 74
+- Excluded candidates: 363
+- Coverage ratio: 0.1494
+
+## Coverage Audit Summary
+
+Coverage audit passed with one warning: `SourceInventoryEligibleCandidatesMissing`.
+
+The generated pack intentionally covers the reusable/default semantic baseline first: `card`, `navigationView`, `navigationViewItem`, `tabView`, `tabViewItem`, `contentDialog`, `fluentWindow`, `dataGrid`, `snackbar`, plus primitive blocks `button`, `titleBar`, `symbolIcon`, and `textBlock`.
+
+Known missing candidates include additional controls and gallery/sample surfaces such as `autoSuggestBox`, `breadcrumbBar`, `infoBar`, `listView`, `numberBox`, `passwordBox`, `progressRing`, `toggleSwitch`, `treeViewItem`, and several sample pages. These are not modeled in this stability-test pack.
+
+## Release Readiness Summary
+
+Release readiness passed with the default semantic baseline required blocks, slots, and slot-kind relationships. Final readiness result is recorded in `out/reports/wpfui-0.1.0.readiness.json`.
+
+## Friction Points
+
+- `tmp/wpfui-main` is not a git repository in this workspace, so no commit SHA was available. `source.lock.json` records upstream URL and source version `4.3.0` from `Directory.Build.props`.
+- The skill has validation, audit, packaging, and readiness scripts, but no one-command generator. I used a temporary generator in `tmp/` and removed it after generation.
+- `audit_pack_coverage.py` treats missing eligible candidates as warnings, not errors. This means a release gate can pass while coverage is intentionally partial.
+- The coverage report is very large when pretty-printed because it includes excluded candidates. It was compacted after validation to keep generated reports under the 500-line limit without changing JSON content.
+
+## Assumptions
+
+- Assumption: `https://github.com/lepoco/wpfui` is the upstream URL. Reason: WPF UI repository conventions and package metadata point to the public WPF UI project, but this local source folder has no git remote to verify.
+- Assumption: source version `4.3.0` is the best provenance version. Reason: `Directory.Build.props` contains `<Version>4.3.0</Version>` and no local git commit is available.
+- Assumption: a semantic baseline pack is preferable to generating all 87 eligible candidate kinds as shallow blocks. Reason: the user requested reusable/default semantic baseline slot relationships, and the skill cautions against claiming completeness without meaningful semantic modeling.

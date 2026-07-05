@@ -1,0 +1,133 @@
+using System.IO.Compression;
+using System.Text.Json;
+using FluentAssertions;
+using WpfDevTools.Tests.Unit.TestSupport;
+using Xunit;
+
+namespace WpfDevTools.Tests.Unit.Composer;
+
+public sealed class ComposerBaselinePackTests
+{
+    private const string PackRoot = "packs/builtin/wpfui/0.1.0";
+    private const string BaselineRoot = "packs/baselines/wpfui/0.1.0";
+
+    private static readonly string[] ExpectedBlockKinds =
+    [
+        "wpfui.button",
+        "wpfui.card",
+        "wpfui.contentDialog",
+        "wpfui.dataGrid",
+        "wpfui.fluentWindow",
+        "wpfui.navigationView",
+        "wpfui.navigationViewItem",
+        "wpfui.snackbar",
+        "wpfui.symbolIcon",
+        "wpfui.tabView",
+        "wpfui.tabViewItem",
+        "wpfui.textBlock",
+        "wpfui.titleBar"
+    ];
+
+    [Fact]
+    public void BuiltinWpfUiPack_ShouldFreezeCurrentSemanticBaseline()
+    {
+        using var pack = ReadJson(Path.Combine(PackRoot, "pack.json"));
+        using var sourceLock = ReadJson(Path.Combine(PackRoot, "source.lock.json"));
+
+        var packRoot = GetRepoFilePath(PackRoot);
+        Directory.Exists(packRoot).Should().BeTrue();
+        GetString(pack.RootElement, "schemaVersion").Should().Be("wpfdevtools.ui-pack.v1");
+        GetString(pack.RootElement, "id").Should().Be("wpfui");
+        GetString(pack.RootElement, "version").Should().Be("0.1.0");
+        GetStringArray(pack.RootElement, "blocks").Should().BeEquivalentTo(ExpectedBlockKinds);
+
+        Directory.GetFiles(Path.Combine(packRoot, "blocks"), "*.block.json")
+            .Should().HaveCount(13);
+        Directory.GetFiles(Path.Combine(packRoot, "renderers", "xaml"), "*.xaml.sbn")
+            .Should().HaveCount(13);
+        Directory.GetFiles(Path.Combine(packRoot, "recipes"), "*.recipe.json")
+            .Should().HaveCount(1);
+        Directory.GetFiles(Path.Combine(packRoot, "examples"), "*.ui.json")
+            .Should().HaveCount(1);
+
+        GetStringArray(sourceLock.RootElement.GetProperty("sources")[0], "paths")
+            .Should().Equal("src/Wpf.Ui");
+        ExpectedBlockKinds.Should().NotContain(kind =>
+            kind.Contains("gallery", StringComparison.OrdinalIgnoreCase)
+            || kind.Contains("syntax", StringComparison.OrdinalIgnoreCase)
+            || kind.Contains("tray", StringComparison.OrdinalIgnoreCase)
+            || kind.Contains("template", StringComparison.OrdinalIgnoreCase)
+            || kind.Contains("sample", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void BuiltinWpfUiPack_ShouldPreserveRequiredSlotKindRelationships()
+    {
+        foreach (var (blockKind, slotName, allowedKind) in RequiredSlotKinds)
+        {
+            using var block = ReadJson(Path.Combine(PackRoot, "blocks", $"{blockKind["wpfui.".Length..]}.block.json"));
+
+            GetAllowedKinds(block.RootElement, slotName)
+                .Should().Contain(allowedKind, $"{blockKind}.{slotName} must preserve the Composer baseline relationship");
+        }
+    }
+
+    [Fact]
+    public void BuiltinWpfUiBaseline_ShouldKeepReleaseReportsAndUtf8Json()
+    {
+        using var validation = ReadJson(Path.Combine(BaselineRoot, "reports", "wpfui-0.1.0.validation-report.json"));
+        using var coverage = ReadJson(Path.Combine(BaselineRoot, "reports", "wpfui-0.1.0.coverage-audit.json"));
+        using var readiness = ReadJson(Path.Combine(BaselineRoot, "reports", "wpfui-0.1.0.readiness.json"));
+        using var archive = ZipFile.OpenRead(GetRepoFilePath(Path.Combine(BaselineRoot, "archives", "wpfui-0.1.0.zip")));
+        var reportPath = GetRepoFilePath(Path.Combine(BaselineRoot, "wpfui-0.1.0-generation-report.md"));
+
+        validation.RootElement.GetProperty("valid").GetBoolean().Should().BeTrue();
+        validation.RootElement.GetProperty("strict").GetBoolean().Should().BeTrue();
+        coverage.RootElement.GetProperty("valid").GetBoolean().Should().BeTrue();
+        readiness.RootElement.GetProperty("valid").GetBoolean().Should().BeTrue();
+        GetString(readiness.RootElement, "requestedLevel").Should().Be("release");
+        File.ReadAllText(reportPath).Should().Contain("check_pack_readiness.py");
+        archive.Entries.Should().OnlyContain(entry =>
+            entry.FullName.StartsWith("wpfui/0.1.0/", StringComparison.Ordinal)
+            && !entry.FullName.Contains('\\'));
+        archive.Entries.Select(entry => entry.FullName).Should().Contain("wpfui/0.1.0/pack.json");
+
+        foreach (var path in Directory.EnumerateFiles(GetRepoFilePath("packs"), "*.json", SearchOption.AllDirectories))
+        {
+            File.ReadAllBytes(path).Take(3).Should().NotEqual([0xEF, 0xBB, 0xBF]);
+        }
+    }
+
+    private static readonly (string BlockKind, string SlotName, string AllowedKind)[] RequiredSlotKinds =
+    [
+        ("wpfui.navigationView", "items", "wpfui.navigationViewItem"),
+        ("wpfui.navigationViewItem", "icon", "wpfui.symbolIcon"),
+        ("wpfui.tabView", "items", "wpfui.tabViewItem"),
+        ("wpfui.contentDialog", "actions", "wpfui.button"),
+        ("wpfui.fluentWindow", "titleBar", "wpfui.titleBar"),
+        ("wpfui.snackbar", "actions", "wpfui.button")
+    ];
+
+    private static JsonDocument ReadJson(string relativePath)
+        => JsonDocument.Parse(File.ReadAllText(GetRepoFilePath(relativePath)));
+
+    private static string GetRepoFilePath(string relativePath)
+        => TestRepositoryPaths.GetRepoFilePath(relativePath);
+
+    private static string GetString(JsonElement element, string propertyName)
+        => element.GetProperty(propertyName).GetString()!;
+
+    private static string[] GetStringArray(JsonElement element, string propertyName)
+        => element.GetProperty(propertyName)
+            .EnumerateArray()
+            .Select(item => item.GetString()!)
+            .ToArray();
+
+    private static string[] GetAllowedKinds(JsonElement block, string slotName)
+        => block.GetProperty("slots")
+            .GetProperty(slotName)
+            .GetProperty("allowedKinds")
+            .EnumerateArray()
+            .Select(item => item.GetString()!)
+            .ToArray();
+}

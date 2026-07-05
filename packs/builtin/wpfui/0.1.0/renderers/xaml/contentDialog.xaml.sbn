@@ -1,0 +1,4 @@
+<ui:ContentDialog Title="{{title}}">
+  {{slot.content}}
+  {{slot.actions}}
+</ui:ContentDialog>

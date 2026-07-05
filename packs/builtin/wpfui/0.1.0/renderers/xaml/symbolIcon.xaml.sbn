@@ -1,0 +1,1 @@
+<ui:SymbolIcon Symbol="{{symbol}}" />

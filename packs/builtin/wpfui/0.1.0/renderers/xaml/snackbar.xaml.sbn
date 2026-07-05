@@ -1,0 +1,4 @@
+<ui:Snackbar Timeout="{{timeout}}">
+  {{slot.content}}
+  {{slot.actions}}
+</ui:Snackbar>

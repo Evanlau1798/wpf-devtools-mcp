@@ -1,0 +1,3 @@
+<ui:Button Content="{{text}}" Appearance="{{appearance}}">
+  {{slot.icon}}
+</ui:Button>

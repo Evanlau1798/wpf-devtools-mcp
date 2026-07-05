@@ -1,0 +1,4 @@
+<ui:TabViewItem IsClosable="{{isClosable}}">
+  <ui:TabViewItem.Header>{{slot.header}}</ui:TabViewItem.Header>
+  {{slot.content}}
+</ui:TabViewItem>

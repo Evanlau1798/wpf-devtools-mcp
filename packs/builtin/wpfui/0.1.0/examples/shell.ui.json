@@ -1,0 +1,1 @@
+{"schemaVersion":"wpfdevtools.ui-blueprint.v1","packs":[{"id":"wpfui","version":"0.1.0","required":true,"role":"primary"}],"primaryPack":"wpfui","layout":{"kind":"wpfui.fluentWindow","slots":{"content":[{"kind":"wpfui.navigationView"}],"titleBar":[{"kind":"wpfui.titleBar","properties":{"title":"WPF UI App"}}]}},"name":"WpfUiShell"}

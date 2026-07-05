@@ -1,0 +1,5 @@
+<ui:NavigationView PaneDisplayMode="{{paneDisplayMode}}">
+  <ui:NavigationView.MenuItems>{{slot.items}}</ui:NavigationView.MenuItems>
+  {{slot.content}}
+  <ui:NavigationView.FooterMenuItems>{{slot.footer}}</ui:NavigationView.FooterMenuItems>
+</ui:NavigationView>

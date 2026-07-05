@@ -1,0 +1,1 @@
+<ui:TextBlock Text="{{text}}" Appearance="{{appearance}}" />

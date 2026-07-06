@@ -22,6 +22,69 @@ public sealed class ComposerBlueprintValidationTests
     }
 
     [Fact]
+    public void ValidateBlueprint_ShouldRequirePrimaryPackRole()
+    {
+        var validator = CreateValidator();
+        var missingRole = Blueprint("""
+            {
+              "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true }],
+              "primaryPack": "wpfui",
+              "layout": { "kind": "wpfui.button" }
+            }
+            """);
+        var wrongRole = Blueprint("""
+            {
+              "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "optional" }],
+              "primaryPack": "wpfui",
+              "layout": { "kind": "wpfui.button" }
+            }
+            """);
+
+        var missingResult = validator.Validate(missingRole);
+        var wrongResult = validator.Validate(wrongRole);
+
+        missingResult.Errors.Should().Contain(issue => issue.JsonPath == "$.packs[0].role"
+            && issue.Code == "PrimaryPackRoleMismatch");
+        wrongResult.Errors.Should().Contain(issue => issue.JsonPath == "$.packs[0].role"
+            && issue.Code == "PrimaryPackRoleMismatch");
+    }
+
+    [Fact]
+    public void ValidateBlueprint_ShouldRejectUnknownPropertyAndWarnForUnusedDeclaredPack()
+    {
+        var projectRoot = CreateTempProjectWithValidationPack();
+        try
+        {
+            var validator = CreateValidator(projectRoot);
+            var blueprint = Blueprint("""
+                {
+                  "packs": [
+                    { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
+                    { "id": "validation", "version": "1.0.0", "required": false, "role": "optional" }
+                  ],
+                  "primaryPack": "wpfui",
+                  "layout": {
+                    "kind": "wpfui.button",
+                    "properties": { "rawXaml": "<Button />" }
+                  }
+                }
+                """);
+
+            var result = validator.Validate(blueprint);
+
+            result.Success.Should().BeFalse();
+            result.Errors.Should().Contain(issue => issue.JsonPath == "$.layout.properties.rawXaml"
+                && issue.Code == "UnknownProperty");
+            result.Warnings.Should().Contain(issue => issue.JsonPath == "$.packs[1]"
+                && issue.Code == "UnusedPack");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
     public void ValidateBlueprint_ShouldRejectUnknownPackAndPrimaryPackOutsidePacks()
     {
         var validator = CreateValidator();
@@ -94,8 +157,8 @@ public sealed class ComposerBlueprintValidationTests
             var qualified = Blueprint("""
                 {
                   "packs": [
-                    { "id": "wpfui", "version": "0.1.0", "required": true },
-                    { "id": "validation", "version": "1.0.0", "required": true }
+                    { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
+                    { "id": "validation", "version": "1.0.0", "required": true, "role": "optional" }
                   ],
                   "primaryPack": "wpfui",
                   "layout": {
@@ -107,8 +170,8 @@ public sealed class ComposerBlueprintValidationTests
             var unqualified = Blueprint("""
                 {
                   "packs": [
-                    { "id": "wpfui", "version": "0.1.0", "required": true },
-                    { "id": "validation", "version": "1.0.0", "required": true }
+                    { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
+                    { "id": "validation", "version": "1.0.0", "required": true, "role": "optional" }
                   ],
                   "primaryPack": "wpfui",
                   "layout": {
@@ -190,7 +253,7 @@ public sealed class ComposerBlueprintValidationTests
                 {
                   "schemaVersion": "wpfdevtools.ui-blueprint.v1",
                   "name": "ValidationDemo",
-                  "packs": [{ "id": "validation", "version": "1.0.0", "required": true }],
+                  "packs": [{ "id": "validation", "version": "1.0.0", "required": true, "role": "primary" }],
                   "primaryPack": "validation",
                   "layout": {
                     "kind": "validation.demo",
@@ -213,7 +276,7 @@ public sealed class ComposerBlueprintValidationTests
             var enumIssue = result.Errors.Should().ContainSingle(issue => issue.JsonPath == "$.layout.properties.mode"
                 && issue.Code == "PropertyValueNotAllowed").Subject;
             enumIssue.AllowedValues.Should().Equal("compact", "expanded");
-            result.Warnings.Should().Contain(issue => issue.JsonPath == "$.layout.properties.extra"
+            result.Errors.Should().Contain(issue => issue.JsonPath == "$.layout.properties.extra"
                 && issue.Code == "UnknownProperty");
         }
         finally
@@ -338,7 +401,7 @@ public sealed class ComposerBlueprintValidationTests
         var root = document.RootElement;
         var packs = root.TryGetProperty("packs", out var packElement)
             ? packElement.GetRawText()
-            : """[{ "id": "wpfui", "version": "0.1.0", "required": true }]""";
+            : """[{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }]""";
         var primaryPack = root.TryGetProperty("primaryPack", out var primaryElement)
             ? primaryElement.GetRawText()
             : JsonSerializer.Serialize("wpfui");

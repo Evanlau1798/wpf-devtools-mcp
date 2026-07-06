@@ -36,7 +36,7 @@ public sealed class ComposerBlueprintRepairTests
                 && action.RepairKind == "replace-child-kind"
                 && action.AllowedKinds.Contains("repair.item"));
             result.Actions.Should().Contain(action => action.IssueCode == "UnknownProperty"
-                && action.Source == "validation-warning"
+                && action.Source == "validation"
                 && action.RepairKind == "review-blueprint");
         }
         finally
@@ -51,7 +51,7 @@ public sealed class ComposerBlueprintRepairTests
         var repair = new BlueprintRepairService(CreateRegistry());
         var result = repair.Repair(new BlueprintRepairRequest(Blueprint("""
             {
-              "packs": [{ "id": "missing", "version": "0.1.0", "required": true }],
+              "packs": [{ "id": "missing", "version": "0.1.0", "required": true, "role": "primary" }],
               "primaryPack": "missing",
               "layout": { "kind": "wpfui.missing" }
             }
@@ -134,8 +134,10 @@ public sealed class ComposerBlueprintRepairTests
             var payload = result.StructuredContent!.Value;
             payload.GetProperty("success").GetBoolean().Should().BeTrue();
             payload.GetProperty("generatedXamlPatch").GetBoolean().Should().BeFalse();
-            payload.GetProperty("actionCount").GetInt32().Should().Be(1);
-            payload.GetProperty("actions")[0].GetProperty("target").GetString().Should().Be("blueprint");
+            payload.GetProperty("actionCount").GetInt32().Should().BeGreaterThanOrEqualTo(1);
+            payload.GetProperty("actions").EnumerateArray().Should().Contain(action =>
+                action.GetProperty("target").GetString() == "blueprint"
+                && action.GetProperty("issueCode").GetString() == "UnqualifiedBlockKind");
         }
         finally
         {
@@ -158,7 +160,7 @@ public sealed class ComposerBlueprintRepairTests
         var root = document.RootElement;
         var packs = root.TryGetProperty("packs", out var packElement)
             ? packElement.GetRawText()
-            : """[{ "id": "wpfui", "version": "0.1.0", "required": true }]""";
+            : """[{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }]""";
         var primaryPack = root.TryGetProperty("primaryPack", out var primaryElement)
             ? primaryElement.GetRawText()
             : JsonSerializer.Serialize("wpfui");
@@ -180,7 +182,7 @@ public sealed class ComposerBlueprintRepairTests
             {
               "schemaVersion": "wpfdevtools.ui-blueprint.v1",
               "name": "RepairDemo",
-              "packs": [{ "id": "repair", "version": "1.0.0", "required": true }],
+              "packs": [{ "id": "repair", "version": "1.0.0", "required": true, "role": "primary" }],
               "primaryPack": "repair",
               "layout": {{layoutJson}}
             }

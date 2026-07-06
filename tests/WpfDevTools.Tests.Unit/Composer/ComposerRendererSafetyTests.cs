@@ -53,8 +53,27 @@ public sealed class ComposerRendererSafetyTests
             {
               "kind": "wpfui.button",
               "properties": {
-                "text": "<TextBlock Click=\"Run\" x:Class=\"Safe.View\" xmlns:evil=\"clr-namespace:Safe\" />",
                 "rawXaml": "<ObjectDataProvider />"
+              }
+            }
+            """)));
+
+        result.Success.Should().BeFalse();
+        result.Validation.Errors.Should().Contain(issue => issue.JsonPath == "$.layout.properties.rawXaml"
+            && issue.Code == "UnknownProperty");
+        result.Xaml.Should().NotContain("ObjectDataProvider");
+    }
+
+    [Fact]
+    public void RenderBlueprint_ShouldAllowEscapedTextThatLooksLikeUnsafeXaml()
+    {
+        var renderer = new UiBlueprintRenderer(PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath(".")));
+
+        var result = renderer.Render(new RenderBlueprintRequest(WpfUiBlueprint("""
+            {
+              "kind": "wpfui.button",
+              "properties": {
+                "text": "<TextBlock Click=\"Run\" x:Class=\"Safe.View\" xmlns:evil=\"clr-namespace:Safe\" />"
               }
             }
             """)));
@@ -63,9 +82,6 @@ public sealed class ComposerRendererSafetyTests
         result.Xaml.Should().Contain("&lt;TextBlock Click=&quot;Run&quot;");
         result.Xaml.Should().Contain("x:Class=&quot;Safe.View&quot;");
         result.Xaml.Should().Contain("xmlns:evil=&quot;clr-namespace:Safe&quot;");
-        result.Xaml.Should().NotContain("ObjectDataProvider");
-        result.Validation.Warnings.Should().Contain(issue => issue.JsonPath == "$.layout.properties.rawXaml"
-            && issue.Code == "UnknownProperty");
     }
 
     private static PackRegistry CreateRegistry(string projectRoot)
@@ -79,7 +95,7 @@ public sealed class ComposerRendererSafetyTests
             {
               "schemaVersion": "wpfdevtools.ui-blueprint.v1",
               "name": "SafetyView",
-              "packs": [{ "id": "safety", "version": "1.0.0", "required": true }],
+              "packs": [{ "id": "safety", "version": "1.0.0", "required": true, "role": "primary" }],
               "primaryPack": "safety",
               "layout": { "kind": "safety.demo" }
             }
@@ -90,7 +106,7 @@ public sealed class ComposerRendererSafetyTests
             {
               "schemaVersion": "wpfdevtools.ui-blueprint.v1",
               "name": "SafetyView",
-              "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true }],
+              "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
               "primaryPack": "wpfui",
               "layout": {{layoutJson}}
             }

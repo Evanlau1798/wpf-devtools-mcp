@@ -60,7 +60,7 @@ public sealed class ComposerPreviewDiagnosticSourceTests
             {
               "schemaVersion": "wpfdevtools.ui-blueprint.v1",
               "name": "PreviewView",
-              "packs": [{ "id": "compilemap", "version": "1.0.0", "required": true }],
+              "packs": [{ "id": "compilemap", "version": "1.0.0", "required": true, "role": "primary" }],
               "primaryPack": "compilemap",
               "layout": {
                 "kind": "{{hostKind}}",

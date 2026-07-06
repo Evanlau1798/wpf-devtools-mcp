@@ -30,19 +30,16 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                 render.Errors.Select(ApplyBlueprintIssue.FromValidationIssue).ToArray());
         }
 
-        var generatedXaml = AddComposerHeaderAndSafeSlot(
-            request.BlueprintJson,
-            render.Xaml,
-            File.Exists(targetPath) ? File.ReadAllText(targetPath) : null);
         var viewModelContract = CreateViewModelContract(projectRoot, targetPath, render.RequiredNuGetPackages);
-        var filePlan = CreateFilePlan(targetPath, viewModelContract.TargetPath, request.DryRun, backupPath: null);
 
         if (request.DryRun)
         {
+            var dryRunXaml = AddComposerHeaderAndSafeSlot(request.BlueprintJson, render.Xaml, existingContent: null);
+            var filePlan = CreateFilePlan(targetPath, viewModelContract.TargetPath, request.DryRun, backupPath: null);
             return ApplyBlueprintResult.CreateValid(
                 dryRun: true,
                 wouldWriteFiles: false,
-                generatedXaml,
+                dryRunXaml,
                 filePlan,
                 render.RequiredResources,
                 render.RequiredNuGetPackages,
@@ -69,6 +66,10 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                     "Choose a targetPath whose existing parent directories are ordinary directories inside the reviewed projectRoot.")]);
         }
 
+        var generatedXaml = AddComposerHeaderAndSafeSlot(
+            request.BlueprintJson,
+            render.Xaml,
+            File.Exists(targetPath) ? File.ReadAllText(targetPath) : null);
         var backupPath = WriteViewFile(projectRoot, targetPath, generatedXaml);
         return ApplyBlueprintResult.CreateValid(
             dryRun: false,

@@ -65,6 +65,34 @@ public sealed class ComposerApplyDryRunTests
     }
 
     [Fact]
+    public void ApplyBlueprint_ShouldNotReadExistingTargetBeforeWriteIsAuthorized()
+    {
+        var tempRoot = CreateTempDirectory();
+        using var writes = new EnvironmentVariableScope(McpServerConfiguration.AllowProjectWritesEnvVar, null);
+        using var roots = new EnvironmentVariableScope(McpServerConfiguration.AllowedProjectRootsEnvVar, null);
+        try
+        {
+            var projectRoot = Path.Combine(tempRoot, "project");
+            var targetPath = Path.Combine(projectRoot, "Views", "GeneratedView.xaml");
+            Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+            File.WriteAllText(targetPath, ExistingViewWithManualSlot());
+            using var locked = new FileStream(targetPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            var service = new UiBlueprintApplyService(CreateRegistry());
+
+            var dryRun = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, targetPath));
+            var blockedWrite = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, targetPath, DryRun: false));
+
+            dryRun.Success.Should().BeTrue();
+            blockedWrite.Success.Should().BeFalse();
+            blockedWrite.Errors.Should().Contain(error => error.Code == "ProjectWritesDisabled");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void ApplyBlueprint_ShouldRejectTargetOutsideProjectRoot()
     {
         var tempRoot = CreateTempDirectory();

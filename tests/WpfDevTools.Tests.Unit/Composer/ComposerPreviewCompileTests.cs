@@ -1,11 +1,14 @@
 using FluentAssertions;
+using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Shared.Security;
 using WpfDevTools.Tests.Unit.TestSupport;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
+[Collection("ProcessEnvironment")]
 public sealed class ComposerPreviewCompileTests
 {
     [Theory]
@@ -62,7 +65,10 @@ public sealed class ComposerPreviewCompileTests
     [Fact]
     public async Task PreviewUiBlueprintTool_ShouldReturnStructuredCompileResult()
     {
+        using var sessionManager = new SessionManager();
+
         var result = await UiComposerMcpTools.PreviewUiBlueprint(
+            sessionManager,
             ButtonBlueprint(),
             restoreEnabled: true,
             cancellationToken: CancellationToken.None);
@@ -79,16 +85,145 @@ public sealed class ComposerPreviewCompileTests
     public async Task PreviewBlueprintAsync_WhenStartHostIsTrue_ShouldLoadGeneratedView()
     {
         var service = new UiBlueprintPreviewService(CreateRegistry());
+        using var timeout = CreateTimeout();
 
         var result = await service.PreviewAsync(
             new PreviewBlueprintRequest(ButtonBlueprint(), RestoreEnabled: true, StartHost: true),
-            CancellationToken.None);
+            timeout.Token);
 
         result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
         result.PreviewHost.Status.Should().Be("loaded");
         result.PreviewHost.Started.Should().BeTrue();
         result.PreviewHost.ViewLoaded.Should().BeTrue();
         result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "PreviewHostViewLoaded");
+    }
+
+    [Fact]
+    public async Task PreviewBlueprintAsync_WhenRuntimeDiagnosticsNotRequested_ShouldNotGenerateInspectorSdkDependency()
+    {
+        var tempRoot = Path.Combine(
+            TestRepositoryPaths.GetRepoFilePath("tmp"),
+            "preview-no-sdk-" + Guid.NewGuid().ToString("N"));
+        var service = new UiBlueprintPreviewService(CreateRegistry());
+        using var timeout = CreateTimeout();
+
+        try
+        {
+            var result = await service.PreviewAsync(
+                new PreviewBlueprintRequest(
+                    ButtonBlueprint(),
+                    RestoreEnabled: true,
+                    KeepArtifacts: true,
+                    TemporaryRoot: tempRoot),
+                timeout.Token);
+
+            result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+            File.ReadAllText(Path.Combine(tempRoot, "PreviewHost.csproj"))
+                .Should().NotContain("WpfDevTools.Inspector.Sdk");
+            File.ReadAllText(Path.Combine(tempRoot, "MainWindow.xaml.cs"))
+                .Should().NotContain("WpfDevTools.Inspector.Sdk");
+        }
+        finally
+        {
+            DeleteDirectoryBestEffort(tempRoot);
+        }
+    }
+
+    [Fact]
+    public async Task PreviewBlueprintAsync_WhenRuntimeDiagnosticsRequested_ShouldCaptureConnectSemanticSummaryAndLayout()
+    {
+        using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");
+        using var screenshots = new EnvironmentVariableScope(McpServerConfiguration.AllowScreenshotsEnvVar, null);
+        using var session = SecurePreviewSession.Create();
+        var service = new UiBlueprintPreviewService(CreateRegistry(), session.SessionManager);
+        using var timeout = CreateTimeout();
+
+        var result = await service.PreviewAsync(
+            new PreviewBlueprintRequest(
+                ButtonBlueprint(),
+                RestoreEnabled: true,
+                StartHost: true,
+                IncludeRuntimeDiagnostics: true),
+            timeout.Token);
+
+        result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+        result.PreviewHost.RuntimeDiagnostics.Should().Contain(diagnostic => diagnostic.Tool == "connect" && diagnostic.Success);
+        var summary = result.PreviewHost.RuntimeDiagnostics.Should()
+            .ContainSingle(diagnostic => diagnostic.Tool == "get_ui_summary" && diagnostic.Success)
+            .Subject.Payload;
+        summary.GetProperty("depthMode").GetString().Should().Be("semantic");
+        result.PreviewHost.RuntimeDiagnostics.Should().Contain(diagnostic => diagnostic.Tool == "get_layout_info" && diagnostic.Success);
+        result.PreviewHost.RuntimeDiagnostics.Should().NotContain(diagnostic => diagnostic.Tool == "element_screenshot");
+    }
+
+    [Fact]
+    public async Task PreviewBlueprintAsync_WhenScreenshotDiagnosticsRequestedWithoutRuntimeFlag_ShouldReportPolicyBlock()
+    {
+        using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");
+        using var screenshots = new EnvironmentVariableScope(McpServerConfiguration.AllowScreenshotsEnvVar, null);
+        using var session = SecurePreviewSession.Create();
+        var service = new UiBlueprintPreviewService(CreateRegistry(), session.SessionManager);
+        using var timeout = CreateTimeout();
+
+        var result = await service.PreviewAsync(
+            new PreviewBlueprintRequest(
+                ButtonBlueprint(),
+                RestoreEnabled: true,
+                StartHost: true,
+                IncludeScreenshotDiagnostics: true),
+            timeout.Token);
+
+        result.PreviewHost.RuntimeDiagnostics.Should()
+            .Contain(diagnostic => diagnostic.Tool == "connect" && diagnostic.Success);
+        var screenshot = result.PreviewHost.RuntimeDiagnostics.Should()
+            .ContainSingle(diagnostic => diagnostic.Tool == "element_screenshot")
+            .Subject;
+        screenshot.Success.Should().BeFalse();
+        screenshot.Payload.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+        screenshot.Payload.GetProperty("hint").GetString().Should().Contain(McpServerConfiguration.AllowScreenshotsEnvVar);
+    }
+
+    [Fact]
+    public async Task PreviewBlueprintAsync_WhenRuntimeDiagnosticsKeepArtifacts_ShouldDeleteSdkOptionsFile()
+    {
+        using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");
+        using var screenshots = new EnvironmentVariableScope(McpServerConfiguration.AllowScreenshotsEnvVar, null);
+        using var session = SecurePreviewSession.Create();
+        var tempRoot = Path.Combine(
+            TestRepositoryPaths.GetRepoFilePath("tmp"),
+            "preview-sdk-options-" + Guid.NewGuid().ToString("N"));
+        var service = new UiBlueprintPreviewService(CreateRegistry(), session.SessionManager);
+        using var timeout = CreateTimeout();
+
+        try
+        {
+            var result = await service.PreviewAsync(
+                new PreviewBlueprintRequest(
+                    ButtonBlueprint(),
+                    RestoreEnabled: true,
+                    KeepArtifacts: true,
+                    TemporaryRoot: tempRoot,
+                    StartHost: true,
+                    IncludeRuntimeDiagnostics: true),
+                timeout.Token);
+
+            result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+            result.PreviewHost.RuntimeDiagnostics.Should()
+                .Contain(diagnostic => diagnostic.Tool == "connect" && diagnostic.Success);
+            File.ReadAllText(Path.Combine(tempRoot, "MainWindow.xaml.cs"))
+                .Should().Contain("DeleteFileBestEffort(optionsPath)");
+            File.Exists(Path.Combine(
+                    tempRoot,
+                    "bin",
+                    "Debug",
+                    "net8.0-windows",
+                    "preview-host-sdk.txt"))
+                .Should().BeFalse();
+        }
+        finally
+        {
+            DeleteDirectoryBestEffort(tempRoot);
+        }
     }
 
     public static TheoryData<string, string> CompilableBlueprints()
@@ -219,4 +354,90 @@ public sealed class ComposerPreviewCompileTests
               "layout": {{layoutJson}}
             }
             """;
+
+    private static CancellationTokenSource CreateTimeout()
+        => new(TimeSpan.FromSeconds(180));
+
+    private static void DeleteDirectoryBestEffort(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private sealed class EnvironmentVariableScope : IDisposable
+    {
+        private readonly string _name;
+        private readonly string? _originalValue;
+
+        public EnvironmentVariableScope(string name, string? value)
+        {
+            _name = name;
+            _originalValue = Environment.GetEnvironmentVariable(name);
+            Environment.SetEnvironmentVariable(name, value);
+        }
+
+        public void Dispose()
+            => Environment.SetEnvironmentVariable(_name, _originalValue);
+    }
+
+    private sealed class SecurePreviewSession : IDisposable
+    {
+        private readonly AuthenticationManager _authenticationManager;
+        private readonly string _certificateDirectory;
+
+        private SecurePreviewSession(
+            AuthenticationManager authenticationManager,
+            CertificateManager certificateManager,
+            string certificateDirectory)
+        {
+            _authenticationManager = authenticationManager;
+            _certificateDirectory = certificateDirectory;
+            SessionManager = new SessionManager(authManager: authenticationManager, certManager: certificateManager);
+        }
+
+        public SessionManager SessionManager { get; }
+
+        public static SecurePreviewSession Create()
+        {
+            var secret = Convert.ToBase64String(Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+            var authManager = new AuthenticationManager(() => secret);
+            var certificateDirectory = Path.Combine(
+                TestRepositoryPaths.GetRepoFilePath("tmp"),
+                "preview-diagnostics-certs-" + Guid.NewGuid().ToString("N"));
+            return new SecurePreviewSession(
+                authManager,
+                new CertificateManager(certificateDirectory),
+                certificateDirectory);
+        }
+
+        public void Dispose()
+        {
+            SessionManager.Dispose();
+            _authenticationManager.Dispose();
+            try
+            {
+                if (Directory.Exists(_certificateDirectory))
+                {
+                    Directory.Delete(_certificateDirectory, recursive: true);
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+    }
 }

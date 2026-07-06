@@ -190,7 +190,7 @@ internal static partial class ReleaseScriptTestHarness
     {
         var inputs = new List<string>
         {
-            "release-cache-v4",
+            "release-cache-v5",
             architecture,
             useSignedPayload ? "signed" : "unsigned",
             GetFileContentHash(GetRepoFilePath("scripts/online-installer.ps1")),
@@ -303,6 +303,7 @@ internal static partial class ReleaseScriptTestHarness
         Directory.CreateDirectory(inspectorNet48Dir);
         Directory.CreateDirectory(bootstrapperDir);
         WritePackagePayloadFile(Path.Combine(binDir, $"wpf-devtools-{architecture}.exe"), signerMetadata.Path, "stub", useSignedPayload);
+        WritePackagePayloadFile(Path.Combine(binDir, "WpfDevTools.Inspector.Sdk.dll"), signerMetadata.Path, "inspector-sdk", useSignedPayload);
         WritePackagePayloadFile(Path.Combine(inspectorNet8Dir, "WpfDevTools.Inspector.dll"), signerMetadata.Path, "net8-inspector", useSignedPayload);
         WritePackagePayloadFile(Path.Combine(inspectorNet48Dir, "WpfDevTools.Inspector.dll"), signerMetadata.Path, "net48-inspector", useSignedPayload);
         WritePackagePayloadFile(Path.Combine(bootstrapperDir, $"WpfDevTools.Bootstrapper.{architecture}.dll"), signerMetadata.Path, "bootstrapper", useSignedPayload);
@@ -320,6 +321,7 @@ internal static partial class ReleaseScriptTestHarness
                 entryExecutable = $"bin/wpf-devtools-{architecture}.exe",
                 runBatch = "run.bat",
                 installScript = "bin/install.ps1",
+                inspectorSdk = "bin/WpfDevTools.Inspector.Sdk.dll",
                 signerThumbprint = signerMetadata.Thumbprint,
                 signerSubject = signerMetadata.Subject,
                 inspector = new

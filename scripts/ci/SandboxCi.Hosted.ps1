@@ -194,7 +194,7 @@ function Invoke-HostedServerRuntimeBuild {
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
         [Parameter(Mandatory = $true)] [ValidateSet('Debug', 'Release')] [string]$Configuration
     )
-
+    Invoke-External "Restore server runtime dependencies $Configuration win-x64" $DotNetPath @('restore', 'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj', '--locked-mode', '-r', 'win-x64', '-p:NuGetAudit=true')
     Invoke-External "Prepare server runtime output $Configuration win-x64" $DotNetPath @(
         'build',
         'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj',

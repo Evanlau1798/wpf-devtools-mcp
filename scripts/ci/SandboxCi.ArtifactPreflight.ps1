@@ -391,11 +391,11 @@ try {
     Assert-RequiredPath -Path (Join-Path $packageRoot 'run.bat') -Description 'run.bat'
     Assert-RequiredPath -Path $installScript -Description 'package-local installer'
     Assert-RequiredPath -Path $manifestPath -Description 'manifest'
+    Assert-RequiredPath -Path (Join-Path $packageRoot 'bin\WpfDevTools.Inspector.Sdk.dll') -Description 'inspector SDK'
     Assert-RequiredPath -Path (Join-Path $packageRoot 'bin\inspectors\net8.0-windows\WpfDevTools.Inspector.dll') -Description 'net8 inspector'
     Assert-RequiredPath -Path (Join-Path $packageRoot 'bin\inspectors\net48\WpfDevTools.Inspector.dll') -Description 'net48 inspector'
     Assert-RequiredPath -Path (Join-Path $packageRoot "bin\bootstrapper\$Architecture\WpfDevTools.Bootstrapper.$Architecture.dll") -Description 'native bootstrapper'
     Assert-RequiredPath -Path (Join-Path $packageRoot "bin\wpf-devtools-$Architecture.exe") -Description 'packaged server executable'
-
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
     if ($manifest.architecture -ne $Architecture) {
         throw "Manifest architecture '$($manifest.architecture)' did not match requested architecture '$Architecture'."

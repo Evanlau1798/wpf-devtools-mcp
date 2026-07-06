@@ -240,6 +240,10 @@ public sealed class GitLabCiWindowsVerificationContractTests
         hosted.Should().Contain("Invoke-HostedServerRuntimeBuild");
         hosted.Should().Contain("src\\WpfDevTools.Mcp.Server\\WpfDevTools.Mcp.Server.csproj");
         hosted.Should().Contain("'--runtime', 'win-x64'");
+        runtimeBuildBlock.Should().Contain("Restore server runtime dependencies $Configuration win-x64");
+        runtimeBuildBlock.IndexOf("Restore server runtime dependencies $Configuration win-x64", StringComparison.Ordinal)
+            .Should().BeLessThan(runtimeBuildBlock.IndexOf("Prepare server runtime output $Configuration win-x64", StringComparison.Ordinal),
+                "release-unit lanes can rewrite project.assets.json without the win-x64 RID target");
         hosted.Should().Contain("Invoke-HostedServerRuntimeBuild -DotNetPath $DotNetPath -Configuration $configuration");
         hosted.IndexOf("Invoke-HostedServerRuntimeBuild -DotNetPath $DotNetPath -Configuration $configuration", StringComparison.Ordinal)
             .Should().BeLessThan(hosted.IndexOf("Run integration tests Debug", StringComparison.Ordinal));

@@ -26,6 +26,7 @@ public sealed partial class ReleasePackagingContractTests
 
         content.Should().Contain("run-template.bat");
         content.Should().Contain("run.bat");
+        content.Should().Contain("WpfDevTools.Inspector.Sdk.dll");
         content.Should().Contain("scripts\\online-installer.ps1");
         content.Should().Contain("scripts\\installer");
         content.Should().Contain("bin\\install.ps1");
@@ -193,6 +194,7 @@ public sealed partial class ReleasePackagingContractTests
 
             File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net48", "WpfDevTools.Inspector.dll")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "bin", "WpfDevTools.Inspector.Sdk.dll")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "bin", "bootstrapper", "arm64", "WpfDevTools.Bootstrapper.arm64.dll")).Should().BeTrue();
         }
         finally
@@ -270,11 +272,13 @@ public sealed partial class ReleasePackagingContractTests
         var installerRoot = Path.Combine(repoRoot, "scripts", "installer");
         var serverProjectRoot = Path.Combine(repoRoot, "src", "WpfDevTools.Mcp.Server");
         var inspectorProjectRoot = Path.Combine(repoRoot, "src", "WpfDevTools.Inspector");
+        var inspectorSdkProjectRoot = Path.Combine(repoRoot, "src", "WpfDevTools.Inspector.Sdk");
         var bootstrapperProjectRoot = Path.Combine(repoRoot, "src", "WpfDevTools.Bootstrapper");
         Directory.CreateDirectory(packagingRoot);
         Directory.CreateDirectory(installerRoot);
         Directory.CreateDirectory(serverProjectRoot);
         Directory.CreateDirectory(inspectorProjectRoot);
+        Directory.CreateDirectory(inspectorSdkProjectRoot);
         Directory.CreateDirectory(bootstrapperProjectRoot);
 
         PublishReleaseScriptSource.CopyTo(packagingRoot);
@@ -322,6 +326,7 @@ public sealed partial class ReleasePackagingContractTests
             </Project>
             """);
         File.WriteAllText(Path.Combine(inspectorProjectRoot, "WpfDevTools.Inspector.csproj"), "<Project />");
+        File.WriteAllText(Path.Combine(inspectorSdkProjectRoot, "WpfDevTools.Inspector.Sdk.csproj"), "<Project />");
         File.WriteAllText(Path.Combine(bootstrapperProjectRoot, "WpfDevTools.Bootstrapper.vcxproj"), "<Project />");
 
         var runtimeId = architecture switch
@@ -350,6 +355,9 @@ public sealed partial class ReleasePackagingContractTests
         Directory.CreateDirectory(inspectorNet48Dir);
         File.WriteAllText(Path.Combine(inspectorNet8Dir, "WpfDevTools.Inspector.dll"), "net8");
         File.WriteAllText(Path.Combine(inspectorNet48Dir, "WpfDevTools.Inspector.dll"), "net48");
+        var inspectorSdkDir = Path.Combine(inspectorSdkProjectRoot, "bin", "Release", "net8.0-windows");
+        Directory.CreateDirectory(inspectorSdkDir);
+        File.WriteAllText(Path.Combine(inspectorSdkDir, "WpfDevTools.Inspector.Sdk.dll"), "sdk");
 
         var bootstrapperOutputDir = Path.Combine(repoRoot, "artifacts", "bootstrapper", "Release", bootstrapperPlatform);
         Directory.CreateDirectory(bootstrapperOutputDir);

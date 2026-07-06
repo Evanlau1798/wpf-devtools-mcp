@@ -68,16 +68,19 @@ Request options:
 
 ## `preview_ui_blueprint`
 
-在 temporary WPF preview project 中 compile generated UI Composer XAML。Agent 需要在 apply generated UI 到真實 project 前取得符合 CI 的 compile-smoke evidence 時，請在 `render_ui_blueprint` 後使用。
+在 temporary WPF preview project 中 compile generated UI Composer XAML。Agent 需要在 apply generated UI 到真實 project 前取得符合 CI 的 compile、host-load，或 runtime scene/layout evidence 時，請在 `render_ui_blueprint` 後使用。
 
 Request options:
 
 - `blueprintJson`: required UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`。
 - `restoreEnabled`: optional boolean，預設為 true。false 時 temporary project 會用 `--no-restore` build，以便 deterministic 驗證 missing-restore diagnostics。
+- `startHost`: optional boolean，預設為 false。true 時 successful build 後會啟動 temporary preview host，並回報 generated-view load status。
+- `includeRuntimeDiagnostics`: optional boolean，預設為 false。搭配 `startHost=true` 時，會對 temporary host 重用 `connect`、`get_ui_summary(depthMode="semantic")` 與 `get_layout_info`。這需要 `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`。
+- `includeScreenshotDiagnostics`: optional boolean，預設為 false。搭配 `startHost=true` 時會啟用 runtime diagnostics，且只有在 `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` 與 `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` 同時允許時才會要求 screenshot metadata。
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
-此 tool 只會寫入隔離的 temporary preview directory，compile smoke 後會刪除。Preview project 使用本機 WPF UI stubs，因此測試不依賴 NuGet cache 或 network access。成功結果包含 `buildSucceeded=true`、generated `xaml`、captured `buildOutput` 與 `previewHost` summary。Build failure 會回傳 diagnostics，能在可用時對應回 blueprint root 與 renderer template path。
+此 tool 只會寫入隔離的 temporary preview directory，compile smoke 後會刪除。Preview project 使用本機 WPF UI stubs，因此測試不依賴 NuGet cache 或 network access。成功結果包含 `buildSucceeded=true`、generated `xaml`、captured `buildOutput` 與 `previewHost` summary。Runtime diagnostics 是 opt-in，會回傳在 `previewHost.runtimeDiagnostics`。Build failure 會回傳 diagnostics，能在可用時對應回 blueprint root 與 renderer template path。
 
 ## `apply_ui_blueprint`
 

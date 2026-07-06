@@ -152,9 +152,12 @@ public static class UiComposerMcpTools
     [McpServerTool(Name = "preview_ui_blueprint", Title = "Preview UI Composer Blueprint Compile Smoke", OpenWorld = false, ReadOnly = false, Destructive = false, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.PreviewUiBlueprint)]
     public static Task<CallToolResult> PreviewUiBlueprint(
+        SessionManager sessionManager,
         [Description("UI blueprint JSON text to compile in a temporary preview project.")] string blueprintJson,
         [Description("When true, runs dotnet restore for the temporary preview project before build. When false, build runs with --no-restore and reports missing assets diagnostics.")] bool restoreEnabled = true,
         [Description("When true, starts the temporary preview host after a successful build, waits for its main window, then terminates it.")] bool startHost = false,
+        [Description("When true with startHost=true, connects to the temporary preview host and returns semantic summary plus layout diagnostics. Requires the sensitive-reads policy gate.")] bool includeRuntimeDiagnostics = false,
+        [Description("When true with startHost=true, enables runtime diagnostics and also requests screenshot metadata diagnostics. Requires the sensitive-reads and screenshot policy gates.")] bool includeScreenshotDiagnostics = false,
         [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global packs.")] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
@@ -163,11 +166,22 @@ public static class UiComposerMcpTools
             ("blueprintJson", blueprintJson),
             ("restoreEnabled", restoreEnabled),
             ("startHost", startHost),
+            ("includeRuntimeDiagnostics", includeRuntimeDiagnostics),
+            ("includeScreenshotDiagnostics", includeScreenshotDiagnostics),
             ("projectRoot", projectRoot),
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, token) => PreviewBlueprint(blueprintJson, restoreEnabled, startHost, projectRoot, localAppDataRoot, token),
+            (_, token) => PreviewBlueprint(
+                sessionManager,
+                blueprintJson,
+                restoreEnabled,
+                startHost,
+                includeRuntimeDiagnostics,
+                includeScreenshotDiagnostics,
+                projectRoot,
+                localAppDataRoot,
+                token),
             args,
             cancellationToken,
             timeoutSeconds: 135);
@@ -288,14 +302,24 @@ public static class UiComposerMcpTools
             .Apply(new ApplyBlueprintRequest(blueprintJson, projectRoot, targetPath, dryRun));
 
     private static async Task<object> PreviewBlueprint(
+        SessionManager sessionManager,
         string blueprintJson,
         bool restoreEnabled,
         bool startHost,
+        bool includeRuntimeDiagnostics,
+        bool includeScreenshotDiagnostics,
         string? projectRoot,
         string? localAppDataRoot,
         CancellationToken cancellationToken)
-        => await new UiBlueprintPreviewService(CreateRegistry(projectRoot, localAppDataRoot))
-            .PreviewAsync(new PreviewBlueprintRequest(blueprintJson, restoreEnabled, StartHost: startHost), cancellationToken)
+        => await new UiBlueprintPreviewService(CreateRegistry(projectRoot, localAppDataRoot), sessionManager)
+            .PreviewAsync(
+                new PreviewBlueprintRequest(
+                    blueprintJson,
+                    restoreEnabled,
+                    StartHost: startHost,
+                    IncludeRuntimeDiagnostics: includeRuntimeDiagnostics,
+                    IncludeScreenshotDiagnostics: includeScreenshotDiagnostics),
+                cancellationToken)
             .ConfigureAwait(false);
 
     private static PackRegistry CreateRegistry(string? projectRoot, string? localAppDataRoot)

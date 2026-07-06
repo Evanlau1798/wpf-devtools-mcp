@@ -6,10 +6,12 @@ using WpfDevTools.Mcp.Server.Composer.Rendering;
 
 namespace WpfDevTools.Mcp.Server.Composer.Preview;
 
-internal sealed class UiBlueprintPreviewService(PackRegistry registry)
+internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, SessionManager? sessionManager = null)
 {
     private const int BuildTimeoutSeconds = 60;
     private const string PreviewLoadedSentinelFileName = "preview-host.loaded";
+    private const string PreviewSdkOptionsFileName = "preview-host-sdk.txt";
+    private const string PreviewSdkReadyFileName = "preview-host-sdk.ready";
 
     public PreviewBlueprintResult Preview(PreviewBlueprintRequest request)
         => PreviewAsync(request).GetAwaiter().GetResult();
@@ -39,7 +41,14 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
         var output = new StringBuilder();
         try
         {
-            WritePreviewProject(tempRoot, render.Xaml);
+            var runtimeDiagnosticsRequested = RequiresRuntimeDiagnostics(request);
+            UiPreviewProjectFiles.Write(
+                tempRoot,
+                render.Xaml,
+                request.StartHost && runtimeDiagnosticsRequested,
+                PreviewLoadedSentinelFileName,
+                PreviewSdkOptionsFileName,
+                PreviewSdkReadyFileName);
             cancellationToken.ThrowIfCancellationRequested();
             var restoreSucceeded = true;
             var cancelled = false;
@@ -72,10 +81,12 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
             }
 
             var previewHost = new PreviewHostResult(buildSucceeded ? "compiled" : "not-started", Started: false);
-            var diagnostics = CreateDiagnostics(buildSucceeded, output.ToString(), rendererTemplatePath, render.Xaml);
+            var diagnostics = CreateDiagnostics(buildSucceeded, output.ToString(), rendererTemplatePath, render.Xaml)
+                .Concat(CreateRequestDiagnostics(request, rendererTemplatePath))
+                .ToArray();
             if (buildSucceeded && request.StartHost)
             {
-                previewHost = await StartPreviewHostAsync(tempRoot, output, cancellationToken).ConfigureAwait(false);
+                previewHost = await StartPreviewHostAsync(tempRoot, output, request, cancellationToken).ConfigureAwait(false);
                 diagnostics = diagnostics.Concat(CreateHostDiagnostics(previewHost, rendererTemplatePath)).ToArray();
             }
 
@@ -167,6 +178,23 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
         return diagnostics;
     }
 
+    private static IReadOnlyList<PreviewDiagnostic> CreateRequestDiagnostics(
+        PreviewBlueprintRequest request,
+        string rendererTemplatePath)
+        => RequiresRuntimeDiagnostics(request) && !request.StartHost
+            ?
+            [
+                new(
+                    "PreviewRuntimeDiagnosticsRequireStartHost",
+                    "Runtime and screenshot diagnostics require startHost=true because they attach to the temporary preview host.",
+                    "$",
+                    rendererTemplatePath)
+            ]
+            : [];
+
+    private static bool RequiresRuntimeDiagnostics(PreviewBlueprintRequest request)
+        => request.IncludeRuntimeDiagnostics || request.IncludeScreenshotDiagnostics;
+
     private static PreviewBlueprintResult CreateCancelledResult(
         bool restoreEnabled,
         string xaml,
@@ -208,77 +236,6 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
         => value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
             .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line));
 
-    private static void WritePreviewProject(string root, string generatedXaml)
-    {
-        File.WriteAllText(Path.Combine(root, "PreviewHost.csproj"), """
-            <Project Sdk="Microsoft.NET.Sdk">
-              <PropertyGroup>
-                <OutputType>WinExe</OutputType>
-                <TargetFramework>net8.0-windows</TargetFramework>
-                <UseWPF>true</UseWPF>
-                <UseAppHost>false</UseAppHost>
-                <Nullable>enable</Nullable>
-                <ImplicitUsings>enable</ImplicitUsings>
-              </PropertyGroup>
-            </Project>
-            """, Encoding.UTF8);
-        File.WriteAllText(Path.Combine(root, "App.xaml"), """
-            <Application x:Class="PreviewHost.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" StartupUri="MainWindow.xaml" />
-            """, Encoding.UTF8);
-        File.WriteAllText(Path.Combine(root, "App.xaml.cs"), BuildAppCode(), Encoding.UTF8);
-        File.WriteAllText(Path.Combine(root, "MainWindow.xaml"), BuildWindowXaml(generatedXaml), Encoding.UTF8);
-        File.WriteAllText(Path.Combine(root, "MainWindow.xaml.cs"), BuildMainWindowCode(), Encoding.UTF8);
-        File.WriteAllText(Path.Combine(root, "WpfUiStubs.cs"), UiPreviewProjectStubs.WpfUi, Encoding.UTF8);
-    }
-
-    private static string BuildAppCode()
-        => string.Join(
-            Environment.NewLine,
-            "using System.Windows;",
-            "namespace PreviewHost;",
-            "public partial " + "class App : Application { }",
-            string.Empty);
-
-    private static string BuildMainWindowCode()
-        => string.Join(
-            Environment.NewLine,
-            "using System;",
-            "using System.IO;",
-            "using System.Windows;",
-            "namespace PreviewHost;",
-            "public partial " + "class MainWindow : Window",
-            "{",
-            "    public MainWindow()",
-            "    {",
-            "        try",
-            "        {",
-            "            InitializeComponent();",
-            "            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, \"" + PreviewLoadedSentinelFileName + "\"), \"loaded\");",
-            "        }",
-            "        catch (Exception ex)",
-            "        {",
-            "            Console.Error.WriteLine(\"preview host view failed: \" + ex.GetType().FullName + \": \" + ex.Message);",
-            "            throw;",
-            "        }",
-            "    }",
-            "}",
-            string.Empty);
-
-    private static string BuildWindowXaml(string generatedXaml)
-        => string.Join(
-            Environment.NewLine,
-            """<Window x:Class="PreviewHost.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="clr-namespace:Wpf.Ui.Controls">""",
-            "  <Grid>",
-            Indent(generatedXaml, "    "),
-            "  </Grid>",
-            "</Window>",
-            string.Empty);
-
-    private static string Indent(string value, string indentation)
-        => string.Join(
-            Environment.NewLine,
-            value.Split(["\r\n", "\n"], StringSplitOptions.None).Select(line => indentation + line));
-
     private static async Task<DotnetCommandResult> RunDotnetAsync(
         string workingDirectory,
         string[] arguments,
@@ -294,6 +251,7 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        process.StartInfo.Environment["MSBUILDDISABLENODEREUSE"] = "1";
         foreach (var argument in arguments)
         {
             process.StartInfo.ArgumentList.Add(argument);
@@ -329,96 +287,6 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
         output.Append(await standardOutput.ConfigureAwait(false));
         output.Append(await standardError.ConfigureAwait(false));
         return new DotnetCommandResult(process.ExitCode == 0, Cancelled: false);
-    }
-
-    private static async Task StopProcessAsync(Process process)
-    {
-        try
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-            }
-
-            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (InvalidOperationException)
-        {
-        }
-    }
-
-    private static async Task<PreviewHostResult> StartPreviewHostAsync(
-        string tempRoot,
-        StringBuilder output,
-        CancellationToken cancellationToken)
-    {
-        var hostDll = Path.Combine(tempRoot, "bin", "Debug", "net8.0-windows", "PreviewHost.dll");
-        var sentinelPath = Path.Combine(Path.GetDirectoryName(hostDll)!, PreviewLoadedSentinelFileName);
-        if (!File.Exists(hostDll))
-        {
-            output.AppendLine("preview host binary was not found.");
-            return new PreviewHostResult("missing-host", Started: false);
-        }
-
-        File.Delete(sentinelPath);
-        using var process = new Process();
-        process.StartInfo = new ProcessStartInfo("dotnet")
-        {
-            WorkingDirectory = tempRoot,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        process.StartInfo.ArgumentList.Add(hostDll);
-
-        try
-        {
-            process.Start();
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
-        {
-            output.AppendLine("preview host failed to start: " + ex.Message);
-            return new PreviewHostResult("start-failed", Started: false);
-        }
-
-        var standardOutput = process.StandardOutput.ReadToEndAsync();
-        var standardError = process.StandardError.ReadToEndAsync();
-        var processId = process.Id;
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(10));
-
-        try
-        {
-            while (!timeout.IsCancellationRequested && !process.HasExited)
-            {
-                if (File.Exists(sentinelPath))
-                {
-                    await StopProcessAsync(process).ConfigureAwait(false);
-                    output.Append(await standardOutput.ConfigureAwait(false));
-                    output.Append(await standardError.ConfigureAwait(false));
-                    return new PreviewHostResult("loaded", Started: true, ViewLoaded: true, processId);
-                }
-
-                await Task.Delay(100, timeout.Token).ConfigureAwait(false);
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            await StopProcessAsync(process).ConfigureAwait(false);
-            output.Append(await standardOutput.ConfigureAwait(false));
-            output.Append(await standardError.ConfigureAwait(false));
-            return new PreviewHostResult("cancelled", Started: true, ViewLoaded: false, processId);
-        }
-        catch (OperationCanceledException)
-        {
-        }
-
-        var status = process.HasExited ? "exited" : "window-timeout";
-        await StopProcessAsync(process).ConfigureAwait(false);
-        output.Append(await standardOutput.ConfigureAwait(false));
-        output.Append(await standardError.ConfigureAwait(false));
-        return new PreviewHostResult(status, Started: true, ViewLoaded: false, processId);
     }
 
     private static void DeleteDirectoryBestEffort(string tempRoot)

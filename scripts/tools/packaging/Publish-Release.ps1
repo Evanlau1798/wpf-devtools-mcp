@@ -34,6 +34,7 @@ foreach ($helperLeafName in $publishReleaseHelperLeafNames) {
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $serverProject = Join-Path $repoRoot 'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj'
 $inspectorProject = Join-Path $repoRoot 'src\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj'
+$inspectorSdkProject = Join-Path $repoRoot 'src\WpfDevTools.Inspector.Sdk\WpfDevTools.Inspector.Sdk.csproj'
 $bootstrapperProject = Join-Path $repoRoot 'src\WpfDevTools.Bootstrapper\WpfDevTools.Bootstrapper.vcxproj'
 $installScript = Join-Path $repoRoot 'scripts\online-installer.ps1'
 $installBatchTemplate = Join-Path $repoRoot 'scripts\tools\packaging\run-template.bat'
@@ -98,6 +99,12 @@ foreach ($architecture in $resolvedArchitectures) {
                 '-c', $Configuration,
                 '-f', 'net8.0-windows'
             )
+            Invoke-Step -FilePath 'dotnet' -Arguments @(
+                'build', $inspectorSdkProject,
+                '-c', $Configuration,
+                '-f', 'net8.0-windows',
+                '-p:GeneratePackageOnBuild=false'
+            )
         }
 
         Invoke-Step -FilePath 'dotnet' -Arguments @(
@@ -144,6 +151,7 @@ foreach ($architecture in $resolvedArchitectures) {
 
         $inspectorNet8BuildDir = Join-Path $repoRoot "src\WpfDevTools.Inspector\bin\$Configuration\net8.0-windows"
         $inspectorNet48BuildDir = Join-Path $repoRoot "src\WpfDevTools.Inspector\bin\$Configuration\net48"
+        $inspectorSdkBuildDir = Join-Path $repoRoot "src\WpfDevTools.Inspector.Sdk\bin\$Configuration\net8.0-windows"
         $bootstrapperSource = Join-Path $repoRoot "artifacts\bootstrapper\$Configuration\$bootstrapperPlatform\WpfDevTools.Bootstrapper.$architecture.dll"
 
         $packagedExecutableName = "wpf-devtools-$architecture.exe"
@@ -154,6 +162,8 @@ foreach ($architecture in $resolvedArchitectures) {
 
         Copy-DirectoryFilesOnly -Source $inspectorNet8BuildDir -Destination $inspectorNet8Dir
         Copy-DirectoryContents -Source $inspectorNet48BuildDir -Destination $inspectorNet48Dir
+        $inspectorSdkDestination = Join-Path $binDir 'WpfDevTools.Inspector.Sdk.dll'
+        Copy-Item -Path (Join-Path $inspectorSdkBuildDir 'WpfDevTools.Inspector.Sdk.dll') -Destination $inspectorSdkDestination -Force
         $bootstrapperDestination = Join-Path $bootstrapperDir (Split-Path $bootstrapperSource -Leaf)
         Copy-Item -Path $bootstrapperSource -Destination $bootstrapperDestination -Force
         Copy-Item -Path $installBatchTemplate -Destination (Join-Path $packageDir 'run.bat') -Force
@@ -162,6 +172,7 @@ foreach ($architecture in $resolvedArchitectures) {
 
         $payloadPaths = @(
             (Join-Path $binDir $packagedExecutableName)
+            $inspectorSdkDestination
             (Join-Path $inspectorNet8Dir 'WpfDevTools.Inspector.dll')
             (Join-Path $inspectorNet48Dir 'WpfDevTools.Inspector.dll')
             $bootstrapperDestination
@@ -188,6 +199,7 @@ foreach ($architecture in $resolvedArchitectures) {
             entryExecutable = "bin/$packagedExecutableName"
             runBatch = 'run.bat'
             installScript = 'bin\install.ps1'
+            inspectorSdk = 'bin/WpfDevTools.Inspector.Sdk.dll'
             inspector = [ordered]@{
                 net8 = 'bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll'
                 net48 = 'bin/inspectors/net48/WpfDevTools.Inspector.dll'

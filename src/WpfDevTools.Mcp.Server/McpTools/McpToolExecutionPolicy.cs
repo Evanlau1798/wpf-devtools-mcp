@@ -65,7 +65,7 @@ internal sealed class McpToolExecutionPolicy
             return McpToolPolicyDecision.Allowed;
         }
 
-        if (ScreenshotTools.Contains(toolName))
+        if (RequiresScreenshot(toolName, arguments))
         {
             var decision = EvaluateGate(
                 _screenshots,
@@ -131,8 +131,18 @@ internal sealed class McpToolExecutionPolicy
 
         return string.Equals(toolName, "batch_mutate", StringComparison.Ordinal)
             && (TryGetObjectArgument(arguments, "captureSnapshot", out _)
-                || BatchMutateReturnsSensitiveRead(arguments));
+                || BatchMutateReturnsSensitiveRead(arguments))
+            || string.Equals(toolName, "preview_ui_blueprint", StringComparison.Ordinal)
+            && (IsEnabledArgument(arguments, "includeRuntimeDiagnostics")
+                || IsEnabledArgument(arguments, "includeScreenshotDiagnostics"));
     }
+
+    private static bool RequiresScreenshot(
+        string toolName,
+        IDictionary<string, JsonElement>? arguments)
+        => ScreenshotTools.Contains(toolName)
+           || string.Equals(toolName, "preview_ui_blueprint", StringComparison.Ordinal)
+           && IsEnabledArgument(arguments, "includeScreenshotDiagnostics");
 
     private static bool RequiresDestructiveGate(
         string toolName,
@@ -237,6 +247,19 @@ internal sealed class McpToolExecutionPolicy
 
     private static bool JsonArrayHasValues(JsonElement value)
         => value.ValueKind == JsonValueKind.Array && value.GetArrayLength() > 0;
+
+    private static bool IsEnabledArgument(IDictionary<string, JsonElement>? arguments, string propertyName)
+    {
+        if (arguments?.TryGetValue(propertyName, out var value) != true)
+        {
+            return false;
+        }
+
+        return value.ValueKind == JsonValueKind.True
+               || value.ValueKind == JsonValueKind.String
+               && bool.TryParse(value.GetString(), out var parsed)
+               && parsed;
+    }
 
     private static bool TryGetObjectArgument(
         IDictionary<string, JsonElement>? arguments,

@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace WpfDevTools.Mcp.Server.Composer.Preview;
 
 internal sealed record PreviewBlueprintRequest(
@@ -5,7 +7,9 @@ internal sealed record PreviewBlueprintRequest(
     bool RestoreEnabled = true,
     bool KeepArtifacts = false,
     string? TemporaryRoot = null,
-    bool StartHost = false);
+    bool StartHost = false,
+    bool IncludeRuntimeDiagnostics = false,
+    bool IncludeScreenshotDiagnostics = false);
 
 internal sealed record DotnetCommandResult(bool Succeeded, bool Cancelled);
 
@@ -36,4 +40,10 @@ internal sealed record PreviewHostResult(
     string Status,
     bool Started,
     bool ViewLoaded = false,
-    int? ProcessId = null);
+    int? ProcessId = null,
+    IReadOnlyList<PreviewRuntimeDiagnostic>? RuntimeDiagnostics = null);
+
+internal sealed record PreviewRuntimeDiagnostic(
+    string Tool,
+    bool Success,
+    JsonElement Payload);

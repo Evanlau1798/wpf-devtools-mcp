@@ -68,16 +68,19 @@ The response keeps `success=true` for a completed render call and reports render
 
 ## `preview_ui_blueprint`
 
-Compiles generated UI Composer XAML in a temporary WPF preview project. Use it after `render_ui_blueprint` when an agent needs CI-friendly compile-smoke evidence before applying generated UI to a real project.
+Compiles generated UI Composer XAML in a temporary WPF preview project. Use it after `render_ui_blueprint` when an agent needs CI-friendly compile, host-load, or runtime scene/layout evidence before applying generated UI to a real project.
 
 Request options:
 
 - `blueprintJson`: required UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`.
 - `restoreEnabled`: optional boolean that defaults to true. When false, the temporary project is built with `--no-restore` so missing-restore diagnostics can be validated deterministically.
+- `startHost`: optional boolean that defaults to false. When true, the temporary preview host starts after a successful build and reports generated-view load status.
+- `includeRuntimeDiagnostics`: optional boolean that defaults to false. When true with `startHost=true`, the tool reuses `connect`, `get_ui_summary(depthMode="semantic")`, and `get_layout_info` against the temporary host. This requires `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`.
+- `includeScreenshotDiagnostics`: optional boolean that defaults to false. When true with `startHost=true`, the tool enables runtime diagnostics and requests screenshot metadata only if both `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` and `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true`.
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
-The tool writes only to an isolated temporary preview directory and deletes it after the compile smoke. The preview project uses local WPF UI stubs, so tests do not depend on a NuGet cache or network access. Successful results include `buildSucceeded=true`, generated `xaml`, captured `buildOutput`, and a `previewHost` summary. Build failures return diagnostics that map back to the blueprint root and renderer template path when available.
+The tool writes only to an isolated temporary preview directory and deletes it after the compile smoke. The preview project uses local WPF UI stubs, so tests do not depend on a NuGet cache or network access. Successful results include `buildSucceeded=true`, generated `xaml`, captured `buildOutput`, and a `previewHost` summary. Runtime diagnostics are opt-in and returned under `previewHost.runtimeDiagnostics`. Build failures return diagnostics that map back to the blueprint root and renderer template path when available.
 
 ## `apply_ui_blueprint`
 

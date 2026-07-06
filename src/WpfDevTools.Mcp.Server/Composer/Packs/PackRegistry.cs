@@ -37,6 +37,11 @@ internal sealed class PackRegistry
                          .Where(path => path is not null)
                          .Select(path => path!))
             {
+                if (IsUnderStagingRoot(root, packRoot))
+                {
+                    continue;
+                }
+
                 var item = TryLoadSafe(scope, packRoot, diagnostics);
                 if (item is null)
                 {
@@ -58,6 +63,15 @@ internal sealed class PackRegistry
         }
 
         return new PackRegistryResult(packs.Values.OrderBy(pack => pack.Id, StringComparer.Ordinal).ToArray(), diagnostics);
+    }
+
+    private static bool IsUnderStagingRoot(string root, string packRoot)
+    {
+        var stagingRoot = Path.GetFullPath(Path.Combine(root, ".staging"))
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        var normalizedPackRoot = Path.GetFullPath(packRoot);
+        return normalizedPackRoot.StartsWith(stagingRoot, StringComparison.OrdinalIgnoreCase);
     }
 
     private static PackRegistryItem? TryLoadSafe(PackScope scope, string packRoot, List<string> diagnostics)

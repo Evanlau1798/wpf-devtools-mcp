@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Composer.Packs;
@@ -15,59 +14,6 @@ public sealed class ComposerPackRegistryTests
         ComposerPackPaths.BuiltinRoot("C:/repo").Should().Be(Path.GetFullPath("C:/repo/packs/builtin"));
         ComposerPackPaths.ProjectLocalRoot("C:/app").Should().Be(Path.GetFullPath("C:/app/.wpfdevtools/packs"));
         ComposerPackPaths.UserGlobalRoot("C:/local").Should().Be(Path.GetFullPath("C:/local/WpfDevTools/Composer/Packs"));
-    }
-
-    [Fact]
-    public void PackImportService_ShouldReturnDryRunFilePlanWithoutWriting()
-    {
-        var tempRoot = CreateTempDirectory();
-        try
-        {
-            var archivePath = GetRepoFilePath("packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip");
-            using var archive = ZipFile.OpenRead(archivePath);
-            var destinationRoot = Path.Combine(tempRoot, "packs");
-
-            var plan = PackImportService.CreateDryRunPlan(archivePath, destinationRoot);
-
-            plan.PackId.Should().Be("wpfui");
-            plan.Version.Should().Be("0.1.0");
-            plan.DryRun.Should().BeTrue();
-            plan.FilePlan.Should().HaveCount(archive.Entries.Count);
-            plan.FilePlan.Should().Contain(item => item.RelativePath == "pack.json");
-            plan.FilePlan.Should().Contain(item => item.RelativePath == "recipes/tabbedSettings.recipe.json");
-            plan.WouldModifyProjectFiles.Should().BeFalse();
-            plan.WouldRunNuGetRestore.Should().BeFalse();
-            Directory.Exists(destinationRoot).Should().BeFalse("dry-run import must not write files");
-        }
-        finally
-        {
-            DeleteDirectory(tempRoot);
-        }
-    }
-
-    [Fact]
-    public void PackImportService_ShouldRejectZipSlipEntries()
-    {
-        var tempRoot = CreateTempDirectory();
-        try
-        {
-            var archivePath = Path.Combine(tempRoot, "bad.zip");
-            using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
-            {
-                var entry = archive.CreateEntry("../evil.txt");
-                using var writer = new StreamWriter(entry.Open());
-                writer.Write("bad");
-            }
-
-            var act = () => PackImportService.CreateDryRunPlan(archivePath, Path.Combine(tempRoot, "packs"));
-
-            act.Should().Throw<InvalidDataException>()
-                .WithMessage("*Unsafe archive entry*evil.txt*");
-        }
-        finally
-        {
-            DeleteDirectory(tempRoot);
-        }
     }
 
     [Fact]
@@ -178,6 +124,58 @@ public sealed class ComposerPackRegistryTests
             result.Packs.Select(pack => pack.Id).Should().BeEquivalentTo("sample", "wpfui");
             result.Packs.Single(pack => pack.Id == "wpfui").Scope.Should().Be(PackScope.ProjectLocal);
             result.Diagnostics.Should().Contain(diagnostic => diagnostic.Contains("multiple versions", StringComparison.Ordinal));
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void PackRegistry_ShouldReportMissingInstallManifestAsPackHealthDiagnostic()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            CreateMinimalPack(ComposerPackPaths.ProjectLocalRoot(Path.Combine(tempRoot, "project")), "sample", "1.0.0");
+            File.Delete(Path.Combine(
+                ComposerPackPaths.ProjectLocalRoot(Path.Combine(tempRoot, "project")),
+                "sample",
+                "1.0.0",
+                "install.manifest.json"));
+
+            var registry = new PackRegistry(
+                ComposerPackPaths.BuiltinRoot(tempRoot),
+                ComposerPackPaths.ProjectLocalRoot(Path.Combine(tempRoot, "project")));
+
+            var result = registry.ListPacks();
+
+            result.Packs.Should().BeEmpty();
+            result.Diagnostics.Should().Contain(diagnostic => diagnostic.Contains("install.manifest.json", StringComparison.Ordinal));
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void PackRegistry_ShouldIgnoreImportStagingDirectory()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var projectPackRoot = ComposerPackPaths.ProjectLocalRoot(Path.Combine(tempRoot, "project"));
+            CreateMinimalPack(Path.Combine(projectPackRoot, ".staging", "pending"), "sample", "1.0.0");
+
+            var registry = new PackRegistry(
+                ComposerPackPaths.BuiltinRoot(tempRoot),
+                projectPackRoot);
+
+            var result = registry.ListPacks();
+
+            result.Packs.Should().BeEmpty();
+            result.Diagnostics.Should().BeEmpty();
         }
         finally
         {

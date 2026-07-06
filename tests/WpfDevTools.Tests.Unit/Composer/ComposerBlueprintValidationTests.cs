@@ -85,6 +85,53 @@ public sealed class ComposerBlueprintValidationTests
     }
 
     [Fact]
+    public void ValidateBlueprint_ShouldResolvePackQualifiedKindsAcrossDeclaredPacks()
+    {
+        var projectRoot = CreateTempProjectWithValidationPack();
+        try
+        {
+            var validator = CreateValidator(projectRoot);
+            var qualified = Blueprint("""
+                {
+                  "packs": [
+                    { "id": "wpfui", "version": "0.1.0", "required": true },
+                    { "id": "validation", "version": "1.0.0", "required": true }
+                  ],
+                  "primaryPack": "wpfui",
+                  "layout": {
+                    "kind": "validation.demo",
+                    "properties": { "title": "Secondary pack block" }
+                  }
+                }
+                """);
+            var unqualified = Blueprint("""
+                {
+                  "packs": [
+                    { "id": "wpfui", "version": "0.1.0", "required": true },
+                    { "id": "validation", "version": "1.0.0", "required": true }
+                  ],
+                  "primaryPack": "wpfui",
+                  "layout": {
+                    "kind": "demo",
+                    "properties": { "title": "Ambiguous block" }
+                  }
+                }
+                """);
+
+            var qualifiedResult = validator.Validate(qualified);
+            var unqualifiedResult = validator.Validate(unqualified);
+
+            qualifiedResult.Success.Should().BeTrue("pack-qualified kinds must resolve even when primaryPack points elsewhere");
+            unqualifiedResult.Errors.Should().Contain(issue => issue.JsonPath == "$.layout"
+                && issue.Code == "UnqualifiedBlockKind");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
     public void ValidateBlueprint_ShouldReportUnknownSlotWithJsonPath()
     {
         var validator = CreateValidator();

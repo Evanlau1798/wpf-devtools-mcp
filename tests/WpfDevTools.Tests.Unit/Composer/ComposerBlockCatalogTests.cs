@@ -73,7 +73,13 @@ public sealed class ComposerBlockCatalogTests
 
         serialized.Should().NotContain("namespace Wpf.Ui");
         serialized.Should().NotContain("public class");
-        result.Items.Select(item => item.Kind).Should().NotContain("wpfui.calendar");
+        result.Items.Select(item => item.Kind).Should().NotContain([
+            "wpfui.calendar",
+            "wpfui.gallery",
+            "wpfui.syntaxHighlight",
+            "wpfui.tray",
+            "wpfui.template"
+        ]);
     }
 
     [Fact]

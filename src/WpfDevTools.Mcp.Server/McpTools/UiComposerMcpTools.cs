@@ -149,11 +149,12 @@ public static class UiComposerMcpTools
             timeoutSeconds: 10);
     }
 
-    [McpServerTool(Name = "preview_ui_blueprint", Title = "Preview UI Composer Blueprint Compile Smoke", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "preview_ui_blueprint", Title = "Preview UI Composer Blueprint Compile Smoke", OpenWorld = false, ReadOnly = false, Destructive = false, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.PreviewUiBlueprint)]
     public static Task<CallToolResult> PreviewUiBlueprint(
         [Description("UI blueprint JSON text to compile in a temporary preview project.")] string blueprintJson,
         [Description("When true, runs dotnet restore for the temporary preview project before build. When false, build runs with --no-restore and reports missing assets diagnostics.")] bool restoreEnabled = true,
+        [Description("When true, starts the temporary preview host after a successful build, waits for its main window, then terminates it.")] bool startHost = false,
         [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global packs.")] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
@@ -161,14 +162,15 @@ public static class UiComposerMcpTools
         var args = ToolCallHelper.BuildJsonArgs(
             ("blueprintJson", blueprintJson),
             ("restoreEnabled", restoreEnabled),
+            ("startHost", startHost),
             ("projectRoot", projectRoot),
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, token) => PreviewBlueprint(blueprintJson, restoreEnabled, projectRoot, localAppDataRoot, token),
+            (_, token) => PreviewBlueprint(blueprintJson, restoreEnabled, startHost, projectRoot, localAppDataRoot, token),
             args,
             cancellationToken,
-            timeoutSeconds: 60);
+            timeoutSeconds: 135);
     }
 
     private static object ListPacks(string? projectRoot, string? localAppDataRoot)
@@ -288,11 +290,12 @@ public static class UiComposerMcpTools
     private static async Task<object> PreviewBlueprint(
         string blueprintJson,
         bool restoreEnabled,
+        bool startHost,
         string? projectRoot,
         string? localAppDataRoot,
         CancellationToken cancellationToken)
         => await new UiBlueprintPreviewService(CreateRegistry(projectRoot, localAppDataRoot))
-            .PreviewAsync(new PreviewBlueprintRequest(blueprintJson, restoreEnabled), cancellationToken)
+            .PreviewAsync(new PreviewBlueprintRequest(blueprintJson, restoreEnabled, StartHost: startHost), cancellationToken)
             .ConfigureAwait(false);
 
     private static PackRegistry CreateRegistry(string? projectRoot, string? localAppDataRoot)

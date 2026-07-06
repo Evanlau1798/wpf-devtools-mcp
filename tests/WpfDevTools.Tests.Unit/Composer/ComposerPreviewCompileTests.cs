@@ -72,6 +72,23 @@ public sealed class ComposerPreviewCompileTests
         payload.GetProperty("success").GetBoolean().Should().BeTrue();
         payload.GetProperty("buildSucceeded").GetBoolean().Should().BeTrue();
         payload.GetProperty("previewHost").GetProperty("status").GetString().Should().Be("compiled");
+        payload.GetProperty("previewHost").GetProperty("viewLoaded").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PreviewBlueprintAsync_WhenStartHostIsTrue_ShouldLoadGeneratedView()
+    {
+        var service = new UiBlueprintPreviewService(CreateRegistry());
+
+        var result = await service.PreviewAsync(
+            new PreviewBlueprintRequest(ButtonBlueprint(), RestoreEnabled: true, StartHost: true),
+            CancellationToken.None);
+
+        result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+        result.PreviewHost.Status.Should().Be("loaded");
+        result.PreviewHost.Started.Should().BeTrue();
+        result.PreviewHost.ViewLoaded.Should().BeTrue();
+        result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "PreviewHostViewLoaded");
     }
 
     public static TheoryData<string, string> CompilableBlueprints()

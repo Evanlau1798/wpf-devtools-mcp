@@ -9,6 +9,7 @@ namespace WpfDevTools.Mcp.Server.Composer.Preview;
 internal sealed class UiBlueprintPreviewService(PackRegistry registry)
 {
     private const int BuildTimeoutSeconds = 60;
+    private const string PreviewLoadedSentinelFileName = "preview-host.loaded";
 
     public PreviewBlueprintResult Preview(PreviewBlueprintRequest request)
         => PreviewAsync(request).GetAwaiter().GetResult();
@@ -65,23 +66,28 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
                 cancelled = build.Cancelled;
             }
 
-            var buildOutput = output.ToString();
             if (cancelled)
             {
-                return CreateCancelledResult(request.RestoreEnabled, render.Xaml, buildOutput, rendererTemplatePath);
+                return CreateCancelledResult(request.RestoreEnabled, render.Xaml, output.ToString(), rendererTemplatePath);
             }
 
-            var diagnostics = CreateDiagnostics(buildSucceeded, buildOutput, rendererTemplatePath, render.Xaml);
+            var previewHost = new PreviewHostResult(buildSucceeded ? "compiled" : "not-started", Started: false);
+            var diagnostics = CreateDiagnostics(buildSucceeded, output.ToString(), rendererTemplatePath, render.Xaml);
+            if (buildSucceeded && request.StartHost)
+            {
+                previewHost = await StartPreviewHostAsync(tempRoot, output, cancellationToken).ConfigureAwait(false);
+                diagnostics = diagnostics.Concat(CreateHostDiagnostics(previewHost, rendererTemplatePath)).ToArray();
+            }
 
             return new PreviewBlueprintResult(
                 Success: true,
                 Valid: true,
                 BuildSucceeded: buildSucceeded,
                 RestoreEnabled: request.RestoreEnabled,
-                BuildOutput: buildOutput,
+                BuildOutput: output.ToString(),
                 Xaml: render.Xaml,
                 Diagnostics: diagnostics,
-                PreviewHost: new PreviewHostResult(buildSucceeded ? "compiled" : "not-started", Started: false));
+                PreviewHost: previewHost);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -179,6 +185,25 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
             ],
             PreviewHost: new PreviewHostResult("cancelled", Started: false));
 
+    private static IReadOnlyList<PreviewDiagnostic> CreateHostDiagnostics(
+        PreviewHostResult previewHost,
+        string rendererTemplatePath)
+    {
+        if (previewHost.ViewLoaded)
+        {
+            return
+            [
+                new("PreviewHostStarted", "Temporary preview host process started.", "$.layout", rendererTemplatePath),
+                new("PreviewHostViewLoaded", "Temporary preview host loaded the generated view.", "$.layout", rendererTemplatePath)
+            ];
+        }
+
+        return
+        [
+            new("PreviewHostNotLoaded", $"Temporary preview host status: {previewHost.Status}.", "$.layout", rendererTemplatePath)
+        ];
+    }
+
     private static string? FirstNonEmptyLine(string value)
         => value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
             .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line));
@@ -203,7 +228,7 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
         File.WriteAllText(Path.Combine(root, "App.xaml.cs"), BuildAppCode(), Encoding.UTF8);
         File.WriteAllText(Path.Combine(root, "MainWindow.xaml"), BuildWindowXaml(generatedXaml), Encoding.UTF8);
         File.WriteAllText(Path.Combine(root, "MainWindow.xaml.cs"), BuildMainWindowCode(), Encoding.UTF8);
-        File.WriteAllText(Path.Combine(root, "WpfUiStubs.cs"), WpfUiStubs, Encoding.UTF8);
+        File.WriteAllText(Path.Combine(root, "WpfUiStubs.cs"), UiPreviewProjectStubs.WpfUi, Encoding.UTF8);
     }
 
     private static string BuildAppCode()
@@ -217,9 +242,26 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
     private static string BuildMainWindowCode()
         => string.Join(
             Environment.NewLine,
+            "using System;",
+            "using System.IO;",
             "using System.Windows;",
             "namespace PreviewHost;",
-            "public partial " + "class MainWindow : Window { public MainWindow() { InitializeComponent(); } }",
+            "public partial " + "class MainWindow : Window",
+            "{",
+            "    public MainWindow()",
+            "    {",
+            "        try",
+            "        {",
+            "            InitializeComponent();",
+            "            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, \"" + PreviewLoadedSentinelFileName + "\"), \"loaded\");",
+            "        }",
+            "        catch (Exception ex)",
+            "        {",
+            "            Console.Error.WriteLine(\"preview host view failed: \" + ex.GetType().FullName + \": \" + ex.Message);",
+            "            throw;",
+            "        }",
+            "    }",
+            "}",
             string.Empty);
 
     private static string BuildWindowXaml(string generatedXaml)
@@ -305,6 +347,80 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
         }
     }
 
+    private static async Task<PreviewHostResult> StartPreviewHostAsync(
+        string tempRoot,
+        StringBuilder output,
+        CancellationToken cancellationToken)
+    {
+        var hostDll = Path.Combine(tempRoot, "bin", "Debug", "net8.0-windows", "PreviewHost.dll");
+        var sentinelPath = Path.Combine(Path.GetDirectoryName(hostDll)!, PreviewLoadedSentinelFileName);
+        if (!File.Exists(hostDll))
+        {
+            output.AppendLine("preview host binary was not found.");
+            return new PreviewHostResult("missing-host", Started: false);
+        }
+
+        File.Delete(sentinelPath);
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo("dotnet")
+        {
+            WorkingDirectory = tempRoot,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        process.StartInfo.ArgumentList.Add(hostDll);
+
+        try
+        {
+            process.Start();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            output.AppendLine("preview host failed to start: " + ex.Message);
+            return new PreviewHostResult("start-failed", Started: false);
+        }
+
+        var standardOutput = process.StandardOutput.ReadToEndAsync();
+        var standardError = process.StandardError.ReadToEndAsync();
+        var processId = process.Id;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+
+        try
+        {
+            while (!timeout.IsCancellationRequested && !process.HasExited)
+            {
+                if (File.Exists(sentinelPath))
+                {
+                    await StopProcessAsync(process).ConfigureAwait(false);
+                    output.Append(await standardOutput.ConfigureAwait(false));
+                    output.Append(await standardError.ConfigureAwait(false));
+                    return new PreviewHostResult("loaded", Started: true, ViewLoaded: true, processId);
+                }
+
+                await Task.Delay(100, timeout.Token).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await StopProcessAsync(process).ConfigureAwait(false);
+            output.Append(await standardOutput.ConfigureAwait(false));
+            output.Append(await standardError.ConfigureAwait(false));
+            return new PreviewHostResult("cancelled", Started: true, ViewLoaded: false, processId);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        var status = process.HasExited ? "exited" : "window-timeout";
+        await StopProcessAsync(process).ConfigureAwait(false);
+        output.Append(await standardOutput.ConfigureAwait(false));
+        output.Append(await standardError.ConfigureAwait(false));
+        return new PreviewHostResult(status, Started: true, ViewLoaded: false, processId);
+    }
+
     private static void DeleteDirectoryBestEffort(string tempRoot)
     {
         for (var attempt = 0; attempt < 3; attempt++)
@@ -326,173 +442,4 @@ internal sealed class UiBlueprintPreviewService(PackRegistry registry)
         }
     }
 
-    private const string WpfUiStubs =
-        """
-        using System.Collections.ObjectModel;
-        using System.Windows;
-        using System.Windows.Controls;
-        using System.Windows.Markup;
-
-        [assembly: XmlnsDefinition("http://schemas.lepo.co/wpfui/2022/xaml", "Wpf.Ui.Controls")]
-
-        namespace Wpf.Ui.Controls;
-
-        public class Button : ContentControl
-        {
-            public static readonly DependencyProperty IconProperty = DependencyProperty.Register(
-                nameof(Icon), typeof(object), typeof(Button));
-            public static readonly DependencyProperty AppearanceProperty = DependencyProperty.Register(
-                nameof(Appearance), typeof(string), typeof(Button));
-            public object? Icon
-            {
-                get => GetValue(IconProperty);
-                set => SetValue(IconProperty, value);
-            }
-
-            public string? Appearance
-            {
-                get => (string?)GetValue(AppearanceProperty);
-                set => SetValue(AppearanceProperty, value);
-            }
-        }
-
-        public class SymbolIcon : Control
-        {
-            public static readonly DependencyProperty SymbolProperty = DependencyProperty.Register(
-                nameof(Symbol), typeof(string), typeof(SymbolIcon));
-            public string? Symbol
-            {
-                get => (string?)GetValue(SymbolProperty);
-                set => SetValue(SymbolProperty, value);
-            }
-        }
-
-        public class TextBlock : System.Windows.Controls.TextBlock
-        {
-            public static readonly DependencyProperty AppearanceProperty = DependencyProperty.Register(
-                nameof(Appearance), typeof(string), typeof(TextBlock));
-            public string? Appearance
-            {
-                get => (string?)GetValue(AppearanceProperty);
-                set => SetValue(AppearanceProperty, value);
-            }
-        }
-
-        public class Card : ItemsControl
-        {
-            public static readonly DependencyProperty AppearanceProperty = DependencyProperty.Register(
-                nameof(Appearance), typeof(string), typeof(Card));
-            public string? Appearance
-            {
-                get => (string?)GetValue(AppearanceProperty);
-                set => SetValue(AppearanceProperty, value);
-            }
-        }
-
-        public class NavigationView : ItemsControl
-        {
-            public static readonly DependencyProperty PaneDisplayModeProperty = DependencyProperty.Register(
-                nameof(PaneDisplayMode), typeof(string), typeof(NavigationView));
-            public Collection<object> MenuItems { get; } = new();
-            public Collection<object> FooterMenuItems { get; } = new();
-            public string? PaneDisplayMode
-            {
-                get => (string?)GetValue(PaneDisplayModeProperty);
-                set => SetValue(PaneDisplayModeProperty, value);
-            }
-        }
-
-        public class NavigationViewItem : HeaderedContentControl
-        {
-            public static readonly DependencyProperty IconProperty = DependencyProperty.Register(
-                nameof(Icon), typeof(object), typeof(NavigationViewItem));
-            public static readonly DependencyProperty TargetPageTagProperty = DependencyProperty.Register(
-                nameof(TargetPageTag), typeof(string), typeof(NavigationViewItem));
-            public object? Icon
-            {
-                get => GetValue(IconProperty);
-                set => SetValue(IconProperty, value);
-            }
-
-            public string? TargetPageTag
-            {
-                get => (string?)GetValue(TargetPageTagProperty);
-                set => SetValue(TargetPageTagProperty, value);
-            }
-        }
-
-        public class TabView : ItemsControl
-        {
-            public int SelectedIndex { get; set; }
-        }
-
-        public class TabViewItem : HeaderedContentControl
-        {
-            public bool IsClosable { get; set; }
-        }
-
-        public class ContentDialog : ItemsControl
-        {
-            public string? Title { get; set; }
-        }
-
-        public class Snackbar : ItemsControl
-        {
-            public double Timeout { get; set; }
-        }
-
-        public class TitleBar : Control
-        {
-            public string? Title { get; set; }
-        }
-
-        public class FluentWindow : Window
-        {
-            public static readonly DependencyProperty TitleBarProperty = DependencyProperty.Register(
-                nameof(TitleBar), typeof(object), typeof(FluentWindow));
-            public object? TitleBar
-            {
-                get => GetValue(TitleBarProperty);
-                set => SetValue(TitleBarProperty, value);
-            }
-        }
-
-        public class DataGrid : ItemsControl
-        {
-            public Collection<object> Columns { get; } = new();
-        }
-        """;
 }
-
-internal sealed record PreviewBlueprintRequest(
-    string BlueprintJson,
-    bool RestoreEnabled = true,
-    bool KeepArtifacts = false,
-    string? TemporaryRoot = null);
-
-internal sealed record DotnetCommandResult(bool Succeeded, bool Cancelled);
-
-internal sealed record PreviewBlueprintResult(
-    bool Success,
-    bool Valid,
-    bool BuildSucceeded,
-    bool RestoreEnabled,
-    string BuildOutput,
-    string Xaml,
-    IReadOnlyList<PreviewDiagnostic> Diagnostics,
-    PreviewHostResult PreviewHost)
-{
-    public static PreviewBlueprintResult Invalid(
-        bool restoreEnabled,
-        string xaml,
-        IReadOnlyList<PreviewDiagnostic> diagnostics)
-        => new(false, false, false, restoreEnabled, string.Empty, xaml, diagnostics, new PreviewHostResult("not-started", Started: false));
-}
-
-internal sealed record PreviewDiagnostic(
-    string Code,
-    string Message,
-    string JsonPath,
-    string RendererTemplatePath);
-
-internal sealed record PreviewHostResult(string Status, bool Started);

@@ -158,26 +158,28 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string PreviewUiBlueprint =
         """
-        Use this tool to compile generated UI Composer XAML in a temporary WPF preview project.
+        Use this tool to compile generated UI Composer XAML in a temporary WPF preview project and optionally start the preview host.
 
         CATEGORY: UI Composer
 
-        USE WHEN: You need compile-smoke diagnostics before applying generated XAML to a real project.
+        USE WHEN: You need compile-smoke diagnostics, or a temporary host load smoke, before applying generated XAML to a real project.
 
-        DO NOT USE: Do not use this to launch or control a real target application. This phase builds a temporary preview host and reports diagnostics; it does not persist project files.
+        DO NOT USE: Do not use this to launch or control a real target application. This phase builds a temporary local preview host, optionally starts that temporary host, and reports diagnostics; it does not persist project files outside its temporary workspace.
 
         RESPONSE SUMMARY:
         - Returns success, valid, buildSucceeded, restoreEnabled, buildOutput, xaml, diagnostics, and previewHost.
         - restoreEnabled=false runs dotnet build --no-restore and returns missing-assets diagnostics when the temporary project has not been restored.
+        - startHost=true starts the temporary host after build, waits for an explicit generated-view load sentinel, then terminates the process tree.
         - Compile failures map back to $.layout and the root renderer template path when available.
 
         REQUEST OPTIONS:
         - blueprintJson is required and must contain schemaVersion wpfdevtools.ui-blueprint.v1.
         - restoreEnabled defaults to true for compile smoke; set false to verify restore-disabled diagnostics.
+        - startHost defaults to false for fast compile smoke; set true for preview host load smoke.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
-        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}","restoreEnabled":true}
+        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}","restoreEnabled":true,"startHost":true}
         """;
 }

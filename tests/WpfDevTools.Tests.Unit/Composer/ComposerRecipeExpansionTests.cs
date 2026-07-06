@@ -76,6 +76,18 @@ public sealed class ComposerRecipeExpansionTests
             .Properties["title"].GetString().Should().Be("WPF UI App");
     }
 
+    [Theory]
+    [MemberData(nameof(StarterRecipes))]
+    public void RecipeExpansion_ShouldValidateEveryStarterRecipe(string recipeId)
+    {
+        var expander = new RecipeExpansionService(CreateRegistry());
+
+        var result = expander.Expand(new RecipeExpansionRequest(recipeId));
+
+        result.Success.Should().BeTrue();
+        result.Validation.Success.Should().BeTrue();
+    }
+
     [Fact]
     public void RecipeExpansion_ShouldSubstituteParametersIntoBlueprintFragment()
     {
@@ -167,6 +179,9 @@ public sealed class ComposerRecipeExpansionTests
         var payload = values.ToDictionary(pair => pair.Name, pair => pair.Value, StringComparer.Ordinal);
         return JsonSerializer.SerializeToElement(payload);
     }
+
+    public static TheoryData<string> StarterRecipes()
+        => new(ExpectedStarterRecipes);
 
     private static string CreateTempProjectWithInvalidRecipe()
     {

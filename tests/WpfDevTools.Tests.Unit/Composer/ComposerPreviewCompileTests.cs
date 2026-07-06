@@ -82,6 +82,31 @@ public sealed class ComposerPreviewCompileTests
     }
 
     [Fact]
+    public async Task PreviewUiBlueprintTool_WhenRuntimeDiagnosticsRequestedForNavigationShell_ShouldLoadGeneratedView()
+    {
+        using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");
+        using var session = SecurePreviewSession.Create();
+        using var timeout = CreateTimeout();
+
+        var result = await UiComposerMcpTools.PreviewUiBlueprint(
+            session.SessionManager,
+            NavigationShellBlueprint(),
+            restoreEnabled: true,
+            startHost: true,
+            includeRuntimeDiagnostics: true,
+            cancellationToken: timeout.Token);
+
+        result.IsError.Should().BeFalse();
+        var payload = result.StructuredContent!.Value;
+        payload.GetProperty("buildSucceeded").GetBoolean().Should().BeTrue();
+        payload.GetProperty("previewHost").GetProperty("status").GetString().Should().Be("loaded");
+        payload.GetProperty("previewHost").GetProperty("runtimeDiagnostics").EnumerateArray()
+            .Should().Contain(diagnostic =>
+                diagnostic.GetProperty("tool").GetString() == "connect"
+                && diagnostic.GetProperty("success").GetBoolean());
+    }
+
+    [Fact]
     public async Task PreviewBlueprintAsync_WhenStartHostIsTrue_ShouldLoadGeneratedView()
     {
         var service = new UiBlueprintPreviewService(CreateRegistry());
@@ -154,6 +179,27 @@ public sealed class ComposerPreviewCompileTests
         summary.GetProperty("depthMode").GetString().Should().Be("semantic");
         result.PreviewHost.RuntimeDiagnostics.Should().Contain(diagnostic => diagnostic.Tool == "get_layout_info" && diagnostic.Success);
         result.PreviewHost.RuntimeDiagnostics.Should().NotContain(diagnostic => diagnostic.Tool == "element_screenshot");
+    }
+
+    [Fact]
+    public async Task PreviewBlueprintAsync_WhenRuntimeDiagnosticsRequestedForNavigationShell_ShouldLoadGeneratedView()
+    {
+        using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");
+        using var session = SecurePreviewSession.Create();
+        var service = new UiBlueprintPreviewService(CreateRegistry(), session.SessionManager);
+        using var timeout = CreateTimeout();
+
+        var result = await service.PreviewAsync(
+            new PreviewBlueprintRequest(
+                NavigationShellBlueprint(),
+                RestoreEnabled: true,
+                StartHost: true,
+                IncludeRuntimeDiagnostics: true),
+            timeout.Token);
+
+        result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+        result.PreviewHost.Status.Should().Be("loaded", result.BuildOutput);
+        result.PreviewHost.RuntimeDiagnostics.Should().Contain(diagnostic => diagnostic.Tool == "connect" && diagnostic.Success);
     }
 
     [Fact]

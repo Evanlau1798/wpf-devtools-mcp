@@ -13,6 +13,7 @@ internal static class UiPreviewProjectFiles
         string sdkOptionsFileName,
         string sdkReadyFileName)
     {
+        var generatedRootIsWindow = IsFluentWindowRoot(generatedXaml);
         File.WriteAllText(Path.Combine(root, "PreviewHost.csproj"), $$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
@@ -30,10 +31,14 @@ internal static class UiPreviewProjectFiles
             <Application x:Class="PreviewHost.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" StartupUri="MainWindow.xaml" />
             """, Encoding.UTF8);
         File.WriteAllText(Path.Combine(root, "App.xaml.cs"), BuildAppCode(), Encoding.UTF8);
-        File.WriteAllText(Path.Combine(root, "MainWindow.xaml"), BuildWindowXaml(generatedXaml), Encoding.UTF8);
+        File.WriteAllText(Path.Combine(root, "MainWindow.xaml"), BuildWindowXaml(generatedXaml, generatedRootIsWindow), Encoding.UTF8);
         File.WriteAllText(
             Path.Combine(root, "MainWindow.xaml.cs"),
-            BuildMainWindowCode(includeRuntimeDiagnostics, loadedSentinelFileName, sdkOptionsFileName, sdkReadyFileName),
+            BuildMainWindowCode(
+                includeRuntimeDiagnostics,
+                loadedSentinelFileName,
+                sdkOptionsFileName,
+                sdkReadyFileName),
             Encoding.UTF8);
         File.WriteAllText(Path.Combine(root, "WpfUiStubs.cs"), UiPreviewProjectStubs.WpfUi, Encoding.UTF8);
     }
@@ -227,15 +232,48 @@ internal static class UiPreviewProjectFiles
             .Replace("<", "&lt;", StringComparison.Ordinal)
             .Replace(">", "&gt;", StringComparison.Ordinal);
 
-    private static string BuildWindowXaml(string generatedXaml)
-        => string.Join(
-            Environment.NewLine,
-            """<Window x:Class="PreviewHost.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="clr-namespace:Wpf.Ui.Controls">""",
-            "  <Grid>",
-            Indent(generatedXaml, "    "),
-            "  </Grid>",
-            "</Window>",
-            string.Empty);
+    private static bool IsFluentWindowRoot(string generatedXaml)
+        => generatedXaml.TrimStart().StartsWith("<ui:FluentWindow", StringComparison.Ordinal);
+
+    private static string BuildWindowXaml(string generatedXaml, bool generatedRootIsWindow)
+        => generatedRootIsWindow
+            ? AdaptFluentWindowRootForPreviewHost(generatedXaml)
+            : string.Join(
+                Environment.NewLine,
+                """<Window x:Class="PreviewHost.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="clr-namespace:Wpf.Ui.Controls">""",
+                "  <Grid>",
+                Indent(generatedXaml, "    "),
+                "  </Grid>",
+                "</Window>",
+                string.Empty);
+
+    private static string AdaptFluentWindowRootForPreviewHost(string generatedXaml)
+    {
+        const string rootTag = "<ui:FluentWindow";
+        const string hostRootTag = "<Window x:Class=\"PreviewHost.MainWindow\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:ui=\"clr-namespace:Wpf.Ui.Controls\"";
+        var index = generatedXaml.IndexOf(rootTag, StringComparison.Ordinal);
+        var hosted = index < 0
+            ? generatedXaml
+            : generatedXaml[..index] + hostRootTag + generatedXaml[(index + rootTag.Length)..];
+        hosted = RemoveFluentWindowTitleBar(hosted);
+        return hosted.Replace("</ui:FluentWindow>", "</Window>", StringComparison.Ordinal);
+    }
+
+    private static string RemoveFluentWindowTitleBar(string xaml)
+    {
+        const string startTag = "<ui:FluentWindow.TitleBar>";
+        const string endTag = "</ui:FluentWindow.TitleBar>";
+        var start = xaml.IndexOf(startTag, StringComparison.Ordinal);
+        if (start < 0)
+        {
+            return xaml;
+        }
+
+        var end = xaml.IndexOf(endTag, start, StringComparison.Ordinal);
+        return end < 0
+            ? xaml
+            : xaml[..start] + xaml[(end + endTag.Length)..];
+    }
 
     private static string Indent(string value, string indentation)
         => string.Join(

@@ -14,7 +14,7 @@
     "kind": "wpfui.card",
     "slots": {
       "header": [{ "kind": "wpfui.textBlock", "properties": { "text": "{{heading}}" } }],
-      "content": [{ "kind": "wpfui.textBlock", "properties": { "text": "{{body}}" } }],
+      "content": [{ "kind": "text", "properties": { "value": "{{body}}" } }],
       "actions": [{ "kind": "wpfui.button", "properties": { "text": "{{actionText}}" } }]
     }
   }

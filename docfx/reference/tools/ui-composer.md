@@ -2,6 +2,22 @@
 
 UI Composer tools work with local Composer extension packs and blueprint inputs. They do not inspect a running WPF target and should be used before catalog, validation, rendering, preview compile, or apply workflows.
 
+## Contract Compatibility
+
+Composer currently supports these v1 contracts and fails closed when `schemaVersion` is missing or different:
+
+| Contract | Supported version | Compatibility policy |
+|---|---|---|
+| UI pack | `wpfdevtools.ui-pack.v1` | Reads the artifact as-is; install/import workflows copy pack files instead of rewriting them. |
+| UI block | `wpfdevtools.ui-block.v1` | Resolves pack-qualified block kinds from enabled packs only. |
+| UI recipe | `wpfdevtools.ui-recipe.v1` | Expands recipes only after the declared required packs are available. |
+| UI blueprint | `wpfdevtools.ui-blueprint.v1` | Requires `packs[]`, `primaryPack`, and pack-qualified block kinds. |
+| Source lock | `wpfdevtools.source-lock.v1` | Preserves provenance metadata for loaded packs. |
+| Pack install manifest | `wpfdevtools.pack-install-manifest.v1` | Records copied pack installation metadata without changing the pack artifact. |
+| Composer project | `wpfdevtools.composer-project.v1` | Reserved for project-local Composer configuration. |
+
+Unknown JSON fields are ignored for v1 compatibility, while documented `metadata` objects are preserved on models that expose metadata. A breaking contract change requires a new schema version or a migration note.
+
 ## `list_ui_block_packs`
 
 Lists installed UI block packs from built-in, project-local, and user-global roots. The response includes pack id, version, scope, block count, recipe count, example count, renderer count, source repository, readiness metadata, diagnostics, and available block kinds.

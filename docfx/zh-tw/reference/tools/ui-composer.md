@@ -2,6 +2,22 @@
 
 UI Composer 工具用於本機 Composer extension pack 與 blueprint 輸入。它們不檢查正在執行的 WPF target，應在 catalog、validation、rendering、preview compile 或 apply workflow 前使用。
 
+## Contract Compatibility
+
+Composer 目前支援下列 v1 contracts；`schemaVersion` 缺失或不同時會 fail closed：
+
+| Contract | Supported version | Compatibility policy |
+|---|---|---|
+| UI pack | `wpfdevtools.ui-pack.v1` | 原樣讀取 artifact；install/import workflow 只複製 pack files，不改寫內容。 |
+| UI block | `wpfdevtools.ui-block.v1` | 只從 enabled packs 解析 pack-qualified block kinds。 |
+| UI recipe | `wpfdevtools.ui-recipe.v1` | 只有 declared required packs 可用後才展開 recipes。 |
+| UI blueprint | `wpfdevtools.ui-blueprint.v1` | 必須提供 `packs[]`、`primaryPack` 與 pack-qualified block kinds。 |
+| Source lock | `wpfdevtools.source-lock.v1` | 保留 loaded packs 的 provenance metadata。 |
+| Pack install manifest | `wpfdevtools.pack-install-manifest.v1` | 記錄 copied pack installation metadata，不改變 pack artifact。 |
+| Composer project | `wpfdevtools.composer-project.v1` | 保留給 project-local Composer configuration。 |
+
+未知 JSON 欄位會依 v1 compatibility 被忽略；有明確 `metadata` model 的文件會保留 `metadata`。破壞 contract compatibility 的變更需要新的 schema version 或 migration note。
+
 ## `list_ui_block_packs`
 
 列出 built-in、project-local 與 user-global roots 中已安裝的 UI block packs。回應包含 pack id、version、scope、block count、recipe count、example count、renderer count、source repository、readiness metadata、diagnostics 與可用 block kinds。

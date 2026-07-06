@@ -23,7 +23,7 @@ function Test-McpToolListContract {
     param(
         [Parameter(Mandatory)] [object]$ToolsResponse,
         [Parameter(Mandatory)] [string[]]$ExpectedToolNames,
-        [int]$ExpectedToolCount = 64,
+        [int]$ExpectedToolCount = 71,
         [string[]]$RepresentativeToolNames = @(
             'connect',
             'get_processes',

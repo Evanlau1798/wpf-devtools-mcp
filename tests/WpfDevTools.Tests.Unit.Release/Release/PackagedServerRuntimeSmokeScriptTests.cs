@@ -153,7 +153,7 @@ public sealed class PackagedServerRuntimeSmokeScriptTests
             result.ExitCode.Should().Be(0, result.Stderr);
             using var evidence = JsonDocument.Parse(File.ReadAllText(evidencePath));
             var root = evidence.RootElement;
-            root.GetProperty("toolsList").GetProperty("count").GetInt32().Should().Be(64);
+            root.GetProperty("toolsList").GetProperty("count").GetInt32().Should().Be(71);
             root.GetProperty("toolsList").GetProperty("nameSetHash").GetString()
                 .Should().MatchRegex("^[a-f0-9]{64}$");
             root.GetProperty("toolsList").GetProperty("schemaSnapshotHash").GetString()

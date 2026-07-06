@@ -97,7 +97,7 @@ public sealed class ReleaseEvidenceStrictModeTests
                     installMode: "package-local",
                     packageLocalStatus: "passed",
                     onlineInstallerStatus: "passed-or-not-public",
-                    toolCount: 63),
+                    toolCount: 70),
                 WriteRuntimeEvidence(
                     tempRoot,
                     mitmPassed: true,
@@ -106,7 +106,7 @@ public sealed class ReleaseEvidenceStrictModeTests
                     installMode: "online-installer",
                     packageLocalStatus: "passed-or-not-public",
                     onlineInstallerStatus: "passed",
-                    toolCount: 63));
+                    toolCount: 70));
             var docFxEvidencePath = WriteDocFxEvidence(tempRoot);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
@@ -131,7 +131,7 @@ public sealed class ReleaseEvidenceStrictModeTests
         string installMode = "package-local",
         string packageLocalStatus = "passed",
         string onlineInstallerStatus = "passed-or-not-public",
-        int toolCount = 64)
+        int toolCount = 71)
     {
         var path = Path.Combine(tempRoot, fileName);
         File.WriteAllText(path, $$"""

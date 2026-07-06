@@ -34,7 +34,7 @@ public sealed class McpToolSearchMetadataE2eTests
 
         runtimeByName.Keys.Should().OnlyHaveUniqueItems();
         runtimeByName.Keys.Should().BeEquivalentTo(sourceTools.Select(tool => tool.Name));
-        runtimeByName.Count.Should().Be(64);
+        runtimeByName.Count.Should().Be(sourceTools.Length);
 
         foreach (var sourceTool in sourceTools)
         {
@@ -280,7 +280,7 @@ public sealed class McpToolSearchMetadataE2eTests
             .Select(tool => tool.GetProperty("name").GetString())
             .ToArray();
 
-        root.GetProperty("toolCount").GetInt32().Should().Be(64);
+        root.GetProperty("toolCount").GetInt32().Should().Be(sourceTools.Length);
         manifestNames.Should().BeEquivalentTo(sourceTools.Select(tool => tool.Name));
     }
 

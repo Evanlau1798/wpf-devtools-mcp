@@ -38,7 +38,9 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
             UiComposerSchemaVersions.UiBlueprint);
         var context = RenderContext.Create(registry, blueprint.Packs);
         var errors = new List<BlueprintValidationIssue>();
-        var xaml = RenderNode(blueprint.Layout, "$.layout", blueprint.Packs, context, errors);
+        var sourceMap = new List<RenderSourceMapEntry>();
+        var xaml = RenderNode(blueprint.Layout, "$.layout", blueprint.Packs, context, errors, sourceMap);
+        var resolvedSourceMap = ResolveSourceMap(xaml, sourceMap);
         var filePlan = new RenderFilePlan(ResolveTargetPath(request, blueprint), WouldWriteFiles: false);
 
         return new RenderBlueprintResult(
@@ -51,7 +53,8 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
             context.RequiredNuGetPackages,
             validation,
             errors,
-            context.Diagnostics);
+            context.Diagnostics,
+            resolvedSourceMap);
     }
 
     private string RenderNode(
@@ -59,7 +62,8 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
         string path,
         IReadOnlyList<ComposerPackReference> packs,
         RenderContext context,
-        List<BlueprintValidationIssue> errors)
+        List<BlueprintValidationIssue> errors,
+        List<RenderSourceMapEntry> sourceMap)
     {
         if (node.Kind == "text")
         {
@@ -74,7 +78,7 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
         if (node.Kind == "stack")
         {
             var children = node.Slots.Values.SelectMany(slot => slot)
-                .Select((child, index) => RenderNode(child, $"{path}.slots.stack[{index}]", packs, context, errors));
+                .Select((child, index) => RenderNode(child, $"{path}.slots.stack[{index}]", packs, context, errors, sourceMap));
             return "<StackPanel>" + Environment.NewLine + string.Join(Environment.NewLine, children) + Environment.NewLine + "</StackPanel>";
         }
 
@@ -92,8 +96,10 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
         }
 
         var rendered = TokenPattern.Replace(templateResult.Template.Content, match =>
-            ResolveToken(match.Groups["name"].Value, node, block, path, packs, context, errors));
-        return EmptyPropertyElementPattern.Replace(rendered, string.Empty);
+            ResolveToken(match.Groups["name"].Value, node, block, path, packs, context, errors, sourceMap));
+        rendered = EmptyPropertyElementPattern.Replace(rendered, string.Empty);
+        sourceMap.Add(new RenderSourceMapEntry(path, node.Kind, templateResult.Template.TemplatePath, rendered));
+        return rendered;
     }
 
     private string ResolveToken(
@@ -103,18 +109,31 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
         string path,
         IReadOnlyList<ComposerPackReference> packs,
         RenderContext context,
-        List<BlueprintValidationIssue> errors)
+        List<BlueprintValidationIssue> errors,
+        List<RenderSourceMapEntry> sourceMap)
     {
         if (token.StartsWith("slot.", StringComparison.Ordinal))
         {
             var slotName = token["slot.".Length..];
+            if (!block.Slots.ContainsKey(slotName))
+            {
+                errors.Add(Issue(path, "RendererTokenMismatch", $"Renderer token '{token}' does not match a slot on block '{block.Kind}'.", "Update the renderer template token or add the slot to the block contract."));
+                return string.Empty;
+            }
+
             if (!node.Slots.TryGetValue(slotName, out var children) || children.Length == 0)
             {
                 return string.Empty;
             }
 
             return string.Join(Environment.NewLine, children.Select((child, index) =>
-                RenderNode(child, $"{path}.slots.{slotName}[{index}]", packs, context, errors)));
+                RenderNode(child, $"{path}.slots.{slotName}[{index}]", packs, context, errors, sourceMap)));
+        }
+
+        if (!block.Properties.ContainsKey(token))
+        {
+            errors.Add(Issue(path, "RendererTokenMismatch", $"Renderer token '{token}' does not match a property on block '{block.Kind}'.", "Update the renderer template token or add the property to the block contract."));
+            return string.Empty;
         }
 
         var value = GetPropertyValue(node, token)
@@ -153,6 +172,86 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
 
     private static BlueprintValidationIssue Issue(string jsonPath, string code, string message, string repairSuggestion)
         => new(jsonPath, code, message, repairSuggestion, [], [], null);
+
+    private static IReadOnlyList<RenderSourceMapEntry> ResolveSourceMap(
+        string xaml,
+        IReadOnlyList<RenderSourceMapEntry> entries)
+    {
+        var resolved = new List<RenderSourceMapEntry>();
+        var ordered = entries.OrderBy(entry => entry.JsonPath.Length).ToArray();
+        foreach (var entry in ordered)
+        {
+            var parent = resolved
+                .Where(candidate => IsChildPath(entry.JsonPath, candidate.JsonPath))
+                .OrderByDescending(candidate => candidate.JsonPath.Length)
+                .FirstOrDefault();
+            var start = parent is null ? 0 : parent.StartIndex;
+            var length = parent is null ? xaml.Length : Math.Max(0, parent.EndIndex - parent.StartIndex);
+            var index = FindSpanStart(xaml, entry.Xaml, start, length);
+            if (index < 0)
+            {
+                continue;
+            }
+
+            var end = index + entry.Xaml.Length;
+            var startPosition = ToLineColumn(xaml, index);
+            var endPosition = ToLineColumn(xaml, Math.Max(index, end - 1));
+            resolved.Add(entry with
+            {
+                StartIndex = index,
+                EndIndex = end,
+                StartLine = startPosition.Line,
+                StartColumn = startPosition.Column,
+                EndLine = endPosition.Line,
+                EndColumn = endPosition.Column
+            });
+        }
+
+        return resolved.OrderBy(entry => entry.StartIndex).ThenBy(entry => entry.JsonPath.Length).ToArray();
+    }
+
+    private static int FindSpanStart(string haystack, string needle, int startIndex, int length)
+    {
+        if (string.IsNullOrEmpty(needle) || startIndex < 0 || startIndex >= haystack.Length)
+        {
+            return -1;
+        }
+
+        return haystack.IndexOf(needle, startIndex, Math.Min(length, haystack.Length - startIndex), StringComparison.Ordinal);
+    }
+
+    private static bool IsChildPath(string path, string parentPath)
+        => path.Length > parentPath.Length
+            && path.StartsWith(parentPath + ".slots.", StringComparison.Ordinal);
+
+    private static (int Line, int Column) ToLineColumn(string text, int index)
+    {
+        var line = 1;
+        var column = 1;
+        for (var i = 0; i < index && i < text.Length; i++)
+        {
+            if (text[i] == '\r')
+            {
+                line++;
+                column = 1;
+                if (i + 1 < index && text[i + 1] == '\n')
+                {
+                    i++;
+                }
+            }
+            else if (text[i] == '\n')
+            {
+                line++;
+                column = 1;
+            }
+            else
+            {
+                column++;
+            }
+        }
+
+        return (line, column);
+    }
 
     private sealed class RenderContext
     {
@@ -221,7 +320,8 @@ internal sealed record RenderBlueprintResult(
     IReadOnlyList<RequiredNuGetPackage> RequiredNuGetPackages,
     BlueprintValidationResult Validation,
     IReadOnlyList<BlueprintValidationIssue> Errors,
-    IReadOnlyList<string> Diagnostics)
+    IReadOnlyList<string> Diagnostics,
+    IReadOnlyList<RenderSourceMapEntry> SourceMap)
 {
     public static RenderBlueprintResult Invalid(
         RenderBlueprintRequest request,
@@ -237,9 +337,22 @@ internal sealed record RenderBlueprintResult(
             RequiredNuGetPackages: [],
             Validation: validation,
             Errors: errors,
-            Diagnostics: validation.Diagnostics);
+            Diagnostics: validation.Diagnostics,
+            SourceMap: []);
 }
 
 internal sealed record RenderFilePlan(string TargetPath, bool WouldWriteFiles);
 
 internal sealed record RequiredNuGetPackage(string Id, string VersionRange);
+
+internal sealed record RenderSourceMapEntry(
+    string JsonPath,
+    string BlockKind,
+    string RendererTemplatePath,
+    string Xaml,
+    int StartIndex = -1,
+    int EndIndex = -1,
+    int StartLine = 0,
+    int StartColumn = 0,
+    int EndLine = 0,
+    int EndColumn = 0);

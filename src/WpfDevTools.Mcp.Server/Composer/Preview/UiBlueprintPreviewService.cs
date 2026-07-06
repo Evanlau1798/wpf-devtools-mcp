@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
@@ -12,6 +13,12 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
     private const string PreviewLoadedSentinelFileName = "preview-host.loaded";
     private const string PreviewSdkOptionsFileName = "preview-host-sdk.txt";
     private const string PreviewSdkReadyFileName = "preview-host-sdk.ready";
+    private const int GeneratedXamlLineOffset = 2;
+    private const int GeneratedXamlColumnOffset = 4;
+
+    private static readonly Regex MainWindowPositionPattern = new(
+        @"MainWindow\.xaml\((?<line>\d+),(?<column>\d+)\)",
+        RegexOptions.CultureInvariant);
 
     public PreviewBlueprintResult Preview(PreviewBlueprintRequest request)
         => PreviewAsync(request).GetAwaiter().GetResult();
@@ -81,7 +88,12 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
             }
 
             var previewHost = new PreviewHostResult(buildSucceeded ? "compiled" : "not-started", Started: false);
-            var diagnostics = CreateDiagnostics(buildSucceeded, output.ToString(), rendererTemplatePath, render.Xaml)
+            var diagnostics = CreateDiagnostics(
+                    buildSucceeded,
+                    output.ToString(),
+                    rendererTemplatePath,
+                    render.SourceMap,
+                    render.Xaml)
                 .Concat(CreateRequestDiagnostics(request, rendererTemplatePath))
                 .ToArray();
             if (buildSucceeded && request.StartHost)
@@ -147,17 +159,21 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
         bool buildSucceeded,
         string buildOutput,
         string rendererTemplatePath,
+        IReadOnlyList<RenderSourceMapEntry> sourceMap,
         string xaml)
     {
         if (!buildSucceeded)
         {
+            var diagnosticSource = IsRestoreArtifactsMissing(buildOutput)
+                ? null
+                : ResolveCompileDiagnosticSource(buildOutput, sourceMap);
             return
             [
                 new(
                     "XamlCompileFailed",
                     FirstNonEmptyLine(buildOutput) ?? "Generated preview XAML did not compile.",
-                    "$.layout",
-                    rendererTemplatePath)
+                    diagnosticSource?.JsonPath ?? "$.layout",
+                    diagnosticSource?.RendererTemplatePath ?? rendererTemplatePath)
             ];
         }
 
@@ -194,6 +210,62 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
 
     private static bool RequiresRuntimeDiagnostics(PreviewBlueprintRequest request)
         => request.IncludeRuntimeDiagnostics || request.IncludeScreenshotDiagnostics;
+
+    private static RenderSourceMapEntry? ResolveCompileDiagnosticSource(
+        string buildOutput,
+        IReadOnlyList<RenderSourceMapEntry> sourceMap)
+    {
+        if (!TryGetGeneratedXamlPosition(buildOutput, out var line, out var column))
+        {
+            return null;
+        }
+
+        return sourceMap
+            .Where(entry => ContainsPosition(entry, line, column))
+            .OrderByDescending(entry => entry.JsonPath.Length)
+            .FirstOrDefault();
+    }
+
+    private static bool IsRestoreArtifactsMissing(string buildOutput)
+        => buildOutput.Contains("project.assets.json", StringComparison.OrdinalIgnoreCase)
+            || buildOutput.Contains("NETSDK1004", StringComparison.OrdinalIgnoreCase);
+
+    private static bool TryGetGeneratedXamlPosition(string buildOutput, out int line, out int column)
+    {
+        foreach (Match match in MainWindowPositionPattern.Matches(buildOutput))
+        {
+            if (!int.TryParse(match.Groups["line"].Value, out var windowLine)
+                || !int.TryParse(match.Groups["column"].Value, out var windowColumn))
+            {
+                continue;
+            }
+
+            line = windowLine - GeneratedXamlLineOffset;
+            column = Math.Max(1, windowColumn - GeneratedXamlColumnOffset);
+            if (line > 0)
+            {
+                return true;
+            }
+        }
+
+        line = 0;
+        column = 0;
+        return false;
+    }
+
+    private static bool ContainsPosition(RenderSourceMapEntry entry, int line, int column)
+    {
+        if (entry.StartLine == 0)
+        {
+            return false;
+        }
+
+        var afterStart = line > entry.StartLine
+            || line == entry.StartLine && column >= entry.StartColumn;
+        var beforeEnd = line < entry.EndLine
+            || line == entry.EndLine && column <= entry.EndColumn;
+        return afterStart && beforeEnd;
+    }
 
     private static PreviewBlueprintResult CreateCancelledResult(
         bool restoreEnabled,

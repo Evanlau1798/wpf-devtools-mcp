@@ -18,7 +18,7 @@ public sealed class ReleaseEvidenceDocFxScriptTests
             File.WriteAllText(runtimeEvidencePath, """
                 {
                   "toolsList": {
-                    "count": 71,
+                    "count": 72,
                     "nameSetHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                     "schemaSnapshotHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
                   },

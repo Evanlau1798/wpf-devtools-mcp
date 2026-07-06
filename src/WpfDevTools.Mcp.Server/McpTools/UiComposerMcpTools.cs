@@ -125,6 +125,30 @@ public static class UiComposerMcpTools
             timeoutSeconds: 10);
     }
 
+    [McpServerTool(Name = "repair_ui_blueprint", Title = "Repair UI Composer Blueprint", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [Description(UiComposerMcpToolDescriptions.RepairUiBlueprint)]
+    public static Task<CallToolResult> RepairUiBlueprint(
+        [Description("UI blueprint JSON text to analyze for repair guidance.")] string blueprintJson,
+        [Description("Optional preview, renderer, or compile diagnostics JSON object or array returned by preview_ui_blueprint or render_ui_blueprint.")] string? diagnosticsJson = null,
+        [Description("Optional target XAML file path suggestion used only for render diagnostics. This tool does not write the file.")] string? targetPath = null,
+        [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
+        [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("blueprintJson", blueprintJson),
+            ("diagnosticsJson", diagnosticsJson),
+            ("targetPath", targetPath),
+            ("projectRoot", projectRoot),
+            ("localAppDataRoot", localAppDataRoot));
+
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(RepairBlueprint(blueprintJson, diagnosticsJson, targetPath, projectRoot, localAppDataRoot)),
+            args,
+            cancellationToken,
+            timeoutSeconds: 10);
+    }
+
     [McpServerTool(Name = "apply_ui_blueprint", Title = "Apply UI Composer Blueprint", OpenWorld = false, ReadOnly = false, Destructive = true, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.ApplyUiBlueprint)]
     public static Task<CallToolResult> ApplyUiBlueprint(
@@ -291,6 +315,15 @@ public static class UiComposerMcpTools
             diagnostics = result.Diagnostics
         };
     }
+
+    private static object RepairBlueprint(
+        string blueprintJson,
+        string? diagnosticsJson,
+        string? targetPath,
+        string? projectRoot,
+        string? localAppDataRoot)
+        => new BlueprintRepairService(CreateRegistry(projectRoot, localAppDataRoot))
+            .Repair(new BlueprintRepairRequest(blueprintJson, diagnosticsJson, targetPath));
 
     private static object ApplyBlueprint(
         string blueprintJson,

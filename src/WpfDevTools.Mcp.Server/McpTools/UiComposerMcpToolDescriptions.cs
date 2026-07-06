@@ -130,6 +130,33 @@ internal static class UiComposerMcpToolDescriptions
         - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}"}
         """;
 
+    public const string RepairUiBlueprint =
+        """
+        Use this tool to turn WPF DevTools Composer validation, renderer, compile, or preview diagnostics into blueprint-first repair guidance.
+
+        CATEGORY: UI Composer
+
+        USE WHEN: validate_ui_blueprint, render_ui_blueprint, or preview_ui_blueprint reported issues and you need the next safe blueprint or pack-contract repair step.
+
+        DO NOT USE: Do not use this to patch generated XAML. This tool returns repair actions only and does not write files.
+
+        RESPONSE SUMMARY:
+        - Returns success, repairable, generatedXamlPatch=false, actionCount, actions, and diagnostics.
+        - Actions identify source, target, repairKind, issueCode, jsonPath, message, suggestedAction, allowedKinds, allowedValues, optional suggestedValue, and optional rendererTemplatePath.
+        - Validation repairs prefer blueprint changes such as choosing catalog blocks, replacing forbidden child kinds, adding required properties, or importing missing packs.
+        - Renderer and compile repairs identify whether the next step is a blueprint change or a pack renderer template issue.
+
+        REQUEST OPTIONS:
+        - blueprintJson is required and must contain schemaVersion wpfdevtools.ui-blueprint.v1.
+        - diagnosticsJson optionally accepts diagnostics returned by render_ui_blueprint or preview_ui_blueprint.
+        - targetPath optionally supplies a target XAML path suggestion for render diagnostics only; the tool does not write it.
+        - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
+        - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
+
+        EXAMPLES:
+        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.missing\"}}"}
+        """;
+
     public const string ApplyUiBlueprint =
         """
         Use this tool to produce a guarded apply plan for a WPF DevTools Composer UI blueprint.
@@ -172,7 +199,7 @@ internal static class UiComposerMcpToolDescriptions
         - startHost=true starts the temporary host after build, waits for an explicit generated-view load sentinel, then terminates the process tree.
         - includeRuntimeDiagnostics=true with startHost=true reuses connect(), get_ui_summary(depthMode="semantic"), and get_layout_info against the temporary preview host.
         - includeScreenshotDiagnostics=true with startHost=true enables runtime diagnostics and adds element_screenshot(outputMode="metadata") only when the screenshot policy gate allows it.
-        - Compile failures map back to $.layout and the root renderer template path when available.
+        - Compile failures map back to the compiler line/column source-map entry and renderer template path when available; restore/build infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:
         - blueprintJson is required and must contain schemaVersion wpfdevtools.ui-blueprint.v1.

@@ -55,7 +55,7 @@ public sealed class ReleaseEvidenceSchemaTests
         File.WriteAllText(runtimeEvidencePath, """
             {
               "toolsList": {
-                "count": 71,
+                "count": 72,
                 "nameSetHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "schemaSnapshotHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
               },

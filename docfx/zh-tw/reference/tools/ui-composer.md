@@ -82,6 +82,20 @@ Request options:
 
 此 tool 只會寫入隔離的 temporary preview directory，compile smoke 後會刪除。Preview project 使用本機 WPF UI stubs，因此測試不依賴 NuGet cache 或 network access。成功結果包含 `buildSucceeded=true`、generated `xaml`、captured `buildOutput` 與 `previewHost` summary。Runtime diagnostics 是 opt-in，會回傳在 `previewHost.runtimeDiagnostics`。Build failure 會回傳 diagnostics，能在可用時對應回 blueprint root 與 renderer template path。
 
+## `repair_ui_blueprint`
+
+將 validation、render、compile 或 preview diagnostics 轉成 blueprint-first repair actions。當 `validate_ui_blueprint`、`render_ui_blueprint` 或 `preview_ui_blueprint` 回傳 issues 後使用。
+
+Request options:
+
+- `blueprintJson`: required UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`。
+- `diagnosticsJson`: optional diagnostics JSON object 或 array，可使用 render 或 preview result 中的 diagnostics。
+- `targetPath`: optional target XAML path suggestion，只用於 render diagnostics。此 tool 不會寫入。
+- `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
+- `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
+
+Response 包含 `repairable`、`generatedXamlPatch=false`、`actionCount` 與 `actions`。Actions 會標示 repair 應落在 blueprint 或 pack renderer template contract。此 tool 不會直接 patch generated XAML。
+
 ## `apply_ui_blueprint`
 
 為 UI blueprint 產生 guarded apply plan。預設為 dry-run，讓 Agent 能在任何寫檔前檢查 generated view file path、required resources、package plan 與 binding contract stub。

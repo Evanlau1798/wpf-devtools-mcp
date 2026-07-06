@@ -82,6 +82,20 @@ Request options:
 
 The tool writes only to an isolated temporary preview directory and deletes it after the compile smoke. The preview project uses local WPF UI stubs, so tests do not depend on a NuGet cache or network access. Successful results include `buildSucceeded=true`, generated `xaml`, captured `buildOutput`, and a `previewHost` summary. Runtime diagnostics are opt-in and returned under `previewHost.runtimeDiagnostics`. Build failures return diagnostics that map back to the blueprint root and renderer template path when available.
 
+## `repair_ui_blueprint`
+
+Turns validation, render, compile, or preview diagnostics into blueprint-first repair actions. Use it after `validate_ui_blueprint`, `render_ui_blueprint`, or `preview_ui_blueprint` returns issues.
+
+Request options:
+
+- `blueprintJson`: required UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`.
+- `diagnosticsJson`: optional diagnostics JSON object or array from render or preview results.
+- `targetPath`: optional target XAML path suggestion for render diagnostics only. The tool does not write it.
+- `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
+- `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
+
+The response includes `repairable`, `generatedXamlPatch=false`, `actionCount`, and `actions`. Actions identify whether the repair belongs in the blueprint or in the pack renderer template contract. The tool never patches generated XAML directly.
+
 ## `apply_ui_blueprint`
 
 Produces a guarded apply plan for a UI blueprint. The default is dry-run, so agents can inspect the generated view file path, required resources, package plan, and binding contract stub before any write is allowed.

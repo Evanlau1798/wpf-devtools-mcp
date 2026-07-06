@@ -233,6 +233,12 @@ public sealed class GitLabCiWindowsVerificationContractTests
         workflow.Should().Contain("dotnet restore src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj --locked-mode -r win-x64");
         workflow.Should().Contain("Prepare server runtime output");
         workflow.Should().Contain("dotnet build src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj --configuration ${{ matrix.configuration }} --runtime win-x64 --self-contained false --no-restore -nodeReuse:false -p:UseSharedCompilation=false");
+        workflow.IndexOf("Run release unit tests", StringComparison.Ordinal)
+            .Should().BeLessThan(workflow.IndexOf("Restore server runtime dependencies", StringComparison.Ordinal),
+                "release-unit lanes can rewrite project.assets.json without the win-x64 RID target");
+        workflow.IndexOf("Restore server runtime dependencies", StringComparison.Ordinal)
+            .Should().BeLessThan(workflow.IndexOf("Prepare server runtime output", StringComparison.Ordinal),
+                "runtime-specific restore must be adjacent to the no-restore runtime build");
 
         gitlab.Should().Contain("Restore server runtime dependencies win-x64");
         gitlab.Should().Contain("Prepare server runtime output $configuration win-x64");

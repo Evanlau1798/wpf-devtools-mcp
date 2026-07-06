@@ -96,10 +96,6 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore --locked-mode
 
-    - name: Restore server runtime dependencies
-      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
-      run: dotnet restore src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj --locked-mode -r win-x64
-
     - name: Build native bootstrapper
       shell: pwsh
       run: |
@@ -132,6 +128,10 @@ jobs:
         WPFDEVTOOLS_TEST_TIMEOUT_SCALE: '4'
       timeout-minutes: 45
       run: dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=release-unit-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/release-unit
+
+    - name: Restore server runtime dependencies
+      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
+      run: dotnet restore src/WpfDevTools.Mcp.Server/WpfDevTools.Mcp.Server.csproj --locked-mode -r win-x64
 
     - name: Prepare server runtime output
       if: matrix.configuration == 'Debug' && matrix.platform == 'x64'

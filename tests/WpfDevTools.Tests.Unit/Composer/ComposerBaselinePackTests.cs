@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Tests.Unit.TestSupport;
@@ -109,6 +110,45 @@ public sealed class ComposerBaselinePackTests
         foreach (var path in Directory.EnumerateFiles(GetRepoFilePath("packs"), "*.json", SearchOption.AllDirectories))
         {
             File.ReadAllBytes(path).Take(3).Should().NotEqual([0xEF, 0xBB, 0xBF]);
+        }
+    }
+
+    [Fact]
+    public void BuiltinWpfUiBaselineArchive_ShouldMatchBuiltinPackFiles()
+    {
+        using var archive = ZipFile.OpenRead(GetRepoFilePath(Path.Combine(BaselineRoot, "archives", "wpfui-0.1.0.zip")));
+        var packRoot = GetRepoFilePath(PackRoot);
+        var archivePrefix = "wpfui/0.1.0/";
+
+        var packHashes = Directory.EnumerateFiles(packRoot, "*", SearchOption.AllDirectories)
+            .ToDictionary(
+                path => Path.GetRelativePath(packRoot, path).Replace('\\', '/'),
+                path =>
+                {
+                    using var stream = File.OpenRead(path);
+                    return SHA256.HashData(stream);
+                },
+                StringComparer.Ordinal);
+
+        var archiveHashes = archive.Entries
+            .Where(entry => !string.IsNullOrEmpty(entry.Name))
+            .ToDictionary(
+                entry =>
+                {
+                    entry.FullName.Should().StartWith(archivePrefix);
+                    return entry.FullName[archivePrefix.Length..];
+                },
+                entry =>
+                {
+                    using var stream = entry.Open();
+                    return SHA256.HashData(stream);
+                },
+                StringComparer.Ordinal);
+
+        archiveHashes.Keys.Should().BeEquivalentTo(packHashes.Keys);
+        foreach (var (relativePath, archiveHash) in archiveHashes)
+        {
+            archiveHash.Should().Equal(packHashes[relativePath], $"baseline archive entry {relativePath} must match the built-in pack file");
         }
     }
 

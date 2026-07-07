@@ -47,7 +47,7 @@ jobs:
         "BOOTSTRAPPER_NATIVE_DIR=$nativeDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
     - name: Restore dependencies
-      run: dotnet restore --locked-mode
+      run: dotnet restore --locked-mode -p:NuGetAudit=true
 
     - name: Run .NET analyzer gate
       shell: pwsh
@@ -66,6 +66,101 @@ jobs:
       shell: pwsh
       run: |
         ./scripts/tools/security/Invoke-RepositorySecretScan.ps1
+
+    - name: Run Composer pack fixture policy scan
+      shell: pwsh
+      run: |
+        $sourceLockPath = 'packs/builtin/wpfui/0.1.0/source.lock.json'
+        $sourceLock = Get-Content -LiteralPath $sourceLockPath -Raw | ConvertFrom-Json
+        $allowedLicenses = @('MIT')
+
+        foreach ($source in @($sourceLock.sources)) {
+          if ($allowedLicenses -notcontains [string]$source.license) {
+            throw "Composer pack source uses an unapproved license: $($source.license)"
+          }
+
+          if ([string]::IsNullOrWhiteSpace([string]$source.url) -or
+              [string]::IsNullOrWhiteSpace([string]$source.version)) {
+            throw "Composer pack source provenance is incomplete in $sourceLockPath"
+          }
+
+          $localPath = [string]$source.localPath
+          if ($localPath -match '^[A-Za-z]:[\\/]' -or $localPath.StartsWith('\\') -or $localPath.StartsWith('/')) {
+            throw "Composer pack source uses a local absolute path: $localPath"
+          }
+        }
+
+        $packRoot = 'packs/builtin/wpfui/0.1.0'
+        $baselineArchivePath = 'packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip'
+        $archivePrefix = 'wpfui/0.1.0/'
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+        $packRootPath = (Resolve-Path -LiteralPath $packRoot).Path
+        $packFiles = @(Get-ChildItem -LiteralPath $packRootPath -Recurse -File)
+        if ($packFiles.Count -eq 0) {
+          throw 'Composer built-in pack fixture did not contain generated artifacts.'
+        }
+
+        $packRootPrefix = $packRootPath.TrimEnd(
+          [System.IO.Path]::DirectorySeparatorChar,
+          [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+        $relativePackPaths = @($packFiles | ForEach-Object {
+          if (-not $_.FullName.StartsWith($packRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Composer pack fixture file is outside expected root: $($_.FullName)"
+          }
+
+          $_.FullName.Substring($packRootPrefix.Length).Replace('\', '/')
+        } | Sort-Object)
+        $archive = [System.IO.Compression.ZipFile]::OpenRead($baselineArchivePath)
+        try {
+          $archiveEntries = @($archive.Entries | Where-Object { -not [string]::IsNullOrEmpty($_.Name) })
+          $relativeArchivePaths = @($archiveEntries | ForEach-Object {
+            if (-not $_.FullName.StartsWith($archivePrefix, [System.StringComparison]::Ordinal)) {
+              throw "Composer baseline archive entry is outside expected prefix: $($_.FullName)"
+            }
+
+            $_.FullName.Substring($archivePrefix.Length)
+          } | Sort-Object)
+
+          $fileSetDiff = @(Compare-Object -ReferenceObject $relativeArchivePaths -DifferenceObject $relativePackPaths)
+          if ($fileSetDiff.Count -ne 0) {
+            throw 'Composer pack fixture file set does not match the reviewed baseline archive.'
+          }
+
+          $sha256 = [System.Security.Cryptography.SHA256]::Create()
+          try {
+            foreach ($entry in $archiveEntries) {
+              $relativePath = $entry.FullName.Substring($archivePrefix.Length)
+              $packPath = Join-Path $packRootPath $relativePath.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+
+              $entryStream = $entry.Open()
+              try {
+                $archiveHash = [System.Convert]::ToBase64String($sha256.ComputeHash($entryStream))
+              }
+              finally {
+                $entryStream.Dispose()
+              }
+
+              $packStream = [System.IO.File]::OpenRead((Resolve-Path -LiteralPath $packPath).Path)
+              try {
+                $packHash = [System.Convert]::ToBase64String($sha256.ComputeHash($packStream))
+              }
+              finally {
+                $packStream.Dispose()
+              }
+
+              if ($archiveHash -ne $packHash) {
+                throw "Composer pack fixture file hash mismatch: $relativePath"
+              }
+            }
+          }
+          finally {
+            $sha256.Dispose()
+          }
+        }
+        finally {
+          $archive.Dispose()
+        }
 
     - name: Run native bootstrapper security analysis
       shell: pwsh

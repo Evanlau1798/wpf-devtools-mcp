@@ -154,8 +154,9 @@ public static class UiComposerMcpTools
     public static Task<CallToolResult> ApplyUiBlueprint(
         [Description("UI blueprint JSON text to apply.")] string blueprintJson,
         [Description("Local WPF project root used for file planning and write allowlist checks.")] string projectRoot,
-        [Description("Optional target XAML file path. Defaults to <projectRoot>/Views/<blueprint name>.xaml.")] string? targetPath = null,
+        [Description("Optional project-root-relative target XAML file path. Defaults to Views/<blueprint name>.xaml. Absolute paths are rejected.")] string? targetPath = null,
         [Description("When true or omitted, returns a dry-run plan without writing files.")] bool dryRun = true,
+        [Description("Required explicit confirmation for non-dry-run writes after reviewing the dry-run file plan.")] bool confirmApply = false,
         [Description("Optional LocalApplicationData root override for user-global packs.")] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
     {
@@ -164,10 +165,11 @@ public static class UiComposerMcpTools
             ("projectRoot", projectRoot),
             ("targetPath", targetPath),
             ("dryRun", dryRun),
+            ("confirmApply", confirmApply),
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(ApplyBlueprint(blueprintJson, projectRoot, targetPath, dryRun, localAppDataRoot)),
+            (_, _) => Task.FromResult<object>(ApplyBlueprint(blueprintJson, projectRoot, targetPath, dryRun, confirmApply, localAppDataRoot)),
             args,
             cancellationToken,
             timeoutSeconds: 10);
@@ -330,9 +332,10 @@ public static class UiComposerMcpTools
         string projectRoot,
         string? targetPath,
         bool dryRun,
+        bool confirmApply,
         string? localAppDataRoot)
         => new UiBlueprintApplyService(CreateRegistry(projectRoot, localAppDataRoot))
-            .Apply(new ApplyBlueprintRequest(blueprintJson, projectRoot, targetPath, dryRun));
+            .Apply(new ApplyBlueprintRequest(blueprintJson, projectRoot, targetPath, dryRun, confirmApply));
 
     private static async Task<object> PreviewBlueprint(
         SessionManager sessionManager,

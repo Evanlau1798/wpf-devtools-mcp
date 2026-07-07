@@ -38,6 +38,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
             var filePlan = CreateFilePlan(targetPath, viewModelContract.TargetPath, request.DryRun, backupPath: null);
             return ApplyBlueprintResult.CreateValid(
                 dryRun: true,
+                requiresConfirmation: true,
                 wouldWriteFiles: false,
                 dryRunXaml,
                 filePlan,
@@ -45,6 +46,18 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                 render.RequiredNuGetPackages,
                 viewModelContract with { WouldWrite = false },
                 []);
+        }
+
+        if (!request.ConfirmApply)
+        {
+            return ApplyBlueprintResult.Invalid(
+                dryRun: false,
+                [new ApplyBlueprintIssue(
+                    "$.confirmApply",
+                    "ApplyConfirmationRequired",
+                    "Non-dry-run UI Composer apply requires explicit confirmApply=true.",
+                    "Review the dry-run file plan, then retry with confirmApply=true only for the reviewed project root and target path.")],
+                requiresConfirmation: true);
         }
 
         var authorization = ProjectWritePolicy.Authorize(projectRoot);
@@ -66,16 +79,25 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                     "Choose a targetPath whose existing parent directories are ordinary directories inside the reviewed projectRoot.")]);
         }
 
-        var generatedXaml = AddComposerHeaderAndSafeSlot(
-            request.BlueprintJson,
-            render.Xaml,
-            File.Exists(targetPath) ? File.ReadAllText(targetPath) : null);
-        var backupPath = WriteViewFile(projectRoot, targetPath, generatedXaml);
+        var existingContent = ReadExistingContent(targetPath);
+        if (!existingContent.Success)
+        {
+            return ApplyBlueprintResult.Invalid(dryRun: false, [existingContent.Error!]);
+        }
+
+        var generatedXaml = AddComposerHeaderAndSafeSlot(request.BlueprintJson, render.Xaml, existingContent.Content);
+        var write = WriteViewFile(projectRoot, targetPath, generatedXaml);
+        if (!write.Success)
+        {
+            return ApplyBlueprintResult.Invalid(dryRun: false, [write.Error!]);
+        }
+
         return ApplyBlueprintResult.CreateValid(
             dryRun: false,
+            requiresConfirmation: false,
             wouldWriteFiles: true,
             generatedXaml,
-                CreateFilePlan(targetPath, viewModelContract.TargetPath, dryRun: false, backupPath),
+                CreateFilePlan(targetPath, viewModelContract.TargetPath, dryRun: false, write.BackupPath),
             render.RequiredResources,
             render.RequiredNuGetPackages,
             viewModelContract with { WouldWrite = false },
@@ -96,6 +118,15 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
             errors.Add(new ApplyBlueprintIssue("$.projectRoot", "InvalidProjectRoot", "projectRoot must be a local absolute path.", "Use a local absolute project root path."));
         }
 
+        if (ProjectWritePolicy.IsSystemDirectoryPath(fullPath))
+        {
+            errors.Add(new ApplyBlueprintIssue(
+                "$.projectRoot",
+                "ProjectRootIsSystemDirectory",
+                "projectRoot must not be a system directory.",
+                "Choose a reviewed WPF project root outside Windows, Program Files, and system data directories."));
+        }
+
         return fullPath;
     }
 
@@ -109,15 +140,41 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
             return string.Empty;
         }
 
+        if (!string.IsNullOrWhiteSpace(request.TargetPath)
+            && Path.IsPathFullyQualified(request.TargetPath))
+        {
+            errors.Add(new ApplyBlueprintIssue(
+                "$.targetPath",
+                "AbsoluteTargetPathBlocked",
+                "targetPath must be project-root relative.",
+                "Pass a relative targetPath such as Views/GeneratedView.xaml."));
+        }
+
         var targetPath = string.IsNullOrWhiteSpace(request.TargetPath)
             ? Path.Combine(projectRoot, "Views", SanitizeFileName(ReadBlueprintName(request.BlueprintJson)) + ".xaml")
-            : Path.IsPathFullyQualified(request.TargetPath)
-                ? request.TargetPath
-                : Path.Combine(projectRoot, request.TargetPath);
+            : Path.Combine(projectRoot, request.TargetPath);
         var fullTargetPath = Path.GetFullPath(targetPath);
         if (!ProjectWritePolicy.IsPathUnderRoot(projectRoot, fullTargetPath))
         {
             errors.Add(new ApplyBlueprintIssue("$.targetPath", "ProjectPathOutsideRoot", "targetPath must stay inside projectRoot.", "Choose a targetPath under the reviewed projectRoot."));
+        }
+
+        if (ProjectWritePolicy.IsProtectedMetadataPath(projectRoot, fullTargetPath))
+        {
+            errors.Add(new ApplyBlueprintIssue(
+                "$.targetPath",
+                "ProtectedProjectPath",
+                "targetPath must not point inside protected project metadata directories.",
+                "Choose a targetPath outside .git and other metadata directories."));
+        }
+
+        if (ProjectWritePolicy.IsBlockedProjectFileTarget(projectRoot, fullTargetPath))
+        {
+            errors.Add(new ApplyBlueprintIssue(
+                "$.targetPath",
+                "ProjectFilePolicyViolation",
+                "UI Composer apply does not write project, App.xaml, ResourceDictionary, or ViewModel files by default.",
+                "Use apply_ui_blueprint for generated view XAML only and create a separate reviewed plan for project, resource, package, or ViewModel changes."));
         }
 
         return fullTargetPath;
@@ -186,6 +243,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                 TargetPath: targetPath,
                 Action: File.Exists(targetPath) ? "update" : "create",
                 WouldWrite: !dryRun,
+                RiskLevel: File.Exists(targetPath) ? "medium" : "low",
                 BackupPath: backupPath,
                 Reversible: backupPath is not null || dryRun),
             new(
@@ -193,6 +251,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                 TargetPath: viewModelContractPath,
                 Action: "plan",
                 WouldWrite: false,
+                RiskLevel: "low",
                 BackupPath: null,
                 Reversible: true)
         ];
@@ -211,222 +270,90 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
             }),
             WouldWrite: false);
 
-    private static string? WriteViewFile(string projectRoot, string targetPath, string content)
+    private static ApplyFileWriteResult WriteViewFile(string projectRoot, string targetPath, string content)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+        var targetDirectory = Path.GetDirectoryName(targetPath)!;
         string? backupPath = null;
-        if (File.Exists(targetPath))
+        var tempPath = Path.Combine(
+            targetDirectory,
+            "." + Path.GetFileName(targetPath) + "." + Guid.NewGuid().ToString("N") + ".tmp");
+        var existed = File.Exists(targetPath);
+        try
         {
-            var relative = Path.GetRelativePath(projectRoot, targetPath);
-            backupPath = Path.Combine(projectRoot, ".wpfdevtools-backups", DateTime.UtcNow.ToString("yyyyMMddHHmmssfff"), relative);
-            Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
-            File.Copy(targetPath, backupPath, overwrite: false);
-        }
-
-        File.WriteAllText(targetPath, content, Encoding.UTF8);
-        return backupPath;
-    }
-}
-
-internal static class ProjectWritePolicy
-{
-    public static ProjectWriteAuthorization Authorize(string projectRoot)
-    {
-        if (!string.Equals(
-                Environment.GetEnvironmentVariable(McpServerConfiguration.AllowProjectWritesEnvVar),
-                "true",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return ProjectWriteAuthorization.Denied(
-                "ProjectWritesDisabled",
-                $"Project writes are disabled by default. Set {McpServerConfiguration.AllowProjectWritesEnvVar}=true.",
-                "Enable project writes only after reviewing the generated file plan.");
-        }
-
-        var configuredRoots = Environment.GetEnvironmentVariable(McpServerConfiguration.AllowedProjectRootsEnvVar);
-        var roots = ParseAllowedRoots(configuredRoots);
-        if (!roots.Valid)
-        {
-            return ProjectWriteAuthorization.Denied(
-                "InvalidProjectRootAllowlist",
-                $"{McpServerConfiguration.AllowedProjectRootsEnvVar} contains a non-local or non-absolute root.",
-                "Use semicolon-separated local absolute project roots.");
-        }
-
-        if (roots.Count == 0)
-        {
-            return ProjectWriteAuthorization.Denied(
-                "ProjectRootNotAllowlisted",
-                $"No project root is allowlisted in {McpServerConfiguration.AllowedProjectRootsEnvVar}.",
-                "Set the allowed project roots environment variable to the reviewed local project root.");
-        }
-
-        var normalizedProjectRoot = NormalizeRoot(projectRoot);
-        return roots.Roots.Any(root => string.Equals(root, normalizedProjectRoot, StringComparison.OrdinalIgnoreCase))
-            ? ProjectWriteAuthorization.CreateAllowed()
-            : ProjectWriteAuthorization.Denied(
-                "ProjectRootNotAllowlisted",
-                "projectRoot is not allowlisted for UI Composer writes.",
-                $"Add the exact projectRoot to {McpServerConfiguration.AllowedProjectRootsEnvVar}.");
-    }
-
-    public static bool IsLocalAbsolutePath(string path)
-        => Path.IsPathFullyQualified(path) && !path.StartsWith(@"\\", StringComparison.Ordinal) && !path.StartsWith("//", StringComparison.Ordinal);
-
-    public static bool IsPathUnderRoot(string root, string candidate)
-    {
-        var normalizedRoot = NormalizeRoot(root);
-        var rootWithSeparator = normalizedRoot + Path.DirectorySeparatorChar;
-        var normalizedCandidate = Path.GetFullPath(candidate);
-        return normalizedCandidate.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase);
-    }
-
-    public static string? FindReparsePoint(string root, string candidate)
-    {
-        var normalizedRoot = NormalizeRoot(root);
-        var current = normalizedRoot;
-        if (HasReparsePoint(current))
-        {
-            return current;
-        }
-
-        var targetParent = Path.GetDirectoryName(Path.GetFullPath(candidate));
-        if (string.IsNullOrWhiteSpace(targetParent))
-        {
-            return null;
-        }
-
-        var relativeParent = Path.GetRelativePath(normalizedRoot, targetParent);
-        foreach (var part in relativeParent.Split(
-                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                     StringSplitOptions.RemoveEmptyEntries))
-        {
-            if (part == ".")
+            Directory.CreateDirectory(targetDirectory);
+            File.WriteAllText(tempPath, content, Encoding.UTF8);
+            if (existed)
             {
-                continue;
+                var relative = Path.GetRelativePath(projectRoot, targetPath);
+                backupPath = Path.Combine(projectRoot, ".wpfdevtools-backups", DateTime.UtcNow.ToString("yyyyMMddHHmmssfff"), relative);
+                if (ProjectWritePolicy.FindReparsePoint(projectRoot, backupPath) is { } backupReparsePoint)
+                {
+                    TryDeleteFile(tempPath);
+                    return ApplyFileWriteResult.CreateFailure(
+                        backupPath,
+                        new ApplyBlueprintIssue(
+                            "$.targetPath",
+                            "ProjectBackupPathUsesReparsePoint",
+                            $"Project backup path uses a reparse point: {backupReparsePoint}.",
+                            "Remove the backup directory reparse point or choose a project root without reparse-point backup paths."));
+                }
+
+                Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+                File.Replace(tempPath, targetPath, backupPath, ignoreMetadataErrors: true);
+            }
+            else
+            {
+                File.Move(tempPath, targetPath);
             }
 
-            current = Path.Combine(current, part);
-            if (!Directory.Exists(current))
-            {
-                break;
-            }
-
-            if (HasReparsePoint(current))
-            {
-                return current;
-            }
+            return ApplyFileWriteResult.CreateSuccess(backupPath);
         }
-
-        return File.Exists(candidate) && HasReparsePoint(candidate)
-            ? candidate
-            : null;
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            TryDeleteFile(tempPath);
+            var message = backupPath is null
+                ? $"Project write failed before any target file was replaced: {ex.Message}"
+                : $"Project write failed and the original target remains protected by atomic replace semantics. Backup path: {backupPath}. Error: {ex.Message}";
+            return ApplyFileWriteResult.CreateFailure(
+                backupPath,
+                new ApplyBlueprintIssue(
+                    "$.targetPath",
+                    "ProjectWriteFailed",
+                    message,
+                    "Resolve the file lock or filesystem permission issue, then rerun dry-run before applying again."));
+        }
     }
 
-    private static bool HasReparsePoint(string path)
+    private static ExistingContentReadResult ReadExistingContent(string targetPath)
     {
         try
         {
-            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
+            return ExistingContentReadResult.CreateSuccess(File.Exists(targetPath) ? File.ReadAllText(targetPath) : null);
         }
-        catch (FileNotFoundException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return false;
-        }
-        catch (DirectoryNotFoundException)
-        {
-            return false;
+            return ExistingContentReadResult.CreateFailure(new ApplyBlueprintIssue(
+                "$.targetPath",
+                "ProjectWriteFailed",
+                $"Project write failed before existing safe-slot content could be read: {ex.Message}",
+                "Resolve the file lock or filesystem permission issue, then rerun dry-run before applying again."));
         }
     }
 
-    private static AllowedProjectRoots ParseAllowedRoots(string? configuredRoots)
+    private static void TryDeleteFile(string path)
     {
-        if (string.IsNullOrWhiteSpace(configuredRoots))
+        try
         {
-            return new AllowedProjectRoots(true, []);
-        }
-
-        var roots = new List<string>();
-        foreach (var entry in configuredRoots.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            if (!IsLocalAbsolutePath(entry))
+            if (File.Exists(path))
             {
-                return new AllowedProjectRoots(false, []);
+                File.Delete(path);
             }
-
-            roots.Add(NormalizeRoot(entry));
         }
-
-        return new AllowedProjectRoots(true, roots.Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
-
-    private static string NormalizeRoot(string path)
-        => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-}
-
-internal sealed record AllowedProjectRoots(bool Valid, IReadOnlyList<string> Roots)
-{
-    public int Count => Roots.Count;
-}
-
-internal sealed record ApplyBlueprintRequest(
-    string BlueprintJson,
-    string ProjectRoot,
-    string? TargetPath = null,
-    bool DryRun = true);
-
-internal sealed record ApplyBlueprintResult(
-    bool Success,
-    bool Valid,
-    bool DryRun,
-    bool WouldWriteFiles,
-    string Xaml,
-    IReadOnlyList<ApplyFilePlanItem> FilePlan,
-    IReadOnlyList<string> ResourcePlan,
-    IReadOnlyList<RequiredNuGetPackage> RequiredNuGetPackages,
-    ViewModelBindingContractPlan ViewModelBindingContract,
-    IReadOnlyList<ApplyBlueprintIssue> Errors)
-{
-    public static ApplyBlueprintResult CreateValid(
-        bool dryRun,
-        bool wouldWriteFiles,
-        string xaml,
-        IReadOnlyList<ApplyFilePlanItem> filePlan,
-        IReadOnlyList<string> resourcePlan,
-        IReadOnlyList<RequiredNuGetPackage> packages,
-        ViewModelBindingContractPlan viewModelBindingContract,
-        IReadOnlyList<ApplyBlueprintIssue> errors)
-        => new(true, true, dryRun, wouldWriteFiles, xaml, filePlan, resourcePlan, packages, viewModelBindingContract, errors);
-
-    public static ApplyBlueprintResult Invalid(bool dryRun, IReadOnlyList<ApplyBlueprintIssue> errors)
-        => new(false, false, dryRun, false, string.Empty, [], [], [], new ViewModelBindingContractPlan(string.Empty, string.Empty, false), errors);
-}
-
-internal sealed record ApplyFilePlanItem(
-    string Role,
-    string TargetPath,
-    string Action,
-    bool WouldWrite,
-    string? BackupPath,
-    bool Reversible);
-
-internal sealed record ViewModelBindingContractPlan(string TargetPath, string Content, bool WouldWrite);
-
-internal sealed record ApplyBlueprintIssue(string JsonPath, string Code, string Message, string RepairSuggestion)
-{
-    public static ApplyBlueprintIssue FromValidationIssue(Composer.Blueprints.BlueprintValidationIssue issue)
-        => new(issue.JsonPath, issue.Code, issue.Message, issue.RepairSuggestion);
-}
-
-internal sealed record ProjectWriteAuthorization(
-    bool Allowed,
-    string Code,
-    string Message,
-    string RepairSuggestion)
-{
-    public static ProjectWriteAuthorization CreateAllowed()
-        => new(true, string.Empty, string.Empty, string.Empty);
-
-    public static ProjectWriteAuthorization Denied(string code, string message, string repairSuggestion)
-        => new(false, code, message, repairSuggestion);
 }

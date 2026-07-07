@@ -167,6 +167,92 @@ jobs:
           src/WpfDevTools.Inspector/bin/Release/net8.0-windows/
           src/WpfDevTools.Inspector.Sdk/bin/Release/net8.0-windows/
 
+  composer-ci:
+    runs-on: windows-2022
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore --locked-mode
+
+    - name: Verify Composer formatting
+      run: dotnet format WpfDevTools.sln --verify-no-changes --no-restore --include src/WpfDevTools.Mcp.Server/Composer tests/WpfDevTools.Tests.Unit/Composer tests/WpfDevTools.Tests.Unit/Documentation/CiWorkflowRegressionTests.cs
+
+    - name: Build Composer unit test dependencies
+      run: dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Release --no-restore -m:1 -nodeReuse:false -p:UseSharedCompilation=false
+
+    - name: Run Composer targeted unit and smoke tests
+      timeout-minutes: 10
+      run: >
+        dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj
+        -c Release
+        --no-build
+        --filter FullyQualifiedName~Composer
+        --verbosity normal
+        --blame-hang-timeout 10m
+        --logger "trx;LogFileName=composer-ci.trx"
+        --results-directory ./TestResults/composer
+
+    - name: Write Composer CI evidence
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Path 'artifacts/composer' -Force | Out-Null
+        $trxPath = 'TestResults/composer/composer-ci.trx'
+        if (-not (Test-Path -LiteralPath $trxPath)) {
+          throw "Composer CI TRX result missing: $trxPath"
+        }
+
+        [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
+        $counters = $trx.TestRun.ResultSummary.Counters
+        $total = [int]$counters.total
+        $executed = [int]$counters.executed
+        if ($total -le 0 -or $executed -le 0) {
+          throw 'Composer CI executed 0 tests for filter FullyQualifiedName~Composer'
+        }
+
+        $evidence = [ordered]@{
+          schemaVersion = 'wpfdevtools.composer-ci-evidence.v1'
+          workflow = 'ci-cd'
+          job = 'composer-ci'
+          testFilter = 'FullyQualifiedName~Composer'
+          testResults = [ordered]@{
+            total = $total
+            executed = $executed
+            passed = [int]$counters.passed
+            failed = [int]$counters.failed
+            trxPath = $trxPath
+          }
+          checks = @(
+            'wpfui-0.1.0-baseline-import'
+            'pack-registry-load'
+            'pack-import-security'
+            'archive-path-traversal'
+            'blueprint-validation'
+            'renderer-dry-run'
+            'preview-compile-smoke'
+            'apply-dry-run'
+            'repair-diagnostics'
+          )
+        }
+        $evidence | ConvertTo-Json -Depth 4 | Set-Content -Path 'artifacts/composer/composer-ci-evidence.json' -Encoding UTF8
+
+    - name: Upload Composer CI evidence
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: composer-ci-evidence
+        path: |
+          artifacts/composer/composer-ci-evidence.json
+          TestResults/composer/
+        if-no-files-found: ignore
+
   build-arm64:
     runs-on: windows-2022
 

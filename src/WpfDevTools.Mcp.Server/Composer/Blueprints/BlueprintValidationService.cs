@@ -35,6 +35,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         var registryResult = registry.ListPacks();
         var declaredPacks = ValidatePacks(blueprint, registryResult.Packs, errors);
         ValidateRequiredFields(blueprint, errors);
+        ValidatePrimaryPackRole(blueprint, errors);
 
         if (!string.IsNullOrWhiteSpace(blueprint.PrimaryPack)
             && !declaredPacks.ContainsKey(blueprint.PrimaryPack))
@@ -49,7 +50,9 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         if (!string.IsNullOrWhiteSpace(blueprint.Layout.Kind))
         {
             var context = BuildContext(declaredPacks, errors);
-            ValidateNode(blueprint.Layout, "$.layout", null, null, context, errors, warnings);
+            var usedPackIds = new HashSet<string>(StringComparer.Ordinal);
+            ValidateNode(blueprint.Layout, "$.layout", null, null, context, usedPackIds, errors, warnings);
+            WarnForUnusedDeclaredPacks(blueprint, declaredPacks.Keys.ToHashSet(StringComparer.Ordinal), usedPackIds, warnings);
         }
 
         return new BlueprintValidationResult(errors, warnings, registryResult.Diagnostics);
@@ -95,6 +98,34 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         }
 
         return declared;
+    }
+
+    private static void ValidatePrimaryPackRole(UiBlueprint blueprint, List<BlueprintValidationIssue> errors)
+    {
+        if (string.IsNullOrWhiteSpace(blueprint.PrimaryPack))
+        {
+            return;
+        }
+
+        for (var index = 0; index < blueprint.Packs.Length; index++)
+        {
+            var pack = blueprint.Packs[index];
+            if (!string.Equals(pack.Id, blueprint.PrimaryPack, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!string.Equals(pack.Role, "primary", StringComparison.Ordinal))
+            {
+                errors.Add(Issue(
+                    $"$.packs[{index}].role",
+                    "PrimaryPackRoleMismatch",
+                    $"Primary pack '{blueprint.PrimaryPack}' must be declared with role 'primary'.",
+                    "Set the matching packs[] entry role to 'primary'."));
+            }
+
+            return;
+        }
     }
 
     private static void ValidateRequiredFields(UiBlueprint blueprint, List<BlueprintValidationIssue> errors)
@@ -153,6 +184,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         string? parentSlot,
         IReadOnlyList<string>? allowedKinds,
         BlueprintValidationContext context,
+        HashSet<string> usedPackIds,
         List<BlueprintValidationIssue> errors,
         List<BlueprintValidationIssue> warnings)
     {
@@ -165,6 +197,11 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         if (PrimitiveKinds.Contains(node.Kind))
         {
             ValidatePrimitiveNode(node, path, parentSlot, allowedKinds, errors);
+            if (node.Kind == "stack" && allowedKinds is not null)
+            {
+                ValidateStackPrimitiveSlots(node, path, context, usedPackIds, errors, warnings);
+            }
+
             return;
         }
 
@@ -181,6 +218,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
             return;
         }
 
+        usedPackIds.Add(packId);
         if (!context.Blocks.TryGetValue(node.Kind, out var block))
         {
             errors.Add(Issue(path, "UnknownBlockKind", $"Block kind '{node.Kind}' was not found in pack '{packId}'.", BuildUnknownKindSuggestion(context, packId)));
@@ -200,7 +238,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         }
 
         ValidateProperties(node, path, block, errors, warnings);
-        ValidateSlots(node, path, block, context, errors, warnings);
+        ValidateSlots(node, path, block, context, usedPackIds, errors, warnings);
     }
 
     private static void ValidatePrimitiveNode(
@@ -221,6 +259,41 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
                     : $"Use one of the allowedKinds for slot '{parentSlot}': {string.Join(", ", allowedKinds)}.",
                 allowedKinds ?? [],
                 parentSlot: parentSlot));
+        }
+    }
+
+    private static void ValidateStackPrimitiveSlots(
+        UiBlueprintNode node,
+        string path,
+        BlueprintValidationContext context,
+        HashSet<string> usedPackIds,
+        List<BlueprintValidationIssue> errors,
+        List<BlueprintValidationIssue> warnings)
+    {
+        foreach (var (slotName, children) in node.Slots)
+        {
+            if (!string.Equals(slotName, "stack", StringComparison.Ordinal))
+            {
+                errors.Add(Issue(
+                    $"{path}.slots.{slotName}",
+                    "UnknownSlot",
+                    $"Primitive kind 'stack' does not define slot '{slotName}'.",
+                    "Use the stack slot for StackPanel children."));
+                continue;
+            }
+
+            for (var index = 0; index < children.Length; index++)
+            {
+                ValidateNode(
+                    children[index],
+                    $"{path}.slots.{slotName}[{index}]",
+                    slotName,
+                    context.Blocks.Keys.Concat(PrimitiveKinds).Order(StringComparer.Ordinal).ToArray(),
+                    context,
+                    usedPackIds,
+                    errors,
+                    warnings);
+            }
         }
     }
 
@@ -247,7 +320,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         {
             if (!block.Properties.TryGetValue(name, out var property))
             {
-                warnings.Add(Issue($"{path}.properties.{name}", "UnknownProperty", $"Block '{block.Kind}' does not define property '{name}'.", $"Remove property '{name}' or update the pack contract."));
+                errors.Add(Issue($"{path}.properties.{name}", "UnknownProperty", $"Block '{block.Kind}' does not define property '{name}'.", $"Remove property '{name}' or update the pack contract."));
                 continue;
             }
 
@@ -272,6 +345,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         string path,
         UiBlockDefinition block,
         BlueprintValidationContext context,
+        HashSet<string> usedPackIds,
         List<BlueprintValidationIssue> errors,
         List<BlueprintValidationIssue> warnings)
     {
@@ -285,8 +359,30 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
 
             for (var index = 0; index < children.Length; index++)
             {
-                ValidateNode(children[index], $"{path}.slots.{slotName}[{index}]", slotName, slot.AllowedKinds, context, errors, warnings);
+                ValidateNode(children[index], $"{path}.slots.{slotName}[{index}]", slotName, slot.AllowedKinds, context, usedPackIds, errors, warnings);
             }
+        }
+    }
+
+    private static void WarnForUnusedDeclaredPacks(
+        UiBlueprint blueprint,
+        IReadOnlySet<string> declaredPackIds,
+        IReadOnlySet<string> usedPackIds,
+        List<BlueprintValidationIssue> warnings)
+    {
+        for (var index = 0; index < blueprint.Packs.Length; index++)
+        {
+            var pack = blueprint.Packs[index];
+            if (!declaredPackIds.Contains(pack.Id) || usedPackIds.Contains(pack.Id))
+            {
+                continue;
+            }
+
+            warnings.Add(Issue(
+                $"$.packs[{index}]",
+                "UnusedPack",
+                $"Pack '{pack.Id}' is declared but no block kind from that pack is used.",
+                $"Remove pack '{pack.Id}' from packs[] or use a pack-qualified block kind from that pack."));
         }
     }
 

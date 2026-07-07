@@ -778,6 +778,7 @@ jobs:
     permissions:
       contents: write
     runs-on: windows-2022
+    environment: production
     env:
       RELEASE_STAGING_ROOT: artifacts/release/github-assets
 

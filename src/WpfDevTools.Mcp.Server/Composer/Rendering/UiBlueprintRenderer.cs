@@ -41,6 +41,7 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
         var sourceMap = new List<RenderSourceMapEntry>();
         var xaml = RenderNode(blueprint.Layout, "$.layout", blueprint.Packs, context, errors, sourceMap);
         var resolvedSourceMap = ResolveSourceMap(xaml, sourceMap);
+        errors.AddRange(XamlSafetyScanner.Scan(xaml, resolvedSourceMap, context.RequiredResources));
         var filePlan = new RenderFilePlan(ResolveTargetPath(request, blueprint), WouldWriteFiles: false);
 
         return new RenderBlueprintResult(

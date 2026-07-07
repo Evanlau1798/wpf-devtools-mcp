@@ -168,15 +168,16 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this as a general filesystem writer. Non-dry-run writes require WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true, WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true, and an exact WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS match.
 
         RESPONSE SUMMARY:
-        - Dry-run is the default and returns filePlan, resourcePlan, requiredNuGetPackages, and viewModelBindingContract without writing files.
-        - Non-dry-run writes persist generated XAML, are restricted to targetPath under projectRoot, and create a backup when updating an existing view file.
+        - Dry-run is the default and returns filePlan entries with targetPath, action, riskLevel, resourcePlan, requiredNuGetPackages, and viewModelBindingContract without writing files.
+        - Non-dry-run writes require confirmApply=true, persist generated XAML atomically, are restricted to project-root-relative targetPath under projectRoot, and create a backup when updating an existing view file.
         - Generated files include WPFDEVTOOLS_BLUEPRINT_SOURCE and WPFDEVTOOLS_SAFE_SLOT markers for reversible repair-first workflows.
 
         REQUEST OPTIONS:
         - blueprintJson is required and must contain schemaVersion wpfdevtools.ui-blueprint.v1.
         - projectRoot is required and must be the reviewed local WPF project root.
-        - targetPath optionally supplies the target XAML file path; it must stay inside projectRoot.
+        - targetPath optionally supplies a project-root-relative generated view XAML path; absolute paths, .git, App.xaml, project files, ResourceDictionary folders, and ViewModel paths are blocked by default.
         - dryRun defaults to true. Set false only after reviewing the returned plan and configuring destructive plus project-write gates.
+        - confirmApply defaults to false and must be true for non-dry-run writes after reviewing the dry-run file plan.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:

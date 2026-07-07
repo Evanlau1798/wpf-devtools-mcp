@@ -52,7 +52,7 @@ public sealed class ComposerApplyDryRunTests
             var projectRoot = Path.Combine(tempRoot, "project");
             var service = new UiBlueprintApplyService(CreateRegistry());
 
-            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, DryRun: false));
+            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, DryRun: false, ConfirmApply: true));
 
             result.Success.Should().BeFalse();
             result.Errors.Should().Contain(error => error.Code == "ProjectWritesDisabled");
@@ -74,13 +74,14 @@ public sealed class ComposerApplyDryRunTests
         {
             var projectRoot = Path.Combine(tempRoot, "project");
             var targetPath = Path.Combine(projectRoot, "Views", "GeneratedView.xaml");
+            var relativeTargetPath = Path.Combine("Views", "GeneratedView.xaml");
             Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
             File.WriteAllText(targetPath, ExistingViewWithManualSlot());
             using var locked = new FileStream(targetPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             var service = new UiBlueprintApplyService(CreateRegistry());
 
-            var dryRun = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, targetPath));
-            var blockedWrite = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, targetPath, DryRun: false));
+            var dryRun = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, relativeTargetPath));
+            var blockedWrite = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, relativeTargetPath, DryRun: false, ConfirmApply: true));
 
             dryRun.Success.Should().BeTrue();
             blockedWrite.Success.Should().BeFalse();
@@ -100,9 +101,10 @@ public sealed class ComposerApplyDryRunTests
         {
             var projectRoot = Path.Combine(tempRoot, "project");
             var outsidePath = Path.Combine(tempRoot, "outside", "GeneratedView.xaml");
+            var relativeOutsidePath = Path.Combine("..", "outside", "GeneratedView.xaml");
             var service = new UiBlueprintApplyService(CreateRegistry());
 
-            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, outsidePath));
+            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, relativeOutsidePath));
 
             result.Success.Should().BeFalse();
             result.Errors.Should().Contain(error => error.Code == "ProjectPathOutsideRoot");
@@ -125,7 +127,7 @@ public sealed class ComposerApplyDryRunTests
             var projectRoot = Path.Combine(tempRoot, "project");
             var service = new UiBlueprintApplyService(CreateRegistry());
 
-            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, DryRun: false));
+            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, DryRun: false, ConfirmApply: true));
 
             result.Success.Should().BeFalse();
             result.Errors.Should().Contain(error => error.Code == "InvalidProjectRootAllowlist");
@@ -144,13 +146,14 @@ public sealed class ComposerApplyDryRunTests
         {
             var projectRoot = Path.Combine(tempRoot, "project");
             var targetPath = Path.Combine(projectRoot, "Views", "GeneratedView.xaml");
+            var relativeTargetPath = Path.Combine("Views", "GeneratedView.xaml");
             Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
             File.WriteAllText(targetPath, ExistingViewWithManualSlot());
             using var writes = new EnvironmentVariableScope(McpServerConfiguration.AllowProjectWritesEnvVar, "true");
             using var roots = new EnvironmentVariableScope(McpServerConfiguration.AllowedProjectRootsEnvVar, projectRoot);
             var service = new UiBlueprintApplyService(CreateRegistry());
 
-            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, targetPath, DryRun: false));
+            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, relativeTargetPath, DryRun: false, ConfirmApply: true));
 
             result.Success.Should().BeTrue();
             result.DryRun.Should().BeFalse();
@@ -179,7 +182,7 @@ public sealed class ComposerApplyDryRunTests
             using var roots = new EnvironmentVariableScope(McpServerConfiguration.AllowedProjectRootsEnvVar, projectRoot);
             var service = new UiBlueprintApplyService(CreateRegistry());
 
-            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, DryRun: false));
+            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, DryRun: false, ConfirmApply: true));
 
             result.Success.Should().BeTrue();
             File.Exists(Path.Combine(projectRoot, "Views", "GeneratedView.xaml")).Should().BeTrue();
@@ -206,7 +209,7 @@ public sealed class ComposerApplyDryRunTests
             using var roots = new EnvironmentVariableScope(McpServerConfiguration.AllowedProjectRootsEnvVar, projectRoot);
             var service = new UiBlueprintApplyService(CreateRegistry());
 
-            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, DryRun: false));
+            var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, DryRun: false, ConfirmApply: true));
 
             result.Success.Should().BeFalse();
             result.Errors.Should().Contain(error => error.Code == "ProjectPathUsesReparsePoint");

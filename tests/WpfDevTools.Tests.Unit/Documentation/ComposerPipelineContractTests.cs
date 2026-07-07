@@ -28,6 +28,7 @@ public sealed class ComposerPipelineContractTests
         securityWorkflow.Should().Contain("packs/builtin/wpfui/0.1.0/source.lock.json");
         securityWorkflow.Should().Contain("packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip");
         securityWorkflow.Should().Contain("$allowedLicenses = @('MIT')");
+        securityWorkflow.Should().Contain("Get-NormalizedTextSha256");
         securityWorkflow.Should().Contain("[System.IO.Compression.ZipFile]::OpenRead($baselineArchivePath)");
         securityWorkflow.Should().Contain("[System.Security.Cryptography.SHA256]::Create()");
         securityWorkflow.Should().Contain("localPath");

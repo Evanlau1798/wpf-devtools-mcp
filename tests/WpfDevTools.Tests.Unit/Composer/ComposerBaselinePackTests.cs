@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Tests.Unit.TestSupport;
@@ -126,7 +127,7 @@ public sealed class ComposerBaselinePackTests
                 path =>
                 {
                     using var stream = File.OpenRead(path);
-                    return SHA256.HashData(stream);
+                    return ComputeNormalizedTextHash(stream);
                 },
                 StringComparer.Ordinal);
 
@@ -141,7 +142,7 @@ public sealed class ComposerBaselinePackTests
                 entry =>
                 {
                     using var stream = entry.Open();
-                    return SHA256.HashData(stream);
+                    return ComputeNormalizedTextHash(stream);
                 },
                 StringComparer.Ordinal);
 
@@ -179,6 +180,15 @@ public sealed class ComposerBaselinePackTests
 
     private static JsonDocument ReadJson(string relativePath)
         => JsonDocument.Parse(File.ReadAllText(GetRepoFilePath(relativePath)));
+
+    private static byte[] ComputeNormalizedTextHash(Stream stream)
+    {
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        var normalizedText = reader.ReadToEnd()
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace("\r", "\n", StringComparison.Ordinal);
+        return SHA256.HashData(Encoding.UTF8.GetBytes(normalizedText));
+    }
 
     private static string GetRepoFilePath(string relativePath)
         => TestRepositoryPaths.GetRepoFilePath(relativePath);

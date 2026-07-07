@@ -79,3 +79,4 @@ docfx/xrefmap.yml
 **/NuGet/Migrations/
 **/Microsoft/Windows/PowerShell/ModuleAnalysisCache
 .codegraph/.gitignore
+.codegraph/

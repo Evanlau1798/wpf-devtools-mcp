@@ -244,6 +244,7 @@ public sealed partial class SandboxCiScriptContractTests
         composerJob.Should().Contain("Run Composer targeted unit and smoke tests");
         composerJob.Should().Contain("Verify Composer formatting");
         composerJob.Should().Contain("dotnet format WpfDevTools.sln --verify-no-changes --no-restore");
+        composerJob.Should().Contain("tests/WpfDevTools.Tests.Unit/Documentation/ComposerPipelineContractTests.cs");
         composerJob.Should().Contain("dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Release --no-restore");
         composerJob.Should().Contain("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj");
         composerJob.Should().Contain("--filter FullyQualifiedName~Composer");

@@ -96,14 +96,32 @@ public sealed partial class WaitForDpChangeTool
         }
 
         var batchArgs = BuildTriggerBatchArgs(processId, elementId, triggerMutation);
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var disposeTimeoutCts = true;
         timeoutCts.CancelAfter(TimeSpan.FromMilliseconds(remainingBudgetMs));
 
         JsonElement payload;
         try
         {
-            var result = await _triggerMutationExecutor(batchArgs, timeoutCts.Token)
-                .ConfigureAwait(false);
+            var mutationTask = _triggerMutationExecutor(batchArgs, timeoutCts.Token);
+            var timeoutTask = Task.Delay(TimeSpan.FromMilliseconds(remainingBudgetMs), timeoutCts.Token);
+            if (await Task.WhenAny(mutationTask, timeoutTask).ConfigureAwait(false) != mutationTask)
+            {
+                disposeTimeoutCts = false;
+                _ = ObserveAbandonedTriggerMutationAsync(mutationTask, timeoutCts);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (_triggerMutationTimeoutRequiresReconnect)
+                {
+                    _sessionManager.GetPipeClient(processId, expectedSessionGeneration)?.Dispose();
+                }
+
+                return TriggerMutationResult.Timeout(
+                    stateAfterTimeoutUnknown: true,
+                    requiresReconnect: _triggerMutationTimeoutRequiresReconnect);
+            }
+
+            var result = await mutationTask.ConfigureAwait(false);
             payload = result is JsonElement jsonElement
                 ? jsonElement
                 : JsonSerializer.SerializeToElement(result);
@@ -119,10 +137,36 @@ public sealed partial class WaitForDpChangeTool
                 stateAfterTimeoutUnknown: true,
                 requiresReconnect: _triggerMutationTimeoutRequiresReconnect);
         }
+        finally
+        {
+            if (disposeTimeoutCts)
+            {
+                timeoutCts.Cancel();
+                timeoutCts.Dispose();
+            }
+        }
 
         return IsSuccessfulSnapshotPayload(payload)
             ? TriggerMutationResult.Success
             : new TriggerMutationResult(payload.Clone());
+    }
+
+    private static async Task ObserveAbandonedTriggerMutationAsync(
+        Task<object> mutationTask,
+        CancellationTokenSource timeoutCts)
+    {
+        try
+        {
+            await mutationTask.ConfigureAwait(false);
+        }
+        catch
+        {
+            // The caller has already returned the timeout contract.
+        }
+        finally
+        {
+            timeoutCts.Dispose();
+        }
     }
 
     private static JsonElement BuildTriggerBatchArgs(int processId, string? elementId, JsonElement triggerMutation)

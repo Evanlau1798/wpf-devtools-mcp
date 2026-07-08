@@ -380,7 +380,7 @@ public sealed class WaitForDpChangeToolConcurrencyTests
             connected.SessionManager,
             async (_, cancellationToken) =>
             {
-                await Task.Delay(2000, cancellationToken);
+                await Task.Delay(2000, CancellationToken.None);
                 return new { success = true };
             },
             triggerMutationTimeoutRequiresReconnect: false);

@@ -104,6 +104,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
     {
         var availableById = availablePacks.ToDictionary(pack => pack.Id, StringComparer.Ordinal);
         var declared = new Dictionary<string, PackRegistryItem>(StringComparer.Ordinal);
+        var requestedVersions = new Dictionary<string, string>(StringComparer.Ordinal);
 
         for (var index = 0; index < blueprint.Packs.Length; index++)
         {
@@ -120,6 +121,15 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
                 errors.Add(Issue(path + ".version", "ExplicitPackVersionRequired", $"Pack '{packRef.Id}' is missing an explicit version.", "Set packs[].version to the installed pack version."));
                 continue;
             }
+
+            if (requestedVersions.TryGetValue(packRef.Id, out var requestedVersion)
+                && !string.Equals(requestedVersion, packRef.Version, StringComparison.Ordinal))
+            {
+                errors.Add(Issue(path + ".version", "PackVersionConflict", $"Pack '{packRef.Id}' declares conflicting versions {requestedVersion} and {packRef.Version}.", "Keep one version per pack id in packs[]."));
+                continue;
+            }
+
+            requestedVersions[packRef.Id] = packRef.Version;
 
             if (!availableById.TryGetValue(packRef.Id, out var available))
             {
@@ -470,25 +480,3 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         string? parentSlot = null)
         => new(jsonPath, code, message, repairSuggestion, allowedKinds ?? [], allowedValues ?? [], parentSlot);
 }
-
-internal sealed record BlueprintValidationResult(
-    IReadOnlyList<BlueprintValidationIssue> Errors,
-    IReadOnlyList<BlueprintValidationIssue> Warnings,
-    IReadOnlyList<string> Diagnostics)
-{
-    public bool Success => Errors.Count == 0;
-}
-
-internal sealed record BlueprintValidationIssue(
-    string JsonPath,
-    string Code,
-    string Message,
-    string RepairSuggestion,
-    IReadOnlyList<string> AllowedKinds,
-    IReadOnlyList<string> AllowedValues,
-    string? ParentSlot);
-
-internal sealed record BlueprintValidationContext(
-    IReadOnlySet<string> DeclaredPackIds,
-    IReadOnlyDictionary<string, UiBlockDefinition> Blocks,
-    IReadOnlyDictionary<string, string[]> PackKinds);

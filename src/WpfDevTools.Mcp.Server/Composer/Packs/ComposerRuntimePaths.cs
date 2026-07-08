@@ -12,6 +12,13 @@ internal static class ComposerRuntimePaths
             return Path.GetFullPath(configured);
         }
 
+        var packagedRoot = ResolvePackagedComposerRoot(Directory.GetCurrentDirectory())
+            ?? ResolvePackagedComposerRoot(AppContext.BaseDirectory);
+        if (packagedRoot is not null)
+        {
+            return packagedRoot;
+        }
+
         foreach (var candidate in EnumerateRootCandidates())
         {
             if (Directory.Exists(ComposerPackPaths.BuiltinRoot(candidate)))
@@ -21,6 +28,23 @@ internal static class ComposerRuntimePaths
         }
 
         return Path.GetFullPath(AppContext.BaseDirectory);
+    }
+
+    private static string? ResolvePackagedComposerRoot(string seed)
+    {
+        var directory = new DirectoryInfo(seed);
+        if (File.Exists(Path.Combine(directory.FullName, "manifest.json"))
+            && string.Equals(directory.Name, "bin", StringComparison.OrdinalIgnoreCase))
+        {
+            return Path.GetFullPath(directory.Parent?.FullName ?? directory.FullName);
+        }
+
+        if (File.Exists(Path.Combine(directory.FullName, "bin", "manifest.json")))
+        {
+            return Path.GetFullPath(directory.FullName);
+        }
+
+        return null;
     }
 
     private static IEnumerable<string> EnumerateRootCandidates()

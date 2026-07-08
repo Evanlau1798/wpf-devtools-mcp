@@ -94,6 +94,29 @@ public sealed class ComposerRendererDryRunTests
     }
 
     [Fact]
+    public void RenderBlueprint_ShouldPlaceFluentWindowTitleBarInContentTree()
+    {
+        var renderer = new UiBlueprintRenderer(CreateRegistry());
+
+        var result = renderer.Render(new RenderBlueprintRequest(Blueprint("""
+            {
+              "kind": "wpfui.fluentWindow",
+              "slots": {
+                "titleBar": [{ "kind": "wpfui.titleBar", "properties": { "title": "Shell" } }],
+                "content": [{ "kind": "wpfui.navigationView" }]
+              }
+            }
+            """)));
+
+        result.Success.Should().BeTrue();
+        result.Xaml.Should().NotContain("FluentWindow.TitleBar");
+        result.Xaml.Should().Contain("<Grid>");
+        result.Xaml.Should().Contain("Grid.Row=\"0\"");
+        result.Xaml.Should().Contain("<ui:TitleBar Title=\"Shell\">");
+        result.Xaml.Should().Contain("Grid.Row=\"1\"");
+    }
+
+    [Fact]
     public void RenderBlueprint_ShouldReturnFilePlanWithoutWriting()
     {
         var tempRoot = CreateTempDirectory();

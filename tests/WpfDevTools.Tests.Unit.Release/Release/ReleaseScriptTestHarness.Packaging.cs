@@ -190,12 +190,13 @@ internal static partial class ReleaseScriptTestHarness
     {
         var inputs = new List<string>
         {
-            "release-cache-v5",
+            "release-cache-v6",
             architecture,
             useSignedPayload ? "signed" : "unsigned",
             GetFileContentHash(GetRepoFilePath("scripts/online-installer.ps1")),
             GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "tools", "packaging", "run-template.bat"))),
-            GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "installer", "installer-helpers.manifest.json")))
+            GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "installer", "installer-helpers.manifest.json"))),
+            GetBuiltinComposerPackContentHash()
         };
 
         foreach (var helperFile in GetInstallerHelperFiles())
@@ -321,6 +322,7 @@ internal static partial class ReleaseScriptTestHarness
                 entryExecutable = $"bin/wpf-devtools-{architecture}.exe",
                 runBatch = "run.bat",
                 installScript = "bin/install.ps1",
+                composerPacks = "packs/builtin",
                 inspectorSdk = "bin/WpfDevTools.Inspector.Sdk.dll",
                 signerThumbprint = signerMetadata.Thumbprint,
                 signerSubject = signerMetadata.Subject,
@@ -333,6 +335,7 @@ internal static partial class ReleaseScriptTestHarness
             }));
 
         CopyInstallerHelperFiles(helperDir);
+        CopyBuiltinComposerPacks(packageDir);
     }
 
     private static void CopyDirectory(string sourceDirectory, string destinationDirectory)

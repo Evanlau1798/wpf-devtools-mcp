@@ -204,6 +204,55 @@ public sealed partial class ReleasePackagingContractTests
     }
 
     [Fact]
+    public void PublishReleaseScript_ShouldPackageBuiltinComposerPacks()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var testRepo = CreateMinimalSkipBuildReleaseRepo(tempRoot, "x64");
+
+            var toolRoot = Path.Combine(tempRoot, "tools");
+            Directory.CreateDirectory(toolRoot);
+            var fakeDotnet = Path.Combine(toolRoot, "dotnet.cmd");
+            File.WriteAllText(fakeDotnet, "@echo off\r\nexit /b 0\r\n");
+            var fakeMsbuild = Path.Combine(toolRoot, "msbuild.cmd");
+            File.WriteAllText(fakeMsbuild, "@echo off\r\nexit /b 0\r\n");
+            var nativeToolchain = CreateFakeNativeToolchain(tempRoot);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                testRepo.PackagingScriptPath,
+                [
+                    "-Configuration", "Release",
+                    "-Architectures", "x64",
+                    "-OutputRoot", testRepo.OutputRoot,
+                    "-ReleaseTrustMode", "ReleaseChecksumOnly",
+                    "-SkipBuild"
+                ],
+                new Dictionary<string, string?>
+                {
+                    ["PATH"] = toolRoot + ";" + Environment.GetEnvironmentVariable("PATH"),
+                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuild,
+                    ["VCToolsInstallDir"] = nativeToolchain.VcToolsRoot,
+                    ["WindowsSDKDir"] = nativeToolchain.WindowsSdkRoot
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            var extractRoot = Path.Combine(tempRoot, "extract");
+            System.IO.Compression.ZipFile.ExtractToDirectory(
+                Path.Combine(testRepo.OutputRoot, "release_1.2.3_win-x64.zip"),
+                extractRoot);
+
+            File.Exists(Path.Combine(extractRoot, "packs", "builtin", "wpfui", "0.1.0", "pack.json")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "packs", "builtin", "wpfui", "0.1.0", "install.manifest.json")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "packs", "builtin", "wpfui", "0.1.0", "renderers", "xaml", "fluentWindow.xaml.sbn")).Should().BeTrue();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void PackageLocalInstaller_ShouldInstallServerExecutableFromBinDirectory()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -235,6 +284,52 @@ public sealed partial class ReleasePackagingContractTests
         {
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
+    }
+
+    private static void CopyDirectory(string sourceDirectory, string destinationDirectory)
+    {
+        Directory.CreateDirectory(destinationDirectory);
+
+        foreach (var directory in Directory.EnumerateDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(Path.Combine(destinationDirectory, Path.GetRelativePath(sourceDirectory, directory)));
+        }
+
+        foreach (var file in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+        {
+            var destinationPath = Path.Combine(destinationDirectory, Path.GetRelativePath(sourceDirectory, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+            File.Copy(file, destinationPath, overwrite: true);
+        }
+    }
+
+    private static (string VcToolsRoot, string WindowsSdkRoot) CreateFakeNativeToolchain(string tempRoot)
+    {
+        var vcToolsRoot = Path.Combine(tempRoot, "fake-vc");
+        Directory.CreateDirectory(Path.Combine(vcToolsRoot, "include"));
+        Directory.CreateDirectory(Path.Combine(vcToolsRoot, "lib", "x64"));
+        var vcBinRoot = Path.Combine(vcToolsRoot, "bin", "HostX64", "x64");
+        Directory.CreateDirectory(vcBinRoot);
+        File.WriteAllText(Path.Combine(vcBinRoot, "cl.exe"), "stub");
+        File.WriteAllText(Path.Combine(vcBinRoot, "link.exe"), "stub");
+
+        var sdkRoot = Path.Combine(tempRoot, "fake-sdk");
+        var sdkVersion = "10.0.0.0";
+        foreach (var includeLeaf in new[] { "ucrt", "shared", "um" })
+        {
+            Directory.CreateDirectory(Path.Combine(sdkRoot, "Include", sdkVersion, includeLeaf));
+        }
+
+        foreach (var libraryLeaf in new[] { "ucrt", "um" })
+        {
+            Directory.CreateDirectory(Path.Combine(sdkRoot, "Lib", sdkVersion, libraryLeaf, "x64"));
+        }
+
+        var sdkBinRoot = Path.Combine(sdkRoot, "bin", sdkVersion, "x64");
+        Directory.CreateDirectory(sdkBinRoot);
+        File.WriteAllText(Path.Combine(sdkBinRoot, "rc.exe"), "stub");
+
+        return (vcToolsRoot, sdkRoot);
     }
 
     [Fact]
@@ -280,6 +375,9 @@ public sealed partial class ReleasePackagingContractTests
         Directory.CreateDirectory(inspectorProjectRoot);
         Directory.CreateDirectory(inspectorSdkProjectRoot);
         Directory.CreateDirectory(bootstrapperProjectRoot);
+        CopyDirectory(
+            ReleaseScriptTestHarness.GetRepoFilePath("packs/builtin"),
+            Path.Combine(repoRoot, "packs", "builtin"));
 
         PublishReleaseScriptSource.CopyTo(packagingRoot);
         File.Copy(

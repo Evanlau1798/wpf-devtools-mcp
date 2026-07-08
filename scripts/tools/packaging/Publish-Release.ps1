@@ -38,6 +38,7 @@ $inspectorSdkProject = Join-Path $repoRoot 'src\WpfDevTools.Inspector.Sdk\WpfDev
 $bootstrapperProject = Join-Path $repoRoot 'src\WpfDevTools.Bootstrapper\WpfDevTools.Bootstrapper.vcxproj'
 $installScript = Join-Path $repoRoot 'scripts\online-installer.ps1'
 $installBatchTemplate = Join-Path $repoRoot 'scripts\tools\packaging\run-template.bat'
+$builtinComposerPackSource = Join-Path $repoRoot 'packs\builtin'
 $outputRootFullPath = (Resolve-Path (New-Item -ItemType Directory -Force -Path $OutputRoot)).Path
 $msbuildPath = Resolve-MSBuildPath
 $windowsSdkDirectory = Resolve-WindowsSdkDirectory
@@ -169,6 +170,7 @@ foreach ($architecture in $resolvedArchitectures) {
         Copy-Item -Path $installBatchTemplate -Destination (Join-Path $packageDir 'run.bat') -Force
         Copy-Item -Path $installScript -Destination (Join-Path $binDir 'install.ps1') -Force
         Copy-InstallerHelperFiles -RepositoryRoot $repoRoot -Destination (Join-Path $binDir 'installer')
+        Copy-DirectoryContents -Source $builtinComposerPackSource -Destination (Join-Path $packageDir 'packs\builtin')
 
         $payloadPaths = @(
             (Join-Path $binDir $packagedExecutableName)
@@ -199,6 +201,7 @@ foreach ($architecture in $resolvedArchitectures) {
             entryExecutable = "bin/$packagedExecutableName"
             runBatch = 'run.bat'
             installScript = 'bin\install.ps1'
+            composerPacks = 'packs/builtin'
             inspectorSdk = 'bin/WpfDevTools.Inspector.Sdk.dll'
             inspector = [ordered]@{
                 net8 = 'bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll'

@@ -1,4 +1,14 @@
 <ui:FluentWindow Title="{{title}}">
-  <ui:FluentWindow.TitleBar>{{slot.titleBar}}</ui:FluentWindow.TitleBar>
-  {{slot.content}}
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+    <Grid Grid.Row="0">
+      {{slot.titleBar}}
+    </Grid>
+    <Grid Grid.Row="1">
+      {{slot.content}}
+    </Grid>
+  </Grid>
 </ui:FluentWindow>

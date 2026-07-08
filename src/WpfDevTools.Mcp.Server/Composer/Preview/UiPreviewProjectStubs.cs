@@ -54,14 +54,14 @@ internal static class UiPreviewProjectStubs
             }
         }
 
-        public class Card : ItemsControl
+        public class Card : ContentControl
         {
-            public static readonly DependencyProperty AppearanceProperty = DependencyProperty.Register(
-                nameof(Appearance), typeof(string), typeof(Card));
-            public string? Appearance
+            public static readonly DependencyProperty FooterProperty = DependencyProperty.Register(
+                nameof(Footer), typeof(object), typeof(Card));
+            public object? Footer
             {
-                get => (string?)GetValue(AppearanceProperty);
-                set => SetValue(AppearanceProperty, value);
+                get => GetValue(FooterProperty);
+                set => SetValue(FooterProperty, value);
             }
         }
 

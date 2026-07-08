@@ -1,5 +1,11 @@
-<ui:Card Appearance="{{appearance}}">
-  {{slot.header}}
-  {{slot.content}}
-  {{slot.actions}}
+<ui:Card>
+  <ui:Card.Footer>
+    <StackPanel Orientation="Horizontal">
+      {{slot.actions}}
+    </StackPanel>
+  </ui:Card.Footer>
+  <StackPanel>
+    {{slot.header}}
+    {{slot.content}}
+  </StackPanel>
 </ui:Card>

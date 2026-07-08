@@ -111,6 +111,23 @@ public sealed class ComposerRendererDryRunTests
     }
 
     [Fact]
+    public void RenderBlueprint_ShouldRenderWpfUiCardWithoutUnsupportedAppearance()
+    {
+        var renderer = new UiBlueprintRenderer(CreateRegistry());
+
+        var result = renderer.Render(new RenderBlueprintRequest(Blueprint("""
+            {
+              "kind": "wpfui.card",
+              "slots": { "content": [{ "kind": "text", "properties": { "value": "Ready" } }] }
+            }
+            """)));
+
+        result.Success.Should().BeTrue();
+        result.Xaml.Should().Contain("<ui:Card");
+        result.Xaml.Should().NotContain("Appearance=");
+    }
+
+    [Fact]
     public void RenderBlueprint_ShouldPlaceFluentWindowTitleBarInContentTree()
     {
         var renderer = new UiBlueprintRenderer(CreateRegistry());

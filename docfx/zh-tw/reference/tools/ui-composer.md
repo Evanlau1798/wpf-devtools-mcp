@@ -18,6 +18,12 @@ Composer 目前支援下列 v1 contracts；`schemaVersion` 缺失或不同時會
 
 未知 JSON 欄位會依 v1 compatibility 被忽略；有明確 `metadata` model 的文件會保留 `metadata`。破壞 contract compatibility 的變更需要新的 schema version 或 migration note。
 
+## Composer observability
+
+Composer tool responses 會包含 `observability` object，提供本機 structured logs、per-call metrics、top diagnostic codes 與 privacy policy summary。這些資料只會回傳在 MCP response 或 pack import plan；預設不會 export 到 remote service。Hosted environment 若要明確停用 telemetry policy，可設定 `WPFDEVTOOLS_COMPOSER_TELEMETRY_DISABLED=true`。
+
+Observability payload 不包含 blueprint JSON、generated XAML、完整使用者檔案內容、secrets 或 absolute local paths。Logs 只保留穩定 diagnostic codes 與短 remediation text，讓 agent 可在不複製 project content 的情況下除錯 validation、render dry-run、apply、security rejection、rollback、preview compile 與 pack import paths。
+
 ## `list_ui_block_packs`
 
 列出 built-in、project-local 與 user-global roots 中已安裝的 UI block packs。回應包含 pack id、version、scope、block count、recipe count、example count、renderer count、source repository、readiness metadata、diagnostics 與可用 block kinds。

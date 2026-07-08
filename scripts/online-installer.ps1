@@ -3580,7 +3580,7 @@ function Get-TuiHelperManifest {
     }
     catch {
         Remove-PathIfExists -Path $temporaryManifestPath
-        throw "Failed to download installer helper manifest from $manifestUri. $($_.Exception.Message)"
+        return $null
     }
 
     $script:TuiHelperManifest = Read-TuiHelperManifest -ManifestPath $manifestPath -HelperDirectory $runtimeRoot
@@ -3590,6 +3590,51 @@ function Get-TuiHelperManifest {
 
     Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $script:TuiHelperManifest -RequirePinnedCacheKey -RequiredHelperFiles @()
     return $script:TuiHelperManifest
+}
+function Resolve-TuiHelpersFromReleaseArchive {
+    param(
+        [Parameter(Mandatory)] [string]$RuntimeRoot,
+        [Parameter(Mandatory)] [string]$CacheKeyPath,
+        [Parameter(Mandatory)] [string[]]$HelperFiles,
+        [switch]$SuppressBootstrapOutput
+    )
+
+    $archiveDownload = Get-TuiHelperArchiveDownloadDetails
+    $archivePath = Assert-InstallerLocalPathTrusted -Path (Join-Path $RuntimeRoot 'helper-bootstrap-package.zip')
+    $temporaryArchivePath = Assert-InstallerLocalPathTrusted -Path "$archivePath.download"
+    try {
+        if (-not $SuppressBootstrapOutput) {
+            Write-TuiBootstrapScreen 'Preparing installer UI... (archive)' | Out-Host
+        }
+
+        Invoke-InstallerWebRequest -Uri ([string]$archiveDownload.DownloadUri) -OutFile $temporaryArchivePath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec (Get-TuiHelperRequestTimeoutSeconds)
+        Move-StandalonePathWithRetry -SourcePath $temporaryArchivePath -DestinationPath $archivePath
+        Assert-TuiHelperArchiveIntegrity -ArchivePath $archivePath -DownloadDetails $archiveDownload
+        Copy-InstallerHelperBundleFromArchive -ArchivePath $archivePath -DestinationRoot $RuntimeRoot -HelperFiles $HelperFiles
+    }
+    catch {
+        Remove-PathIfExists -Path $temporaryArchivePath
+        throw "Failed to download installer UI runtime from $([string]$archiveDownload.DownloadUri). $($_.Exception.Message)"
+    }
+
+    $manifestPath = Get-TuiHelperManifestPath -RootPath $RuntimeRoot
+    $manifest = Read-TuiHelperManifest -ManifestPath $manifestPath -HelperDirectory $RuntimeRoot
+    if ($null -eq $manifest) {
+        throw "Installer helper manifest was not found in helper bootstrap archive: $manifestPath"
+    }
+
+    $script:TuiHelperManifest = $manifest
+    Assert-InstallerHelperManifestIntegrity -HelperDirectory $RuntimeRoot -Manifest $manifest -RequirePinnedCacheKey -RequiredHelperFiles $HelperFiles
+    Set-Content -LiteralPath $CacheKeyPath -Value (Get-InstallerHelperRuntimeCacheKey -Manifest $manifest) -Encoding UTF8
+    $script:TuiHelperBootstrapArchive = [ordered]@{
+        ArchivePath = $archivePath
+        DownloadUri = [string]$archiveDownload.DownloadUri
+        AssetName = [string]$archiveDownload.AssetName
+        ResolvedVersion = [string]$archiveDownload.ResolvedVersion
+        ResolvedArchitecture = [string](Resolve-TuiHelperBootstrapArchitecture)
+    }
+    $script:TuiHelperResolvedRoot = $RuntimeRoot
+    return $RuntimeRoot
 }
 function Ensure-TuiHelpersAvailable {
     param(
@@ -3692,11 +3737,7 @@ function Ensure-TuiHelpersAvailable {
     $runtimeRoot = Assert-InstallerLocalPathTrusted -Path $runtimeRoot
     $cacheKeyPath = Assert-InstallerLocalPathTrusted -Path $cacheKeyPath
 
-    if (-not [string]::IsNullOrWhiteSpace($downloadBaseUri)) {
-        if ($null -eq $manifest) {
-            throw "Installer helper manifest could not be resolved from $downloadBaseUri"
-        }
-
+    if (-not [string]::IsNullOrWhiteSpace($downloadBaseUri) -and $null -ne $manifest) {
         $runtimeManifestPath = Assert-InstallerLocalPathTrusted -Path (Get-TuiHelperManifestPath -RootPath $runtimeRoot)
         $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $runtimeManifestPath -Encoding UTF8
 
@@ -3727,7 +3768,11 @@ function Ensure-TuiHelpersAvailable {
             }
             catch {
                 Remove-PathIfExists -Path $temporaryPath
-                throw "Failed to download installer UI runtime from $downloadUri. $($_.Exception.Message)"
+                Remove-PathIfExists -Path $runtimeRoot
+                New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
+                $runtimeRoot = Assert-InstallerLocalPathTrusted -Path $runtimeRoot
+                $cacheKeyPath = Assert-InstallerLocalPathTrusted -Path $cacheKeyPath
+                return Resolve-TuiHelpersFromReleaseArchive -RuntimeRoot $runtimeRoot -CacheKeyPath $cacheKeyPath -HelperFiles $helperFiles -SuppressBootstrapOutput:$SuppressBootstrapOutput
             }
         }
 
@@ -3736,42 +3781,7 @@ function Ensure-TuiHelpersAvailable {
         return $runtimeRoot
     }
 
-    $archiveDownload = Get-TuiHelperArchiveDownloadDetails
-    $archivePath = Assert-InstallerLocalPathTrusted -Path (Join-Path $runtimeRoot 'helper-bootstrap-package.zip')
-    $temporaryArchivePath = Assert-InstallerLocalPathTrusted -Path "$archivePath.download"
-    try {
-        if (-not $SuppressBootstrapOutput) {
-            Write-TuiBootstrapScreen 'Preparing installer UI... (archive)' | Out-Host
-        }
-
-        Invoke-InstallerWebRequest -Uri ([string]$archiveDownload.DownloadUri) -OutFile $temporaryArchivePath -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec (Get-TuiHelperRequestTimeoutSeconds)
-        Move-StandalonePathWithRetry -SourcePath $temporaryArchivePath -DestinationPath $archivePath
-        Assert-TuiHelperArchiveIntegrity -ArchivePath $archivePath -DownloadDetails $archiveDownload
-        Copy-InstallerHelperBundleFromArchive -ArchivePath $archivePath -DestinationRoot $runtimeRoot -HelperFiles $helperFiles
-    }
-    catch {
-        Remove-PathIfExists -Path $temporaryArchivePath
-        throw "Failed to download installer UI runtime from $([string]$archiveDownload.DownloadUri). $($_.Exception.Message)"
-    }
-
-    $manifestPath = Get-TuiHelperManifestPath -RootPath $runtimeRoot
-    $manifest = Read-TuiHelperManifest -ManifestPath $manifestPath -HelperDirectory $runtimeRoot
-    if ($null -eq $manifest) {
-        throw "Installer helper manifest was not found in helper bootstrap archive: $manifestPath"
-    }
-
-    $script:TuiHelperManifest = $manifest
-    Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $manifest -RequirePinnedCacheKey -RequiredHelperFiles $helperFiles
-    Set-Content -LiteralPath $cacheKeyPath -Value (Get-InstallerHelperRuntimeCacheKey -Manifest $manifest) -Encoding UTF8
-    $script:TuiHelperBootstrapArchive = [ordered]@{
-        ArchivePath = $archivePath
-        DownloadUri = [string]$archiveDownload.DownloadUri
-        AssetName = [string]$archiveDownload.AssetName
-        ResolvedVersion = [string]$archiveDownload.ResolvedVersion
-        ResolvedArchitecture = [string](Resolve-TuiHelperBootstrapArchitecture)
-    }
-    $script:TuiHelperResolvedRoot = $runtimeRoot
-    return $runtimeRoot
+    return Resolve-TuiHelpersFromReleaseArchive -RuntimeRoot $runtimeRoot -CacheKeyPath $cacheKeyPath -HelperFiles $helperFiles -SuppressBootstrapOutput:$SuppressBootstrapOutput
 }
 function Get-InstallerSharedModulePaths {
     param(

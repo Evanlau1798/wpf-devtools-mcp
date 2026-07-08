@@ -1,10 +1,15 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 
 namespace WpfDevTools.Mcp.Server.Composer.Preview;
 
 internal static class UiPreviewProjectFiles
 {
+    private static readonly Regex RootXmlNamespaceAttributePattern = new(
+        @"\s+xmlns(?::[A-Za-z_][A-Za-z0-9_.-]*)?\s*=\s*(""[^""]*""|'[^']*'|[^\s/>]+)",
+        RegexOptions.CultureInvariant);
+
     internal static void Write(
         string root,
         string generatedXaml,
@@ -184,23 +189,23 @@ internal static class UiPreviewProjectFiles
             return string.Empty;
         }
 
+        var packagedReferences = ResolvePackagedInspectorSdkReferences();
+        if (packagedReferences.Any(reference => reference.Name == "WpfDevTools.Inspector.Sdk"))
+        {
+            return BuildAssemblyReferenceItemGroup(packagedReferences);
+        }
+
         var sourceProject = Path.Combine(
             ComposerRuntimePaths.ResolveComposerRoot(),
             "src",
             "WpfDevTools.Inspector.Sdk",
             "WpfDevTools.Inspector.Sdk.csproj");
-        if (File.Exists(sourceProject))
-        {
-            return $"""
+        return File.Exists(sourceProject)
+            ? $"""
               <ItemGroup>
                 <ProjectReference Include="{EscapeXml(sourceProject)}" />
               </ItemGroup>
-            """;
-        }
-
-        var packagedReferences = ResolvePackagedInspectorSdkReferences();
-        return packagedReferences.Any(reference => reference.Name == "WpfDevTools.Inspector.Sdk")
-            ? BuildAssemblyReferenceItemGroup(packagedReferences)
+            """
             : string.Empty;
     }
 
@@ -236,16 +241,19 @@ internal static class UiPreviewProjectFiles
         => generatedXaml.TrimStart().StartsWith("<ui:FluentWindow", StringComparison.Ordinal);
 
     private static string BuildWindowXaml(string generatedXaml, bool generatedRootIsWindow)
-        => generatedRootIsWindow
-            ? AdaptFluentWindowRootForPreviewHost(generatedXaml)
+    {
+        var previewFragment = RemoveRootXmlNamespaceDeclarations(generatedXaml);
+        return generatedRootIsWindow
+            ? AdaptFluentWindowRootForPreviewHost(previewFragment)
             : string.Join(
                 Environment.NewLine,
                 """<Window x:Class="PreviewHost.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="clr-namespace:Wpf.Ui.Controls">""",
                 "  <Grid>",
-                Indent(generatedXaml, "    "),
+                Indent(previewFragment, "    "),
                 "  </Grid>",
                 "</Window>",
                 string.Empty);
+    }
 
     private static string AdaptFluentWindowRootForPreviewHost(string generatedXaml)
     {
@@ -273,6 +281,74 @@ internal static class UiPreviewProjectFiles
         return end < 0
             ? xaml
             : xaml[..start] + xaml[(end + endTag.Length)..];
+    }
+
+    private static string RemoveRootXmlNamespaceDeclarations(string xaml)
+    {
+        var rootStart = FindRootElementStart(xaml);
+        if (rootStart < 0)
+        {
+            return xaml;
+        }
+
+        var rootEnd = FindTagEnd(xaml, rootStart + 1);
+        if (rootEnd < 0)
+        {
+            return xaml;
+        }
+
+        var rootTag = xaml[rootStart..rootEnd];
+        return xaml[..rootStart] + RootXmlNamespaceAttributePattern.Replace(rootTag, string.Empty) + xaml[rootEnd..];
+    }
+
+    private static int FindRootElementStart(string xaml)
+    {
+        var index = 0;
+        while (index < xaml.Length)
+        {
+            var start = xaml.IndexOf('<', index);
+            if (start < 0 || start + 1 >= xaml.Length)
+            {
+                return -1;
+            }
+
+            if (xaml[start + 1] is not '/' and not '!' and not '?')
+            {
+                return start;
+            }
+
+            index = start + 1;
+        }
+
+        return -1;
+    }
+
+    private static int FindTagEnd(string xaml, int start)
+    {
+        var quote = '\0';
+        for (var index = start; index < xaml.Length; index++)
+        {
+            if (quote != '\0')
+            {
+                if (xaml[index] == quote)
+                {
+                    quote = '\0';
+                }
+
+                continue;
+            }
+
+            if (xaml[index] is '"' or '\'')
+            {
+                quote = xaml[index];
+            }
+            else if (xaml[index] == '>')
+            {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     private static string Indent(string value, string indentation)

@@ -21,6 +21,7 @@ internal sealed class UiPackManifest : ComposerJsonDocument
     public string DisplayName { get; set; } = string.Empty;
     public string Version { get; set; } = string.Empty;
     public UiPackNuGetPackage[] NugetPackages { get; set; } = [];
+    public Dictionary<string, string> XmlNamespaces { get; set; } = new(StringComparer.Ordinal);
     public UiPackResourceSetup ResourceSetup { get; set; } = new();
     public string[] Blocks { get; set; } = [];
     public string[] Recipes { get; set; } = [];

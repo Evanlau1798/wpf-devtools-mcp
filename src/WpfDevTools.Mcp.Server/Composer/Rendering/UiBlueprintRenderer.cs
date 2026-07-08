@@ -39,9 +39,10 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
         var context = RenderContext.Create(registry, blueprint.Packs);
         var errors = new List<BlueprintValidationIssue>();
         var sourceMap = new List<RenderSourceMapEntry>();
-        var xaml = RenderNode(blueprint.Layout, "$.layout", blueprint.Packs, context, errors, sourceMap);
-        var resolvedSourceMap = ResolveSourceMap(xaml, sourceMap);
-        errors.AddRange(XamlSafetyScanner.Scan(xaml, resolvedSourceMap, context.RequiredResources));
+        var rendererXaml = RenderNode(blueprint.Layout, "$.layout", blueprint.Packs, context, errors, sourceMap);
+        var resolvedSourceMap = ResolveSourceMap(rendererXaml, sourceMap);
+        errors.AddRange(XamlSafetyScanner.Scan(rendererXaml, resolvedSourceMap, context.RequiredResources));
+        var xaml = AddRootXmlNamespaces(rendererXaml, context.XmlNamespaces);
         var filePlan = new RenderFilePlan(ResolveTargetPath(request, blueprint), WouldWriteFiles: false);
 
         return new RenderBlueprintResult(
@@ -159,6 +160,113 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
     private static string Escape(string value)
         => WebUtility.HtmlEncode(value);
 
+    private static string AddRootXmlNamespaces(string xaml, IReadOnlyDictionary<string, string> xmlNamespaces)
+    {
+        var rootStart = FindRootElementStart(xaml);
+        if (rootStart < 0)
+        {
+            return xaml;
+        }
+
+        var rootEnd = FindTagEnd(xaml, rootStart + 1);
+        if (rootEnd < 0)
+        {
+            return xaml;
+        }
+
+        var rootTag = xaml[rootStart..rootEnd];
+        var attributes = new List<string>();
+        if (!HasRootAttribute(rootTag, "xmlns"))
+        {
+            attributes.Add("xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\"");
+        }
+
+        if (!HasRootAttribute(rootTag, "xmlns:x"))
+        {
+            attributes.Add("xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"");
+        }
+
+        foreach (var xmlNamespace in xmlNamespaces.OrderBy(item => item.Key, StringComparer.Ordinal))
+        {
+            if (xaml.Contains(xmlNamespace.Key + ":", StringComparison.Ordinal)
+                && !HasRootAttribute(rootTag, "xmlns:" + xmlNamespace.Key))
+            {
+                attributes.Add($"xmlns:{xmlNamespace.Key}=\"{EscapeAttribute(xmlNamespace.Value)}\"");
+            }
+        }
+
+        if (attributes.Count == 0)
+        {
+            return xaml;
+        }
+
+        var insertAt = rootEnd > rootStart && xaml[rootEnd - 1] == '/' ? rootEnd - 1 : rootEnd;
+        return xaml[..insertAt] + " " + string.Join(" ", attributes) + xaml[insertAt..];
+    }
+
+    private static int FindRootElementStart(string xaml)
+    {
+        var index = 0;
+        while (index < xaml.Length)
+        {
+            var start = xaml.IndexOf('<', index);
+            if (start < 0 || start + 1 >= xaml.Length)
+            {
+                return -1;
+            }
+
+            if (xaml[start + 1] is not '/' and not '!' and not '?')
+            {
+                return start;
+            }
+
+            index = start + 1;
+        }
+
+        return -1;
+    }
+
+    private static int FindTagEnd(string xaml, int start)
+    {
+        var quote = '\0';
+        for (var index = start; index < xaml.Length; index++)
+        {
+            if (quote != '\0')
+            {
+                if (xaml[index] == quote)
+                {
+                    quote = '\0';
+                }
+
+                continue;
+            }
+
+            if (xaml[index] is '"' or '\'')
+            {
+                quote = xaml[index];
+            }
+            else if (xaml[index] == '>')
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static bool HasRootAttribute(string rootTag, string name)
+        => rootTag.Contains(" " + name + "=", StringComparison.Ordinal)
+            || rootTag.Contains("\t" + name + "=", StringComparison.Ordinal)
+            || rootTag.Contains("\r" + name + "=", StringComparison.Ordinal)
+            || rootTag.Contains("\n" + name + "=", StringComparison.Ordinal);
+
+    private static string EscapeAttribute(string value)
+        => value
+            .Replace("&", "&amp;", StringComparison.Ordinal)
+            .Replace("\"", "&quot;", StringComparison.Ordinal)
+            .Replace("<", "&lt;", StringComparison.Ordinal)
+            .Replace(">", "&gt;", StringComparison.Ordinal);
+
     private static string ResolveTargetPath(RenderBlueprintRequest request, UiBlueprint blueprint)
         => Path.GetFullPath(string.IsNullOrWhiteSpace(request.TargetPath)
             ? Path.Combine("Views", SanitizeFileName(blueprint.Name) + ".xaml")
@@ -260,17 +368,20 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
             IReadOnlyDictionary<string, UiBlockDefinition> blocks,
             IReadOnlyList<RequiredNuGetPackage> packages,
             IReadOnlyList<string> resources,
+            IReadOnlyDictionary<string, string> xmlNamespaces,
             IReadOnlyList<string> diagnostics)
         {
             Blocks = blocks;
             RequiredNuGetPackages = packages;
             RequiredResources = resources;
+            XmlNamespaces = xmlNamespaces;
             Diagnostics = diagnostics;
         }
 
         public IReadOnlyDictionary<string, UiBlockDefinition> Blocks { get; }
         public IReadOnlyList<RequiredNuGetPackage> RequiredNuGetPackages { get; }
         public IReadOnlyList<string> RequiredResources { get; }
+        public IReadOnlyDictionary<string, string> XmlNamespaces { get; }
         public IReadOnlyList<string> Diagnostics { get; }
 
         public static RenderContext Create(PackRegistry registry, IReadOnlyList<ComposerPackReference> declaredPacks)
@@ -280,6 +391,7 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
             var blocks = new Dictionary<string, UiBlockDefinition>(StringComparer.Ordinal);
             var packages = new List<RequiredNuGetPackage>();
             var resources = new List<string>();
+            var xmlNamespaces = new Dictionary<string, string>(StringComparer.Ordinal);
 
             foreach (var pack in registryResult.Packs)
             {
@@ -298,12 +410,17 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
                 packages.AddRange(loaded.Manifest.NugetPackages.Select(package =>
                     new RequiredNuGetPackage(package.Id, package.VersionRange)));
                 resources.AddRange(loaded.Manifest.ResourceSetup.ApplicationMergedDictionaries);
+                foreach (var xmlNamespace in loaded.Manifest.XmlNamespaces)
+                {
+                    xmlNamespaces.TryAdd(xmlNamespace.Key, xmlNamespace.Value);
+                }
             }
 
             return new RenderContext(
                 blocks,
                 packages.Distinct().OrderBy(package => package.Id, StringComparer.Ordinal).ToArray(),
                 resources.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
+                xmlNamespaces,
                 registryResult.Diagnostics);
         }
     }

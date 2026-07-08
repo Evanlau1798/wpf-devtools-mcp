@@ -301,6 +301,71 @@ foreach ($helperPath in @(Import-TuiHelpers)) {
         }
     }
 
+    [Fact]
+    public void OnlineInstallerSharedBootstrap_ShouldNotDownloadTuiHelpersForNonInteractiveInstall()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var standaloneRoot = Path.Combine(tempRoot, "standalone");
+            Directory.CreateDirectory(standaloneRoot);
+            var scriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+            File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"), scriptPath);
+
+            var sourceHelperRoot = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
+            var workingRoot = Path.Combine(tempRoot, "working");
+            var command = $$"""
+{{OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude("-Action install -Version latest -Architecture x64 -Client other -WorkingRoot '" + workingRoot.Replace("'", "''") + "' -NonInteractive -OutputJson", scriptPath)}}
+$script:DownloadedInstallerHelpers = New-Object System.Collections.Generic.List[string]
+function Resolve-TuiHelperDownloadBaseUri { 'https://example.invalid/wpf-devtools/helpers' }
+function Invoke-InstallerWebRequest {
+    param(
+        [Parameter(Mandatory)] [string]$Uri,
+        [string]$OutFile,
+        [hashtable]$Headers,
+        [int]$TimeoutSec
+    )
+
+    $leafName = Split-Path ([System.Uri]$Uri).AbsolutePath -Leaf
+    $script:DownloadedInstallerHelpers.Add($leafName)
+    Copy-Item -LiteralPath (Join-Path '{{sourceHelperRoot.Replace("'", "''")}}' $leafName) -Destination $OutFile -Force
+}
+
+$sharedPaths = @(Get-InstallerSharedModulePaths)
+[ordered]@{
+    downloaded = @($script:DownloadedInstallerHelpers)
+    sharedModules = @($sharedPaths | ForEach-Object { Split-Path $_ -Leaf })
+} | ConvertTo-Json -Compress
+""";
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+                command,
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile")
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var payload = JsonDocument.Parse(result.Stdout);
+            var downloaded = payload.RootElement.GetProperty("downloaded")
+                .EnumerateArray()
+                .Select(static entry => entry.GetString())
+                .ToArray();
+
+            downloaded.Should().Contain("installer-helpers.manifest.json");
+            downloaded.Where(static helper => helper?.StartsWith("Tui.", StringComparison.Ordinal) == true)
+                .Should()
+                .BeEmpty();
+            downloaded.Should().Contain("Installer.Actions.Core.ps1");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     private static string ComputeManifestCacheKey(string installerDirectory, IReadOnlyCollection<string> helperFiles)
     {
         var records = helperFiles

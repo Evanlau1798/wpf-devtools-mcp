@@ -444,6 +444,14 @@ $script:InstallerSharedHelperLeafNames = @(
     'Installer.Verification.ps1'
     'Installer.Actions.ps1'
 )
+function Get-InstallerSharedRuntimeHelperLeafNames {
+    return @($script:InstallerHelperSourcePaths |
+        ForEach-Object { Split-Path $_ -Leaf } |
+        Where-Object {
+            -not $_.StartsWith('Tui.', [System.StringComparison]::Ordinal) -and
+            -not [string]::Equals($_, 'Installer.BootstrapUi.ps1', [System.StringComparison]::Ordinal)
+        })
+}
 $script:CursorClientConfigRelativePath = '.cursor\mcp.json'
 $script:TuiScreenNames = @('HomeScreen', 'InstallScreen', 'UninstallScreen', 'ConfirmScreen', 'PathEditorScreen', 'DirectoryPickerScreen', 'FolderNamePromptScreen', 'ProgressScreen')
 $script:TuiUiMarkers = @('Installed v', 'Update available', 'Architecture', 'Install location', 'Update All')
@@ -3281,6 +3289,32 @@ function Get-ComputedInstallerHelperCacheKey {
 
     return 'sha256:' + (($hashBytes | ForEach-Object { $_.ToString('x2') }) -join '')
 }
+function Get-ComputedInstallerHelperRecordCacheKey {
+    param(
+        [Parameter(Mandatory)] [hashtable]$RecordMap,
+        [Parameter(Mandatory)] [string[]]$HelperFiles
+    )
+
+    $records = New-Object System.Collections.Generic.List[string]
+    foreach ($helperFile in ($HelperFiles | Sort-Object)) {
+        if (-not $RecordMap.ContainsKey($helperFile)) {
+            throw "Installer helper manifest is missing integrity metadata for $helperFile."
+        }
+
+        $records.Add("${helperFile}:$([string]$RecordMap[$helperFile].Sha256)")
+    }
+
+    $utf8 = [System.Text.Encoding]::UTF8.GetBytes(($records -join '|'))
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $hashBytes = $sha256.ComputeHash($utf8)
+    }
+    finally {
+        $sha256.Dispose()
+    }
+
+    return 'sha256:' + (($hashBytes | ForEach-Object { $_.ToString('x2') }) -join '')
+}
 function Get-InstallerHelperFileSha256 {
     param([Parameter(Mandatory)] [string]$Path)
 
@@ -3336,10 +3370,17 @@ function Assert-InstallerHelperManifestIntegrity {
     param(
         [Parameter(Mandatory)] [string]$HelperDirectory,
         [Parameter(Mandatory)] $Manifest,
-        [switch]$RequirePinnedCacheKey
+        [switch]$RequirePinnedCacheKey,
+        [string[]]$RequiredHelperFiles
     )
 
     $expectedHelperFiles = @(Get-HelperLeafNames | Sort-Object)
+    $requiredHelperFiles = if ($PSBoundParameters.ContainsKey('RequiredHelperFiles')) {
+        @($RequiredHelperFiles | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Sort-Object -Unique)
+    }
+    else {
+        $expectedHelperFiles
+    }
     $manifestHelperFiles = @($Manifest.HelperFiles | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Sort-Object -Unique)
     $difference = Compare-Object -ReferenceObject $expectedHelperFiles -DifferenceObject $manifestHelperFiles
     if ($difference.Count -gt 0) {
@@ -3351,11 +3392,13 @@ function Assert-InstallerHelperManifestIntegrity {
         if (-not $recordMap.ContainsKey($helperFile)) {
             throw "Installer helper manifest is missing integrity metadata for $helperFile."
         }
+    }
 
+    foreach ($helperFile in $requiredHelperFiles) {
         Assert-InstallerHelperFileRecord -HelperPath (Join-Path $HelperDirectory $helperFile) -HelperRecord $recordMap[$helperFile]
     }
 
-    $computedCacheKey = Get-ComputedInstallerHelperCacheKey -HelperDirectory $HelperDirectory -HelperFiles $expectedHelperFiles
+    $computedCacheKey = Get-ComputedInstallerHelperRecordCacheKey -RecordMap $recordMap -HelperFiles $expectedHelperFiles
     if (-not [string]::Equals([string]$Manifest.CacheKey, $computedCacheKey, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Installer helper manifest cache key does not match the helper file records. Expected $computedCacheKey but found $([string]$Manifest.CacheKey)."
     }
@@ -3545,21 +3588,39 @@ function Get-TuiHelperManifest {
         throw "Installer helper manifest was not found after download: $manifestPath"
     }
 
-    Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $script:TuiHelperManifest -RequirePinnedCacheKey
+    Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $script:TuiHelperManifest -RequirePinnedCacheKey -RequiredHelperFiles @()
     return $script:TuiHelperManifest
 }
 function Ensure-TuiHelpersAvailable {
     param(
         [switch]$SuppressBootstrapOutput,
-        [switch]$IncludeInstalledRoots
+        [switch]$IncludeInstalledRoots,
+        [string[]]$RequiredHelperFiles
     )
 
+    $allHelperFiles = @(Get-HelperLeafNames)
+    $helperFiles = if ($PSBoundParameters.ContainsKey('RequiredHelperFiles')) {
+        @($RequiredHelperFiles | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Sort-Object -Unique)
+    }
+    else {
+        $allHelperFiles
+    }
+
     if (-not [string]::IsNullOrWhiteSpace($script:TuiHelperResolvedRoot)) {
-        return $script:TuiHelperResolvedRoot
+        $cachedRootHasRequiredFiles = $true
+        foreach ($helperFile in $helperFiles) {
+            if (-not (Test-Path -LiteralPath (Join-Path $script:TuiHelperResolvedRoot $helperFile))) {
+                $cachedRootHasRequiredFiles = $false
+                break
+            }
+        }
+
+        if ($cachedRootHasRequiredFiles) {
+            return $script:TuiHelperResolvedRoot
+        }
     }
 
     $manifest = Get-TuiHelperManifest -SuppressBootstrapOutput:$SuppressBootstrapOutput -IncludeInstalledRoots:$IncludeInstalledRoots
-    $helperFiles = @(Get-HelperLeafNames)
     foreach ($candidateRoot in @(Get-LocalInstallerHelperRoots -IncludeInstalledRoots:$IncludeInstalledRoots)) {
         if ([string]::IsNullOrWhiteSpace($candidateRoot)) {
             continue
@@ -3583,7 +3644,7 @@ function Ensure-TuiHelpersAvailable {
 
         if ($allPresent) {
             if ($null -ne $manifest) {
-                Assert-InstallerHelperManifestIntegrity -HelperDirectory $trustedCandidateRoot -Manifest $manifest -RequirePinnedCacheKey
+                Assert-InstallerHelperManifestIntegrity -HelperDirectory $trustedCandidateRoot -Manifest $manifest -RequirePinnedCacheKey -RequiredHelperFiles $helperFiles
             }
             $script:TuiHelperResolvedRoot = $trustedCandidateRoot
             return $trustedCandidateRoot
@@ -3592,7 +3653,6 @@ function Ensure-TuiHelpersAvailable {
 
     if ((Resolve-InstallerMode) -eq 'offline' -and (Test-PackageArchiveRequested)) {
         $runtimeRoot = Get-TuiHelperRuntimeRoot
-        $helperFiles = @(Get-HelperLeafNames)
         $archivePath = [string]$PackageArchivePath
 
         if ([string]::IsNullOrWhiteSpace($archivePath)) {
@@ -3615,7 +3675,7 @@ function Ensure-TuiHelpersAvailable {
         }
 
         $script:TuiHelperManifest = $manifest
-        Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $manifest -RequirePinnedCacheKey
+        Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $manifest -RequirePinnedCacheKey -RequiredHelperFiles $helperFiles
         $script:TuiHelperResolvedRoot = $runtimeRoot
         return $runtimeRoot
     }
@@ -3701,7 +3761,7 @@ function Ensure-TuiHelpersAvailable {
     }
 
     $script:TuiHelperManifest = $manifest
-    Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $manifest -RequirePinnedCacheKey
+    Assert-InstallerHelperManifestIntegrity -HelperDirectory $runtimeRoot -Manifest $manifest -RequirePinnedCacheKey -RequiredHelperFiles $helperFiles
     Set-Content -LiteralPath $cacheKeyPath -Value (Get-InstallerHelperRuntimeCacheKey -Manifest $manifest) -Encoding UTF8
     $script:TuiHelperBootstrapArchive = [ordered]@{
         ArchivePath = $archivePath
@@ -3725,7 +3785,7 @@ function Get-InstallerSharedModulePaths {
     }
 
     try {
-        $helperRoot = Ensure-TuiHelpersAvailable -SuppressBootstrapOutput -IncludeInstalledRoots:$IncludeInstalledRoots
+        $helperRoot = Ensure-TuiHelpersAvailable -SuppressBootstrapOutput -IncludeInstalledRoots:$IncludeInstalledRoots -RequiredHelperFiles (Get-InstallerSharedRuntimeHelperLeafNames)
     }
     catch {
         if ($AllowMissing) {

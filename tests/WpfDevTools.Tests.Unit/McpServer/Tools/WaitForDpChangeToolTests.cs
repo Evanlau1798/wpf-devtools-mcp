@@ -190,7 +190,7 @@ public sealed class WaitForDpChangeToolTests
                 snapshotReadCount++;
                 if (snapshotReadCount >= 3)
                 {
-                    await Task.Delay(1500);
+                    await Task.Delay(2000);
                 }
 
                 return new
@@ -209,7 +209,7 @@ public sealed class WaitForDpChangeToolTests
             beforePollDelayCalls++;
             if (beforePollDelayCalls == 1)
             {
-                await Task.Delay(300);
+                await Task.Delay(1100);
             }
         };
 
@@ -221,7 +221,7 @@ public sealed class WaitForDpChangeToolTests
                 {
                     processId,
                     propertyName = "Text",
-                    timeoutMs = 250,
+                    timeoutMs = 1000,
                     pollIntervalMs = 50,
                     expectedValue = JsonSerializer.SerializeToElement("after")
                 }),

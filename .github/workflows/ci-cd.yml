@@ -123,7 +123,7 @@ jobs:
       run: dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=unit-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/unit
 
     - name: Run release unit tests
-      if: matrix.platform == 'x64'
+      if: matrix.configuration == 'Release' && matrix.platform == 'x64'
       shell: pwsh
       timeout-minutes: 25
       run: |

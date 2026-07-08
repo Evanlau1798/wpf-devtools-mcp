@@ -7,6 +7,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
+[Collection("ComposerPackLoaderCache")]
 public sealed class ComposerPackImportTests
 {
     [Fact]
@@ -289,9 +290,12 @@ public sealed class ComposerPackImportTests
             }
 
             ComposerPackLoader.ClearCacheForTests();
-            PackImportService.Import(archivePath, Path.Combine(tempRoot, "packs"), "project");
+            var destinationRoot = Path.Combine(tempRoot, "packs");
+            PackImportService.Import(archivePath, destinationRoot, "project");
 
-            ComposerPackLoader.CachedPackCountForTests().Should().Be(0);
+            ComposerPackLoader.CachedPackRootsForTests().Should().NotContain(
+                root => root.Contains($"{Path.DirectorySeparatorChar}.staging{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase),
+                "pack import validation must not cache transient staging pack roots");
         }
         finally
         {

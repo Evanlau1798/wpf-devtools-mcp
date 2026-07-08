@@ -6,6 +6,7 @@ using WpfDevTools.Mcp.Server.Composer.Rendering;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
+[Collection("ComposerPackLoaderCache")]
 public sealed class ComposerPackLoaderCacheTests
 {
     [Fact]

@@ -98,8 +98,8 @@ public sealed class UnitTestParallelizationContractTests
         var managedScript = ReadRepoFile("scripts/ci/SandboxCi.Managed.ps1");
         var releaseTestStep = GetNamedStepBlock(ciLines, "Run release unit tests");
 
-        releaseTestStep.Should().Contain("      if: matrix.platform == 'x64'",
-            "x86 matrix builds validate compilation, while no-build test lanes should run only against the hosted architecture output layout");
+        releaseTestStep.Should().Contain("      if: matrix.configuration == 'Release' && matrix.platform == 'x64'",
+            "x86 matrix builds validate compilation, while release unit tests should run once against the hosted Release output layout");
         string.Join('\n', releaseTestStep).Should().Contain("Invoke-ManagedTestLanes").And.Contain("-IncludeReleaseUnit")
             .And.Contain("-ReleaseUnitShardCount 8");
         managedScript.Should().Contain(ReleaseUnitTestProjectPath);

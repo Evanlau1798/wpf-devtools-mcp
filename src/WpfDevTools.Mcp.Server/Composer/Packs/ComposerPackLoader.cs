@@ -46,6 +46,9 @@ internal static class ComposerPackLoader
     internal static int CachedPackCountForTests()
         => Cache.Count;
 
+    internal static string[] CachedPackRootsForTests()
+        => Cache.Keys.Order(StringComparer.OrdinalIgnoreCase).ToArray();
+
     internal static string GetFingerprint(string packRoot)
         => CreateFingerprint(Path.GetFullPath(packRoot));
 

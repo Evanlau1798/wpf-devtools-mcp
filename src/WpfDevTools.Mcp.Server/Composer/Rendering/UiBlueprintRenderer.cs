@@ -268,7 +268,7 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
             .Replace(">", "&gt;", StringComparison.Ordinal);
 
     private static string ResolveTargetPath(RenderBlueprintRequest request, UiBlueprint blueprint)
-        => Path.GetFullPath(string.IsNullOrWhiteSpace(request.TargetPath)
+        => RenderTargetPath.Resolve(request, string.IsNullOrWhiteSpace(request.TargetPath)
             ? Path.Combine("Views", SanitizeFileName(blueprint.Name) + ".xaml")
             : request.TargetPath);
 
@@ -426,7 +426,7 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
     }
 }
 
-internal sealed record RenderBlueprintRequest(string BlueprintJson, string? TargetPath = null);
+internal sealed record RenderBlueprintRequest(string BlueprintJson, string? TargetPath = null, string? ProjectRoot = null);
 
 internal sealed record RenderBlueprintResult(
     bool Success,
@@ -450,7 +450,7 @@ internal sealed record RenderBlueprintResult(
             Valid: false,
             DryRun: true,
             Xaml: string.Empty,
-            FilePlan: new RenderFilePlan(Path.GetFullPath(request.TargetPath ?? Path.Combine("Views", "GeneratedView.xaml")), WouldWriteFiles: false),
+            FilePlan: new RenderFilePlan(RenderTargetPath.Resolve(request, request.TargetPath ?? Path.Combine("Views", "GeneratedView.xaml")), WouldWriteFiles: false),
             RequiredResources: [],
             RequiredNuGetPackages: [],
             Validation: validation,
@@ -460,6 +460,14 @@ internal sealed record RenderBlueprintResult(
 }
 
 internal sealed record RenderFilePlan(string TargetPath, bool WouldWriteFiles);
+
+internal static class RenderTargetPath
+{
+    public static string Resolve(RenderBlueprintRequest request, string targetPath)
+        => Path.GetFullPath(!Path.IsPathFullyQualified(targetPath) && !string.IsNullOrWhiteSpace(request.ProjectRoot)
+            ? Path.Combine(request.ProjectRoot, targetPath)
+            : targetPath);
+}
 
 internal sealed record RequiredNuGetPackage(string Id, string VersionRange);
 

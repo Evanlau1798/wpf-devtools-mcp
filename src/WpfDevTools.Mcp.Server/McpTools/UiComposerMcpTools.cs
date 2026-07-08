@@ -306,7 +306,7 @@ public static class UiComposerMcpTools
         string? localAppDataRoot)
     {
         var result = new UiBlueprintRenderer(CreateRegistry(projectRoot, localAppDataRoot))
-            .Render(new RenderBlueprintRequest(blueprintJson, targetPath));
+            .Render(new RenderBlueprintRequest(blueprintJson, targetPath, projectRoot));
 
         return new
         {

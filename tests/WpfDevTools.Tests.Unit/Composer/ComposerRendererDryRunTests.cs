@@ -94,6 +94,23 @@ public sealed class ComposerRendererDryRunTests
     }
 
     [Fact]
+    public void RenderBlueprint_ShouldRenderNavigationViewContentAsContentOverlayPropertyElement()
+    {
+        var renderer = new UiBlueprintRenderer(CreateRegistry());
+
+        var result = renderer.Render(new RenderBlueprintRequest(Blueprint("""
+            {
+              "kind": "wpfui.navigationView",
+              "slots": { "content": [{ "kind": "wpfui.card" }] }
+            }
+            """)));
+
+        result.Success.Should().BeTrue();
+        result.Xaml.Should().Contain("<ui:NavigationView.ContentOverlay>");
+        result.Xaml.Should().NotContain("<ui:NavigationView PaneDisplayMode=\"Left\">" + Environment.NewLine + "  <ui:Card");
+    }
+
+    [Fact]
     public void RenderBlueprint_ShouldPlaceFluentWindowTitleBarInContentTree()
     {
         var renderer = new UiBlueprintRenderer(CreateRegistry());
@@ -174,6 +191,29 @@ public sealed class ComposerRendererDryRunTests
             payload.GetProperty("dryRun").GetBoolean().Should().BeTrue();
             payload.GetProperty("xaml").GetString().Should().Contain("<ui:Snackbar");
             payload.GetProperty("filePlan").GetProperty("wouldWriteFiles").GetBoolean().Should().BeFalse();
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public async Task RenderUiBlueprintTool_WithProjectRoot_ShouldResolveRelativeTargetInsideProjectRoot()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var result = await UiComposerMcpTools.RenderUiBlueprint(
+                Blueprint("""{ "kind": "wpfui.textBlock", "properties": { "text": "Preview" } }"""),
+                targetPath: "Views/GeneratedView.xaml",
+                projectRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+
+            result.IsError.Should().BeFalse();
+            var payload = result.StructuredContent!.Value;
+            payload.GetProperty("filePlan").GetProperty("targetPath").GetString()
+                .Should().Be(Path.GetFullPath(Path.Combine(tempRoot, "Views", "GeneratedView.xaml")));
         }
         finally
         {

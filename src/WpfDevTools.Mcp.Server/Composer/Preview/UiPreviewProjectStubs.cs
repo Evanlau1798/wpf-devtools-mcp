@@ -65,12 +65,20 @@ internal static class UiPreviewProjectStubs
             }
         }
 
-        public class NavigationView : ItemsControl
+        public class NavigationView : Control
         {
             public static readonly DependencyProperty PaneDisplayModeProperty = DependencyProperty.Register(
                 nameof(PaneDisplayMode), typeof(string), typeof(NavigationView));
+            public static readonly DependencyProperty ContentOverlayProperty = DependencyProperty.Register(
+                nameof(ContentOverlay), typeof(object), typeof(NavigationView));
             public Collection<object> MenuItems { get; } = new();
             public Collection<object> FooterMenuItems { get; } = new();
+            public object? ContentOverlay
+            {
+                get => GetValue(ContentOverlayProperty);
+                set => SetValue(ContentOverlayProperty, value);
+            }
+
             public string? PaneDisplayMode
             {
                 get => (string?)GetValue(PaneDisplayModeProperty);

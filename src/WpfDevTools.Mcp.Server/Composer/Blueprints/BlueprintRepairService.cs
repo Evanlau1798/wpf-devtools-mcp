@@ -73,7 +73,7 @@ internal sealed class BlueprintRepairService(PackRegistry registry)
         => code switch
         {
             "PackNotFound" or "PackNotDeclared" or "PackIdMissing" or "PrimaryPackNotDeclared" => "import-pack",
-            "ExplicitPackVersionRequired" or "PackVersionMismatch" => "import-pack",
+            "OptionalPackMissing" or "ExplicitPackVersionRequired" or "PackVersionConflict" or "PackVersionMismatch" => "import-pack",
             "UnknownBlockKind" or "UnqualifiedBlockKind" => "choose-catalog-block",
             "SlotChildKindNotAllowed" => "replace-child-kind",
             "RequiredPropertyMissing" => "add-property",

@@ -93,6 +93,28 @@ public sealed class ComposerBlueprintRepairTests
     }
 
     [Fact]
+    public void RepairBlueprint_ShouldMapPackVersionAndOptionalMissingToImportActions()
+    {
+        var repair = new BlueprintRepairService(CreateRegistry());
+        var result = repair.Repair(new BlueprintRepairRequest(Blueprint("""
+            {
+              "packs": [
+                { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
+                { "id": "wpfui", "version": "9.9.9", "required": false, "role": "optional-control" },
+                { "id": "missing.optional", "version": "1.0.0", "required": false, "role": "optional-control" }
+              ],
+              "primaryPack": "wpfui",
+              "layout": { "kind": "wpfui.button" }
+            }
+            """)));
+
+        result.Actions.Should().Contain(action => action.IssueCode == "PackVersionConflict"
+            && action.RepairKind == "import-pack");
+        result.Actions.Should().Contain(action => action.IssueCode == "OptionalPackMissing"
+            && action.RepairKind == "import-pack");
+    }
+
+    [Fact]
     public void RepairBlueprint_ShouldMapRendererTokenMismatchToTemplateAction()
     {
         var projectRoot = CreateTempProjectWithRepairPack();

@@ -17,7 +17,8 @@ internal sealed class RendererTemplateLoader(PackRegistry registry)
     {
         var errors = new List<BlueprintValidationIssue>();
         var registryResult = registry.ListPacks();
-        var packId = GetPackId(blockKind);
+        var packId = ComposerPackKindResolver.ResolveDeclaredPackId(blockKind, declaredPacks.Select(pack => pack.Id))
+            ?? ComposerPackKindResolver.GetFallbackPackId(blockKind);
         var packRef = declaredPacks.FirstOrDefault(reference =>
             string.Equals(reference.Id, packId, StringComparison.Ordinal));
         if (packRef is null)
@@ -70,12 +71,6 @@ internal sealed class RendererTemplateLoader(PackRegistry registry)
                 .ToArray());
         _cache[cacheKey] = template;
         return new RendererTemplateLoadResult(true, template, [], false);
-    }
-
-    private static string GetPackId(string blockKind)
-    {
-        var index = blockKind.IndexOf('.', StringComparison.Ordinal);
-        return index < 0 ? string.Empty : blockKind[..index];
     }
 
     private static string ResolveTemplatePath(string packRoot, string template)

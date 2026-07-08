@@ -62,6 +62,49 @@ public sealed class ComposerMultiPackValidationTests
         }
     }
 
+    [Fact]
+    public void ValidateBlueprint_ShouldAcceptOptionalSyntaxHighlightPackWithDottedId()
+    {
+        var projectRoot = CreateTempProjectWithBlockPack(
+            "wpfui.syntaxhighlight",
+            "wpfui.syntaxhighlight.codeEditor");
+        try
+        {
+            var result = CreateValidator(projectRoot).Validate("""
+                {
+                  "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+                  "name": "OptionalSyntaxHighlight",
+                  "packs": [
+                    { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
+                    { "id": "wpfui.syntaxhighlight", "version": "1.0.0", "required": false, "role": "optional-control" }
+                  ],
+                  "primaryPack": "wpfui",
+                  "layout": {
+                    "kind": "wpfui.card",
+                    "slots": {
+                      "content": [
+                        {
+                          "kind": "stack",
+                          "slots": {
+                            "stack": [{ "kind": "wpfui.syntaxhighlight.codeEditor" }]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+                """);
+
+            result.Errors.Should().BeEmpty();
+            result.Warnings.Should().NotContain(issue => issue.JsonPath == "$.packs[1]"
+                && issue.Code == "UnusedPack");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
     private static BlueprintValidationService CreateValidator(string? projectRoot = null)
     {
         var repoRoot = TestRepositoryPaths.GetRepoFilePath(".");
@@ -83,6 +126,30 @@ public sealed class ComposerMultiPackValidationTests
         File.WriteAllText(Path.Combine(packRoot, "source.lock.json"), """
             {"schemaVersion":"wpfdevtools.source-lock.v1","sources":[]}
             """);
+        return projectRoot;
+    }
+
+    private static string CreateTempProjectWithBlockPack(string id, string blockKind)
+    {
+        var projectRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-pack-block-" + Guid.NewGuid().ToString("N"));
+        var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", id, "1.0.0");
+        var blockId = blockKind[(id.Length + 1)..];
+        Directory.CreateDirectory(Path.Combine(packRoot, "blocks"));
+        Directory.CreateDirectory(Path.Combine(packRoot, "renderers", "xaml"));
+        File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"), $$"""
+            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"{{id}}","version":"1.0.0","scope":"project-local","path":"{{id}}/1.0.0","enabled":true}
+            """);
+        File.WriteAllText(Path.Combine(packRoot, "pack.json"), $$"""
+            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"{{id}}","version":"1.0.0","displayName":"Optional Block Pack","resourceSetup":{"applicationMergedDictionaries":[]},"blocks":["{{blockKind}}"],"recipes":[]}
+            """);
+        File.WriteAllText(Path.Combine(packRoot, "source.lock.json"), """
+            {"schemaVersion":"wpfdevtools.source-lock.v1","sources":[]}
+            """);
+        File.WriteAllText(Path.Combine(packRoot, "blocks", $"{blockId}.block.json"), """
+            {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"$kind$","displayName":"Code Editor","category":"input","properties":{},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/$blockId$.xaml.sbn"}}
+            """.Replace("$kind$", blockKind, StringComparison.Ordinal)
+            .Replace("$blockId$", blockId, StringComparison.Ordinal));
+        File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", $"{blockId}.xaml.sbn"), "<TextBox />");
         return projectRoot;
     }
 

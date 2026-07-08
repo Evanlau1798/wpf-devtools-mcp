@@ -134,8 +134,10 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 blueprintJson,
                 "<inline-blueprint>",
                 UiComposerSchemaVersions.UiBlueprint);
-            var packId = blueprint.Layout.Kind.Split('.', 2)[0];
-            var pack = registry.ListPacks().Packs.FirstOrDefault(candidate =>
+            var packs = registry.ListPacks().Packs;
+            var packId = ComposerPackKindResolver.ResolveDeclaredPackId(blueprint.Layout.Kind, packs.Select(pack => pack.Id))
+                ?? ComposerPackKindResolver.GetFallbackPackId(blueprint.Layout.Kind);
+            var pack = packs.FirstOrDefault(candidate =>
                 string.Equals(candidate.Id, packId, StringComparison.Ordinal));
             if (pack is null)
             {

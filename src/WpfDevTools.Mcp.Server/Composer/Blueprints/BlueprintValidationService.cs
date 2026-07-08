@@ -278,9 +278,10 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
             return;
         }
 
-        var packId = node.Kind[..node.Kind.IndexOf('.', StringComparison.Ordinal)];
-        if (!context.DeclaredPackIds.Contains(packId))
+        var packId = ComposerPackKindResolver.ResolveDeclaredPackId(node.Kind, context.DeclaredPackIds);
+        if (packId is null)
         {
+            packId = ComposerPackKindResolver.GetFallbackPackId(node.Kind);
             errors.Add(Issue(path, "PackNotDeclared", $"Block kind '{node.Kind}' uses undeclared pack '{packId}'.", $"Add pack '{packId}' with an explicit version to packs[] or choose a declared pack block."));
             return;
         }

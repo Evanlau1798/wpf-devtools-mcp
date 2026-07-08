@@ -4,6 +4,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
+[Collection("ProcessEnvironment")]
 public sealed class ComposerRuntimePathsTests
 {
     private const string ComposerRootEnvVar = "WPFDEVTOOLS_COMPOSER_ROOT";

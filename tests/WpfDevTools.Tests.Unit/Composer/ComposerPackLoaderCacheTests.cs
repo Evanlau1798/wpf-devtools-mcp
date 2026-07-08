@@ -54,6 +54,28 @@ public sealed class ComposerPackLoaderCacheTests
     }
 
     [Fact]
+    public void Load_ShouldIgnoreNonContractFilesForCacheInvalidation()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = CreateMinimalPack(tempRoot);
+            ComposerPackLoader.ClearCacheForTests();
+            var first = ComposerPackLoader.Load(packRoot);
+
+            File.WriteAllText(Path.Combine(packRoot, "payload.bin"), Guid.NewGuid().ToString("N"));
+            var second = ComposerPackLoader.Load(packRoot);
+
+            second.Should().BeSameAs(first);
+        }
+        finally
+        {
+            ComposerPackLoader.ClearCacheForTests();
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void GetFingerprint_ShouldUseUnambiguousFraming()
     {
         var tempRoot = CreateTempDirectory();
@@ -63,9 +85,9 @@ public sealed class ComposerPackLoaderCacheTests
             var secondRoot = Path.Combine(tempRoot, "second");
             Directory.CreateDirectory(firstRoot);
             Directory.CreateDirectory(secondRoot);
-            File.WriteAllBytes(Path.Combine(firstRoot, "a"), [(byte)'b']);
-            File.WriteAllBytes(Path.Combine(firstRoot, "c"), []);
-            File.WriteAllBytes(Path.Combine(secondRoot, "a"), [(byte)'b', 0, (byte)'c', 0]);
+            File.WriteAllBytes(Path.Combine(firstRoot, "pack.json"), [(byte)'b']);
+            File.WriteAllBytes(Path.Combine(firstRoot, "source.lock.json"), []);
+            File.WriteAllBytes(Path.Combine(secondRoot, "pack.json"), [(byte)'b', 0, (byte)'c', 0]);
 
             ComposerPackLoader.GetFingerprint(firstRoot).Should()
                 .NotBe(ComposerPackLoader.GetFingerprint(secondRoot));

@@ -116,8 +116,23 @@ internal static class ComposerPackLoader
     }
 
     private static IEnumerable<string> EnumeratePackFiles(string root)
-        => Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+        => new[]
+        {
+            Path.Combine(root, "install.manifest.json"),
+            Path.Combine(root, "pack.json"),
+            Path.Combine(root, "source.lock.json")
+        }.Where(File.Exists)
+            .Concat(EnumerateOptionalFiles(Path.Combine(root, "blocks"), "*.block.json"))
+            .Concat(EnumerateOptionalFiles(Path.Combine(root, "recipes"), "*.recipe.json"))
+            .Concat(EnumerateOptionalFiles(Path.Combine(root, "examples"), "*.ui.json"))
+            .Concat(EnumerateOptionalFiles(Path.Combine(root, "renderers", "xaml"), "*.xaml.sbn"))
+            .Select(Path.GetFullPath)
             .Order(StringComparer.Ordinal);
+
+    private static IEnumerable<string> EnumerateOptionalFiles(string directory, string pattern)
+        => Directory.Exists(directory)
+            ? Directory.EnumerateFiles(directory, pattern, SearchOption.AllDirectories)
+            : [];
 
     private static void AppendLengthPrefixed(IncrementalHash hash, byte[] value)
     {

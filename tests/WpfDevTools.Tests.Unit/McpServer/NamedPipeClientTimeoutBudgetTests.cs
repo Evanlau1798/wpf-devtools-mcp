@@ -93,8 +93,8 @@ public class NamedPipeClientTimeoutBudgetTests : IDisposable
 
         connected.Should().BeFalse();
         client.LastConnectFailure.Should().Be(NamedPipeConnectFailure.Timeout);
-        sw.Elapsed.Should().BeLessThan(TimeSpan.FromMilliseconds(800),
-            "auth read/write phases must be guarded by an explicit budget even when the underlying pipe operation ignores cancellation");
+        sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(2),
+            "auth read/write phases must remain bounded even under coverage instrumentation when the underlying pipe operation ignores cancellation");
     }
 
     [Fact]

@@ -30,6 +30,53 @@ public sealed class ComposerPackLoaderCacheTests
     }
 
     [Fact]
+    public void Load_ShouldNotReadUnchangedPackFileContentForCacheHit()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = CreateMinimalPack(tempRoot);
+            var payloadPath = Path.Combine(packRoot, "payload.bin");
+            File.WriteAllText(payloadPath, "unchanged");
+            ComposerPackLoader.ClearCacheForTests();
+            var first = ComposerPackLoader.Load(packRoot);
+
+            using var locked = new FileStream(payloadPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            var second = ComposerPackLoader.Load(packRoot);
+
+            second.Should().BeSameAs(first);
+        }
+        finally
+        {
+            ComposerPackLoader.ClearCacheForTests();
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void GetFingerprint_ShouldUseUnambiguousFraming()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var firstRoot = Path.Combine(tempRoot, "first");
+            var secondRoot = Path.Combine(tempRoot, "second");
+            Directory.CreateDirectory(firstRoot);
+            Directory.CreateDirectory(secondRoot);
+            File.WriteAllBytes(Path.Combine(firstRoot, "a"), [(byte)'b']);
+            File.WriteAllBytes(Path.Combine(firstRoot, "c"), []);
+            File.WriteAllBytes(Path.Combine(secondRoot, "a"), [(byte)'b', 0, (byte)'c', 0]);
+
+            ComposerPackLoader.GetFingerprint(firstRoot).Should()
+                .NotBe(ComposerPackLoader.GetFingerprint(secondRoot));
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void Load_ShouldInvalidateCacheWhenBlockDefinitionChanges()
     {
         var tempRoot = CreateTempDirectory();

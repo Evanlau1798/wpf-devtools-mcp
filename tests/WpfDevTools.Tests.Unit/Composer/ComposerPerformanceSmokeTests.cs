@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.Composer;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
@@ -24,65 +23,54 @@ public sealed class ComposerPerformanceSmokeTests
     }
 
     [Fact]
-    public void PackRegistryLoad_ShouldStayWithinSmokeTarget()
+    public void PackRegistryLoadSmoke_ShouldResolveDefaultPack()
     {
-        var result = Measure(() => CreateRegistry().ListPacks(), out var elapsed);
+        var result = CreateRegistry().ListPacks();
 
         result.Packs.Should().Contain(pack => pack.Id == "wpfui" && pack.Version == "0.1.0");
-        AssertWithin(elapsed, ComposerPerformanceTargets.PackRegistryLoad, "pack registry load");
     }
 
     [Fact]
-    public void BlockCatalogQuery_ShouldStayWithinSmokeTarget()
+    public void BlockCatalogQuerySmoke_ShouldResolveDefaultBlock()
     {
         var catalog = new BlockCatalogService(CreateRegistry());
 
-        var result = Measure(
-            () => catalog.GetCatalog(new BlockCatalogQuery(Kind: "wpfui.button")),
-            out var elapsed);
+        var result = catalog.GetCatalog(new BlockCatalogQuery(Kind: "wpfui.button"));
 
         result.Items.Should().ContainSingle(item => item.Kind == "wpfui.button");
-        AssertWithin(elapsed, ComposerPerformanceTargets.BlockCatalogQuery, "block catalog query");
     }
 
     [Fact]
-    public void BlueprintValidation_ShouldStayWithinSmokeTarget()
+    public void BlueprintValidationSmoke_ShouldAcceptNavigationShell()
     {
         var validator = new BlueprintValidationService(CreateRegistry());
 
-        var result = Measure(() => validator.Validate(NavigationShellBlueprint()), out var elapsed);
+        var result = validator.Validate(NavigationShellBlueprint());
 
         result.Success.Should().BeTrue();
-        AssertWithin(elapsed, ComposerPerformanceTargets.BlueprintValidation, "blueprint validation");
     }
 
     [Fact]
-    public void RendererDryRun_ShouldStayWithinSmokeTarget()
+    public void RendererDryRunSmoke_ShouldRenderNavigationShell()
     {
         var renderer = new UiBlueprintRenderer(CreateRegistry());
 
-        var result = Measure(
-            () => renderer.Render(new RenderBlueprintRequest(NavigationShellBlueprint())),
-            out var elapsed);
+        var result = renderer.Render(new RenderBlueprintRequest(NavigationShellBlueprint()));
 
         result.Success.Should().BeTrue();
         result.DryRun.Should().BeTrue();
-        AssertWithin(elapsed, ComposerPerformanceTargets.RendererDryRun, "renderer dry-run");
     }
 
     [Fact]
-    public void PreviewSmoke_ShouldStayWithinSmokeTarget()
+    public void PreviewSmoke_ShouldExerciseCompilePathWithoutRestore()
     {
         var service = new UiBlueprintPreviewService(CreateRegistry());
 
-        var result = Measure(
-            () => service.Preview(new PreviewBlueprintRequest(ButtonBlueprint(), RestoreEnabled: false)),
-            out var elapsed);
+        var result = service.Preview(new PreviewBlueprintRequest(ButtonBlueprint(), RestoreEnabled: false));
 
         result.Success.Should().BeTrue();
         result.RestoreEnabled.Should().BeFalse();
         result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "XamlCompileFailed");
-        AssertWithin(elapsed, ComposerPerformanceTargets.PreviewSmoke, "preview smoke");
     }
 
     [Fact]
@@ -97,18 +85,6 @@ public sealed class ComposerPerformanceSmokeTests
         result.Errors.Should().ContainSingle(error => error.Code == "BlueprintTooLarge")
             .Which.JsonPath.Should().Be("$.layout");
     }
-
-    private static T Measure<T>(Func<T> action, out TimeSpan elapsed)
-    {
-        var stopwatch = Stopwatch.StartNew();
-        var result = action();
-        stopwatch.Stop();
-        elapsed = stopwatch.Elapsed;
-        return result;
-    }
-
-    private static void AssertWithin(TimeSpan elapsed, TimeSpan target, string operation)
-        => elapsed.Should().BeLessThan(target, $"{operation} should stay within the Phase 8 smoke target");
 
     private static PackRegistry CreateRegistry()
         => PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));

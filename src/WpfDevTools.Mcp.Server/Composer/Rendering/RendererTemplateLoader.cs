@@ -35,13 +35,14 @@ internal sealed class RendererTemplateLoader(PackRegistry registry)
             return new RendererTemplateLoadResult(false, null, errors, false);
         }
 
-        var cacheKey = $"{pack.Id}|{pack.Version}|{ComposerPackLoader.GetFingerprint(pack.RootPath)}|{blockKind}";
+        var loadedResult = ComposerPackLoader.LoadWithFingerprint(pack.RootPath);
+        var cacheKey = $"{pack.Id}|{pack.Version}|{loadedResult.Fingerprint}|{blockKind}";
         if (_cache.TryGetValue(cacheKey, out var cached))
         {
             return new RendererTemplateLoadResult(true, cached, [], true);
         }
 
-        var loadedPack = ComposerPackLoader.Load(pack.RootPath);
+        var loadedPack = loadedResult.Pack;
         var block = loadedPack.Blocks.FirstOrDefault(candidate =>
             string.Equals(candidate.Kind, blockKind, StringComparison.Ordinal));
         if (block is null)

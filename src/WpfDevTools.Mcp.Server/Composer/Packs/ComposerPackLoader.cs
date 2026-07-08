@@ -10,20 +10,25 @@ internal static class ComposerPackLoader
     private static readonly ConcurrentDictionary<string, CachedComposerPack> Cache = new(StringComparer.OrdinalIgnoreCase);
 
     public static ComposerPack Load(string packRoot)
+        => LoadWithFingerprint(packRoot).Pack;
+
+    internal static ComposerPackLoadResult LoadWithFingerprint(string packRoot)
     {
         var root = Path.GetFullPath(packRoot);
-        var fingerprint = CreateFingerprint(root);
+        var stamp = CreateStamp(root);
         if (Cache.TryGetValue(root, out var cached)
-            && string.Equals(cached.Fingerprint, fingerprint, StringComparison.Ordinal))
+            && string.Equals(cached.Stamp, stamp, StringComparison.Ordinal))
         {
-            return cached.Pack;
+            return new ComposerPackLoadResult(cached.Pack, cached.Fingerprint, FromCache: true);
         }
 
         try
         {
             var pack = LoadUncached(root);
-            Cache[root] = new CachedComposerPack(fingerprint, pack);
-            return pack;
+            var fingerprint = CreateFingerprint(root);
+            var currentStamp = CreateStamp(root);
+            Cache[root] = new CachedComposerPack(currentStamp, fingerprint, pack);
+            return new ComposerPackLoadResult(pack, fingerprint, FromCache: false);
         }
         catch
         {
@@ -79,18 +84,49 @@ internal static class ComposerPackLoader
     private static string CreateFingerprint(string root)
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
-                     .Order(StringComparer.Ordinal))
+        foreach (var file in EnumeratePackFiles(root))
         {
-            var relativePath = Path.GetRelativePath(root, file).Replace('\\', '/');
-            hash.AppendData(Encoding.UTF8.GetBytes(relativePath));
-            hash.AppendData([0]);
-            hash.AppendData(File.ReadAllBytes(file));
-            hash.AppendData([0]);
+            var fileInfo = new FileInfo(file);
+            AppendLengthPrefixed(hash, Encoding.UTF8.GetBytes(Path.GetRelativePath(root, file).Replace('\\', '/')));
+            AppendInt64(hash, fileInfo.Length);
+            using var stream = fileInfo.OpenRead();
+            var buffer = new byte[81920];
+            int read;
+            while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                hash.AppendData(buffer.AsSpan(0, read));
+            }
         }
 
         return Convert.ToHexString(hash.GetHashAndReset());
     }
+
+    private static string CreateStamp(string root)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var file in EnumeratePackFiles(root))
+        {
+            var fileInfo = new FileInfo(file);
+            AppendLengthPrefixed(hash, Encoding.UTF8.GetBytes(Path.GetRelativePath(root, file).Replace('\\', '/')));
+            AppendInt64(hash, fileInfo.Length);
+            AppendInt64(hash, fileInfo.LastWriteTimeUtc.Ticks);
+        }
+
+        return Convert.ToHexString(hash.GetHashAndReset());
+    }
+
+    private static IEnumerable<string> EnumeratePackFiles(string root)
+        => Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+            .Order(StringComparer.Ordinal);
+
+    private static void AppendLengthPrefixed(IncrementalHash hash, byte[] value)
+    {
+        AppendInt64(hash, value.LongLength);
+        hash.AppendData(value);
+    }
+
+    private static void AppendInt64(IncrementalHash hash, long value)
+        => hash.AppendData(BitConverter.GetBytes(value));
 
     private static T[] LoadDocuments<T>(string directory, string pattern, string schemaVersion)
         where T : ComposerJsonDocument, new()
@@ -143,7 +179,9 @@ internal static class ComposerPackLoader
     }
 }
 
-internal sealed record CachedComposerPack(string Fingerprint, ComposerPack Pack);
+internal sealed record ComposerPackLoadResult(ComposerPack Pack, string Fingerprint, bool FromCache);
+
+internal sealed record CachedComposerPack(string Stamp, string Fingerprint, ComposerPack Pack);
 
 internal sealed record ComposerPack(
     UiPackManifest Manifest,

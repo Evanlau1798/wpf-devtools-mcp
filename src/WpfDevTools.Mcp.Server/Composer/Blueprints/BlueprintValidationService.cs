@@ -171,7 +171,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
                 continue;
             }
 
-            if (!string.Equals(pack.Role, "primary", StringComparison.Ordinal))
+            if (!string.Equals(pack.Role, ComposerPackRoles.Primary, StringComparison.Ordinal))
             {
                 errors.Add(Issue(
                     $"$.packs[{index}].role",

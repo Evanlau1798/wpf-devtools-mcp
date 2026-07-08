@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Mcp.Server.Composer;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 
@@ -32,6 +33,11 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
             return new BlueprintValidationResult(errors, warnings, []);
         }
 
+        if (!ValidateNodeCount(blueprint.Layout, errors))
+        {
+            return new BlueprintValidationResult(errors, warnings, []);
+        }
+
         var registryResult = registry.ListPacks();
         var declaredPacks = ValidatePacks(blueprint, registryResult.Packs, errors);
         ValidateRequiredFields(blueprint, errors);
@@ -56,6 +62,38 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         }
 
         return new BlueprintValidationResult(errors, warnings, registryResult.Diagnostics);
+    }
+
+    private static bool ValidateNodeCount(UiBlueprintNode root, List<BlueprintValidationIssue> errors)
+    {
+        var count = 0;
+        var stack = new Stack<UiBlueprintNode>();
+        stack.Push(root);
+
+        while (stack.Count > 0)
+        {
+            var node = stack.Pop();
+            count++;
+            if (count > ComposerPerformanceTargets.MaxBlueprintNodeCount)
+            {
+                errors.Add(Issue(
+                    "$.layout",
+                    "BlueprintTooLarge",
+                    $"Blueprint contains more than {ComposerPerformanceTargets.MaxBlueprintNodeCount} nodes.",
+                    "Split the blueprint into smaller compositions or reduce generated nodes."));
+                return false;
+            }
+
+            foreach (var children in node.Slots.Values)
+            {
+                foreach (var child in children)
+                {
+                    stack.Push(child);
+                }
+            }
+        }
+
+        return true;
     }
 
     private static Dictionary<string, PackRegistryItem> ValidatePacks(

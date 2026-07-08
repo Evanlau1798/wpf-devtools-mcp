@@ -35,7 +35,7 @@ internal sealed class RendererTemplateLoader(PackRegistry registry)
             return new RendererTemplateLoadResult(false, null, errors, false);
         }
 
-        var cacheKey = $"{pack.Id}|{pack.Version}|{blockKind}";
+        var cacheKey = $"{pack.Id}|{pack.Version}|{ComposerPackLoader.GetFingerprint(pack.RootPath)}|{blockKind}";
         if (_cache.TryGetValue(cacheKey, out var cached))
         {
             return new RendererTemplateLoadResult(true, cached, [], true);

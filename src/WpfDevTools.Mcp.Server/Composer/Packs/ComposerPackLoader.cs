@@ -1,12 +1,45 @@
+using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 
 namespace WpfDevTools.Mcp.Server.Composer.Packs;
 
 internal static class ComposerPackLoader
 {
+    private static readonly ConcurrentDictionary<string, CachedComposerPack> Cache = new(StringComparer.OrdinalIgnoreCase);
+
     public static ComposerPack Load(string packRoot)
     {
         var root = Path.GetFullPath(packRoot);
+        var fingerprint = CreateFingerprint(root);
+        if (Cache.TryGetValue(root, out var cached)
+            && string.Equals(cached.Fingerprint, fingerprint, StringComparison.Ordinal))
+        {
+            return cached.Pack;
+        }
+
+        try
+        {
+            var pack = LoadUncached(root);
+            Cache[root] = new CachedComposerPack(fingerprint, pack);
+            return pack;
+        }
+        catch
+        {
+            Cache.TryRemove(root, out _);
+            throw;
+        }
+    }
+
+    internal static void ClearCacheForTests()
+        => Cache.Clear();
+
+    internal static string GetFingerprint(string packRoot)
+        => CreateFingerprint(Path.GetFullPath(packRoot));
+
+    private static ComposerPack LoadUncached(string root)
+    {
         var manifest = ComposerJsonLoader.Load<UiPackManifest>(
             Path.Combine(root, "pack.json"),
             UiComposerSchemaVersions.UiPack);
@@ -41,6 +74,22 @@ internal static class ComposerPackLoader
             : [];
 
         return new ComposerPack(manifest, sourceLock, blocks, recipes, examples, rendererTemplates);
+    }
+
+    private static string CreateFingerprint(string root)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+                     .Order(StringComparer.Ordinal))
+        {
+            var relativePath = Path.GetRelativePath(root, file).Replace('\\', '/');
+            hash.AppendData(Encoding.UTF8.GetBytes(relativePath));
+            hash.AppendData([0]);
+            hash.AppendData(File.ReadAllBytes(file));
+            hash.AppendData([0]);
+        }
+
+        return Convert.ToHexString(hash.GetHashAndReset());
     }
 
     private static T[] LoadDocuments<T>(string directory, string pattern, string schemaVersion)
@@ -93,6 +142,8 @@ internal static class ComposerPackLoader
         return normalizedCandidate.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
     }
 }
+
+internal sealed record CachedComposerPack(string Fingerprint, ComposerPack Pack);
 
 internal sealed record ComposerPack(
     UiPackManifest Manifest,

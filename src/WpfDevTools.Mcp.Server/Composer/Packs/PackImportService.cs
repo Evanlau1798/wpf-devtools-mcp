@@ -39,7 +39,7 @@ internal static class PackImportService
             Directory.CreateDirectory(stagingPackRoot);
             ExtractArchive(archivePath, $"{plan.PackId}/{plan.Version}", stagingPackRoot, activeLimits);
             WriteInstallManifest(stagingPackRoot, destination, plan, sourceScope);
-            ComposerPackLoader.Load(stagingPackRoot);
+            ComposerPackLoader.LoadUncachedForValidation(stagingPackRoot);
 
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             if (Directory.Exists(destination))

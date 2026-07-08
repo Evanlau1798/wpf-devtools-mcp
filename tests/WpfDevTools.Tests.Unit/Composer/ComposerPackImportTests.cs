@@ -276,6 +276,30 @@ public sealed class ComposerPackImportTests
         }
     }
 
+    [Fact]
+    public void PackImportService_ShouldNotCacheTransientStagingPackRoot()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var archivePath = Path.Combine(tempRoot, "pack.zip");
+            using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            {
+                WriteMinimalPackEntries(archive);
+            }
+
+            ComposerPackLoader.ClearCacheForTests();
+            PackImportService.Import(archivePath, Path.Combine(tempRoot, "packs"), "project");
+
+            ComposerPackLoader.CachedPackCountForTests().Should().Be(0);
+        }
+        finally
+        {
+            ComposerPackLoader.ClearCacheForTests();
+            DeleteDirectory(tempRoot);
+        }
+    }
+
     private static string CreateCollisionArchive(string tempRoot, string fileName)
     {
         var archivePath = Path.Combine(tempRoot, fileName);

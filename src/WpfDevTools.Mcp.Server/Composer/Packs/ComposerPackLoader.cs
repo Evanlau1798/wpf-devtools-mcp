@@ -37,8 +37,14 @@ internal static class ComposerPackLoader
         }
     }
 
+    internal static ComposerPack LoadUncachedForValidation(string packRoot)
+        => LoadUncached(Path.GetFullPath(packRoot));
+
     internal static void ClearCacheForTests()
         => Cache.Clear();
+
+    internal static int CachedPackCountForTests()
+        => Cache.Count;
 
     internal static string GetFingerprint(string packRoot)
         => CreateFingerprint(Path.GetFullPath(packRoot));

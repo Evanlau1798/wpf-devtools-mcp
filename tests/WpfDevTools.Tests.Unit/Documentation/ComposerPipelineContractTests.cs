@@ -63,6 +63,21 @@ public sealed class ComposerPipelineContractTests
         releaseWorkflow.Should().Contain("Upload staged assets to GitHub Release");
     }
 
+    [Fact]
+    public void UiComposerDocs_ShouldPublishObservabilityPrivacyPolicy()
+    {
+        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
+        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
+
+        english.Should().Contain("Composer observability");
+        english.Should().Contain("WPFDEVTOOLS_COMPOSER_TELEMETRY_DISABLED=true");
+        english.Should().Contain("does not include blueprint JSON, generated XAML, full user file content, secrets, or absolute local paths");
+
+        zhTw.Should().Contain("Composer observability");
+        zhTw.Should().Contain("WPFDEVTOOLS_COMPOSER_TELEMETRY_DISABLED=true");
+        zhTw.Should().Contain("不包含 blueprint JSON、generated XAML、完整使用者檔案內容、secrets 或 absolute local paths");
+    }
+
     private static string GetWorkflowJob(string workflow, string name)
     {
         var start = workflow.IndexOf($"  {name}:", StringComparison.Ordinal);

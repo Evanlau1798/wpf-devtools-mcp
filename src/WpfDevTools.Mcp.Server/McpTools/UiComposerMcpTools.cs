@@ -4,6 +4,7 @@ using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.Composer.Apply;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Catalog;
+using WpfDevTools.Mcp.Server.Composer.Diagnostics;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
@@ -223,7 +224,8 @@ public static class UiComposerMcpTools
             success = true,
             packCount = result.Packs.Count,
             packs = result.Packs.Select(ToPayload).ToArray(),
-            diagnostics = result.Diagnostics
+            diagnostics = result.Diagnostics,
+            observability = ComposerObservability.ForPackList(result.Diagnostics)
         };
     }
 
@@ -251,7 +253,8 @@ public static class UiComposerMcpTools
             items = result.Items,
             recipeCount = recipes.Count,
             recipes,
-            diagnostics = result.Diagnostics
+            diagnostics = result.Diagnostics,
+            observability = ComposerObservability.ForCatalog(result.Diagnostics)
         };
     }
 
@@ -268,7 +271,8 @@ public static class UiComposerMcpTools
             warningCount = result.Warnings.Count,
             errors = result.Errors,
             warnings = result.Warnings,
-            diagnostics = result.Diagnostics
+            diagnostics = result.Diagnostics,
+            observability = ComposerObservability.ForBlueprintValidation(result)
         };
     }
 
@@ -290,7 +294,8 @@ public static class UiComposerMcpTools
             validation = result.Validation,
             errors = result.Errors,
             warnings = result.Warnings,
-            diagnostics = result.Diagnostics
+            diagnostics = result.Diagnostics,
+            observability = ComposerObservability.ForRecipeExpansion(result)
         };
     }
 
@@ -314,7 +319,8 @@ public static class UiComposerMcpTools
             result.RequiredNuGetPackages,
             validation = result.Validation,
             errors = result.Errors,
-            diagnostics = result.Diagnostics
+            diagnostics = result.Diagnostics,
+            observability = ComposerObservability.ForRenderDryRun(result)
         };
     }
 
@@ -324,8 +330,21 @@ public static class UiComposerMcpTools
         string? targetPath,
         string? projectRoot,
         string? localAppDataRoot)
-        => new BlueprintRepairService(CreateRegistry(projectRoot, localAppDataRoot))
+    {
+        var result = new BlueprintRepairService(CreateRegistry(projectRoot, localAppDataRoot))
             .Repair(new BlueprintRepairRequest(blueprintJson, diagnosticsJson, targetPath));
+
+        return new
+        {
+            result.Success,
+            result.Repairable,
+            result.GeneratedXamlPatch,
+            result.ActionCount,
+            result.Actions,
+            result.Diagnostics,
+            observability = ComposerObservability.ForRepair(result)
+        };
+    }
 
     private static object ApplyBlueprint(
         string blueprintJson,
@@ -334,8 +353,26 @@ public static class UiComposerMcpTools
         bool dryRun,
         bool confirmApply,
         string? localAppDataRoot)
-        => new UiBlueprintApplyService(CreateRegistry(projectRoot, localAppDataRoot))
+    {
+        var result = new UiBlueprintApplyService(CreateRegistry(projectRoot, localAppDataRoot))
             .Apply(new ApplyBlueprintRequest(blueprintJson, projectRoot, targetPath, dryRun, confirmApply));
+
+        return new
+        {
+            result.Success,
+            result.Valid,
+            result.DryRun,
+            result.RequiresConfirmation,
+            result.WouldWriteFiles,
+            result.Xaml,
+            result.FilePlan,
+            result.ResourcePlan,
+            result.RequiredNuGetPackages,
+            result.ViewModelBindingContract,
+            result.Errors,
+            observability = ComposerObservability.ForApply(result)
+        };
+    }
 
     private static async Task<object> PreviewBlueprint(
         SessionManager sessionManager,
@@ -347,7 +384,8 @@ public static class UiComposerMcpTools
         string? projectRoot,
         string? localAppDataRoot,
         CancellationToken cancellationToken)
-        => await new UiBlueprintPreviewService(CreateRegistry(projectRoot, localAppDataRoot), sessionManager)
+    {
+        var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot, localAppDataRoot), sessionManager)
             .PreviewAsync(
                 new PreviewBlueprintRequest(
                     blueprintJson,
@@ -357,6 +395,20 @@ public static class UiComposerMcpTools
                     IncludeScreenshotDiagnostics: includeScreenshotDiagnostics),
                 cancellationToken)
             .ConfigureAwait(false);
+
+        return new
+        {
+            result.Success,
+            result.Valid,
+            result.BuildSucceeded,
+            result.RestoreEnabled,
+            result.BuildOutput,
+            result.Xaml,
+            result.Diagnostics,
+            result.PreviewHost,
+            observability = ComposerObservability.ForPreview(result)
+        };
+    }
 
     private static PackRegistry CreateRegistry(string? projectRoot, string? localAppDataRoot)
     {

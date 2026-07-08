@@ -1,5 +1,6 @@
 using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
+using WpfDevTools.Mcp.Server.Composer.Diagnostics;
 
 namespace WpfDevTools.Mcp.Server.Composer.Packs;
 
@@ -82,7 +83,7 @@ internal sealed class PackRegistry
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or UnauthorizedAccessException)
         {
-            diagnostics.Add($"Pack at '{packRoot}' could not be loaded: {ex.Message}");
+            diagnostics.Add($"Pack at {ComposerPathRedactor.RedactedPath} could not be loaded: {ComposerPathRedactor.Redact(ex.Message)}");
             return null;
         }
     }
@@ -98,7 +99,7 @@ internal sealed class PackRegistry
         var install = ComposerJsonLoader.Load<PackInstallManifest>(installManifestPath, UiComposerSchemaVersions.PackInstallManifest);
         if (!install.Enabled)
         {
-            diagnostics.Add($"Pack '{install.Id}' {install.Version} is disabled in {installManifestPath}.");
+            diagnostics.Add($"Pack '{install.Id}' {install.Version} is disabled.");
             return null;
         }
 

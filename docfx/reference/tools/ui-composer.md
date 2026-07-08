@@ -18,6 +18,12 @@ Composer currently supports these v1 contracts and fails closed when `schemaVers
 
 Unknown JSON fields are ignored for v1 compatibility, while documented `metadata` objects are preserved on models that expose metadata. A breaking contract change requires a new schema version or a migration note.
 
+## Composer observability
+
+Composer tool responses include an `observability` object with local structured logs, per-call metrics, top diagnostic codes, and a privacy policy summary. This data is returned only in the MCP response or pack import plan; it is not exported to a remote service by default. Set `WPFDEVTOOLS_COMPOSER_TELEMETRY_DISABLED=true` to make that disabled policy explicit in hosted environments.
+
+The observability payload does not include blueprint JSON, generated XAML, full user file content, secrets, or absolute local paths. Logs keep stable diagnostic codes plus short remediation text so agents can debug validation, render dry-run, apply, security rejection, rollback, preview compile, and pack import paths without copying project content.
+
 ## `list_ui_block_packs`
 
 Lists installed UI block packs from built-in, project-local, and user-global roots. The response includes pack id, version, scope, block count, recipe count, example count, renderer count, source repository, readiness metadata, diagnostics, and available block kinds.

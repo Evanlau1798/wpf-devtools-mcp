@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
+using WpfDevTools.Mcp.Server.Composer.Diagnostics;
 
 namespace WpfDevTools.Mcp.Server.Composer.Packs;
 
@@ -126,7 +127,15 @@ internal static class PackImportService
                 entry.Length);
         }).ToArray();
 
-        return new PackImportPlan(root.PackId, root.Version, dryRun, filePlan, false, false, archiveSha256);
+        return new PackImportPlan(
+            root.PackId,
+            root.Version,
+            dryRun,
+            filePlan,
+            false,
+            false,
+            archiveSha256,
+            ComposerObservability.ForPackImport(root.PackId, root.Version, dryRun, filePlan.Length));
     }
 
     private static void ValidateLimits(IReadOnlyCollection<ZipArchiveEntry> entries, PackImportLimits limits)
@@ -343,6 +352,7 @@ internal sealed record PackImportPlan(
     IReadOnlyList<PackImportFilePlan> FilePlan,
     bool WouldModifyProjectFiles,
     bool WouldRunNuGetRestore,
-    string ArchiveSha256);
+    string ArchiveSha256,
+    ComposerObservabilityPayload Observability);
 
 internal sealed record PackImportFilePlan(string RelativePath, string TargetPath, long Length);

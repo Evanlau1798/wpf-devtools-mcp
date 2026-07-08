@@ -39,7 +39,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         }
 
         var registryResult = registry.ListPacks();
-        var declaredPacks = ValidatePacks(blueprint, registryResult.Packs, errors);
+        var declaredPacks = ValidatePacks(blueprint, registryResult.Packs, errors, warnings);
         ValidateRequiredFields(blueprint, errors);
         ValidatePrimaryPackRole(blueprint, errors);
 
@@ -99,7 +99,8 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
     private static Dictionary<string, PackRegistryItem> ValidatePacks(
         UiBlueprint blueprint,
         IReadOnlyList<PackRegistryItem> availablePacks,
-        List<BlueprintValidationIssue> errors)
+        List<BlueprintValidationIssue> errors,
+        List<BlueprintValidationIssue> warnings)
     {
         var availableById = availablePacks.ToDictionary(pack => pack.Id, StringComparer.Ordinal);
         var declared = new Dictionary<string, PackRegistryItem>(StringComparer.Ordinal);
@@ -122,7 +123,24 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
 
             if (!availableById.TryGetValue(packRef.Id, out var available))
             {
-                errors.Add(Issue(path, "PackNotFound", $"Pack '{packRef.Id}' {packRef.Version} is not installed.", "Install or reference a Composer pack before validating this blueprint."));
+                var issue = Issue(
+                    path,
+                    packRef.Required ? "PackNotFound" : "OptionalPackMissing",
+                    packRef.Required
+                        ? $"Pack '{packRef.Id}' {packRef.Version} is not installed."
+                        : $"Optional pack '{packRef.Id}' {packRef.Version} is not installed.",
+                    packRef.Required
+                        ? "Install or reference a Composer pack before validating this blueprint."
+                        : "Install the optional pack to use its blocks, or remove it from packs[] if it is not needed.");
+                if (packRef.Required)
+                {
+                    errors.Add(issue);
+                }
+                else
+                {
+                    warnings.Add(issue);
+                }
+
                 continue;
             }
 

@@ -78,6 +78,9 @@ public sealed class McpToolContractDescriptionTests
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "windowFilter")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "windowFilter")]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "foreground")]
+    [InlineData(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.ListUiBlockPacks), "role")]
+    [InlineData(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.ListUiBlockPacks), "required")]
+    [InlineData(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.ValidateUiBlueprint), "\\\"role\\\":\\\"primary\\\"")]
     public void ToolDescriptions_ShouldMentionUpdatedContractTerms(Type toolType, string methodName, string expectedTerm)
     {
         var method = toolType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);

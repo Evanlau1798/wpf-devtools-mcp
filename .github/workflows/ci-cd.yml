@@ -124,10 +124,24 @@ jobs:
 
     - name: Run release unit tests
       if: matrix.platform == 'x64'
-      env:
-        WPFDEVTOOLS_TEST_TIMEOUT_SCALE: '4'
-      timeout-minutes: 45
-      run: dotnet test tests/WpfDevTools.Tests.Unit.Release/WpfDevTools.Tests.Unit.Release.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=release-unit-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/release-unit
+      shell: pwsh
+      timeout-minutes: 25
+      run: |
+        . ./scripts/ci/SandboxCi.Process.ps1
+        . ./scripts/ci/SandboxCi.Managed.ps1
+
+        $resultsRoot = Join-Path (Get-Location).ProviderPath 'TestResults'
+        $script:MappedOutputRoot = $resultsRoot
+        $script:timestamp = "github-${{ matrix.configuration }}-${{ matrix.platform }}-release-unit"
+        $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'
+
+        Invoke-ManagedTestLanes `
+          -DotNetPath (Get-Command dotnet).Source `
+          -ResultsRoot $resultsRoot `
+          -Configuration '${{ matrix.configuration }}' `
+          -MaxParallelLanes 4 `
+          -ReleaseUnitShardCount 8 `
+          -IncludeReleaseUnit
 
     - name: Restore server runtime dependencies
       if: matrix.configuration == 'Debug' && matrix.platform == 'x64'

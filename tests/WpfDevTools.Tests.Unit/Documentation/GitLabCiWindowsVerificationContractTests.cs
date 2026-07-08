@@ -102,7 +102,7 @@ public sealed class GitLabCiWindowsVerificationContractTests
         var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
         var hosted = ReadHostedSandboxCiScripts();
 
-        workflow.Should().Contain("WPFDEVTOOLS_TEST_TIMEOUT_SCALE: '4'",
+        workflow.Should().Contain("$env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'",
             "GitHub hosted runners can stretch PowerShell installer tests under Release load, so the workflow should use the same explicit harness timeout scale as sandbox hosted CI");
         hosted.Should().Contain("$previousTimeoutScale = $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE");
         hosted.Should().Contain("$env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'",

@@ -83,28 +83,28 @@ public sealed class UnitTestParallelizationContractTests
         ReadRepoFile("WpfDevTools.sln").Should().Contain(
             ReleaseUnitTestProjectPath,
             "the solution build and solution-level test discovery must include the split Release/InstallerScripts test assembly");
-        ReadRepoFile(".github/workflows/ci-cd.yml").Should().Contain(
-            ReleaseUnitTestProjectPath,
-            "CI must execute the split Release/InstallerScripts test assembly");
+        ReadRepoFile(".github/workflows/ci-cd.yml").Should().Contain("-IncludeReleaseUnit");
+        ReadRepoFile("scripts/ci/SandboxCi.Managed.ps1").Should().Contain(ReleaseUnitTestProjectPath);
         ReadRepoFile("scripts/tools/packaging/Preflight-Release.ps1").Should().Contain(
             ReleaseUnitTestProjectPath,
             "release preflight must execute release and installer tests before publishing artifacts");
     }
 
     [Fact]
-    public void ReleaseUnitTestCiStep_ShouldNotPassPlatformWhenUsingNoBuild()
+    public void ReleaseUnitTestCiStep_ShouldUseManagedShardsWithoutPassingPlatformToNoBuild()
     {
         var ciLines = ReadRepoFile(".github/workflows/ci-cd.yml")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var managedScript = ReadRepoFile("scripts/ci/SandboxCi.Managed.ps1");
         var releaseTestStep = GetNamedStepBlock(ciLines, "Run release unit tests");
-        var releaseTestCommand = ciLines.Single(line => line.Contains(
-            $"dotnet test {ReleaseUnitTestProjectPath}",
-            StringComparison.Ordinal));
 
         releaseTestStep.Should().Contain("      if: matrix.platform == 'x64'",
             "x86 matrix builds validate compilation, while no-build test lanes should run only against the hosted architecture output layout");
-        releaseTestCommand.Should().Contain("--no-build");
-        releaseTestCommand.Should().NotContain(
+        string.Join('\n', releaseTestStep).Should().Contain("Invoke-ManagedTestLanes").And.Contain("-IncludeReleaseUnit")
+            .And.Contain("-ReleaseUnitShardCount 8");
+        managedScript.Should().Contain(ReleaseUnitTestProjectPath);
+        managedScript.Should().Contain("'--no-build'");
+        managedScript.Should().NotContain(
             "-p:Platform=",
             "the solution maps the split release test project to Any CPU, so passing Platform to a csproj --no-build test command makes VSTest probe bin/<Platform>/<Configuration> instead of the built output");
     }

@@ -132,6 +132,41 @@ public sealed class ComposerMultiPackValidationTests
         }
     }
 
+    [Fact]
+    public void ValidateBlueprint_ShouldErrorWhenMissingOptionalDottedPackIsUsed()
+    {
+        var result = CreateValidator().Validate("""
+            {
+              "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+              "name": "MissingOptionalSyntaxHighlight",
+              "packs": [
+                { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
+                { "id": "wpfui.syntaxhighlight", "version": "1.0.0", "required": false, "role": "optional-control" }
+              ],
+              "primaryPack": "wpfui",
+              "layout": {
+                "kind": "wpfui.card",
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "stack",
+                      "slots": {
+                        "stack": [{ "kind": "wpfui.syntaxhighlight.codeEditor" }]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+            """);
+
+        result.Errors.Should().Contain(issue => issue.JsonPath == "$.layout.slots.content[0].slots.stack[0]"
+            && issue.Code == "OptionalPackMissing"
+            && issue.Message.Contains("wpfui.syntaxhighlight", StringComparison.Ordinal));
+        result.Errors.Should().NotContain(issue => issue.Code == "UnknownBlockKind"
+            && issue.Message.Contains("wpfui", StringComparison.Ordinal));
+    }
+
     private static BlueprintValidationService CreateValidator(string? projectRoot = null)
     {
         var repoRoot = TestRepositoryPaths.GetRepoFilePath(".");

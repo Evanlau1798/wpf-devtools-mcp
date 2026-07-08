@@ -7,12 +7,7 @@ namespace WpfDevTools.Mcp.Server.Composer.Blueprints;
 
 internal sealed class BlueprintValidationService(PackRegistry registry)
 {
-    private static readonly HashSet<string> PrimitiveKinds = new(StringComparer.Ordinal)
-    {
-        "stack",
-        "template",
-        "text"
-    };
+    private static readonly HashSet<string> PrimitiveKinds = new(StringComparer.Ordinal) { "stack", "template", "text" };
 
     public BlueprintValidationResult Validate(string blueprintJson)
     {
@@ -56,7 +51,15 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
 
         if (!string.IsNullOrWhiteSpace(blueprint.Layout.Kind))
         {
-            var context = BuildContext(declaredPacks, errors);
+            var declaredPackIds = blueprint.Packs
+                .Select(pack => pack.Id)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet(StringComparer.Ordinal);
+            var optionalMissingPackIds = blueprint.Packs
+                .Where(pack => !pack.Required && !string.IsNullOrWhiteSpace(pack.Id) && !declaredPacks.ContainsKey(pack.Id))
+                .Select(pack => pack.Id)
+                .ToHashSet(StringComparer.Ordinal);
+            var context = BuildContext(declaredPacks, declaredPackIds, optionalMissingPackIds, errors);
             var usedPackIds = new HashSet<string>(StringComparer.Ordinal);
             ValidateNode(blueprint.Layout, "$.layout", null, null, context, usedPackIds, errors, warnings);
             WarnForUnusedDeclaredPacks(blueprint, declaredPacks.Keys.ToHashSet(StringComparer.Ordinal), usedPackIds, warnings);
@@ -220,6 +223,8 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
 
     private static BlueprintValidationContext BuildContext(
         IReadOnlyDictionary<string, PackRegistryItem> declaredPacks,
+        IReadOnlySet<string> declaredPackIds,
+        IReadOnlySet<string> optionalMissingPackIds,
         List<BlueprintValidationIssue> errors)
     {
         var blocks = new Dictionary<string, UiBlockDefinition>(StringComparer.Ordinal);
@@ -242,7 +247,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
             }
         }
 
-        return new BlueprintValidationContext(declaredPacks.Keys.ToHashSet(StringComparer.Ordinal), blocks, packKinds);
+        return new BlueprintValidationContext(declaredPackIds, declaredPacks.Keys.ToHashSet(StringComparer.Ordinal), optionalMissingPackIds, blocks, packKinds);
     }
 
     private static void ValidateNode(
@@ -287,6 +292,13 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         }
 
         usedPackIds.Add(packId);
+        if (!context.LoadedPackIds.Contains(packId))
+        {
+            var code = context.OptionalMissingPackIds.Contains(packId) ? "OptionalPackMissing" : "PackNotFound";
+            errors.Add(Issue(path, code, $"Block kind '{node.Kind}' uses pack '{packId}', but that pack is not installed.", $"Install pack '{packId}' or remove block kind '{node.Kind}'."));
+            return;
+        }
+
         if (!context.Blocks.TryGetValue(node.Kind, out var block))
         {
             errors.Add(Issue(path, "UnknownBlockKind", $"Block kind '{node.Kind}' was not found in pack '{packId}'.", BuildUnknownKindSuggestion(context, packId)));

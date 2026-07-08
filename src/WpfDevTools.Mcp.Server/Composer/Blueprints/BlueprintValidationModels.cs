@@ -21,5 +21,7 @@ internal sealed record BlueprintValidationIssue(
 
 internal sealed record BlueprintValidationContext(
     IReadOnlySet<string> DeclaredPackIds,
+    IReadOnlySet<string> LoadedPackIds,
+    IReadOnlySet<string> OptionalMissingPackIds,
     IReadOnlyDictionary<string, UiBlockDefinition> Blocks,
     IReadOnlyDictionary<string, string[]> PackKinds);

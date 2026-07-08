@@ -46,6 +46,35 @@ public sealed class ComposerBlueprintRepairTests
     }
 
     [Fact]
+    public void RepairBlueprint_ShouldUseDottedOptionalPackIdForSuggestedValues()
+    {
+        var projectRoot = CreateTempProjectWithDottedRepairPack();
+        try
+        {
+            var repair = new BlueprintRepairService(CreateRegistry(projectRoot));
+            var result = repair.Repair(new BlueprintRepairRequest(Blueprint("""
+                {
+                  "packs": [
+                    { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
+                    { "id": "wpfui.syntaxhighlight", "version": "1.0.0", "required": false, "role": "optional-control" }
+                  ],
+                  "primaryPack": "wpfui",
+                  "layout": { "kind": "wpfui.syntaxhighlight.codeEditor" }
+                }
+                """)));
+
+            var action = result.Actions.Should().Contain(action =>
+                action.IssueCode == "RequiredPropertyMissing").Which;
+            action.SuggestedValue.Should().NotBeNull();
+            action.SuggestedValue!.Value.GetString().Should().Be("csharp");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
     public void RepairBlueprint_ShouldSuggestCatalogBlockAndPackImport()
     {
         var repair = new BlueprintRepairService(CreateRegistry());
@@ -218,6 +247,28 @@ public sealed class ComposerBlueprintRepairTests
         File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "panel.xaml.sbn"), "<TextBlock Text=\"{{ title }}\" />");
         File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "item.xaml.sbn"), "<TextBlock />");
         File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "badToken.xaml.sbn"), "<TextBlock Text=\"{{ missingToken }}\" />");
+        return projectRoot;
+    }
+
+    private static string CreateTempProjectWithDottedRepairPack()
+    {
+        var projectRoot = CreateTempDirectory();
+        var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", "wpfui.syntaxhighlight", "1.0.0");
+        Directory.CreateDirectory(Path.Combine(packRoot, "blocks"));
+        Directory.CreateDirectory(Path.Combine(packRoot, "renderers", "xaml"));
+        File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"), """
+            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"wpfui.syntaxhighlight","version":"1.0.0","scope":"project-local","path":".","enabled":true}
+            """);
+        File.WriteAllText(Path.Combine(packRoot, "pack.json"), """
+            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"wpfui.syntaxhighlight","displayName":"Syntax Highlight","version":"1.0.0","blocks":["wpfui.syntaxhighlight.codeEditor"],"recipes":[]}
+            """);
+        File.WriteAllText(Path.Combine(packRoot, "source.lock.json"), """
+            {"schemaVersion":"wpfdevtools.source-lock.v1","sources":[],"transformPolicy":{}}
+            """);
+        File.WriteAllText(Path.Combine(packRoot, "blocks", "codeEditor.block.json"), """
+            {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"wpfui.syntaxhighlight.codeEditor","displayName":"Code Editor","category":"input","properties":{"language":{"type":"string","required":true,"default":"csharp"}},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/codeEditor.xaml.sbn"},"sourceHints":[]}
+            """);
+        File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "codeEditor.xaml.sbn"), "<TextBox />");
         return projectRoot;
     }
 

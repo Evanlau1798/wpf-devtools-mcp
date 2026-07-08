@@ -124,7 +124,8 @@ internal sealed class BlueprintRepairService(PackRegistry registry)
 
     private UiBlockDefinition? FindBlock(UiBlueprint blueprint, string kind)
     {
-        var packId = kind.Split('.', 2)[0];
+        var packId = ComposerPackKindResolver.ResolveDeclaredPackId(kind, blueprint.Packs.Select(pack => pack.Id))
+            ?? ComposerPackKindResolver.GetFallbackPackId(kind);
         var packReference = blueprint.Packs.FirstOrDefault(pack =>
             string.Equals(pack.Id, packId, StringComparison.Ordinal));
         if (packReference is null)

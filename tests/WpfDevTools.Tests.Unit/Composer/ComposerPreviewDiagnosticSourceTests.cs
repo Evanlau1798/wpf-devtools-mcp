@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Reflection;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Tests.Unit.TestSupport;
@@ -49,6 +50,31 @@ public sealed class ComposerPreviewDiagnosticSourceTests
         }
     }
 
+    [Fact]
+    public void PreviewBlueprint_ShouldNotResolveUndeclaredDottedPackRendererSource()
+    {
+        var projectRoot = CreateTempProjectWithBrokenPreviewPack();
+        try
+        {
+            var service = new UiBlueprintPreviewService(CreateRegistry(projectRoot));
+            var path = ResolveRootRendererTemplatePath(service, """
+                {
+                  "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+                  "name": "UndeclaredOptional",
+                  "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+                  "primaryPack": "wpfui",
+                  "layout": { "kind": "compilemap.brokenHost" }
+                }
+                """);
+
+            path.Should().BeEmpty();
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
     private static PackRegistry CreateRegistry(string projectRoot)
         => new(
             ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),
@@ -68,6 +94,11 @@ public sealed class ComposerPreviewDiagnosticSourceTests
               }
             }
             """;
+
+    private static string ResolveRootRendererTemplatePath(UiBlueprintPreviewService service, string blueprintJson)
+        => (string)typeof(UiBlueprintPreviewService)
+            .GetMethod("ResolveRootRendererTemplatePath", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(service, [blueprintJson])!;
 
     private static string CreateTempProjectWithBrokenPreviewPack()
     {

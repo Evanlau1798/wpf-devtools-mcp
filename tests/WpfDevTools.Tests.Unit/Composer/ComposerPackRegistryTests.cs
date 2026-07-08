@@ -108,8 +108,8 @@ public sealed class ComposerPackRegistryTests
         var tempRoot = CreateTempDirectory();
         try
         {
-                var projectRoot = Path.Combine(tempRoot, "project");
-                var userRoot = Path.Combine(tempRoot, "local");
+            var projectRoot = Path.Combine(tempRoot, "project");
+            var userRoot = Path.Combine(tempRoot, "local");
             CreateMinimalPack(ComposerPackPaths.ProjectLocalRoot(projectRoot), "wpfui", "9.9.9");
             CreateMinimalPack(ComposerPackPaths.ProjectLocalRoot(projectRoot), "sample", "1.0.0");
             CopyPackTo(ComposerPackPaths.UserGlobalRoot(userRoot), enabled: true);
@@ -200,7 +200,9 @@ public sealed class ComposerPackRegistryTests
             payload.GetProperty("packs").EnumerateArray()
                 .Should().Contain(pack => pack.GetProperty("id").GetString() == "wpfui"
                     && pack.GetProperty("version").GetString() == "0.1.0"
-                    && pack.GetProperty("blockCount").GetInt32() == 13);
+                    && pack.GetProperty("blockCount").GetInt32() == 13
+                    && pack.GetProperty("role").GetString() == ComposerPackRoles.Primary
+                    && pack.GetProperty("required").GetBoolean());
         }
         finally
         {

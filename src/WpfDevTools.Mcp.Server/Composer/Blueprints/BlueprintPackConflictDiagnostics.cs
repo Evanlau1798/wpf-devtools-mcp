@@ -1,3 +1,4 @@
+using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 
 namespace WpfDevTools.Mcp.Server.Composer.Blueprints;
@@ -12,7 +13,25 @@ internal static class BlueprintPackConflictDiagnostics
 
         foreach (var pack in declaredPacks.Values.OrderBy(pack => pack.Id, StringComparer.Ordinal))
         {
-            foreach (var resource in ComposerPackLoader.Load(pack.RootPath).Manifest.ResourceSetup.ApplicationMergedDictionaries)
+            ComposerPack loaded;
+            try
+            {
+                loaded = ComposerPackLoader.Load(pack.RootPath);
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or UnauthorizedAccessException)
+            {
+                warnings.Add(new(
+                    "$.packs",
+                    "PackResourceInspectionFailed",
+                    $"Pack '{pack.Id}' resources could not be inspected.",
+                    "Repair or reinstall the pack before relying on resource conflict diagnostics.",
+                    [],
+                    [],
+                    null));
+                continue;
+            }
+
+            foreach (var resource in loaded.Manifest.ResourceSetup.ApplicationMergedDictionaries)
             {
                 if (string.IsNullOrWhiteSpace(resource))
                 {

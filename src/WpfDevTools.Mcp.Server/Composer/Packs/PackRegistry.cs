@@ -112,6 +112,8 @@ internal sealed class PackRegistry
 
         var readinessPath = GetReadinessPath(packRoot, pack.Manifest.Id, pack.Manifest.Version);
         var readinessValid = readinessPath is not null && ReadValid(readinessPath);
+        var rolePlan = ComposerPackRoleCatalog.WpfUiPacks.FirstOrDefault(plan =>
+            string.Equals(plan.Id, pack.Manifest.Id, StringComparison.Ordinal));
 
         return new PackRegistryItem(
             pack.Manifest.Id,
@@ -124,7 +126,9 @@ internal sealed class PackRegistry
             pack.RendererTemplates.Count,
             readinessValid,
             pack.SourceLock.Sources.FirstOrDefault()?.Url ?? string.Empty,
-            pack.Blocks.Select(block => block.Kind).Order(StringComparer.Ordinal).ToArray());
+            pack.Blocks.Select(block => block.Kind).Order(StringComparer.Ordinal).ToArray(),
+            rolePlan?.Role ?? string.Empty,
+            rolePlan?.Required ?? false);
     }
 
     private static string? GetReadinessPath(string packRoot, string id, string version)
@@ -160,7 +164,9 @@ internal sealed record PackRegistryItem(
     int RendererCount,
     bool ReadinessValid,
     string SourceRepository,
-    IReadOnlyList<string> BlockKinds);
+    IReadOnlyList<string> BlockKinds,
+    string Role = "",
+    bool Required = false);
 
 internal enum PackScope
 {

@@ -63,6 +63,33 @@ public sealed class ComposerMultiPackValidationTests
     }
 
     [Fact]
+    public void FindResourceConflicts_ShouldWarnWhenDeclaredPackCannotBeInspected()
+    {
+        var missingPack = new PackRegistryItem(
+            "broken.resources",
+            "1.0.0",
+            PackScope.ProjectLocal,
+            Path.Combine(Path.GetTempPath(), "missing-pack-" + Guid.NewGuid().ToString("N")),
+            0,
+            0,
+            0,
+            0,
+            false,
+            "",
+            []);
+
+        var warnings = BlueprintPackConflictDiagnostics.FindResourceConflicts(
+            new Dictionary<string, PackRegistryItem>(StringComparer.Ordinal)
+            {
+                [missingPack.Id] = missingPack
+            });
+
+        warnings.Should().ContainSingle(issue => issue.JsonPath == "$.packs"
+            && issue.Code == "PackResourceInspectionFailed"
+            && issue.Message.Contains("broken.resources", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ValidateBlueprint_ShouldAcceptOptionalSyntaxHighlightPackWithDottedId()
     {
         var projectRoot = CreateTempProjectWithBlockPack(

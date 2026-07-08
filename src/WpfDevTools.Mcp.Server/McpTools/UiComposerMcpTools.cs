@@ -431,7 +431,9 @@ public static class UiComposerMcpTools
             pack.RendererCount,
             pack.ReadinessValid,
             pack.SourceRepository,
-            pack.BlockKinds
+            pack.BlockKinds,
+            pack.Role,
+            pack.Required
         };
 
     private static string? ResolveProjectPackRoot(string? projectRoot)

@@ -103,7 +103,7 @@ public class ReadmeDocumentationTests
     {
         var content = File.ReadAllText(GetRepoFilePath("README.md"));
 
-        content.Should().Contain("$version = 'v1.0.0-beta.21'");
+        content.Should().Contain("$version = 'v1.0.0-beta.22'");
         content.Should().Contain("-Version $version -Prerelease");
         content.Should().Contain("Pinned pre-release install");
         content.Should().NotContain("$version = '<version>'");

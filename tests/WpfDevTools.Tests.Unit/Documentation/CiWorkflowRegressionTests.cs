@@ -261,6 +261,8 @@ public sealed partial class SandboxCiScriptContractTests
         composerJob.Should().Contain("composer-ci-evidence");
 
         var formatterScript = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "Invoke-DotNetFormatVerify.ps1"));
+        formatterScript.Should().Contain("Join-Path $env:DOTNET_ROOT 'dotnet.exe'");
+        formatterScript.Should().Contain("Get-Command dotnet -ErrorAction Stop");
         formatterScript.Should().Contain("$env:DOTNET_HOST_PATH = $dotnet");
         formatterScript.Should().Contain("$env:PATH = \"$dotnetDirectory;$env:PATH\"");
         formatterScript.Should().Contain("'--verify-no-changes'");

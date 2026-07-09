@@ -8,7 +8,18 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$dotnet = (Get-Command dotnet).Source
+function Resolve-DotNetExecutable {
+    if (-not [string]::IsNullOrWhiteSpace($env:DOTNET_ROOT)) {
+        $rootCandidate = Join-Path $env:DOTNET_ROOT 'dotnet.exe'
+        if (Test-Path -LiteralPath $rootCandidate) {
+            return (Resolve-Path -LiteralPath $rootCandidate).ProviderPath
+        }
+    }
+
+    return (Get-Command dotnet -ErrorAction Stop).Source
+}
+
+$dotnet = Resolve-DotNetExecutable
 $dotnetDirectory = Split-Path -Parent $dotnet
 $env:DOTNET_ROOT = $dotnetDirectory
 $env:PATH = "$dotnetDirectory;$env:PATH"

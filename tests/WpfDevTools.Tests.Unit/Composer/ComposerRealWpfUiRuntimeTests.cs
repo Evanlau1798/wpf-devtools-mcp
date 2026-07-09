@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
@@ -65,7 +66,14 @@ public sealed class ComposerRealWpfUiRuntimeTests
             SaveScreenshotIfRequested(window);
 
             var descendants = EnumerateDescendants(window).ToArray();
+            var iconBindings = descendants
+                .OfType<WpfUiButton>()
+                .Select(button => BindingOperations.GetBindingExpression(button, WpfUiButton.IconProperty))
+                .Where(binding => binding is not null)
+                .Cast<BindingExpression>()
+                .ToArray();
             var navigation = descendants.OfType<WpfUiNavigationView>().Should().ContainSingle().Subject;
+            navigation.AutoSuggestBox.Should().NotBeNull();
             var contentCard = descendants.OfType<WpfUiCard>().Should().ContainSingle().Subject;
             ((System.Collections.ICollection)navigation.MenuItems).Count.Should().Be(4);
             ((System.Collections.ICollection)navigation.FooterMenuItems).Count.Should().Be(1);
@@ -91,6 +99,8 @@ public sealed class ComposerRealWpfUiRuntimeTests
             AssertImplicitStyleResource<WpfUiButton>(window);
             AssertImplicitStyleResource<WpfUiAutoSuggestBox>(window);
             AssertStyleAnalyzerReportsImplicitWpfUiStyle(primaryAction);
+            iconBindings.Should().NotBeEmpty();
+            iconBindings.Select(binding => binding.Status).Should().NotContain(BindingStatus.PathError);
         }
         finally
         {

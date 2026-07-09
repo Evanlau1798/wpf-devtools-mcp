@@ -109,8 +109,9 @@ public sealed class ComposerRendererDryRunTests
         result.Success.Should().BeTrue();
         result.Xaml.Should().NotContain("<ui:NavigationView.ContentOverlay>");
         result.Xaml.Should().Contain("<ColumnDefinition Width=\"400\" />");
-        result.Xaml.Should().Contain("<ui:AutoSuggestBox Grid.Row=\"0\" PlaceholderText=\"Search\"");
-        result.Xaml.Should().Contain("<ui:NavigationView Grid.Row=\"1\" Width=\"386\" Margin=\"-12,0,0,0\"");
+        result.Xaml.Should().Contain("<ui:NavigationView.AutoSuggestBox>");
+        result.Xaml.Should().Contain("<ui:AutoSuggestBox PlaceholderText=\"Search\"");
+        result.Xaml.Should().Contain("<ui:NavigationView Width=\"386\" Margin=\"-12,0,0,0\"");
         result.Xaml.Should().Contain("<Grid Grid.Column=\"1\" Background=\"#252B33\">");
         result.Xaml.Should().Contain("<ui:Card>");
     }

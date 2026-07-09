@@ -11,6 +11,8 @@ public sealed class ComposerPreviewWpfUiCompatibilityTests
         UiPreviewProjectStubs.WpfUi.Should().Contain("public class NavigationView : StackPanel");
         UiPreviewProjectStubs.WpfUi.Should().Contain("public ObservableCollection<object> MenuItems");
         UiPreviewProjectStubs.WpfUi.Should().Contain("public ObservableCollection<object> FooterMenuItems");
+        UiPreviewProjectStubs.WpfUi.Should().Contain("public object? AutoSuggestBox");
+        UiPreviewProjectStubs.WpfUi.Should().Contain("StubVisuals.Add(Children, AutoSuggestBox)");
         UiPreviewProjectStubs.WpfUi.Should().Contain("StubVisuals.Add(Children, ContentOverlay)");
         UiPreviewProjectStubs.WpfUi.Should().NotContain("public class NavigationView : ItemsControl");
     }

@@ -111,6 +111,8 @@ internal static class UiPreviewProjectStubs
                 nameof(IsFooterSeparatorVisible), typeof(bool), typeof(NavigationView));
             public static readonly DependencyProperty OpenPaneLengthProperty = DependencyProperty.Register(
                 nameof(OpenPaneLength), typeof(double), typeof(NavigationView));
+            public static readonly DependencyProperty AutoSuggestBoxProperty = DependencyProperty.Register(
+                nameof(AutoSuggestBox), typeof(object), typeof(NavigationView), new PropertyMetadata(null, OnAutoSuggestBoxChanged));
             public static readonly DependencyProperty ContentOverlayProperty = DependencyProperty.Register(
                 nameof(ContentOverlay), typeof(object), typeof(NavigationView), new PropertyMetadata(null, OnContentOverlayChanged));
             public ObservableCollection<object> MenuItems { get; } = new();
@@ -119,6 +121,12 @@ internal static class UiPreviewProjectStubs
             {
                 get => GetValue(ContentOverlayProperty);
                 set => SetValue(ContentOverlayProperty, value);
+            }
+
+            public object? AutoSuggestBox
+            {
+                get => GetValue(AutoSuggestBoxProperty);
+                set => SetValue(AutoSuggestBoxProperty, value);
             }
 
             public string? PaneDisplayMode
@@ -167,12 +175,16 @@ internal static class UiPreviewProjectStubs
             private static void OnContentOverlayChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
                 => ((NavigationView)d).Rebuild();
 
+            private static void OnAutoSuggestBoxChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+                => ((NavigationView)d).Rebuild();
+
             private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
                 => Rebuild();
 
             private void Rebuild()
             {
                 Children.Clear();
+                StubVisuals.Add(Children, AutoSuggestBox);
                 var pane = new StackPanel { MinWidth = 160 };
                 foreach (var item in MenuItems)
                 {

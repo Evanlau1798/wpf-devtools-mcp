@@ -8,6 +8,7 @@ using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 
+[Collection("TimingSensitive")]
 public class EventAnalyzerClickWorkflowGapTests
 {
     [StaFact]
@@ -20,17 +21,28 @@ public class EventAnalyzerClickWorkflowGapTests
         var elementId = finder.GenerateElementId(checkBox);
 
         var startResult = JsonSerializer.Deserialize<JsonElement>(
-            JsonSerializer.Serialize(eventAnalyzer.TraceRoutedEvents(elementId, "Click", 300)));
+            JsonSerializer.Serialize(eventAnalyzer.TraceRoutedEvents(elementId, "Click", 5000)));
         startResult.GetProperty("success").GetBoolean().Should().BeTrue();
 
         var clickResult = JsonSerializer.Deserialize<JsonElement>(
             JsonSerializer.Serialize(interactionAnalyzer.ClickElement(elementId)));
         clickResult.GetProperty("success").GetBoolean().Should().BeTrue(clickResult.GetRawText());
 
-        Thread.Sleep(25);
-
-        var trace = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(eventAnalyzer.GetEventTrace()));
+        var trace = WaitForCapturedEvent(eventAnalyzer);
         trace.GetProperty("success").GetBoolean().Should().BeTrue();
         trace.GetProperty("eventCount").GetInt32().Should().BeGreaterThan(0);
+    }
+
+    private static JsonElement WaitForCapturedEvent(EventAnalyzer eventAnalyzer)
+    {
+        JsonElement trace = default;
+        var captured = SpinWait.SpinUntil(() =>
+        {
+            trace = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(eventAnalyzer.GetEventTrace()));
+            return trace.GetProperty("eventCount").GetInt32() > 0;
+        }, TimeSpan.FromSeconds(2));
+
+        captured.Should().BeTrue(trace.GetRawText());
+        return trace;
     }
 }

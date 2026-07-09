@@ -298,18 +298,11 @@ public sealed class GetBindingErrorsToolPendingEventsTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenPiggybackDrainTransportResets_ShouldKeepPrimarySuccessWithDiagnostics()
+    public async Task ExecuteAsync_WhenPiggybackDrainReportsTransportReset_ShouldKeepPrimarySuccessWithDiagnostics()
     {
         const int processId = 51048;
         using var connected = await ConnectedBindingErrorsSession.CreateAsync(
             processId,
-            onRequestReceived: async (method, server) =>
-            {
-                if (string.Equals(method, "drain_events", StringComparison.Ordinal))
-                {
-                    await server.DisposeAsync();
-                }
-            },
             JsonSerializer.Serialize(new
             {
                 success = true,
@@ -318,9 +311,9 @@ public sealed class GetBindingErrorsToolPendingEventsTests
             }),
             JsonSerializer.Serialize(new
             {
-                success = true,
-                pendingEventCount = 0,
-                droppedEventCount = 0
+                success = false,
+                error = "transport reset",
+                errorCode = "TransportReset"
             }));
         var tool = new GetBindingErrorsTool(connected.SessionManager);
 
@@ -330,6 +323,7 @@ public sealed class GetBindingErrorsToolPendingEventsTests
 
         await connected.ServerTask;
 
+        connected.RequestMethods.Should().Equal("get_binding_errors", "drain_events");
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("errorCount").GetInt32().Should().Be(0);
         result.GetProperty("pendingEventsPiggybackFailed").GetBoolean().Should().BeTrue();

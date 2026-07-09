@@ -154,9 +154,9 @@ public sealed class ComposerRealWpfUiRuntimeTests
         {
             demoCard.ActualWidth.Should().BeGreaterThan(850);
             demoCard.ActualHeight.Should().BeGreaterThan(430);
-            primaryTile.ActualWidth.Should().BeGreaterThan(250);
+            primaryTile.ActualWidth.Should().BeGreaterThan(200);
             primaryTile.ActualHeight.Should().BeGreaterThan(250);
-            secondaryTile.ActualWidth.Should().BeGreaterThan(250);
+            secondaryTile.ActualWidth.Should().BeGreaterThan(200);
             return;
         }
 

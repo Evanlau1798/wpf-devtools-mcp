@@ -40,7 +40,7 @@ public sealed class ComposerBlueprintProductionFixtureTests
             Blueprint("""{ "kind": "wpfui.dataGrid", "properties": { "itemsSource": "{Binding Rows}" }, "slots": { "columns": [{ "kind": "template" }], "emptyState": [{ "kind": "wpfui.textBlock" }] } }"""),
             Blueprint("""{ "kind": "wpfui.snackbar", "slots": { "content": [{ "kind": "wpfui.textBlock" }], "actions": [{ "kind": "wpfui.button" }] } }"""),
             Blueprint("""{ "kind": "wpfui.fluentWindow", "slots": { "titleBar": [{ "kind": "wpfui.titleBar" }], "content": [{ "kind": "wpfui.navigationView" }] } }"""),
-            Blueprint("""{ "kind": "wpfui.textBlock", "properties": { "text": "Hello", "appearance": "Body" } }"""),
+            Blueprint("""{ "kind": "wpfui.textBlock", "properties": { "text": "Hello", "appearance": "Primary" } }"""),
             Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "stack", "slots": { "stack": [{ "kind": "text", "properties": { "value": "Line" } }, { "kind": "template" }] } }] } }""")
         };
 
@@ -57,6 +57,7 @@ public sealed class ComposerBlueprintProductionFixtureTests
             { Blueprint("""{ "kind": "wpfui.card", "slots": { "missing": [{ "kind": "wpfui.button" }] } }"""), "UnknownSlot" },
             { Blueprint("""{ "kind": "wpfui.navigationView", "slots": { "items": [{ "kind": "wpfui.button" }] } }"""), "SlotChildKindNotAllowed" },
             { Blueprint("""{ "kind": "wpfui.button", "properties": { "rawXaml": "<Button />" } }"""), "UnknownProperty" },
+            { Blueprint("""{ "kind": "wpfui.textBlock", "properties": { "appearance": "Body" } }"""), "PropertyValueNotAllowed" },
             { Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "stack", "slots": { "stack": [{ "kind": "text", "properties": { "value": "Line" } }, { "kind": "wpfui.button", "properties": { "rawXaml": "<Button />" } }] } }] } }"""), "UnknownProperty" },
             { Blueprint("""{ "kind": "wpfui.snackbar", "properties": { "timeout": "slow" } }"""), "PropertyTypeMismatch" }
         };

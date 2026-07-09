@@ -1,5 +1,13 @@
-<ui:NavigationView PaneDisplayMode="{{paneDisplayMode}}">
-  <ui:NavigationView.MenuItems>{{slot.items}}</ui:NavigationView.MenuItems>
-  <ui:NavigationView.ContentOverlay>{{slot.content}}</ui:NavigationView.ContentOverlay>
-  <ui:NavigationView.FooterMenuItems>{{slot.footer}}</ui:NavigationView.FooterMenuItems>
-</ui:NavigationView>
+<Grid>
+  <Grid.ColumnDefinitions>
+    <ColumnDefinition Width="260" />
+    <ColumnDefinition Width="*" />
+  </Grid.ColumnDefinitions>
+  <ui:NavigationView Grid.Column="0" PaneDisplayMode="{{paneDisplayMode}}">
+    <ui:NavigationView.MenuItems>{{slot.items}}</ui:NavigationView.MenuItems>
+    <ui:NavigationView.FooterMenuItems>{{slot.footer}}</ui:NavigationView.FooterMenuItems>
+  </ui:NavigationView>
+  <Grid Grid.Column="1" Margin="16,0,0,0">
+    {{slot.content}}
+  </Grid>
+</Grid>

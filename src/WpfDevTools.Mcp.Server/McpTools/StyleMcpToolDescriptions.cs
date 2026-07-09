@@ -20,6 +20,8 @@ internal static class StyleMcpToolDescriptions
         "  - styles: [{\n" +
         "    - styleType: 'Implicit'|'Explicit',\n" +
         "    - targetType,\n" +
+        "    - targetTypeFullName,\n" +
+        "    - baseValueSource,\n" +
         "    - setters: [{ property, value }]\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

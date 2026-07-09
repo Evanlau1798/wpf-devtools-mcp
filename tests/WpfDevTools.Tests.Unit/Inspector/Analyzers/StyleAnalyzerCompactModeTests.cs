@@ -60,4 +60,44 @@ public sealed class StyleAnalyzerCompactModeTests
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("styles")[0].TryGetProperty("setters", out _).Should().BeTrue();
     }
+
+    [StaFact]
+    public void GetAppliedStyles_WithImplicitStyleResource_ShouldReportImplicitSourceAndFullTargetType()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new StyleAnalyzer(finder);
+        var window = new Window();
+
+        try
+        {
+            var button = new Button();
+            var implicitStyle = new Style(typeof(Button))
+            {
+                Setters =
+                {
+                    new Setter(Control.HeightProperty, 32.0)
+                }
+            };
+            window.Resources.Add(typeof(Button), implicitStyle);
+            window.Content = button;
+            window.Show();
+            button.ApplyTemplate();
+
+            var elementId = finder.GenerateElementId(button);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.GetAppliedStyles(elementId, compact: true));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("hasStyle").GetBoolean().Should().BeTrue();
+            result.GetProperty("styleCount").GetInt32().Should().Be(1);
+            var appliedStyle = result.GetProperty("styles")[0];
+            appliedStyle.GetProperty("styleType").GetString().Should().Be("Implicit");
+            appliedStyle.GetProperty("baseValueSource").GetString().Should().Be("ImplicitStyleReference");
+            appliedStyle.GetProperty("targetTypeFullName").GetString().Should().Be(typeof(Button).FullName);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
 }

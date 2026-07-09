@@ -48,24 +48,32 @@ public sealed partial class StyleAnalyzer : DispatcherAnalyzerBase
 
             var styles = new List<object>();
 
-            // Get explicit style
             if (fe.Style != null)
             {
+                var styleSource = DependencyPropertyHelper.GetValueSource(fe, FrameworkElement.StyleProperty);
+                var styleType = styleSource.BaseValueSource == BaseValueSource.ImplicitStyleReference
+                    ? "Implicit"
+                    : "Explicit";
+
                 styles.Add(compact
                     ? new
                     {
-                        styleType = "Explicit",
-                        type = "Explicit",
+                        styleType,
+                        type = styleType,
                         targetType = fe.Style.TargetType?.Name,
+                        targetTypeFullName = fe.Style.TargetType?.FullName,
+                        baseValueSource = styleSource.BaseValueSource.ToString(),
                         setterCount = fe.Style.Setters.Count,
                         triggerCount = fe.Style.Triggers.Count,
                         hasBasedOn = fe.Style.BasedOn != null
                     }
                     : new
                     {
-                        styleType = "Explicit",
-                        type = "Explicit",
+                        styleType,
+                        type = styleType,
                         targetType = fe.Style.TargetType?.Name,
+                        targetTypeFullName = fe.Style.TargetType?.FullName,
+                        baseValueSource = styleSource.BaseValueSource.ToString(),
                         setters = fe.Style.Setters
                             .OfType<Setter>()
                             .Select(setter => new

@@ -38,7 +38,8 @@ public sealed class ComposerRendererDryRunTests
         result.Xaml.Should().Contain(expectedSnippet);
         result.FilePlan.WouldWriteFiles.Should().BeFalse();
         result.RequiredNuGetPackages.Should().Contain(package => package.Id == "WPF-UI");
-        result.RequiredResources.Should().Contain(resource => resource.Contains("Wpf.Ui.xaml", StringComparison.Ordinal));
+        result.RequiredResources.Should().Contain(resource => resource.Contains("ThemesDictionary", StringComparison.Ordinal));
+        result.RequiredResources.Should().Contain(resource => resource.Contains("ControlsDictionary", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -94,7 +95,7 @@ public sealed class ComposerRendererDryRunTests
     }
 
     [Fact]
-    public void RenderBlueprint_ShouldRenderNavigationViewContentAsContentOverlayPropertyElement()
+    public void RenderBlueprint_ShouldRenderNavigationViewContentBesideNavigationPane()
     {
         var renderer = new UiBlueprintRenderer(CreateRegistry());
 
@@ -106,8 +107,10 @@ public sealed class ComposerRendererDryRunTests
             """)));
 
         result.Success.Should().BeTrue();
-        result.Xaml.Should().Contain("<ui:NavigationView.ContentOverlay>");
-        result.Xaml.Should().NotContain("<ui:NavigationView PaneDisplayMode=\"Left\">" + Environment.NewLine + "  <ui:Card");
+        result.Xaml.Should().NotContain("<ui:NavigationView.ContentOverlay>");
+        result.Xaml.Should().Contain("<ui:NavigationView Grid.Column=\"0\" PaneDisplayMode=\"Left\"");
+        result.Xaml.Should().Contain("<Grid Grid.Column=\"1\" Margin=\"16,0,0,0\">");
+        result.Xaml.Should().Contain("<ui:Card>");
     }
 
     [Fact]
@@ -248,6 +251,7 @@ public sealed class ComposerRendererDryRunTests
             { Blueprint("""{ "kind": "wpfui.contentDialog", "slots": { "actions": [{ "kind": "wpfui.button" }] } }"""), "<ui:ContentDialog" },
             { Blueprint("""{ "kind": "wpfui.dataGrid", "slots": { "columns": [{ "kind": "template" }] } }"""), "<ui:DataGrid.Columns>" },
             { Blueprint("""{ "kind": "wpfui.snackbar", "slots": { "actions": [{ "kind": "wpfui.button" }] } }"""), "<ui:Snackbar" },
+            { Blueprint("""{ "kind": "wpfui.navigationViewDemo" }"""), "NavigationView Header" },
             { Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "text", "properties": { "value": "Plain preview" } }] } }"""), "Plain preview" },
             { Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "stack", "slots": { "stack": [{ "kind": "text", "properties": { "value": "Line 1" } }, { "kind": "template" }] } }] } }"""), "<StackPanel>" }
         };

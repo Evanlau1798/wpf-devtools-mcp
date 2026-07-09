@@ -1,4 +1,4 @@
-<ui:FluentWindow Title="{{title}}">
+<ui:FluentWindow Title="{{title}}" Width="{{width}}" Height="{{height}}" MinWidth="900" MinHeight="600">
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />

@@ -36,9 +36,31 @@ public sealed class ComposerPreviewRecipeRuntimeTests
 
         result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
         result.PreviewHost.Status.Should().Be("loaded", result.BuildOutput);
-        result.PreviewHost.RuntimeDiagnostics.Should()
-            .Contain(diagnostic => diagnostic.Tool == "connect" && diagnostic.Success);
+        result.PreviewHost.RuntimeDiagnostics.Should().NotBeNull();
+        var diagnostics = result.PreviewHost.RuntimeDiagnostics!;
+        diagnostics.Should().Contain(diagnostic => diagnostic.Tool == "connect" && diagnostic.Success);
+        var summary = GetDiagnosticPayload(diagnostics, "get_ui_summary");
+
+        summary.GetProperty("semanticNodeCount").GetInt32().Should().BeGreaterThanOrEqualTo(6);
+        AssertPayloadContains(summary, "Home");
+        AssertPayloadContains(summary, "Items");
+        AssertPayloadContains(summary, "Settings");
+        AssertPayloadContains(summary, "NavigationView");
+        AssertPayloadContains(summary, "WPF UI NavigationView.");
+        AssertPayloadContains(summary, "All Controls");
+        AssertPayloadContains(summary, "Pane Header");
+        AssertPayloadContains(summary, "Copy");
+        GetDiagnosticPayload(diagnostics, "get_layout_info").ValueKind.Should().Be(JsonValueKind.Object);
     }
+
+    private static JsonElement GetDiagnosticPayload(IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics, string tool)
+        => diagnostics.Should()
+            .ContainSingle(diagnostic => diagnostic.Tool == tool && diagnostic.Success)
+            .Subject
+            .Payload;
+
+    private static void AssertPayloadContains(JsonElement payload, string expected)
+        => payload.GetRawText().Should().Contain(expected);
 
     private sealed class EnvironmentVariableScope : IDisposable
     {

@@ -8,7 +8,7 @@ namespace WpfDevTools.Tests.Unit.Composer;
 
 public sealed class ComposerMultiPackValidationTests
 {
-    private const string WpfUiResourceDictionary = "pack://application:,,,/Wpf.Ui;component/Resources/Wpf.Ui.xaml";
+    private const string WpfUiResourceDictionary = "<ui:ControlsDictionary />";
 
     [Fact]
     public void ValidateBlueprint_ShouldReportDeclaredPackVersionConflict()

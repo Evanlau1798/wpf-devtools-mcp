@@ -70,10 +70,10 @@ public sealed class ComposerRecipeExpansionTests
 
         result.Success.Should().BeTrue();
         result.Validation.Success.Should().BeTrue();
-        result.Blueprint.Name.Should().Be("WPF UI Shell With Navigation");
+        result.Blueprint.Name.Should().Be("WPF UI Gallery Navigation Shell");
         result.Blueprint.Layout.Kind.Should().Be("wpfui.fluentWindow");
         result.Blueprint.Layout.Slots["titleBar"][0]
-            .Properties["title"].GetString().Should().Be("WPF UI App");
+            .Properties["title"].GetString().Should().Be("WPF UI Gallery");
     }
 
     [Theory]

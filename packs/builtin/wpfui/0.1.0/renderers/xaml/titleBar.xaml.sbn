@@ -1,3 +1,4 @@
-<ui:TitleBar Title="{{title}}">
+<ui:TitleBar Title="{{title}}" Height="72" Padding="24,0,0,0">
+  <ui:TitleBar.Icon><ui:SymbolIcon Symbol="Color24" Foreground="#2CB7E8" Margin="0,0,10,0" /></ui:TitleBar.Icon>
   {{slot.actions}}
 </ui:TitleBar>

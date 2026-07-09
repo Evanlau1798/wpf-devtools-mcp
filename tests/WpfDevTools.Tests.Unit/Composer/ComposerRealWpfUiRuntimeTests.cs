@@ -20,6 +20,7 @@ using WpfUiFluentWindow = Wpf.Ui.Controls.FluentWindow;
 using WpfUiNavigationView = Wpf.Ui.Controls.NavigationView;
 using WpfUiNavigationViewItem = Wpf.Ui.Controls.NavigationViewItem;
 using WpfUiSymbolIcon = Wpf.Ui.Controls.SymbolIcon;
+using WpfUiTitleBar = Wpf.Ui.Controls.TitleBar;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
@@ -46,8 +47,8 @@ public sealed class ComposerRealWpfUiRuntimeTests
 
         try
         {
-            window.Width = 1400;
-            window.Height = 760;
+            window.Width = 1450;
+            window.Height = 802;
             window.Show();
             window.UpdateLayout();
             window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
@@ -75,6 +76,7 @@ public sealed class ComposerRealWpfUiRuntimeTests
             var copyButton = descendants.OfType<WpfUiButton>().Should().ContainSingle(button =>
                 string.Equals(button.Content as string, "Copy", StringComparison.Ordinal)).Which;
             copyButton.Appearance.ToString().Should().Be("Secondary");
+            AssertOuterShellMatchesGalleryReference(window, outerNavigationView, descendants);
             AssertGalleryLikeLayout(window, outerNavigationView, demoNavigationView, copyButton, descendants);
             descendants.OfType<System.Windows.Controls.Button>().Should().NotContain(button =>
                 button.GetType() == typeof(System.Windows.Controls.Button)
@@ -132,6 +134,31 @@ public sealed class ComposerRealWpfUiRuntimeTests
 
         titleLeft.Should().BeGreaterThan(outerLeft + outerNavigationView.ActualWidth * 0.75);
         demoHeaderLeft.Should().BeGreaterThan(demoLeft + demoNavigationView.ActualWidth * 0.75);
+    }
+
+    private static void AssertOuterShellMatchesGalleryReference(
+        FrameworkElement root,
+        FrameworkElement outerNavigationView,
+        IReadOnlyList<DependencyObject> descendants)
+    {
+        descendants.OfType<WpfUiTitleBar>().Should().ContainSingle()
+            .Which.ActualHeight.Should().BeGreaterThan(56);
+        descendants.OfType<WpfUiAutoSuggestBox>()
+            .Count(box => string.Equals(box.PlaceholderText, "Search", StringComparison.Ordinal))
+            .Should().BeGreaterThanOrEqualTo(2);
+
+        outerNavigationView.ActualWidth.Should().BeGreaterThan(320);
+        var shellPane = descendants.OfType<Border>()
+            .Where(border => border.Background is SolidColorBrush brush
+                && brush.Color == Color.FromRgb(0x24, 0x18, 0x29))
+            .Should().Contain(border =>
+                border.IsVisible
+                && border.ActualWidth > 360
+                && border.ActualHeight > root.ActualHeight * 0.7).Which;
+        shellPane.TransformToAncestor(root).Transform(new Point()).X.Should().BeLessThan(4);
+
+        var titleLeft = FindTextBlock(descendants, "NavigationView").TransformToAncestor(root).Transform(new Point()).X;
+        titleLeft.Should().BeInRange(440, 480);
     }
 
     private static TextBlock FindTextBlock(IEnumerable<DependencyObject> descendants, string text)

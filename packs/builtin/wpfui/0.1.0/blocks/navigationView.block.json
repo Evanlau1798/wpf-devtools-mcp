@@ -1,1 +1,46 @@
-{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"wpfui.navigationView","displayName":"Navigation View","description":"Semantic WPF UI Navigation View block.","category":"navigation","properties":{"paneDisplayMode":{"default":"Left","required":false,"type":"string"}},"slots":{"content":{"allowedKinds":["text","stack","template","wpfui.card","wpfui.navigationViewDemo"]},"footer":{"allowedKinds":["wpfui.navigationViewItem","wpfui.button"]},"items":{"allowedKinds":["wpfui.navigationViewItem"]}},"renderer":{"xamlTemplate":"renderers/xaml/navigationView.xaml.sbn"},"validation":{},"sourceHints":[{"path":"src/Wpf.Ui/Controls/NavigationView/NavigationView.Base.cs","usage":"semantic extraction"}]}
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "wpfui.navigationView",
+  "displayName": "Navigation View",
+  "description": "Semantic WPF UI Navigation View block.",
+  "category": "navigation",
+  "properties": {
+    "paneDisplayMode": {
+      "default": "Left",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "slots": {
+    "content": {
+      "allowedKinds": [
+        "text",
+        "stack",
+        "template",
+        "wpfui.card",
+        "wpfui.navigationViewDemo"
+      ]
+    },
+    "footer": {
+      "allowedKinds": [
+        "wpfui.navigationViewItem",
+        "wpfui.button"
+      ]
+    },
+    "items": {
+      "allowedKinds": [
+        "wpfui.navigationViewItem"
+      ]
+    }
+  },
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/navigationView.xaml.sbn"
+  },
+  "validation": {},
+  "sourceHints": [
+    {
+      "path": "src/Wpf.Ui/Controls/NavigationView/NavigationView.Base.cs",
+      "usage": "semantic extraction"
+    }
+  ]
+}

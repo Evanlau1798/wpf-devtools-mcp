@@ -4,18 +4,50 @@
   "displayName": "Dialog Flow Starter",
   "description": "A WPF UI ContentDialog with text content and a primary action.",
   "packId": "wpfui",
+  "requiredPacks": [
+    {
+      "id": "wpfui",
+      "version": "0.1.0",
+      "required": true,
+      "role": "primary"
+    }
+  ],
   "inputs": {
-    "title": { "type": "string", "default": "Confirm" },
-    "message": { "type": "string", "default": "Continue with this action?" },
-    "primaryAction": { "type": "string", "default": "Continue" }
+    "message": {
+      "default": "Continue with this action?",
+      "type": "string"
+    },
+    "primaryAction": {
+      "default": "Continue",
+      "type": "string"
+    },
+    "title": {
+      "default": "Confirm",
+      "type": "string"
+    }
   },
-  "requiredPacks": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
   "expandsTo": {
     "kind": "wpfui.contentDialog",
-    "properties": { "title": "{{title}}" },
+    "properties": {
+      "title": "{{title}}"
+    },
     "slots": {
-      "content": [{ "kind": "text", "properties": { "value": "{{message}}" } }],
-      "actions": [{ "kind": "wpfui.button", "properties": { "text": "{{primaryAction}}" } }]
+      "actions": [
+        {
+          "kind": "wpfui.button",
+          "properties": {
+            "text": "{{primaryAction}}"
+          }
+        }
+      ],
+      "content": [
+        {
+          "kind": "text",
+          "properties": {
+            "value": "{{message}}"
+          }
+        }
+      ]
     }
   }
 }

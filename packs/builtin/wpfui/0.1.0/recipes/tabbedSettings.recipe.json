@@ -4,11 +4,24 @@
   "displayName": "Tabbed Settings Starter",
   "description": "A WPF UI TabView with two settings tabs.",
   "packId": "wpfui",
+  "requiredPacks": [
+    {
+      "id": "wpfui",
+      "version": "0.1.0",
+      "required": true,
+      "role": "primary"
+    }
+  ],
   "inputs": {
-    "generalTitle": { "type": "string", "default": "General" },
-    "securityTitle": { "type": "string", "default": "Security" }
+    "generalTitle": {
+      "default": "General",
+      "type": "string"
+    },
+    "securityTitle": {
+      "default": "Security",
+      "type": "string"
+    }
   },
-  "requiredPacks": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
   "expandsTo": {
     "kind": "wpfui.tabView",
     "slots": {
@@ -16,15 +29,37 @@
         {
           "kind": "wpfui.tabViewItem",
           "slots": {
-            "header": [{ "kind": "text", "properties": { "value": "{{generalTitle}}" } }],
-            "content": [{ "kind": "wpfui.card" }]
+            "content": [
+              {
+                "kind": "wpfui.card"
+              }
+            ],
+            "header": [
+              {
+                "kind": "text",
+                "properties": {
+                  "value": "{{generalTitle}}"
+                }
+              }
+            ]
           }
         },
         {
           "kind": "wpfui.tabViewItem",
           "slots": {
-            "header": [{ "kind": "text", "properties": { "value": "{{securityTitle}}" } }],
-            "content": [{ "kind": "wpfui.card" }]
+            "content": [
+              {
+                "kind": "wpfui.card"
+              }
+            ],
+            "header": [
+              {
+                "kind": "text",
+                "properties": {
+                  "value": "{{securityTitle}}"
+                }
+              }
+            ]
           }
         }
       ]

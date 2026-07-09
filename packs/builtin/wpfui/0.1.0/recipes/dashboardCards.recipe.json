@@ -4,18 +4,55 @@
   "displayName": "Dashboard Card Starter",
   "description": "A WPF UI card with header, body text, and a primary action.",
   "packId": "wpfui",
+  "requiredPacks": [
+    {
+      "id": "wpfui",
+      "version": "0.1.0",
+      "required": true,
+      "role": "primary"
+    }
+  ],
   "inputs": {
-    "heading": { "type": "string", "default": "Overview" },
-    "body": { "type": "string", "default": "Summarize the current state." },
-    "actionText": { "type": "string", "default": "Open" }
+    "actionText": {
+      "default": "Open",
+      "type": "string"
+    },
+    "body": {
+      "default": "Summarize the current state.",
+      "type": "string"
+    },
+    "heading": {
+      "default": "Overview",
+      "type": "string"
+    }
   },
-  "requiredPacks": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
   "expandsTo": {
     "kind": "wpfui.card",
     "slots": {
-      "header": [{ "kind": "wpfui.textBlock", "properties": { "text": "{{heading}}" } }],
-      "content": [{ "kind": "text", "properties": { "value": "{{body}}" } }],
-      "actions": [{ "kind": "wpfui.button", "properties": { "text": "{{actionText}}" } }]
+      "actions": [
+        {
+          "kind": "wpfui.button",
+          "properties": {
+            "text": "{{actionText}}"
+          }
+        }
+      ],
+      "content": [
+        {
+          "kind": "text",
+          "properties": {
+            "value": "{{body}}"
+          }
+        }
+      ],
+      "header": [
+        {
+          "kind": "wpfui.textBlock",
+          "properties": {
+            "text": "{{heading}}"
+          }
+        }
+      ]
     }
   }
 }

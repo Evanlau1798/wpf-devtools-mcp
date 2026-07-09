@@ -1,1 +1,19 @@
-{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"wpfui.navigationViewDemo","displayName":"Navigation View Demo","description":"Gallery-style WPF UI NavigationView demo surface with visible navigation, search, preview tiles, and code sample.","category":"navigation","properties":{},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/navigationViewDemo.xaml.sbn"},"validation":{},"sourceHints":[{"path":"src/Wpf.Ui/Controls/NavigationView/NavigationView.cs","usage":"manual gallery-style composition"}]}
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "wpfui.navigationViewDemo",
+  "displayName": "Navigation View Demo",
+  "description": "Gallery-style WPF UI NavigationView demo surface with visible navigation, search, preview tiles, and code sample.",
+  "category": "navigation",
+  "properties": {},
+  "slots": {},
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/navigationViewDemo.xaml.sbn"
+  },
+  "validation": {},
+  "sourceHints": [
+    {
+      "path": "src/Wpf.Ui/Controls/NavigationView/NavigationView.cs",
+      "usage": "manual gallery-style composition"
+    }
+  ]
+}

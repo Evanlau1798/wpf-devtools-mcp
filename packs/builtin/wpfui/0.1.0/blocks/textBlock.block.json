@@ -1,1 +1,36 @@
-{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"wpfui.textBlock","displayName":"Text Block","description":"Semantic WPF UI Text Block block.","category":"display","properties":{"appearance":{"allowedValues":["Primary","Secondary","Tertiary","Disabled"],"default":"Primary","required":false,"type":"string"},"text":{"default":"Text","required":false,"type":"string"}},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/textBlock.xaml.sbn"},"validation":{},"sourceHints":[{"path":"src/Wpf.Ui/Controls/TextBlock/TextBlock.cs","usage":"semantic extraction"}]}
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "wpfui.textBlock",
+  "displayName": "Text Block",
+  "description": "Semantic WPF UI Text Block block.",
+  "category": "display",
+  "properties": {
+    "appearance": {
+      "allowedValues": [
+        "Primary",
+        "Secondary",
+        "Tertiary",
+        "Disabled"
+      ],
+      "default": "Primary",
+      "required": false,
+      "type": "string"
+    },
+    "text": {
+      "default": "Text",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "slots": {},
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/textBlock.xaml.sbn"
+  },
+  "validation": {},
+  "sourceHints": [
+    {
+      "path": "src/Wpf.Ui/Controls/TextBlock/TextBlock.cs",
+      "usage": "semantic extraction"
+    }
+  ]
+}

@@ -193,6 +193,10 @@ internal static class UiPreviewProjectStubs
         {
             public static readonly DependencyProperty IconProperty = DependencyProperty.Register(
                 nameof(Icon), typeof(object), typeof(NavigationViewItem));
+            public static readonly DependencyProperty IsActiveProperty = DependencyProperty.Register(
+                nameof(IsActive), typeof(bool), typeof(NavigationViewItem));
+            public static readonly DependencyProperty IsExpandedProperty = DependencyProperty.Register(
+                nameof(IsExpanded), typeof(bool), typeof(NavigationViewItem));
             public static readonly DependencyProperty TargetPageTagProperty = DependencyProperty.Register(
                 nameof(TargetPageTag), typeof(string), typeof(NavigationViewItem));
             public object? Icon
@@ -200,6 +204,20 @@ internal static class UiPreviewProjectStubs
                 get => GetValue(IconProperty);
                 set => SetValue(IconProperty, value);
             }
+
+            public bool IsActive
+            {
+                get => (bool)GetValue(IsActiveProperty);
+                set => SetValue(IsActiveProperty, value);
+            }
+
+            public bool IsExpanded
+            {
+                get => (bool)GetValue(IsExpandedProperty);
+                set => SetValue(IsExpandedProperty, value);
+            }
+
+            public Collection<object> MenuItems { get; } = new();
 
             public string? TargetPageTag
             {
@@ -230,6 +248,14 @@ internal static class UiPreviewProjectStubs
 
         public class TitleBar : Control
         {
+            public static readonly DependencyProperty IconProperty = DependencyProperty.Register(
+                nameof(Icon), typeof(object), typeof(TitleBar));
+            public object? Icon
+            {
+                get => GetValue(IconProperty);
+                set => SetValue(IconProperty, value);
+            }
+
             public string? Title { get; set; }
         }
 

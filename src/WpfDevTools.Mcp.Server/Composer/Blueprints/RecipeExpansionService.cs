@@ -220,7 +220,7 @@ internal sealed class RecipeExpansionService(PackRegistry registry)
             return JsonValue.Create(replaced);
         }
 
-        return node;
+        return node?.DeepClone();
     }
 
     private static bool MatchesInputType(JsonElement value, string type)

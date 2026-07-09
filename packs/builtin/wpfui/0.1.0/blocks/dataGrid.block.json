@@ -1,1 +1,37 @@
-{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"wpfui.dataGrid","displayName":"Data Grid","description":"Semantic WPF UI Data Grid block.","category":"data","properties":{"itemsSource":{"required":false,"type":"binding"}},"slots":{"columns":{"allowedKinds":["template"]},"emptyState":{"allowedKinds":["text","wpfui.textBlock","wpfui.card"]}},"renderer":{"xamlTemplate":"renderers/xaml/dataGrid.xaml.sbn"},"validation":{},"sourceHints":[{"path":"src/Wpf.Ui/Controls/DataGrid/DataGrid.cs","usage":"semantic extraction"}]}
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "wpfui.dataGrid",
+  "displayName": "Data Grid",
+  "description": "Semantic WPF UI Data Grid block.",
+  "category": "data",
+  "properties": {
+    "itemsSource": {
+      "required": false,
+      "type": "binding"
+    }
+  },
+  "slots": {
+    "columns": {
+      "allowedKinds": [
+        "template"
+      ]
+    },
+    "emptyState": {
+      "allowedKinds": [
+        "text",
+        "wpfui.textBlock",
+        "wpfui.card"
+      ]
+    }
+  },
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/dataGrid.xaml.sbn"
+  },
+  "validation": {},
+  "sourceHints": [
+    {
+      "path": "src/Wpf.Ui/Controls/DataGrid/DataGrid.cs",
+      "usage": "semantic extraction"
+    }
+  ]
+}

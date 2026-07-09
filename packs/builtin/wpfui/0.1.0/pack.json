@@ -1,1 +1,59 @@
-{"schemaVersion":"wpfdevtools.ui-pack.v1","id":"wpfui","kind":"skill-generated-style-pack","displayName":"WPF UI","version":"0.1.0","source":{"generatorSkill":"wpf-extension-pack-creator","license":"MIT","lockFile":"source.lock.json","upstream":"https://github.com/lepoco/wpfui"},"nugetPackages":[{"id":"WPF-UI","versionRange":"[4.3.0,5.0.0)"}],"xmlNamespaces":{"ui":"http://schemas.lepo.co/wpfui/2022/xaml"},"resourceSetup":{"applicationMergedDictionaries":["<ui:ThemesDictionary Theme=\"Dark\" />","<ui:ControlsDictionary />"]},"themeTokens":{"cornerRadius.control":"8","spacing.medium":"12","spacing.small":"8"},"blocks":["wpfui.card","wpfui.navigationView","wpfui.navigationViewDemo","wpfui.navigationViewItem","wpfui.tabView","wpfui.tabViewItem","wpfui.contentDialog","wpfui.fluentWindow","wpfui.dataGrid","wpfui.snackbar","wpfui.button","wpfui.titleBar","wpfui.symbolIcon","wpfui.textBlock"],"recipes":["wpfui.shellWithNavigation","wpfui.dashboardCards","wpfui.dataGridPage","wpfui.dialogFlow","wpfui.tabbedSettings"],"compatibility":{"wpfDevToolsComposer":"\u003e=0.1.0"}}
+{
+  "schemaVersion": "wpfdevtools.ui-pack.v1",
+  "id": "wpfui",
+  "kind": "skill-generated-style-pack",
+  "displayName": "WPF UI",
+  "version": "0.1.0",
+  "source": {
+    "generatorSkill": "wpf-extension-pack-creator",
+    "license": "MIT",
+    "lockFile": "source.lock.json",
+    "upstream": "https://github.com/lepoco/wpfui"
+  },
+  "nugetPackages": [
+    {
+      "id": "WPF-UI",
+      "versionRange": "[4.3.0,5.0.0)"
+    }
+  ],
+  "xmlNamespaces": {
+    "ui": "http://schemas.lepo.co/wpfui/2022/xaml"
+  },
+  "resourceSetup": {
+    "applicationMergedDictionaries": [
+      "<ui:ThemesDictionary Theme=\"Dark\" />",
+      "<ui:ControlsDictionary />"
+    ]
+  },
+  "themeTokens": {
+    "cornerRadius.control": "8",
+    "spacing.medium": "12",
+    "spacing.small": "8"
+  },
+  "blocks": [
+    "wpfui.card",
+    "wpfui.navigationView",
+    "wpfui.navigationViewDemo",
+    "wpfui.navigationViewItem",
+    "wpfui.tabView",
+    "wpfui.tabViewItem",
+    "wpfui.contentDialog",
+    "wpfui.fluentWindow",
+    "wpfui.dataGrid",
+    "wpfui.snackbar",
+    "wpfui.button",
+    "wpfui.titleBar",
+    "wpfui.symbolIcon",
+    "wpfui.textBlock"
+  ],
+  "recipes": [
+    "wpfui.shellWithNavigation",
+    "wpfui.dashboardCards",
+    "wpfui.dataGridPage",
+    "wpfui.dialogFlow",
+    "wpfui.tabbedSettings"
+  ],
+  "compatibility": {
+    "wpfDevToolsComposer": ">=0.1.0"
+  }
+}

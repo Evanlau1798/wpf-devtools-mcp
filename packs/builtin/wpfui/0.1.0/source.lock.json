@@ -1,1 +1,25 @@
-{"schemaVersion":"wpfdevtools.source-lock.v1","generatedAt":"2026-07-05T12:34:29Z","generatorSkill":"wpf-extension-pack-creator","sources":[{"kind":"local-source-repository","version":"4.3.0","license":"MIT","localPath":"<source-root>/wpfui-main","name":"WPF UI","paths":["src/Wpf.Ui"],"url":"https://github.com/lepoco/wpfui","usage":"semantic extraction from public control APIs and XAML patterns"}],"transformPolicy":{"copyLargeXamlFiles":false,"copyWholeScreens":false,"extractSemanticPatternsOnly":true,"includeInternalControls":false}}
+{
+  "schemaVersion": "wpfdevtools.source-lock.v1",
+  "generatedAt": "2026-07-05T12:34:29Z",
+  "generatorSkill": "wpf-extension-pack-creator",
+  "sources": [
+    {
+      "kind": "local-source-repository",
+      "version": "4.3.0",
+      "license": "MIT",
+      "localPath": "<source-root>/wpfui-main",
+      "name": "WPF UI",
+      "paths": [
+        "src/Wpf.Ui"
+      ],
+      "url": "https://github.com/lepoco/wpfui",
+      "usage": "semantic extraction from public control APIs and XAML patterns"
+    }
+  ],
+  "transformPolicy": {
+    "copyLargeXamlFiles": false,
+    "copyWholeScreens": false,
+    "extractSemanticPatternsOnly": true,
+    "includeInternalControls": false
+  }
+}

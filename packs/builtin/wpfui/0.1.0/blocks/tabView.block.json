@@ -1,1 +1,31 @@
-{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"wpfui.tabView","displayName":"Tab View","description":"Semantic WPF UI Tab View block.","category":"navigation","properties":{"selectedIndex":{"default":0,"required":false,"type":"number"}},"slots":{"items":{"allowedKinds":["wpfui.tabViewItem"]}},"renderer":{"xamlTemplate":"renderers/xaml/tabView.xaml.sbn"},"validation":{},"sourceHints":[{"path":"src/Wpf.Ui/Controls/TabView/TabView.cs","usage":"semantic extraction"}]}
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "wpfui.tabView",
+  "displayName": "Tab View",
+  "description": "Semantic WPF UI Tab View block.",
+  "category": "navigation",
+  "properties": {
+    "selectedIndex": {
+      "default": 0,
+      "required": false,
+      "type": "number"
+    }
+  },
+  "slots": {
+    "items": {
+      "allowedKinds": [
+        "wpfui.tabViewItem"
+      ]
+    }
+  },
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/tabView.xaml.sbn"
+  },
+  "validation": {},
+  "sourceHints": [
+    {
+      "path": "src/Wpf.Ui/Controls/TabView/TabView.cs",
+      "usage": "semantic extraction"
+    }
+  ]
+}

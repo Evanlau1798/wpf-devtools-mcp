@@ -4,111 +4,418 @@
   "displayName": "WPF UI Gallery Navigation Shell",
   "description": "A Gallery-style WPF UI shell with navigation, search, visible demo content, color tiles, and code sample.",
   "packId": "wpfui",
+  "requiredPacks": [
+    {
+      "id": "wpfui",
+      "version": "0.1.0",
+      "required": true,
+      "role": "primary"
+    }
+  ],
   "inputs": {
-    "title": { "type": "string", "default": "WPF UI Gallery" },
-    "homeText": { "type": "string", "default": "Home" }
+    "homeText": {
+      "default": "Home",
+      "type": "string"
+    },
+    "title": {
+      "default": "WPF UI Gallery",
+      "type": "string"
+    }
   },
-  "requiredPacks": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
   "expandsTo": {
     "kind": "wpfui.fluentWindow",
-    "properties": { "title": "{{title}}" },
+    "properties": {
+      "title": "{{title}}"
+    },
     "slots": {
-      "titleBar": [{ "kind": "wpfui.titleBar", "properties": { "title": "{{title}}" } }],
-      "content": [{
-        "kind": "wpfui.navigationView",
-        "slots": {
-          "items": [{
-            "kind": "wpfui.navigationViewItem",
-            "properties": { "targetPageTag": "home" },
-            "slots": {
-              "content": [{ "kind": "text", "properties": { "value": "{{homeText}}" } }],
-              "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "Home24" } }]
-            }
-          }, {
-            "kind": "wpfui.navigationViewItem",
-            "properties": { "targetPageTag": "all-controls" },
-            "slots": {
-              "content": [{ "kind": "text", "properties": { "value": "All Controls" } }],
-              "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "List24" } }]
-            }
-          }, {
-            "kind": "wpfui.navigationViewItem",
-            "properties": { "targetPageTag": "basic-input" },
-            "slots": {
-              "content": [{ "kind": "text", "properties": { "value": "Basic input" } }],
-              "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "List24" } }]
-            }
-          }, {
-            "kind": "wpfui.navigationViewItem",
-            "properties": { "targetPageTag": "collections" },
-            "slots": {
-              "content": [{ "kind": "text", "properties": { "value": "Collections" } }],
-              "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "List24" } }]
-            }
-          }, {
-            "kind": "wpfui.navigationViewItem",
-            "properties": { "targetPageTag": "date-time" },
-            "slots": {
-              "content": [{ "kind": "text", "properties": { "value": "Date and Time" } }],
-              "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "List24" } }]
-            }
-          }, {
-            "kind": "wpfui.navigationViewItem",
-            "properties": { "targetPageTag": "dialogs" },
-            "slots": {
-              "content": [{ "kind": "text", "properties": { "value": "Dialogs and Flyouts" } }],
-              "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "List24" } }]
-            }
-          }, {
-            "kind": "wpfui.navigationViewItem",
-            "properties": { "targetPageTag": "media" },
-            "slots": {
-              "content": [{ "kind": "text", "properties": { "value": "Media" } }],
-              "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "List24" } }]
-            }
-          }, {
-            "kind": "wpfui.navigationViewItem",
-            "properties": { "targetPageTag": "navigation" },
-            "slots": {
-              "content": [{ "kind": "text", "properties": { "value": "Navigation" } }],
-              "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "List24" } }]
-            }
-          }, {
-            "kind": "wpfui.navigationViewItem",
-            "properties": { "targetPageTag": "navigation-view" },
-            "slots": {
-              "content": [{ "kind": "text", "properties": { "value": "NavigationView" } }],
-              "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "Home24" } }]
-            }
-          }, {
-            "kind": "wpfui.navigationViewItem",
-            "properties": { "targetPageTag": "tab-control" },
-            "slots": {
-              "content": [{ "kind": "text", "properties": { "value": "TabControl" } }],
-              "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "List24" } }]
-            }
-          }, {
-            "kind": "wpfui.navigationViewItem",
-            "properties": { "targetPageTag": "items" },
-            "slots": {
-              "content": [{ "kind": "text", "properties": { "value": "Items" } }],
-              "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "List24" } }]
-            }
-          }],
-          "footer": [{
-            "kind": "wpfui.button",
-            "properties": { "text": "Toggle theme", "appearance": "Secondary" }
-          }, {
-            "kind": "wpfui.navigationViewItem",
-            "properties": { "targetPageTag": "settings" },
-            "slots": {
-              "content": [{ "kind": "text", "properties": { "value": "Settings" } }],
-              "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "Settings24" } }]
-            }
-          }],
-          "content": [{ "kind": "wpfui.navigationViewDemo" }]
+      "content": [
+        {
+          "kind": "wpfui.navigationView",
+          "slots": {
+            "content": [
+              {
+                "kind": "wpfui.navigationViewDemo"
+              }
+            ],
+            "footer": [
+              {
+                "kind": "wpfui.navigationViewItem",
+                "properties": {
+                  "targetPageTag": "toggle-theme"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "text",
+                      "properties": {
+                        "value": "Toggle theme"
+                      }
+                    }
+                  ],
+                  "icon": [
+                    {
+                      "kind": "wpfui.symbolIcon",
+                      "properties": {
+                        "symbol": "DarkTheme24"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "wpfui.navigationViewItem",
+                "properties": {
+                  "targetPageTag": "settings"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "text",
+                      "properties": {
+                        "value": "Settings"
+                      }
+                    }
+                  ],
+                  "icon": [
+                    {
+                      "kind": "wpfui.symbolIcon",
+                      "properties": {
+                        "symbol": "Settings24"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "items": [
+              {
+                "kind": "wpfui.navigationViewItem",
+                "properties": {
+                  "targetPageTag": "home"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "text",
+                      "properties": {
+                        "value": "{{homeText}}"
+                      }
+                    }
+                  ],
+                  "icon": [
+                    {
+                      "kind": "wpfui.symbolIcon",
+                      "properties": {
+                        "symbol": "Home24"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "wpfui.navigationViewItem",
+                "properties": {
+                  "targetPageTag": "all-controls"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "text",
+                      "properties": {
+                        "value": "All Controls"
+                      }
+                    }
+                  ],
+                  "icon": [
+                    {
+                      "kind": "wpfui.symbolIcon",
+                      "properties": {
+                        "symbol": "List24"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "wpfui.navigationViewItem",
+                "properties": {
+                  "targetPageTag": "basic-input"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "text",
+                      "properties": {
+                        "value": "Basic input"
+                      }
+                    }
+                  ],
+                  "icon": [
+                    {
+                      "kind": "wpfui.symbolIcon",
+                      "properties": {
+                        "symbol": "Checkbox124"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "wpfui.navigationViewItem",
+                "properties": {
+                  "targetPageTag": "collections"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "text",
+                      "properties": {
+                        "value": "Collections"
+                      }
+                    }
+                  ],
+                  "icon": [
+                    {
+                      "kind": "wpfui.symbolIcon",
+                      "properties": {
+                        "symbol": "Table24"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "wpfui.navigationViewItem",
+                "properties": {
+                  "targetPageTag": "date-time"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "text",
+                      "properties": {
+                        "value": "Date and Time"
+                      }
+                    }
+                  ],
+                  "icon": [
+                    {
+                      "kind": "wpfui.symbolIcon",
+                      "properties": {
+                        "symbol": "CalendarLtr24"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "wpfui.navigationViewItem",
+                "properties": {
+                  "targetPageTag": "dialogs"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "text",
+                      "properties": {
+                        "value": "Dialogs and Flyouts"
+                      }
+                    }
+                  ],
+                  "icon": [
+                    {
+                      "kind": "wpfui.symbolIcon",
+                      "properties": {
+                        "symbol": "Chat24"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "wpfui.navigationViewItem",
+                "properties": {
+                  "targetPageTag": "media"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "text",
+                      "properties": {
+                        "value": "Media"
+                      }
+                    }
+                  ],
+                  "icon": [
+                    {
+                      "kind": "wpfui.symbolIcon",
+                      "properties": {
+                        "symbol": "PlayCircle24"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "wpfui.navigationViewItem",
+                "properties": {
+                  "isExpanded": true,
+                  "targetPageTag": "navigation"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "text",
+                      "properties": {
+                        "value": "Navigation"
+                      }
+                    }
+                  ],
+                  "icon": [
+                    {
+                      "kind": "wpfui.symbolIcon",
+                      "properties": {
+                        "symbol": "Navigation24"
+                      }
+                    }
+                  ],
+                  "items": [
+                    {
+                      "kind": "wpfui.navigationViewItem",
+                      "properties": {
+                        "isActive": true,
+                        "targetPageTag": "navigation-view"
+                      },
+                      "slots": {
+                        "content": [
+                          {
+                            "kind": "text",
+                            "properties": {
+                              "value": "NavigationView"
+                            }
+                          }
+                        ],
+                        "icon": [
+                          {
+                            "kind": "wpfui.symbolIcon",
+                            "properties": {
+                              "symbol": "Home24"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "wpfui.navigationViewItem",
+                      "properties": {
+                        "targetPageTag": "tab-control"
+                      },
+                      "slots": {
+                        "content": [
+                          {
+                            "kind": "text",
+                            "properties": {
+                              "value": "TabControl"
+                            }
+                          }
+                        ],
+                        "icon": [
+                          {
+                            "kind": "wpfui.symbolIcon",
+                            "properties": {
+                              "symbol": "List24"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "wpfui.navigationViewItem",
+                "properties": {
+                  "targetPageTag": "status-info"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "text",
+                      "properties": {
+                        "value": "Status and Info"
+                      }
+                    }
+                  ],
+                  "icon": [
+                    {
+                      "kind": "wpfui.symbolIcon",
+                      "properties": {
+                        "symbol": "Info24"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "wpfui.navigationViewItem",
+                "properties": {
+                  "targetPageTag": "text"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "text",
+                      "properties": {
+                        "value": "Text"
+                      }
+                    }
+                  ],
+                  "icon": [
+                    {
+                      "kind": "wpfui.symbolIcon",
+                      "properties": {
+                        "symbol": "Textbox24"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "wpfui.navigationViewItem",
+                "properties": {
+                  "targetPageTag": "icons"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "text",
+                      "properties": {
+                        "value": "Icons"
+                      }
+                    }
+                  ],
+                  "icon": [
+                    {
+                      "kind": "wpfui.symbolIcon",
+                      "properties": {
+                        "symbol": "Color24"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
         }
-      }]
+      ],
+      "titleBar": [
+        {
+          "kind": "wpfui.titleBar",
+          "properties": {
+            "title": "{{title}}"
+          }
+        }
+      ]
     }
   }
 }

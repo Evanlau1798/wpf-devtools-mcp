@@ -27,6 +27,9 @@ namespace WpfDevTools.Tests.Unit.Composer;
 [Collection("WPF")]
 public sealed class ComposerRealWpfUiRuntimeTests
 {
+    private const double GalleryReferenceWidth = 1828;
+    private const double GalleryReferenceHeight = 962;
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [StaFact]
@@ -47,8 +50,8 @@ public sealed class ComposerRealWpfUiRuntimeTests
 
         try
         {
-            window.Width = 1450;
-            window.Height = 802;
+            window.Width.Should().Be(GalleryReferenceWidth);
+            window.Height.Should().Be(GalleryReferenceHeight);
             window.Show();
             window.UpdateLayout();
             window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
@@ -121,6 +124,8 @@ public sealed class ComposerRealWpfUiRuntimeTests
         outerNavigationView.IsVisible.Should().BeTrue();
         demoNavigationView.IsVisible.Should().BeTrue();
         copyButton.IsVisible.Should().BeTrue();
+        root.ActualWidth.Should().BeApproximately(GalleryReferenceWidth, 2);
+        root.ActualHeight.Should().BeApproximately(GalleryReferenceHeight, 2);
         outerNavigationView.ActualWidth.Should().BeGreaterThan(220);
         demoNavigationView.ActualWidth.Should().BeGreaterThan(220);
         copyButton.ActualWidth.Should().BeGreaterThan(40);
@@ -131,7 +136,15 @@ public sealed class ComposerRealWpfUiRuntimeTests
         var titleLeft = mainTitle.TransformToAncestor(root).Transform(new Point()).X;
         var demoLeft = demoNavigationView.TransformToAncestor(root).Transform(new Point()).X;
         var demoHeaderLeft = demoHeader.TransformToAncestor(root).Transform(new Point()).X;
+        var demoCard = FindSolidBorder(descendants, Color.FromRgb(0x30, 0x34, 0x3E));
+        var primaryTile = FindSolidBorder(descendants, Color.FromRgb(0x7A, 0xF5, 0xD3));
+        var secondaryTile = FindSolidBorder(descendants, Color.FromRgb(0x88, 0x88, 0x86));
 
+        demoCard.ActualWidth.Should().BeInRange(1290, 1320);
+        demoCard.ActualHeight.Should().BeGreaterThan(470);
+        primaryTile.ActualWidth.Should().BeGreaterThan(380);
+        primaryTile.ActualHeight.Should().BeGreaterThan(290);
+        secondaryTile.ActualWidth.Should().BeGreaterThan(380);
         titleLeft.Should().BeGreaterThan(outerLeft + outerNavigationView.ActualWidth * 0.75);
         demoHeaderLeft.Should().BeGreaterThan(demoLeft + demoNavigationView.ActualWidth * 0.75);
     }
@@ -170,7 +183,7 @@ public sealed class ComposerRealWpfUiRuntimeTests
     private static void AssertColorTileVisible(IEnumerable<DependencyObject> descendants, Color color)
     {
         var tiles = descendants.OfType<Border>()
-            .Where(border => border.Background is SolidColorBrush brush && brush.Color == color)
+            .Where(border => HasSolidBackground(border, color))
             .Select(border => new
             {
                 border.IsVisible,
@@ -184,6 +197,12 @@ public sealed class ComposerRealWpfUiRuntimeTests
             && tile.Width > 80
             && tile.Height > 40);
     }
+
+    private static Border FindSolidBorder(IEnumerable<DependencyObject> descendants, Color color)
+        => descendants.OfType<Border>().First(border => HasSolidBackground(border, color));
+
+    private static bool HasSolidBackground(Border border, Color color)
+        => border.Background is SolidColorBrush brush && brush.Color == color;
 
     private static void AssertImplicitStyleResource<TControl>(FrameworkElement element)
         where TControl : FrameworkElement

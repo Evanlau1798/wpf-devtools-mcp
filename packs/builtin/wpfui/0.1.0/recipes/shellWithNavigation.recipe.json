@@ -25,7 +25,9 @@
   "expandsTo": {
     "kind": "wpfui.fluentWindow",
     "properties": {
-      "title": "{{title}}"
+      "height": 962,
+      "title": "{{title}}",
+      "width": 1828
     },
     "slots": {
       "content": [

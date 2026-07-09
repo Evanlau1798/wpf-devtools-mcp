@@ -155,7 +155,17 @@ public sealed class ComposerPreviewCompileTests
     }
 
     [Fact]
-    public async Task PreviewBlueprintAsync_WhenRuntimeDiagnosticsRequested_ShouldCaptureConnectSemanticSummaryAndLayout()
+    public void PreviewBlueprintRequest_WhenScreenshotDiagnosticsRequested_ShouldRequireRuntimeDiagnostics()
+    {
+        var request = new PreviewBlueprintRequest(
+            ButtonBlueprint(),
+            IncludeScreenshotDiagnostics: true);
+
+        UiBlueprintPreviewService.RequiresRuntimeDiagnostics(request).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PreviewBlueprintAsync_WhenRuntimeAndScreenshotDiagnosticsRequested_ShouldCaptureRuntimeAndPolicyBlock()
     {
         using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");
         using var screenshots = new EnvironmentVariableScope(McpServerConfiguration.AllowScreenshotsEnvVar, null);
@@ -168,7 +178,8 @@ public sealed class ComposerPreviewCompileTests
                 ButtonBlueprint(),
                 RestoreEnabled: true,
                 StartHost: true,
-                IncludeRuntimeDiagnostics: true),
+                IncludeRuntimeDiagnostics: true,
+                IncludeScreenshotDiagnostics: true),
             timeout.Token);
 
         result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
@@ -178,7 +189,12 @@ public sealed class ComposerPreviewCompileTests
             .Subject.Payload;
         summary.GetProperty("depthMode").GetString().Should().Be("semantic");
         result.PreviewHost.RuntimeDiagnostics.Should().Contain(diagnostic => diagnostic.Tool == "get_layout_info" && diagnostic.Success);
-        result.PreviewHost.RuntimeDiagnostics.Should().NotContain(diagnostic => diagnostic.Tool == "element_screenshot");
+        var screenshot = result.PreviewHost.RuntimeDiagnostics.Should()
+            .ContainSingle(diagnostic => diagnostic.Tool == "element_screenshot")
+            .Subject;
+        screenshot.Success.Should().BeFalse();
+        screenshot.Payload.GetProperty("errorCode").GetString().Should().Be("SecurityError");
+        screenshot.Payload.GetProperty("hint").GetString().Should().Contain(McpServerConfiguration.AllowScreenshotsEnvVar);
     }
 
     [Fact]
@@ -200,33 +216,6 @@ public sealed class ComposerPreviewCompileTests
         result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
         result.PreviewHost.Status.Should().Be("loaded", result.BuildOutput);
         result.PreviewHost.RuntimeDiagnostics.Should().Contain(diagnostic => diagnostic.Tool == "connect" && diagnostic.Success);
-    }
-
-    [Fact]
-    public async Task PreviewBlueprintAsync_WhenScreenshotDiagnosticsRequestedWithoutRuntimeFlag_ShouldReportPolicyBlock()
-    {
-        using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");
-        using var screenshots = new EnvironmentVariableScope(McpServerConfiguration.AllowScreenshotsEnvVar, null);
-        using var session = SecurePreviewSession.Create();
-        var service = new UiBlueprintPreviewService(CreateRegistry(), session.SessionManager);
-        using var timeout = CreateTimeout();
-
-        var result = await service.PreviewAsync(
-            new PreviewBlueprintRequest(
-                ButtonBlueprint(),
-                RestoreEnabled: true,
-                StartHost: true,
-                IncludeScreenshotDiagnostics: true),
-            timeout.Token);
-
-        result.PreviewHost.RuntimeDiagnostics.Should()
-            .Contain(diagnostic => diagnostic.Tool == "connect" && diagnostic.Success);
-        var screenshot = result.PreviewHost.RuntimeDiagnostics.Should()
-            .ContainSingle(diagnostic => diagnostic.Tool == "element_screenshot")
-            .Subject;
-        screenshot.Success.Should().BeFalse();
-        screenshot.Payload.GetProperty("errorCode").GetString().Should().Be("SecurityError");
-        screenshot.Payload.GetProperty("hint").GetString().Should().Contain(McpServerConfiguration.AllowScreenshotsEnvVar);
     }
 
     [Fact]

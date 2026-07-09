@@ -218,7 +218,7 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
             ]
             : [];
 
-    private static bool RequiresRuntimeDiagnostics(PreviewBlueprintRequest request)
+    internal static bool RequiresRuntimeDiagnostics(PreviewBlueprintRequest request)
         => request.IncludeRuntimeDiagnostics || request.IncludeScreenshotDiagnostics;
 
     private static RenderSourceMapEntry? ResolveCompileDiagnosticSource(

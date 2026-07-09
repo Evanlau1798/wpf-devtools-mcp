@@ -287,30 +287,19 @@ function Invoke-InstallVerification {
     }
 
     switch ($clientBaseId) {
-        'claude-code' {
+        { $_ -in @('claude-code', 'codex', 'grok') } {
+            $command = switch ($clientBaseId) { 'claude-code' { 'claude' } default { $clientBaseId } }
+            $label = switch ($clientBaseId) { 'claude-code' { 'Claude Code' } 'codex' { 'Codex' } default { 'Grok' } }
             if ([string]::Equals([string]$Registration.mode, 'manual-cli-artifact', [System.StringComparison]::OrdinalIgnoreCase)) {
                 $verificationSucceeded = (Test-ManualCliArtifactRegistrationMatchesExecutable -ArtifactPath ([string]$Registration.target) -InstalledExecutable $InstalledExecutable) -and
                     -not [string]::IsNullOrWhiteSpace($trustedInstalledExecutable) -and
                     (Test-Path -LiteralPath $trustedInstalledExecutable)
-                $verificationMessage = if ($verificationSucceeded) { "Manual Claude Code registration artifact verified at $([string]$Registration.target)." } else { 'Manual Claude Code registration artifact verification failed.' }
+                $verificationMessage = if ($verificationSucceeded) { "Manual $label registration artifact verified at $([string]$Registration.target)." } else { "Manual $label registration artifact verification failed." }
             }
             else {
-                $verification = Test-CliRegistrationMatchesExecutable -Command 'claude' -InstalledExecutable $InstalledExecutable
+                $verification = Test-CliRegistrationMatchesExecutable -Command $command -InstalledExecutable $InstalledExecutable
                 $verificationSucceeded = ($verification.Succeeded -and -not [string]::IsNullOrWhiteSpace($trustedInstalledExecutable) -and (Test-Path -LiteralPath $trustedInstalledExecutable))
-                $verificationMessage = if ($verificationSucceeded) { 'Verified with claude mcp list.' } else { "Claude verification failed: $($verification.Output)" }
-            }
-        }
-        'codex' {
-            if ([string]::Equals([string]$Registration.mode, 'manual-cli-artifact', [System.StringComparison]::OrdinalIgnoreCase)) {
-                $verificationSucceeded = (Test-ManualCliArtifactRegistrationMatchesExecutable -ArtifactPath ([string]$Registration.target) -InstalledExecutable $InstalledExecutable) -and
-                    -not [string]::IsNullOrWhiteSpace($trustedInstalledExecutable) -and
-                    (Test-Path -LiteralPath $trustedInstalledExecutable)
-                $verificationMessage = if ($verificationSucceeded) { "Manual Codex registration artifact verified at $([string]$Registration.target)." } else { 'Manual Codex registration artifact verification failed.' }
-            }
-            else {
-                $verification = Test-CliRegistrationMatchesExecutable -Command 'codex' -InstalledExecutable $InstalledExecutable
-                $verificationSucceeded = ($verification.Succeeded -and -not [string]::IsNullOrWhiteSpace($trustedInstalledExecutable) -and (Test-Path -LiteralPath $trustedInstalledExecutable))
-                $verificationMessage = if ($verificationSucceeded) { 'Verified with codex mcp list.' } else { "Codex verification failed: $($verification.Output)" }
+                $verificationMessage = if ($verificationSucceeded) { "Verified with $command mcp list." } else { "$label verification failed: $($verification.Output)" }
             }
         }
         'cursor' {
@@ -400,8 +389,8 @@ function Invoke-UninstallVerification {
             (Invoke-VerificationCommand -Command 'claude' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
             break
         }
-        'codex' {
-            (Invoke-VerificationCommand -Command 'codex' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
+        { $_ -in @('codex', 'grok') } {
+            (Invoke-VerificationCommand -Command $clientBaseId -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
             break
         }
         'cursor' {

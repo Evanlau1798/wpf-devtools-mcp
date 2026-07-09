@@ -91,7 +91,7 @@ public sealed class InstallerTuiVisualRefinementTests
             var result = RunInteractiveInstaller(tempRoot, appData, localAppData, userProfile, new[]
             {
                 "$env:PATH='" + (fakeBin + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH")!).Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Enter||Escape||Escape||Enter'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Enter||DownArrow||DownArrow||DownArrow||DownArrow||Escape||Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='96'",
@@ -101,6 +101,7 @@ public sealed class InstallerTuiVisualRefinementTests
             result.ExitCode.Should().Be(0, result.Stderr);
             result.Stdout.Should().Contain("Where would you like to install?");
             result.Stdout.Should().Contain("┌");
+            result.Stdout.Should().Contain("Grok Build CLI");
             result.Stdout.Should().Contain("VS Code");
             result.Stdout.Should().Contain("└");
         }

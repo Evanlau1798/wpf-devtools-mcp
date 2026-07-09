@@ -130,6 +130,14 @@ function Invoke-ClientRegistration {
                     -InstallBase $InstallBase `
                     -ArtifactFileName 'codex.txt')
         }
+        'grok' {
+            return @(Invoke-CliRegistrationWithManualArtifactFallback `
+                    -Command 'grok' `
+                    -Arguments @('mcp', 'add', '--scope', 'user', 'wpf-devtools', '--', $InstalledExecutable) `
+                    -ClientName $clientBaseId `
+                    -InstallBase $InstallBase `
+                    -ArtifactFileName 'grok.txt')
+        }
         'cursor' {
             $cursorProfile = Resolve-CursorRegistrationProfile -SelectedClient $SelectedClient -PromptIfNeeded
             $registration = Set-JsonConfigRegistration -ClientName $clientBaseId -CollectionName 'mcpServers' -ConfigPath ([string]$cursorProfile.ConfigPath) -InstalledExecutable $InstalledExecutable
@@ -177,6 +185,9 @@ function Invoke-ClientUnregistration {
         }
         'codex' {
             return @(Invoke-OptionalRemovalCommand -Command 'codex' -Arguments @('mcp', 'remove', 'wpf-devtools') -ClientName $clientBaseId)
+        }
+        'grok' {
+            return @(Invoke-OptionalRemovalCommand -Command 'grok' -Arguments @('mcp', 'remove', '--scope', 'user', 'wpf-devtools') -ClientName $clientBaseId)
         }
         'cursor' {
             $cursorProfile = Resolve-CursorRegistrationProfile -SelectedClient $SelectedClient -PromptIfNeeded -RegistrationRecord $RegistrationRecord
@@ -289,5 +300,11 @@ claude mcp remove wpf-devtools
 codex mcp add wpf-devtools -- "$InstalledExecutable"
 
 codex mcp remove wpf-devtools
+"@
+
+    Write-InstallerUtf8NoBomFile -Path (Join-Path $registrationDir 'grok.txt') -Content @"
+grok mcp add --scope user wpf-devtools -- "$InstalledExecutable"
+
+grok mcp remove --scope user wpf-devtools
 "@
 }

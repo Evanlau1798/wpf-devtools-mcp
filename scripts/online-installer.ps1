@@ -9,7 +9,7 @@ param(
     [ValidateSet('x64', 'x86', 'arm64')]
     [string]$Architecture,
 
-    [ValidateSet('claude-code', 'codex', 'cursor', 'vscode', 'visual-studio', 'claude-desktop', 'other')]
+    [ValidateSet('claude-code', 'codex', 'grok', 'cursor', 'vscode', 'visual-studio', 'claude-desktop', 'other')]
     [string]$Client,
 
     [string]$InstallRoot,
@@ -54,7 +54,7 @@ Actions:
 Common options:
   -Version <tag|latest>  Release version or tag. Use -Prerelease for preview tags.
   -Architecture <arch>   x64, x86, or arm64.
-  -Client <client>       claude-code, codex, cursor, vscode, visual-studio, claude-desktop, or other.
+  -Client <client>       claude-code, codex, grok, cursor, vscode, visual-studio, claude-desktop, or other.
   -InstallRoot <path>    Install root. Defaults to a per-user local app data path.
   -PackageArchivePath <zip>
                          Install from a reviewed local release archive.
@@ -373,7 +373,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:a2bfc6788c0b841f4b144241aaf1e626741d6292ef95536200dadab913001962'
+$script:InstallerHelperManifestCacheKey = 'sha256:021725275b02e707a03598bb459f326782c7ddd3c29c1e25a787e1e3f6a2598b'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/online-installer.release-assets.ps1'
     'scripts/installer/Installer.BootstrapUi.ps1'
@@ -1443,7 +1443,7 @@ function Get-StandaloneTrustedRecordedTarget {
     }
     else {
         $manifestClientBaseId = Resolve-ClientBaseId -ClientId $SelectedClient
-        if ($manifestClientBaseId -ne 'other' -and $manifestClientBaseId -ne 'claude-code' -and $manifestClientBaseId -ne 'codex') {
+        if ($manifestClientBaseId -ne 'other' -and $manifestClientBaseId -ne 'claude-code' -and $manifestClientBaseId -ne 'codex' -and $manifestClientBaseId -ne 'grok') {
             Add-StandaloneTrustedTargetCandidate -Targets $allowedTargets -Candidate (Get-StandaloneTrustedManagedJsonRegistrationTarget -SelectedClient $SelectedClient -RegistrationRecord $RegistrationRecord)
         }
     }
@@ -2196,6 +2196,16 @@ function Get-StandaloneFallbackRegistrationRecord {
                 Architecture = $ResolvedArchitecture
             }
         }
+        'grok' {
+            return [ordered]@{
+                ClientId = 'grok'
+                RegistrationMode = 'cli'
+                RegistrationTarget = 'grok'
+                InstalledExecutable = $fallbackExecutable
+                InstallRoot = $ResolvedInstallRoot
+                Architecture = $ResolvedArchitecture
+            }
+        }
         default { return $null }
     }
 }
@@ -2281,6 +2291,37 @@ function Resolve-StandaloneExecutableCommandPath {
     }
 
     return $null
+}
+function Resolve-StandaloneCliCommandName {
+    param([Parameter(Mandatory)] [string]$ClientBaseId)
+
+    switch ($ClientBaseId) {
+        'claude-code' { return 'claude' }
+        'codex' { return 'codex' }
+        'grok' { return 'grok' }
+        default { return $null }
+    }
+}
+function Get-StandaloneCliAddArguments {
+    param(
+        [Parameter(Mandatory)] [string]$ClientBaseId,
+        [Parameter(Mandatory)] [string]$InstalledExecutable
+    )
+
+    if ($ClientBaseId -eq 'grok') {
+        return @('mcp', 'add', '--scope', 'user', 'wpf-devtools', '--', $InstalledExecutable)
+    }
+
+    return @('mcp', 'add', 'wpf-devtools', '--', $InstalledExecutable)
+}
+function Get-StandaloneCliRemoveArguments {
+    param([Parameter(Mandatory)] [string]$ClientBaseId)
+
+    if ($ClientBaseId -eq 'grok') {
+        return @('mcp', 'remove', '--scope', 'user', 'wpf-devtools')
+    }
+
+    return @('mcp', 'remove', 'wpf-devtools')
 }
 function Format-StandaloneCommandArgument {
     param([AllowNull()] [string]$Value)
@@ -2439,6 +2480,10 @@ function Invoke-StandaloneUninstallVerification {
         }
         'codex' {
             (Invoke-StandaloneVerificationCommand -Command 'codex' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
+            break
+        }
+        'grok' {
+            (Invoke-StandaloneVerificationCommand -Command 'grok' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
             break
         }
         'cursor' {
@@ -2673,10 +2718,10 @@ function Invoke-StandaloneInstallerActionCore {
                     }
                 }
                 elseif ([string]::Equals($registrationMode, 'cli', [System.StringComparison]::OrdinalIgnoreCase)) {
-                    $commandName = if ($clientBaseId -eq 'claude-code') { 'claude' } else { 'codex' }
+                    $commandName = Resolve-StandaloneCliCommandName -ClientBaseId $clientBaseId
                     $resolvedCommandPath = Resolve-StandaloneExecutableCommandPath -Command $commandName
                     if (-not [string]::IsNullOrWhiteSpace($resolvedCommandPath)) {
-                        & $resolvedCommandPath mcp remove wpf-devtools | Out-Null
+                        & $resolvedCommandPath @(Get-StandaloneCliRemoveArguments -ClientBaseId $clientBaseId) | Out-Null
                         $operation.Applied = ($LASTEXITCODE -eq 0)
                     }
                 }
@@ -2833,10 +2878,10 @@ function Invoke-StandaloneInstallerActionCore {
 
                 if ([string]::Equals([string]$operation.RegistrationMode, 'cli', [System.StringComparison]::OrdinalIgnoreCase) -and -not [string]::IsNullOrWhiteSpace([string]$operation.InstalledExecutable)) {
                     $clientBaseId = Resolve-ClientBaseId -ClientId ([string]$operation.ClientId)
-                    $commandName = if ($clientBaseId -eq 'claude-code') { 'claude' } else { 'codex' }
+                    $commandName = Resolve-StandaloneCliCommandName -ClientBaseId $clientBaseId
                     $resolvedCommandPath = Resolve-StandaloneExecutableCommandPath -Command $commandName
                     if (-not [string]::IsNullOrWhiteSpace($resolvedCommandPath)) {
-                        & $resolvedCommandPath mcp add wpf-devtools -- ([string]$operation.InstalledExecutable) | Out-Null
+                        & $resolvedCommandPath @(Get-StandaloneCliAddArguments -ClientBaseId $clientBaseId -InstalledExecutable ([string]$operation.InstalledExecutable)) | Out-Null
                     }
                 }
             }
@@ -2965,10 +3010,10 @@ function Invoke-StandaloneInstallerActionCore {
                 }
             }
             elseif ([string]::Equals($mode, 'cli', [System.StringComparison]::OrdinalIgnoreCase)) {
-                $command = if ($clientBaseId -eq 'claude-code') { 'claude' } else { 'codex' }
+                $command = Resolve-StandaloneCliCommandName -ClientBaseId $clientBaseId
                 $resolvedCommandPath = Resolve-StandaloneExecutableCommandPath -Command $command
                 if (-not [string]::IsNullOrWhiteSpace($resolvedCommandPath)) {
-                    & $resolvedCommandPath mcp remove wpf-devtools | Out-Null
+                    & $resolvedCommandPath @(Get-StandaloneCliRemoveArguments -ClientBaseId $clientBaseId) | Out-Null
                 }
 
                 $registrations += [ordered]@{
@@ -3051,10 +3096,10 @@ function Invoke-StandaloneInstallerActionCore {
 
             if ([string]::Equals([string]$registration.mode, 'cli', [System.StringComparison]::OrdinalIgnoreCase) -and
                 -not [string]::IsNullOrWhiteSpace([string]$registration.installedExecutable)) {
-                $command = if ([string]$registration.client -eq 'claude-code') { 'claude' } else { 'codex' }
+                $command = Resolve-StandaloneCliCommandName -ClientBaseId ([string]$registration.client)
                 $resolvedCommandPath = Resolve-StandaloneExecutableCommandPath -Command $command
                 if (-not [string]::IsNullOrWhiteSpace($resolvedCommandPath)) {
-                    & $resolvedCommandPath mcp add wpf-devtools -- ([string]$registration.installedExecutable) | Out-Null
+                    & $resolvedCommandPath @(Get-StandaloneCliAddArguments -ClientBaseId ([string]$registration.client) -InstalledExecutable ([string]$registration.installedExecutable)) | Out-Null
                 }
             }
         }
@@ -3878,6 +3923,7 @@ function Get-SupportedClients {
     return @(
         [pscustomobject]@{ Id = 'claude-code'; Label = 'Claude Code'; ConfigType = 'cli' }
         [pscustomobject]@{ Id = 'codex'; Label = 'Codex/Codex CLI'; ConfigType = 'cli' }
+        [pscustomobject]@{ Id = 'grok'; Label = 'Grok Build CLI'; ConfigType = 'cli' }
         [pscustomobject]@{ Id = 'cursor'; Label = 'Cursor'; ConfigType = 'json-file' }
         [pscustomobject]@{ Id = 'vscode'; Label = 'VS Code'; ConfigType = 'json-file' }
         [pscustomobject]@{ Id = 'visual-studio'; Label = 'Visual Studio'; ConfigType = 'json-file' }
@@ -3931,6 +3977,7 @@ function Resolve-ClientLabel {
 function Get-DefaultClient {
     if ($null -ne (Get-Command 'claude' -ErrorAction SilentlyContinue)) { return 'claude-code' }
     if ($null -ne (Get-Command 'codex' -ErrorAction SilentlyContinue)) { return 'codex' }
+    if ($null -ne (Get-Command 'grok' -ErrorAction SilentlyContinue)) { return 'grok' }
     if ($null -ne (Get-Command 'cursor-agent' -ErrorAction SilentlyContinue)) { return 'cursor' }
     if (Test-InstallerPathExists -Root $env:USERPROFILE -ChildPath '.cursor') { return 'cursor' }
     if (Test-InstallerPathExists -Root $env:APPDATA -ChildPath 'Code\User') { return 'vscode' }
@@ -3966,6 +4013,11 @@ function Get-DetectedInstallerClients {
             'codex' {
                 $available = $null -ne (Get-Command 'codex' -ErrorAction SilentlyContinue)
                 if ($available) { $evidence += 'codex command' }
+                break
+            }
+            'grok' {
+                $available = $null -ne (Get-Command 'grok' -ErrorAction SilentlyContinue)
+                if ($available) { $evidence += 'grok command' }
                 break
             }
             'cursor' {
@@ -4566,7 +4618,7 @@ function Get-CliSelection {
         $defaultVersion
     }
     $resolvedArchitecture = Read-ValidatedChoice -Prompt 'Architecture (x64/x86/arm64)' -DefaultValue $defaultArchitecture -AllowedValues @('x64', 'x86', 'arm64')
-    $resolvedClient = Read-ValidatedChoice -Prompt 'Client (claude-code/codex/cursor/vscode/visual-studio/claude-desktop/other)' -DefaultValue $defaultClient -AllowedValues @('claude-code', 'codex', 'cursor', 'vscode', 'visual-studio', 'claude-desktop', 'other')
+    $resolvedClient = Read-ValidatedChoice -Prompt 'Client (claude-code/codex/grok/cursor/vscode/visual-studio/claude-desktop/other)' -DefaultValue $defaultClient -AllowedValues @('claude-code', 'codex', 'grok', 'cursor', 'vscode', 'visual-studio', 'claude-desktop', 'other')
     $installRootPrompt = Read-InstallerInput -Prompt 'Install root' -DefaultValue $defaultInstallRoot
     if ([string]::IsNullOrWhiteSpace($installRootPrompt)) {
         $installRootPrompt = $defaultInstallRoot

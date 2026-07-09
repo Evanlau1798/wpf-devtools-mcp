@@ -322,6 +322,7 @@ function Get-DetectedInstallerRegistrations {
         foreach ($externalEvidence in @(switch ($clientId) {
                     'claude-code' { Get-CliRegistrationEvidence -ClientId $clientId -CommandName 'claude'; break }
                     'codex' { Get-CliRegistrationEvidence -ClientId $clientId -CommandName 'codex'; break }
+                    'grok' { Get-CliRegistrationEvidence -ClientId $clientId -CommandName 'grok'; break }
                     'cursor' { Get-CursorRegistrationEvidences -StateEvidenceRecords @($stateEvidenceMap.Values); break }
                     'vscode' { Get-JsonRegistrationEvidence -ClientId $clientId -CollectionName 'servers' -ConfigPath (Resolve-VsCodeConfigPath); break }
                     'visual-studio' { Get-JsonRegistrationEvidence -ClientId $clientId -CollectionName 'servers' -ConfigPath (Resolve-VisualStudioConfigPath); break }

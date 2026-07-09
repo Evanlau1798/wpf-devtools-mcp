@@ -319,6 +319,7 @@ public sealed class OnlineInstallerContractTests
         supportedClients.Should().Equal(
             "claude-code",
             "codex",
+            "grok",
             "cursor",
             "vscode",
             "visual-studio",

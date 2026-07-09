@@ -27,6 +27,7 @@ function Get-TrustedCliCommandPathEnvVarName {
     switch ($Command.ToLowerInvariant()) {
         'claude' { return 'WPFDEVTOOLS_CLAUDE_COMMAND_PATH' }
         'codex' { return 'WPFDEVTOOLS_CODEX_COMMAND_PATH' }
+        'grok' { return 'WPFDEVTOOLS_GROK_COMMAND_PATH' }
         default { return $null }
     }
 }
@@ -351,7 +352,7 @@ function Get-TrustedRecordedRegistrationTarget {
         'other' { Add-TrustedRegistrationTargetCandidate -Targets $allowedTargets -Candidate (Resolve-TrustedOtherRegistrationArtifactPath -RegistrationRecord $RegistrationRecord) }
     }
 
-    if ($ClientBaseId -ne 'other') {
+    if ($ClientBaseId -notin @('other', 'claude-code', 'codex', 'grok')) {
         Add-TrustedRegistrationTargetCandidate -Targets $allowedTargets -Candidate (Get-TrustedManagedJsonRegistrationTarget -ClientBaseId $ClientBaseId -RegistrationRecord $RegistrationRecord)
     }
 

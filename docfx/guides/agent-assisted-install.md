@@ -32,7 +32,7 @@ powershell.exe -NoProfile -File .\scripts\online-installer.ps1 -Action plan -Out
 
 The plan command reports supported clients, detected clients, architecture, default install root, and whether the step mutates files. Treat the output as evidence, not permission.
 
-Supported client ids are `claude-code`, `codex`, `cursor`, `vscode`, `visual-studio`, `claude-desktop`, and `other`.
+Supported client ids are `claude-code`, `codex`, `grok`, `cursor`, `vscode`, `visual-studio`, `claude-desktop`, and `other`.
 
 ## Required user confirmation
 

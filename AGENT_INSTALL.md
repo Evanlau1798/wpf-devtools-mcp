@@ -10,6 +10,7 @@ Supported client ids:
 
 - `claude-code`
 - `codex`
+- `grok`
 - `cursor`
 - `vscode`
 - `visual-studio`

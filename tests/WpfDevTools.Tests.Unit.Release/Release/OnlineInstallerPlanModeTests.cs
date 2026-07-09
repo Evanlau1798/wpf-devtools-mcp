@@ -55,7 +55,7 @@ public sealed class OnlineInstallerPlanModeTests
 
             root.GetProperty("supportedClients").EnumerateArray()
                 .Select(element => element.GetString())
-                .Should().Equal("claude-code", "codex", "cursor", "vscode", "visual-studio", "claude-desktop", "other");
+                .Should().Equal("claude-code", "codex", "grok", "cursor", "vscode", "visual-studio", "claude-desktop", "other");
 
             root.GetProperty("detectedClients").EnumerateArray()
                 .Should().Contain(element =>

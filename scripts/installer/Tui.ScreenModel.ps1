@@ -105,6 +105,7 @@ function Test-TuiClientAvailable {
     switch ($ClientId) {
         'claude-code' { return (Test-TuiCommandAvailable -CommandName 'claude') }
         'codex' { return (Test-TuiCommandAvailable -CommandName 'codex') }
+        'grok' { return (Test-TuiCommandAvailable -CommandName 'grok') }
         'cursor' {
             return $true
         }
@@ -167,8 +168,8 @@ function Get-TuiClientItems {
             $statusText = ''
             if ($clientId -eq 'other') {
                 $secondaryText = 'Export JSON and CLI examples for manual MCP registration.'
-                $description = 'Review other.mcpServers.json, claude-code.txt, and codex.txt under client-registration. See AI Agent Clients for registration examples.'
-                $statusText = 'Registration examples: other.mcpServers.json, claude-code.txt, codex.txt.'
+                $description = 'Review other.mcpServers.json, claude-code.txt, codex.txt, and grok.txt under client-registration. See AI Agent Clients for registration examples.'
+                $statusText = 'Registration examples: other.mcpServers.json, claude-code.txt, codex.txt, grok.txt.'
             }
 
             $items += [ordered]@{

@@ -16,6 +16,7 @@
 | --- | --- | --- |
 | Claude Code | Installer 產生的 CLI command | [Claude Code](claude-code.md) |
 | OpenAI Codex / Codex CLI | Installer 產生的 CLI command | [OpenAI Codex 與 Codex CLI](openai-codex.md) |
+| Grok Build CLI | Installer 產生的 CLI command | 使用 `<InstallRoot>\<arch>\client-registration\grok.txt` |
 | Claude Desktop | Installer 產生的 JSON config | [Claude Desktop](claude-desktop.md) |
 | Cursor | Installer 產生的 `mcpServers` JSON | [Cursor、VS Code 與 Visual Studio](cursor-vscode.md) |
 | VS Code | Installer 產生的 `servers` JSON | [Cursor、VS Code 與 Visual Studio](cursor-vscode.md) |

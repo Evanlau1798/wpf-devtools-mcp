@@ -32,7 +32,7 @@ powershell.exe -NoProfile -File .\scripts\online-installer.ps1 -Action plan -Out
 
 Plan command 會回報 supported clients、detected clients、architecture、default install root 與是否會 mutate files。請把輸出視為 evidence，而不是 permission。
 
-Supported client ids 為 `claude-code`、`codex`、`cursor`、`vscode`、`visual-studio`、`claude-desktop` 與 `other`。
+Supported client ids 為 `claude-code`、`codex`、`grok`、`cursor`、`vscode`、`visual-studio`、`claude-desktop` 與 `other`。
 
 ## 必要使用者確認
 

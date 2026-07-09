@@ -75,6 +75,8 @@ Request options:
 
 The response includes `valid`, `recipeId`, the expanded `blueprint`, and the nested validation result. Built-in WPF UI starter recipes cover navigation shell, dashboard card, data grid page, dialog flow, and tabbed settings patterns.
 
+Serialize the `blueprint` object from `structuredContent` to JSON text before the next Composer call, then pass it under the `blueprintJson` parameter name. Do not pass the object under a parameter named `blueprint`; validation, render, preview, repair, and apply intentionally share the same JSON-string document shape.
+
 ## `render_ui_blueprint`
 
 Runs a dry-run XAML render for a valid UI blueprint. Use it after `validate_ui_blueprint` or `expand_ui_recipe` to inspect generated XAML, required package references, and application resource setup before any file-writing apply workflow.

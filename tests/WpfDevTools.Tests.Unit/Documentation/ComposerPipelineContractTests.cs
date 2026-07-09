@@ -90,6 +90,18 @@ public sealed class ComposerPipelineContractTests
         zhTw.Should().Contain("非 dry-run 寫入需要 `confirmApply=true`");
     }
 
+    [Fact]
+    public void UiComposerDocs_ShouldDocumentBlueprintObjectHandoff()
+    {
+        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
+        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
+
+        english.Should().Contain("Serialize the `blueprint` object");
+        english.Should().Contain("pass it under the `blueprintJson` parameter name");
+        zhTw.Should().Contain("將 `blueprint` object 序列化");
+        zhTw.Should().Contain("以 `blueprintJson` 參數名稱傳入");
+    }
+
     private static string GetWorkflowJob(string workflow, string name)
     {
         var start = workflow.IndexOf($"  {name}:", StringComparison.Ordinal);

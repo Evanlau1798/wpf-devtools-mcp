@@ -93,6 +93,7 @@ internal static class UiComposerMcpToolDescriptions
         - Returns success, valid, recipeId, blueprint, validation, errors, warnings, and diagnostics.
         - valid=false means expansion completed but the recipe or expanded blueprint did not pass validation.
         - The expanded blueprint is a full blueprint document with packs, primaryPack, layout, and metadata.
+        - Serialize the returned blueprint object to JSON text and pass it as blueprintJson to validation, render, preview, repair, or apply; do not rename the parameter to blueprint.
 
         REQUEST OPTIONS:
         - recipeId is required and must be a pack-qualified recipe id from get_ui_block_catalog(includeRecipes=true).

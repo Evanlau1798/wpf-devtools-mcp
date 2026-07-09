@@ -75,6 +75,8 @@ Request options:
 
 Response 包含 `valid`、`recipeId`、展開後的 `blueprint` 與 nested validation result。Built-in WPF UI starter recipes 覆蓋 navigation shell、dashboard card、data grid page、dialog flow 與 tabbed settings patterns。
 
+下一個 Composer call 前，請將 `blueprint` object 序列化為 JSON 文字；該 object 來自 `structuredContent`。請以 `blueprintJson` 參數名稱傳入，不要改用名為 `blueprint` 的參數；validation、render、preview、repair 與 apply 刻意共用相同的 JSON-string document shape。
+
 ## `render_ui_blueprint`
 
 對有效的 UI blueprint 執行 dry-run XAML rendering。請在 `validate_ui_blueprint` 或 `expand_ui_recipe` 後使用，以便在任何寫檔 apply workflow 前檢查 generated XAML、required package references 與 application resource setup。

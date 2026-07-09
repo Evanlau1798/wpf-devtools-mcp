@@ -194,6 +194,52 @@ public sealed class ComposerApplyDryRunTests
     }
 
     [Fact]
+    public void ApplyBlueprint_ShouldAddXClassForProjectMainWindowFluentWindow()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var projectRoot = Path.Combine(tempRoot, "ComposerGeneratedApp");
+            Directory.CreateDirectory(projectRoot);
+            File.WriteAllText(
+                Path.Combine(projectRoot, "ComposerGeneratedApp.csproj"),
+                """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <OutputType>WinExe</OutputType>
+                    <TargetFramework>net8.0-windows</TargetFramework>
+                    <UseWPF>true</UseWPF>
+                    <RootNamespace>ComposerGeneratedApp</RootNamespace>
+                  </PropertyGroup>
+                </Project>
+                """);
+            using var writes = new EnvironmentVariableScope(McpServerConfiguration.AllowProjectWritesEnvVar, "true");
+            using var roots = new EnvironmentVariableScope(McpServerConfiguration.AllowedProjectRootsEnvVar, projectRoot);
+            var service = new UiBlueprintApplyService(CreateRegistry());
+
+            var result = service.Apply(new ApplyBlueprintRequest(
+                FluentWindowBlueprint(),
+                projectRoot,
+                "MainWindow.xaml",
+                DryRun: false,
+                ConfirmApply: true));
+
+            result.Success.Should().BeTrue();
+            result.Xaml.Should().Contain("x:Class=\"ComposerGeneratedApp.MainWindow\"");
+            File.ReadAllText(Path.Combine(projectRoot, "MainWindow.xaml"))
+                .Should().Contain("x:Class=\"ComposerGeneratedApp.MainWindow\"");
+            result.FilePlan.Should().Contain(item =>
+                item.Role == "code-behind-integration"
+                && item.TargetPath == Path.Combine(projectRoot, "MainWindow.xaml.cs")
+                && item.Action.Contains("Wpf.Ui.Controls.FluentWindow", StringComparison.Ordinal));
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void ApplyBlueprint_ShouldRejectReparsePointTargetParent()
     {
         var tempRoot = CreateTempDirectory();
@@ -263,6 +309,24 @@ public sealed class ComposerApplyDryRunTests
               "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
               "primaryPack": "wpfui",
               "layout": { "kind": "wpfui.button", "properties": { "text": "Apply" } }
+            }
+            """;
+
+    private static string FluentWindowBlueprint()
+        => """
+            {
+              "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+              "name": "MainWindow",
+              "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+              "primaryPack": "wpfui",
+              "layout": {
+                "kind": "wpfui.fluentWindow",
+                "properties": { "title": "Composer" },
+                "slots": {
+                  "titleBar": [{ "kind": "wpfui.titleBar", "properties": { "title": "Composer" } }],
+                  "content": [{ "kind": "wpfui.navigationView" }]
+                }
+              }
             }
             """;
 

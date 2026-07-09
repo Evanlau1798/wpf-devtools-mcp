@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Xml.Linq;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
 
@@ -31,11 +32,13 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
         }
 
         var viewModelContract = CreateViewModelContract(projectRoot, targetPath, render.RequiredNuGetPackages);
+        var appliedXaml = AddProjectMainWindowClass(projectRoot, targetPath, render.Xaml);
+        var codeBehindPath = GetProjectMainWindowCodeBehindPath(targetPath, appliedXaml);
 
         if (request.DryRun)
         {
-            var dryRunXaml = AddComposerHeaderAndSafeSlot(request.BlueprintJson, render.Xaml, existingContent: null);
-            var filePlan = CreateFilePlan(targetPath, viewModelContract.TargetPath, request.DryRun, backupPath: null);
+            var dryRunXaml = AddComposerHeaderAndSafeSlot(request.BlueprintJson, appliedXaml, existingContent: null);
+            var filePlan = CreateFilePlan(targetPath, viewModelContract.TargetPath, request.DryRun, null, codeBehindPath);
             return ApplyBlueprintResult.CreateValid(
                 dryRun: true,
                 requiresConfirmation: true,
@@ -85,7 +88,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
             return ApplyBlueprintResult.Invalid(dryRun: false, [existingContent.Error!]);
         }
 
-        var generatedXaml = AddComposerHeaderAndSafeSlot(request.BlueprintJson, render.Xaml, existingContent.Content);
+        var generatedXaml = AddComposerHeaderAndSafeSlot(request.BlueprintJson, appliedXaml, existingContent.Content);
         var write = WriteViewFile(projectRoot, targetPath, generatedXaml);
         if (!write.Success)
         {
@@ -97,7 +100,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
             requiresConfirmation: false,
             wouldWriteFiles: true,
             generatedXaml,
-                CreateFilePlan(targetPath, viewModelContract.TargetPath, dryRun: false, write.BackupPath),
+            CreateFilePlan(targetPath, viewModelContract.TargetPath, false, write.BackupPath, codeBehindPath),
             render.RequiredResources,
             render.RequiredNuGetPackages,
             viewModelContract with { WouldWrite = false },
@@ -214,6 +217,89 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
             string.Empty);
     }
 
+    private static string AddProjectMainWindowClass(string projectRoot, string targetPath, string xaml)
+    {
+        if (GetProjectMainWindowCodeBehindPath(targetPath, xaml) is null
+            || xaml.Contains("x:Class=", StringComparison.Ordinal))
+        {
+            return xaml;
+        }
+
+        var tagEnd = xaml.IndexOf('>', StringComparison.Ordinal);
+        if (tagEnd < 0)
+        {
+            return xaml;
+        }
+
+        var insertAt = tagEnd > 0 && xaml[tagEnd - 1] == '/' ? tagEnd - 1 : tagEnd;
+        var xmlns = xaml.Contains("xmlns:x=", StringComparison.Ordinal)
+            ? string.Empty
+            : " xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"";
+        return xaml.Insert(insertAt, $"{xmlns} x:Class=\"{ResolveProjectMainWindowClass(projectRoot, targetPath)}\"");
+    }
+
+    private static string? GetProjectMainWindowCodeBehindPath(string targetPath, string xaml)
+        => Path.GetFileName(targetPath).Equals("MainWindow.xaml", StringComparison.OrdinalIgnoreCase)
+            && xaml.TrimStart().StartsWith("<ui:FluentWindow", StringComparison.Ordinal)
+            ? Path.ChangeExtension(targetPath, ".xaml.cs")
+            : null;
+
+    private static string ResolveProjectMainWindowClass(string projectRoot, string targetPath)
+        => $"{ResolveRootNamespace(projectRoot)}.{ToCSharpIdentifier(Path.GetFileNameWithoutExtension(targetPath), "MainWindow")}";
+
+    private static string ResolveRootNamespace(string projectRoot)
+    {
+        if (!Directory.Exists(projectRoot))
+        {
+            return ToCSharpIdentifier(Path.GetFileName(projectRoot), "Application");
+        }
+
+        var projectFile = Directory.EnumerateFiles(projectRoot, "*.csproj", SearchOption.TopDirectoryOnly)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+        if (projectFile is null)
+        {
+            return ToCSharpIdentifier(Path.GetFileName(projectRoot), "Application");
+        }
+
+        try
+        {
+            var rootNamespace = XDocument.Load(projectFile)
+                .Descendants()
+                .FirstOrDefault(element => element.Name.LocalName == "RootNamespace")
+                ?.Value;
+            return string.IsNullOrWhiteSpace(rootNamespace)
+                ? ToCSharpIdentifier(Path.GetFileNameWithoutExtension(projectFile), "Application")
+                : SanitizeNamespace(rootNamespace);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException)
+        {
+            return ToCSharpIdentifier(Path.GetFileNameWithoutExtension(projectFile), "Application");
+        }
+    }
+
+    private static string SanitizeNamespace(string value)
+    {
+        var parts = value.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part => ToCSharpIdentifier(part, "Application"))
+            .ToArray();
+        return parts.Length == 0 ? "Application" : string.Join(".", parts);
+    }
+
+    private static string ToCSharpIdentifier(string value, string fallback)
+    {
+        var builder = new StringBuilder();
+        foreach (var ch in value)
+        {
+            var valid = builder.Length == 0
+                ? char.IsLetter(ch) || ch == '_'
+                : char.IsLetterOrDigit(ch) || ch == '_';
+            builder.Append(valid ? ch : '_');
+        }
+
+        return builder.Length == 0 ? fallback : builder.ToString();
+    }
+
     private static string? ExtractSafeSlot(string? existingContent)
     {
         if (string.IsNullOrEmpty(existingContent))
@@ -235,9 +321,11 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
         string targetPath,
         string viewModelContractPath,
         bool dryRun,
-        string? backupPath)
-        =>
-        [
+        string? backupPath,
+        string? codeBehindPath)
+    {
+        var items = new List<ApplyFilePlanItem>
+        {
             new(
                 Role: "view",
                 TargetPath: targetPath,
@@ -254,7 +342,22 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                 RiskLevel: "low",
                 BackupPath: null,
                 Reversible: true)
-        ];
+        };
+
+        if (codeBehindPath is not null)
+        {
+            items.Add(new(
+                Role: "code-behind-integration",
+                TargetPath: codeBehindPath,
+                Action: "plan update base class to Wpf.Ui.Controls.FluentWindow for the generated x:Class",
+                WouldWrite: false,
+                RiskLevel: "medium",
+                BackupPath: null,
+                Reversible: true));
+        }
+
+        return [.. items];
+    }
 
     private static ViewModelBindingContractPlan CreateViewModelContract(
         string projectRoot,

@@ -2,6 +2,7 @@
 
 經審查後保留於公開文件的 Agent 回饋報告。
 
+- [WPF UI Composer Public Pre-release E2E](2026-07-10-agent-feedback-wpfui-composer-public-prerelease-e2e.md)
 - [ScreenToGif 真實專案端對端測試](2026-06-30-agent-feedback-screentogif-real-project-e2e.md)
 - [HandyControl 真實專案端對端測試](2026-06-30-agent-feedback-handycontrol-real-project-e2e.md)
 - [wpfui Edge-Case 端對端測試](2026-06-30-agent-feedback-wpfui-edgecase-e2e.md)

@@ -2,6 +2,7 @@
 
 Reviewed agent feedback reports retained for public documentation.
 
+- [WPF UI Composer Public Pre-release E2E](2026-07-10-agent-feedback-wpfui-composer-public-prerelease-e2e.md)
 - [ScreenToGif Real-Project E2E](2026-06-30-agent-feedback-screentogif-real-project-e2e.md)
 - [HandyControl Real-Project E2E](2026-06-30-agent-feedback-handycontrol-real-project-e2e.md)
 - [wpfui Edge-Case E2E](2026-06-30-agent-feedback-wpfui-edgecase-e2e.md)

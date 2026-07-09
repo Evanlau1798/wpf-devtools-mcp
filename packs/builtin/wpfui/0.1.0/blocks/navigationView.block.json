@@ -29,7 +29,8 @@
     },
     "items": {
       "allowedKinds": [
-        "wpfui.navigationViewItem"
+        "wpfui.navigationViewItem",
+        "wpfui.navigationViewItemSeparator"
       ]
     }
   },

@@ -23,6 +23,7 @@ public sealed class ComposerBaselinePackTests
         "wpfui.navigationView",
         "wpfui.navigationViewDemo",
         "wpfui.navigationViewItem",
+        "wpfui.navigationViewItemSeparator",
         "wpfui.snackbar",
         "wpfui.symbolIcon",
         "wpfui.tabView",
@@ -45,9 +46,9 @@ public sealed class ComposerBaselinePackTests
         GetStringArray(pack.RootElement, "blocks").Should().BeEquivalentTo(ExpectedBlockKinds);
 
         Directory.GetFiles(Path.Combine(packRoot, "blocks"), "*.block.json")
-            .Should().HaveCount(14);
+            .Should().HaveCount(15);
         Directory.GetFiles(Path.Combine(packRoot, "renderers", "xaml"), "*.xaml.sbn")
-            .Should().HaveCount(14);
+            .Should().HaveCount(15);
         Directory.GetFiles(Path.Combine(packRoot, "recipes"), "*.recipe.json")
             .Should().HaveCount(5);
         Directory.GetFiles(Path.Combine(packRoot, "examples"), "*.ui.json")
@@ -172,6 +173,7 @@ public sealed class ComposerBaselinePackTests
     private static readonly (string BlockKind, string SlotName, string AllowedKind)[] RequiredSlotKinds =
     [
         ("wpfui.navigationView", "items", "wpfui.navigationViewItem"),
+        ("wpfui.navigationView", "items", "wpfui.navigationViewItemSeparator"),
         ("wpfui.navigationViewItem", "icon", "wpfui.symbolIcon"),
         ("wpfui.tabView", "items", "wpfui.tabViewItem"),
         ("wpfui.contentDialog", "actions", "wpfui.button"),

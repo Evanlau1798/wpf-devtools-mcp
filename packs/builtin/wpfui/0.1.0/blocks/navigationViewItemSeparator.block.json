@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "wpfui.navigationViewItemSeparator",
+  "displayName": "Navigation View Item Separator",
+  "description": "Semantic WPF UI Navigation View item separator block.",
+  "category": "navigation",
+  "properties": {},
+  "slots": {},
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/navigationViewItemSeparator.xaml.sbn"
+  },
+  "validation": {},
+  "sourceHints": [
+    {
+      "path": "src/Wpf.Ui/Controls/NavigationView/NavigationViewItemSeparator.cs",
+      "usage": "semantic extraction"
+    }
+  ]
+}

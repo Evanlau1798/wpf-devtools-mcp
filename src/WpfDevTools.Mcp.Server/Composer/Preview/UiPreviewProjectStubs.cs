@@ -230,6 +230,8 @@ internal static class UiPreviewProjectStubs
             }
         }
 
+        public class NavigationViewItemSeparator : Separator;
+
         public class TabView : ItemsControl
         {
             public int SelectedIndex { get; set; }

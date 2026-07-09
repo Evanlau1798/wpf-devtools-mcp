@@ -20,8 +20,10 @@ using WpfUiFluentWindow = Wpf.Ui.Controls.FluentWindow;
 using WpfUiImageIcon = Wpf.Ui.Controls.ImageIcon;
 using WpfUiNavigationView = Wpf.Ui.Controls.NavigationView;
 using WpfUiNavigationViewItem = Wpf.Ui.Controls.NavigationViewItem;
+using WpfUiNavigationViewItemSeparator = Wpf.Ui.Controls.NavigationViewItemSeparator;
 using WpfUiSymbolIcon = Wpf.Ui.Controls.SymbolIcon;
 using WpfUiTitleBar = Wpf.Ui.Controls.TitleBar;
+using WpfRectangle = System.Windows.Shapes.Rectangle;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
@@ -231,6 +233,23 @@ public sealed class ComposerRealWpfUiRuntimeTests
 
         var activeBounds = GetBounds(root, activeNavigationItem);
         activeBounds.X.Should().BeLessThan(20);
+        activeBounds.Y.Should().BeInRange(548, 588);
+        descendants.OfType<WpfRectangle>()
+            .Where(rectangle => rectangle.Fill is SolidColorBrush brush
+                && brush.Color == Color.FromRgb(0x36, 0xE0, 0xA6))
+            .Should().Contain(rectangle =>
+                rectangle.IsVisible
+                && rectangle.ActualWidth <= 6
+                && rectangle.ActualHeight >= 14);
+
+        var categoryGroups = descendants.OfType<WpfUiNavigationViewItem>()
+            .Where(item => string.Equals(item.TargetPageTag, "navigation", StringComparison.Ordinal)
+                || ((System.Collections.ICollection)item.MenuItems).Count > 0)
+            .ToArray();
+        categoryGroups.Should().HaveCountGreaterThanOrEqualTo(8);
+
+        descendants.OfType<WpfUiNavigationViewItemSeparator>()
+            .Should().ContainSingle(separator => separator.IsVisible);
     }
 
     private static void AssertOuterShellMatchesGalleryReference(

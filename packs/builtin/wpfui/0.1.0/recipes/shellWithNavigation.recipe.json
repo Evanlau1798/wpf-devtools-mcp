@@ -139,6 +139,9 @@
                 }
               },
               {
+                "kind": "wpfui.navigationViewItemSeparator"
+              },
+              {
                 "kind": "wpfui.navigationViewItem",
                 "properties": {
                   "targetPageTag": "basic-input"
@@ -157,6 +160,15 @@
                       "kind": "wpfui.symbolIcon",
                       "properties": {
                         "symbol": "Checkbox124"
+                      }
+                    }
+                  ],
+                  "items": [
+                    {
+                      "kind": "wpfui.navigationViewItem",
+                      "properties": { "targetPageTag": "button" },
+                      "slots": {
+                        "content": [{ "kind": "text", "properties": { "value": "Button" } }]
                       }
                     }
                   ]
@@ -183,6 +195,15 @@
                         "symbol": "Table24"
                       }
                     }
+                  ],
+                  "items": [
+                    {
+                      "kind": "wpfui.navigationViewItem",
+                      "properties": { "targetPageTag": "data-grid" },
+                      "slots": {
+                        "content": [{ "kind": "text", "properties": { "value": "DataGrid" } }]
+                      }
+                    }
                   ]
                 }
               },
@@ -205,6 +226,15 @@
                       "kind": "wpfui.symbolIcon",
                       "properties": {
                         "symbol": "CalendarLtr24"
+                      }
+                    }
+                  ],
+                  "items": [
+                    {
+                      "kind": "wpfui.navigationViewItem",
+                      "properties": { "targetPageTag": "date-picker" },
+                      "slots": {
+                        "content": [{ "kind": "text", "properties": { "value": "DatePicker" } }]
                       }
                     }
                   ]
@@ -231,6 +261,15 @@
                         "symbol": "Chat24"
                       }
                     }
+                  ],
+                  "items": [
+                    {
+                      "kind": "wpfui.navigationViewItem",
+                      "properties": { "targetPageTag": "content-dialog" },
+                      "slots": {
+                        "content": [{ "kind": "text", "properties": { "value": "ContentDialog" } }]
+                      }
+                    }
                   ]
                 }
               },
@@ -253,6 +292,15 @@
                       "kind": "wpfui.symbolIcon",
                       "properties": {
                         "symbol": "PlayCircle24"
+                      }
+                    }
+                  ],
+                  "items": [
+                    {
+                      "kind": "wpfui.navigationViewItem",
+                      "properties": { "targetPageTag": "media-player" },
+                      "slots": {
+                        "content": [{ "kind": "text", "properties": { "value": "MediaPlayer" } }]
                       }
                     }
                   ]
@@ -339,6 +387,15 @@
                         "symbol": "Info24"
                       }
                     }
+                  ],
+                  "items": [
+                    {
+                      "kind": "wpfui.navigationViewItem",
+                      "properties": { "targetPageTag": "info-bar" },
+                      "slots": {
+                        "content": [{ "kind": "text", "properties": { "value": "InfoBar" } }]
+                      }
+                    }
                   ]
                 }
               },
@@ -363,6 +420,15 @@
                         "symbol": "Textbox24"
                       }
                     }
+                  ],
+                  "items": [
+                    {
+                      "kind": "wpfui.navigationViewItem",
+                      "properties": { "targetPageTag": "text-block" },
+                      "slots": {
+                        "content": [{ "kind": "text", "properties": { "value": "TextBlock" } }]
+                      }
+                    }
                   ]
                 }
               },
@@ -385,6 +451,15 @@
                       "kind": "wpfui.symbolIcon",
                       "properties": {
                         "symbol": "Color24"
+                      }
+                    }
+                  ],
+                  "items": [
+                    {
+                      "kind": "wpfui.navigationViewItem",
+                      "properties": { "targetPageTag": "symbol-icon" },
+                      "slots": {
+                        "content": [{ "kind": "text", "properties": { "value": "SymbolIcon" } }]
                       }
                     }
                   ]

@@ -1,4 +1,12 @@
 <Grid Background="#252B33">
+  <Grid.Resources>
+    <SolidColorBrush x:Key="SystemAccentColorBrush" Color="#36E0A6" />
+    <SolidColorBrush x:Key="SystemAccentColorPrimaryBrush" Color="#36E0A6" />
+    <SolidColorBrush x:Key="SystemAccentColorSecondaryBrush" Color="#36E0A6" />
+    <SolidColorBrush x:Key="SystemAccentColorTertiaryBrush" Color="#36E0A6" />
+    <SolidColorBrush x:Key="AccentTextFillColorPrimaryBrush" Color="#36E0A6" />
+    <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#36E0A6" />
+  </Grid.Resources>
   <Grid.ColumnDefinitions>
     <ColumnDefinition Width="400" />
     <ColumnDefinition Width="*" />
@@ -6,7 +14,7 @@
   <Border Grid.Column="0" Background="#241829" Padding="20,10,11,14">
     <Grid>
       <Grid.RowDefinitions>
-        <RowDefinition Height="58" />
+        <RowDefinition Height="66" />
         <RowDefinition Height="*" />
       </Grid.RowDefinitions>
       <ui:AutoSuggestBox Grid.Row="0" PlaceholderText="Search" Height="42" Margin="0,0,0,16" />

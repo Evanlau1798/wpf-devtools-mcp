@@ -16,7 +16,7 @@ public sealed class ComposerBlockCatalogTests
 
         var result = catalog.GetCatalog(new BlockCatalogQuery());
 
-        result.Items.Should().HaveCount(14);
+        result.Items.Should().HaveCount(15);
         var button = result.Items.Single(item => item.Kind == "wpfui.button");
         button.PackId.Should().Be("wpfui");
         button.PackVersion.Should().Be("0.1.0");
@@ -43,12 +43,17 @@ public sealed class ComposerBlockCatalogTests
         var detail = catalog.GetCatalog(new BlockCatalogQuery(Kind: "wpfui.navigationViewItem"));
 
         filtered.Items.Select(item => item.Kind).Should()
-            .BeEquivalentTo("wpfui.navigationView", "wpfui.navigationViewDemo", "wpfui.navigationViewItem");
+            .BeEquivalentTo(
+                "wpfui.navigationView",
+                "wpfui.navigationViewDemo",
+                "wpfui.navigationViewItem",
+                "wpfui.navigationViewItemSeparator");
         detail.Items.Should().ContainSingle(item => item.Kind == "wpfui.navigationViewItem");
     }
 
     [Theory]
     [InlineData("wpfui.navigationView", "items", "wpfui.navigationViewItem")]
+    [InlineData("wpfui.navigationView", "items", "wpfui.navigationViewItemSeparator")]
     [InlineData("wpfui.navigationViewItem", "icon", "wpfui.symbolIcon")]
     [InlineData("wpfui.tabView", "items", "wpfui.tabViewItem")]
     [InlineData("wpfui.contentDialog", "actions", "wpfui.button")]

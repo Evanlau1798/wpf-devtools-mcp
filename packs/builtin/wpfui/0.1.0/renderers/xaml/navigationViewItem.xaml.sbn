@@ -1,4 +1,4 @@
-<ui:NavigationViewItem TargetPageTag="{{targetPageTag}}" IsActive="{{isActive}}" IsExpanded="{{isExpanded}}">
+<ui:NavigationViewItem TargetPageTag="{{targetPageTag}}" IsActive="{{isActive}}" IsExpanded="{{isExpanded}}" MinHeight="50">
   <ui:NavigationViewItem.Icon>{{slot.icon}}</ui:NavigationViewItem.Icon>
   {{slot.content}}
   <ui:NavigationViewItem.MenuItems>{{slot.items}}</ui:NavigationViewItem.MenuItems>

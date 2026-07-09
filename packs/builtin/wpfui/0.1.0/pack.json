@@ -35,6 +35,7 @@
     "wpfui.navigationView",
     "wpfui.navigationViewDemo",
     "wpfui.navigationViewItem",
+    "wpfui.navigationViewItemSeparator",
     "wpfui.tabView",
     "wpfui.tabViewItem",
     "wpfui.contentDialog",

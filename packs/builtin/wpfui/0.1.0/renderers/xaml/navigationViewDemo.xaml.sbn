@@ -25,7 +25,7 @@
             <TextBlock Text="Pane Header" FontWeight="SemiBold" VerticalAlignment="Center" Margin="30,0,0,0" />
           </Border>
           <ui:AutoSuggestBox PlaceholderText="Search" Margin="10,0,10,12" />
-          <ui:NavigationView Width="388" Height="148" HorizontalAlignment="Left" PaneDisplayMode="Left" IsBackButtonVisible="Collapsed" IsPaneToggleVisible="False" IsTopSeparatorVisible="False" IsFooterSeparatorVisible="False" OpenPaneLength="388" Background="Transparent">
+          <ui:NavigationView Width="388" Height="156" HorizontalAlignment="Left" PaneDisplayMode="Left" IsBackButtonVisible="Collapsed" IsPaneToggleVisible="False" IsTopSeparatorVisible="False" IsFooterSeparatorVisible="False" OpenPaneLength="388" Background="Transparent">
             <ui:NavigationView.MenuItems>
               <ui:NavigationViewItem TargetPageTag="dashboard">
                 <ui:NavigationViewItem.Icon><ui:SymbolIcon Symbol="Home24" /></ui:NavigationViewItem.Icon>

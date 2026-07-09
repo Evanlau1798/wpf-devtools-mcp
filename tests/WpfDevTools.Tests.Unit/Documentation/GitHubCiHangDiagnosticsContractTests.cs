@@ -44,7 +44,8 @@ public sealed class GitHubCiHangDiagnosticsContractTests
         step.Should().Contain("$resultsRoot = Join-Path (Get-Location).ProviderPath 'TestResults'");
         step.Should().Contain("$script:MappedOutputRoot = $resultsRoot");
         step.Should().Contain("-ResultsRoot $resultsRoot");
-        step.Should().Contain("-MaxParallelLanes 4");
+        step.Should().Contain("-MaxParallelLanes 2",
+            "four shard processes with four xUnit threads each exhausted hosted-runner process and pipe resources");
         step.Should().Contain("-ReleaseUnitShardCount 8");
         step.Should().Contain("-IncludeReleaseUnit");
         managedScript.Should().Contain("'--blame-hang-timeout'");

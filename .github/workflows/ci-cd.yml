@@ -140,7 +140,7 @@ jobs:
           -DotNetPath (Get-Command dotnet).Source `
           -ResultsRoot $resultsRoot `
           -Configuration '${{ matrix.configuration }}' `
-          -MaxParallelLanes 4 `
+          -MaxParallelLanes 2 `
           -ReleaseUnitShardCount 8 `
           -IncludeReleaseUnit
 

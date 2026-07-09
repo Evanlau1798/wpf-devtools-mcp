@@ -3,14 +3,14 @@
     <ColumnDefinition Width="400" />
     <ColumnDefinition Width="*" />
   </Grid.ColumnDefinitions>
-  <Border Grid.Column="0" Background="#241829" Padding="20,10,14,14">
+  <Border Grid.Column="0" Background="#241829" Padding="20,10,11,14">
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="58" />
         <RowDefinition Height="*" />
       </Grid.RowDefinitions>
       <ui:AutoSuggestBox Grid.Row="0" PlaceholderText="Search" Height="42" Margin="0,0,0,16" />
-      <ui:NavigationView Grid.Row="1" Width="360" HorizontalAlignment="Left" PaneDisplayMode="{{paneDisplayMode}}" IsBackButtonVisible="Collapsed" IsPaneToggleVisible="False" IsTopSeparatorVisible="False" IsFooterSeparatorVisible="False" OpenPaneLength="360" Background="Transparent">
+      <ui:NavigationView Grid.Row="1" Width="386" Margin="-12,0,0,0" HorizontalAlignment="Left" PaneDisplayMode="{{paneDisplayMode}}" IsBackButtonVisible="Collapsed" IsPaneToggleVisible="False" IsTopSeparatorVisible="False" IsFooterSeparatorVisible="False" OpenPaneLength="386" Background="Transparent">
         <ui:NavigationView.MenuItems>{{slot.items}}</ui:NavigationView.MenuItems>
         <ui:NavigationView.FooterMenuItems>{{slot.footer}}</ui:NavigationView.FooterMenuItems>
       </ui:NavigationView>

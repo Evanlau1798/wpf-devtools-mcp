@@ -296,14 +296,6 @@
                               "value": "NavigationView"
                             }
                           }
-                        ],
-                        "icon": [
-                          {
-                            "kind": "wpfui.symbolIcon",
-                            "properties": {
-                              "symbol": "Home24"
-                            }
-                          }
                         ]
                       }
                     },
@@ -318,14 +310,6 @@
                             "kind": "text",
                             "properties": {
                               "value": "TabControl"
-                            }
-                          }
-                        ],
-                        "icon": [
-                          {
-                            "kind": "wpfui.symbolIcon",
-                            "properties": {
-                              "symbol": "List24"
                             }
                           }
                         ]

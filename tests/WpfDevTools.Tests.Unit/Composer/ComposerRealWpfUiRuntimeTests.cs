@@ -141,7 +141,19 @@ public sealed class ComposerRealWpfUiRuntimeTests
         var primaryTile = FindSolidBorder(descendants, Color.FromRgb(0x7A, 0xF5, 0xD3));
         var secondaryTile = FindSolidBorder(descendants, Color.FromRgb(0x88, 0x88, 0x86));
 
-        AssertReferenceViewportLayoutWhenAvailable(root, demoCard, primaryTile, secondaryTile);
+        var orangeTile = FindSolidBorder(descendants, Color.FromRgb(0xFF, 0x87, 0x00));
+        var codePanel = FindSolidBorder(descendants, Color.FromRgb(0x36, 0x3A, 0x45));
+
+        AssertReferenceViewportLayoutWhenAvailable(
+            root,
+            demoCard,
+            primaryTile,
+            secondaryTile,
+            orangeTile,
+            codePanel,
+            copyButton,
+            descendants);
+        AssertGalleryShellSelectionAlignment(root, descendants);
         titleLeft.Should().BeGreaterThan(outerLeft + outerNavigationView.ActualWidth * 0.75);
         demoHeaderLeft.Should().BeGreaterThan(demoLeft + demoNavigationView.ActualWidth * 0.75);
     }
@@ -150,7 +162,11 @@ public sealed class ComposerRealWpfUiRuntimeTests
         FrameworkElement root,
         FrameworkElement demoCard,
         FrameworkElement primaryTile,
-        FrameworkElement secondaryTile)
+        FrameworkElement secondaryTile,
+        FrameworkElement orangeTile,
+        FrameworkElement codePanel,
+        FrameworkElement copyButton,
+        IReadOnlyList<DependencyObject> descendants)
     {
         if (root.ActualWidth < GalleryReferenceWidth - 10
             || root.ActualHeight < GalleryReferenceHeight - 10)
@@ -170,6 +186,51 @@ public sealed class ComposerRealWpfUiRuntimeTests
         primaryTile.ActualWidth.Should().BeGreaterThan(380);
         primaryTile.ActualHeight.Should().BeGreaterThan(290);
         secondaryTile.ActualWidth.Should().BeGreaterThan(380);
+
+        var paneHeader = FindTextAncestorBorder(descendants, "Pane Header");
+        var paneFooter = FindTextAncestorBorder(descendants, "Pane Footer");
+        var demoHeader = FindTextAncestorBorder(descendants, "NavigationView Header");
+        var paneHeaderBounds = GetBounds(root, paneHeader);
+        var paneFooterBounds = GetBounds(root, paneFooter);
+        var demoHeaderBounds = GetBounds(root, demoHeader);
+        var primaryBounds = GetBounds(root, primaryTile);
+        var secondaryBounds = GetBounds(root, secondaryTile);
+        var orangeBounds = GetBounds(root, orangeTile);
+        var codePanelBounds = GetBounds(root, codePanel);
+        var copyButtonBounds = GetBounds(root, copyButton);
+
+        paneHeaderBounds.X.Should().BeInRange(476, 486);
+        paneHeaderBounds.Y.Should().BeInRange(320, 330);
+        paneHeaderBounds.Width.Should().BeInRange(370, 392);
+        paneHeaderBounds.Height.Should().BeInRange(78, 86);
+        paneFooterBounds.X.Should().BeInRange(476, 486);
+        paneFooterBounds.Width.Should().BeInRange(370, 392);
+        paneFooterBounds.Height.Should().BeInRange(78, 86);
+        demoHeaderBounds.Y.Should().BeInRange(274, 282);
+        demoHeaderBounds.Height.Should().BeInRange(84, 90);
+        primaryBounds.Y.Should().BeInRange(382, 390);
+        primaryBounds.Height.Should().BeInRange(305, 320);
+        secondaryBounds.Y.Should().BeInRange(382, 390);
+        secondaryBounds.Height.Should().BeInRange(140, 155);
+        orangeBounds.Y.Should().BeInRange(548, 558);
+        orangeBounds.Height.Should().BeInRange(140, 155);
+        copyButtonBounds.Y.Should().BeApproximately(codePanelBounds.Y, 4);
+        copyButtonBounds.Height.Should().BeGreaterThan(96);
+    }
+
+    private static void AssertGalleryShellSelectionAlignment(
+        FrameworkElement root,
+        IReadOnlyList<DependencyObject> descendants)
+    {
+        var activeNavigationItem = descendants.OfType<WpfUiNavigationViewItem>()
+            .Should().ContainSingle(item =>
+                string.Equals(item.TargetPageTag, "navigation-view", StringComparison.Ordinal)).Which;
+
+        activeNavigationItem.Icon.Should().BeNull(
+            "Gallery child navigation rows should not carry demo icons that add a second indentation level");
+
+        var activeBounds = GetBounds(root, activeNavigationItem);
+        activeBounds.X.Should().BeLessThan(20);
     }
 
     private static void AssertOuterShellMatchesGalleryReference(
@@ -214,8 +275,8 @@ public sealed class ComposerRealWpfUiRuntimeTests
         {
             brush.MappingMode.Should().Be(BrushMappingMode.Absolute);
             brush.StartPoint.Should().Be(new Point(0, 0));
-            brush.EndPoint.X.Should().BeInRange(18, 30);
-            brush.EndPoint.Y.Should().BeInRange(18, 30);
+            brush.EndPoint.X.Should().BeInRange(10, 16);
+            brush.EndPoint.Y.Should().BeInRange(10, 16);
         }
     }
 
@@ -254,6 +315,33 @@ public sealed class ComposerRealWpfUiRuntimeTests
 
     private static bool HasSolidBackground(Border border, Color color)
         => border.Background is SolidColorBrush brush && brush.Color == color;
+
+    private static Border FindTextAncestorBorder(IEnumerable<DependencyObject> descendants, string text)
+        => FindAncestor<Border>(FindTextBlock(descendants, text));
+
+    private static Rect GetBounds(FrameworkElement root, FrameworkElement element)
+    {
+        var origin = element.TransformToAncestor(root).Transform(new Point());
+        return new Rect(origin.X, origin.Y, element.ActualWidth, element.ActualHeight);
+    }
+
+    private static T FindAncestor<T>(DependencyObject element)
+        where T : DependencyObject
+    {
+        DependencyObject? current = element;
+        while (current is not null)
+        {
+            current = LogicalTreeHelper.GetParent(current)
+                ?? (current is Visual or Visual3D ? VisualTreeHelper.GetParent(current) : null);
+            if (current is T match)
+            {
+                return match;
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Could not find ancestor of type {typeof(T).Name} for {element.GetType().Name}.");
+    }
 
     private static void AssertImplicitStyleResource<TControl>(FrameworkElement element)
         where TControl : FrameworkElement

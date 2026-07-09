@@ -17,30 +17,33 @@ using Wpf.Ui.Markup;
 using WpfUiAutoSuggestBox = Wpf.Ui.Controls.AutoSuggestBox;
 using WpfUiButton = Wpf.Ui.Controls.Button;
 using WpfUiFluentWindow = Wpf.Ui.Controls.FluentWindow;
-using WpfUiImageIcon = Wpf.Ui.Controls.ImageIcon;
 using WpfUiNavigationView = Wpf.Ui.Controls.NavigationView;
 using WpfUiNavigationViewItem = Wpf.Ui.Controls.NavigationViewItem;
-using WpfUiNavigationViewItemSeparator = Wpf.Ui.Controls.NavigationViewItemSeparator;
-using WpfUiSymbolIcon = Wpf.Ui.Controls.SymbolIcon;
-using WpfUiTitleBar = Wpf.Ui.Controls.TitleBar;
-using WpfRectangle = System.Windows.Shapes.Rectangle;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
 [Collection("WPF")]
 public sealed class ComposerRealWpfUiRuntimeTests
 {
-    private const double GalleryReferenceWidth = 1828;
-    private const double GalleryReferenceHeight = 962;
-
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [StaFact]
     public void ShellRecipeGeneratedXaml_ShouldLoadRealWpfUiControlsAndStyles()
     {
         var registry = PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
+        var inputs = JsonSerializer.SerializeToElement(new Dictionary<string, string>
+        {
+            ["title"] = "HarborOps Console",
+            ["navigationItem1Text"] = "Berth Board",
+            ["navigationItem2Text"] = "Tide Watch",
+            ["navigationItem3Text"] = "Pilot Roster",
+            ["navigationItem4Text"] = "Manifest Desk",
+            ["contentHeading"] = "Live Berth Operations",
+            ["contentBody"] = "Coordinate pilots, tides, manifests, and active incidents.",
+            ["primaryActionText"] = "Open Incident Log"
+        });
         var recipe = new RecipeExpansionService(registry)
-            .Expand(new RecipeExpansionRequest("wpfui.shellWithNavigation"));
+            .Expand(new RecipeExpansionRequest("wpfui.shellWithNavigation", inputs));
         recipe.Success.Should().BeTrue();
         var render = new UiBlueprintRenderer(registry).Render(
             new RenderBlueprintRequest(JsonSerializer.Serialize(recipe.Blueprint, JsonOptions)));
@@ -53,313 +56,40 @@ public sealed class ComposerRealWpfUiRuntimeTests
 
         try
         {
-            window.Width.Should().Be(GalleryReferenceWidth);
-            window.Height.Should().Be(GalleryReferenceHeight);
+            window.Width.Should().Be(1280);
+            window.Height.Should().Be(760);
             window.Show();
             window.UpdateLayout();
             window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             SaveScreenshotIfRequested(window);
 
             var descendants = EnumerateDescendants(window).ToArray();
-            var navigationViews = descendants.OfType<WpfUiNavigationView>().ToArray();
-            var outerNavigationView = navigationViews.Should().ContainSingle(view =>
-                ((System.Collections.ICollection)view.MenuItems).Count >= 10).Which;
-            var demoNavigationView = navigationViews.Should().ContainSingle(view =>
-                ((System.Collections.ICollection)view.MenuItems).Count == 3).Which;
-            outerNavigationView.PaneDisplayMode.ToString().Should().Be("Left");
-            demoNavigationView.PaneDisplayMode.ToString().Should().Be("Left");
-            ((System.Collections.ICollection)outerNavigationView.FooterMenuItems).Count.Should().Be(2);
-            descendants.OfType<WpfUiNavigationViewItem>().Should().Contain(item =>
-                string.Equals(item.TargetPageTag, "settings", StringComparison.Ordinal));
-            descendants.OfType<WpfUiSymbolIcon>().Should().Contain(icon =>
-                string.Equals(icon.Symbol.ToString(), "Home24", StringComparison.Ordinal));
-            descendants.OfType<WpfUiSymbolIcon>().Should().Contain(icon =>
-                string.Equals(icon.Symbol.ToString(), "List24", StringComparison.Ordinal));
-            descendants.OfType<WpfUiSymbolIcon>().Should().Contain(icon =>
-                string.Equals(icon.Symbol.ToString(), "Settings24", StringComparison.Ordinal));
-            descendants.OfType<WpfUiAutoSuggestBox>().Should().Contain(box =>
+            var navigation = descendants.OfType<WpfUiNavigationView>().Should().ContainSingle().Subject;
+            ((System.Collections.ICollection)navigation.MenuItems).Count.Should().Be(4);
+            ((System.Collections.ICollection)navigation.FooterMenuItems).Count.Should().Be(1);
+            descendants.OfType<WpfUiNavigationViewItem>()
+                .Select(item => item.TargetPageTag)
+                .Should().Contain(["overview", "workspace", "activity", "reports", "settings"]);
+            descendants.OfType<WpfUiAutoSuggestBox>().Should().ContainSingle(box =>
                 string.Equals(box.PlaceholderText, "Search", StringComparison.Ordinal));
-            var copyButton = descendants.OfType<WpfUiButton>().Where(IsIconOnlyCopyButton)
-                .Should().ContainSingle().Which;
-            copyButton.Appearance.ToString().Should().Be("Secondary");
-            AssertOuterShellMatchesGalleryReference(window, outerNavigationView, descendants);
-            AssertGalleryPlaceholderBrushes(descendants);
-            AssertGalleryLikeLayout(window, outerNavigationView, demoNavigationView, copyButton, descendants);
-            descendants.OfType<System.Windows.Controls.Button>().Should().NotContain(button =>
-                button.GetType() == typeof(System.Windows.Controls.Button)
-                && string.Equals(button.Content as string, "Copy", StringComparison.Ordinal));
+            var primaryAction = descendants.OfType<WpfUiButton>().Should().ContainSingle(button =>
+                string.Equals(button.Content as string, "Open Incident Log", StringComparison.Ordinal)).Subject;
 
             var visibleText = string.Join(" ", descendants.Select(GetDisplayText));
-            visibleText.Should().Contain("All Controls");
-            visibleText.Should().Contain("Basic input");
-            visibleText.Should().Contain("Collections");
-            visibleText.Should().Contain("Home");
-            visibleText.Should().Contain("Items");
-            visibleText.Should().Contain("Dashboard");
-            visibleText.Should().Contain("Pane Header");
-            visibleText.Should().Contain("Pane Footer");
-            visibleText.Should().Contain("Settings");
-            visibleText.Should().Contain("NavigationView");
-            visibleText.Should().Contain("NavigationView Header");
-            visibleText.Should().Contain("WPF UI NavigationView.");
-            visibleText.Should().Contain("<ui:NavigationView IsBackButtonVisible=\"Auto\">");
-            visibleText.Should().NotContain("Copy");
-            AssertColorTileVisible(descendants, Color.FromRgb(0x7A, 0xF5, 0xD3));
-            AssertColorTileVisible(descendants, Color.FromRgb(0x88, 0x88, 0x86));
-            AssertColorTileVisible(descendants, Color.FromRgb(0xFF, 0x87, 0x00));
+            visibleText.Should().ContainAll(
+                "Berth Board", "Tide Watch", "Pilot Roster", "Manifest Desk",
+                "Live Berth Operations", "Open Incident Log");
+            visibleText.Should().NotContainAny("All Controls", "Basic input", "NavigationView Header");
 
             AssertImplicitStyleResource<WpfUiNavigationView>(window);
             AssertImplicitStyleResource<WpfUiButton>(window);
             AssertImplicitStyleResource<WpfUiAutoSuggestBox>(window);
-            AssertStyleAnalyzerReportsImplicitWpfUiStyle(copyButton);
+            AssertStyleAnalyzerReportsImplicitWpfUiStyle(primaryAction);
         }
         finally
         {
             window.Close();
         }
-    }
-
-    private static void AssertGalleryLikeLayout(
-        FrameworkElement root,
-        FrameworkElement outerNavigationView,
-        FrameworkElement demoNavigationView,
-        FrameworkElement copyButton,
-        IReadOnlyList<DependencyObject> descendants)
-    {
-        outerNavigationView.IsVisible.Should().BeTrue();
-        demoNavigationView.IsVisible.Should().BeTrue();
-        copyButton.IsVisible.Should().BeTrue();
-        outerNavigationView.ActualWidth.Should().BeGreaterThan(220);
-        demoNavigationView.ActualWidth.Should().BeGreaterThan(220);
-        copyButton.ActualWidth.Should().BeGreaterThanOrEqualTo(40);
-
-        var mainTitle = FindTextBlock(descendants, "NavigationView");
-        var demoHeader = FindTextBlock(descendants, "NavigationView Header");
-        var outerLeft = outerNavigationView.TransformToAncestor(root).Transform(new Point()).X;
-        var titleLeft = mainTitle.TransformToAncestor(root).Transform(new Point()).X;
-        var demoLeft = demoNavigationView.TransformToAncestor(root).Transform(new Point()).X;
-        var demoHeaderLeft = demoHeader.TransformToAncestor(root).Transform(new Point()).X;
-        var demoCard = FindSolidBorder(descendants, Color.FromRgb(0x30, 0x34, 0x3E));
-        var primaryTile = FindSolidBorder(descendants, Color.FromRgb(0x7A, 0xF5, 0xD3));
-        var secondaryTile = FindSolidBorder(descendants, Color.FromRgb(0x88, 0x88, 0x86));
-
-        var orangeTile = FindSolidBorder(descendants, Color.FromRgb(0xFF, 0x87, 0x00));
-        var codePanel = FindSolidBorder(descendants, Color.FromRgb(0x36, 0x3A, 0x45));
-
-        AssertReferenceViewportLayoutWhenAvailable(
-            root,
-            demoCard,
-            primaryTile,
-            secondaryTile,
-            orangeTile,
-            codePanel,
-            copyButton,
-            descendants);
-        AssertGalleryShellSelectionAlignment(root, descendants);
-        titleLeft.Should().BeGreaterThan(outerLeft + outerNavigationView.ActualWidth * 0.75);
-        demoHeaderLeft.Should().BeGreaterThan(demoLeft + demoNavigationView.ActualWidth * 0.75);
-    }
-
-    private static void AssertReferenceViewportLayoutWhenAvailable(
-        FrameworkElement root,
-        FrameworkElement demoCard,
-        FrameworkElement primaryTile,
-        FrameworkElement secondaryTile,
-        FrameworkElement orangeTile,
-        FrameworkElement codePanel,
-        FrameworkElement copyButton,
-        IReadOnlyList<DependencyObject> descendants)
-    {
-        if (root.ActualWidth < GalleryReferenceWidth - 10
-            || root.ActualHeight < GalleryReferenceHeight - 10)
-        {
-            demoCard.ActualWidth.Should().BeGreaterThan(850);
-            demoCard.ActualHeight.Should().BeGreaterThan(430);
-            primaryTile.ActualWidth.Should().BeGreaterThan(200);
-            primaryTile.ActualHeight.Should().BeGreaterThan(250);
-            secondaryTile.ActualWidth.Should().BeGreaterThan(200);
-            return;
-        }
-
-        root.ActualWidth.Should().BeApproximately(GalleryReferenceWidth, 2);
-        root.ActualHeight.Should().BeApproximately(GalleryReferenceHeight, 2);
-        demoCard.ActualWidth.Should().BeInRange(1290, 1320);
-        demoCard.ActualHeight.Should().BeGreaterThan(470);
-        primaryTile.ActualWidth.Should().BeGreaterThan(380);
-        primaryTile.ActualHeight.Should().BeGreaterThan(290);
-        secondaryTile.ActualWidth.Should().BeGreaterThan(380);
-
-        var paneHeader = FindTextAncestorBorder(descendants, "Pane Header");
-        var paneFooter = FindTextAncestorBorder(descendants, "Pane Footer");
-        var demoHeader = FindTextAncestorBorder(descendants, "NavigationView Header");
-        var paneHeaderBounds = GetBounds(root, paneHeader);
-        var paneFooterBounds = GetBounds(root, paneFooter);
-        var demoHeaderBounds = GetBounds(root, demoHeader);
-        var primaryBounds = GetBounds(root, primaryTile);
-        var secondaryBounds = GetBounds(root, secondaryTile);
-        var orangeBounds = GetBounds(root, orangeTile);
-        var codePanelBounds = GetBounds(root, codePanel);
-        var copyButtonBounds = GetBounds(root, copyButton);
-
-        paneHeaderBounds.X.Should().BeInRange(476, 486);
-        paneHeaderBounds.Y.Should().BeInRange(320, 330);
-        paneHeaderBounds.Width.Should().BeInRange(370, 392);
-        paneHeaderBounds.Height.Should().BeInRange(78, 86);
-        paneFooterBounds.X.Should().BeInRange(476, 486);
-        paneFooterBounds.Width.Should().BeInRange(370, 392);
-        paneFooterBounds.Height.Should().BeInRange(78, 86);
-        demoHeaderBounds.Y.Should().BeInRange(274, 282);
-        demoHeaderBounds.Height.Should().BeInRange(84, 90);
-        primaryBounds.Y.Should().BeInRange(382, 390);
-        primaryBounds.Height.Should().BeInRange(305, 320);
-        secondaryBounds.Y.Should().BeInRange(382, 390);
-        secondaryBounds.Height.Should().BeInRange(140, 155);
-        orangeBounds.Y.Should().BeInRange(548, 558);
-        orangeBounds.Height.Should().BeInRange(140, 155);
-        copyButtonBounds.Y.Should().BeApproximately(codePanelBounds.Y, 4);
-        copyButtonBounds.Height.Should().BeGreaterThan(96);
-    }
-
-    private static void AssertGalleryShellSelectionAlignment(
-        FrameworkElement root,
-        IReadOnlyList<DependencyObject> descendants)
-    {
-        var activeNavigationItem = descendants.OfType<WpfUiNavigationViewItem>()
-            .Should().ContainSingle(item =>
-                string.Equals(item.TargetPageTag, "navigation-view", StringComparison.Ordinal)).Which;
-
-        activeNavigationItem.Icon.Should().BeNull(
-            "Gallery child navigation rows should not carry demo icons that add a second indentation level");
-
-        var activeBounds = GetBounds(root, activeNavigationItem);
-        activeBounds.X.Should().BeLessThan(20);
-        activeBounds.Y.Should().BeInRange(548, 588);
-        descendants.OfType<WpfRectangle>()
-            .Where(rectangle => rectangle.Fill is SolidColorBrush brush
-                && brush.Color == Color.FromRgb(0x36, 0xE0, 0xA6))
-            .Should().Contain(rectangle =>
-                rectangle.IsVisible
-                && rectangle.ActualWidth <= 6
-                && rectangle.ActualHeight >= 14);
-
-        var categoryGroups = descendants.OfType<WpfUiNavigationViewItem>()
-            .Where(item => string.Equals(item.TargetPageTag, "navigation", StringComparison.Ordinal)
-                || ((System.Collections.ICollection)item.MenuItems).Count > 0)
-            .ToArray();
-        categoryGroups.Should().HaveCountGreaterThanOrEqualTo(8);
-
-        descendants.OfType<WpfUiNavigationViewItemSeparator>()
-            .Should().ContainSingle(separator => separator.IsVisible);
-    }
-
-    private static void AssertOuterShellMatchesGalleryReference(
-        FrameworkElement root,
-        FrameworkElement outerNavigationView,
-        IReadOnlyList<DependencyObject> descendants)
-    {
-        var titleBar = descendants.OfType<WpfUiTitleBar>().Should().ContainSingle().Which;
-        titleBar.ActualHeight.Should().BeGreaterThan(56);
-        var titleIcon = titleBar.Icon.Should().BeOfType<WpfUiImageIcon>().Which;
-        titleIcon.Source.Should().BeOfType<DrawingImage>();
-        titleIcon.ActualWidth.Should().BeGreaterThan(20);
-        titleIcon.ActualHeight.Should().BeGreaterThan(20);
-        descendants.OfType<WpfUiAutoSuggestBox>()
-            .Count(box => string.Equals(box.PlaceholderText, "Search", StringComparison.Ordinal))
-            .Should().BeGreaterThanOrEqualTo(2);
-
-        outerNavigationView.ActualWidth.Should().BeGreaterThan(320);
-        var shellPane = descendants.OfType<Border>()
-            .Where(border => border.Background is SolidColorBrush brush
-                && brush.Color == Color.FromRgb(0x24, 0x18, 0x29))
-            .Should().Contain(border =>
-                border.IsVisible
-                && border.ActualWidth > 360
-                && border.ActualHeight > root.ActualHeight * 0.7).Which;
-        shellPane.TransformToAncestor(root).Transform(new Point()).X.Should().BeLessThan(4);
-
-        var titleLeft = FindTextBlock(descendants, "NavigationView").TransformToAncestor(root).Transform(new Point()).X;
-        titleLeft.Should().BeInRange(440, 480);
-    }
-
-    private static void AssertGalleryPlaceholderBrushes(IReadOnlyList<DependencyObject> descendants)
-    {
-        var brushes = descendants.OfType<Border>()
-            .Select(border => border.Background)
-            .OfType<LinearGradientBrush>()
-            .Where(brush => brush.SpreadMethod == GradientSpreadMethod.Repeat)
-            .ToArray();
-
-        brushes.Should().HaveCountGreaterThanOrEqualTo(3);
-        foreach (var brush in brushes)
-        {
-            brush.MappingMode.Should().Be(BrushMappingMode.Absolute);
-            brush.StartPoint.Should().Be(new Point(0, 0));
-            brush.EndPoint.X.Should().BeInRange(10, 16);
-            brush.EndPoint.Y.Should().BeInRange(10, 16);
-        }
-    }
-
-    private static bool IsIconOnlyCopyButton(WpfUiButton button)
-        => button.Content is null
-            && string.Equals(button.ToolTip as string, "Copy", StringComparison.Ordinal)
-            && button.Icon is WpfUiSymbolIcon symbolIcon
-            && string.Equals(symbolIcon.Symbol.ToString(), "Copy24", StringComparison.Ordinal);
-
-    private static TextBlock FindTextBlock(IEnumerable<DependencyObject> descendants, string text)
-        => descendants.OfType<TextBlock>()
-            .Where(textBlock => string.Equals(textBlock.Text, text, StringComparison.Ordinal))
-            .OrderByDescending(textBlock => textBlock.FontSize)
-            .First();
-
-    private static void AssertColorTileVisible(IEnumerable<DependencyObject> descendants, Color color)
-    {
-        var tiles = descendants.OfType<Border>()
-            .Where(border => HasSolidBackground(border, color))
-            .Select(border => new
-            {
-                border.IsVisible,
-                Width = border.ActualWidth,
-                Height = border.ActualHeight
-            })
-            .ToArray();
-
-        tiles.Should().Contain(tile =>
-            tile.IsVisible
-            && tile.Width > 80
-            && tile.Height > 40);
-    }
-
-    private static Border FindSolidBorder(IEnumerable<DependencyObject> descendants, Color color)
-        => descendants.OfType<Border>().First(border => HasSolidBackground(border, color));
-
-    private static bool HasSolidBackground(Border border, Color color)
-        => border.Background is SolidColorBrush brush && brush.Color == color;
-
-    private static Border FindTextAncestorBorder(IEnumerable<DependencyObject> descendants, string text)
-        => FindAncestor<Border>(FindTextBlock(descendants, text));
-
-    private static Rect GetBounds(FrameworkElement root, FrameworkElement element)
-    {
-        var origin = element.TransformToAncestor(root).Transform(new Point());
-        return new Rect(origin.X, origin.Y, element.ActualWidth, element.ActualHeight);
-    }
-
-    private static T FindAncestor<T>(DependencyObject element)
-        where T : DependencyObject
-    {
-        DependencyObject? current = element;
-        while (current is not null)
-        {
-            current = LogicalTreeHelper.GetParent(current)
-                ?? (current is Visual or Visual3D ? VisualTreeHelper.GetParent(current) : null);
-            if (current is T match)
-            {
-                return match;
-            }
-        }
-
-        throw new InvalidOperationException(
-            $"Could not find ancestor of type {typeof(T).Name} for {element.GetType().Name}.");
     }
 
     private static void AssertImplicitStyleResource<TControl>(FrameworkElement element)
@@ -414,7 +144,6 @@ public sealed class ComposerRealWpfUiRuntimeTests
             }
 
             yield return current;
-
             foreach (var child in LogicalTreeHelper.GetChildren(current).OfType<DependencyObject>())
             {
                 stack.Push(child);

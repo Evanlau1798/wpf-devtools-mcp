@@ -76,6 +76,33 @@ public sealed class ComposerRecipeExpansionTests
             .Properties["title"].GetString().Should().Be("WPF UI Gallery");
     }
 
+    [Fact]
+    public void ShellRecipe_ShouldCreateCustomApplicationInformationArchitecture()
+    {
+        var expander = new RecipeExpansionService(CreateRegistry());
+        var inputs = Inputs(
+            ("title", "HarborOps Console"),
+            ("navigationItem1Text", "Berth Board"),
+            ("navigationItem2Text", "Tide Watch"),
+            ("navigationItem3Text", "Pilot Roster"),
+            ("navigationItem4Text", "Manifest Desk"),
+            ("contentHeading", "Live Berth Operations"),
+            ("contentBody", "Coordinate pilots, tides, manifests, and active incidents."),
+            ("primaryActionText", "Open Incident Log"));
+
+        var result = expander.Expand(new RecipeExpansionRequest("wpfui.shellWithNavigation", inputs));
+
+        result.Success.Should().BeTrue();
+        result.Validation.Success.Should().BeTrue();
+        var navigation = result.Blueprint.Layout.Slots["content"].Should().ContainSingle().Subject;
+        navigation.Slots["items"]
+            .Select(item => item.Slots["content"].Single().Properties["value"].GetString())
+            .Should().Equal("Berth Board", "Tide Watch", "Pilot Roster", "Manifest Desk");
+        var serialized = JsonSerializer.Serialize(result.Blueprint);
+        serialized.Should().ContainAll("Live Berth Operations", "Open Incident Log");
+        serialized.Should().NotContainAny("All Controls", "Basic input", "NavigationView");
+    }
+
     [Theory]
     [MemberData(nameof(StarterRecipes))]
     public void RecipeExpansion_ShouldValidateEveryStarterRecipe(string recipeId)

@@ -43,14 +43,12 @@ public sealed class ComposerPreviewRecipeRuntimeTests
 
         summary.GetProperty("semanticNodeCount").GetInt32().Should().BeGreaterThanOrEqualTo(6);
         AssertPayloadContains(summary, "Home");
-        AssertPayloadContains(summary, "Items");
+        AssertPayloadContains(summary, "Workspace");
+        AssertPayloadContains(summary, "Activity");
+        AssertPayloadContains(summary, "Reports");
         AssertPayloadContains(summary, "Settings");
-        AssertPayloadContains(summary, "NavigationView");
-        AssertPayloadContains(summary, "WPF UI NavigationView.");
-        AssertPayloadContains(summary, "All Controls");
-        AssertPayloadContains(summary, "Pane Header");
-        AssertPayloadContains(summary, "IsBackButtonVisible");
-        AssertPayloadContains(summary, "WPF UI Fluent NavigationView.");
+        AssertPayloadContains(summary, "Overview");
+        AssertPayloadContains(summary, "Open workspace");
         GetDiagnosticPayload(diagnostics, "get_layout_info").ValueKind.Should().Be(JsonValueKind.Object);
     }
 

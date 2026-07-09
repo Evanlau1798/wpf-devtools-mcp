@@ -317,24 +317,13 @@ function Stop-InstallerVerificationProcessTree {
     $rootProcessId = [int]$Process.Id
     $knownProcessIds = New-Object 'System.Collections.Generic.HashSet[int]'
     for ($attempt = 0; $attempt -lt 3; $attempt++) {
-        $processIds = @(Get-InstallerVerificationDescendantProcessIds -ParentProcessId $rootProcessId)
-        foreach ($processId in $processIds) {
-            [void]$knownProcessIds.Add([int]$processId)
-        }
-
-        foreach ($processId in @($knownProcessIds | Sort-Object -Descending -Unique)) {
-            Stop-InstallerVerificationProcessId -ProcessId $processId
-        }
+        foreach ($processId in @(Get-InstallerVerificationDescendantProcessIds -ParentProcessId $rootProcessId)) { [void]$knownProcessIds.Add([int]$processId) }
+        foreach ($processId in @($knownProcessIds | Sort-Object -Descending -Unique)) { Stop-InstallerVerificationProcessId -ProcessId $processId }
 
         Stop-InstallerVerificationProcessId -ProcessId $rootProcessId
         $processIds = @(Get-InstallerVerificationDescendantProcessIds -ParentProcessId $rootProcessId)
-        foreach ($processId in $processIds) {
-            [void]$knownProcessIds.Add([int]$processId)
-        }
-
-        foreach ($processId in @($processIds | Sort-Object -Descending -Unique)) {
-            Stop-InstallerVerificationProcessId -ProcessId $processId
-        }
+        foreach ($processId in $processIds) { [void]$knownProcessIds.Add([int]$processId) }
+        foreach ($processId in @($processIds | Sort-Object -Descending -Unique)) { Stop-InstallerVerificationProcessId -ProcessId $processId }
 
         Start-Sleep -Milliseconds 100
     }
@@ -353,13 +342,8 @@ function Stop-InstallerVerificationProcessTree {
         }
     }
 
-    foreach ($processId in @(Get-InstallerVerificationDescendantProcessIds -ParentProcessId $rootProcessId)) {
-        Stop-InstallerVerificationProcessId -ProcessId $processId
-    }
-
-    foreach ($processId in @($knownProcessIds | Sort-Object -Descending -Unique)) {
-        Stop-InstallerVerificationProcessId -ProcessId $processId
-    }
+    foreach ($processId in @(Get-InstallerVerificationDescendantProcessIds -ParentProcessId $rootProcessId)) { Stop-InstallerVerificationProcessId -ProcessId $processId }
+    foreach ($processId in @($knownProcessIds | Sort-Object -Descending -Unique)) { Stop-InstallerVerificationProcessId -ProcessId $processId }
 }
 
 function Invoke-VerificationCommand {

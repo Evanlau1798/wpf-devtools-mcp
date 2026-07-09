@@ -269,6 +269,16 @@ public sealed partial class SandboxCiScriptContractTests
         formatterScript.Should().Contain("'--no-restore'");
     }
 
+    [Fact]
+    public void BuildAndTestMatrix_ShouldKeepIndependentConfigurationsRunningAfterOneFails()
+    {
+        var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
+
+        GetWorkflowJob(workflow, "build-and-test")
+            .Should().Contain("fail-fast: false",
+                "Debug and Release configurations provide independent evidence and should not force costly reruns after cancellation");
+    }
+
     private static string GetWorkflowStep(string workflow, string name)
     {
         var start = workflow.IndexOf($"      - name: {name}", StringComparison.Ordinal);

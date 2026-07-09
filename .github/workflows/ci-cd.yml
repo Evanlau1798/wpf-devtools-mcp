@@ -52,6 +52,7 @@ jobs:
     runs-on: windows-2022
 
     strategy:
+      fail-fast: false
       matrix:
         configuration: [Debug, Release]
         platform: [x64, x86]

@@ -87,11 +87,21 @@ public sealed class InstallerTuiVisualRefinementTests
             Directory.CreateDirectory(userProfile);
             Directory.CreateDirectory(fakeBin);
             ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "code", Path.Combine(tempRoot, "code.log"));
+            ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "grok", Path.Combine(tempRoot, "grok.log"));
+            var installerPath = string.Join(
+                Path.PathSeparator,
+                fakeBin,
+                Environment.GetFolderPath(Environment.SpecialFolder.System),
+                Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+                    "System32",
+                    "WindowsPowerShell",
+                    "v1.0"));
 
             var result = RunInteractiveInstaller(tempRoot, appData, localAppData, userProfile, new[]
             {
-                "$env:PATH='" + (fakeBin + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH")!).Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Enter||DownArrow||DownArrow||DownArrow||DownArrow||Escape||Escape||Enter'",
+                "$env:PATH='" + installerPath.Replace("'", "''") + "'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Enter||Escape||Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='96'",

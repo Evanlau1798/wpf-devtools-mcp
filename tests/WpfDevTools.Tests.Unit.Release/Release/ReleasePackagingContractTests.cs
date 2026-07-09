@@ -245,6 +245,7 @@ public sealed partial class ReleasePackagingContractTests
             File.Exists(Path.Combine(extractRoot, "packs", "builtin", "wpfui", "0.1.0", "pack.json")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "packs", "builtin", "wpfui", "0.1.0", "install.manifest.json")).Should().BeTrue();
             File.Exists(Path.Combine(extractRoot, "packs", "builtin", "wpfui", "0.1.0", "renderers", "xaml", "fluentWindow.xaml.sbn")).Should().BeTrue();
+            File.Exists(Path.Combine(extractRoot, "packs", "baselines", "wpfui", "0.1.0", "reports", "wpfui-0.1.0.readiness.json")).Should().BeTrue();
         }
         finally
         {
@@ -378,6 +379,9 @@ public sealed partial class ReleasePackagingContractTests
         CopyDirectory(
             ReleaseScriptTestHarness.GetRepoFilePath("packs/builtin"),
             Path.Combine(repoRoot, "packs", "builtin"));
+        CopyDirectory(
+            ReleaseScriptTestHarness.GetRepoFilePath("packs/baselines"),
+            Path.Combine(repoRoot, "packs", "baselines"));
 
         PublishReleaseScriptSource.CopyTo(packagingRoot);
         File.Copy(

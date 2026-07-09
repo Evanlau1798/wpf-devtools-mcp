@@ -190,6 +190,30 @@ function Copy-DirectoryContents {
     Copy-Item -Path (Join-Path $Source '*') -Destination $Destination -Recurse -Force
 }
 
+function Copy-ComposerReadinessReports {
+    param(
+        [Parameter(Mandatory)] [string]$Source,
+        [Parameter(Mandatory)] [string]$Destination
+    )
+
+    if (-not (Test-Path -LiteralPath $Source)) {
+        throw "Composer baseline path does not exist: $Source"
+    }
+
+    $sourceRoot = (Resolve-Path -LiteralPath $Source).Path.TrimEnd([char[]]@('\', '/'))
+    $reports = @(Get-ChildItem -LiteralPath $sourceRoot -Filter '*.readiness.json' -File -Recurse)
+    if ($reports.Count -eq 0) {
+        throw "No Composer readiness reports were found under: $sourceRoot"
+    }
+
+    foreach ($report in $reports) {
+        $relativePath = $report.FullName.Substring($sourceRoot.Length).TrimStart([char[]]@('\', '/'))
+        $destinationPath = Join-Path $Destination $relativePath
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destinationPath) | Out-Null
+        Copy-Item -LiteralPath $report.FullName -Destination $destinationPath -Force
+    }
+}
+
 function Resolve-ArchitectureList {
     param([string[]]$InputArchitectures)
 

@@ -39,6 +39,7 @@ $bootstrapperProject = Join-Path $repoRoot 'src\WpfDevTools.Bootstrapper\WpfDevT
 $installScript = Join-Path $repoRoot 'scripts\online-installer.ps1'
 $installBatchTemplate = Join-Path $repoRoot 'scripts\tools\packaging\run-template.bat'
 $builtinComposerPackSource = Join-Path $repoRoot 'packs\builtin'
+$composerPackBaselineSource = Join-Path $repoRoot 'packs\baselines'
 $outputRootFullPath = (Resolve-Path (New-Item -ItemType Directory -Force -Path $OutputRoot)).Path
 $msbuildPath = Resolve-MSBuildPath
 $windowsSdkDirectory = Resolve-WindowsSdkDirectory
@@ -171,6 +172,7 @@ foreach ($architecture in $resolvedArchitectures) {
         Copy-Item -Path $installScript -Destination (Join-Path $binDir 'install.ps1') -Force
         Copy-InstallerHelperFiles -RepositoryRoot $repoRoot -Destination (Join-Path $binDir 'installer')
         Copy-DirectoryContents -Source $builtinComposerPackSource -Destination (Join-Path $packageDir 'packs\builtin')
+        Copy-ComposerReadinessReports -Source $composerPackBaselineSource -Destination (Join-Path $packageDir 'packs\baselines')
 
         $payloadPaths = @(
             (Join-Path $binDir $packagedExecutableName)

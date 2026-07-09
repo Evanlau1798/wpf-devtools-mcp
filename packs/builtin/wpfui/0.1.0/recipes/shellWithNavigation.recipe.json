@@ -1,7 +1,7 @@
 {
   "schemaVersion": "wpfdevtools.ui-recipe.v1",
   "id": "wpfui.shellWithNavigation",
-  "displayName": "WPF UI Gallery Navigation Shell",
+  "displayName": "WPF UI Navigation Shell",
   "description": "A customizable WPF UI shell with four navigation destinations and application-specific content.",
   "packId": "wpfui",
   "requiredPacks": [
@@ -75,7 +75,7 @@
     },
     "title": {
       "description": "Application and title-bar title.",
-      "default": "WPF UI Gallery",
+      "default": "WPF UI Application",
       "type": "string"
     }
   },

@@ -70,10 +70,10 @@ public sealed class ComposerRecipeExpansionTests
 
         result.Success.Should().BeTrue();
         result.Validation.Success.Should().BeTrue();
-        result.Blueprint.Name.Should().Be("WPF UI Gallery Navigation Shell");
+        result.Blueprint.Name.Should().Be("WPF UI Navigation Shell");
         result.Blueprint.Layout.Kind.Should().Be("wpfui.fluentWindow");
         result.Blueprint.Layout.Slots["titleBar"][0]
-            .Properties["title"].GetString().Should().Be("WPF UI Gallery");
+            .Properties["title"].GetString().Should().Be("WPF UI Application");
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class ComposerRecipeExpansionTests
             .Should().Equal("Berth Board", "Tide Watch", "Pilot Roster", "Manifest Desk");
         var serialized = JsonSerializer.Serialize(result.Blueprint);
         serialized.Should().ContainAll("Live Berth Operations", "Open Incident Log");
-        serialized.Should().NotContainAny("All Controls", "Basic input", "NavigationView");
+        serialized.Should().NotContainAny("Gallery", "All Controls", "Basic input", "NavigationView");
     }
 
     [Theory]

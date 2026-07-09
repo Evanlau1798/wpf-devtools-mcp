@@ -16,6 +16,7 @@ using Wpf.Ui.Appearance;
 using Wpf.Ui.Markup;
 using WpfUiAutoSuggestBox = Wpf.Ui.Controls.AutoSuggestBox;
 using WpfUiButton = Wpf.Ui.Controls.Button;
+using WpfUiCard = Wpf.Ui.Controls.Card;
 using WpfUiFluentWindow = Wpf.Ui.Controls.FluentWindow;
 using WpfUiNavigationView = Wpf.Ui.Controls.NavigationView;
 using WpfUiNavigationViewItem = Wpf.Ui.Controls.NavigationViewItem;
@@ -65,6 +66,7 @@ public sealed class ComposerRealWpfUiRuntimeTests
 
             var descendants = EnumerateDescendants(window).ToArray();
             var navigation = descendants.OfType<WpfUiNavigationView>().Should().ContainSingle().Subject;
+            var contentCard = descendants.OfType<WpfUiCard>().Should().ContainSingle().Subject;
             ((System.Collections.ICollection)navigation.MenuItems).Count.Should().Be(4);
             ((System.Collections.ICollection)navigation.FooterMenuItems).Count.Should().Be(1);
             descendants.OfType<WpfUiNavigationViewItem>()
@@ -74,6 +76,10 @@ public sealed class ComposerRealWpfUiRuntimeTests
                 string.Equals(box.PlaceholderText, "Search", StringComparison.Ordinal));
             var primaryAction = descendants.OfType<WpfUiButton>().Should().ContainSingle(button =>
                 string.Equals(button.Content as string, "Open Incident Log", StringComparison.Ordinal)).Subject;
+            primaryAction.IsEnabled.Should().BeTrue();
+            AssertVisibleWithinWindow(window, navigation, minimumWidth: 200, minimumHeight: 200);
+            AssertVisibleWithinWindow(window, contentCard, minimumWidth: 200, minimumHeight: 80);
+            AssertVisibleWithinWindow(window, primaryAction, minimumWidth: 20, minimumHeight: 20);
 
             var visibleText = string.Join(" ", descendants.Select(GetDisplayText));
             visibleText.Should().ContainAll(
@@ -90,6 +96,22 @@ public sealed class ComposerRealWpfUiRuntimeTests
         {
             window.Close();
         }
+    }
+
+    private static void AssertVisibleWithinWindow(
+        FrameworkElement window,
+        FrameworkElement element,
+        double minimumWidth,
+        double minimumHeight)
+    {
+        element.IsVisible.Should().BeTrue();
+        element.ActualWidth.Should().BeGreaterThanOrEqualTo(minimumWidth);
+        element.ActualHeight.Should().BeGreaterThanOrEqualTo(minimumHeight);
+        var origin = element.TransformToAncestor(window).Transform(new Point());
+        origin.X.Should().BeGreaterThanOrEqualTo(0);
+        origin.Y.Should().BeGreaterThanOrEqualTo(0);
+        (origin.X + element.ActualWidth).Should().BeLessThanOrEqualTo(window.ActualWidth + 1);
+        (origin.Y + element.ActualHeight).Should().BeLessThanOrEqualTo(window.ActualHeight + 1);
     }
 
     private static void AssertImplicitStyleResource<TControl>(FrameworkElement element)

@@ -197,7 +197,11 @@ jobs:
       run: dotnet restore --locked-mode
 
     - name: Verify Composer formatting
-      run: dotnet format WpfDevTools.sln --verify-no-changes --no-restore --include src/WpfDevTools.Mcp.Server/Composer tests/WpfDevTools.Tests.Unit/Composer tests/WpfDevTools.Tests.Unit/Documentation/CiWorkflowRegressionTests.cs tests/WpfDevTools.Tests.Unit/Documentation/ComposerPipelineContractTests.cs
+      shell: pwsh
+      run: |
+        ./scripts/ci/Invoke-DotNetFormatVerify.ps1 `
+          -SolutionPath WpfDevTools.sln `
+          -Include src/WpfDevTools.Mcp.Server/Composer,tests/WpfDevTools.Tests.Unit/Composer,tests/WpfDevTools.Tests.Unit/Documentation/CiWorkflowRegressionTests.cs,tests/WpfDevTools.Tests.Unit/Documentation/ComposerPipelineContractTests.cs
 
     - name: Build Composer unit test dependencies
       run: dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Release --no-restore -m:1 -nodeReuse:false -p:UseSharedCompilation=false

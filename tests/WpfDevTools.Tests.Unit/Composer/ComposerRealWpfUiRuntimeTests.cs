@@ -168,12 +168,22 @@ public sealed class ComposerRealWpfUiRuntimeTests
             .First();
 
     private static void AssertColorTileVisible(IEnumerable<DependencyObject> descendants, Color color)
-        => descendants.OfType<Border>()
+    {
+        var tiles = descendants.OfType<Border>()
             .Where(border => border.Background is SolidColorBrush brush && brush.Color == color)
-            .Should().Contain(border =>
-                border.IsVisible
-                && border.ActualWidth > 80
-                && border.ActualHeight > 40);
+            .Select(border => new
+            {
+                border.IsVisible,
+                Width = border.ActualWidth,
+                Height = border.ActualHeight
+            })
+            .ToArray();
+
+        tiles.Should().Contain(tile =>
+            tile.IsVisible
+            && tile.Width > 80
+            && tile.Height > 40);
+    }
 
     private static void AssertImplicitStyleResource<TControl>(FrameworkElement element)
         where TControl : FrameworkElement

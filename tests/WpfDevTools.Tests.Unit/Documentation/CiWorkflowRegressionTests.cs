@@ -243,7 +243,8 @@ public sealed partial class SandboxCiScriptContractTests
 
         composerJob.Should().Contain("Run Composer targeted unit and smoke tests");
         composerJob.Should().Contain("Verify Composer formatting");
-        composerJob.Should().Contain("dotnet format WpfDevTools.sln --verify-no-changes --no-restore");
+        composerJob.Should().Contain("Invoke-DotNetFormatVerify.ps1");
+        composerJob.Should().Contain("-SolutionPath WpfDevTools.sln");
         composerJob.Should().Contain("tests/WpfDevTools.Tests.Unit/Documentation/ComposerPipelineContractTests.cs");
         composerJob.Should().Contain("dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Release --no-restore");
         composerJob.Should().Contain("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj");
@@ -258,6 +259,12 @@ public sealed partial class SandboxCiScriptContractTests
         composerJob.Should().Contain("Upload Composer CI evidence");
         composerJob.Should().Contain("if: always()");
         composerJob.Should().Contain("composer-ci-evidence");
+
+        var formatterScript = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "ci", "Invoke-DotNetFormatVerify.ps1"));
+        formatterScript.Should().Contain("$env:DOTNET_HOST_PATH = $dotnet");
+        formatterScript.Should().Contain("$env:PATH = \"$dotnetDirectory;$env:PATH\"");
+        formatterScript.Should().Contain("'--verify-no-changes'");
+        formatterScript.Should().Contain("'--no-restore'");
     }
 
     private static string GetWorkflowStep(string workflow, string name)

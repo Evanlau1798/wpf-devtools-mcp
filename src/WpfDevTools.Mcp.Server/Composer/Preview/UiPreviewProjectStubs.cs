@@ -48,6 +48,10 @@ internal static class UiPreviewProjectStubs
                 => ((SymbolIcon)d).Text = e.NewValue as string;
         }
 
+        public class ImageIcon : System.Windows.Controls.Image
+        {
+        }
+
         public class TextBlock : System.Windows.Controls.TextBlock
         {
             public static readonly DependencyProperty AppearanceProperty = DependencyProperty.Register(

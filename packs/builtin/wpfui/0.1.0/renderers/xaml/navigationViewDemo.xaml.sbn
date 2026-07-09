@@ -15,7 +15,7 @@
           </StackPanel>
           <Border Margin="24,12,0,10" CornerRadius="4" Height="52">
             <Border.Background>
-              <LinearGradientBrush StartPoint="0,0" EndPoint="0.08,0.08" SpreadMethod="Repeat" MappingMode="RelativeToBoundingBox">
+              <LinearGradientBrush StartPoint="0,0" EndPoint="24,24" SpreadMethod="Repeat" MappingMode="Absolute">
                 <GradientStop Color="#424853" Offset="0" />
                 <GradientStop Color="#424853" Offset="0.45" />
                 <GradientStop Color="#383D49" Offset="0.45" />
@@ -43,7 +43,7 @@
           </ui:NavigationView>
           <Border Margin="24,10,0,0" CornerRadius="4" Height="52">
             <Border.Background>
-              <LinearGradientBrush StartPoint="0,0" EndPoint="0.08,0.08" SpreadMethod="Repeat" MappingMode="RelativeToBoundingBox">
+              <LinearGradientBrush StartPoint="0,0" EndPoint="24,24" SpreadMethod="Repeat" MappingMode="Absolute">
                 <GradientStop Color="#424853" Offset="0" />
                 <GradientStop Color="#424853" Offset="0.45" />
                 <GradientStop Color="#383D49" Offset="0.45" />
@@ -60,7 +60,7 @@
           </Grid.RowDefinitions>
           <Border Grid.Row="0" CornerRadius="4" Margin="0,0,0,20">
             <Border.Background>
-              <LinearGradientBrush StartPoint="0,0" EndPoint="0.08,0.08" SpreadMethod="Repeat" MappingMode="RelativeToBoundingBox">
+              <LinearGradientBrush StartPoint="0,0" EndPoint="24,24" SpreadMethod="Repeat" MappingMode="Absolute">
                 <GradientStop Color="#424853" Offset="0" />
                 <GradientStop Color="#424853" Offset="0.45" />
                 <GradientStop Color="#383D49" Offset="0.45" />
@@ -92,7 +92,9 @@
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <TextBlock FontFamily="Consolas" TextWrapping="Wrap" Text="&lt;ui:NavigationView IsBackButtonVisible=&quot;Auto&quot;&gt;&#x0A;  &lt;ui:NavigationView.MenuItems&gt;&#x0A;    &lt;ui:NavigationViewItem Content=&quot;Home&quot; Icon=&quot;Home24&quot; /&gt;&#x0A;  &lt;/ui:NavigationView.MenuItems&gt;&#x0A;&lt;/ui:NavigationView&gt;" />
-        <ui:Button Grid.Column="1" Content="Copy" Appearance="Secondary" MinWidth="64" Margin="12,0,0,0" />
+        <ui:Button Grid.Column="1" Appearance="Secondary" Width="40" MinWidth="40" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="12,0,0,0" ToolTip="Copy">
+          <ui:Button.Icon><ui:SymbolIcon Symbol="Copy24" /></ui:Button.Icon>
+        </ui:Button>
       </Grid>
     </Border>
     <ui:TextBlock Text="WPF UI Fluent NavigationView." Appearance="Primary" FontSize="20" FontWeight="SemiBold" />

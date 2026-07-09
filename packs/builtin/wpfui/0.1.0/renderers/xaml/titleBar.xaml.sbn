@@ -1,4 +1,25 @@
 <ui:TitleBar Title="{{title}}" Height="72" Padding="24,0,0,0">
-  <ui:TitleBar.Icon><ui:SymbolIcon Symbol="Color24" Foreground="#2CB7E8" Margin="0,0,10,0" /></ui:TitleBar.Icon>
+  <ui:TitleBar.Icon>
+    <ui:ImageIcon Width="24" Height="24" Margin="0,0,10,0">
+      <ui:ImageIcon.Source>
+        <DrawingImage>
+          <DrawingImage.Drawing>
+            <DrawingGroup>
+              <GeometryDrawing Brush="#29B6F6">
+                <GeometryDrawing.Geometry>
+                  <RectangleGeometry Rect="3,5,9,14" RadiusX="1" RadiusY="1" />
+                </GeometryDrawing.Geometry>
+              </GeometryDrawing>
+              <GeometryDrawing Brush="#1E88E5">
+                <GeometryDrawing.Geometry>
+                  <RectangleGeometry Rect="12,5,9,14" RadiusX="1" RadiusY="1" />
+                </GeometryDrawing.Geometry>
+              </GeometryDrawing>
+            </DrawingGroup>
+          </DrawingImage.Drawing>
+        </DrawingImage>
+      </ui:ImageIcon.Source>
+    </ui:ImageIcon>
+  </ui:TitleBar.Icon>
   {{slot.actions}}
 </ui:TitleBar>

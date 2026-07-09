@@ -17,6 +17,7 @@ using Wpf.Ui.Markup;
 using WpfUiAutoSuggestBox = Wpf.Ui.Controls.AutoSuggestBox;
 using WpfUiButton = Wpf.Ui.Controls.Button;
 using WpfUiFluentWindow = Wpf.Ui.Controls.FluentWindow;
+using WpfUiImageIcon = Wpf.Ui.Controls.ImageIcon;
 using WpfUiNavigationView = Wpf.Ui.Controls.NavigationView;
 using WpfUiNavigationViewItem = Wpf.Ui.Controls.NavigationViewItem;
 using WpfUiSymbolIcon = Wpf.Ui.Controls.SymbolIcon;
@@ -76,10 +77,11 @@ public sealed class ComposerRealWpfUiRuntimeTests
                 string.Equals(icon.Symbol.ToString(), "Settings24", StringComparison.Ordinal));
             descendants.OfType<WpfUiAutoSuggestBox>().Should().Contain(box =>
                 string.Equals(box.PlaceholderText, "Search", StringComparison.Ordinal));
-            var copyButton = descendants.OfType<WpfUiButton>().Should().ContainSingle(button =>
-                string.Equals(button.Content as string, "Copy", StringComparison.Ordinal)).Which;
+            var copyButton = descendants.OfType<WpfUiButton>().Where(IsIconOnlyCopyButton)
+                .Should().ContainSingle().Which;
             copyButton.Appearance.ToString().Should().Be("Secondary");
             AssertOuterShellMatchesGalleryReference(window, outerNavigationView, descendants);
+            AssertGalleryPlaceholderBrushes(descendants);
             AssertGalleryLikeLayout(window, outerNavigationView, demoNavigationView, copyButton, descendants);
             descendants.OfType<System.Windows.Controls.Button>().Should().NotContain(button =>
                 button.GetType() == typeof(System.Windows.Controls.Button)
@@ -99,6 +101,7 @@ public sealed class ComposerRealWpfUiRuntimeTests
             visibleText.Should().Contain("NavigationView Header");
             visibleText.Should().Contain("WPF UI NavigationView.");
             visibleText.Should().Contain("<ui:NavigationView IsBackButtonVisible=\"Auto\">");
+            visibleText.Should().NotContain("Copy");
             AssertColorTileVisible(descendants, Color.FromRgb(0x7A, 0xF5, 0xD3));
             AssertColorTileVisible(descendants, Color.FromRgb(0x88, 0x88, 0x86));
             AssertColorTileVisible(descendants, Color.FromRgb(0xFF, 0x87, 0x00));
@@ -126,7 +129,7 @@ public sealed class ComposerRealWpfUiRuntimeTests
         copyButton.IsVisible.Should().BeTrue();
         outerNavigationView.ActualWidth.Should().BeGreaterThan(220);
         demoNavigationView.ActualWidth.Should().BeGreaterThan(220);
-        copyButton.ActualWidth.Should().BeGreaterThan(40);
+        copyButton.ActualWidth.Should().BeGreaterThanOrEqualTo(40);
 
         var mainTitle = FindTextBlock(descendants, "NavigationView");
         var demoHeader = FindTextBlock(descendants, "NavigationView Header");
@@ -174,8 +177,12 @@ public sealed class ComposerRealWpfUiRuntimeTests
         FrameworkElement outerNavigationView,
         IReadOnlyList<DependencyObject> descendants)
     {
-        descendants.OfType<WpfUiTitleBar>().Should().ContainSingle()
-            .Which.ActualHeight.Should().BeGreaterThan(56);
+        var titleBar = descendants.OfType<WpfUiTitleBar>().Should().ContainSingle().Which;
+        titleBar.ActualHeight.Should().BeGreaterThan(56);
+        var titleIcon = titleBar.Icon.Should().BeOfType<WpfUiImageIcon>().Which;
+        titleIcon.Source.Should().BeOfType<DrawingImage>();
+        titleIcon.ActualWidth.Should().BeGreaterThan(20);
+        titleIcon.ActualHeight.Should().BeGreaterThan(20);
         descendants.OfType<WpfUiAutoSuggestBox>()
             .Count(box => string.Equals(box.PlaceholderText, "Search", StringComparison.Ordinal))
             .Should().BeGreaterThanOrEqualTo(2);
@@ -193,6 +200,30 @@ public sealed class ComposerRealWpfUiRuntimeTests
         var titleLeft = FindTextBlock(descendants, "NavigationView").TransformToAncestor(root).Transform(new Point()).X;
         titleLeft.Should().BeInRange(440, 480);
     }
+
+    private static void AssertGalleryPlaceholderBrushes(IReadOnlyList<DependencyObject> descendants)
+    {
+        var brushes = descendants.OfType<Border>()
+            .Select(border => border.Background)
+            .OfType<LinearGradientBrush>()
+            .Where(brush => brush.SpreadMethod == GradientSpreadMethod.Repeat)
+            .ToArray();
+
+        brushes.Should().HaveCountGreaterThanOrEqualTo(3);
+        foreach (var brush in brushes)
+        {
+            brush.MappingMode.Should().Be(BrushMappingMode.Absolute);
+            brush.StartPoint.Should().Be(new Point(0, 0));
+            brush.EndPoint.X.Should().BeInRange(18, 30);
+            brush.EndPoint.Y.Should().BeInRange(18, 30);
+        }
+    }
+
+    private static bool IsIconOnlyCopyButton(WpfUiButton button)
+        => button.Content is null
+            && string.Equals(button.ToolTip as string, "Copy", StringComparison.Ordinal)
+            && button.Icon is WpfUiSymbolIcon symbolIcon
+            && string.Equals(symbolIcon.Symbol.ToString(), "Copy24", StringComparison.Ordinal);
 
     private static TextBlock FindTextBlock(IEnumerable<DependencyObject> descendants, string text)
         => descendants.OfType<TextBlock>()

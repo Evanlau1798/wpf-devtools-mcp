@@ -14,4 +14,12 @@ public sealed class ComposerPreviewWpfUiCompatibilityTests
         UiPreviewProjectStubs.WpfUi.Should().Contain("StubVisuals.Add(Children, ContentOverlay)");
         UiPreviewProjectStubs.WpfUi.Should().NotContain("public class NavigationView : ItemsControl");
     }
+
+    [Fact]
+    public void WpfUiPreviewStubs_ShouldExposeImageIconForTitleBar()
+    {
+        UiPreviewProjectStubs.WpfUi.Should().Contain("public class ImageIcon : System.Windows.Controls.Image");
+        UiPreviewProjectStubs.WpfUi.Should().Contain("public class TitleBar : Control");
+        UiPreviewProjectStubs.WpfUi.Should().Contain("public object? Icon");
+    }
 }

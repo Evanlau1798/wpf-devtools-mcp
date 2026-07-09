@@ -49,7 +49,8 @@ public sealed class ComposerPreviewRecipeRuntimeTests
         AssertPayloadContains(summary, "WPF UI NavigationView.");
         AssertPayloadContains(summary, "All Controls");
         AssertPayloadContains(summary, "Pane Header");
-        AssertPayloadContains(summary, "Copy");
+        AssertPayloadContains(summary, "IsBackButtonVisible");
+        AssertPayloadContains(summary, "WPF UI Fluent NavigationView.");
         GetDiagnosticPayload(diagnostics, "get_layout_info").ValueKind.Should().Be(JsonValueKind.Object);
     }
 

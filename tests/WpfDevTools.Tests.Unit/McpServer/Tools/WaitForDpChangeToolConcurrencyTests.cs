@@ -166,7 +166,6 @@ public sealed class WaitForDpChangeToolConcurrencyTests
             {
                 processId,
                 propertyName = "Text",
-                timeoutMs = 1000,
                 pollIntervalMs = 50,
                 triggerMutation = new
                 {

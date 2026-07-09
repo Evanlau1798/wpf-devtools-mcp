@@ -2,24 +2,28 @@ using FluentAssertions;
 using System.Reflection;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Preview;
+using WpfDevTools.Mcp.Server.Composer.Rendering;
 using WpfDevTools.Tests.Unit.TestSupport;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
 public sealed class ComposerPreviewDiagnosticSourceTests
 {
+    private const int GeneratedXamlLineOffset = 2;
+    private const int GeneratedXamlColumnOffset = 4;
+
     [Fact]
     public void PreviewBlueprint_ShouldMapCompileFailureToNestedRendererSource()
     {
         var projectRoot = CreateTempProjectWithBrokenPreviewPack();
         try
         {
-            var service = new UiBlueprintPreviewService(CreateRegistry(projectRoot));
+            var diagnostics = CreateCompilerPositionDiagnostics(
+                projectRoot,
+                Blueprint("compilemap.host", "compilemap.badChild"),
+                "$.layout.slots.content[0]");
 
-            var result = service.Preview(new PreviewBlueprintRequest(Blueprint("compilemap.host", "compilemap.badChild"), RestoreEnabled: true));
-
-            result.BuildSucceeded.Should().BeFalse(result.BuildOutput);
-            result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "XamlCompileFailed"
+            diagnostics.Should().Contain(diagnostic => diagnostic.Code == "XamlCompileFailed"
                 && diagnostic.JsonPath == "$.layout.slots.content[0]"
                 && diagnostic.RendererTemplatePath.EndsWith("badChild.xaml.sbn", StringComparison.Ordinal));
         }
@@ -35,12 +39,12 @@ public sealed class ComposerPreviewDiagnosticSourceTests
         var projectRoot = CreateTempProjectWithBrokenPreviewPack();
         try
         {
-            var service = new UiBlueprintPreviewService(CreateRegistry(projectRoot));
+            var diagnostics = CreateCompilerPositionDiagnostics(
+                projectRoot,
+                Blueprint("compilemap.brokenHost", "compilemap.goodChild"),
+                "$.layout");
 
-            var result = service.Preview(new PreviewBlueprintRequest(Blueprint("compilemap.brokenHost", "compilemap.goodChild"), RestoreEnabled: true));
-
-            result.BuildSucceeded.Should().BeFalse(result.BuildOutput);
-            result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "XamlCompileFailed"
+            diagnostics.Should().Contain(diagnostic => diagnostic.Code == "XamlCompileFailed"
                 && diagnostic.JsonPath == "$.layout"
                 && diagnostic.RendererTemplatePath.EndsWith("brokenHost.xaml.sbn", StringComparison.Ordinal));
         }
@@ -80,6 +84,38 @@ public sealed class ComposerPreviewDiagnosticSourceTests
             ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),
             ComposerPackPaths.ProjectLocalRoot(projectRoot),
             null);
+
+    private static IReadOnlyList<PreviewDiagnostic> CreateCompilerPositionDiagnostics(
+        string projectRoot,
+        string blueprintJson,
+        string jsonPath)
+    {
+        var render = new UiBlueprintRenderer(CreateRegistry(projectRoot))
+            .Render(new RenderBlueprintRequest(blueprintJson));
+        render.Valid.Should().BeTrue();
+        var source = render.SourceMap.Should()
+            .ContainSingle(entry => entry.JsonPath == jsonPath)
+            .Subject;
+        var buildOutput =
+            $"MainWindow.xaml({source.StartLine + GeneratedXamlLineOffset},{source.StartColumn + GeneratedXamlColumnOffset}): error MC3000: simulated compiler error";
+
+        return InvokeCreateDiagnostics(
+            buildSucceeded: false,
+            buildOutput,
+            rendererTemplatePath: "<fallback-renderer.xaml.sbn>",
+            render.SourceMap,
+            render.Xaml);
+    }
+
+    private static IReadOnlyList<PreviewDiagnostic> InvokeCreateDiagnostics(
+        bool buildSucceeded,
+        string buildOutput,
+        string rendererTemplatePath,
+        IReadOnlyList<RenderSourceMapEntry> sourceMap,
+        string xaml)
+        => (IReadOnlyList<PreviewDiagnostic>)typeof(UiBlueprintPreviewService)
+            .GetMethod("CreateDiagnostics", BindingFlags.Static | BindingFlags.NonPublic)!
+            .Invoke(null, [buildSucceeded, buildOutput, rendererTemplatePath, sourceMap, xaml])!;
 
     private static string Blueprint(string hostKind, string childKind)
         => $$"""

@@ -10,6 +10,7 @@ internal static class UiPreviewProjectStubs
         using System.Windows;
         using System.Windows.Controls;
         using System.Windows.Markup;
+        using System.Windows.Media;
 
         [assembly: XmlnsDefinition("http://schemas.lepo.co/wpfui/2022/xaml", "Wpf.Ui.Controls")]
 
@@ -32,6 +33,16 @@ internal static class UiPreviewProjectStubs
                 get => (string?)GetValue(AppearanceProperty);
                 set => SetValue(AppearanceProperty, value);
             }
+
+            public Button()
+            {
+                HorizontalAlignment = HorizontalAlignment.Left;
+                Padding = new Thickness(14, 8, 14, 8);
+                Margin = new Thickness(0, 10, 0, 0);
+                Background = StubVisuals.Brush(218, 112, 214);
+                Foreground = StubVisuals.Brush(24, 20, 27);
+                BorderThickness = new Thickness(0);
+            }
         }
 
         public class SymbolIcon : System.Windows.Controls.TextBlock
@@ -46,6 +57,12 @@ internal static class UiPreviewProjectStubs
 
             private static void OnSymbolChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
                 => ((SymbolIcon)d).Text = e.NewValue as string;
+
+            public SymbolIcon()
+            {
+                Foreground = StubVisuals.Brush(232, 228, 235);
+                Margin = new Thickness(0, 0, 8, 0);
+            }
         }
 
         public class ImageIcon : System.Windows.Controls.Image
@@ -61,6 +78,13 @@ internal static class UiPreviewProjectStubs
                 get => (string?)GetValue(AppearanceProperty);
                 set => SetValue(AppearanceProperty, value);
             }
+
+            public TextBlock()
+            {
+                Foreground = StubVisuals.Brush(232, 228, 235);
+                TextWrapping = TextWrapping.Wrap;
+                Margin = new Thickness(0, 2, 0, 2);
+            }
         }
 
         public class AutoSuggestBox : System.Windows.Controls.TextBox
@@ -71,6 +95,16 @@ internal static class UiPreviewProjectStubs
             {
                 get => (string?)GetValue(PlaceholderTextProperty);
                 set => SetValue(PlaceholderTextProperty, value);
+            }
+
+            public AutoSuggestBox()
+            {
+                Height = 36;
+                Margin = new Thickness(0, 0, 0, 10);
+                Padding = new Thickness(10, 6, 10, 6);
+                Background = StubVisuals.Brush(53, 42, 58);
+                Foreground = StubVisuals.Brush(232, 228, 235);
+                BorderBrush = StubVisuals.Brush(84, 69, 91);
             }
 
             private static void OnPlaceholderTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -86,15 +120,19 @@ internal static class UiPreviewProjectStubs
         public class Card : StackPanel
         {
             public static readonly DependencyProperty FooterProperty = DependencyProperty.Register(
-                nameof(Footer), typeof(object), typeof(Card), new PropertyMetadata(null, OnFooterChanged));
+                nameof(Footer), typeof(object), typeof(Card));
             public object? Footer
             {
                 get => GetValue(FooterProperty);
                 set => SetValue(FooterProperty, value);
             }
 
-            private static void OnFooterChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-                => StubVisuals.Add(((Card)d).Children, e.NewValue);
+            public Card()
+            {
+                Margin = new Thickness(16);
+                Background = StubVisuals.Brush(48, 56, 65);
+                Loaded += (_, _) => StubVisuals.Add(Children, Footer);
+            }
         }
 
         public class NavigationView : StackPanel
@@ -167,7 +205,8 @@ internal static class UiPreviewProjectStubs
 
             public NavigationView()
             {
-                Orientation = Orientation.Horizontal;
+                Orientation = Orientation.Vertical;
+                Background = Brushes.Transparent;
                 MenuItems.CollectionChanged += OnCollectionChanged;
                 FooterMenuItems.CollectionChanged += OnCollectionChanged;
             }
@@ -210,7 +249,7 @@ internal static class UiPreviewProjectStubs
             public static readonly DependencyProperty IconProperty = DependencyProperty.Register(
                 nameof(Icon), typeof(object), typeof(NavigationViewItem));
             public static readonly DependencyProperty IsActiveProperty = DependencyProperty.Register(
-                nameof(IsActive), typeof(bool), typeof(NavigationViewItem));
+                nameof(IsActive), typeof(bool), typeof(NavigationViewItem), new PropertyMetadata(false, OnIsActiveChanged));
             public static readonly DependencyProperty IsExpandedProperty = DependencyProperty.Register(
                 nameof(IsExpanded), typeof(bool), typeof(NavigationViewItem));
             public static readonly DependencyProperty TargetPageTagProperty = DependencyProperty.Register(
@@ -240,6 +279,22 @@ internal static class UiPreviewProjectStubs
                 get => (string?)GetValue(TargetPageTagProperty);
                 set => SetValue(TargetPageTagProperty, value);
             }
+
+            public NavigationViewItem()
+            {
+                HorizontalContentAlignment = HorizontalAlignment.Left;
+                HorizontalAlignment = HorizontalAlignment.Stretch;
+                Padding = new Thickness(12, 8, 12, 8);
+                Margin = new Thickness(0, 2, 0, 2);
+                Foreground = StubVisuals.Brush(232, 228, 235);
+                Background = Brushes.Transparent;
+                BorderThickness = new Thickness(0);
+            }
+
+            private static void OnIsActiveChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+                => ((NavigationViewItem)d).Background = (bool)e.NewValue
+                    ? StubVisuals.Brush(57, 44, 62)
+                    : Brushes.Transparent;
         }
 
         public class NavigationViewItemSeparator : Separator;
@@ -264,17 +319,45 @@ internal static class UiPreviewProjectStubs
             public double Timeout { get; set; }
         }
 
-        public class TitleBar : Control
+        public class TitleBar : Border
         {
             public static readonly DependencyProperty IconProperty = DependencyProperty.Register(
-                nameof(Icon), typeof(object), typeof(TitleBar));
+                nameof(Icon), typeof(object), typeof(TitleBar), new PropertyMetadata(null, OnVisualChanged));
+            public static readonly DependencyProperty TitleProperty = DependencyProperty.Register(
+                nameof(Title), typeof(string), typeof(TitleBar), new PropertyMetadata(null, OnVisualChanged));
             public object? Icon
             {
                 get => GetValue(IconProperty);
                 set => SetValue(IconProperty, value);
             }
 
-            public string? Title { get; set; }
+            public string? Title
+            {
+                get => (string?)GetValue(TitleProperty);
+                set => SetValue(TitleProperty, value);
+            }
+
+            public TitleBar()
+            {
+                Background = StubVisuals.Brush(29, 29, 29);
+                Padding = new Thickness(24, 0, 24, 0);
+            }
+
+            private static void OnVisualChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+                => ((TitleBar)d).Rebuild();
+
+            private void Rebuild()
+            {
+                var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                StubVisuals.Add(content.Children, Icon);
+                content.Children.Add(new System.Windows.Controls.TextBlock
+                {
+                    Text = Title,
+                    Foreground = StubVisuals.Brush(242, 242, 242),
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                Child = content;
+            }
         }
 
         public class FluentWindow : Window
@@ -286,6 +369,12 @@ internal static class UiPreviewProjectStubs
                 get => GetValue(TitleBarProperty);
                 set => SetValue(TitleBarProperty, value);
             }
+
+            public FluentWindow()
+            {
+                Background = StubVisuals.Brush(37, 43, 51);
+                Foreground = StubVisuals.Brush(232, 228, 235);
+            }
         }
 
         public class DataGrid : ItemsControl
@@ -295,6 +384,9 @@ internal static class UiPreviewProjectStubs
 
         internal static class StubVisuals
         {
+            public static SolidColorBrush Brush(byte red, byte green, byte blue)
+                => new(Color.FromRgb(red, green, blue));
+
             public static void Add(UIElementCollection children, object? value)
             {
                 if (value is UIElement element)

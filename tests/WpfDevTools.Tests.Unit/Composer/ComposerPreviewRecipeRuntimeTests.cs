@@ -1,10 +1,14 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using FluentAssertions;
+using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Preview;
+using WpfDevTools.Mcp.Server.McpResources;
 using WpfDevTools.Shared.Security;
 using WpfDevTools.Tests.Unit.TestSupport;
 
@@ -19,6 +23,7 @@ public sealed class ComposerPreviewRecipeRuntimeTests
     public async Task PreviewBlueprintAsync_WhenShellRecipeExpandedWithRuntimeDiagnostics_ShouldLoadGeneratedView()
     {
         using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");
+        using var screenshots = new EnvironmentVariableScope(McpServerConfiguration.AllowScreenshotsEnvVar, "true");
         using var session = SecurePreviewSession.Create();
         var registry = PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
         var recipe = new RecipeExpansionService(registry)
@@ -31,7 +36,9 @@ public sealed class ComposerPreviewRecipeRuntimeTests
                 JsonSerializer.Serialize(recipe.Blueprint, JsonOptions),
                 RestoreEnabled: true,
                 StartHost: true,
-                IncludeRuntimeDiagnostics: true),
+                IncludeRuntimeDiagnostics: true,
+                IncludeScreenshotDiagnostics: true,
+                ScreenshotOutputMode: "file"),
             timeout.Token);
 
         result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
@@ -50,6 +57,11 @@ public sealed class ComposerPreviewRecipeRuntimeTests
         AssertPayloadContains(summary, "Overview");
         AssertPayloadContains(summary, "Open workspace");
         GetDiagnosticPayload(diagnostics, "get_layout_info").ValueKind.Should().Be(JsonValueKind.Object);
+        var screenshot = GetDiagnosticPayload(diagnostics, "element_screenshot");
+        var screenshotId = screenshot.GetProperty("screenshotId").GetString();
+        var resource = ScreenshotResources.GetScreenshotPng(session.SessionManager, screenshotId!);
+        var whitePixelRatio = GetWhitePixelRatio(resource.Should().BeOfType<BlobResourceContents>().Subject.DecodedData.ToArray());
+        whitePixelRatio.Should().BeLessThan(0.03, "the structural preview should not expose unstyled white title and navigation regions");
     }
 
     private static JsonElement GetDiagnosticPayload(IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics, string tool)
@@ -60,6 +72,25 @@ public sealed class ComposerPreviewRecipeRuntimeTests
 
     private static void AssertPayloadContains(JsonElement payload, string expected)
         => payload.GetRawText().Should().Contain(expected);
+
+    private static double GetWhitePixelRatio(byte[] png)
+    {
+        using var stream = new MemoryStream(png);
+        var frame = new PngBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+        var bitmap = new FormatConvertedBitmap(frame, PixelFormats.Bgra32, null, 0);
+        var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
+        bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0);
+        var whitePixels = 0;
+        for (var index = 0; index < pixels.Length; index += 4)
+        {
+            if (pixels[index] >= 245 && pixels[index + 1] >= 245 && pixels[index + 2] >= 245)
+            {
+                whitePixels++;
+            }
+        }
+
+        return (double)whitePixels / (pixels.Length / 4);
+    }
 
     private sealed class EnvironmentVariableScope : IDisposable
     {

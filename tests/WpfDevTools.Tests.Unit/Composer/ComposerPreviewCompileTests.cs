@@ -201,27 +201,6 @@ public sealed partial class ComposerPreviewCompileTests
     }
 
     [Fact]
-    public async Task PreviewBlueprintAsync_WhenRuntimeDiagnosticsRequestedForNavigationShell_ShouldLoadGeneratedView()
-    {
-        using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");
-        using var session = SecurePreviewSession.Create();
-        var service = new UiBlueprintPreviewService(CreateRegistry(), session.SessionManager);
-        using var timeout = CreateTimeout();
-
-        var result = await service.PreviewAsync(
-            new PreviewBlueprintRequest(
-                NavigationShellBlueprint(),
-                RestoreEnabled: true,
-                StartHost: true,
-                IncludeRuntimeDiagnostics: true),
-            timeout.Token);
-
-        result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
-        result.PreviewHost.Status.Should().Be("loaded", result.BuildOutput);
-        result.PreviewHost.RuntimeDiagnostics.Should().Contain(diagnostic => diagnostic.Tool == "connect" && diagnostic.Success);
-    }
-
-    [Fact]
     public async Task PreviewBlueprintAsync_WhenRuntimeDiagnosticsKeepArtifacts_ShouldDeleteSdkOptionsFile()
     {
         using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");

@@ -243,6 +243,7 @@ public sealed class McpToolOutputSchemaTests
             "omittedNodeCount",
             "omittedInputCount",
             "omittedCommandCount",
+            "omittedFrameworkElementCount",
             "truncated",
             "truncationReasons",
             "payloadLimits");

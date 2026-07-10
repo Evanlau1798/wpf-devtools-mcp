@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Markup;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
@@ -241,10 +242,24 @@ public sealed class FormSummaryAnalyzerTests
     }
 
     [StaFact]
-    public void GetFormSummary_ShouldFilterFrameworkNoiseByDefault()
+    public void GetFormSummary_ShouldFilterFrameworkNoiseByDefaultAndRestoreItOnRequest()
     {
         var finder = new ElementFinder();
         var analyzer = new FormSummaryAnalyzer(finder);
+        var frameworkChrome = new ContentControl
+        {
+            Template = (ControlTemplate)XamlReader.Parse("""
+                <ControlTemplate
+                    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    TargetType="{x:Type ContentControl}">
+                    <StackPanel>
+                        <Button x:Name="PART_MinimizeButton" Content="Minimize" />
+                        <Button x:Name="ClearButton" Content="Clear" Visibility="Collapsed" Width="0" Height="0" />
+                    </StackPanel>
+                </ControlTemplate>
+                """)
+        };
         var form = new StackPanel
         {
             Name = "NoiseForm",
@@ -253,47 +268,38 @@ public sealed class FormSummaryAnalyzerTests
                 new TextBox { Name = "NameBox", Text = "Edge" },
                 new Button { Name = "SaveButton", Content = "Save", IsEnabled = true },
                 new RepeatButton { Name = "PART_LineUpButton" },
-                new RepeatButton()
+                new RepeatButton(),
+                frameworkChrome
             }
         };
-        var elementId = finder.GenerateElementId(form);
-
-        var result = JsonSerializer.SerializeToElement(analyzer.GetFormSummary(elementId));
-
-        result.GetProperty("success").GetBoolean().Should().BeTrue();
-        result.GetProperty("commands")
-            .EnumerateArray()
-            .Select(command => command.GetProperty("elementType").GetString())
-            .Should()
-            .NotContain("RepeatButton");
-    }
-
-    [StaFact]
-    public void GetFormSummary_WithIncludeFrameworkTrue_ShouldPreserveFrameworkNoise()
-    {
-        var finder = new ElementFinder();
-        var analyzer = new FormSummaryAnalyzer(finder);
-        var form = new StackPanel
+        var window = new Window
         {
-            Name = "NoiseForm",
-            Children =
-            {
-                new TextBox { Name = "NameBox", Text = "Edge" },
-                new Button { Name = "SaveButton", Content = "Save", IsEnabled = true },
-                new RepeatButton { Name = "PART_LineUpButton" },
-                new RepeatButton()
-            }
+            Content = form
         };
-        var elementId = finder.GenerateElementId(form);
 
-        var result = JsonSerializer.SerializeToElement(analyzer.GetFormSummary(elementId, includeFramework: true));
+        try
+        {
+            window.Show();
+            frameworkChrome.ApplyTemplate();
+            window.UpdateLayout();
+            var elementId = finder.GenerateElementId(form);
 
-        result.GetProperty("success").GetBoolean().Should().BeTrue();
-        result.GetProperty("commands")
-            .EnumerateArray()
-            .Select(command => command.GetProperty("elementType").GetString())
-            .Should()
-            .Contain("RepeatButton");
+            var filtered = JsonSerializer.SerializeToElement(analyzer.GetFormSummary(elementId));
+            var complete = JsonSerializer.SerializeToElement(analyzer.GetFormSummary(elementId, includeFramework: true));
+
+            filtered.GetProperty("commands")
+                .EnumerateArray()
+                .Select(command => command.GetProperty("elementName").GetString())
+                .Should()
+                .Equal("SaveButton");
+            filtered.GetProperty("omittedFrameworkElementCount").GetInt32().Should().Be(4);
+            complete.GetProperty("commands").GetArrayLength().Should().Be(5);
+            complete.GetProperty("omittedFrameworkElementCount").GetInt32().Should().Be(0);
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     [StaFact]

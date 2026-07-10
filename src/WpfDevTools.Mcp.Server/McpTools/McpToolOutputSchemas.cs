@@ -101,6 +101,7 @@ internal static partial class McpToolOutputSchemas
                 ["omittedNodeCount"] = Integer("Number of nodes omitted because a traversal budget was reached."),
                 ["omittedInputCount"] = Integer("Number of input controls omitted because an input budget was reached."),
                 ["omittedCommandCount"] = Integer("Number of command controls omitted because a command budget was reached."),
+                ["omittedFrameworkElementCount"] = Integer("Number of framework or template-owned input and command controls filtered because includeFramework was false."),
                 ["truncated"] = Boolean("Whether any form summary payload budget was reached."),
                 ["truncationReasons"] = ArrayOfString("Budget reason codes that caused truncation."),
                 ["payloadLimits"] = FormSummaryPayloadLimits(),

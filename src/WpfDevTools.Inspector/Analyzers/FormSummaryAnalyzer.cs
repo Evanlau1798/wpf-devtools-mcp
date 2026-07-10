@@ -49,6 +49,7 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
             var hasReadyPrimaryCommand = false;
             var hasReadyFallbackCommand = false;
             var hasPrimaryCommand = false;
+            var omittedFrameworkElementCount = 0;
             var visited = new HashSet<DependencyObject>(ReferenceEqualityComparer.Instance);
             var budget = new FormSummaryBudget();
 
@@ -62,8 +63,19 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
                 var includeElement = SceneSummaryElementHelpers.ShouldIncludeFormSummaryElement(
                     frameworkElement,
                     includeFramework);
+                var isInput = SceneSummaryElementHelpers.IsInputControl(frameworkElement);
+                var isCommand = frameworkElement is ButtonBase;
+                if (!includeElement)
+                {
+                    if (isInput || isCommand)
+                    {
+                        omittedFrameworkElementCount++;
+                    }
 
-                if (includeElement && SceneSummaryElementHelpers.IsInputControl(frameworkElement))
+                    return;
+                }
+
+                if (isInput)
                 {
                     if (!budget.TryTakeInput())
                     {
@@ -80,7 +92,7 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
                     validationErrorCount += inputSummary.ValidationErrorCount;
                 }
 
-                if (includeElement && frameworkElement is ButtonBase button)
+                if (isCommand && frameworkElement is ButtonBase button)
                 {
                     if (!budget.TryTakeCommand())
                     {
@@ -125,6 +137,7 @@ public sealed class FormSummaryAnalyzer : DispatcherAnalyzerBase
                 isCurrentlyVisible,
                 inputs,
                 commands,
+                omittedFrameworkElementCount,
                 traversalNodeCount = budget.TraversalNodeCount,
                 omittedNodeCount = budget.OmittedNodeCount,
                 omittedInputCount = budget.OmittedInputCount,

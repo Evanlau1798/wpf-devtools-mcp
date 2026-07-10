@@ -272,7 +272,7 @@ internal static class ResponseContractToolEntries
                 canonicalPayloadField = "result.structuredContent",
                 textFallbackField = "result.content[0].text",
                 contractResource = resourceUri,
-                topLevelFields = new[] { "success", "formScope", "scopeVisibility", "isCurrentlyVisible", "inputs", "commands", "traversalNodeCount", "omittedNodeCount", "omittedInputCount", "omittedCommandCount", "truncated", "truncationReasons", "payloadLimits", "summary" },
+                topLevelFields = new[] { "success", "formScope", "scopeVisibility", "isCurrentlyVisible", "inputs", "commands", "traversalNodeCount", "omittedNodeCount", "omittedInputCount", "omittedCommandCount", "omittedFrameworkElementCount", "truncated", "truncationReasons", "payloadLimits", "summary" },
                 nestedResponsePaths = new[] { "inputs[].elementId", "inputs[].elementName", "inputs[].currentValue", "inputs[].bindingPath", "inputs[].isEmpty", "commands[].elementId", "commands[].elementName", "commands[].text", "commands[].isPrimary", "commands[].isReady", "commands[].blockers", "payloadLimits.maxTraversalNodes", "payloadLimits.maxInputs", "payloadLimits.maxCommands", "payloadLimits.maxStringValueLength", "summary.totalInputs", "summary.emptyInputs", "summary.errorCount", "summary.validationSubmittable", "summary.interactionSubmittable", "summary.isSubmittable" },
                 requestParameters = new[]
                 {

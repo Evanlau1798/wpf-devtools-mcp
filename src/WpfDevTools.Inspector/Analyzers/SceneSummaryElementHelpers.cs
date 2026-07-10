@@ -288,12 +288,21 @@ internal static partial class SceneSummaryElementHelpers
 
     private static bool IsFrameworkNoiseFormElement(FrameworkElement element)
     {
-        if (!IsKnownFrameworkNoiseFormType(element))
+        if (IsKnownFrameworkNoiseFormType(element))
+        {
+            return !HasMeaningfulFormSignal(element);
+        }
+
+        if (element.TemplatedParent == null)
         {
             return false;
         }
 
-        return !HasMeaningfulFormSignal(element);
+        var elementName = GetElementName(element);
+        return elementName?.StartsWith("PART_", StringComparison.OrdinalIgnoreCase) == true
+            || element.Visibility != Visibility.Visible
+            || element.ActualWidth <= 0
+            || element.ActualHeight <= 0;
     }
 
     private static bool IsKnownFrameworkNoiseFormType(FrameworkElement element)

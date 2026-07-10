@@ -107,18 +107,44 @@ public sealed class McpToolsWrapperTests : IDisposable
             ("measure_element_render_time", () => PerformanceMcpTools.MeasureElementRenderTime(_sessionManager, processId: UnconnectedProcessId))
         };
 
+        using var aggregateScope = new AssertionScope();
         operations.Should().HaveCount(42);
         operations.Select(operation => operation.Name).Should().OnlyHaveUniqueItems();
 
         foreach (var operation in operations)
         {
-            var result = await operation.Execute();
             using var scope = new AssertionScope(operation.Name);
+            CallToolResult? result;
+            try
+            {
+                result = await operation.Execute();
+            }
+            catch (Exception exception)
+            {
+                false.Should().BeTrue(
+                    "wrapper {0} should not throw {1}: {2}",
+                    operation.Name,
+                    exception.GetType().Name,
+                    exception.Message);
+                continue;
+            }
+
             result.Should().NotBeNull();
+            if (result is null)
+            {
+                continue;
+            }
+
             result.IsError.Should().BeTrue();
             result.Content.Should().NotBeEmpty();
-            var textBlock = result.Content[0].Should().BeOfType<TextContentBlock>().Subject;
-            textBlock.Text.Should().Contain("error");
+            if (result.Content.Count == 0)
+            {
+                continue;
+            }
+
+            var textBlock = result.Content[0] as TextContentBlock;
+            textBlock.Should().NotBeNull();
+            textBlock?.Text.Should().Contain("error");
         }
     }
 }

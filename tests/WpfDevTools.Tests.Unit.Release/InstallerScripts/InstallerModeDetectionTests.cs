@@ -7,6 +7,43 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class InstallerModeDetectionTests
 {
     [Fact]
+    public void FullUninstallSummary_ShouldDescribeSinglePrereleaseAndMixedRemovals()
+    {
+        var actionsCore = OnlineInstallerScriptTestHarness.EscapePowerShellSingleQuotedString(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Actions.Core.ps1"));
+        var stateHelpers = OnlineInstallerScriptTestHarness.EscapePowerShellSingleQuotedString(
+            ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.State.Installation.ps1"));
+        var command = $$"""
+. '{{stateHelpers}}'
+. '{{actionsCore}}'
+$single = Get-InstallerFullUninstallResultSummary -RemovedInstallations @(
+    [ordered]@{ ResolvedVersion='1.0.0-beta.36'; InstallRoot='C:\single'; InstallBase='C:\single\x64' }
+)
+$mixed = Get-InstallerFullUninstallResultSummary -RemovedInstallations @(
+    [ordered]@{ ResolvedVersion='1.0.0'; InstallRoot='C:\stable'; InstallBase='C:\stable\x64' },
+    [ordered]@{ ResolvedVersion='1.0.0-beta.36'; InstallRoot='C:\preview'; InstallBase='C:\preview\x64' }
+)
+[ordered]@{ single=$single; mixed=$mixed } | ConvertTo-Json -Depth 5
+""";
+
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+        result.ExitCode.Should().Be(0, result.Stderr);
+        using var json = JsonDocument.Parse(result.Stdout);
+        var single = json.RootElement.GetProperty("single");
+        single.GetProperty("version").GetString().Should().Be("1.0.0-beta.36");
+        single.GetProperty("resolvedVersion").GetString().Should().Be("1.0.0-beta.36");
+        single.GetProperty("installRoot").GetString().Should().Be(@"C:\single");
+        single.GetProperty("releaseChannel").GetString().Should().Be("prerelease");
+
+        var mixed = json.RootElement.GetProperty("mixed");
+        mixed.GetProperty("version").GetString().Should().Be("multiple");
+        mixed.GetProperty("resolvedVersion").ValueKind.Should().Be(JsonValueKind.Null);
+        mixed.GetProperty("installRoot").ValueKind.Should().Be(JsonValueKind.Null);
+        mixed.GetProperty("releaseChannel").GetString().Should().Be("mixed");
+    }
+
+    [Fact]
     public void AddInstallerReleaseChannelToResult_WithOfflinePrereleaseResolvedVersion_ShouldReportPrerelease()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

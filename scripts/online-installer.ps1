@@ -373,7 +373,7 @@ function Get-SystemDefaultArchitecture {
 }
 
 $script:InstallerHelperManifestFileName = 'installer-helpers.manifest.json'
-$script:InstallerHelperManifestCacheKey = 'sha256:1b4fa94fa172ad534c587ea724b5da412cfd9cffcc0ca60ad1831be76b9470b0'
+$script:InstallerHelperManifestCacheKey = 'sha256:bb817c892d7e24df7802abbd1bbc68dc886e1364559d53360c610ce04165b950'
 $script:InstallerHelperSourcePaths = @(
     'scripts/installer/online-installer.release-assets.ps1'
     'scripts/installer/Installer.BootstrapUi.ps1'
@@ -2598,6 +2598,32 @@ function Get-StandaloneFullUninstallCleanupGuidance {
     return 'full-uninstall removes all detected registrations, generated client-registration artifacts, and installer-owned server locations. Persisted auth secrets and certificate stores remain manual cleanup items.'
 }
 
+function Get-StandaloneFullUninstallResultSummary {
+    param(
+        [object[]]$RemovedInstallations,
+        [string]$RequestedVersion = 'latest'
+    )
+
+    $versions = @($RemovedInstallations |
+        ForEach-Object { Get-StandaloneRecordStringValue -Record $_ -PropertyNames @('ResolvedVersion', 'resolvedVersion') } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+    $installRoots = @($RemovedInstallations |
+        ForEach-Object { Get-StandaloneRecordStringValue -Record $_ -PropertyNames @('InstallRoot', 'installRoot') } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+    $releaseChannels = @($versions |
+        ForEach-Object { if ($_ -match '-') { 'prerelease' } else { 'stable' } } |
+        Sort-Object -Unique)
+
+    return [ordered]@{
+        version = if ($versions.Count -eq 1) { $versions[0] } elseif ($versions.Count -gt 1) { 'multiple' } else { $RequestedVersion }
+        resolvedVersion = if ($versions.Count -eq 1) { $versions[0] } else { $null }
+        installRoot = if ($installRoots.Count -eq 1) { $installRoots[0] } else { $null }
+        releaseChannel = if ($releaseChannels.Count -eq 1) { $releaseChannels[0] } elseif ($releaseChannels.Count -gt 1) { 'mixed' } else { $null }
+    }
+}
+
 function Invoke-StandaloneInstallerActionCore {
     param(
         [Parameter(Mandatory)] [ValidateSet('uninstall', 'full-uninstall')] [string]$ResolvedAction,
@@ -2790,18 +2816,19 @@ function Invoke-StandaloneInstallerActionCore {
                 Remove-PathIfExists -Path ([string]$backup.RollbackPath)
             }
             $removedInstallRoots = @(Remove-StandaloneInstallerOwnedEmptyInstallRoots -Installations $removedInstallations)
+            $summary = Get-StandaloneFullUninstallResultSummary -RemovedInstallations $removedInstallations -RequestedVersion $RequestedVersion
 
             return [ordered]@{
                 action = 'full-uninstall'
                 mode = 'offline'
                 downloadSource = 'none'
-                version = $RequestedVersion
-                resolvedVersion = $null
+                version = $summary.version
+                resolvedVersion = $summary.resolvedVersion
                 architecture = 'all'
                 client = 'all'
                 packageAssetName = $null
                 downloadUri = $null
-                installRoot = $null
+                installRoot = $summary.installRoot
                 installedExecutable = $null
                 selectedClients = @()
                 statePath = $statePath
@@ -2812,6 +2839,7 @@ function Invoke-StandaloneInstallerActionCore {
                 cleanupScope = 'registrations-and-installer-owned-server-locations'
                 cleanupGuidance = Get-StandaloneFullUninstallCleanupGuidance
                 verificationMessage = "Verified removal of $($registrationOperations.Count) registration(s) and $($removedInstallations.Count) installer-owned server location(s)."
+                releaseChannel = $summary.releaseChannel
             }
         }
         catch {
@@ -4963,6 +4991,11 @@ function Add-InstallerReleaseChannelToResult {
 }
 function Resolve-InstallerResultReleaseChannel {
     param($Result)
+
+    $reportedReleaseChannel = Get-InstallerResultStringValue -Result $Result -PropertyName 'releaseChannel'
+    if ($reportedReleaseChannel -in @('stable', 'prerelease', 'mixed')) {
+        return $reportedReleaseChannel
+    }
 
     $releaseChannel = Get-InstallerReleaseChannel
     if ($releaseChannel -eq 'prerelease') {

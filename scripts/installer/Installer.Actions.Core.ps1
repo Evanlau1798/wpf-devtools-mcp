@@ -23,6 +23,32 @@ function Get-InstallerFullUninstallCleanupGuidance {
     return 'full-uninstall removes all detected registrations, generated client-registration artifacts, and installer-owned server locations. Persisted auth secrets and certificate stores remain manual cleanup items.'
 }
 
+function Get-InstallerFullUninstallResultSummary {
+    param(
+        [object[]]$RemovedInstallations,
+        [string]$RequestedVersion = 'latest'
+    )
+
+    $versions = @($RemovedInstallations |
+        ForEach-Object { Get-InstallerRecordStringValueCore -Record $_ -PropertyNames @('ResolvedVersion', 'resolvedVersion') } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+    $installRoots = @($RemovedInstallations |
+        ForEach-Object { Get-InstallerRecordStringValueCore -Record $_ -PropertyNames @('InstallRoot', 'installRoot') } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+    $releaseChannels = @($versions |
+        ForEach-Object { if ($_ -match '-') { 'prerelease' } else { 'stable' } } |
+        Sort-Object -Unique)
+
+    return [ordered]@{
+        version = if ($versions.Count -eq 1) { $versions[0] } elseif ($versions.Count -gt 1) { 'multiple' } else { $RequestedVersion }
+        resolvedVersion = if ($versions.Count -eq 1) { $versions[0] } else { $null }
+        installRoot = if ($installRoots.Count -eq 1) { $installRoots[0] } else { $null }
+        releaseChannel = if ($releaseChannels.Count -eq 1) { $releaseChannels[0] } elseif ($releaseChannels.Count -gt 1) { 'mixed' } else { $null }
+    }
+}
+
 function Get-InstallerArchiveIntegrityValue {
     param(
         $Record,
@@ -102,17 +128,18 @@ function Invoke-InstallerActionCore {
     if ($ResolvedAction -eq 'full-uninstall') {
         $state = Get-InstallerState
         $result = Invoke-InstallerFullUninstallCore -State $state
+        $summary = Get-InstallerFullUninstallResultSummary -RemovedInstallations @($result.removedInstallations) -RequestedVersion $RequestedVersion
         return [ordered]@{
             action = 'full-uninstall'
             mode = 'offline'
             downloadSource = 'none'
-            version = $RequestedVersion
-            resolvedVersion = $null
+            version = $summary.version
+            resolvedVersion = $summary.resolvedVersion
             architecture = 'all'
             client = 'all'
             packageAssetName = $null
             downloadUri = $null
-            installRoot = $null
+            installRoot = $summary.installRoot
             installedExecutable = $null
             selectedClients = @()
             statePath = [string]$result.statePath
@@ -123,6 +150,7 @@ function Invoke-InstallerActionCore {
             cleanupScope = 'registrations-and-installer-owned-server-locations'
             cleanupGuidance = Get-InstallerFullUninstallCleanupGuidance
             verificationMessage = [string]$result.verificationMessage
+            releaseChannel = $summary.releaseChannel
         }
     }
 

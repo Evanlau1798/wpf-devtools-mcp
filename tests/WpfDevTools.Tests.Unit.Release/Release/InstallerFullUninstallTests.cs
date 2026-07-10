@@ -36,6 +36,10 @@ public sealed class InstallerFullUninstallTests
             File.ReadAllText(visualStudioConfigPath).Should().NotContain("wpf-devtools");
 
             using var json = JsonDocument.Parse(uninstall.Stdout);
+            json.RootElement.GetProperty("version").GetString().Should().Be("1.2.3");
+            json.RootElement.GetProperty("resolvedVersion").GetString().Should().Be("1.2.3");
+            json.RootElement.GetProperty("installRoot").GetString().Should().Be(installRoot);
+            json.RootElement.GetProperty("releaseChannel").GetString().Should().Be("stable");
             var statePath = json.RootElement.GetProperty("statePath").GetString();
             using var state = JsonDocument.Parse(File.ReadAllText(statePath!));
             state.RootElement.GetProperty("registrations").EnumerateObject().Should().BeEmpty();

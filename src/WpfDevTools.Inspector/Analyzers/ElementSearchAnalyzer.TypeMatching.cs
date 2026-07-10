@@ -6,11 +6,12 @@ public sealed partial class ElementSearchAnalyzer
         Type actualType,
         string? requestedType,
         string[]? requestedTypes,
+        string matchMode,
         string typeMatchMode)
     {
         if (!string.Equals(typeMatchMode, "assignable", StringComparison.OrdinalIgnoreCase))
         {
-            return MatchesString(actualType.Name, requestedType, requestedTypes, "exact");
+            return MatchesString(actualType.Name, requestedType, requestedTypes, matchMode);
         }
 
         var candidates = !string.IsNullOrWhiteSpace(requestedType)
@@ -21,10 +22,10 @@ public sealed partial class ElementSearchAnalyzer
             return true;
         }
 
-        return candidates.Any(candidate => MatchesAssignableType(actualType, candidate));
+        return candidates.Any(candidate => MatchesAssignableType(actualType, candidate, matchMode));
     }
 
-    private static bool MatchesAssignableType(Type actualType, string? requestedType)
+    private static bool MatchesAssignableType(Type actualType, string? requestedType, string matchMode)
     {
         if (string.IsNullOrWhiteSpace(requestedType))
         {
@@ -33,16 +34,16 @@ public sealed partial class ElementSearchAnalyzer
 
         for (var current = actualType; current is not null; current = current.BaseType)
         {
-            if (MatchesTypeName(current, requestedType))
+            if (MatchesTypeName(current, requestedType, matchMode))
             {
                 return true;
             }
         }
 
-        return actualType.GetInterfaces().Any(type => MatchesTypeName(type, requestedType));
+        return actualType.GetInterfaces().Any(type => MatchesTypeName(type, requestedType, matchMode));
     }
 
-    private static bool MatchesTypeName(Type actualType, string requestedType)
-        => string.Equals(actualType.Name, requestedType, StringComparison.Ordinal)
-           || string.Equals(actualType.FullName, requestedType, StringComparison.Ordinal);
+    private static bool MatchesTypeName(Type actualType, string requestedType, string matchMode)
+        => MatchesValue(actualType.Name, requestedType, matchMode)
+           || MatchesValue(actualType.FullName, requestedType, matchMode);
 }

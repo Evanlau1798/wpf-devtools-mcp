@@ -259,7 +259,7 @@ public sealed partial class ElementSearchAnalyzer : DispatcherAnalyzerBase
         matchedProperty = null;
         matchedValue = null;
 
-        if (!MatchesType(element.GetType(), typeName, typeNames, typeMatchMode))
+        if (!MatchesType(element.GetType(), typeName, typeNames, matchMode, typeMatchMode))
         {
             return false;
         }

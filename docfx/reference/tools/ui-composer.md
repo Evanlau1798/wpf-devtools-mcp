@@ -135,3 +135,60 @@ Request options:
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
 Non-dry-run writes require `confirmApply=true`, `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`, `WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`, and an exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match. A successful confirmed response preserves the executed file plan from the pre-write target state: a newly written file remains `action="create"`, while an existing file remains `action="update"` and reports its backup path. The tool rejects paths outside `projectRoot`, creates a backup when updating an existing view, includes a `WPFDEVTOOLS_BLUEPRINT_SOURCE` header, preserves `WPFDEVTOOLS_SAFE_SLOT` manual-edit markers, and does not run NuGet restore.
+
+## Apply-to-build workflow
+
+`apply_ui_blueprint` writes reviewed view XAML; it does not silently edit the project file, application resources, code-behind, ViewModel, or startup flow. Use the returned plans as the authoritative integration checklist:
+
+1. Run dry apply and review `filePlan`, `requiredNuGetPackages`, `resourcePlan`, `viewModelBindingContract`, and `behaviorIntegrationContract`.
+2. Run confirmed apply only after the project-root gates are scoped to the intended project.
+3. Add every package in `requiredNuGetPackages`. For a project without central package management:
+
+   ```xml
+   <PackageReference Include="WPF-UI" Version="4.3.0" />
+   ```
+
+   When `ManagePackageVersionsCentrally=true`, omit `Version` on the `PackageReference` and put it in `Directory.Packages.props`:
+
+   ```xml
+   <ItemGroup>
+     <PackageVersion Include="WPF-UI" Version="4.3.0" />
+   </ItemGroup>
+   ```
+
+4. Add the returned WPF UI dictionaries to `App.xaml` and declare the WPF UI namespace:
+
+   ```xml
+   <Application xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml" ...>
+     <Application.Resources>
+       <ResourceDictionary>
+         <ResourceDictionary.MergedDictionaries>
+           <ui:ThemesDictionary Theme="Dark" />
+           <ui:ControlsDictionary />
+         </ResourceDictionary.MergedDictionaries>
+       </ResourceDictionary>
+     </Application.Resources>
+   </Application>
+   ```
+
+5. If `filePlan` contains `role="code-behind-integration"`, make the generated XAML `x:Class` and its code-behind use the same base type:
+
+   ```csharp
+   public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
+   {
+       public MainWindow() => InitializeComponent();
+   }
+   ```
+
+6. Treat `behaviorIntegrationContract.status="required"` as a release gate. Implement every listed `commandPath` on the view DataContext. Navigation commands receive `commandParameter` and must update selected application state and destination content; action commands must perform observable application behavior and expose an appropriate `CanExecute` policy. The built-in navigation recipe uses `NavigateCommand` and `PrimaryActionCommand` by default. These are application contracts, not generated business logic.
+7. Restore, build, and launch the actual application separately:
+
+   ```powershell
+   dotnet restore .\YourApp.csproj
+   dotnet build .\YourApp.csproj --no-restore
+   dotnet run --project .\YourApp.csproj --no-build
+   ```
+
+8. Validate the running app, not only the structural preview. Use `connect`, `get_ui_summary`, focused element reads, and `element_screenshot(outputMode="file")`. Invoke every interaction from `behaviorIntegrationContract` and verify a state or visible content change. For any diagnostic mutation, use `capture_state_snapshot`, `get_state_diff`, and `restore_state_snapshot`.
+
+Do not approve a generated application merely because it compiles or because a button reports click-ready. A command-bound control remains incomplete until its DataContext command and observable result have been implemented and verified in the launched application.

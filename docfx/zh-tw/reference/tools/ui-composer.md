@@ -135,3 +135,60 @@ Request options:
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
 非 dry-run 寫入需要 `confirmApply=true`、`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，且 `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` 必須 exact match。成功的 confirmed response 會保留依照寫入前 target 狀態執行的 file plan：新寫入檔案仍為 `action="create"`，既有檔案仍為 `action="update"` 並回報 backup path。此 tool 會拒絕 `projectRoot` 外的路徑、更新既有 view 前建立 backup、加入 `WPFDEVTOOLS_BLUEPRINT_SOURCE` header、保留 `WPFDEVTOOLS_SAFE_SLOT` manual-edit markers，且不會執行 NuGet restore。
+
+## 從 apply 到可執行應用程式
+
+`apply_ui_blueprint` 只會寫入經審查的 view XAML；它不會暗中修改 project file、application resources、code-behind、ViewModel 或 startup flow。請把 response 內的 plans 當成 authoritative integration checklist：
+
+1. 先執行 dry apply，檢查 `filePlan`、`requiredNuGetPackages`、`resourcePlan`、`viewModelBindingContract` 與 `behaviorIntegrationContract`。
+2. 只有在 project-root gates 已精確限制到目標專案後，才執行 confirmed apply。
+3. 加入 `requiredNuGetPackages` 列出的所有 package。未使用 central package management 的專案可使用：
+
+   ```xml
+   <PackageReference Include="WPF-UI" Version="4.3.0" />
+   ```
+
+   若 `ManagePackageVersionsCentrally=true`，請移除 `PackageReference` 上的 `Version`，並在 `Directory.Packages.props` 設定：
+
+   ```xml
+   <ItemGroup>
+     <PackageVersion Include="WPF-UI" Version="4.3.0" />
+   </ItemGroup>
+   ```
+
+4. 在 `App.xaml` 宣告 WPF UI namespace，並加入 response 所列的 dictionaries：
+
+   ```xml
+   <Application xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml" ...>
+     <Application.Resources>
+       <ResourceDictionary>
+         <ResourceDictionary.MergedDictionaries>
+           <ui:ThemesDictionary Theme="Dark" />
+           <ui:ControlsDictionary />
+         </ResourceDictionary.MergedDictionaries>
+       </ResourceDictionary>
+     </Application.Resources>
+   </Application>
+   ```
+
+5. 若 `filePlan` 包含 `role="code-behind-integration"`，generated XAML 的 `x:Class` 與 code-behind 必須使用相同 base type：
+
+   ```csharp
+   public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
+   {
+       public MainWindow() => InitializeComponent();
+   }
+   ```
+
+6. 將 `behaviorIntegrationContract.status="required"` 視為 release gate。必須在 view DataContext 實作每個 `commandPath`。Navigation command 會收到 `commandParameter`，且必須更新 selected application state 與 destination content；action command 必須產生可觀察的應用程式行為，並提供合適的 `CanExecute` policy。Built-in navigation recipe 預設使用 `NavigateCommand` 與 `PrimaryActionCommand`。這些是 application contracts，不是自動生成的 business logic。
+7. 分開執行 restore、build 與實際 application launch：
+
+   ```powershell
+   dotnet restore .\YourApp.csproj
+   dotnet build .\YourApp.csproj --no-restore
+   dotnet run --project .\YourApp.csproj --no-build
+   ```
+
+8. 驗證實際執行中的 app，而不只檢查 structural preview。使用 `connect`、`get_ui_summary`、focused element reads 與 `element_screenshot(outputMode="file")`。逐一觸發 `behaviorIntegrationContract` 中的 interaction，確認 state 或 visible content 發生變化。任何 diagnostic mutation 都應搭配 `capture_state_snapshot`、`get_state_diff` 與 `restore_state_snapshot`。
+
+不要因為 generated application 可以 compile，或 button 顯示為 click-ready 就核准結果。Command-bound control 必須完成 DataContext command，且在 launched application 中驗證可觀察結果後，才算完整。

@@ -102,6 +102,31 @@ public sealed class ComposerPipelineContractTests
         zhTw.Should().Contain("以 `blueprintJson` 參數名稱傳入");
     }
 
+    [Fact]
+    public void UiComposerDocs_ShouldPublishCompleteApplyToRunningAppWorkflow()
+    {
+        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
+        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
+
+        english.Should().Contain("## Apply-to-build workflow");
+        english.Should().ContainAll(
+            "behaviorIntegrationContract",
+            "Directory.Packages.props",
+            "<ui:ThemesDictionary Theme=\"Dark\" />",
+            "Wpf.Ui.Controls.FluentWindow",
+            "dotnet build",
+            "capture_state_snapshot");
+
+        zhTw.Should().Contain("## 從 apply 到可執行應用程式");
+        zhTw.Should().ContainAll(
+            "behaviorIntegrationContract",
+            "Directory.Packages.props",
+            "<ui:ThemesDictionary Theme=\"Dark\" />",
+            "Wpf.Ui.Controls.FluentWindow",
+            "dotnet build",
+            "capture_state_snapshot");
+    }
+
     private static string GetWorkflowJob(string workflow, string name)
     {
         var start = workflow.IndexOf($"  {name}:", StringComparison.Ordinal);

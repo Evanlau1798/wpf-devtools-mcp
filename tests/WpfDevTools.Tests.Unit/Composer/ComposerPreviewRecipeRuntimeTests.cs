@@ -60,6 +60,7 @@ public sealed class ComposerPreviewRecipeRuntimeTests
             "all navigation items must remain real controls after collection rebuilds");
         GetDiagnosticPayload(diagnostics, "get_layout_info").ValueKind.Should().Be(JsonValueKind.Object);
         var screenshot = GetDiagnosticPayload(diagnostics, "element_screenshot");
+        screenshot.GetProperty("outputMode").GetString().Should().Be("file");
         var screenshotId = screenshot.GetProperty("screenshotId").GetString();
         var resourceRead = screenshot.GetProperty("resourceRead");
         resourceRead.GetProperty("method").GetString().Should().Be("resources/read");

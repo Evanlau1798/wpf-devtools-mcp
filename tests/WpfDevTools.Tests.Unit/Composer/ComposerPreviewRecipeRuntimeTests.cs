@@ -56,6 +56,8 @@ public sealed class ComposerPreviewRecipeRuntimeTests
         AssertPayloadContains(summary, "Settings");
         AssertPayloadContains(summary, "Overview");
         AssertPayloadContains(summary, "Open workspace");
+        CountStringProperty(summary, "elementType", "NavigationViewItem").Should().Be(5,
+            "all navigation items must remain real controls after collection rebuilds");
         GetDiagnosticPayload(diagnostics, "get_layout_info").ValueKind.Should().Be(JsonValueKind.Object);
         var screenshot = GetDiagnosticPayload(diagnostics, "element_screenshot");
         var screenshotId = screenshot.GetProperty("screenshotId").GetString();
@@ -72,6 +74,34 @@ public sealed class ComposerPreviewRecipeRuntimeTests
 
     private static void AssertPayloadContains(JsonElement payload, string expected)
         => payload.GetRawText().Should().Contain(expected);
+
+    private static int CountStringProperty(JsonElement element, string propertyName, string expected)
+    {
+        var count = 0;
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                if (property.NameEquals(propertyName)
+                    && property.Value.ValueKind == JsonValueKind.String
+                    && property.Value.GetString() == expected)
+                {
+                    count++;
+                }
+
+                count += CountStringProperty(property.Value, propertyName, expected);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                count += CountStringProperty(item, propertyName, expected);
+            }
+        }
+
+        return count;
+    }
 
     private static double GetWhitePixelRatio(byte[] png)
     {

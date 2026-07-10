@@ -395,6 +395,11 @@ internal static class UiPreviewProjectStubs
                     {
                         children.Add(element);
                     }
+                    catch (InvalidOperationException) when (LogicalTreeHelper.GetParent(element) is Panel parent)
+                    {
+                        parent.Children.Remove(element);
+                        children.Add(element);
+                    }
                     catch (InvalidOperationException)
                     {
                         AddText(children, value);

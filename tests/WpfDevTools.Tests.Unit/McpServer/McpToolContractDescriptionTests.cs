@@ -259,6 +259,17 @@ public sealed class McpToolContractDescriptionTests
         description.Should().Contain("connect(selectionStrategy='largest_working_set', windowFilter='all')");
     }
 
+    [Fact]
+    public void GetProcessesDescription_ShouldShowEveryWindowFilterExample()
+    {
+        var description = GetDescription(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses));
+
+        foreach (var value in new[] { "visible", "all", "foreground" })
+        {
+            description.Should().Contain($"\"windowFilter\": \"{value}\"");
+        }
+    }
+
     [Theory]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses))]
     [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect))]

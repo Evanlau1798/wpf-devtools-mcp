@@ -17,6 +17,8 @@ internal static class ProcessMcpToolDescriptions
         "EXAMPLES:\n" +
         "- { }\n" +
         "- { \"nameFilter\": \"TestApp\" }\n" +
+        "- { \"windowFilter\": \"visible\" }\n" +
+        "- { \"windowFilter\": \"all\" }\n" +
         "- { \"windowFilter\": \"foreground\" }";
 
     public const string SelectActiveProcess =

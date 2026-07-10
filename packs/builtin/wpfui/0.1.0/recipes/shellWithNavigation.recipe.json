@@ -2,7 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-recipe.v1",
   "id": "wpfui.shellWithNavigation",
   "displayName": "WPF UI Navigation Shell",
-  "description": "A customizable WPF UI shell with four navigation destinations and application-specific content.",
+  "description": "A customizable WPF UI shell with command-bound navigation destinations, a command-bound primary action, and application-specific content. Implement the returned behavior integration contract before treating the generated shell as functional.",
   "packId": "wpfui",
   "requiredPacks": [
     {
@@ -63,6 +63,16 @@
       "default": "Reports",
       "type": "string"
     },
+    "navigationCommand": {
+      "description": "Simple ICommand binding used by every navigation destination. The command receives the stable destination tag as its parameter.",
+      "default": "{Binding NavigateCommand}",
+      "type": "binding"
+    },
+    "primaryActionCommand": {
+      "description": "Simple ICommand binding used by the primary content action.",
+      "default": "{Binding PrimaryActionCommand}",
+      "type": "binding"
+    },
     "primaryActionText": {
       "description": "Visible label for the primary content action.",
       "default": "Open workspace",
@@ -99,6 +109,7 @@
                     {
                       "kind": "wpfui.button",
                       "properties": {
+                        "command": "{{primaryActionCommand}}",
                         "text": "{{primaryActionText}}"
                       }
                     }
@@ -133,6 +144,8 @@
               {
                 "kind": "wpfui.navigationViewItem",
                 "properties": {
+                  "command": "{{navigationCommand}}",
+                  "commandParameter": "settings",
                   "targetPageTag": "settings"
                 },
                 "slots": {
@@ -159,6 +172,8 @@
               {
                 "kind": "wpfui.navigationViewItem",
                 "properties": {
+                  "command": "{{navigationCommand}}",
+                  "commandParameter": "{{navigationItem1Tag}}",
                   "isActive": true,
                   "targetPageTag": "{{navigationItem1Tag}}"
                 },
@@ -184,6 +199,8 @@
               {
                 "kind": "wpfui.navigationViewItem",
                 "properties": {
+                  "command": "{{navigationCommand}}",
+                  "commandParameter": "{{navigationItem2Tag}}",
                   "targetPageTag": "{{navigationItem2Tag}}"
                 },
                 "slots": {
@@ -208,6 +225,8 @@
               {
                 "kind": "wpfui.navigationViewItem",
                 "properties": {
+                  "command": "{{navigationCommand}}",
+                  "commandParameter": "{{navigationItem3Tag}}",
                   "targetPageTag": "{{navigationItem3Tag}}"
                 },
                 "slots": {
@@ -232,6 +251,8 @@
               {
                 "kind": "wpfui.navigationViewItem",
                 "properties": {
+                  "command": "{{navigationCommand}}",
+                  "commandParameter": "{{navigationItem4Tag}}",
                   "targetPageTag": "{{navigationItem4Tag}}"
                 },
                 "slots": {

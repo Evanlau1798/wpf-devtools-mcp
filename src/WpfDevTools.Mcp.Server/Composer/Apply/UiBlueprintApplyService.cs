@@ -31,7 +31,8 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                 render.Errors.Select(ApplyBlueprintIssue.FromValidationIssue).ToArray());
         }
 
-        var viewModelContract = CreateViewModelContract(projectRoot, targetPath, render.RequiredNuGetPackages);
+        var behaviorContract = BehaviorIntegrationContractBuilder.Build(request.BlueprintJson);
+        var viewModelContract = CreateViewModelContract(projectRoot, targetPath, render.RequiredNuGetPackages, behaviorContract);
         var appliedXaml = AddProjectMainWindowClass(projectRoot, targetPath, render.Xaml);
         var codeBehindPath = GetProjectMainWindowCodeBehindPath(targetPath, appliedXaml);
 
@@ -54,6 +55,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                 render.RequiredResources,
                 render.RequiredNuGetPackages,
                 viewModelContract with { WouldWrite = false },
+                behaviorContract,
                 []);
         }
 
@@ -110,6 +112,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
             render.RequiredResources,
             render.RequiredNuGetPackages,
             viewModelContract with { WouldWrite = false },
+            behaviorContract,
             []);
     }
 
@@ -369,14 +372,31 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
     private static ViewModelBindingContractPlan CreateViewModelContract(
         string projectRoot,
         string targetPath,
-        IReadOnlyList<RequiredNuGetPackage> packages)
+        IReadOnlyList<RequiredNuGetPackage> packages,
+        BehaviorIntegrationContractPlan behaviorContract)
         => new(
             TargetPath: Path.Combine(projectRoot, "ViewModels", Path.GetFileNameWithoutExtension(targetPath) + ".Bindings.json"),
             Content: JsonSerializer.Serialize(new
             {
                 schemaVersion = "wpfdevtools.viewmodel-binding-contract.v1",
                 view = Path.GetFileName(targetPath),
-                requiredPackages = packages.Select(package => package.Id).ToArray()
+                requiredPackages = packages.Select(package => package.Id).ToArray(),
+                behaviorIntegration = new
+                {
+                    status = behaviorContract.Status,
+                    sourceRecipeId = behaviorContract.SourceRecipeId,
+                    interactions = behaviorContract.Interactions.Select(interaction => new
+                    {
+                        kind = interaction.Kind,
+                        commandPath = interaction.CommandPath,
+                        commandParameter = interaction.CommandParameter,
+                        targetPageTag = interaction.TargetPageTag,
+                        label = interaction.Label,
+                        implementationGuidance = interaction.ImplementationGuidance
+                    }),
+                    implementationGuidance = behaviorContract.ImplementationGuidance,
+                    verificationGuidance = behaviorContract.VerificationGuidance
+                }
             }),
             WouldWrite: false);
 

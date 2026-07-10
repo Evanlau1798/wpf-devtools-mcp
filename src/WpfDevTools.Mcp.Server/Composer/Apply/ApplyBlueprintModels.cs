@@ -20,6 +20,7 @@ internal sealed record ApplyBlueprintResult(
     IReadOnlyList<string> ResourcePlan,
     IReadOnlyList<RequiredNuGetPackage> RequiredNuGetPackages,
     ViewModelBindingContractPlan ViewModelBindingContract,
+    BehaviorIntegrationContractPlan BehaviorIntegrationContract,
     IReadOnlyList<ApplyBlueprintIssue> Errors)
 {
     public static ApplyBlueprintResult CreateValid(
@@ -31,14 +32,15 @@ internal sealed record ApplyBlueprintResult(
         IReadOnlyList<string> resourcePlan,
         IReadOnlyList<RequiredNuGetPackage> packages,
         ViewModelBindingContractPlan viewModelBindingContract,
+        BehaviorIntegrationContractPlan behaviorIntegrationContract,
         IReadOnlyList<ApplyBlueprintIssue> errors)
-        => new(true, true, dryRun, requiresConfirmation, wouldWriteFiles, xaml, filePlan, resourcePlan, packages, viewModelBindingContract, errors);
+        => new(true, true, dryRun, requiresConfirmation, wouldWriteFiles, xaml, filePlan, resourcePlan, packages, viewModelBindingContract, behaviorIntegrationContract, errors);
 
     public static ApplyBlueprintResult Invalid(
         bool dryRun,
         IReadOnlyList<ApplyBlueprintIssue> errors,
         bool requiresConfirmation = false)
-        => new(false, false, dryRun, requiresConfirmation, false, string.Empty, [], [], [], new ViewModelBindingContractPlan(string.Empty, string.Empty, false), errors);
+        => new(false, false, dryRun, requiresConfirmation, false, string.Empty, [], [], [], new ViewModelBindingContractPlan(string.Empty, string.Empty, false), BehaviorIntegrationContractPlan.Empty, errors);
 }
 
 internal sealed record ApplyFilePlanItem(
@@ -51,6 +53,29 @@ internal sealed record ApplyFilePlanItem(
     bool Reversible);
 
 internal sealed record ViewModelBindingContractPlan(string TargetPath, string Content, bool WouldWrite);
+
+internal sealed record BehaviorIntegrationContractPlan(
+    string Status,
+    string? SourceRecipeId,
+    IReadOnlyList<BehaviorInteractionPlan> Interactions,
+    string ImplementationGuidance,
+    string VerificationGuidance)
+{
+    public static readonly BehaviorIntegrationContractPlan Empty = new(
+        "not-available",
+        null,
+        [],
+        "Behavior integration is unavailable because the blueprint was invalid.",
+        "Correct the blueprint errors before validating application behavior.");
+}
+
+internal sealed record BehaviorInteractionPlan(
+    string Kind,
+    string CommandPath,
+    string? CommandParameter,
+    string? TargetPageTag,
+    string? Label,
+    string ImplementationGuidance);
 
 internal sealed record ApplyBlueprintIssue(string JsonPath, string Code, string Message, string RepairSuggestion)
 {

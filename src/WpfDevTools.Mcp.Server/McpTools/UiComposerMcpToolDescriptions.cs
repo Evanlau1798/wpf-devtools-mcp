@@ -169,7 +169,8 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this as a general filesystem writer. Non-dry-run writes require WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true, WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true, and an exact WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS match.
 
         RESPONSE SUMMARY:
-        - Dry-run is the default and returns filePlan entries with targetPath, action, riskLevel, resourcePlan, requiredNuGetPackages, and viewModelBindingContract without writing files.
+        - Dry-run is the default and returns filePlan entries with targetPath, action, riskLevel, resourcePlan, requiredNuGetPackages, viewModelBindingContract, and behaviorIntegrationContract without writing files.
+        - behaviorIntegrationContract lists every command-bound interaction, its command path and parameter, implementation guidance, and final-app verification guidance. Implement every required interaction before treating generated controls as functional.
         - Non-dry-run writes require confirmApply=true, persist generated XAML atomically, are restricted to project-root-relative targetPath under projectRoot, and create a backup when updating an existing view file.
         - A successful non-dry-run response returns the executed file plan using the pre-write target state: create remains create and update includes its backup path.
         - MainWindow.xaml outputs for WPF UI FluentWindow add x:Class and return a code-behind-integration filePlan entry when the code-behind base class must be reviewed separately.

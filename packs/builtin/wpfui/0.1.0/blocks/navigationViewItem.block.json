@@ -5,6 +5,16 @@
   "description": "Semantic WPF UI Navigation View Item block.",
   "category": "navigation",
   "properties": {
+    "command": {
+      "default": "{x:Null}",
+      "required": false,
+      "type": "binding"
+    },
+    "commandParameter": {
+      "default": "",
+      "required": false,
+      "type": "string"
+    },
     "isActive": {
       "default": false,
       "required": false,

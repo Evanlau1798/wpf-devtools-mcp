@@ -10,6 +10,11 @@
       "required": false,
       "type": "string"
     },
+    "command": {
+      "default": "{x:Null}",
+      "required": false,
+      "type": "binding"
+    },
     "text": {
       "default": "Button",
       "required": false,

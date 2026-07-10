@@ -19,6 +19,7 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
         var processId = previewProcess.Id;
         var diagnostics = new List<PreviewRuntimeDiagnostic>();
         var policy = McpToolExecutionPolicy.FromEnvironment();
+        PreviewRuntimeDiagnostic? screenshotDiagnostic = null;
 
         try
         {
@@ -53,7 +54,7 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
 
             if (includeScreenshotDiagnostics)
             {
-                diagnostics.Add(await RunGatedAsync(
+                screenshotDiagnostic = await RunGatedAsync(
                     policy,
                     "element_screenshot",
                     ct => new ElementScreenshotTool(sessionManager).ExecuteAsync(
@@ -61,18 +62,41 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                             ("processId", processId),
                             ("outputMode", screenshotOutputMode)),
                         ct),
-                    cancellationToken).ConfigureAwait(false));
+                    cancellationToken).ConfigureAwait(false);
+                diagnostics.Add(screenshotDiagnostic);
             }
 
             return diagnostics;
         }
         finally
         {
-            sessionManager.RemoveSession(
-                processId,
-                preserveScreenshotResources: includeScreenshotDiagnostics
-                                             && string.Equals(screenshotOutputMode, "file", StringComparison.OrdinalIgnoreCase));
+            var screenshotId = GetRegisteredFileScreenshotId(screenshotDiagnostic, screenshotOutputMode);
+            if (screenshotId is not null)
+            {
+                sessionManager.DetachScreenshotResource(processId, screenshotId);
+            }
+
+            sessionManager.RemoveSession(processId);
         }
+    }
+
+    private static string? GetRegisteredFileScreenshotId(
+        PreviewRuntimeDiagnostic? diagnostic,
+        string screenshotOutputMode)
+    {
+        if (!string.Equals(screenshotOutputMode, "file", StringComparison.OrdinalIgnoreCase)
+            || diagnostic is not { Success: true }
+            || !diagnostic.Payload.TryGetProperty("screenshotId", out var screenshotIdProperty)
+            || !diagnostic.Payload.TryGetProperty("resourceUri", out var resourceUriProperty))
+        {
+            return null;
+        }
+
+        var screenshotId = screenshotIdProperty.GetString();
+        return string.IsNullOrWhiteSpace(screenshotId)
+               || resourceUriProperty.GetString() != $"wpf://screenshots/{screenshotId}"
+            ? null
+            : screenshotId;
     }
 
     private static async Task<object> ConnectExistingPreviewHostAsync(

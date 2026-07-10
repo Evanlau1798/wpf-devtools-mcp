@@ -310,6 +310,8 @@ public sealed partial class SessionManager
             TryDeleteScreenshotFile(resource);
         }
 
+        TryDeleteUnreferencedScreenshotStorageRoot(resource.StorageRoot);
+
         return true;
     }
 
@@ -468,7 +470,7 @@ public sealed partial class SessionManager
 }
 
 internal sealed record StoredScreenshotResource(
-    int ProcessId,
+    int? ProcessId,
     string ScreenshotId,
     string ResourceUri,
     string FilePath,

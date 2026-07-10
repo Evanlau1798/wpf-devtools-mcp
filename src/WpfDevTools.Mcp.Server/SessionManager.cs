@@ -204,19 +204,13 @@ public sealed partial class SessionManager : IDisposable
     /// <param name="processId">Process ID of session to remove</param>
     public void RemoveSession(int processId)
     {
-        RemoveSessionCore(processId, expectedSessionGeneration: null, preserveScreenshotResources: false);
+        RemoveSessionCore(processId, expectedSessionGeneration: null);
     }
 
-    internal void RemoveSession(int processId, bool preserveScreenshotResources)
-        => RemoveSessionCore(processId, expectedSessionGeneration: null, preserveScreenshotResources);
-
     private bool RemoveSessionIfGenerationMatches(int processId, long expectedSessionGeneration) =>
-        RemoveSessionCore(processId, expectedSessionGeneration, preserveScreenshotResources: false);
+        RemoveSessionCore(processId, expectedSessionGeneration);
 
-    private bool RemoveSessionCore(
-        int processId,
-        long? expectedSessionGeneration,
-        bool preserveScreenshotResources)
+    private bool RemoveSessionCore(int processId, long? expectedSessionGeneration)
     {
         ThrowIfDisposed();
         NamedPipeClient? clientToDispose = null;
@@ -241,10 +235,7 @@ public sealed partial class SessionManager : IDisposable
             _stateSnapshots.Remove(processId);
             _pendingEventReplay.Remove(processId);
             replayLockToDispose = RemovePendingEventReplayLockForSessionLocked(processId);
-            if (!preserveScreenshotResources)
-            {
-                RemoveScreenshotResources(processId);
-            }
+            RemoveScreenshotResources(processId);
             _sessionGenerations.Remove(processId);
             _navigationStateStore.RemoveProcess(processId);
 
@@ -416,7 +407,10 @@ public sealed partial class SessionManager : IDisposable
                     TryDeleteScreenshotFile(screenshot);
                 }
 
-                foreach (var storageRoot in _screenshotStorageRoots.Values)
+                foreach (var storageRoot in _screenshotResources.Values
+                    .Select(resource => resource.StorageRoot)
+                    .Concat(_screenshotStorageRoots.Values)
+                    .Distinct(StringComparer.OrdinalIgnoreCase))
                 {
                     TryDeleteScreenshotDirectory(storageRoot);
                 }

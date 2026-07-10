@@ -8,7 +8,7 @@ using WpfDevTools.Mcp.Server.McpResources;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
-public sealed class ScreenshotResourceTests
+public sealed partial class ScreenshotResourceTests
 {
     [Fact]
     public void GetScreenshotPng_ShouldReturnRegisteredImageAsPngBlob()
@@ -275,6 +275,8 @@ public sealed class ScreenshotResourceTests
             tempDirectory.Path,
             processId: 12345,
             filePath: out filePath);
+        var storageRoot = Path.GetDirectoryName(filePath)!;
+        sessionManager.DetachScreenshotResource(12345, screenshotId).Should().BeTrue();
 
         now = now.Add(SessionManager.ScreenshotResourceRetentionWindow).AddTicks(1);
 
@@ -286,6 +288,8 @@ public sealed class ScreenshotResourceTests
             .WithMessage("*is not retained in this MCP session*");
         File.Exists(filePath).Should().BeFalse(
             "expired screenshot resources should remove their retained PNG file");
+        Directory.Exists(storageRoot).Should().BeFalse(
+            "an expired detached lease should remove its empty storage root");
         var counts = GetRetainedScreenshotResourceCounts(sessionManager);
         counts.Resources.Should().Be(0);
         counts.Order.Should().Be(0);
@@ -297,6 +301,7 @@ public sealed class ScreenshotResourceTests
         using var tempDirectory = new TemporaryDirectory();
         using var sessionManager = new SessionManager();
         string? firstPath = null;
+        string? firstStorageRoot = null;
 
         for (var index = 0; index <= SessionManager.RetainedScreenshotResourceLimit; index++)
         {
@@ -307,11 +312,15 @@ public sealed class ScreenshotResourceTests
                 processId: 12345,
                 out var filePath,
                 screenshotId);
+            sessionManager.DetachScreenshotResource(12345, screenshotId).Should().BeTrue();
             firstPath ??= filePath;
+            firstStorageRoot ??= Path.GetDirectoryName(filePath);
         }
 
         File.Exists(firstPath).Should().BeFalse(
             "evicted screenshot resources should not leave pixel files behind");
+        Directory.Exists(firstStorageRoot).Should().BeFalse(
+            "evicted detached leases should not leave empty storage roots behind");
         var counts = GetRetainedScreenshotResourceCounts(sessionManager);
         counts.Resources.Should().Be(SessionManager.RetainedScreenshotResourceLimit);
         counts.Order.Should().Be(SessionManager.RetainedScreenshotResourceLimit);

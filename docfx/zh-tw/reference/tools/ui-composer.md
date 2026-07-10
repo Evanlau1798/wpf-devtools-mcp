@@ -77,6 +77,8 @@ Response 包含 `valid`、`recipeId`、展開後的 `blueprint` 與 nested valid
 
 下一個 Composer call 前，請將 `blueprint` object 序列化為 JSON 文字；該 object 來自 `structuredContent`。請以 `blueprintJson` 參數名稱傳入，不要改用名為 `blueprint` 的參數；validation、render、preview、repair 與 apply 刻意共用相同的 JSON-string document shape。
 
+每個 Composer `blueprintJson` 參數最多接受 8,192 字元。請使用 compact serializer，避免 formatting whitespace 消耗此上限。PowerShell 請使用 `ConvertTo-Json -Compress`，例如 `$blueprint | ConvertTo-Json -Depth 10 -Compress`；其他 client 在序列化展開後的 object 時應停用 indentation。
+
 ## `render_ui_blueprint`
 
 對有效的 UI blueprint 執行 dry-run XAML rendering。請在 `validate_ui_blueprint` 或 `expand_ui_recipe` 後使用，以便在任何寫檔 apply workflow 前檢查 generated XAML、required package references 與 application resource setup。

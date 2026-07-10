@@ -10,11 +10,6 @@ using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
-/// <summary>
-/// Validates that the MCP tools are correctly registered with
-/// proper attributes, descriptions, and metadata via the SDK's
-/// [McpServerToolType] / [McpServerTool] attribute system.
-/// </summary>
 public class McpToolAttributeTests
 {
     private static readonly Assembly McpServerAssembly =
@@ -420,6 +415,9 @@ public class McpToolAttributeTests
         AssertEnumConstraint(screenshotSchema, "outputMode", "metadata", "file", "base64");
         AssertIntegerConstraint(screenshotSchema, "maxWidth", minimum: 1, maximum: int.MaxValue);
         AssertIntegerConstraint(screenshotSchema, "maxHeight", minimum: 1, maximum: int.MaxValue);
+        foreach (var methodName in new[] { nameof(UiComposerMcpTools.ValidateUiBlueprint), nameof(UiComposerMcpTools.RenderUiBlueprint),
+                     nameof(UiComposerMcpTools.RepairUiBlueprint), nameof(UiComposerMcpTools.ApplyUiBlueprint), nameof(UiComposerMcpTools.PreviewUiBlueprint) })
+            AssertStringMaxLength(CreateInputSchema(typeof(UiComposerMcpTools), methodName), "blueprintJson", 8192);
         var previewSchema = CreateInputSchema(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint));
         AssertEnumConstraint(previewSchema, "screenshotOutputMode", "metadata", "file");
     }

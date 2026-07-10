@@ -10,6 +10,7 @@ using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
@@ -67,6 +68,7 @@ public static class UiComposerMcpTools
     [McpServerTool(Name = "validate_ui_blueprint", Title = "Validate UI Composer Blueprint", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.ValidateUiBlueprint)]
     public static Task<CallToolResult> ValidateUiBlueprint(
+        [StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
         [Description("UI blueprint JSON text to validate against installed Composer pack contracts.")] string blueprintJson,
         [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
@@ -109,6 +111,7 @@ public static class UiComposerMcpTools
     [McpServerTool(Name = "render_ui_blueprint", Title = "Render UI Composer Blueprint Dry Run", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.RenderUiBlueprint)]
     public static Task<CallToolResult> RenderUiBlueprint(
+        [StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
         [Description("UI blueprint JSON text to render in dry-run mode.")] string blueprintJson,
         [Description("Optional target XAML file path suggestion. The renderer does not write this file.")] string? targetPath = null,
         [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
@@ -131,6 +134,7 @@ public static class UiComposerMcpTools
     [McpServerTool(Name = "repair_ui_blueprint", Title = "Repair UI Composer Blueprint", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.RepairUiBlueprint)]
     public static Task<CallToolResult> RepairUiBlueprint(
+        [StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
         [Description("UI blueprint JSON text to analyze for repair guidance.")] string blueprintJson,
         [Description("Optional preview, renderer, or compile diagnostics JSON object or array returned by preview_ui_blueprint or render_ui_blueprint.")] string? diagnosticsJson = null,
         [Description("Optional target XAML file path suggestion used only for render diagnostics. This tool does not write the file.")] string? targetPath = null,
@@ -155,6 +159,7 @@ public static class UiComposerMcpTools
     [McpServerTool(Name = "apply_ui_blueprint", Title = "Apply UI Composer Blueprint", OpenWorld = false, ReadOnly = false, Destructive = true, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.ApplyUiBlueprint)]
     public static Task<CallToolResult> ApplyUiBlueprint(
+        [StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
         [Description("UI blueprint JSON text to apply.")] string blueprintJson,
         [Description("Local WPF project root used for file planning and write allowlist checks.")] string projectRoot,
         [Description("Optional project-root-relative target XAML file path. Defaults to Views/<blueprint name>.xaml. Absolute paths are rejected.")] string? targetPath = null,
@@ -182,6 +187,7 @@ public static class UiComposerMcpTools
     [Description(UiComposerMcpToolDescriptions.PreviewUiBlueprint)]
     public static Task<CallToolResult> PreviewUiBlueprint(
         SessionManager sessionManager,
+        [StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
         [Description("UI blueprint JSON text to compile in a temporary preview project.")] string blueprintJson,
         [Description("When true, runs dotnet restore for the temporary preview project before build. When false, build runs with --no-restore and reports missing assets diagnostics.")] bool restoreEnabled = true,
         [Description("When true, starts the temporary preview host after a successful build, waits for its main window, then terminates it.")] bool startHost = false,

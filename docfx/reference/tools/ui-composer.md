@@ -77,6 +77,8 @@ The response includes `valid`, `recipeId`, the expanded `blueprint`, and the nes
 
 Serialize the `blueprint` object from `structuredContent` to JSON text before the next Composer call, then pass it under the `blueprintJson` parameter name. Do not pass the object under a parameter named `blueprint`; validation, render, preview, repair, and apply intentionally share the same JSON-string document shape.
 
+Every Composer `blueprintJson` parameter accepts at most 8,192 characters. Use a compact serializer so formatting whitespace does not consume that limit. In PowerShell, use `ConvertTo-Json -Compress`, for example `$blueprint | ConvertTo-Json -Depth 10 -Compress`; other clients should disable indentation when serializing the expanded object.
+
 ## `render_ui_blueprint`
 
 Runs a dry-run XAML render for a valid UI blueprint. Use it after `validate_ui_blueprint` or `expand_ui_recipe` to inspect generated XAML, required package references, and application resource setup before any file-writing apply workflow.

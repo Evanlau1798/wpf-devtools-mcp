@@ -93,6 +93,8 @@ public class TraceAuditLoggerTests
 
         try
         {
+            Trace.TraceWarning("Unrelated trace diagnostic");
+
             // Act - log from multiple threads
             var tasks = Enumerable.Range(0, 100)
                 .Select(i => Task.Run(() => logger.Log("Test", $"Message {i}", AuditSeverity.Information)))
@@ -100,8 +102,12 @@ public class TraceAuditLoggerTests
 
             await Task.WhenAll(tasks);
 
-            // Assert - all messages should be logged
-            listener.Messages.Should().HaveCount(100);
+            // Assert - all messages from this logger should be logged exactly once.
+            var expectedMessages = Enumerable.Range(0, 100)
+                .Select(i => $"[AUDIT:INFO] [Test] Message {i}");
+            listener.Messages
+                .Where(message => message.StartsWith("[AUDIT:INFO] [Test] Message ", StringComparison.Ordinal))
+                .Should().BeEquivalentTo(expectedMessages);
         }
         finally
         {

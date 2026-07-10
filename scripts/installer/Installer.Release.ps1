@@ -419,6 +419,7 @@ function Resolve-PackageSession {
             DownloadUri = [string]$integrity.DownloadUri
             PackageAssetName = [string]$integrity.PackageAssetName
             ResolvedVersion = [string]$integrity.ResolvedVersion
+            ArchiveIntegrity = $integrity
         }
     }
 
@@ -465,16 +466,15 @@ function Resolve-PackageSession {
         DownloadUri = if (-not [string]::IsNullOrWhiteSpace([string]$integrity.DownloadUri)) { [string]$integrity.DownloadUri } else { [string]$downloadDetails.DownloadUri }
         PackageAssetName = if (-not [string]::IsNullOrWhiteSpace([string]$integrity.PackageAssetName)) { [string]$integrity.PackageAssetName } else { [string]$downloadDetails.AssetName }
         ResolvedVersion = if (-not [string]::IsNullOrWhiteSpace([string]$integrity.ResolvedVersion)) { [string]$integrity.ResolvedVersion } else { [string]$downloadDetails.ResolvedVersion }
+        ArchiveIntegrity = $integrity
     }
 }
-
 function Get-OfflineVersionHint {
     param([Parameter(Mandatory)] [string]$Mode)
 
     if ($Mode -ne 'offline') {
         return $null
     }
-
     try {
         $localRoot = Resolve-LocalPackageRoot
         if ([string]::IsNullOrWhiteSpace($localRoot)) {

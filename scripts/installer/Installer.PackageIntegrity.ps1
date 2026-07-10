@@ -94,6 +94,9 @@ function Assert-ArchiveIntegrity {
             ResolvedVersion = if ($null -ne $finalIdentity) { [string]$finalIdentity.ResolvedVersion } else { $ResolvedVersion }
             ResolvedArchitecture = if ($null -ne $finalIdentity) { [string]$finalIdentity.ResolvedArchitecture } else { $ResolvedArchitecture }
             Sha256 = $archiveHash
+            ExpectedSha256 = [string]$releaseRecord.Sha256
+            ActualSha256 = $archiveHash
+            VerificationStatus = 'verified'
             TrustedSignerThumbprint = $null
             TrustedSignerSubject = $null
         }
@@ -107,6 +110,9 @@ function Assert-ArchiveIntegrity {
         ResolvedVersion = if ($null -ne $archiveIdentity) { [string]$archiveIdentity.ResolvedVersion } else { $ResolvedVersion }
         ResolvedArchitecture = if ($null -ne $archiveIdentity) { [string]$archiveIdentity.ResolvedArchitecture } else { $ResolvedArchitecture }
         Sha256 = $archiveHash
+        ExpectedSha256 = $null
+        ActualSha256 = $archiveHash
+        VerificationStatus = 'unverified'
         TrustedSignerThumbprint = $null
         TrustedSignerSubject = $null
     }

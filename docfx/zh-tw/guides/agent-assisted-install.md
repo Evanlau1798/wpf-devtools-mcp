@@ -99,6 +99,7 @@ Package-local fallback：
 - selected installer path：預設 online installer path 或已審查本機 package
 - 使用本機 sidecar 時的 release sidecar verification result
 - release trust mode checked
+- installer JSON 回傳的 `releaseTrust.signaturePolicy`，以及 `releaseTrust.archiveChecksum` status、metadata source、expected SHA-256 與 actual SHA-256
 - 是否仍需要 manual registration step
 
 不要回報 private keys、PFX passwords、GitHub secrets、auth secrets 或 certificate private-key material。

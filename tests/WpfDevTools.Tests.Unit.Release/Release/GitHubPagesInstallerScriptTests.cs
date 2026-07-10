@@ -184,6 +184,15 @@ public sealed partial class GitHubPagesInstallerScriptTests
             json.RootElement.GetProperty("architecture").GetString().Should().Be("x64");
             json.RootElement.GetProperty("packageAssetName").GetString().Should().Be("release_1.2.3_win-x64.zip");
             json.RootElement.GetProperty("downloadUri").GetString().Should().Contain("github.com/Evanlau1798/wpf-devtools-mcp/releases/download/v1.2.3/release_1.2.3_win-x64.zip");
+            var expectedSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(archivePath)))
+                .ToLowerInvariant();
+            var releaseTrust = json.RootElement.GetProperty("releaseTrust");
+            releaseTrust.GetProperty("signaturePolicy").GetString().Should().Be("DebugTrustedRootSkip");
+            var archiveChecksum = releaseTrust.GetProperty("archiveChecksum");
+            archiveChecksum.GetProperty("status").GetString().Should().Be("verified");
+            archiveChecksum.GetProperty("metadataSource").GetString().Should().Be("test-local-archive-sidecar");
+            archiveChecksum.GetProperty("expectedSha256").GetString().Should().Be(expectedSha256);
+            archiveChecksum.GetProperty("actualSha256").GetString().Should().Be(expectedSha256);
         }
         finally
         {

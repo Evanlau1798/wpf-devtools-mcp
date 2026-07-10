@@ -99,6 +99,7 @@ After installation, report:
 - selected installer path: default online installer path or reviewed local package
 - release sidecar verification result when local sidecars are used
 - release trust mode checked
+- `releaseTrust.signaturePolicy` and the `releaseTrust.archiveChecksum` status, metadata source, expected SHA-256, and actual SHA-256 returned by installer JSON
 - any manual registration step still required
 
 Do not report private keys, PFX passwords, GitHub secrets, auth secrets, or certificate private-key material.

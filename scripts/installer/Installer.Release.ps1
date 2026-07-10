@@ -441,9 +441,9 @@ function Resolve-PackageSession {
             DownloadUri = [string]$trustedLocalReleaseMetadata.DownloadUri
             PackageAssetName = [string]$trustedLocalReleaseMetadata.PackageAssetName
             ResolvedVersion = [string]$manifest.version
+            ArchiveIntegrity = [ordered]@{ VerificationStatus = 'not-applicable'; TrustedReleaseMetadataSource = $null; ExpectedSha256 = $null; ActualSha256 = $null }
         }
     }
-
     $downloadVersion = Resolve-RequestedReleaseVersion -RequestedVersion $ResolvedVersion
     $downloadDetails = Get-ReleaseAssetDownloadDetails -ResolvedVersion $downloadVersion -ResolvedArchitecture $ResolvedArchitecture
     New-Item -ItemType Directory -Force -Path $sessionRoot | Out-Null

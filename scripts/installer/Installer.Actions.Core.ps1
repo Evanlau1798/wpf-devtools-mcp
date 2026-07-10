@@ -265,6 +265,22 @@ function Invoke-InstallerActionCore {
         else {
             [string]$session.DownloadUri
         }
+        $archiveVerificationStatus = [string]$session.ArchiveIntegrity.VerificationStatus
+        if ([string]::IsNullOrWhiteSpace($archiveVerificationStatus)) {
+            $archiveVerificationStatus = if ([bool]$session.TrustedArchiveManifestPolicy) { 'verified' } else { 'not-applicable' }
+        }
+        $trustedReleaseMetadataSource = [string]$session.ArchiveIntegrity.TrustedReleaseMetadataSource
+        $expectedSha256 = [string]$session.ArchiveIntegrity.ExpectedSha256
+        $actualSha256 = [string]$session.ArchiveIntegrity.ActualSha256
+        $releaseTrust = [ordered]@{
+            signaturePolicy = [string]$packageManifest.signaturePolicy
+            archiveChecksum = [ordered]@{
+                status = $archiveVerificationStatus
+                metadataSource = if ([string]::IsNullOrWhiteSpace($trustedReleaseMetadataSource)) { $null } else { $trustedReleaseMetadataSource }
+                expectedSha256 = if ([string]::IsNullOrWhiteSpace($expectedSha256)) { $null } else { $expectedSha256 }
+                actualSha256 = if ([string]::IsNullOrWhiteSpace($actualSha256)) { $null } else { $actualSha256 }
+            }
+        }
 
         Write-InstallerActionProgress "[2/4] Installing payload into $ResolvedInstallRoot."
         $installResult = Install-PackagePayload `
@@ -290,16 +306,7 @@ function Invoke-InstallerActionCore {
         Update-InstallerStateAfterInstall -State $state -ResolvedInstallRoot $installResult.installRoot -ResolvedArchitecture $resolvedArchitecture -ResolvedVersion ([string]$verification.InstalledVersion) -InstalledExecutable $installResult.installedExecutable -SelectedClient $ResolvedClient -Registration $registrations[0] -LastVerifiedUtc ([string]$verification.LastVerifiedUtc)
         $statePath = Save-InstallerState -State $state
         $stateRestoreRequired = $true
-        Complete-InstalledPayloadCommit -InstallResult $installResult
-        $allowPayloadRollback = $false
-        $archiveVerificationStatus = [string]$session.ArchiveIntegrity.VerificationStatus
-        if ([string]::IsNullOrWhiteSpace($archiveVerificationStatus)) {
-            $archiveVerificationStatus = if ([bool]$session.TrustedArchiveManifestPolicy) { 'verified' } else { 'not-applicable' }
-        }
-        $trustedReleaseMetadataSource = [string]$session.ArchiveIntegrity.TrustedReleaseMetadataSource
-        $expectedSha256 = [string]$session.ArchiveIntegrity.ExpectedSha256
-        $actualSha256 = [string]$session.ArchiveIntegrity.ActualSha256
-        return [ordered]@{
+        $result = [ordered]@{
             action = 'install'
             mode = $mode
             downloadSource = [string]$session.DownloadSource
@@ -317,16 +324,11 @@ function Invoke-InstallerActionCore {
             registrations = @($registrations)
             verificationMessage = [string]$verification.VerificationMessage
             lastVerifiedUtc = [string]$verification.LastVerifiedUtc
-            releaseTrust = [ordered]@{
-                signaturePolicy = [string]$packageManifest.signaturePolicy
-                archiveChecksum = [ordered]@{
-                    status = $archiveVerificationStatus
-                    metadataSource = if ([string]::IsNullOrWhiteSpace($trustedReleaseMetadataSource)) { $null } else { $trustedReleaseMetadataSource }
-                    expectedSha256 = if ([string]::IsNullOrWhiteSpace($expectedSha256)) { $null } else { $expectedSha256 }
-                    actualSha256 = if ([string]::IsNullOrWhiteSpace($actualSha256)) { $null } else { $actualSha256 }
-                }
-            }
+            releaseTrust = $releaseTrust
         }
+        Complete-InstalledPayloadCommit -InstallResult $installResult
+        $allowPayloadRollback = $false
+        return $result
     }
     catch {
         $rollbackErrors = New-Object System.Collections.Generic.List[string]

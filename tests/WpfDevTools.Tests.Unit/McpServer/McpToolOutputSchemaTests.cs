@@ -22,7 +22,7 @@ public sealed class McpToolOutputSchemaTests
         { "get_state_diff", ["snapshotId", "trigger", "propertyChanges", "viewModelChanges", "focusChange"] },
         { "restore_state_snapshot", ["snapshotId", "restoredDependencyProperties", "restoredViewModelProperties", "skippedDependencyProperties", "skippedViewModelProperties"] },
         { "batch_mutate", ["mutations", "mutationCount", "successfulMutationCount", "failedMutationCount", "snapshotId", "stateDiff", "rollback", "recovery"] },
-        { "element_screenshot", ["elementId", "screenshotId", "resourceUri", "expiresAtUtc", "outputMode", "width", "height", "mimeType", "base64Image"] }
+        { "element_screenshot", ["elementId", "screenshotId", "resourceUri", "resourceRead", "expiresAtUtc", "outputMode", "width", "height", "mimeType", "base64Image"] }
     };
 
     [Fact]
@@ -298,12 +298,19 @@ public sealed class McpToolOutputSchemaTests
             "format",
             "rendered",
             "byteLength",
+            "resourceRead",
             "fileName",
             "localPathRedacted",
             "sha256",
             "nextSteps");
+        AssertNestedFields("element_screenshot", ["resourceRead"], "method", "params", "sameSessionRequired");
+        AssertNestedFields("element_screenshot", ["resourceRead", "params"], "uri");
+        var resourceRead = CreateToolSchema("element_screenshot").GetProperty("properties").GetProperty("resourceRead");
+        resourceRead.GetProperty("required").EnumerateArray().Select(value => value.GetString()).Should()
+            .BeEquivalentTo("method", "params", "sameSessionRequired");
+        resourceRead.GetProperty("properties").GetProperty("params").GetProperty("required")[0]
+            .GetString().Should().Be("uri");
     }
-
     [Fact]
     public void NonHighValueTools_ShouldKeepSharedOpenOutputSchema()
     {
@@ -313,14 +320,12 @@ public sealed class McpToolOutputSchemaTests
 
         tool.OutputSchema!.Value.GetProperty("additionalProperties").GetBoolean().Should().BeTrue();
     }
-
     private static Tool CreateTool(string name)
         => new()
         {
             Name = name,
             InputSchema = JsonSerializer.SerializeToElement(new { type = "object" })
         };
-
     private static readonly HashSet<string> CommonSchemaFields = new(StringComparer.Ordinal)
     {
         "success",
@@ -359,7 +364,6 @@ public sealed class McpToolOutputSchemaTests
         "recovery",
         "errorData"
     };
-
     private static void AssertTopLevelFields(string toolName, params string[] expectedFields)
     {
         var tool = CreateTool(toolName);
@@ -372,7 +376,6 @@ public sealed class McpToolOutputSchemaTests
                 $"{toolName} outputSchema should include runtime structuredContent field '{expectedField}'");
         }
     }
-
     private static void AssertProcessSummaryFields(string toolName, params string[] expectedFields)
     {
         var tool = CreateTool(toolName);
@@ -389,7 +392,6 @@ public sealed class McpToolOutputSchemaTests
                 $"{toolName} outputSchema process item should include runtime field '{expectedField}'");
         }
     }
-
     private static void AssertNestedFields(string toolName, string[] path, params string[] expectedFields)
     {
         var schema = CreateToolSchema(toolName);
@@ -405,13 +407,11 @@ public sealed class McpToolOutputSchemaTests
                 $"{toolName} outputSchema should include runtime structuredContent path '{string.Join(".", path)}.{expectedField}'");
         }
     }
-
     private static void AssertPropertyType(string toolName, string fieldName, string expectedType)
     {
         var properties = CreateToolSchema(toolName).GetProperty("properties");
         properties.GetProperty(fieldName).GetProperty("type").GetString().Should().Be(expectedType);
     }
-
     private static void AssertNestedPropertyType(string toolName, string[] path, string fieldName, string expectedType)
     {
         var properties = CreateToolSchema(toolName).GetProperty("properties");

@@ -354,6 +354,7 @@ public sealed partial class ResponseContractResourceTests
                 "screenshotId",
                 "outputMode",
                 "resourceUri",
+                "resourceRead",
                 "fileName",
                 "localPathRedacted",
                 "sha256",
@@ -365,6 +366,11 @@ public sealed partial class ResponseContractResourceTests
                 "outputMode",
                 "maxWidth",
                 "maxHeight"
+            ],
+            nestedResponsePaths: [
+                "resourceRead.method",
+                "resourceRead.params.uri",
+                "resourceRead.sameSessionRequired"
             ]);
 
         var screenshotContract = highValueTools
@@ -380,7 +386,7 @@ public sealed partial class ResponseContractResourceTests
             outputVariants,
             "file",
             rendered: true,
-            fields: ["success", "screenshotId", "outputMode", "resourceUri", "fileName", "localPathRedacted", "sha256", "width", "height", "format", "rendered", "byteLength"]);
+            fields: ["success", "screenshotId", "outputMode", "resourceUri", "resourceRead", "fileName", "localPathRedacted", "sha256", "width", "height", "format", "rendered", "byteLength"]);
         AssertOutputVariant(
             outputVariants,
             "base64",

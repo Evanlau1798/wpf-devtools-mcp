@@ -30,9 +30,15 @@ public sealed class ElementSearchAssignableTypeTests
                 rootElementId: windowId,
                 typeName: nameof(ISearchMarker),
                 typeMatchMode: "assignable"));
+            var containsResult = JsonSerializer.SerializeToElement(analyzer.FindElements(
+                rootElementId: windowId,
+                typeName: "utto",
+                matchMode: "contains",
+                typeMatchMode: "assignable"));
 
             baseTypeResult.GetProperty("resultCount").GetInt32().Should().Be(1);
             interfaceResult.GetProperty("resultCount").GetInt32().Should().Be(1);
+            containsResult.GetProperty("resultCount").GetInt32().Should().Be(1);
         }
         finally
         {

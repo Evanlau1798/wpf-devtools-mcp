@@ -57,6 +57,31 @@ public sealed class ComposerBehaviorIntegrationContractTests
         behavior.GetProperty("verificationGuidance").GetString().Should().Contain("state or visible content change");
     }
 
+    [Fact]
+    public void ApplyBlueprint_ShouldRecognizeSafeBindingOptionsInCommandContract()
+    {
+        var blueprint = """
+            {
+              "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+              "name": "CommandOptions",
+              "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+              "primaryPack": "wpfui",
+              "layout": {
+                "kind": "wpfui.button",
+                "properties": { "text": "Apply", "command": "{Binding ApplyCommand, Mode=OneWay}" }
+              }
+            }
+            """;
+
+        var result = new UiBlueprintApplyService(CreateRegistry()).Apply(
+            new ApplyBlueprintRequest(blueprint, Path.Combine(Path.GetTempPath(), "composer-command-options")));
+
+        result.Success.Should().BeTrue();
+        result.BehaviorIntegrationContract.Status.Should().Be("required");
+        result.BehaviorIntegrationContract.Interactions.Should().ContainSingle()
+            .Which.CommandPath.Should().Be("ApplyCommand");
+    }
+
     private static PackRegistry CreateRegistry()
         => PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
 }

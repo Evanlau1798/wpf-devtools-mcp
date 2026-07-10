@@ -93,6 +93,6 @@ internal static partial class BehaviorIntegrationContractBuilder
         return match.Success ? match.Groups["path"].Value : null;
     }
 
-    [GeneratedRegex(@"^\{Binding\s+(?:Path\s*=\s*)?(?<path>[A-Za-z_][A-Za-z0-9_.]*)\s*\}$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^\{Binding\s+(?:Path\s*=\s*)?(?<path>[A-Za-z_][A-Za-z0-9_.]*)(?:\s*,\s*[A-Za-z_][A-Za-z0-9_]*\s*=\s*[^,{}]+)*\s*\}$", RegexOptions.CultureInvariant)]
     private static partial Regex SimpleBindingPattern();
 }

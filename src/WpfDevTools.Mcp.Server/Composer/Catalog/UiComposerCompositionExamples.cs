@@ -44,7 +44,7 @@ internal static class UiComposerCompositionExamples
         }
         """);
 
-    internal static object[] ForResolvedBlockKinds(IReadOnlyCollection<string> blockKinds)
+    internal static object[] ForResolvedComposableBlockKinds(IReadOnlyCollection<string> blockKinds)
     {
         if (!blockKinds.Contains("wpfui.card", StringComparer.Ordinal)
             || !blockKinds.Contains("wpfui.textBlock", StringComparer.Ordinal))

@@ -14,6 +14,7 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             : null;
         var items = new List<BlockCatalogItem>();
         var resolvedBlockKinds = new HashSet<string>(StringComparer.Ordinal);
+        var resolvedComposableBlockKinds = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var pack in registryResult.Packs)
         {
@@ -27,6 +28,11 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             {
                 resolvedBlockKinds.Add(block.Kind);
                 var item = CreateItem(pack, loadedPack.Manifest, block);
+                if (item.RendererAvailable)
+                {
+                    resolvedComposableBlockKinds.Add(block.Kind);
+                }
+
                 if (Matches(query, item))
                 {
                     items.Add(item);
@@ -37,6 +43,7 @@ internal sealed class BlockCatalogService(PackRegistry registry)
         return new BlockCatalogResult(
             items.OrderBy(item => item.Kind, StringComparer.Ordinal).ToArray(),
             resolvedBlockKinds.OrderBy(kind => kind, StringComparer.Ordinal).ToArray(),
+            resolvedComposableBlockKinds.OrderBy(kind => kind, StringComparer.Ordinal).ToArray(),
             registryResult.Diagnostics);
     }
 
@@ -106,6 +113,7 @@ internal sealed record BlockCatalogQuery(
 internal sealed record BlockCatalogResult(
     IReadOnlyList<BlockCatalogItem> Items,
     IReadOnlyList<string> ResolvedBlockKinds,
+    IReadOnlyList<string> ResolvedComposableBlockKinds,
     IReadOnlyList<string> Diagnostics);
 
 internal sealed record BlockCatalogItem(

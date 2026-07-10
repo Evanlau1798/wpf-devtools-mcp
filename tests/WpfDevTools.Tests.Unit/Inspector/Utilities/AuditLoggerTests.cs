@@ -108,6 +108,7 @@ public class TraceAuditLoggerTests
             listener.Messages
                 .Where(message => message.StartsWith("[AUDIT:INFO] [Test] Message ", StringComparison.Ordinal))
                 .Should().BeEquivalentTo(expectedMessages);
+            listener.Messages.Should().Contain("Unrelated trace diagnostic");
         }
         finally
         {

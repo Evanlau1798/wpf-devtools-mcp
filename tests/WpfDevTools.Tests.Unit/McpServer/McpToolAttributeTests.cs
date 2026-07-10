@@ -415,8 +415,8 @@ public class McpToolAttributeTests
         AssertEnumConstraint(screenshotSchema, "outputMode", "metadata", "file", "base64");
         AssertIntegerConstraint(screenshotSchema, "maxWidth", minimum: 1, maximum: int.MaxValue);
         AssertIntegerConstraint(screenshotSchema, "maxHeight", minimum: 1, maximum: int.MaxValue);
-        foreach (var methodName in new[] { nameof(UiComposerMcpTools.ValidateUiBlueprint), nameof(UiComposerMcpTools.RenderUiBlueprint),
-                     nameof(UiComposerMcpTools.RepairUiBlueprint), nameof(UiComposerMcpTools.ApplyUiBlueprint), nameof(UiComposerMcpTools.PreviewUiBlueprint) })
+        foreach (var methodName in typeof(UiComposerMcpTools).GetMethods(BindingFlags.Public | BindingFlags.Static)
+                     .Where(method => method.GetParameters().Any(parameter => parameter.Name == "blueprintJson")).Select(method => method.Name))
             AssertStringMaxLength(CreateInputSchema(typeof(UiComposerMcpTools), methodName), "blueprintJson", 8192);
         var previewSchema = CreateInputSchema(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint));
         AssertEnumConstraint(previewSchema, "screenshotOutputMode", "metadata", "file");

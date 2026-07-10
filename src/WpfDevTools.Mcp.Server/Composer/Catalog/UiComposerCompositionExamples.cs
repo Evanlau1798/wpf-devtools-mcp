@@ -30,10 +30,9 @@ internal static class UiComposerCompositionExamples
         }
         """);
 
-    internal static object[] ForPackScope(IReadOnlyCollection<string>? packIds)
+    internal static object[] ForResolvedBlockKinds(IReadOnlyCollection<string> blockKinds)
     {
-        if (packIds is { Count: > 0 }
-            && !packIds.Contains("wpfui", StringComparer.Ordinal))
+        if (!blockKinds.Contains("wpfui.card", StringComparer.Ordinal))
         {
             return [];
         }

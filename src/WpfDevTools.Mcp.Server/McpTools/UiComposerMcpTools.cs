@@ -251,7 +251,7 @@ public static class UiComposerMcpTools
         var recipes = includeRecipes
             ? new RecipeCatalogService(registry).GetCatalog(new RecipeCatalogQuery(packIds)).Items
             : [];
-        var compositionExamples = UiComposerCompositionExamples.ForPackScope(packIds);
+        var compositionExamples = UiComposerCompositionExamples.ForResolvedBlockKinds(result.ResolvedBlockKinds);
 
         return new
         {

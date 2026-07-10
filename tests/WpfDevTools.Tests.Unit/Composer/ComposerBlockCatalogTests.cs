@@ -134,6 +134,15 @@ public sealed class ComposerBlockCatalogTests
                 cancellationToken: CancellationToken.None);
             var validationPayload = validation.StructuredContent!.Value;
             validationPayload.GetProperty("valid").GetBoolean().Should().BeTrue(validationPayload.GetRawText());
+
+            var projectRoot = Path.Combine(tempRoot, "project");
+            CreateMinimalWpfUiOverride(projectRoot);
+            var overridden = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["wpfui"],
+                projectRoot: projectRoot,
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+            overridden.StructuredContent!.Value.GetProperty("compositionExampleCount").GetInt32().Should().Be(0);
         }
         finally
         {
@@ -152,6 +161,25 @@ public sealed class ComposerBlockCatalogTests
         var path = Path.Combine(Path.GetTempPath(), "wpfdevtools-composer-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private static void CreateMinimalWpfUiOverride(string projectRoot)
+    {
+        var root = Path.Combine(projectRoot, ".wpfdevtools", "packs", "wpfui", "9.9.9");
+        Directory.CreateDirectory(Path.Combine(root, "blocks"));
+        Directory.CreateDirectory(Path.Combine(root, "renderers", "xaml"));
+        Directory.CreateDirectory(Path.Combine(root, "recipes"));
+        Directory.CreateDirectory(Path.Combine(root, "examples"));
+        File.WriteAllText(Path.Combine(root, "pack.json"),
+            """{"schemaVersion":"wpfdevtools.ui-pack.v1","id":"wpfui","displayName":"Override","version":"9.9.9","blocks":["wpfui.text"],"recipes":[]}""");
+        File.WriteAllText(Path.Combine(root, "source.lock.json"),
+            """{"schemaVersion":"wpfdevtools.source-lock.v1","sources":[{"name":"Override","url":"https://example.invalid/override","version":"9.9.9","paths":["src"]}],"transformPolicy":{}}""");
+        File.WriteAllText(Path.Combine(root, "blocks", "text.block.json"),
+            """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"wpfui.text","displayName":"Text","category":"text","properties":{},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/text.xaml.sbn"},"sourceHints":[]}""");
+        File.WriteAllText(Path.Combine(root, "renderers", "xaml", "text.xaml.sbn"), "<TextBlock />");
+        var escapedRoot = root.Replace("\\", "\\\\");
+        File.WriteAllText(Path.Combine(root, "install.manifest.json"),
+            $$"""{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"wpfui","version":"9.9.9","scope":"project","path":"{{escapedRoot}}","enabled":true}""");
     }
 
     private static void DeleteDirectory(string path)

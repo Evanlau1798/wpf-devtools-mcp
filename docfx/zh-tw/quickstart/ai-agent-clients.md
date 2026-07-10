@@ -23,6 +23,8 @@
 | Visual Studio | Installer 產生的 `servers` JSON | [Cursor、VS Code 與 Visual Studio](cursor-vscode.md) |
 | Other | Artifact-only JSON | 使用 `<InstallRoot>\<arch>\client-registration\other.mcpServers.json` |
 
+使用 `-Client other -OutputJson` 時，install result 也會包含 `composerPolicyProfile`。其中的 `requiredEnvironment` map 會列出 `apply_ui_blueprint` 所需的最小 project-write 與 destructive gates；`freshServerProcessRequired=true` 則提醒自動化流程在設定完成後啟動新的 scoped server。
+
 ## 第一次 verification flow
 
 第一次連線前，請把 reviewed target path 同時用於 connection 與 raw-injection fallback，並為第一次 scene summary 啟用 sensitive reads：

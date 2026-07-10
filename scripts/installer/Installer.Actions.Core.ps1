@@ -23,6 +23,25 @@ function Get-InstallerFullUninstallCleanupGuidance {
     return 'full-uninstall removes all detected registrations, generated client-registration artifacts, and installer-owned server locations. Persisted auth secrets and certificate stores remain manual cleanup items.'
 }
 
+function Get-InstallerComposerPolicyProfile {
+    param([Parameter(Mandatory)] [string]$ResolvedClient)
+
+    if ((Resolve-ClientBaseId -ClientId $ResolvedClient) -ne 'other') {
+        return $null
+    }
+
+    return [ordered]@{
+        purpose = 'ui-composer-project-writes'
+        requiredEnvironment = [ordered]@{
+            WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES = 'true'
+            WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS = 'true'
+            WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS = '<exact absolute WPF project root>'
+        }
+        freshServerProcessRequired = $true
+        guidance = 'Set these variables only on the MCP server process, use the exact reviewed WPF project root, then start a fresh server process before calling apply_ui_blueprint.'
+    }
+}
+
 function Get-InstallerFullUninstallResultSummary {
     param(
         [object[]]$RemovedInstallations,
@@ -404,6 +423,7 @@ function Invoke-InstallerActionCore {
             verificationMessage = [string]$verification.VerificationMessage
             lastVerifiedUtc = [string]$verification.LastVerifiedUtc
             releaseTrust = $releaseTrust
+            composerPolicyProfile = Get-InstallerComposerPolicyProfile -ResolvedClient $ResolvedClient
         }
         Complete-InstalledPayloadCommit -InstallResult $installResult
         $allowPayloadRollback = $false

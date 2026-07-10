@@ -130,6 +130,14 @@ $assetNameResult = [ordered]@{
             using var json = JsonDocument.Parse(result.Stdout);
             json.RootElement.GetProperty("mode").GetString().Should().Be("offline");
             json.RootElement.GetProperty("downloadSource").GetString().Should().Be("local-package");
+            var profile = json.RootElement.GetProperty("composerPolicyProfile");
+            profile.GetProperty("purpose").GetString().Should().Be("ui-composer-project-writes");
+            profile.GetProperty("freshServerProcessRequired").GetBoolean().Should().BeTrue();
+            var requiredEnvironment = profile.GetProperty("requiredEnvironment");
+            requiredEnvironment.GetProperty("WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES").GetString().Should().Be("true");
+            requiredEnvironment.GetProperty("WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS").GetString().Should().Be("true");
+            requiredEnvironment.GetProperty("WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS").GetString()
+                .Should().Be("<exact absolute WPF project root>");
         }
         finally
         {

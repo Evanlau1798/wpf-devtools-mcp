@@ -61,6 +61,11 @@ public sealed class ComposerPreviewRecipeRuntimeTests
         GetDiagnosticPayload(diagnostics, "get_layout_info").ValueKind.Should().Be(JsonValueKind.Object);
         var screenshot = GetDiagnosticPayload(diagnostics, "element_screenshot");
         var screenshotId = screenshot.GetProperty("screenshotId").GetString();
+        var resourceRead = screenshot.GetProperty("resourceRead");
+        resourceRead.GetProperty("method").GetString().Should().Be("resources/read");
+        resourceRead.GetProperty("params").GetProperty("uri").GetString()
+            .Should().Be($"wpf://screenshots/{screenshotId}");
+        resourceRead.GetProperty("sameSessionRequired").GetBoolean().Should().BeTrue();
         var resource = ScreenshotResources.GetScreenshotPng(session.SessionManager, screenshotId!);
         var whitePixelRatio = GetWhitePixelRatio(resource.Should().BeOfType<BlobResourceContents>().Subject.DecodedData.ToArray());
         whitePixelRatio.Should().BeLessThan(0.03, "the structural preview should not expose unstyled white title and navigation regions");

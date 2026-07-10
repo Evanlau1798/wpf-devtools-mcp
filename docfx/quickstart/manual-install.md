@@ -32,7 +32,7 @@ Stop if any sidecar is missing or if the archive hash does not match.
 Run the public installer entrypoint with the original archive and sidecar directory:
 
 ```powershell
-$version = '1.0.0-beta.34'
+$version = '1.0.0-beta.35'
 $arch = 'x64'
 $archive = (Resolve-Path ".\release_${version}_win-$arch.zip").Path
 $metadata = Split-Path -Parent $archive

@@ -87,24 +87,6 @@ public class StructuredContentTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteAndWrapAsync_TimeoutError_ShouldPopulateStructuredContent()
-    {
-        Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (args, ct) =>
-        {
-            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
-            return new { success = true };
-        };
-
-        var result = await ToolCallHelper.ExecuteAndWrapAsync(slowTool, null, CancellationToken.None, timeoutSeconds: 1);
-
-        result.StructuredContent.Should().NotBeNull(
-            "timeout errors should populate StructuredContent for structured recovery logic");
-        var structured = result.StructuredContent!.Value;
-        structured.TryGetProperty("success", out var successProp).Should().BeTrue();
-        successProp.GetBoolean().Should().BeFalse();
-    }
-
-    [Fact]
     public async Task ExecuteAndWrapAsync_ExceptionError_ShouldPopulateStructuredContent()
     {
         var result = await ToolCallHelper.ExecuteAndWrapAsync(
@@ -117,22 +99,6 @@ public class StructuredContentTests : IDisposable
         var structured = result.StructuredContent!.Value;
         structured.TryGetProperty("success", out var successProp).Should().BeTrue();
         successProp.GetBoolean().Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task ExecuteAndWrapAsync_TimeoutError_ContentShouldHaveAnnotations()
-    {
-        Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (args, ct) =>
-        {
-            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
-            return new { success = true };
-        };
-
-        var result = await ToolCallHelper.ExecuteAndWrapAsync(slowTool, null, CancellationToken.None, timeoutSeconds: 1);
-
-        var textBlock = result.Content[0] as TextContentBlock;
-        textBlock!.Annotations.Should().NotBeNull();
-        textBlock.Annotations!.Priority.Should().Be(1.0f);
     }
 
     [Fact]

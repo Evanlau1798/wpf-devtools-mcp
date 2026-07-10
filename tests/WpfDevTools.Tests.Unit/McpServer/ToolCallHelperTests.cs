@@ -203,28 +203,6 @@ public partial class ToolCallHelperTests
     }
 
     [Fact]
-    public async Task ExecuteAndWrapAsync_WhenToolExceedsTimeout_ShouldReturnTimeoutError()
-    {
-        // Arrange: Create a tool that exceeds the configured timeout
-        Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (args, ct) =>
-        {
-            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
-            return new { success = true };
-        };
-
-        // Act: Execute with no external cancellation
-        var result = await ToolCallHelper.ExecuteAndWrapAsync(slowTool, null, CancellationToken.None, timeoutSeconds: 1);
-
-        // Assert: Should return timeout error
-        result.Should().NotBeNull();
-        result.IsError.Should().BeTrue();
-        var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
-        textContent.Should().NotBeNull();
-        textContent!.Text.Should().Contain("timed out");
-        textContent.Text.Should().Contain("1 seconds");
-    }
-
-    [Fact]
     public async Task ExecuteAndWrapAsync_WhenProcessIdOmittedAndSessionManagerCaptured_ShouldUseActiveProcessForTimeoutRecovery()
     {
         using var sessionManager = new SessionManager();

@@ -110,6 +110,11 @@ public class ToolCallHelperTimeoutContractTests
         structured.GetProperty("timeoutSeconds").GetInt32().Should().Be(1);
         structured.GetProperty("toolName").GetString().Should().Be("test_timeout_tool");
         structured.GetProperty("suggestedAction").GetString().Should().NotBeNullOrWhiteSpace();
+        var textContent = result.Content[0].Should()
+            .BeOfType<ModelContextProtocol.Protocol.TextContentBlock>().Subject;
+        textContent.Text.Should().Contain("timed out").And.Contain("1 seconds");
+        textContent.Annotations.Should().NotBeNull();
+        textContent.Annotations!.Priority.Should().Be(1.0f);
     }
 
     [Fact]

@@ -102,44 +102,4 @@ public partial class ToolCallHelperTests
         arabic.GetString().Should().Be("\u0627\u062E\u062A\u0628\u0627\u0631");
     }
 
-    [Fact]
-    public async Task ExecuteAndWrapAsync_WithVeryShortTimeout_ShouldTimeoutQuickly()
-    {
-        // This test verifies that the timeout mechanism works correctly
-        // even for operations that would normally complete quickly
-        Func<JsonElement?, CancellationToken, Task<object>> slowTool = async (args, ct) =>
-        {
-            // Never complete naturally; the test is asserting timeout handling.
-            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
-            return new { success = true };
-        };
-
-        // Act
-        var result = await ToolCallHelper.ExecuteAndWrapAsync(slowTool, null, CancellationToken.None, timeoutSeconds: 1);
-
-        // Assert: Should timeout
-        result.IsError.Should().BeTrue();
-        var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
-        textContent!.Text.Should().Contain("timed out");
-    }
-
-    [Fact]
-    public async Task ExecuteAndWrapAsync_WithCustomTimeoutOverride_ShouldAllowLongerRunningTool()
-    {
-        Func<JsonElement?, CancellationToken, Task<object>> slowButValidTool = async (args, ct) =>
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(1200), ct);
-            return new { success = true, message = "completed" };
-        };
-
-        var result = await ToolCallHelper.ExecuteAndWrapAsync(
-            slowButValidTool,
-            null,
-            CancellationToken.None,
-            timeoutSeconds: 2);
-
-        result.IsError.Should().BeFalse();
-        var textContent = result.Content[0] as ModelContextProtocol.Protocol.TextContentBlock;
-        textContent!.Text.Should().Contain("completed");
-    }
 }

@@ -135,6 +135,17 @@ public sealed class ComposerBlockCatalogTests
             var validationPayload = validation.StructuredContent!.Value;
             validationPayload.GetProperty("valid").GetBoolean().Should().BeTrue(validationPayload.GetRawText());
 
+            var render = await UiComposerMcpTools.RenderUiBlueprint(
+                blueprintJson,
+                targetPath: "CatalogCompositionExample.xaml",
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+            var renderPayload = render.StructuredContent!.Value;
+            renderPayload.GetProperty("success").GetBoolean().Should().BeTrue(renderPayload.GetRawText());
+            renderPayload.GetProperty("xaml").GetString().Should()
+                .Contain("<ui:TextBlock Text=\"First card\"")
+                .And.Contain("<ui:TextBlock Text=\"Second card\"");
+
             var projectRoot = Path.Combine(tempRoot, "project");
             CreateMinimalWpfUiOverride(projectRoot);
             var overridden = await UiComposerMcpTools.GetUiBlockCatalog(

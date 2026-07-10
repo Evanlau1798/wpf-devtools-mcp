@@ -13,7 +13,14 @@ internal static class UiComposerCompositionExamples
                 "kind": "wpfui.card",
                 "slots": {
                   "content": [
-                    { "kind": "text", "properties": { "value": "First card" } }
+                    {
+                      "kind": "stack",
+                      "slots": {
+                        "stack": [
+                          { "kind": "wpfui.textBlock", "properties": { "text": "First card" } }
+                        ]
+                      }
+                    }
                   ]
                 }
               },
@@ -21,7 +28,14 @@ internal static class UiComposerCompositionExamples
                 "kind": "wpfui.card",
                 "slots": {
                   "content": [
-                    { "kind": "text", "properties": { "value": "Second card" } }
+                    {
+                      "kind": "stack",
+                      "slots": {
+                        "stack": [
+                          { "kind": "wpfui.textBlock", "properties": { "text": "Second card" } }
+                        ]
+                      }
+                    }
                   ]
                 }
               }
@@ -32,7 +46,8 @@ internal static class UiComposerCompositionExamples
 
     internal static object[] ForResolvedBlockKinds(IReadOnlyCollection<string> blockKinds)
     {
-        if (!blockKinds.Contains("wpfui.card", StringComparer.Ordinal))
+        if (!blockKinds.Contains("wpfui.card", StringComparer.Ordinal)
+            || !blockKinds.Contains("wpfui.textBlock", StringComparer.Ordinal))
         {
             return [];
         }
@@ -43,7 +58,7 @@ internal static class UiComposerCompositionExamples
             {
                 id = "core.stack.multiple-cards",
                 purpose = "Place multiple ordered pack blocks in a slot that accepts the core stack kind.",
-                placementGuidance = "Use this fragment as a slot child, then replace sample text and card content with supported catalog blocks.",
+                placementGuidance = "Use this directly renderable fragment as a slot child, then replace the sample text with application content.",
                 fragment = MultipleCardsFragment
             }
         ];

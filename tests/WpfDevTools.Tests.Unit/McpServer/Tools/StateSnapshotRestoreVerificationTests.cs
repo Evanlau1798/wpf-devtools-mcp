@@ -13,7 +13,7 @@ using static WpfDevTools.Tests.Unit.TestHelpers;
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
 [Collection("TimingSensitive")]
-public sealed class StateSnapshotRestoreVerificationTests
+public sealed partial class StateSnapshotRestoreVerificationTests
 {
     [Fact]
     public async Task RestoreStateSnapshot_ShouldExposeDependencyPropertyReadBackMismatch()

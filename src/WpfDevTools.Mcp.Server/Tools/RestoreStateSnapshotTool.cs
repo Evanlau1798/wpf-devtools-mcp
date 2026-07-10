@@ -173,6 +173,26 @@ public sealed partial class RestoreStateSnapshotTool(SessionManager sessionManag
                     sessionGeneration,
                     snapshot,
                     cancellationToken).ConfigureAwait(false);
+                if (ShouldRetryClear(snapshot, verification))
+                {
+                    var retryResponse = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+                        processId,
+                        sessionGeneration,
+                        "clear_dp_value",
+                        new { elementId = snapshot.ElementId, propertyName = snapshot.PropertyName },
+                        cancellationToken,
+                        piggybackPendingEvents: false).ConfigureAwait(false));
+                    ThrowIfStructuredRestoreFailure(retryResponse);
+                    if (IsSuccess(retryResponse))
+                    {
+                        verification = await VerifyDependencyPropertyAsync(
+                            processId,
+                            sessionGeneration,
+                            snapshot,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                }
+
                 progress.RestoredDependencyProperties.Add(CreateDependencyPropertyVerificationResult(snapshot, verification));
                 if (!verification.verified)
                 {
@@ -388,6 +408,16 @@ public sealed partial class RestoreStateSnapshotTool(SessionManager sessionManag
             currentBaseValueSource = verification.currentBaseValueSource,
             verificationSkippedReason = verification.skippedReason
         };
+
+    private static bool ShouldRetryClear(
+        StoredDependencyPropertySnapshot snapshot,
+        (bool verified, string? currentValue, bool? currentIsExpression, string? currentBaseValueSource, string? skippedReason) verification) =>
+        !snapshot.HadLocalValue
+        && !snapshot.IsExpression
+        && !verification.verified
+        && verification.currentIsExpression == false
+        && string.Equals(verification.currentValue, snapshot.CurrentValue, StringComparison.Ordinal)
+        && string.Equals(verification.currentBaseValueSource, "LocalValue", StringComparison.Ordinal);
 
     private static bool IsSuccess(JsonElement response) =>
         response.TryGetProperty("success", out var successProperty) && successProperty.GetBoolean();

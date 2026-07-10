@@ -290,12 +290,8 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
             writer.WriteStartObject();
             foreach (var property in payload.EnumerateObject())
             {
-                if (IsLocalPathProperty(property.Name))
-                {
-                    continue;
-                }
-
-                if (string.Equals(property.Name, "outputMode", StringComparison.OrdinalIgnoreCase))
+                if (IsLocalPathProperty(property.Name)
+                    || IsServerOwnedFileOutputProperty(property.Name))
                 {
                     continue;
                 }
@@ -345,4 +341,12 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
         || string.Equals(propertyName, "filePath", StringComparison.OrdinalIgnoreCase)
         || string.Equals(propertyName, "absolutePath", StringComparison.OrdinalIgnoreCase)
         || string.Equals(propertyName, "screenshotPath", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsServerOwnedFileOutputProperty(string propertyName) =>
+        string.Equals(propertyName, "outputMode", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(propertyName, "resourceUri", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(propertyName, "resourceRead", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(propertyName, "expiresAtUtc", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(propertyName, "fileName", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(propertyName, "localPathRedacted", StringComparison.OrdinalIgnoreCase);
 }

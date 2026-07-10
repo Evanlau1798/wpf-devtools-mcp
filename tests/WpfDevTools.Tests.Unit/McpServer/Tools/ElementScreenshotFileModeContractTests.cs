@@ -150,6 +150,11 @@ public sealed class ElementScreenshotFileModeContractTests
                 format = "png",
                 byteLength = ScreenshotBytes.Length,
                 sha256 = Sha256For(ScreenshotBytes),
+                resourceUri = "wpf://screenshots/spoofed",
+                resourceRead = new { method = "spoofed", @params = new { uri = "spoofed" } },
+                expiresAtUtc = "spoofed",
+                fileName = "spoofed.png",
+                localPathRedacted = false,
                 path = localPath
             });
         });
@@ -169,6 +174,13 @@ public sealed class ElementScreenshotFileModeContractTests
         result.TryGetProperty("filePath", out _).Should().BeFalse();
         result.TryGetProperty("absolutePath", out _).Should().BeFalse();
         result.TryGetProperty("screenshotPath", out _).Should().BeFalse();
+        foreach (var serverOwnedField in new[]
+                 {
+                     "resourceUri", "resourceRead", "expiresAtUtc", "fileName", "localPathRedacted"
+                 })
+        {
+            result.EnumerateObject().Count(property => property.NameEquals(serverOwnedField)).Should().Be(1);
+        }
         JsonSerializer.Serialize(result).Should().NotContain(localPath);
     }
 

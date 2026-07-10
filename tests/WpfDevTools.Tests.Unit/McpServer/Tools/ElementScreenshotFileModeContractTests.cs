@@ -157,6 +157,10 @@ public sealed class ElementScreenshotFileModeContractTests
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("outputMode").GetString().Should().Be("file");
         result.GetProperty("resourceUri").GetString().Should().Be($"wpf://screenshots/{ScreenshotId}");
+        var resourceRead = result.GetProperty("resourceRead");
+        resourceRead.GetProperty("method").GetString().Should().Be("resources/read");
+        resourceRead.GetProperty("uri").GetString().Should().Be($"wpf://screenshots/{ScreenshotId}");
+        resourceRead.GetProperty("sameSessionRequired").GetBoolean().Should().BeTrue();
         result.GetProperty("screenshotId").GetString().Should().Be(ScreenshotId);
         result.GetProperty("sha256").GetString().Should().MatchRegex("^[0-9a-fA-F]{64}$");
         result.GetProperty("localPathRedacted").GetBoolean().Should().BeTrue();

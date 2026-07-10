@@ -52,6 +52,10 @@ public sealed partial class ComposerPreviewCompileTests
         screenshot.GetProperty("outputMode").GetString().Should().Be("file");
         var screenshotId = screenshot.GetProperty("screenshotId").GetString();
         screenshotId.Should().NotBeNullOrWhiteSpace();
+        var resourceRead = screenshot.GetProperty("resourceRead");
+        resourceRead.GetProperty("method").GetString().Should().Be("resources/read");
+        resourceRead.GetProperty("uri").GetString().Should().Be($"wpf://screenshots/{screenshotId}");
+        resourceRead.GetProperty("sameSessionRequired").GetBoolean().Should().BeTrue();
 
         var resource = ScreenshotResources.GetScreenshotPng(session.SessionManager, screenshotId!);
 

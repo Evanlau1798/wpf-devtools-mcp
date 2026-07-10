@@ -216,6 +216,19 @@ internal static partial class McpToolOutputSchemas
                 ["elementId"] = String("Runtime element id captured."),
                 ["screenshotId"] = String("Registered screenshot identifier."),
                 ["resourceUri"] = String("MCP resource URI for file-mode screenshot retrieval."),
+                ["resourceRead"] = new
+                {
+                    type = "object",
+                    description = "Exact same-session MCP resource read request for file-mode screenshot retrieval.",
+                    additionalProperties = false,
+                    required = new[] { "method", "uri", "sameSessionRequired" },
+                    properties = new Dictionary<string, object>
+                    {
+                        ["method"] = String("MCP resource method; always resources/read."),
+                        ["uri"] = String("Exact screenshot resource URI to read."),
+                        ["sameSessionRequired"] = Boolean("Whether retrieval must use the same MCP server session.")
+                    }
+                },
                 ["expiresAtUtc"] = String("UTC expiration timestamp for the retained screenshot resource."),
                 ["outputMode"] = EnumString("Selected screenshot output mode.", ["metadata", "file", "base64"]),
                 ["width"] = Integer("Screenshot width in pixels."),

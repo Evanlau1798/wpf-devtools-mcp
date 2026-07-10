@@ -307,6 +307,12 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
             if (screenshot is not null)
             {
                 writer.WriteString("resourceUri", screenshot.ResourceUri);
+                writer.WritePropertyName("resourceRead");
+                writer.WriteStartObject();
+                writer.WriteString("method", "resources/read");
+                writer.WriteString("uri", screenshot.ResourceUri);
+                writer.WriteBoolean("sameSessionRequired", true);
+                writer.WriteEndObject();
                 writer.WriteString("expiresAtUtc", screenshot.ExpiresAtUtc);
             }
 

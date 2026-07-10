@@ -354,6 +354,7 @@ internal static class ResponseContractToolEntries
                     "screenshotId",
                     "outputMode",
                     "resourceUri",
+                    "resourceRead",
                     "fileName",
                     "expiresAtUtc",
                     "localPathRedacted",
@@ -363,7 +364,7 @@ internal static class ResponseContractToolEntries
                     "maxInlineByteLength",
                     "nextSteps"
                 },
-                nestedResponsePaths = Array.Empty<string>(),
+                nestedResponsePaths = new[] { "resourceRead.method", "resourceRead.uri", "resourceRead.sameSessionRequired" },
                 requestParameters = new[]
                 {
                     "elementId",
@@ -407,6 +408,7 @@ internal static class ResponseContractToolEntries
                             "screenshotId",
                             "outputMode",
                             "resourceUri",
+                            "resourceRead",
                             "fileName",
                             "expiresAtUtc",
                             "localPathRedacted",

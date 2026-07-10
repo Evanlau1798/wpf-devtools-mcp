@@ -38,6 +38,8 @@ public sealed class ScreenshotLifecycleDocumentationTests
             $"{relativePath} should describe the storage boundary used by file mode");
         content.Should().Contain("SessionManager",
             $"{relativePath} should describe the component that expires and purges retained resources");
+        content.Should().Contain("resourceRead",
+            $"{relativePath} should expose the exact same-session resource read request");
         content.Should().Contain("not by the Inspector default screenshot cache",
             $"{relativePath} should not blur server-owned retained resources with Inspector cache cleanup");
     }
@@ -80,8 +82,8 @@ public sealed class ScreenshotLifecycleDocumentationTests
     {
         var expectations = new Dictionary<string, string[]>
         {
-            ["docfx/reference/tools/ui-composer.md"] = ["screenshotOutputMode", "resources/read"],
-            ["docfx/zh-tw/reference/tools/ui-composer.md"] = ["screenshotOutputMode", "resources/read"],
+            ["docfx/reference/tools/ui-composer.md"] = ["screenshotOutputMode", "resources/read", "same MCP server session"],
+            ["docfx/zh-tw/reference/tools/ui-composer.md"] = ["screenshotOutputMode", "resources/read", "相同 MCP server session"],
             ["docfx/reference/tools/tree-and-xaml.md"] = ["typeMatchMode", "assignable", "matchMode"],
             ["docfx/zh-tw/reference/tools/tree-and-xaml.md"] = ["typeMatchMode", "assignable", "matchMode"]
         };

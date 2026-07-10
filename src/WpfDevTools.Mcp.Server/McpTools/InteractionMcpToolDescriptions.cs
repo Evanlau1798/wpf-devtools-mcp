@@ -142,13 +142,14 @@ internal static class InteractionMcpToolDescriptions
         "Returns compact metadata by default, small inline base64 image data when explicitly requested, or a retained PNG resource URI in file mode. The screenshot is taken on the TARGET MACHINE running the WPF app.\n\n" +
         "USE WHEN: Visual verification needed; documenting UI state; debugging rendering issues.\n" +
         "DO NOT USE: As a first-pass scene exploration tool (prefer get_ui_summary or get_element_snapshot), or on off-screen elements (use scroll_to_element first).\n\n" +
-        "PRIVACY: The MCP screenshot policy gate must be enabled. Use `outputMode: \"file\"` for larger pixel captures; it returns a session-scoped `resourceUri`, redacts local paths, and creates an MCP server-owned retained screenshot resource under a server-issued lease root. Do not pass `outputPath`; file mode is resource-backed and clients should read the returned `resourceUri` with resources/read. `SessionManager` expires it after 24 hours, caps it at 100 resources per MCP server session, deletes retained PNG files when evicted or expired, and purges them on disconnect or server session manager disposal. This lifecycle is owned by `SessionManager`, not by the Inspector default screenshot cache. Inline `base64` is capped for small images only.\n" +
+        "PRIVACY: The MCP screenshot policy gate must be enabled. Use `outputMode: \"file\"` for larger pixel captures; it returns a session-scoped `resourceUri` plus an exact `resourceRead` request, redacts local paths, and creates an MCP server-owned retained screenshot resource under a server-issued lease root. Do not pass `outputPath`; file mode is resource-backed and clients should call the returned `resourceRead.method` with `resourceRead.uri` in the same MCP server session. `SessionManager` expires it after 24 hours, caps it at 100 resources per MCP server session, deletes retained PNG files when evicted or expired, and purges them on disconnect or server session manager disposal. This lifecycle is owned by `SessionManager`, not by the Inspector default screenshot cache. Inline `base64` is capped for small images only.\n" +
         "PERFORMANCE: The default `metadata` mode does not render or return PNG bytes; metadata mode does not return `screenshotId`, `resourceUri`, or a `wpf://screenshots/{screenshotId}` handle. Metadata responses include a nextSteps entry for `outputMode: \"file\"` when pixel evidence is required. Use `outputMode: \"file\"` or explicit `outputMode: \"base64\"` plus `maxWidth` / `maxHeight` when pixels are required.\n\n" +
         "RESPONSE SUMMARY:\n" +
         "  - success: boolean,\n" +
         "  - base64Image (optional): string,\n" +
         "  - screenshotId (optional): string,\n" +
         "  - resourceUri (optional): string,\n" +
+        "  - resourceRead (optional): exact same-session resources/read request,\n" +
         "  - fileName (optional): string,\n" +
         "  - expiresAtUtc (optional): string,\n" +
         "  - localPathRedacted (optional): boolean,\n" +

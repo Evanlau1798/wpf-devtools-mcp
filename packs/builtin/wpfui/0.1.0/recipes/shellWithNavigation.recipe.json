@@ -23,6 +23,11 @@
       "default": "Overview",
       "type": "string"
     },
+    "navigationCommand": {
+      "description": "Simple ICommand binding used by every navigation destination. The command receives the stable destination tag as its parameter.",
+      "default": "{Binding NavigateCommand}",
+      "type": "binding"
+    },
     "navigationItem1Tag": {
       "description": "Stable navigation tag for the first destination.",
       "default": "overview",
@@ -62,11 +67,6 @@
       "description": "Visible label for the fourth navigation destination.",
       "default": "Reports",
       "type": "string"
-    },
-    "navigationCommand": {
-      "description": "Simple ICommand binding used by every navigation destination. The command receives the stable destination tag as its parameter.",
-      "default": "{Binding NavigateCommand}",
-      "type": "binding"
     },
     "primaryActionCommand": {
       "description": "Simple ICommand binding used by the primary content action.",

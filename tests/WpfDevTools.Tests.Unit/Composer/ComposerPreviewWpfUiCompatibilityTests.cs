@@ -21,7 +21,7 @@ public sealed class ComposerPreviewWpfUiCompatibilityTests
     public void WpfUiPreviewStubs_ShouldExposeImageIconForTitleBar()
     {
         UiPreviewProjectStubs.WpfUi.Should().Contain("public class ImageIcon : System.Windows.Controls.Image");
-        UiPreviewProjectStubs.WpfUi.Should().Contain("public class TitleBar : Control");
+        UiPreviewProjectStubs.WpfUi.Should().Contain("public class TitleBar : Border");
         UiPreviewProjectStubs.WpfUi.Should().Contain("public object? Icon");
     }
 }

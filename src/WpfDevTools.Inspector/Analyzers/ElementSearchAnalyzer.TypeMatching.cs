@@ -15,7 +15,7 @@ public sealed partial class ElementSearchAnalyzer
         }
 
         var candidates = !string.IsNullOrWhiteSpace(requestedType)
-            ? [requestedType]
+            ? [requestedType!]
             : requestedTypes;
         if (candidates is not { Length: > 0 })
         {
@@ -34,13 +34,13 @@ public sealed partial class ElementSearchAnalyzer
 
         for (var current = actualType; current is not null; current = current.BaseType)
         {
-            if (MatchesTypeName(current, requestedType, matchMode))
+            if (MatchesTypeName(current, requestedType!, matchMode))
             {
                 return true;
             }
         }
 
-        return actualType.GetInterfaces().Any(type => MatchesTypeName(type, requestedType, matchMode));
+        return actualType.GetInterfaces().Any(type => MatchesTypeName(type, requestedType!, matchMode));
     }
 
     private static bool MatchesTypeName(Type actualType, string requestedType, string matchMode)

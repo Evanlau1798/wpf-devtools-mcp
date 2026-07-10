@@ -37,8 +37,9 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this for live WPF runtime inspection or to read third-party source code. Use scene tools for running target state.
 
         RESPONSE SUMMARY:
-        - Returns success, itemCount, items, and diagnostics.
+        - Returns success, itemCount, items, compositionExampleCount, compositionExamples, and diagnostics.
         - Each item includes packId, packVersion, kind, displayName, category, properties, slots, allowedKinds, rendererAvailable, and sourceHintSummary.
+        - compositionExamples includes compact machine-readable core layout fragments, such as stack with multiple cards, when the required pack is in scope.
         - Catalog source hints are path summaries only and do not include copied third-party source text.
 
         REQUEST OPTIONS:

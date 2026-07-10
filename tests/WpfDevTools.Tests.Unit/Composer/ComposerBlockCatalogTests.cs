@@ -107,6 +107,33 @@ public sealed class ComposerBlockCatalogTests
             payload.GetProperty("items")[0].GetProperty("allowedKinds").EnumerateArray()
                 .Select(item => item.GetString())
                 .Should().Contain("wpfui.symbolIcon");
+            payload.GetProperty("compositionExampleCount").GetInt32().Should().Be(1);
+            var example = payload.GetProperty("compositionExamples")[0];
+            example.GetProperty("id").GetString().Should().Be("core.stack.multiple-cards");
+            example.GetProperty("fragment").GetProperty("kind").GetString().Should().Be("stack");
+            example.GetProperty("fragment").GetProperty("slots").GetProperty("stack")
+                .EnumerateArray()
+                .Should().HaveCount(2)
+                .And.OnlyContain(item => item.GetProperty("kind").GetString() == "wpfui.card");
+
+            var blueprintJson = $$"""
+                {
+                  "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+                  "name": "CatalogCompositionExample",
+                  "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+                  "primaryPack": "wpfui",
+                  "layout": {
+                    "kind": "wpfui.card",
+                    "slots": { "content": [{{example.GetProperty("fragment").GetRawText()}}] }
+                  }
+                }
+                """;
+            var validation = await UiComposerMcpTools.ValidateUiBlueprint(
+                blueprintJson,
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+            var validationPayload = validation.StructuredContent!.Value;
+            validationPayload.GetProperty("valid").GetBoolean().Should().BeTrue(validationPayload.GetRawText());
         }
         finally
         {

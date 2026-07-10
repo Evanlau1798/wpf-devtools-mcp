@@ -90,6 +90,8 @@ $env:WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS = 'true'
 
 穩定的下一步 recipe 請看 [常見工作流程](../guides/common-workflows.md)。`navigation.recommended`、`navigation.alternatives`、`prefetchTools`、`contextRefs`、`nextSteps` 與 `structuredContent` 等欄位請看 [MCP Contracts 與 Navigation](../reference/mcp-contracts.md)。
 
+若要先從 installed extension packs 建立 WPF UI，再檢查啟動後的 app，請從 [UI Composer 工具](../reference/tools/ui-composer.md) 開始。
+
 ## 用白話理解安全預設
 
 Server 會 fail closed，除非對應 policy 明確啟用。

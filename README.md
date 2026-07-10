@@ -55,6 +55,7 @@ Manual package fallback: download the matching `release_<version>_win-<arch>.zip
 - [繁體中文文件](https://wpf-mcptools.evanlau1798.com/zh-tw/)
 - [5-Minute Setup](https://wpf-mcptools.evanlau1798.com/quickstart/)
 - [AI Agent Clients](https://wpf-mcptools.evanlau1798.com/quickstart/ai-agent-clients.html)
+- [UI Composer Tools](https://wpf-mcptools.evanlau1798.com/reference/tools/ui-composer.html)
 - [SDK-Hosted Inspector](https://wpf-mcptools.evanlau1798.com/quickstart/sdk-hosted-inspector.html)
 - [Security Model](https://wpf-mcptools.evanlau1798.com/production/security.html)
 - [Release Layout](https://wpf-mcptools.evanlau1798.com/production/release-layout.html)

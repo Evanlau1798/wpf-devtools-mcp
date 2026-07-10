@@ -60,6 +60,14 @@ public sealed class DocfxConfigurationTests
     }
 
     [Fact]
+    public void ComposerDocs_ShouldBeLinkedFromPrimaryOnboardingSurfaces()
+    {
+        ReadRepoText("README.md").Should().Contain("reference/tools/ui-composer.html");
+        ReadRepoText("docfx/quickstart/index.md").Should().Contain("../reference/tools/ui-composer.md");
+        ReadRepoText("docfx/zh-tw/quickstart/index.md").Should().Contain("../reference/tools/ui-composer.md");
+    }
+
+    [Fact]
     public void MainCss_ShouldConstrainDocfxTablesOnMobile()
     {
         var content = ReadRepoText("docfx/styles/main.css");

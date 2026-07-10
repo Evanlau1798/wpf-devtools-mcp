@@ -90,6 +90,8 @@ Use `get_processes(windowFilter)` only when more than one WPF target is availabl
 
 For stable next-step recipes, see [Common Workflows](../guides/common-workflows.md). For fields such as `navigation.recommended`, `navigation.alternatives`, `prefetchTools`, `contextRefs`, `nextSteps`, and `structuredContent`, see [MCP Contracts and Navigation](../reference/mcp-contracts.md).
 
+To create a WPF UI from installed extension packs before inspecting the launched app, start with [UI Composer Tools](../reference/tools/ui-composer.md).
+
 ## Security defaults in plain terms
 
 The server fails closed unless the corresponding policy is explicitly enabled.

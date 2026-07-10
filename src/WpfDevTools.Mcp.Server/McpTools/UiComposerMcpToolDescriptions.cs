@@ -171,6 +171,7 @@ internal static class UiComposerMcpToolDescriptions
         RESPONSE SUMMARY:
         - Dry-run is the default and returns filePlan entries with targetPath, action, riskLevel, resourcePlan, requiredNuGetPackages, and viewModelBindingContract without writing files.
         - Non-dry-run writes require confirmApply=true, persist generated XAML atomically, are restricted to project-root-relative targetPath under projectRoot, and create a backup when updating an existing view file.
+        - A successful non-dry-run response returns the executed file plan using the pre-write target state: create remains create and update includes its backup path.
         - MainWindow.xaml outputs for WPF UI FluentWindow add x:Class and return a code-behind-integration filePlan entry when the code-behind base class must be reviewed separately.
         - Generated files include WPFDEVTOOLS_BLUEPRINT_SOURCE and WPFDEVTOOLS_SAFE_SLOT markers for reversible repair-first workflows.
 

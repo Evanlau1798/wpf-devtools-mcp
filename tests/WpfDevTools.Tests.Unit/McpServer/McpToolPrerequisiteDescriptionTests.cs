@@ -50,6 +50,8 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain(McpServerConfiguration.AllowProjectWritesEnvVar);
         description.Should().Contain(McpServerConfiguration.AllowedProjectRootsEnvVar);
         description.Should().Contain("Non-dry-run writes");
+        description.Should().Contain("executed file plan");
+        description.Should().Contain("pre-write");
     }
 
     [Fact]

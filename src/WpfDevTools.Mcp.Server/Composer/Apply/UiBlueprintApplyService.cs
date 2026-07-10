@@ -38,7 +38,13 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
         if (request.DryRun)
         {
             var dryRunXaml = AddComposerHeaderAndSafeSlot(request.BlueprintJson, appliedXaml, existingContent: null);
-            var filePlan = CreateFilePlan(targetPath, viewModelContract.TargetPath, request.DryRun, null, codeBehindPath);
+            var filePlan = CreateFilePlan(
+                targetPath,
+                viewModelContract.TargetPath,
+                request.DryRun,
+                targetExisted: File.Exists(targetPath),
+                backupPath: null,
+                codeBehindPath);
             return ApplyBlueprintResult.CreateValid(
                 dryRun: true,
                 requiresConfirmation: true,
@@ -100,7 +106,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
             requiresConfirmation: false,
             wouldWriteFiles: true,
             generatedXaml,
-            CreateFilePlan(targetPath, viewModelContract.TargetPath, false, write.BackupPath, codeBehindPath),
+            CreateFilePlan(targetPath, viewModelContract.TargetPath, false, write.TargetExisted, write.BackupPath, codeBehindPath),
             render.RequiredResources,
             render.RequiredNuGetPackages,
             viewModelContract with { WouldWrite = false },
@@ -321,6 +327,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
         string targetPath,
         string viewModelContractPath,
         bool dryRun,
+        bool targetExisted,
         string? backupPath,
         string? codeBehindPath)
     {
@@ -329,11 +336,11 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
             new(
                 Role: "view",
                 TargetPath: targetPath,
-                Action: File.Exists(targetPath) ? "update" : "create",
+                Action: targetExisted ? "update" : "create",
                 WouldWrite: !dryRun,
-                RiskLevel: File.Exists(targetPath) ? "medium" : "low",
+                RiskLevel: targetExisted ? "medium" : "low",
                 BackupPath: backupPath,
-                Reversible: backupPath is not null || dryRun),
+                Reversible: !targetExisted || backupPath is not null || dryRun),
             new(
                 Role: "viewmodel-binding-contract",
                 TargetPath: viewModelContractPath,
@@ -394,6 +401,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                     TryDeleteFile(tempPath);
                     return ApplyFileWriteResult.CreateFailure(
                         backupPath,
+                        existed,
                         new ApplyBlueprintIssue(
                             "$.targetPath",
                             "ProjectBackupPathUsesReparsePoint",
@@ -409,7 +417,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                 File.Move(tempPath, targetPath);
             }
 
-            return ApplyFileWriteResult.CreateSuccess(backupPath);
+            return ApplyFileWriteResult.CreateSuccess(backupPath, existed);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -419,6 +427,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                 : $"Project write failed and the original target remains protected by atomic replace semantics. Backup path: {backupPath}. Error: {ex.Message}";
             return ApplyFileWriteResult.CreateFailure(
                 backupPath,
+                existed,
                 new ApplyBlueprintIssue(
                     "$.targetPath",
                     "ProjectWriteFailed",

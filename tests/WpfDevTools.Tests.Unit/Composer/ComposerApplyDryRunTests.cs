@@ -159,8 +159,12 @@ public sealed class ComposerApplyDryRunTests
             result.Success.Should().BeTrue();
             result.DryRun.Should().BeFalse();
             result.WouldWriteFiles.Should().BeTrue();
-            result.FilePlan.Single(item => item.Role == "view").BackupPath.Should().NotBeNullOrWhiteSpace();
-            File.Exists(result.FilePlan.Single(item => item.Role == "view").BackupPath).Should().BeTrue();
+            var viewPlan = result.FilePlan.Single(item => item.Role == "view");
+            viewPlan.Action.Should().Be("update");
+            viewPlan.RiskLevel.Should().Be("medium");
+            viewPlan.Reversible.Should().BeTrue();
+            viewPlan.BackupPath.Should().NotBeNullOrWhiteSpace();
+            File.Exists(viewPlan.BackupPath).Should().BeTrue();
             var written = File.ReadAllText(targetPath);
             written.Should().Contain("WPFDEVTOOLS_BLUEPRINT_SOURCE");
             written.Should().Contain("Manual note");
@@ -186,6 +190,12 @@ public sealed class ComposerApplyDryRunTests
             var result = service.Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot, DryRun: false, ConfirmApply: true));
 
             result.Success.Should().BeTrue();
+            var viewPlan = result.FilePlan.Single(item => item.Role == "view");
+            viewPlan.Action.Should().Be("create");
+            viewPlan.RiskLevel.Should().Be("low");
+            viewPlan.WouldWrite.Should().BeTrue();
+            viewPlan.Reversible.Should().BeTrue();
+            viewPlan.BackupPath.Should().BeNull();
             File.Exists(Path.Combine(projectRoot, "Views", "GeneratedView.xaml")).Should().BeTrue();
         }
         finally

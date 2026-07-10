@@ -58,13 +58,13 @@ internal sealed record ApplyBlueprintIssue(string JsonPath, string Code, string 
         => new(issue.JsonPath, issue.Code, issue.Message, issue.RepairSuggestion);
 }
 
-internal sealed record ApplyFileWriteResult(bool Success, string? BackupPath, ApplyBlueprintIssue? Error)
+internal sealed record ApplyFileWriteResult(bool Success, string? BackupPath, bool TargetExisted, ApplyBlueprintIssue? Error)
 {
-    public static ApplyFileWriteResult CreateSuccess(string? backupPath)
-        => new(true, backupPath, null);
+    public static ApplyFileWriteResult CreateSuccess(string? backupPath, bool targetExisted)
+        => new(true, backupPath, targetExisted, null);
 
-    public static ApplyFileWriteResult CreateFailure(string? backupPath, ApplyBlueprintIssue error)
-        => new(false, backupPath, error);
+    public static ApplyFileWriteResult CreateFailure(string? backupPath, bool targetExisted, ApplyBlueprintIssue error)
+        => new(false, backupPath, targetExisted, error);
 }
 
 internal sealed record ExistingContentReadResult(bool Success, string? Content, ApplyBlueprintIssue? Error)

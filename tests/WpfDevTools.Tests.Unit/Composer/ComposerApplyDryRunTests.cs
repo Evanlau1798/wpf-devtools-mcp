@@ -292,7 +292,7 @@ public sealed class ComposerApplyDryRunTests
             var projectRoot = Path.Combine(tempRoot, "project");
 
             var result = await UiComposerMcpTools.ApplyUiBlueprint(
-                Blueprint(),
+                BehaviorBlueprint(),
                 projectRoot,
                 localAppDataRoot: tempRoot,
                 cancellationToken: CancellationToken.None);
@@ -302,6 +302,9 @@ public sealed class ComposerApplyDryRunTests
             payload.GetProperty("success").GetBoolean().Should().BeTrue();
             payload.GetProperty("dryRun").GetBoolean().Should().BeTrue();
             payload.GetProperty("filePlan")[0].GetProperty("wouldWrite").GetBoolean().Should().BeFalse();
+            var behavior = payload.GetProperty("behaviorIntegrationContract");
+            behavior.GetProperty("status").GetString().Should().Be("required");
+            behavior.GetProperty("interactions")[0].GetProperty("commandPath").GetString().Should().Be("ApplyCommand");
         }
         finally
         {
@@ -320,6 +323,17 @@ public sealed class ComposerApplyDryRunTests
               "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
               "primaryPack": "wpfui",
               "layout": { "kind": "wpfui.button", "properties": { "text": "Apply" } }
+            }
+            """;
+
+    private static string BehaviorBlueprint()
+        => """
+            {
+              "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+              "name": "GeneratedView",
+              "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+              "primaryPack": "wpfui",
+              "layout": { "kind": "wpfui.button", "properties": { "text": "Apply", "command": "{Binding ApplyCommand}" } }
             }
             """;
 

@@ -375,6 +375,7 @@ public static class UiComposerMcpTools
             result.ResourcePlan,
             result.RequiredNuGetPackages,
             result.ViewModelBindingContract,
+            result.BehaviorIntegrationContract,
             result.Errors,
             observability = ComposerObservability.ForApply(result)
         };

@@ -3,7 +3,6 @@ using WpfDevTools.Mcp.Server.Composer;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Catalog;
 using WpfDevTools.Mcp.Server.Composer.Packs;
-using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
 using WpfDevTools.Tests.Unit.TestSupport;
 
@@ -76,9 +75,6 @@ public sealed class ComposerPerformanceSmokeTests
 
     private static PackRegistry CreateRegistry()
         => PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
-
-    private static string ButtonBlueprint()
-        => Blueprint("""{ "kind": "wpfui.button", "properties": { "text": "Save" } }""");
 
     private static string NavigationShellBlueprint()
         => Blueprint("""

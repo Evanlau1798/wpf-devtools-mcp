@@ -334,6 +334,7 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
             CreateNoWindow = true
         };
         process.StartInfo.Environment["MSBUILDDISABLENODEREUSE"] = "1";
+        process.StartInfo.Environment["DOTNET_CLI_UI_LANGUAGE"] = "en";
         foreach (var argument in arguments)
         {
             process.StartInfo.ArgumentList.Add(argument);

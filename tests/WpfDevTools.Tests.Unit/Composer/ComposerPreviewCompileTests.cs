@@ -21,6 +21,7 @@ public sealed partial class ComposerPreviewCompileTests
 
         result.Success.Should().BeTrue();
         result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+        result.BuildOutput.Should().Contain("Build succeeded.");
         result.RestoreEnabled.Should().BeTrue();
         result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == expectedConclusion);
         result.PreviewHost.Status.Should().Be("compiled");

@@ -215,6 +215,7 @@ internal sealed partial class UiBlueprintPreviewService
             sessionManager,
             process,
             request.IncludeScreenshotDiagnostics,
+            request.ScreenshotOutputMode,
             cancellationToken).ConfigureAwait(false);
     }
 

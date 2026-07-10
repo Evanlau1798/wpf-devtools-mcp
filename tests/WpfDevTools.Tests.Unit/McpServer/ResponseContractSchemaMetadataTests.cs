@@ -82,6 +82,7 @@ public sealed class ResponseContractSchemaMetadataTests
         AssertEnumConstraint(constraints, "get_ui_summary", "depthMode", "semantic", "visual");
         AssertEnumConstraint(constraints, "find_elements", "typeMatchMode", "exact", "assignable");
         AssertEnumConstraint(constraints, "element_screenshot", "outputMode", "metadata", "file", "base64");
+        AssertEnumConstraint(constraints, "preview_ui_blueprint", "screenshotOutputMode", "metadata", "file");
     }
 
     private static void AssertNumericConstraint(

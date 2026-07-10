@@ -53,6 +53,13 @@ internal static class ResponseContractParameterVocabularies
             },
             new
             {
+                parameter = "screenshotOutputMode",
+                tools = new[] { "preview_ui_blueprint" },
+                defaultValue = "metadata",
+                allowedValues = new[] { "metadata", "file" }
+            },
+            new
+            {
                 parameter = "matchMode",
                 tools = new[] { "find_elements" },
                 defaultValue = "exact",

@@ -201,7 +201,8 @@ internal static class UiComposerMcpToolDescriptions
         - restoreEnabled=false runs dotnet build --no-restore and returns missing-assets diagnostics when the temporary project has not been restored.
         - startHost=true starts the temporary host after build, waits for an explicit generated-view load sentinel, then terminates the process tree.
         - includeRuntimeDiagnostics=true with startHost=true reuses connect(), get_ui_summary(depthMode="semantic"), and get_layout_info against the temporary preview host.
-        - includeScreenshotDiagnostics=true with startHost=true enables runtime diagnostics and adds element_screenshot(outputMode="metadata") only when the screenshot policy gate allows it.
+        - includeScreenshotDiagnostics=true with startHost=true enables runtime diagnostics and adds element_screenshot using screenshotOutputMode only when the screenshot policy gate allows it.
+        - screenshotOutputMode="file" returns a resource-backed PNG that remains readable after the temporary preview host exits.
         - Compile failures map back to the compiler line/column source-map entry and renderer template path when available; restore/build infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:
@@ -210,10 +211,12 @@ internal static class UiComposerMcpToolDescriptions
         - startHost defaults to false for fast compile smoke; set true for preview host load smoke.
         - includeRuntimeDiagnostics defaults to false; set true with startHost=true after enabling the sensitive-reads policy gate.
         - includeScreenshotDiagnostics defaults to false; set true with startHost=true only when pixel evidence is needed; it requires both sensitive-reads and screenshot policy gates.
+        - screenshotOutputMode defaults to metadata; use file when resources/read pixel evidence is required.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
         - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}","restoreEnabled":true,"startHost":true,"includeRuntimeDiagnostics":true}
+        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}","restoreEnabled":true,"startHost":true,"includeScreenshotDiagnostics":true,"screenshotOutputMode":"file"}
         """;
 }

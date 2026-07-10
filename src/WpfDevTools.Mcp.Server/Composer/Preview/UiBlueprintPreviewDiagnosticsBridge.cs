@@ -13,6 +13,7 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
         SessionManager sessionManager,
         Process previewProcess,
         bool includeScreenshotDiagnostics,
+        string screenshotOutputMode,
         CancellationToken cancellationToken)
     {
         var processId = previewProcess.Id;
@@ -58,7 +59,7 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                     ct => new ElementScreenshotTool(sessionManager).ExecuteAsync(
                         ToolCallHelper.BuildJsonArgs(
                             ("processId", processId),
-                            ("outputMode", "metadata")),
+                            ("outputMode", screenshotOutputMode)),
                         ct),
                     cancellationToken).ConfigureAwait(false));
             }
@@ -67,7 +68,10 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
         }
         finally
         {
-            sessionManager.RemoveSession(processId);
+            sessionManager.RemoveSession(
+                processId,
+                preserveScreenshotResources: includeScreenshotDiagnostics
+                                             && string.Equals(screenshotOutputMode, "file", StringComparison.OrdinalIgnoreCase));
         }
     }
 

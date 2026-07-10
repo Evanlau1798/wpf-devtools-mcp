@@ -39,6 +39,7 @@ internal static class ResponseContractParameterConstraints
             String("capture_state_snapshot", "propertyNames[]", maxLength: CaptureStateSnapshotTool.MaxSnapshotPropertyNameLength),
             String("capture_state_snapshot", "viewModelPropertyNames[]", maxLength: CaptureStateSnapshotTool.MaxSnapshotPropertyNameLength),
             StringEnum("element_screenshot", "outputMode", defaultValue: "metadata", "metadata", "file", "base64"),
+            StringEnum("preview_ui_blueprint", "screenshotOutputMode", defaultValue: "metadata", "metadata", "file"),
             Integer("element_screenshot", "maxWidth", defaultValue: null, minimum: 1, maximum: int.MaxValue),
             Integer("element_screenshot", "maxHeight", defaultValue: null, minimum: 1, maximum: int.MaxValue)
         };

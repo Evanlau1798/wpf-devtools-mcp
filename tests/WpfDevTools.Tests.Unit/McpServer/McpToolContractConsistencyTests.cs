@@ -259,6 +259,12 @@ public class McpToolContractConsistencyTests
     }
 
     [Fact]
+    public void PreviewUiBlueprint_ShouldExposeScreenshotOutputMode()
+    {
+        AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "screenshotOutputMode", typeof(string), "metadata");
+    }
+
+    [Fact]
     public void SelectActiveProcess_ShouldExposeOptionalNullableProcessId_ForStructuredMissingParameter()
     {
         AssertOptionalParameter(typeof(ProcessMcpTools), nameof(ProcessMcpTools.SelectActiveProcess), "processId", typeof(int?), null);

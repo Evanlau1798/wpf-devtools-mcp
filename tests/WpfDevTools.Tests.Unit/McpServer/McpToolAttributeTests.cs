@@ -404,9 +404,7 @@ public class McpToolAttributeTests
         AssertIntegerConstraint(logicalTreeSchema, "maxNodes", minimum: 1, maximum: 10000);
         AssertIntegerConstraint(logicalTreeSchema, "maxChildrenPerNode", minimum: 1, maximum: 1000);
 
-        var findElementsSchema = CreateInputSchema(
-            typeof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools),
-            nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.FindElements));
+        var findElementsSchema = CreateInputSchema(typeof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.FindElements));
         AssertIntegerConstraint(findElementsSchema, "maxTraversalNodes", minimum: 1, maximum: 10000);
         AssertStringMaxLength(findElementsSchema, "propertyName", 256);
         AssertEnumConstraint(findElementsSchema, "typeMatchMode", "exact", "assignable");
@@ -423,6 +421,8 @@ public class McpToolAttributeTests
         AssertEnumConstraint(screenshotSchema, "outputMode", "metadata", "file", "base64");
         AssertIntegerConstraint(screenshotSchema, "maxWidth", minimum: 1, maximum: int.MaxValue);
         AssertIntegerConstraint(screenshotSchema, "maxHeight", minimum: 1, maximum: int.MaxValue);
+        var previewSchema = CreateInputSchema(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint));
+        AssertEnumConstraint(previewSchema, "screenshotOutputMode", "metadata", "file");
     }
 
     private static JsonElement CreateInputSchema(Type toolType, string methodName)

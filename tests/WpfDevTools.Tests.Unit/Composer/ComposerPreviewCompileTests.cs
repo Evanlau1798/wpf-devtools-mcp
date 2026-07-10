@@ -9,7 +9,7 @@ using WpfDevTools.Tests.Unit.TestSupport;
 namespace WpfDevTools.Tests.Unit.Composer;
 
 [Collection("ProcessEnvironment")]
-public sealed class ComposerPreviewCompileTests
+public sealed partial class ComposerPreviewCompileTests
 {
     [Theory]
     [MemberData(nameof(CompilableBlueprints))]

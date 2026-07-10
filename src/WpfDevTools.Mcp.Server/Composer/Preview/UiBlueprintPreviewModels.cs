@@ -9,7 +9,8 @@ internal sealed record PreviewBlueprintRequest(
     string? TemporaryRoot = null,
     bool StartHost = false,
     bool IncludeRuntimeDiagnostics = false,
-    bool IncludeScreenshotDiagnostics = false);
+    bool IncludeScreenshotDiagnostics = false,
+    string ScreenshotOutputMode = "metadata");
 
 internal sealed record DotnetCommandResult(bool Succeeded, bool Cancelled);
 

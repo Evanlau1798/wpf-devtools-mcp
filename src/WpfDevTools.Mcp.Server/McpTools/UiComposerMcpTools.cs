@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.Composer.Apply;
@@ -184,7 +185,9 @@ public static class UiComposerMcpTools
         [Description("When true, runs dotnet restore for the temporary preview project before build. When false, build runs with --no-restore and reports missing assets diagnostics.")] bool restoreEnabled = true,
         [Description("When true, starts the temporary preview host after a successful build, waits for its main window, then terminates it.")] bool startHost = false,
         [Description("When true with startHost=true, connects to the temporary preview host and returns semantic summary plus layout diagnostics. Requires the sensitive-reads policy gate.")] bool includeRuntimeDiagnostics = false,
-        [Description("When true with startHost=true, enables runtime diagnostics and also requests screenshot metadata diagnostics. Requires the sensitive-reads and screenshot policy gates.")] bool includeScreenshotDiagnostics = false,
+        [Description("When true with startHost=true, enables runtime diagnostics and also requests screenshot diagnostics. Requires the sensitive-reads and screenshot policy gates.")] bool includeScreenshotDiagnostics = false,
+        [AllowedValues("metadata", "file")]
+        [Description("Screenshot output mode used when includeScreenshotDiagnostics=true: 'metadata' (default) or resource-backed 'file'.")] string screenshotOutputMode = "metadata",
         [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global packs.")] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
@@ -195,6 +198,7 @@ public static class UiComposerMcpTools
             ("startHost", startHost),
             ("includeRuntimeDiagnostics", includeRuntimeDiagnostics),
             ("includeScreenshotDiagnostics", includeScreenshotDiagnostics),
+            ("screenshotOutputMode", screenshotOutputMode),
             ("projectRoot", projectRoot),
             ("localAppDataRoot", localAppDataRoot));
 
@@ -206,6 +210,7 @@ public static class UiComposerMcpTools
                 startHost,
                 includeRuntimeDiagnostics,
                 includeScreenshotDiagnostics,
+                screenshotOutputMode,
                 projectRoot,
                 localAppDataRoot,
                 token),
@@ -381,6 +386,7 @@ public static class UiComposerMcpTools
         bool startHost,
         bool includeRuntimeDiagnostics,
         bool includeScreenshotDiagnostics,
+        string screenshotOutputMode,
         string? projectRoot,
         string? localAppDataRoot,
         CancellationToken cancellationToken)
@@ -392,7 +398,8 @@ public static class UiComposerMcpTools
                     restoreEnabled,
                     StartHost: startHost,
                     IncludeRuntimeDiagnostics: includeRuntimeDiagnostics,
-                    IncludeScreenshotDiagnostics: includeScreenshotDiagnostics),
+                    IncludeScreenshotDiagnostics: includeScreenshotDiagnostics,
+                    ScreenshotOutputMode: screenshotOutputMode),
                 cancellationToken)
             .ConfigureAwait(false);
 

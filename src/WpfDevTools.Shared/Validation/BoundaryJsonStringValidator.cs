@@ -36,6 +36,7 @@ public static class BoundaryJsonStringValidator
         "propertyName",
         "propertyNames",
         "resourceKey",
+        "screenshotOutputMode",
         "selectionStrategy",
         "sessionId",
         "sinceTimestamp",

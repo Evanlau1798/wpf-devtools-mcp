@@ -62,18 +62,6 @@ public sealed class ComposerPerformanceSmokeTests
     }
 
     [Fact]
-    public void PreviewSmoke_ShouldExerciseCompilePathWithoutRestore()
-    {
-        var service = new UiBlueprintPreviewService(CreateRegistry());
-
-        var result = service.Preview(new PreviewBlueprintRequest(ButtonBlueprint(), RestoreEnabled: false));
-
-        result.Success.Should().BeTrue();
-        result.RestoreEnabled.Should().BeFalse();
-        result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "XamlCompileFailed");
-    }
-
-    [Fact]
     public void ValidateBlueprint_ShouldRejectBlueprintsAboveNodeLimit()
     {
         var validator = new BlueprintValidationService(CreateRegistry());

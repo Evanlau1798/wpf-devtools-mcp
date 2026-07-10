@@ -425,6 +425,8 @@ public static class UiComposerMcpTools
             result.Xaml,
             result.Diagnostics,
             result.PreviewHost,
+            result.VisualFidelity,
+            result.VisualValidationGuidance,
             observability = ComposerObservability.ForPreview(result)
         };
     }

@@ -77,6 +77,8 @@ public sealed partial class ComposerPreviewCompileTests
         var payload = result.StructuredContent!.Value;
         payload.GetProperty("success").GetBoolean().Should().BeTrue();
         payload.GetProperty("buildSucceeded").GetBoolean().Should().BeTrue();
+        payload.GetProperty("visualFidelity").GetString().Should().Be("structural-stub");
+        payload.GetProperty("visualValidationGuidance").GetString().Should().Contain("applied, built, and launched WPF application");
         payload.GetProperty("previewHost").GetProperty("status").GetString().Should().Be("compiled");
         payload.GetProperty("previewHost").GetProperty("viewLoaded").GetBoolean().Should().BeFalse();
     }

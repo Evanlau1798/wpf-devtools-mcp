@@ -197,7 +197,8 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this to launch or control a real target application. This phase builds a temporary local preview host, optionally starts that temporary host, and reports diagnostics; it does not persist project files outside its temporary workspace.
 
         RESPONSE SUMMARY:
-        - Returns success, valid, buildSucceeded, restoreEnabled, buildOutput, xaml, diagnostics, and previewHost.
+        - Returns success, valid, buildSucceeded, restoreEnabled, buildOutput, xaml, diagnostics, previewHost, visualFidelity, and visualValidationGuidance.
+        - visualFidelity="structural-stub" means preview screenshots are structural-only evidence. Validate final styling in the applied, built, and launched WPF application.
         - restoreEnabled=false runs dotnet build --no-restore and returns missing-assets diagnostics when the temporary project has not been restored.
         - startHost=true starts the temporary host after build, waits for an explicit generated-view load sentinel, then terminates the process tree.
         - includeRuntimeDiagnostics=true with startHost=true reuses connect(), get_ui_summary(depthMode="semantic"), and get_layout_info against the temporary preview host.
@@ -211,7 +212,7 @@ internal static class UiComposerMcpToolDescriptions
         - startHost defaults to false for fast compile smoke; set true for preview host load smoke.
         - includeRuntimeDiagnostics defaults to false; set true with startHost=true after enabling the sensitive-reads policy gate.
         - includeScreenshotDiagnostics defaults to false; set true with startHost=true only when pixel evidence is needed; it requires both sensitive-reads and screenshot policy gates.
-        - screenshotOutputMode defaults to metadata; use file when resources/read pixel evidence is required.
+        - screenshotOutputMode defaults to metadata; use file when resources/read structural pixel evidence is required. Do not approve final styling from the preview image.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 

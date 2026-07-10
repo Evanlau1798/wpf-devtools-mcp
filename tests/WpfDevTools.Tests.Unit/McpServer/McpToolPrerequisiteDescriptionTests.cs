@@ -52,6 +52,17 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("Non-dry-run writes");
     }
 
+    [Fact]
+    public void PreviewUiBlueprintDescription_ShouldDiscloseStructuralOnlyVisualFidelity()
+    {
+        var description = GetMcpTools()
+            .Single(tool => string.Equals(tool.Name, "preview_ui_blueprint", StringComparison.Ordinal))
+            .Description;
+
+        description.Should().Contain("structural-only");
+        description.Should().Contain("applied, built, and launched WPF application");
+    }
+
     private static IEnumerable<(string Name, string Description)> GetMcpTools()
     {
         var assembly = typeof(WpfDevTools.Mcp.Server.ServerInstructions).Assembly;

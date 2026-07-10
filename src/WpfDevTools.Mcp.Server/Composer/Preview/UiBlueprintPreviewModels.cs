@@ -24,6 +24,11 @@ internal sealed record PreviewBlueprintResult(
     IReadOnlyList<PreviewDiagnostic> Diagnostics,
     PreviewHostResult PreviewHost)
 {
+    public string VisualFidelity => "structural-stub";
+
+    public string VisualValidationGuidance =>
+        "Use preview screenshots for structural diagnostics only. Validate final styling in the applied, built, and launched WPF application.";
+
     public static PreviewBlueprintResult Invalid(
         bool restoreEnabled,
         string xaml,

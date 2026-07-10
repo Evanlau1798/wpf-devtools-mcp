@@ -80,6 +80,7 @@ public sealed class ResponseContractSchemaMetadataTests
         AssertEnumConstraint(constraints, "connect", "selectionStrategy", "single_only", "largest_working_set");
         AssertEnumConstraint(constraints, "connect", "windowFilter", "visible", "all", "foreground");
         AssertEnumConstraint(constraints, "get_ui_summary", "depthMode", "semantic", "visual");
+        AssertEnumConstraint(constraints, "find_elements", "typeMatchMode", "exact", "assignable");
         AssertEnumConstraint(constraints, "element_screenshot", "outputMode", "metadata", "file", "base64");
     }
 

@@ -409,6 +409,7 @@ public class McpToolAttributeTests
             nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.FindElements));
         AssertIntegerConstraint(findElementsSchema, "maxTraversalNodes", minimum: 1, maximum: 10000);
         AssertStringMaxLength(findElementsSchema, "propertyName", 256);
+        AssertEnumConstraint(findElementsSchema, "typeMatchMode", "exact", "assignable");
 
         var uiSummarySchema = CreateInputSchema(
             typeof(WpfDevTools.Mcp.Server.McpTools.SceneDiagnosticsMcpTools),

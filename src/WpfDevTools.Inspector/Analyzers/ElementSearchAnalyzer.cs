@@ -10,7 +10,7 @@ namespace WpfDevTools.Inspector.Analyzers;
 /// <summary>
 /// Searches the live WPF visual/logical tree for elements that match AI-friendly exact filters.
 /// </summary>
-public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
+public sealed partial class ElementSearchAnalyzer : DispatcherAnalyzerBase
 {
     internal const int MaxSearchPropertyNameLength = 256;
     internal const int MaxSearchQueryLength = 256;
@@ -52,7 +52,8 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         string? propertyValue = null,
         int? maxResults = null,
         string? matchMode = null,
-        string? query = null)
+        string? query = null,
+        string? typeMatchMode = null)
     {
         return FindElementsCore(
             rootElementId,
@@ -65,7 +66,8 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
             propertyValue,
             maxResults,
             maxTraversalNodes: null,
-            matchMode);
+            matchMode,
+            typeMatchMode);
     }
 
     internal object FindElementsWithTraversalBudget(
@@ -79,7 +81,8 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         int? maxResults = null,
         int? maxTraversalNodes = null,
         string? matchMode = null,
-        string? query = null)
+        string? query = null,
+        string? typeMatchMode = null)
     {
         return FindElementsCore(
             rootElementId,
@@ -92,7 +95,8 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
             propertyValue,
             maxResults,
             maxTraversalNodes,
-            matchMode);
+            matchMode,
+            typeMatchMode);
     }
 
     private object FindElementsCore(
@@ -106,7 +110,8 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         string? propertyValue,
         int? maxResults,
         int? maxTraversalNodes,
-        string? matchMode)
+        string? matchMode,
+        string? typeMatchMode)
     {
         var limit = maxResults.GetValueOrDefault(20);
         if (limit <= 0)
@@ -159,6 +164,15 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
                     "Use matchMode 'exact' or 'contains'.");
             }
 
+            var resolvedTypeMatchMode = string.IsNullOrWhiteSpace(typeMatchMode) ? "exact" : typeMatchMode!;
+            if (!string.Equals(resolvedTypeMatchMode, "exact", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(resolvedTypeMatchMode, "assignable", StringComparison.OrdinalIgnoreCase))
+            {
+                return ToolErrorFactory.InvalidArgument(
+                    $"Unsupported typeMatchMode '{typeMatchMode}'.",
+                    "Use typeMatchMode 'exact' or 'assignable'.");
+            }
+
             var results = new List<object>();
             var truncated = false;
             var traversalNodeCount = 0;
@@ -180,6 +194,7 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
                         propertyName,
                         propertyValue,
                         resolvedMatchMode,
+                        resolvedTypeMatchMode,
                         resolvedQueryMatchMode,
                         out var matchedProperty,
                         out var matchedValue))
@@ -236,6 +251,7 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         string? propertyName,
         string? propertyValue,
         string matchMode,
+        string typeMatchMode,
         string queryMatchMode,
         out string? matchedProperty,
         out string? matchedValue)
@@ -243,7 +259,7 @@ public sealed class ElementSearchAnalyzer : DispatcherAnalyzerBase
         matchedProperty = null;
         matchedValue = null;
 
-        if (!MatchesString(element.GetType().Name, typeName, typeNames, matchMode))
+        if (!MatchesType(element.GetType(), typeName, typeNames, typeMatchMode))
         {
             return false;
         }

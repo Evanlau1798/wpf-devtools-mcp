@@ -28,6 +28,7 @@ public sealed class FindElementsTool : PipeConnectedToolBase
         var maxResults = ParseIntParam(arguments, "maxResults");
         var maxTraversalNodes = ParseIntParam(arguments, "maxTraversalNodes");
         var matchMode = ParseStringParam(arguments, "matchMode");
+        var typeMatchMode = ParseStringParam(arguments, "typeMatchMode");
 
         return await SendInspectorRequestAsync(
             processId,
@@ -44,7 +45,8 @@ public sealed class FindElementsTool : PipeConnectedToolBase
                 propertyValue,
                 maxResults,
                 maxTraversalNodes,
-                matchMode
+                matchMode,
+                typeMatchMode
             },
             cancellationToken);
     }

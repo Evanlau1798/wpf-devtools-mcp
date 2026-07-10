@@ -177,6 +177,8 @@ public static class TreeMcpTools
         [Description("Optional maximum number of elements to inspect before truncating traversal. Default: 1000; capped at 10000.")] int? maxTraversalNodes = null,
         [AllowedValues("exact", "contains")]
         [Description("Optional match mode: 'exact' (default) or 'contains' for case-insensitive substring matching.")] string? matchMode = null,
+        [AllowedValues("exact", "assignable")]
+        [Description("Optional WPF type matching mode: 'exact' (default) matches only the runtime type; 'assignable' also matches base types and implemented interfaces.")] string? typeMatchMode = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -191,7 +193,8 @@ public static class TreeMcpTools
             ("propertyValue", propertyValue),
             ("maxResults", maxResults),
             ("maxTraversalNodes", maxTraversalNodes),
-            ("matchMode", matchMode));
+            ("matchMode", matchMode),
+            ("typeMatchMode", typeMatchMode));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<FindElementsTool>(sessionManager, "FindElementsTool", () => new FindElementsTool(sessionManager)).ExecuteAsync(a, ct),

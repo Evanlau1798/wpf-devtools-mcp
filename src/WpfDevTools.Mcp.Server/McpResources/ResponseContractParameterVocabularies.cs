@@ -60,6 +60,13 @@ internal static class ResponseContractParameterVocabularies
             },
             new
             {
+                parameter = "typeMatchMode",
+                tools = new[] { "find_elements" },
+                defaultValue = "exact",
+                allowedValues = new[] { "exact", "assignable" }
+            },
+            new
+            {
                 parameter = "direction",
                 tools = new[] { "force_binding_update" },
                 defaultValue = "Source",

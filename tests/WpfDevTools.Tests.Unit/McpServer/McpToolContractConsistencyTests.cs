@@ -253,6 +253,12 @@ public class McpToolContractConsistencyTests
     }
 
     [Fact]
+    public void FindElements_ShouldExposeOptionalTypeMatchMode()
+    {
+        AssertOptionalParameter(typeof(TreeMcpTools), nameof(TreeMcpTools.FindElements), "typeMatchMode", typeof(string), null);
+    }
+
+    [Fact]
     public void SelectActiveProcess_ShouldExposeOptionalNullableProcessId_ForStructuredMissingParameter()
     {
         AssertOptionalParameter(typeof(ProcessMcpTools), nameof(ProcessMcpTools.SelectActiveProcess), "processId", typeof(int?), null);

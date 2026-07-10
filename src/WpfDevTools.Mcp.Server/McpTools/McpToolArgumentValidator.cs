@@ -20,7 +20,8 @@ internal static class McpToolArgumentValidator
         "propertyValue",
         "maxResults",
         "maxTraversalNodes",
-        "matchMode"
+        "matchMode",
+        "typeMatchMode"
     };
 
     private static readonly HashSet<string> SerializeToXamlArgumentNames = new(StringComparer.Ordinal)
@@ -251,7 +252,7 @@ internal static class McpToolArgumentValidator
         {
             Error = $"Unknown argument '{argumentName}' for find_elements.",
             ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
-            Hint = "Use one of: processId, elementId, query, typeName, controlType, typeNames, elementName, automationId, propertyName, propertyValue, maxResults, maxTraversalNodes, matchMode."
+            Hint = "Use one of: processId, elementId, query, typeName, controlType, typeNames, elementName, automationId, propertyName, propertyValue, maxResults, maxTraversalNodes, matchMode, typeMatchMode."
         };
     }
 

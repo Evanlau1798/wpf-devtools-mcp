@@ -158,7 +158,8 @@ internal static class TreeMcpToolDescriptions
         "- elementName\n" +
         "- automationId\n" +
         "- propertyName + propertyValue\n" +
-        "- matchMode: exact | contains\n\n" +
+        "- matchMode: exact | contains\n" +
+        "- typeMatchMode: exact | assignable; assignable includes base types and implemented interfaces\n\n" +
         "RESPONSE SUMMARY:\n" +
         "  - success: boolean,\n" +
         "  - resultCount: integer,\n" +
@@ -176,6 +177,7 @@ internal static class TreeMcpToolDescriptions
         "EXAMPLES:\n" +
         "- { \"processId\": 12345, \"query\": \"Apply\", \"maxResults\": 10 }\n" +
         "- { \"processId\": 12345, \"typeName\": \"Button\", \"maxResults\": 10 }\n" +
+        "- { \"processId\": 12345, \"typeName\": \"ButtonBase\", \"typeMatchMode\": \"assignable\" }\n" +
         "- { \"processId\": 12345, \"controlType\": \"Button\", \"maxResults\": 10 }\n" +
         "- { \"processId\": 12345, \"elementName\": \"SaveButton\" }\n" +
         "- { \"processId\": 12345, \"propertyName\": \"Text\", \"propertyValue\": \"Ready\" }";

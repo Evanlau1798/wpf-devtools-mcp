@@ -44,6 +44,7 @@ public sealed class ElementSearchHandlers : IRequestHandler
             propertyValue: ParameterHelpers.GetStringParam(@params, "propertyValue"),
             maxResults: ParameterHelpers.GetIntParam(@params, "maxResults"),
             maxTraversalNodes: ParameterHelpers.GetIntParam(@params, "maxTraversalNodes"),
-            matchMode: ParameterHelpers.GetStringParam(@params, "matchMode")));
+            matchMode: ParameterHelpers.GetStringParam(@params, "matchMode"),
+            typeMatchMode: ParameterHelpers.GetStringParam(@params, "typeMatchMode")));
     }
 }

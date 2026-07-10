@@ -43,6 +43,7 @@ public static class BoundaryJsonStringValidator
         "snapshotName",
         "statusFilter",
         "trigger",
+        "typeMatchMode",
         "typeName",
         "typeNames",
         "viewModelPropertyNames",

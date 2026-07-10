@@ -40,6 +40,7 @@ public class FindElementsToolTests
 
                 var payload = request.Params!.Value;
                 payload.GetProperty("matchMode").GetString().Should().Be("contains");
+                payload.GetProperty("typeMatchMode").GetString().Should().Be("assignable");
                 payload.GetProperty("maxTraversalNodes").GetInt32().Should().Be(75);
                 payload.GetProperty("typeNames").EnumerateArray()
                     .Select(item => item.GetString())
@@ -54,6 +55,7 @@ public class FindElementsToolTests
             processId,
             typeNames = new[] { "TextBox", "ComboBox" },
             matchMode = "contains",
+            typeMatchMode = "assignable",
             maxTraversalNodes = 75
         }), CancellationToken.None);
 

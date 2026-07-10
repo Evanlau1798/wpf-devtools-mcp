@@ -26,7 +26,7 @@ function Get-InstallerFullUninstallCleanupGuidance {
 function Get-InstallerComposerPolicyProfile {
     param([Parameter(Mandatory)] [string]$ResolvedClient)
 
-    if ((Resolve-ClientBaseId -ClientId $ResolvedClient) -ne 'other') {
+    if (-not [string]::Equals($ResolvedClient, 'other', [System.StringComparison]::OrdinalIgnoreCase)) {
         return $null
     }
 

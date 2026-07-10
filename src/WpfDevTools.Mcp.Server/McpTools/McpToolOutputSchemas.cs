@@ -221,11 +221,20 @@ internal static partial class McpToolOutputSchemas
                     type = "object",
                     description = "Exact same-session MCP resource read request for file-mode screenshot retrieval.",
                     additionalProperties = false,
-                    required = new[] { "method", "uri", "sameSessionRequired" },
+                    required = new[] { "method", "params", "sameSessionRequired" },
                     properties = new Dictionary<string, object>
                     {
                         ["method"] = String("MCP resource method; always resources/read."),
-                        ["uri"] = String("Exact screenshot resource URI to read."),
+                        ["params"] = new
+                        {
+                            type = "object",
+                            additionalProperties = false,
+                            required = new[] { "uri" },
+                            properties = new Dictionary<string, object>
+                            {
+                                ["uri"] = String("Exact screenshot resource URI to read.")
+                            }
+                        },
                         ["sameSessionRequired"] = Boolean("Whether retrieval must use the same MCP server session.")
                     }
                 },

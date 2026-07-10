@@ -364,7 +364,7 @@ internal static class ResponseContractToolEntries
                     "maxInlineByteLength",
                     "nextSteps"
                 },
-                nestedResponsePaths = new[] { "resourceRead.method", "resourceRead.uri", "resourceRead.sameSessionRequired" },
+                nestedResponsePaths = new[] { "resourceRead.method", "resourceRead.params.uri", "resourceRead.sameSessionRequired" },
                 requestParameters = new[]
                 {
                     "elementId",

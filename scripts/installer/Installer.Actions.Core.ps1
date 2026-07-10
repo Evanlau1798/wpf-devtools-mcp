@@ -23,6 +23,72 @@ function Get-InstallerFullUninstallCleanupGuidance {
     return 'full-uninstall removes all detected registrations, generated client-registration artifacts, and installer-owned server locations. Persisted auth secrets and certificate stores remain manual cleanup items.'
 }
 
+function Get-InstallerArchiveIntegrityValue {
+    param(
+        $Record,
+        [Parameter(Mandatory)] [string]$Name
+    )
+
+    if ($null -eq $Record) {
+        return $null
+    }
+
+    if ($Record -is [System.Collections.IDictionary]) {
+        return $(if ($Record.Contains($Name)) { $Record[$Name] } else { $null })
+    }
+
+    $property = $Record.PSObject.Properties[$Name]
+    return $(if ($null -ne $property) { $property.Value } else { $null })
+}
+
+function New-InstallerReleaseTrustResult {
+    param(
+        [Parameter(Mandatory)] $Session,
+        [Parameter(Mandatory)] $PackageManifest
+    )
+
+    $archiveIntegrity = Get-InstallerArchiveIntegrityValue -Record $Session -Name 'ArchiveIntegrity'
+    $trustedArchivePolicy = [bool](Get-InstallerArchiveIntegrityValue -Record $Session -Name 'TrustedArchiveManifestPolicy')
+    $status = [string](Get-InstallerArchiveIntegrityValue -Record $archiveIntegrity -Name 'VerificationStatus')
+    $metadataSource = [string](Get-InstallerArchiveIntegrityValue -Record $archiveIntegrity -Name 'TrustedReleaseMetadataSource')
+    $expectedSha256 = [string](Get-InstallerArchiveIntegrityValue -Record $archiveIntegrity -Name 'ExpectedSha256')
+    $actualSha256 = [string](Get-InstallerArchiveIntegrityValue -Record $archiveIntegrity -Name 'ActualSha256')
+
+    if ([string]::Equals($status, 'not-applicable', [System.StringComparison]::OrdinalIgnoreCase)) {
+        if ($trustedArchivePolicy -or
+            -not [string]::IsNullOrWhiteSpace($metadataSource) -or
+            -not [string]::IsNullOrWhiteSpace($expectedSha256) -or
+            -not [string]::IsNullOrWhiteSpace($actualSha256)) {
+            throw 'Archive checksum trust evidence is inconsistent for a package-directory session.'
+        }
+
+        return [ordered]@{
+            signaturePolicy = [string]$PackageManifest.signaturePolicy
+            archiveChecksum = [ordered]@{ status = 'not-applicable'; metadataSource = $null; expectedSha256 = $null; actualSha256 = $null }
+        }
+    }
+
+    $hashPattern = '^[0-9a-fA-F]{64}$'
+    if (-not [string]::Equals($status, 'verified', [System.StringComparison]::OrdinalIgnoreCase) -or
+        -not $trustedArchivePolicy -or
+        [string]::IsNullOrWhiteSpace($metadataSource) -or
+        $expectedSha256 -notmatch $hashPattern -or
+        $actualSha256 -notmatch $hashPattern -or
+        -not [string]::Equals($expectedSha256, $actualSha256, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Archive checksum trust evidence is missing, malformed, or inconsistent.'
+    }
+
+    return [ordered]@{
+        signaturePolicy = [string]$PackageManifest.signaturePolicy
+        archiveChecksum = [ordered]@{
+            status = 'verified'
+            metadataSource = $metadataSource
+            expectedSha256 = $expectedSha256.ToLowerInvariant()
+            actualSha256 = $actualSha256.ToLowerInvariant()
+        }
+    }
+}
+
 function Invoke-InstallerActionCore {
     param(
         [Parameter(Mandatory)] [ValidateSet('install', 'uninstall', 'full-uninstall')] [string]$ResolvedAction,
@@ -265,22 +331,7 @@ function Invoke-InstallerActionCore {
         else {
             [string]$session.DownloadUri
         }
-        $archiveVerificationStatus = [string]$session.ArchiveIntegrity.VerificationStatus
-        if ([string]::IsNullOrWhiteSpace($archiveVerificationStatus)) {
-            $archiveVerificationStatus = if ([bool]$session.TrustedArchiveManifestPolicy) { 'verified' } else { 'not-applicable' }
-        }
-        $trustedReleaseMetadataSource = [string]$session.ArchiveIntegrity.TrustedReleaseMetadataSource
-        $expectedSha256 = [string]$session.ArchiveIntegrity.ExpectedSha256
-        $actualSha256 = [string]$session.ArchiveIntegrity.ActualSha256
-        $releaseTrust = [ordered]@{
-            signaturePolicy = [string]$packageManifest.signaturePolicy
-            archiveChecksum = [ordered]@{
-                status = $archiveVerificationStatus
-                metadataSource = if ([string]::IsNullOrWhiteSpace($trustedReleaseMetadataSource)) { $null } else { $trustedReleaseMetadataSource }
-                expectedSha256 = if ([string]::IsNullOrWhiteSpace($expectedSha256)) { $null } else { $expectedSha256 }
-                actualSha256 = if ([string]::IsNullOrWhiteSpace($actualSha256)) { $null } else { $actualSha256 }
-            }
-        }
+        $releaseTrust = New-InstallerReleaseTrustResult -Session $session -PackageManifest $packageManifest
 
         Write-InstallerActionProgress "[2/4] Installing payload into $ResolvedInstallRoot."
         $installResult = Install-PackagePayload `

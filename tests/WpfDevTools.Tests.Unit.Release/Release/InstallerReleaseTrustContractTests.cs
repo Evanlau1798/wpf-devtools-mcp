@@ -45,8 +45,10 @@ public sealed class InstallerReleaseTrustContractTests
         }
     }
 
-    [Fact]
-    public void InvokeInstallerActionCore_MissingTrustProjection_ShouldFailBeforeMutation()
+    [Theory]
+    [InlineData("$null")]
+    [InlineData("[ordered]@{ VerificationStatus='verified'; TrustedReleaseMetadataSource='github-release-metadata'; ExpectedSha256='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; ActualSha256='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' }")]
+    public void InvokeInstallerActionCore_InvalidTrustProjection_ShouldFailBeforeMutation(string archiveIntegrity)
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -60,9 +62,9 @@ public sealed class InstallerReleaseTrustContractTests
             [
                 ". '" + Escape(ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Actions.ps1")) + "'",
                 "$global:NonInteractive=$true; $global:OutputJson=$true",
-                "$script:installCalled=$false; $script:commitCalled=$false",
+                "$script:installCalled=$false; $script:commitCalled=$false; $script:errorMessage=$null",
                 "function Resolve-InstallerMode { return 'online' }",
-                "function Resolve-PackageSession { return [ordered]@{ PackageDirectory='" + Escape(packageDirectory) + "'; ResolvedVersion='1.2.3'; PackageAssetName='release_1.2.3_win-x64.zip'; DownloadSource='github-release'; DownloadUri='https://example.invalid/release.zip'; CleanupSession=$false; SessionRoot=$null; TrustedArchiveManifestPolicy=$true; TrustedSignerThumbprint=$null; TrustedSignerSubject=$null } }",
+                "function Resolve-PackageSession { return [ordered]@{ PackageDirectory='" + Escape(packageDirectory) + "'; ResolvedVersion='1.2.3'; PackageAssetName='release_1.2.3_win-x64.zip'; DownloadSource='github-release'; DownloadUri='https://example.invalid/release.zip'; CleanupSession=$false; SessionRoot=$null; TrustedArchiveManifestPolicy=$true; TrustedSignerThumbprint=$null; TrustedSignerSubject=$null; ArchiveIntegrity=" + archiveIntegrity + " } }",
                 "function Resolve-PackageManifestPath { return '" + Escape(manifestPath) + "' }",
                 "function Get-ReleaseAssetIdentity { param([string]$AssetName) return [ordered]@{ AssetName=$AssetName; ResolvedVersion='1.2.3' } }",
                 "function Get-ReleaseDownloadUri { return 'https://example.invalid/release.zip' }",
@@ -76,8 +78,8 @@ public sealed class InstallerReleaseTrustContractTests
                 "function Complete-InstalledPayloadCommit { $script:commitCalled=$true }",
                 "function Remove-PathIfExists { }",
                 "Set-StrictMode -Version Latest",
-                "try { Invoke-InstallerActionCore -ResolvedAction install -ResolvedArchitecture x64 -ResolvedClient other -ResolvedInstallRoot '" + Escape(Path.Combine(tempRoot, "install")) + "' -RequestedVersion 1.2.3 | Out-Null } catch { }",
-                "[ordered]@{ InstallCalled=$script:installCalled; CommitCalled=$script:commitCalled } | ConvertTo-Json -Compress"
+                "try { Invoke-InstallerActionCore -ResolvedAction install -ResolvedArchitecture x64 -ResolvedClient other -ResolvedInstallRoot '" + Escape(Path.Combine(tempRoot, "install")) + "' -RequestedVersion 1.2.3 | Out-Null } catch { $script:errorMessage=$_.Exception.Message }",
+                "[ordered]@{ InstallCalled=$script:installCalled; CommitCalled=$script:commitCalled; Error=$script:errorMessage } | ConvertTo-Json -Compress"
             ]);
 
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
@@ -86,6 +88,7 @@ public sealed class InstallerReleaseTrustContractTests
             using var json = JsonDocument.Parse(result.Stdout);
             json.RootElement.GetProperty("InstallCalled").GetBoolean().Should().BeFalse();
             json.RootElement.GetProperty("CommitCalled").GetBoolean().Should().BeFalse();
+            json.RootElement.GetProperty("Error").GetString().Should().Contain("Archive checksum trust evidence");
         }
         finally
         {

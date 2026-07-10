@@ -9,6 +9,7 @@ using WpfDevTools.Mcp.Server.Composer.Diagnostics;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
+using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
 
@@ -391,6 +392,17 @@ public static class UiComposerMcpTools
         string? localAppDataRoot,
         CancellationToken cancellationToken)
     {
+        if (!BoundaryParameterValidator.TryGetOptionalStringEnum(
+            ToolCallHelper.BuildJsonArgs(("screenshotOutputMode", screenshotOutputMode)),
+            "screenshotOutputMode",
+            "metadata",
+            ["metadata", "file"],
+            out var resolvedScreenshotOutputMode,
+            out var screenshotOutputModeError))
+        {
+            return screenshotOutputModeError!;
+        }
+
         var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot, localAppDataRoot), sessionManager)
             .PreviewAsync(
                 new PreviewBlueprintRequest(
@@ -399,7 +411,7 @@ public static class UiComposerMcpTools
                     StartHost: startHost,
                     IncludeRuntimeDiagnostics: includeRuntimeDiagnostics,
                     IncludeScreenshotDiagnostics: includeScreenshotDiagnostics,
-                    ScreenshotOutputMode: screenshotOutputMode),
+                    ScreenshotOutputMode: resolvedScreenshotOutputMode),
                 cancellationToken)
             .ConfigureAwait(false);
 

@@ -19,6 +19,9 @@ public sealed class ScreenshotLifecycleDocumentationTests
             $"{relativePath} should describe the separate non-MCP Inspector cache");
         content.Should().Contain("WPFDEVTOOLS_SCREENSHOT_DIR",
             $"{relativePath} should tie the Inspector cache override to the Inspector-owned path only");
+        content.Should().Contain("preview_ui_blueprint");
+        content.Should().Contain("screenshotOutputMode");
+        content.Should().Contain("resources/read");
     }
 
     [Theory]
@@ -70,6 +73,27 @@ public sealed class ScreenshotLifecycleDocumentationTests
 
         content.Should().Contain("outputPath");
         content.Should().Contain("resourceUri");
+    }
+
+    [Fact]
+    public void ToolPages_ShouldDocumentPreviewScreenshotAndAssignableTypeOptions()
+    {
+        var expectations = new Dictionary<string, string[]>
+        {
+            ["docfx/reference/tools/ui-composer.md"] = ["screenshotOutputMode", "resources/read"],
+            ["docfx/zh-tw/reference/tools/ui-composer.md"] = ["screenshotOutputMode", "resources/read"],
+            ["docfx/reference/tools/tree-and-xaml.md"] = ["typeMatchMode", "assignable", "matchMode"],
+            ["docfx/zh-tw/reference/tools/tree-and-xaml.md"] = ["typeMatchMode", "assignable", "matchMode"]
+        };
+
+        foreach (var (relativePath, requiredTerms) in expectations)
+        {
+            var content = File.ReadAllText(GetRepoFilePath(relativePath));
+            foreach (var requiredTerm in requiredTerms)
+            {
+                content.Should().Contain(requiredTerm, $"{relativePath} should document {requiredTerm}");
+            }
+        }
     }
 
     private static string GetRepoFilePath(string relativePath)

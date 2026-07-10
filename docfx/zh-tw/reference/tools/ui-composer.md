@@ -100,11 +100,12 @@ Request options:
 - `restoreEnabled`: optional boolean，預設為 true。false 時 temporary project 會用 `--no-restore` build，以便 deterministic 驗證 missing-restore diagnostics。
 - `startHost`: optional boolean，預設為 false。true 時 successful build 後會啟動 temporary preview host，並回報 generated-view load status。
 - `includeRuntimeDiagnostics`: optional boolean，預設為 false。搭配 `startHost=true` 時，會對 temporary host 重用 `connect`、`get_ui_summary(depthMode="semantic")` 與 `get_layout_info`。這需要 `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`。
-- `includeScreenshotDiagnostics`: optional boolean，預設為 false。搭配 `startHost=true` 時會啟用 runtime diagnostics，且只有在 `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` 與 `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` 同時允許時才會要求 screenshot metadata。
+- `includeScreenshotDiagnostics`: optional boolean，預設為 false。搭配 `startHost=true` 時會啟用 runtime diagnostics，且只有在 `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` 與 `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` 同時允許時才會要求 screenshot。
+- `screenshotOutputMode`: optional closed value，預設為 `metadata`；需要保留 server-owned PNG 時使用 `file`，response 會回傳 `resourceUri`。Temporary preview host 結束後，使用 MCP `resources/read` 讀取該 URI。其他值（包含 `base64`）會在 preview work 開始前回傳 `InvalidArgument`。
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
-此 tool 只會寫入隔離的 temporary preview directory，compile smoke 後會刪除。Preview project 使用本機 WPF UI stubs，因此測試不依賴 NuGet cache 或 network access。成功結果包含 `buildSucceeded=true`、generated `xaml`、captured `buildOutput` 與 `previewHost` summary。Runtime diagnostics 是 opt-in，會回傳在 `previewHost.runtimeDiagnostics`。Build failure 會回傳 diagnostics，能在可用時對應回 blueprint root 與 renderer template path。
+此 tool 只會寫入隔離的 temporary preview directory，compile smoke 後會刪除。Preview project 使用本機 WPF UI stubs，因此測試不依賴 NuGet cache 或 network access。成功結果包含 `buildSucceeded=true`、generated `xaml`、captured `buildOutput` 與 `previewHost` summary。Runtime diagnostics 是 opt-in，會回傳在 `previewHost.runtimeDiagnostics`。成功的 `screenshotOutputMode="file"` resource 會與短生命週期 preview process 分離，仍受 `SessionManager` 的 24 小時與 100-resource 上限管理，並在 expiry、eviction 或 server session-manager disposal 時移除。Build failure 會回傳 diagnostics，能在可用時對應回 blueprint root 與 renderer template path。
 
 ## `repair_ui_blueprint`
 

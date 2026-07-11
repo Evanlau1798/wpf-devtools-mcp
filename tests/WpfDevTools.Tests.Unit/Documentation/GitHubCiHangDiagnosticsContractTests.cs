@@ -81,8 +81,8 @@ public sealed class GitHubCiHangDiagnosticsContractTests
         step.Should().Contain("--logger \"trx;LogFileName=coverage-debug.trx\"",
             "coverage failures should leave a structured TRX file for hosted CI and GitHub artifacts");
         step.Should().Contain("--results-directory ./TestResults/coverage");
-        step.Should().Contain("--filter \"FullyQualifiedName!~WpfDevTools.Tests.Unit.Release\"",
-            "release and installer script tests already run in dedicated shards and make coverage jobs slow and brittle");
+        step.Should().Contain("--filter \"FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation\"",
+            "release and documentation contracts already run in unit lanes and do not contribute managed coverage");
     }
 
     [Fact]

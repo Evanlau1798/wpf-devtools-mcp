@@ -15,8 +15,8 @@ public sealed class SandboxHostedCoverageContractTests
             "hosted local CI should fail coverage hangs with VSTest diagnostics like GitHub CI");
         hosted.Should().Contain("'--logger', 'trx;LogFileName=coverage-debug.trx'");
         hosted.Should().Contain("(Join-Path $ResultsRoot 'coverage')");
-        hosted.Should().Contain("'--filter', 'FullyQualifiedName!~WpfDevTools.Tests.Unit.Release'",
-            "the local hosted coverage lane should not rerun release-heavy tests that already have dedicated shards");
+        hosted.Should().Contain("'--filter', 'FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation'",
+            "the local hosted coverage lane should not rerun release or documentation contracts that do not contribute managed coverage");
     }
 
     private static string FindRepoRoot()

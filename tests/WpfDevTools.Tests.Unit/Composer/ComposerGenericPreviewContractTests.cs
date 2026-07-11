@@ -216,10 +216,24 @@ public sealed class ComposerGenericPreviewContractTests
             }
             """;
 
-        var result = await new UiBlueprintPreviewService(CreateRegistry()).PreviewAsync(
-            new PreviewBlueprintRequest(blueprint, RestoreEnabled: true));
+        var previewRoot = CreateTempDirectory();
+        try
+        {
+            var result = await new UiBlueprintPreviewService(CreateRegistry()).PreviewAsync(
+                new PreviewBlueprintRequest(
+                    blueprint,
+                    RestoreEnabled: true,
+                    TemporaryRoot: previewRoot,
+                    KeepArtifacts: true));
 
-        result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+            result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+            File.ReadAllText(Path.Combine(previewRoot, "PackPreviewStubs.cs"))
+                .Should().Contain("class NavigationViewItem : System.Windows.Controls.Button");
+        }
+        finally
+        {
+            DeleteDirectory(previewRoot);
+        }
     }
 
     private static PackRegistry CreateRegistry(string? projectRoot = null)

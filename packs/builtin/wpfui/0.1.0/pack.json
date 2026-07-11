@@ -77,8 +77,8 @@
           "PaneDisplayMode": "string"
         }
       },
-      "NavigationViewItem": {
-        "baseKind": "contentControl",
+        "NavigationViewItem": {
+          "baseKind": "button",
         "properties": {
           "Command": "object",
           "CommandParameter": "object",

@@ -47,11 +47,11 @@ public sealed class ComposerPreviewRecipeRuntimeTests
         var summary = GetDiagnosticPayload(diagnostics, "get_ui_summary");
 
         summary.GetProperty("semanticNodeCount").GetInt32().Should().BeGreaterThanOrEqualTo(6);
-        AssertPayloadContains(summary, "Home");
-        AssertPayloadContains(summary, "Workspace");
-        AssertPayloadContains(summary, "Activity");
-        AssertPayloadContains(summary, "Reports");
-        AssertPayloadContains(summary, "Settings");
+        foreach (var navigationLabel in new[] { "Home", "Workspace", "Activity", "Reports", "Settings" })
+        {
+            CountStringProperty(summary, "text", navigationLabel).Should().Be(1,
+                $"navigation destination '{navigationLabel}' must survive structural collection projection exactly once");
+        }
         AssertPayloadContains(summary, "Overview");
         AssertPayloadContains(summary, "Open workspace");
         GetDiagnosticPayload(diagnostics, "get_layout_info").ValueKind.Should().Be(JsonValueKind.Object);
@@ -75,6 +75,34 @@ public sealed class ComposerPreviewRecipeRuntimeTests
 
     private static void AssertPayloadContains(JsonElement payload, string expected)
         => payload.GetRawText().Should().Contain(expected);
+
+    private static int CountStringProperty(JsonElement element, string propertyName, string expected)
+    {
+        var count = 0;
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                if (property.NameEquals(propertyName)
+                    && property.Value.ValueKind == JsonValueKind.String
+                    && property.Value.GetString() == expected)
+                {
+                    count++;
+                }
+
+                count += CountStringProperty(property.Value, propertyName, expected);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                count += CountStringProperty(item, propertyName, expected);
+            }
+        }
+
+        return count;
+    }
 
     private sealed class EnvironmentVariableScope : IDisposable
     {

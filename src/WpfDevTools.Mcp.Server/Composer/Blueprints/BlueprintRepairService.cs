@@ -42,13 +42,11 @@ internal sealed class BlueprintRepairService(PackRegistry registry)
         IReadOnlyList<BlueprintRepairAction> actions)
     {
         var merged = new List<BlueprintRepairAction>(actions.Count);
-        var positions = new Dictionary<(string IssueCode, string JsonPath), int>();
         foreach (var action in actions)
         {
-            var key = (action.IssueCode, action.JsonPath);
-            if (!positions.TryGetValue(key, out var position))
+            var position = merged.FindIndex(candidate => HasEquivalentGuidance(candidate, action));
+            if (position < 0)
             {
-                positions.Add(key, merged.Count);
                 merged.Add(action);
                 continue;
             }
@@ -65,6 +63,18 @@ internal sealed class BlueprintRepairService(PackRegistry registry)
 
         return merged;
     }
+
+    private static bool HasEquivalentGuidance(BlueprintRepairAction left, BlueprintRepairAction right)
+        => string.Equals(left.Target, right.Target, StringComparison.Ordinal)
+           && string.Equals(left.RepairKind, right.RepairKind, StringComparison.Ordinal)
+           && string.Equals(left.IssueCode, right.IssueCode, StringComparison.Ordinal)
+           && string.Equals(left.JsonPath, right.JsonPath, StringComparison.Ordinal)
+           && string.Equals(left.Message, right.Message, StringComparison.Ordinal)
+           && string.Equals(left.SuggestedAction, right.SuggestedAction, StringComparison.Ordinal)
+           && left.AllowedKinds.SequenceEqual(right.AllowedKinds, StringComparer.Ordinal)
+           && left.AllowedValues.SequenceEqual(right.AllowedValues, StringComparer.Ordinal)
+           && string.Equals(left.SuggestedValue?.GetRawText(), right.SuggestedValue?.GetRawText(), StringComparison.Ordinal)
+           && string.Equals(left.RendererTemplatePath, right.RendererTemplatePath, StringComparison.Ordinal);
 
     private BlueprintRepairAction ToAction(
         string source,

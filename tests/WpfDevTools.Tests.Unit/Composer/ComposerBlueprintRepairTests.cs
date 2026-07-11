@@ -171,7 +171,7 @@ public sealed class ComposerBlueprintRepairTests
     }
 
     [Fact]
-    public void RepairBlueprint_ShouldMergeDuplicateIssueSourcesInFirstSeenOrder()
+    public void RepairBlueprint_ShouldPreserveDistinctGuidanceAtSameIssueLocation()
     {
         var repair = new BlueprintRepairService(CreateRegistry());
         var diagnosticsJson = """
@@ -188,11 +188,33 @@ public sealed class ComposerBlueprintRepairTests
             Blueprint("""{ "layout": { "kind": "button" } }"""),
             diagnosticsJson));
 
-        var action = result.Actions.Should().ContainSingle(item =>
-            item.IssueCode == "UnqualifiedBlockKind" && item.JsonPath == "$.layout").Which;
-        action.Source.Should().Be("validation");
-        action.Sources.Should().Equal("validation", "diagnostic");
+        var actions = result.Actions.Where(item =>
+            item.IssueCode == "UnqualifiedBlockKind" && item.JsonPath == "$.layout").ToArray();
+        actions.Should().HaveCount(2);
+        actions.Select(action => action.Message).Should().Contain(
+            "Block kind 'button' is not pack-qualified.",
+            "The diagnostic observed the same invalid kind.");
         result.ActionCount.Should().Be(result.Actions.Count);
+    }
+
+    [Fact]
+    public void RepairBlueprint_ShouldMergeOnlyContentEquivalentDiagnostics()
+    {
+        var repair = new BlueprintRepairService(CreateRegistry());
+        var diagnosticsJson = """
+            {
+              "diagnostics": [
+                { "code": "PreviewIssue", "message": "Same guidance", "jsonPath": "$.layout" },
+                { "code": "PreviewIssue", "message": "Same guidance", "jsonPath": "$.layout" }
+              ]
+            }
+            """;
+
+        var result = repair.Repair(new BlueprintRepairRequest(
+            Blueprint("""{ "layout": { "kind": "wpfui.button" } }"""),
+            diagnosticsJson));
+
+        result.Actions.Should().ContainSingle(action => action.IssueCode == "PreviewIssue");
     }
 
     [Fact]

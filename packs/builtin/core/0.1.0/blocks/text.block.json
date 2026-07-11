@@ -10,7 +10,7 @@
     "textWrapping": { "type": "string", "default": "Wrap", "enum": ["NoWrap", "Wrap", "WrapWithOverflow"] },
     "textAlignment": { "type": "string", "default": "Left", "enum": ["Left", "Center", "Right", "Justify"] },
     "margin": { "type": "string", "default": "0", "format": "thickness" },
-    "foreground": { "type": "string", "default": "{DynamicResource TextFillColorPrimaryBrush}" }
+    "foreground": { "type": "string", "default": "{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}" }
   },
   "slots": {},
   "renderer": { "xamlTemplate": "renderers/xaml/text.xaml.sbn" },

@@ -115,6 +115,21 @@ public sealed class ComposerCorePackTests
     }
 
     [Fact]
+    public void CoreText_ShouldRemainThemeNeutralByDefault()
+    {
+        var blueprint = Blueprint(
+            """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
+            "core",
+            """{ "kind": "core.text", "properties": { "text": "Theme neutral" } }""");
+
+        var result = new UiBlueprintRenderer(CreateRegistry()).Render(new RenderBlueprintRequest(blueprint));
+
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Xaml.Should().NotContain("TextFillColorPrimaryBrush")
+            .And.NotContain("Foreground=\"\"");
+    }
+
+    [Fact]
     public void WildcardSlot_ShouldNotBypassPackDeclaration()
     {
         var blueprint = Blueprint(

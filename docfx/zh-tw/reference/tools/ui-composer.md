@@ -60,6 +60,8 @@ Request options:
 
 Catalog entries 只包含 source hint paths，不會把第三方 source code 複製進 tool output。
 
+Pack author 可為 blocks、properties 與 slots 提供 inert `description` text。當 structural preview 的 measurement 或 styling 可能與 final package 不同時，property 也可提供 `previewWarning`。選擇值之前應先讀取這些 pack-defined fields；它們能說明 renderer 行為，而不需在 Composer 加入 library-specific logic。
+
 只有 fragment 的 `compositionExamples` 會標示 `placementMode` 與具體的
 `compatibleParentSlots`。可直接使用配對的 `wrapperBlueprint` 作為能夠 validate
 或 render 的完整最小 blueprint，亦可將其 `fragment` 放入較大 blueprint 所列出的
@@ -123,6 +125,8 @@ Request options:
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
 此 tool 只會寫入隔離的 temporary preview directory，compile smoke 後會刪除。Preview project 會依每個 pack 的安全 metadata 產生 structural stubs，因此 engine 不會硬編碼 WPF UI，也不會執行 pack code。每個已完成的 preview result 都會回報 `visualFidelity="structural-stub"` 並提供 `visualValidationGuidance`：preview screenshot 只適合當作結構證據，不可用來核准最終 styling。`visualComparisonChecklist` 會精簡並列 preview 與 final app 在 window chrome、icons、control templates、layout/spacing 的已知差異，以及每一項必要的 final-app 檢查。請 apply blueprint、build 並 launch 真實 WPF application，再檢查該 application 完成最終視覺驗證。成功結果包含 `buildSucceeded=true`、generated `xaml`、captured `buildOutput` 與 `previewHost` summary。Runtime diagnostics 是 opt-in，會回傳在 `previewHost.runtimeDiagnostics`。成功的 `screenshotOutputMode="file"` resource 會與短生命週期 preview process 分離，仍受 `SessionManager` 的 24 小時與 100-resource 上限管理，並在 expiry、eviction 或 server session-manager disposal 時移除。Build failure 會回傳 diagnostics，能在可用時對應回 blueprint root 與 renderer template path。
+
+`propertyWarnings` array 只包含 submitted blueprint 明確使用之 properties 的 pack-defined warnings。每個 entry 都會回報精確的 `jsonPath`、`blockKind`、`propertyName` 與 `message`，讓 Agent 將 final-app validation 聚焦在受影響的 layout 或 styling decision，而不必把所有 structural-preview limitation 視為同等相關。
 
 ## `repair_ui_blueprint`
 

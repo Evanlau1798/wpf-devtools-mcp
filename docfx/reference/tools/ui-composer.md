@@ -60,6 +60,8 @@ Request options:
 
 Catalog entries include source hint paths only. They do not copy third-party source code into tool output.
 
+Pack authors can provide inert `description` text for blocks, properties, and slots. Properties can also provide `previewWarning` when structural preview may differ from final package measurement or styling. Read these pack-defined fields before choosing values; they describe renderer behavior without adding library-specific logic to Composer.
+
 Fragment-only `compositionExamples` identify `placementMode` and concrete
 `compatibleParentSlots`. Use the matching `wrapperBlueprint` as a complete
 minimal blueprint that can be validated or rendered directly, or place its
@@ -123,6 +125,8 @@ Request options:
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
 The tool writes only to an isolated temporary preview directory and deletes it after the compile smoke. The preview project generates structural stubs from each pack's safe metadata, so the engine does not hardcode WPF UI or execute pack code. Every completed preview result reports `visualFidelity="structural-stub"` and provides `visualValidationGuidance`: preview screenshots are structural-only evidence and must not be used to approve final styling. Its `visualComparisonChecklist` gives a compact preview-versus-final-app comparison for window chrome, icons, control templates, and layout/spacing, plus the required final-app check for each area. Apply the blueprint, build and launch the real WPF application, then inspect that application for final visual validation. Successful results include `buildSucceeded=true`, generated `xaml`, captured `buildOutput`, and a `previewHost` summary. Runtime diagnostics are opt-in and returned under `previewHost.runtimeDiagnostics`. A successful `screenshotOutputMode="file"` resource is detached from the short-lived preview process, remains subject to the 24-hour and 100-resource `SessionManager` bounds, and is removed on expiry, eviction, or server session-manager disposal. Build failures return diagnostics that map back to the blueprint root and renderer template path when available.
+
+The `propertyWarnings` array contains only pack-defined warnings for properties explicitly present in the submitted blueprint. Each entry reports the exact `jsonPath`, `blockKind`, `propertyName`, and `message`, so an Agent can focus final-app validation on the affected layout or styling decision instead of treating every structural-preview limitation as equally relevant.
 
 ## `repair_ui_blueprint`
 

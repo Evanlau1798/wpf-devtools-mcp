@@ -67,6 +67,20 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("window chrome");
         description.Should().Contain("icons");
         description.Should().Contain("layout and spacing");
+        description.Should().Contain("propertyWarnings");
+        description.Should().Contain("exact blueprint JSON path");
+    }
+
+    [Fact]
+    public void GetUiBlockCatalogDescription_ShouldExplainPackDefinedAuthoringHints()
+    {
+        var description = GetMcpTools()
+            .Single(tool => string.Equals(tool.Name, "get_ui_block_catalog", StringComparison.Ordinal))
+            .Description;
+
+        description.Should().Contain("description");
+        description.Should().Contain("previewWarning");
+        description.Should().Contain("pack-defined");
     }
 
     private static IEnumerable<(string Name, string Description)> GetMcpTools()

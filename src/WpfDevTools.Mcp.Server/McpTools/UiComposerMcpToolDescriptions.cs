@@ -38,7 +38,8 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - Returns success, itemCount, items, compositionExampleCount, compositionExamples, and diagnostics.
-        - Each item includes packId, packVersion, kind, displayName, category, properties, slots, allowedKinds, rendererAvailable, and sourceHintSummary.
+        - Each item includes packId, packVersion, kind, displayName, pack-defined description, category, properties, slots, allowedKinds, rendererAvailable, and sourceHintSummary.
+        - Property and slot description fields explain renderer semantics. A property previewWarning identifies pack-defined final-app checks without executing pack code.
         - compositionExamples includes compact machine-readable core layout fragments, such as stack with multiple cards, when the required pack is in scope.
         - Fragment examples expose placementMode, compatibleParentSlots, and a complete wrapperBlueprint that can be validated or rendered directly.
         - Catalog source hints are path summaries only and do not include copied third-party source text.
@@ -201,9 +202,10 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this to launch or control a real target application. This phase builds a temporary local preview host, optionally starts that temporary host, and reports diagnostics; it does not persist project files outside its temporary workspace.
 
         RESPONSE SUMMARY:
-        - Returns success, valid, buildSucceeded, restoreEnabled, buildOutput, xaml, diagnostics, previewHost, visualFidelity, visualValidationGuidance, and visualComparisonChecklist.
+        - Returns success, valid, buildSucceeded, restoreEnabled, buildOutput, xaml, diagnostics, previewHost, visualFidelity, visualValidationGuidance, visualComparisonChecklist, and propertyWarnings.
         - visualFidelity="structural-stub" means preview screenshots are structural-only evidence. Validate final styling in the applied, built, and launched WPF application.
         - visualComparisonChecklist names expected stub differences in window chrome, icons, control templates, and layout and spacing, with a required final-app check for each area.
+        - propertyWarnings contains pack-defined guidance only for explicitly supplied properties, with the exact blueprint JSON path, block kind, property name, and message.
         - restoreEnabled=false runs dotnet build --no-restore and returns missing-assets diagnostics when the temporary project has not been restored.
         - startHost=true starts the temporary host after build, waits for an explicit generated-view load sentinel, then terminates the process tree.
         - includeRuntimeDiagnostics=true with startHost=true reuses connect(), get_ui_summary(depthMode="semantic"), and get_layout_info against the temporary preview host.

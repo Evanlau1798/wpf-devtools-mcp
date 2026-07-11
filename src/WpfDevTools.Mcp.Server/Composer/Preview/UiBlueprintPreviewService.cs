@@ -42,6 +42,8 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                     rendererTemplatePath)).ToArray());
         }
 
+        var propertyWarnings = CollectPropertyWarnings(request.BlueprintJson);
+
         var previewContract = new UiPackPreviewContractGenerator(registry).Generate(request.BlueprintJson, render.Xaml);
         if (!previewContract.Success)
         {
@@ -91,7 +93,8 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
 
             if (cancelled)
             {
-                return CreateCancelledResult(request.RestoreEnabled, render.Xaml, output.ToString(), rendererTemplatePath);
+                return CreateCancelledResult(request.RestoreEnabled, render.Xaml, output.ToString(), rendererTemplatePath)
+                    with { PropertyWarnings = propertyWarnings };
             }
 
             var previewHost = new PreviewHostResult(buildSucceeded ? "compiled" : "not-started", Started: false);
@@ -117,18 +120,70 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 BuildOutput: output.ToString(),
                 Xaml: render.Xaml,
                 Diagnostics: diagnostics,
-                PreviewHost: previewHost);
+                PreviewHost: previewHost)
+            {
+                PropertyWarnings = propertyWarnings
+            };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             output.AppendLine("preview compile cancelled.");
-            return CreateCancelledResult(request.RestoreEnabled, render.Xaml, output.ToString(), rendererTemplatePath);
+            return CreateCancelledResult(request.RestoreEnabled, render.Xaml, output.ToString(), rendererTemplatePath)
+                with { PropertyWarnings = propertyWarnings };
         }
         finally
         {
             if (!request.KeepArtifacts && Directory.Exists(tempRoot))
             {
                 DeleteDirectoryBestEffort(tempRoot);
+            }
+        }
+    }
+
+    private IReadOnlyList<PreviewPropertyWarning> CollectPropertyWarnings(string blueprintJson)
+    {
+        var blueprint = ComposerJsonLoader.Parse<UiBlueprint>(
+            blueprintJson,
+            "<inline-blueprint>",
+            UiComposerSchemaVersions.UiBlueprint);
+        var declared = blueprint.Packs.ToDictionary(pack => pack.Id, StringComparer.Ordinal);
+        var blocks = registry.ListPacks().Packs
+            .Where(pack => declared.TryGetValue(pack.Id, out var reference)
+                && string.Equals(pack.Version, reference.Version, StringComparison.Ordinal))
+            .SelectMany(pack => ComposerPackLoader.Load(pack.RootPath).Blocks)
+            .ToDictionary(block => block.Kind, StringComparer.Ordinal);
+        var warnings = new List<PreviewPropertyWarning>();
+        CollectPropertyWarnings(blueprint.Layout, "$.layout", blocks, warnings);
+        return warnings;
+    }
+
+    private static void CollectPropertyWarnings(
+        UiBlueprintNode node,
+        string path,
+        IReadOnlyDictionary<string, UiBlockDefinition> blocks,
+        List<PreviewPropertyWarning> warnings)
+    {
+        if (blocks.TryGetValue(node.Kind, out var block))
+        {
+            foreach (var propertyName in node.Properties.Keys)
+            {
+                if (block.Properties.TryGetValue(propertyName, out var property)
+                    && !string.IsNullOrWhiteSpace(property.PreviewWarning))
+                {
+                    warnings.Add(new PreviewPropertyWarning(
+                        $"{path}.properties.{propertyName}",
+                        node.Kind,
+                        propertyName,
+                        property.PreviewWarning));
+                }
+            }
+        }
+
+        foreach (var (slotName, children) in node.Slots)
+        {
+            for (var index = 0; index < children.Length; index++)
+            {
+                CollectPropertyWarnings(children[index], $"{path}.slots.{slotName}[{index}]", blocks, warnings);
             }
         }
     }

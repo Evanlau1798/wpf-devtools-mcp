@@ -39,6 +39,8 @@ internal sealed record PreviewBlueprintResult(
 
     public IReadOnlyList<PreviewVisualComparison> VisualComparisonChecklist => VisualComparisonItems;
 
+    public IReadOnlyList<PreviewPropertyWarning> PropertyWarnings { get; init; } = [];
+
     public static PreviewBlueprintResult Invalid(
         bool restoreEnabled,
         string xaml,
@@ -51,6 +53,12 @@ internal sealed record PreviewVisualComparison(
     string Preview,
     string FinalApp,
     string RequiredAction);
+
+internal sealed record PreviewPropertyWarning(
+    string JsonPath,
+    string BlockKind,
+    string PropertyName,
+    string Message);
 
 internal sealed record PreviewDiagnostic(
     string Code,

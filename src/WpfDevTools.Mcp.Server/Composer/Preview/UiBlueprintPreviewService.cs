@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 using WpfDevTools.Mcp.Server.Composer.Packs;
@@ -171,7 +172,7 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                     && !string.IsNullOrWhiteSpace(property.PreviewWarning))
                 {
                     warnings.Add(new PreviewPropertyWarning(
-                        $"{path}.properties.{propertyName}",
+                        AppendJsonPath(path + ".properties", propertyName),
                         node.Kind,
                         propertyName,
                         property.PreviewWarning));
@@ -181,12 +182,23 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
 
         foreach (var (slotName, children) in node.Slots)
         {
+            var slotPath = AppendJsonPath(path + ".slots", slotName);
             for (var index = 0; index < children.Length; index++)
             {
-                CollectPropertyWarnings(children[index], $"{path}.slots.{slotName}[{index}]", blocks, warnings);
+                CollectPropertyWarnings(children[index], $"{slotPath}[{index}]", blocks, warnings);
             }
         }
     }
+
+    private static string AppendJsonPath(string path, string propertyName)
+        => IsSimpleJsonPathName(propertyName)
+            ? $"{path}.{propertyName}"
+            : $"{path}[{JsonSerializer.Serialize(propertyName)}]";
+
+    private static bool IsSimpleJsonPathName(string value)
+        => value.Length > 0
+            && (char.IsLetter(value[0]) || value[0] == '_')
+            && value.Skip(1).All(character => char.IsLetterOrDigit(character) || character == '_');
 
     private string ResolveRootRendererTemplatePath(string blueprintJson)
     {

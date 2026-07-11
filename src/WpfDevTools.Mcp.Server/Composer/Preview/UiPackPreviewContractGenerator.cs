@@ -29,6 +29,15 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
         ["object"] = "object?",
         ["objectCollection"] = "ObservableCollection<object>"
     };
+    private static readonly IReadOnlySet<string> ContentCapableBaseKinds = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "button",
+        "contentControl",
+        "itemsControl",
+        "stackPanel",
+        "toggleButton",
+        "window"
+    };
 
     public PreviewContractGenerationResult Generate(string blueprintJson, string renderedXaml)
     {
@@ -129,6 +138,11 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
             if (!string.IsNullOrEmpty(type.ContentProperty) && !type.Properties.ContainsKey(type.ContentProperty))
             {
                 return $"Pack '{packId}' preview type '{typeName}' contentProperty is not declared in properties.";
+            }
+
+            if (!string.IsNullOrEmpty(type.ContentProperty) && !ContentCapableBaseKinds.Contains(type.BaseKind))
+            {
+                return $"Pack '{packId}' preview type '{typeName}' contentProperty is not supported by baseKind '{type.BaseKind}'.";
             }
 
             foreach (var (propertyName, propertyType) in type.Properties)

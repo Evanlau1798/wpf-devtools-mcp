@@ -101,6 +101,25 @@ public sealed class ComposerGenericPreviewContractTests
     }
 
     [Fact]
+    public async Task PreviewBlueprint_ShouldRejectContentPropertyForNonContentBaseKind()
+    {
+        var projectRoot = CreateProjectPack(includePreview: true, baseKind: "control");
+        try
+        {
+            var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot)).PreviewAsync(
+                new PreviewBlueprintRequest(Blueprint("sample.panel"), RestoreEnabled: false));
+
+            result.Success.Should().BeFalse();
+            result.Diagnostics.Should().ContainSingle(diagnostic => diagnostic.Code == "PreviewContractInvalid")
+                .Which.Message.Should().Contain("contentProperty");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
     public async Task PreviewBlueprint_ShouldCompileNewWpfUiControlsFromPackMetadata()
     {
         var blueprint = """

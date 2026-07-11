@@ -8,7 +8,9 @@ namespace WpfDevTools.Mcp.Server.Composer.Preview;
 internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
 {
     private static readonly Regex IdentifierPattern = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant);
-    private static readonly Regex NamespacePattern = new("^[A-Za-z_][A-Za-z0-9_.]*$", RegexOptions.CultureInvariant);
+    private static readonly Regex NamespacePattern = new(
+        "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$",
+        RegexOptions.CultureInvariant);
     private static readonly IReadOnlyDictionary<string, string> BaseTypes = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["frameworkElement"] = "FrameworkElement",

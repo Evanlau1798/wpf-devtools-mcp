@@ -120,6 +120,29 @@ public sealed class ComposerGenericPreviewContractTests
     }
 
     [Fact]
+    public async Task PreviewBlueprint_ShouldRejectMalformedClrNamespaceBeforeCompilation()
+    {
+        var projectRoot = CreateProjectPack(includePreview: true, baseKind: "contentControl");
+        try
+        {
+            var packFile = Path.Combine(projectRoot, ".wpfdevtools", "packs", "sample", "1.0.0", "pack.json");
+            File.WriteAllText(
+                packFile,
+                File.ReadAllText(packFile).Replace("Sample.Controls", "Sample..Controls", StringComparison.Ordinal));
+
+            var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot)).PreviewAsync(
+                new PreviewBlueprintRequest(Blueprint("sample.panel"), RestoreEnabled: false));
+
+            result.Success.Should().BeFalse();
+            result.Diagnostics.Should().ContainSingle(diagnostic => diagnostic.Code == "PreviewContractInvalid");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
     public async Task PreviewBlueprint_ShouldCompileThirdPartyWindowPropertyElement()
     {
         var projectRoot = CreateProjectPack(includePreview: true, baseKind: "window", contentPropertyType: "object");

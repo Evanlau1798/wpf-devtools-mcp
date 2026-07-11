@@ -46,11 +46,16 @@ internal static class UiComposerCompositionExamples
 
     internal static object[] ForResolvedComposableItems(IReadOnlyCollection<BlockCatalogItem> items)
     {
-        var card = items.SingleOrDefault(item => item.Kind == "wpfui.card");
-        var textBlock = items.SingleOrDefault(item => item.Kind == "wpfui.textBlock");
-        if (card is null
-            || textBlock is null
-            || !string.Equals(card.PackVersion, textBlock.PackVersion, StringComparison.Ordinal)
+        var cards = items.Where(item => item.Kind == "wpfui.card").Take(2).ToArray();
+        var textBlocks = items.Where(item => item.Kind == "wpfui.textBlock").Take(2).ToArray();
+        if (cards.Length != 1 || textBlocks.Length != 1)
+        {
+            return [];
+        }
+
+        var card = cards[0];
+        var textBlock = textBlocks[0];
+        if (!string.Equals(card.PackVersion, textBlock.PackVersion, StringComparison.Ordinal)
             || !card.Slots.TryGetValue("content", out var contentSlot)
             || !contentSlot.AllowedKinds.Contains("stack", StringComparer.Ordinal))
         {

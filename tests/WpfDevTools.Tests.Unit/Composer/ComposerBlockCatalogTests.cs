@@ -169,6 +169,19 @@ public sealed class ComposerBlockCatalogTests
                 localAppDataRoot: tempRoot,
                 cancellationToken: CancellationToken.None);
             incompatible.StructuredContent!.Value.GetProperty("compositionExampleCount").GetInt32().Should().Be(0);
+
+            CreateRenderableWpfUiOverride(projectRoot, cardAcceptsStack: true);
+            var overrideRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", "wpfui", "9.9.9");
+            File.Copy(
+                Path.Combine(overrideRoot, "blocks", "card.block.json"),
+                Path.Combine(overrideRoot, "blocks", "card-duplicate.block.json"));
+            var ambiguous = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["wpfui"],
+                projectRoot: projectRoot,
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+            ambiguous.IsError.Should().BeFalse();
+            ambiguous.StructuredContent!.Value.GetProperty("compositionExampleCount").GetInt32().Should().Be(0);
         }
         finally
         {

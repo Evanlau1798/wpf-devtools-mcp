@@ -77,6 +77,16 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
             contracts.Add(new ResolvedPreviewContract(pack.Id, prefix!, manifest.Preview));
         }
 
+        foreach (var conflict in contracts.GroupBy(contract => contract.Prefix, StringComparer.Ordinal)
+                     .Where(group => group.Count() > 1))
+        {
+            var participants = string.Join(", ", conflict.Select(contract =>
+                $"'{contract.PackId}' ({contract.Contract.NamespaceUri})"));
+            diagnostics.Add(Diagnostic(
+                "PreviewNamespacePrefixConflict",
+                $"Preview XML prefix '{conflict.Key}' is used by multiple packs: {participants}. Use a distinct pack-local prefix."));
+        }
+
         if (diagnostics.Count > 0)
         {
             return new PreviewContractGenerationResult(false, string.Empty, new Dictionary<string, string>(), null, null, diagnostics);

@@ -155,6 +155,45 @@ public sealed class ComposerGenericPreviewContractTests
     }
 
     [Fact]
+    public async Task PreviewBlueprint_ShouldReportUsedPackPrefixConflict()
+    {
+        var projectRoot = CreateProjectPack(includePreview: true, baseKind: "contentControl");
+        AddConflictingProjectPack(projectRoot);
+        var blueprint = """
+            {
+              "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+              "name": "PrefixConflict",
+              "packs": [
+                { "id": "core", "version": "0.1.0", "required": true, "role": "layout-pack" },
+                { "id": "sample", "version": "1.0.0", "required": true, "role": "primary" },
+                { "id": "other", "version": "1.0.0", "required": true, "role": "extension" }
+              ],
+              "primaryPack": "sample",
+              "layout": {
+                "kind": "core.stack",
+                "slots": { "children": [
+                  { "kind": "sample.panel" },
+                  { "kind": "other.panel" }
+                ] }
+              }
+            }
+            """;
+        try
+        {
+            var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot)).PreviewAsync(
+                new PreviewBlueprintRequest(blueprint, RestoreEnabled: false));
+
+            result.Success.Should().BeFalse();
+            result.Diagnostics.Should().ContainSingle(diagnostic => diagnostic.Code == "PreviewNamespacePrefixConflict")
+                .Which.Message.Should().ContainAll("sample", "other");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
     public async Task PreviewBlueprint_ShouldCompileNewWpfUiControlsFromPackMetadata()
     {
         var blueprint = """
@@ -235,6 +274,24 @@ public sealed class ComposerGenericPreviewContractTests
               "layout": { "kind": "{{kind}}" }
             }
             """;
+
+    private static void AddConflictingProjectPack(string projectRoot)
+    {
+        var source = Path.Combine(projectRoot, ".wpfdevtools", "packs", "sample", "1.0.0");
+        var destination = Path.Combine(projectRoot, ".wpfdevtools", "packs", "other", "1.0.0");
+        foreach (var sourceFile in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+        {
+            var destinationFile = Path.Combine(destination, Path.GetRelativePath(source, sourceFile));
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
+            var content = File.ReadAllText(sourceFile)
+                .Replace("sample.panel", "other.panel", StringComparison.Ordinal)
+                .Replace("\"id\":\"sample\"", "\"id\":\"other\"", StringComparison.Ordinal)
+                .Replace("\"id\": \"sample\"", "\"id\": \"other\"", StringComparison.Ordinal)
+                .Replace("urn:sample-controls", "urn:other-controls", StringComparison.Ordinal)
+                .Replace("Sample.Controls", "Other.Controls", StringComparison.Ordinal);
+            File.WriteAllText(destinationFile, content);
+        }
+    }
 
     private static string CreateTempDirectory()
     {

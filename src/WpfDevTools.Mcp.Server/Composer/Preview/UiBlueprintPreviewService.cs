@@ -48,7 +48,8 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
         var previewContract = new UiPackPreviewContractGenerator(registry).Generate(request.BlueprintJson, render.Xaml);
         if (!previewContract.Success)
         {
-            return PreviewBlueprintResult.Invalid(request.RestoreEnabled, render.Xaml, previewContract.Diagnostics);
+            return PreviewBlueprintResult.Invalid(request.RestoreEnabled, render.Xaml, previewContract.Diagnostics)
+                with { PropertyWarnings = propertyWarnings };
         }
 
         var tempRoot = request.TemporaryRoot

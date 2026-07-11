@@ -16,9 +16,9 @@ internal static class UiPreviewProjectFiles
         bool includeRuntimeDiagnostics,
         string loadedSentinelFileName,
         string sdkOptionsFileName,
-        string sdkReadyFileName)
+        string sdkReadyFileName,
+        PreviewContractGenerationResult previewContract)
     {
-        var generatedRootIsWindow = IsFluentWindowRoot(generatedXaml);
         File.WriteAllText(Path.Combine(root, "PreviewHost.csproj"), $$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
@@ -36,16 +36,20 @@ internal static class UiPreviewProjectFiles
             <Application x:Class="PreviewHost.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" StartupUri="MainWindow.xaml" />
             """, Encoding.UTF8);
         File.WriteAllText(Path.Combine(root, "App.xaml.cs"), BuildAppCode(), Encoding.UTF8);
-        File.WriteAllText(Path.Combine(root, "MainWindow.xaml"), BuildWindowXaml(generatedXaml, generatedRootIsWindow), Encoding.UTF8);
+        File.WriteAllText(Path.Combine(root, "MainWindow.xaml"), BuildWindowXaml(generatedXaml, previewContract), Encoding.UTF8);
         File.WriteAllText(
             Path.Combine(root, "MainWindow.xaml.cs"),
             BuildMainWindowCode(
                 includeRuntimeDiagnostics,
                 loadedSentinelFileName,
                 sdkOptionsFileName,
-                sdkReadyFileName),
+                sdkReadyFileName,
+                previewContract.WindowRootType),
             Encoding.UTF8);
-        File.WriteAllText(Path.Combine(root, "WpfUiStubs.cs"), UiPreviewProjectStubs.WpfUi, Encoding.UTF8);
+        if (!string.IsNullOrWhiteSpace(previewContract.Source))
+        {
+            File.WriteAllText(Path.Combine(root, "PackPreviewStubs.cs"), previewContract.Source, Encoding.UTF8);
+        }
     }
 
     private static string BuildAppCode()
@@ -60,7 +64,8 @@ internal static class UiPreviewProjectFiles
         bool includeRuntimeDiagnostics,
         string loadedSentinelFileName,
         string sdkOptionsFileName,
-        string sdkReadyFileName)
+        string sdkReadyFileName,
+        string? windowRootType)
     {
         var lines = new List<string>
         {
@@ -82,7 +87,7 @@ internal static class UiPreviewProjectFiles
         lines.AddRange(
         [
             "namespace PreviewHost;",
-            "public partial " + "class MainWindow : Window",
+            "public partial " + "class MainWindow : " + (windowRootType ?? "Window"),
             "{",
             "    public MainWindow()",
             "    {",
@@ -237,17 +242,15 @@ internal static class UiPreviewProjectFiles
             .Replace("<", "&lt;", StringComparison.Ordinal)
             .Replace(">", "&gt;", StringComparison.Ordinal);
 
-    private static bool IsFluentWindowRoot(string generatedXaml)
-        => generatedXaml.TrimStart().StartsWith("<ui:FluentWindow", StringComparison.Ordinal);
-
-    private static string BuildWindowXaml(string generatedXaml, bool generatedRootIsWindow)
+    private static string BuildWindowXaml(string generatedXaml, PreviewContractGenerationResult previewContract)
     {
         var previewFragment = RemoveRootXmlNamespaceDeclarations(generatedXaml);
-        return generatedRootIsWindow
-            ? AdaptFluentWindowRootForPreviewHost(previewFragment)
+        var namespaceAttributes = BuildPreviewNamespaceAttributes(previewContract.XmlNamespaces);
+        return previewContract.WindowRootTag is not null
+            ? AddPreviewHostClass(previewFragment, previewContract.WindowRootTag, namespaceAttributes)
             : string.Join(
                 Environment.NewLine,
-                """<Window x:Class="PreviewHost.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="clr-namespace:Wpf.Ui.Controls">""",
+                "<Window x:Class=\"PreviewHost.MainWindow\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"" + namespaceAttributes + ">",
                 "  <Grid>",
                 Indent(previewFragment, "    "),
                 "  </Grid>",
@@ -255,32 +258,18 @@ internal static class UiPreviewProjectFiles
                 string.Empty);
     }
 
-    private static string AdaptFluentWindowRootForPreviewHost(string generatedXaml)
-    {
-        const string rootTag = "<ui:FluentWindow";
-        const string hostRootTag = "<Window x:Class=\"PreviewHost.MainWindow\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:ui=\"clr-namespace:Wpf.Ui.Controls\"";
-        var index = generatedXaml.IndexOf(rootTag, StringComparison.Ordinal);
-        var hosted = index < 0
-            ? generatedXaml
-            : generatedXaml[..index] + hostRootTag + generatedXaml[(index + rootTag.Length)..];
-        hosted = RemoveFluentWindowTitleBar(hosted);
-        return hosted.Replace("</ui:FluentWindow>", "</Window>", StringComparison.Ordinal);
-    }
+    private static string BuildPreviewNamespaceAttributes(IReadOnlyDictionary<string, string> namespaces)
+        => string.Concat(namespaces.OrderBy(item => item.Key, StringComparer.Ordinal)
+            .Select(item => $" xmlns:{item.Key}=\"clr-namespace:{item.Value}\""));
 
-    private static string RemoveFluentWindowTitleBar(string xaml)
+    private static string AddPreviewHostClass(string generatedXaml, string rootTag, string namespaceAttributes)
     {
-        const string startTag = "<ui:FluentWindow.TitleBar>";
-        const string endTag = "</ui:FluentWindow.TitleBar>";
-        var start = xaml.IndexOf(startTag, StringComparison.Ordinal);
-        if (start < 0)
-        {
-            return xaml;
-        }
-
-        var end = xaml.IndexOf(endTag, start, StringComparison.Ordinal);
-        return end < 0
-            ? xaml
-            : xaml[..start] + xaml[(end + endTag.Length)..];
+        var opening = "<" + rootTag;
+        var replacement = opening
+            + " x:Class=\"PreviewHost.MainWindow\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\""
+            + " xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\""
+            + namespaceAttributes;
+        return generatedXaml.Replace(opening, replacement, StringComparison.Ordinal);
     }
 
     private static string RemoveRootXmlNamespaceDeclarations(string xaml)

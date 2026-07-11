@@ -30,6 +30,107 @@
     "spacing.medium": "12",
     "spacing.small": "8"
   },
+  "preview": {
+    "namespaceUri": "http://schemas.lepo.co/wpfui/2022/xaml",
+    "clrNamespace": "Wpf.Ui.Controls",
+    "types": {
+      "AutoSuggestBox": {
+        "baseKind": "contentControl",
+        "contentProperty": "PlaceholderText",
+        "properties": { "PlaceholderText": "string" }
+      },
+      "Button": {
+        "baseKind": "button",
+        "properties": { "Appearance": "string", "Command": "object", "Icon": "object" }
+      },
+      "Card": {
+        "baseKind": "stackPanel",
+        "contentProperty": "Footer",
+        "properties": { "Footer": "object" }
+      },
+      "ContentDialog": {
+        "baseKind": "itemsControl",
+        "contentProperty": "Title",
+        "properties": { "Title": "string" }
+      },
+      "DataGrid": {
+        "baseKind": "itemsControl",
+        "properties": { "Columns": "objectCollection" }
+      },
+      "FluentWindow": {
+        "baseKind": "window",
+        "properties": {}
+      },
+      "NavigationView": {
+        "baseKind": "itemsControl",
+        "contentProperty": "ContentOverlay",
+        "properties": {
+          "AutoSuggestBox": "object",
+          "ContentOverlay": "object",
+          "FooterMenuItems": "objectCollection",
+          "IsBackButtonVisible": "string",
+          "IsFooterSeparatorVisible": "boolean",
+          "IsPaneToggleVisible": "boolean",
+          "IsTopSeparatorVisible": "boolean",
+          "MenuItems": "objectCollection",
+          "OpenPaneLength": "double",
+          "PaneDisplayMode": "string"
+        }
+      },
+      "NavigationViewItem": {
+        "baseKind": "contentControl",
+        "properties": {
+          "Command": "object",
+          "CommandParameter": "object",
+          "Icon": "object",
+          "IsActive": "boolean",
+          "IsExpanded": "boolean",
+          "MenuItems": "objectCollection",
+          "TargetPageTag": "string"
+        }
+      },
+      "NavigationViewItemSeparator": { "baseKind": "control", "properties": {} },
+      "NumberBox": {
+        "baseKind": "control",
+        "properties": { "Maximum": "double", "Minimum": "double", "SmallChange": "double", "Value": "double" }
+      },
+      "ProgressRing": {
+        "baseKind": "frameworkElement",
+        "properties": { "IsIndeterminate": "boolean", "Progress": "double" }
+      },
+      "Snackbar": {
+        "baseKind": "itemsControl",
+        "properties": { "Timeout": "double" }
+      },
+      "SymbolIcon": {
+        "baseKind": "contentControl",
+        "contentProperty": "Symbol",
+        "properties": { "Symbol": "string" }
+      },
+      "TabView": {
+        "baseKind": "itemsControl",
+        "properties": { "SelectedIndex": "double" }
+      },
+      "TabViewItem": {
+        "baseKind": "contentControl",
+        "properties": { "Header": "object", "IsClosable": "boolean" }
+      },
+      "TextBlock": {
+        "baseKind": "contentControl",
+        "contentProperty": "Text",
+        "properties": { "Appearance": "string", "Text": "string", "TextAlignment": "string", "TextWrapping": "string" }
+      },
+      "TitleBar": {
+        "baseKind": "itemsControl",
+        "contentProperty": "Title",
+        "properties": { "Icon": "object", "Title": "string" }
+      },
+      "ToggleSwitch": {
+        "baseKind": "toggleButton",
+        "properties": { "LabelPosition": "string", "OffContent": "string", "OnContent": "string" }
+      }
+    }
+  },
   "blocks": [
     "wpfui.card",
     "wpfui.navigationView",

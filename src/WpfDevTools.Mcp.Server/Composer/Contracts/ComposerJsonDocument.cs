@@ -23,6 +23,7 @@ internal sealed class UiPackManifest : ComposerJsonDocument
     public UiPackNuGetPackage[] NugetPackages { get; set; } = [];
     public Dictionary<string, string> XmlNamespaces { get; set; } = new(StringComparer.Ordinal);
     public UiPackResourceSetup ResourceSetup { get; set; } = new();
+    public UiPackPreviewContract? Preview { get; set; }
     public string[] Blocks { get; set; } = [];
     public string[] Recipes { get; set; } = [];
 }
@@ -68,6 +69,20 @@ internal sealed class UiBlockSlot
 {
     public string[] AllowedKinds { get; set; } = [];
     public string XamlItemTemplate { get; set; } = string.Empty;
+}
+
+internal sealed class UiPackPreviewContract
+{
+    public string NamespaceUri { get; set; } = string.Empty;
+    public string ClrNamespace { get; set; } = string.Empty;
+    public Dictionary<string, UiPackPreviewType> Types { get; set; } = new(StringComparer.Ordinal);
+}
+
+internal sealed class UiPackPreviewType
+{
+    public string BaseKind { get; set; } = string.Empty;
+    public string ContentProperty { get; set; } = string.Empty;
+    public Dictionary<string, string> Properties { get; set; } = new(StringComparer.Ordinal);
 }
 
 internal sealed class UiBlockRenderer

@@ -42,6 +42,12 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                     rendererTemplatePath)).ToArray());
         }
 
+        var previewContract = new UiPackPreviewContractGenerator(registry).Generate(request.BlueprintJson);
+        if (!previewContract.Success)
+        {
+            return PreviewBlueprintResult.Invalid(request.RestoreEnabled, render.Xaml, previewContract.Diagnostics);
+        }
+
         var tempRoot = request.TemporaryRoot
             ?? Path.Combine(Path.GetTempPath(), "wpfdevtools-composer-preview-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempRoot);
@@ -55,7 +61,8 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 request.StartHost && runtimeDiagnosticsRequested,
                 PreviewLoadedSentinelFileName,
                 PreviewSdkOptionsFileName,
-                PreviewSdkReadyFileName);
+                PreviewSdkReadyFileName,
+                previewContract);
             cancellationToken.ThrowIfCancellationRequested();
             var restoreSucceeded = true;
             var cancelled = false;

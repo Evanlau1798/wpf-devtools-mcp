@@ -18,7 +18,14 @@ public sealed class ComposerPreviewProjectFilesTests
                 includeRuntimeDiagnostics: true,
                 loadedSentinelFileName: "loaded.txt",
                 sdkOptionsFileName: "sdk.txt",
-                sdkReadyFileName: "ready.txt");
+                sdkReadyFileName: "ready.txt",
+                previewContract: new PreviewContractGenerationResult(
+                    true,
+                    string.Empty,
+                    new Dictionary<string, string>(),
+                    null,
+                    null,
+                    []));
 
             var project = File.ReadAllText(Path.Combine(tempRoot, "PreviewHost.csproj"));
             project.Should().Contain("<Reference Include=\"WpfDevTools.Inspector.Sdk\">");

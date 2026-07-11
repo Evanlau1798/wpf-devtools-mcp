@@ -148,11 +148,16 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
             "<inline-blueprint>",
             UiComposerSchemaVersions.UiBlueprint);
         var declared = blueprint.Packs.ToDictionary(pack => pack.Id, StringComparer.Ordinal);
-        var blocks = registry.ListPacks().Packs
-            .Where(pack => declared.TryGetValue(pack.Id, out var reference)
-                && string.Equals(pack.Version, reference.Version, StringComparison.Ordinal))
-            .SelectMany(pack => ComposerPackLoader.Load(pack.RootPath).Blocks)
-            .ToDictionary(block => block.Kind, StringComparer.Ordinal);
+        var blocks = new Dictionary<string, UiBlockDefinition>(StringComparer.Ordinal);
+        foreach (var pack in registry.ListPacks().Packs.Where(pack =>
+                     declared.TryGetValue(pack.Id, out var reference)
+                     && string.Equals(pack.Version, reference.Version, StringComparison.Ordinal)))
+        {
+            foreach (var block in ComposerPackLoader.Load(pack.RootPath).Blocks)
+            {
+                blocks[block.Kind] = block;
+            }
+        }
         var warnings = new List<PreviewPropertyWarning>();
         CollectPropertyWarnings(blueprint.Layout, "$.layout", blocks, warnings);
         return warnings;

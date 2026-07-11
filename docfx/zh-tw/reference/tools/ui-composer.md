@@ -50,6 +50,11 @@ Request options:
 
 Catalog entries 只包含 source hint paths，不會把第三方 source code 複製進 tool output。
 
+只有 fragment 的 `compositionExamples` 會標示 `placementMode` 與具體的
+`compatibleParentSlots`。可直接使用配對的 `wrapperBlueprint` 作為能夠 validate
+或 render 的完整最小 blueprint，亦可將其 `fragment` 放入較大 blueprint 所列出的
+parent slot 之一。
+
 ## `validate_ui_blueprint`
 
 依照已安裝 Composer pack contracts 驗證 UI blueprint JSON。請在 `list_ui_block_packs` 與 `get_ui_block_catalog` 之後、rendering XAML 或 apply generated UI 之前使用。

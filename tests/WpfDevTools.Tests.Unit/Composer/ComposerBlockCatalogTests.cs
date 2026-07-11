@@ -110,24 +110,21 @@ public sealed class ComposerBlockCatalogTests
             payload.GetProperty("compositionExampleCount").GetInt32().Should().Be(1);
             var example = payload.GetProperty("compositionExamples")[0];
             example.GetProperty("id").GetString().Should().Be("core.stack.multiple-cards");
+            example.GetProperty("placementMode").GetString().Should().Be("slotChild");
+            example.GetProperty("compatibleParentSlots").EnumerateArray()
+                .Select(item => item.GetString())
+                .Should().Equal("wpfui.card.content");
             example.GetProperty("fragment").GetProperty("kind").GetString().Should().Be("stack");
             example.GetProperty("fragment").GetProperty("slots").GetProperty("stack")
                 .EnumerateArray()
                 .Should().HaveCount(2)
                 .And.OnlyContain(item => item.GetProperty("kind").GetString() == "wpfui.card");
 
-            var blueprintJson = $$"""
-                {
-                  "schemaVersion": "wpfdevtools.ui-blueprint.v1",
-                  "name": "CatalogCompositionExample",
-                  "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
-                  "primaryPack": "wpfui",
-                  "layout": {
-                    "kind": "wpfui.card",
-                    "slots": { "content": [{{example.GetProperty("fragment").GetRawText()}}] }
-                  }
-                }
-                """;
+            var wrapperBlueprint = example.GetProperty("wrapperBlueprint");
+            wrapperBlueprint.GetProperty("layout").GetProperty("kind").GetString().Should().Be("wpfui.card");
+            wrapperBlueprint.GetProperty("layout").GetProperty("slots").GetProperty("content")[0]
+                .GetRawText().Should().Be(example.GetProperty("fragment").GetRawText());
+            var blueprintJson = wrapperBlueprint.GetRawText();
             var validation = await UiComposerMcpTools.ValidateUiBlueprint(
                 blueprintJson,
                 localAppDataRoot: tempRoot,

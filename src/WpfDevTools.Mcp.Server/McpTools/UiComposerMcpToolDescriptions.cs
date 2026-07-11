@@ -40,6 +40,7 @@ internal static class UiComposerMcpToolDescriptions
         - Returns success, itemCount, items, compositionExampleCount, compositionExamples, and diagnostics.
         - Each item includes packId, packVersion, kind, displayName, category, properties, slots, allowedKinds, rendererAvailable, and sourceHintSummary.
         - compositionExamples includes compact machine-readable core layout fragments, such as stack with multiple cards, when the required pack is in scope.
+        - Fragment examples expose placementMode, compatibleParentSlots, and a complete wrapperBlueprint that can be validated or rendered directly.
         - Catalog source hints are path summaries only and do not include copied third-party source text.
 
         REQUEST OPTIONS:

@@ -50,6 +50,11 @@ Request options:
 
 Catalog entries include source hint paths only. They do not copy third-party source code into tool output.
 
+Fragment-only `compositionExamples` identify `placementMode` and concrete
+`compatibleParentSlots`. Use the matching `wrapperBlueprint` as a complete
+minimal blueprint that can be validated or rendered directly, or place its
+`fragment` under one of the advertised parent slots in a larger blueprint.
+
 ## `validate_ui_blueprint`
 
 Validates UI blueprint JSON against the installed Composer pack contracts. Use it after `list_ui_block_packs` and `get_ui_block_catalog`, before rendering XAML or applying generated UI.

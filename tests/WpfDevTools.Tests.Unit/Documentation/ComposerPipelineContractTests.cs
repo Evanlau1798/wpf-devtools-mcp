@@ -107,6 +107,16 @@ public sealed class ComposerPipelineContractTests
     }
 
     [Fact]
+    public void UiComposerDocs_ShouldDocumentCompositionExamplePlacementContract()
+    {
+        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
+        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
+
+        english.Should().ContainAll("placementMode", "compatibleParentSlots", "wrapperBlueprint");
+        zhTw.Should().ContainAll("placementMode", "compatibleParentSlots", "wrapperBlueprint");
+    }
+
+    [Fact]
     public void UiComposerDocs_ShouldPublishCompleteApplyToRunningAppWorkflow()
     {
         var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");

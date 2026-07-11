@@ -44,6 +44,22 @@ internal static class UiComposerCompositionExamples
         }
         """);
 
+    private static readonly JsonElement MultipleCardsWrapperBlueprint = JsonSerializer.SerializeToElement(new
+    {
+        schemaVersion = "wpfdevtools.ui-blueprint.v1",
+        name = "CatalogCompositionExample",
+        packs = new[]
+        {
+            new { id = "wpfui", version = "0.1.0", required = true, role = "primary" }
+        },
+        primaryPack = "wpfui",
+        layout = new
+        {
+            kind = "wpfui.card",
+            slots = new { content = new[] { MultipleCardsFragment } }
+        }
+    });
+
     internal static object[] ForResolvedComposableBlockKinds(IReadOnlyCollection<string> blockKinds)
     {
         if (!blockKinds.Contains("wpfui.card", StringComparer.Ordinal)
@@ -59,7 +75,10 @@ internal static class UiComposerCompositionExamples
                 id = "core.stack.multiple-cards",
                 purpose = "Place multiple ordered pack blocks in a slot that accepts the core stack kind.",
                 placementGuidance = "Use this directly renderable fragment as a slot child, then replace the sample text with application content.",
-                fragment = MultipleCardsFragment
+                placementMode = "slotChild",
+                compatibleParentSlots = new[] { "wpfui.card.content" },
+                fragment = MultipleCardsFragment,
+                wrapperBlueprint = MultipleCardsWrapperBlueprint
             }
         ];
     }

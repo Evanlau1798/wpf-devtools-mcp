@@ -2,6 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "core.rowDefinition",
   "displayName": "Row Definition",
+  "description": "Declares one native WPF Grid row with height and size constraints.",
   "category": "layout-definition",
   "properties": {
     "height": { "type": "string", "default": "*", "format": "gridLength" },

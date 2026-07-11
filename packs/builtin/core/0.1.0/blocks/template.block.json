@@ -2,6 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "core.template",
   "displayName": "Template Placeholder",
+  "description": "Provides an explicit placeholder for replaceable or deferred composition content.",
   "category": "template",
   "properties": {},
   "slots": {},

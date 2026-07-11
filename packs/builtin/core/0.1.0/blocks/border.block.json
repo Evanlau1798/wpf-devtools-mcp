@@ -2,6 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "core.border",
   "displayName": "Border",
+  "description": "Wraps one child with native WPF padding, border, background, and corner styling.",
   "category": "layout",
   "properties": {
     "padding": { "type": "string", "default": "0", "format": "thickness" },

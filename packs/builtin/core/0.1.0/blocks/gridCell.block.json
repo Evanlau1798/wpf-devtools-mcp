@@ -2,6 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "core.gridCell",
   "displayName": "Grid Cell",
+  "description": "Places one child at a specific native WPF Grid row and column.",
   "category": "layout",
   "properties": {
     "row": { "type": "number", "default": 0, "minimum": 0, "integer": true },

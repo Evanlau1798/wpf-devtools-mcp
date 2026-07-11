@@ -2,6 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "core.stack",
   "displayName": "Stack",
+  "description": "Arranges children vertically or horizontally with optional data-driven spacing.",
   "category": "layout",
   "properties": {
     "orientation": { "type": "string", "default": "Vertical", "enum": ["Vertical", "Horizontal"] },

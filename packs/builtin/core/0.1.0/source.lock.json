@@ -1,12 +1,22 @@
 {
   "schemaVersion": "wpfdevtools.source-lock.v1",
+  "generatedAt": "2026-07-11T00:00:00Z",
+  "generatorSkill": "wpf-extension-pack-creator",
   "sources": [
     {
+      "kind": "repository",
       "name": "WPF",
-      "url": "https://learn.microsoft.com/dotnet/desktop/wpf/",
+      "url": "https://github.com/dotnet/wpf",
       "version": "net8.0-windows",
-      "paths": ["System.Windows.Controls"]
+      "paths": ["src/Microsoft.DotNet.Wpf/src/PresentationFramework/System/Windows/Controls"],
+      "license": "MIT",
+      "usage": "Native WPF layout and presentation control metadata"
     }
   ],
-  "transformPolicy": {}
+  "transformPolicy": {
+    "copyWholeScreens": false,
+    "extractSemanticPatternsOnly": true,
+    "copyPolicy": "metadata-only",
+    "notes": "Renderer templates are original minimal compositions over public WPF APIs."
+  }
 }

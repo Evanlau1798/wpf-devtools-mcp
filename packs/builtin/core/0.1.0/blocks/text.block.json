@@ -2,6 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "core.text",
   "displayName": "Text",
+  "description": "Displays theme-neutral native WPF text with common typography and alignment options.",
   "category": "display",
   "properties": {
     "text": { "type": "string", "default": "Text" },

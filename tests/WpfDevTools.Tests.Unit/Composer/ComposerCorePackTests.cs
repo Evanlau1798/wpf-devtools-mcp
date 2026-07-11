@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
@@ -25,6 +26,26 @@ public sealed class ComposerCorePackTests
             "core.stack",
             "core.template",
             "core.text");
+    }
+
+    [Fact]
+    public void CorePack_ShouldExposeCanonicalArtifactMetadata()
+    {
+        var root = Path.Combine(TestRepositoryPaths.GetRepoFilePath("."), "packs", "builtin", "core", "0.1.0");
+        using var pack = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "pack.json")));
+        using var sourceLock = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "source.lock.json")));
+
+        pack.RootElement.GetProperty("kind").GetString().Should().Be("control-pack");
+        pack.RootElement.GetProperty("source").GetProperty("lockFile").GetString().Should().Be("source.lock.json");
+        sourceLock.RootElement.GetProperty("generatedAt").GetString().Should().NotBeNullOrWhiteSpace();
+        sourceLock.RootElement.GetProperty("generatorSkill").GetString().Should().Be("wpf-extension-pack-creator");
+        sourceLock.RootElement.GetProperty("sources")[0].GetProperty("license").GetString().Should().NotBeNullOrWhiteSpace();
+
+        foreach (var blockPath in Directory.GetFiles(Path.Combine(root, "blocks"), "*.block.json"))
+        {
+            using var block = JsonDocument.Parse(File.ReadAllText(blockPath));
+            block.RootElement.GetProperty("description").GetString().Should().NotBeNullOrWhiteSpace(blockPath);
+        }
     }
 
     [Fact]

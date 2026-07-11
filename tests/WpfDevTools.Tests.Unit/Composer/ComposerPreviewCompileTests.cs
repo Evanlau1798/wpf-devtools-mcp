@@ -80,6 +80,17 @@ public sealed partial class ComposerPreviewCompileTests
         payload.GetProperty("buildSucceeded").GetBoolean().Should().BeTrue();
         payload.GetProperty("visualFidelity").GetString().Should().Be("structural-stub");
         payload.GetProperty("visualValidationGuidance").GetString().Should().Contain("applied, built, and launched WPF application");
+        var visualComparisonChecklist = payload.GetProperty("visualComparisonChecklist")
+            .EnumerateArray()
+            .ToArray();
+        visualComparisonChecklist.Select(item => item.GetProperty("area").GetString()).Should()
+            .Equal("windowChrome", "icons", "controlTemplates", "layoutAndSpacing");
+        foreach (var item in visualComparisonChecklist)
+        {
+            item.GetProperty("preview").GetString().Should().NotBeNullOrWhiteSpace();
+            item.GetProperty("finalApp").GetString().Should().NotBeNullOrWhiteSpace();
+            item.GetProperty("requiredAction").GetString().Should().Contain("final");
+        }
         payload.GetProperty("previewHost").GetProperty("status").GetString().Should().Be("compiled");
         payload.GetProperty("previewHost").GetProperty("viewLoaded").GetBoolean().Should().BeFalse();
     }

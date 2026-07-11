@@ -438,6 +438,7 @@ public static class UiComposerMcpTools
             result.PreviewHost,
             result.VisualFidelity,
             result.VisualValidationGuidance,
+            result.VisualComparisonChecklist,
             observability = ComposerObservability.ForPreview(result)
         };
     }

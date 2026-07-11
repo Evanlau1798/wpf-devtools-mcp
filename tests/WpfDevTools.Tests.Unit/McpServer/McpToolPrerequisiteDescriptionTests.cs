@@ -63,6 +63,10 @@ public sealed class McpToolPrerequisiteDescriptionTests
 
         description.Should().Contain("structural-only");
         description.Should().Contain("applied, built, and launched WPF application");
+        description.Should().Contain("visualComparisonChecklist");
+        description.Should().Contain("window chrome");
+        description.Should().Contain("icons");
+        description.Should().Contain("layout and spacing");
     }
 
     private static IEnumerable<(string Name, string Description)> GetMcpTools()

@@ -200,8 +200,9 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this to launch or control a real target application. This phase builds a temporary local preview host, optionally starts that temporary host, and reports diagnostics; it does not persist project files outside its temporary workspace.
 
         RESPONSE SUMMARY:
-        - Returns success, valid, buildSucceeded, restoreEnabled, buildOutput, xaml, diagnostics, previewHost, visualFidelity, and visualValidationGuidance.
+        - Returns success, valid, buildSucceeded, restoreEnabled, buildOutput, xaml, diagnostics, previewHost, visualFidelity, visualValidationGuidance, and visualComparisonChecklist.
         - visualFidelity="structural-stub" means preview screenshots are structural-only evidence. Validate final styling in the applied, built, and launched WPF application.
+        - visualComparisonChecklist names expected stub differences in window chrome, icons, control templates, and layout and spacing, with a required final-app check for each area.
         - restoreEnabled=false runs dotnet build --no-restore and returns missing-assets diagnostics when the temporary project has not been restored.
         - startHost=true starts the temporary host after build, waits for an explicit generated-view load sentinel, then terminates the process tree.
         - includeRuntimeDiagnostics=true with startHost=true reuses connect(), get_ui_summary(depthMode="semantic"), and get_layout_info against the temporary preview host.

@@ -82,8 +82,8 @@ public sealed class ScreenshotLifecycleDocumentationTests
     {
         var expectations = new Dictionary<string, string[]>
         {
-            ["docfx/reference/tools/ui-composer.md"] = ["screenshotOutputMode", "resources/read", "same MCP server session"],
-            ["docfx/zh-tw/reference/tools/ui-composer.md"] = ["screenshotOutputMode", "resources/read", "相同 MCP server session"],
+            ["docfx/reference/tools/ui-composer.md"] = ["screenshotOutputMode", "resources/read", "same MCP server session", "visualComparisonChecklist"],
+            ["docfx/zh-tw/reference/tools/ui-composer.md"] = ["screenshotOutputMode", "resources/read", "相同 MCP server session", "visualComparisonChecklist"],
             ["docfx/reference/tools/tree-and-xaml.md"] = ["typeMatchMode", "assignable", "matchMode"],
             ["docfx/zh-tw/reference/tools/tree-and-xaml.md"] = ["typeMatchMode", "assignable", "matchMode"]
         };

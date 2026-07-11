@@ -24,10 +24,20 @@ internal sealed record PreviewBlueprintResult(
     IReadOnlyList<PreviewDiagnostic> Diagnostics,
     PreviewHostResult PreviewHost)
 {
+    private static readonly PreviewVisualComparison[] VisualComparisonItems =
+    [
+        new("windowChrome", "Temporary preview window chrome is structural.", "The applied app uses its real window type, title bar, and system buttons.", "Inspect window chrome in the final applied app."),
+        new("icons", "Stub controls may omit or substitute pack icons.", "The applied app renders icons from the real UI package.", "Inspect every required icon in the final applied app."),
+        new("controlTemplates", "Stub control templates approximate styling and visual states.", "The applied app uses the real package templates, resources, and states.", "Inspect control styling and states in the final applied app."),
+        new("layoutAndSpacing", "Stub measurement can shift sizing, alignment, and spacing.", "The applied app uses the real package measure and arrange behavior.", "Inspect layout, clipping, and spacing in the final applied app.")
+    ];
+
     public string VisualFidelity => "structural-stub";
 
     public string VisualValidationGuidance =>
         "Use preview screenshots for structural diagnostics only. Validate final styling in the applied, built, and launched WPF application.";
+
+    public IReadOnlyList<PreviewVisualComparison> VisualComparisonChecklist => VisualComparisonItems;
 
     public static PreviewBlueprintResult Invalid(
         bool restoreEnabled,
@@ -35,6 +45,12 @@ internal sealed record PreviewBlueprintResult(
         IReadOnlyList<PreviewDiagnostic> diagnostics)
         => new(false, false, false, restoreEnabled, string.Empty, xaml, diagnostics, new PreviewHostResult("not-started", Started: false));
 }
+
+internal sealed record PreviewVisualComparison(
+    string Area,
+    string Preview,
+    string FinalApp,
+    string RequiredAction);
 
 internal sealed record PreviewDiagnostic(
     string Code,

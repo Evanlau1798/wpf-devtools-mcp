@@ -136,7 +136,7 @@ Request options:
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
-Response 包含 `repairable`、`generatedXamlPatch=false`、`actionCount` 與 `actions`。相同 `issueCode` 與 `jsonPath` 的重複 issue 會合併成一個 action：`source` 保留第一個觀察來源，ordered `sources[]` 列出所有 validation、renderer 或 diagnostic contributors。Actions 會標示 repair 應落在 blueprint 或 pack renderer template contract。此 tool 不會直接 patch generated XAML。
+Response 包含 `repairable`、`generatedXamlPatch=false`、`actionCount` 與 `actions`。只有內容等價的重複 guidance 才會合併成一個 action；僅有相同 `issueCode` 與 `jsonPath` 不會合併不同 message、suggestion、value 或 renderer path。對於合併後的等價 guidance，`source` 保留第一個觀察來源，ordered `sources[]` 列出所有 validation、renderer 或 diagnostic contributors。Actions 會標示 repair 應落在 blueprint 或 pack renderer template contract。此 tool 不會直接 patch generated XAML。
 
 ## `apply_ui_blueprint`
 

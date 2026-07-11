@@ -136,7 +136,7 @@ Request options:
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
-The response includes `repairable`, `generatedXamlPatch=false`, `actionCount`, and `actions`. Duplicate issues with the same `issueCode` and `jsonPath` become one action: `source` preserves the first observation and ordered `sources[]` lists every contributing validation, renderer, or diagnostic source. Actions identify whether the repair belongs in the blueprint or in the pack renderer template contract. The tool never patches generated XAML directly.
+The response includes `repairable`, `generatedXamlPatch=false`, `actionCount`, and `actions`. Only content-equivalent duplicate guidance becomes one action; matching `issueCode` and `jsonPath` alone does not merge different messages, suggestions, values, or renderer paths. For merged equivalents, `source` preserves the first observation and ordered `sources[]` lists every contributing validation, renderer, or diagnostic source. Actions identify whether the repair belongs in the blueprint or in the pack renderer template contract. The tool never patches generated XAML directly.
 
 ## `apply_ui_blueprint`
 

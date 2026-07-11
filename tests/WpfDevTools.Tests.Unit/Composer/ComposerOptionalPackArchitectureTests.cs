@@ -13,10 +13,10 @@ public sealed class ComposerOptionalPackArchitectureTests
         ComposerPackRoleCatalog.WpfUiPacks.Should().BeEquivalentTo(
         [
             new { Id = "wpfui", Role = ComposerPackRoles.Primary, Required = true },
-            new { Id = "wpfui.gallery", Role = ComposerPackRoles.RecipeExample, Required = false },
-            new { Id = "wpfui.syntaxhighlight", Role = ComposerPackRoles.OptionalControl, Required = false },
-            new { Id = "wpfui.tray", Role = ComposerPackRoles.OptionalControl, Required = false },
-            new { Id = "wpfui.templates", Role = ComposerPackRoles.ShellTemplate, Required = false }
+            new { Id = "wpfui.gallery", Role = ComposerPackRoles.RecipePack, Required = false },
+            new { Id = "wpfui.syntaxhighlight", Role = ComposerPackRoles.ControlPack, Required = false },
+            new { Id = "wpfui.tray", Role = ComposerPackRoles.ControlPack, Required = false },
+            new { Id = "wpfui.templates", Role = ComposerPackRoles.RecipePack, Required = false }
         ]);
     }
 }

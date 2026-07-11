@@ -19,7 +19,7 @@ public sealed class ComposerMultiPackValidationTests
               "name": "VersionConflict",
               "packs": [
                 { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
-                { "id": "wpfui", "version": "9.9.9", "required": false, "role": "optional-control" }
+                { "id": "wpfui", "version": "9.9.9", "required": false, "role": "control-pack" }
               ],
               "primaryPack": "wpfui",
               "layout": { "kind": "wpfui.button" }
@@ -44,7 +44,7 @@ public sealed class ComposerMultiPackValidationTests
                   "name": "ResourceConflict",
                   "packs": [
                     { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
-                    { "id": "conflict.resources", "version": "1.0.0", "required": false, "role": "optional-control" }
+                    { "id": "conflict.resources", "version": "1.0.0", "required": false, "role": "control-pack" }
                   ],
                   "primaryPack": "wpfui",
                   "layout": { "kind": "wpfui.button" }
@@ -103,7 +103,7 @@ public sealed class ComposerMultiPackValidationTests
                   "name": "OptionalSyntaxHighlight",
                   "packs": [
                     { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
-                    { "id": "wpfui.syntaxhighlight", "version": "1.0.0", "required": false, "role": "optional-control" },
+                    { "id": "wpfui.syntaxhighlight", "version": "1.0.0", "required": false, "role": "control-pack" },
                     { "id": "core", "version": "0.1.0", "required": true, "role": "layout-pack" }
                   ],
                   "primaryPack": "wpfui",
@@ -142,7 +142,7 @@ public sealed class ComposerMultiPackValidationTests
               "name": "MissingOptionalSyntaxHighlight",
               "packs": [
                 { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
-                { "id": "wpfui.syntaxhighlight", "version": "1.0.0", "required": false, "role": "optional-control" },
+                { "id": "wpfui.syntaxhighlight", "version": "1.0.0", "required": false, "role": "control-pack" },
                 { "id": "core", "version": "0.1.0", "required": true, "role": "layout-pack" }
               ],
               "primaryPack": "wpfui",

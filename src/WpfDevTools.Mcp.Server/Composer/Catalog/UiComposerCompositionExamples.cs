@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Mcp.Server.Composer.Packs;
 
 namespace WpfDevTools.Mcp.Server.Composer.Catalog;
 
@@ -84,7 +85,7 @@ internal static class UiComposerCompositionExamples
             name = "CatalogCompositionExample",
             packs = new[]
             {
-                new { id = "core", version = "0.1.0", required = true, role = "optional" },
+                new { id = "core", version = "0.1.0", required = true, role = ComposerPackRoles.LayoutPack },
                 new { id = "wpfui", version = packVersion, required = true, role = "primary" }
             },
             primaryPack = "wpfui",

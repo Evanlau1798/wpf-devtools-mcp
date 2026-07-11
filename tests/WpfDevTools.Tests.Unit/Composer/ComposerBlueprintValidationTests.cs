@@ -50,6 +50,24 @@ public sealed class ComposerBlueprintValidationTests
     }
 
     [Fact]
+    public void ValidateBlueprint_ShouldRejectUnknownPackRole()
+    {
+        var result = CreateValidator().Validate(Blueprint("""
+            {
+              "packs": [
+                { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
+                { "id": "core", "version": "0.1.0", "required": true, "role": "optional" }
+              ],
+              "primaryPack": "wpfui",
+              "layout": { "kind": "wpfui.button" }
+            }
+            """));
+
+        result.Errors.Should().ContainSingle(issue => issue.JsonPath == "$.packs[1].role"
+            && issue.Code == "InvalidPackRole");
+    }
+
+    [Fact]
     public void ValidateBlueprint_ShouldRejectUnknownPropertyAndWarnForUnusedDeclaredPack()
     {
         var projectRoot = CreateTempProjectWithValidationPack();
@@ -60,7 +78,7 @@ public sealed class ComposerBlueprintValidationTests
                 {
                   "packs": [
                     { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
-                    { "id": "validation", "version": "1.0.0", "required": false, "role": "optional" }
+                    { "id": "validation", "version": "1.0.0", "required": false, "role": "extension" }
                   ],
                   "primaryPack": "wpfui",
                   "layout": {
@@ -158,7 +176,7 @@ public sealed class ComposerBlueprintValidationTests
                 {
                   "packs": [
                     { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
-                    { "id": "validation", "version": "1.0.0", "required": true, "role": "optional" }
+                    { "id": "validation", "version": "1.0.0", "required": true, "role": "extension" }
                   ],
                   "primaryPack": "wpfui",
                   "layout": {
@@ -171,7 +189,7 @@ public sealed class ComposerBlueprintValidationTests
                 {
                   "packs": [
                     { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
-                    { "id": "validation", "version": "1.0.0", "required": true, "role": "optional" }
+                    { "id": "validation", "version": "1.0.0", "required": true, "role": "extension" }
                   ],
                   "primaryPack": "wpfui",
                   "layout": {

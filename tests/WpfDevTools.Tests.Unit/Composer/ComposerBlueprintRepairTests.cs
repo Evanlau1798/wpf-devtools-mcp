@@ -171,6 +171,31 @@ public sealed class ComposerBlueprintRepairTests
     }
 
     [Fact]
+    public void RepairBlueprint_ShouldMergeDuplicateIssueSourcesInFirstSeenOrder()
+    {
+        var repair = new BlueprintRepairService(CreateRegistry());
+        var diagnosticsJson = """
+            {
+              "diagnostics": [{
+                "code": "UnqualifiedBlockKind",
+                "message": "The diagnostic observed the same invalid kind.",
+                "jsonPath": "$.layout"
+              }]
+            }
+            """;
+
+        var result = repair.Repair(new BlueprintRepairRequest(
+            Blueprint("""{ "layout": { "kind": "button" } }"""),
+            diagnosticsJson));
+
+        var action = result.Actions.Should().ContainSingle(item =>
+            item.IssueCode == "UnqualifiedBlockKind" && item.JsonPath == "$.layout").Which;
+        action.Source.Should().Be("validation");
+        action.Sources.Should().Equal("validation", "diagnostic");
+        result.ActionCount.Should().Be(result.Actions.Count);
+    }
+
+    [Fact]
     public async Task RepairUiBlueprintTool_ShouldReturnStructuredRepairPlan()
     {
         var tempRoot = CreateTempDirectory();

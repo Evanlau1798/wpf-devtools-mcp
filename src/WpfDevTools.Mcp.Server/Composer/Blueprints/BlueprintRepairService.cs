@@ -27,14 +27,43 @@ internal sealed class BlueprintRepairService(PackRegistry registry)
         }
 
         actions.AddRange(ParseDiagnostics(request.DiagnosticsJson));
+        var mergedActions = MergeDuplicateActions(actions);
 
         return new BlueprintRepairResult(
             Success: true,
-            Repairable: actions.Count > 0,
+            Repairable: mergedActions.Count > 0,
             GeneratedXamlPatch: false,
-            ActionCount: actions.Count,
-            Actions: actions,
+            ActionCount: mergedActions.Count,
+            Actions: mergedActions,
             Diagnostics: validation.Diagnostics);
+    }
+
+    private static IReadOnlyList<BlueprintRepairAction> MergeDuplicateActions(
+        IReadOnlyList<BlueprintRepairAction> actions)
+    {
+        var merged = new List<BlueprintRepairAction>(actions.Count);
+        var positions = new Dictionary<(string IssueCode, string JsonPath), int>();
+        foreach (var action in actions)
+        {
+            var key = (action.IssueCode, action.JsonPath);
+            if (!positions.TryGetValue(key, out var position))
+            {
+                positions.Add(key, merged.Count);
+                merged.Add(action);
+                continue;
+            }
+
+            var current = merged[position];
+            merged[position] = current with
+            {
+                Sources = current.Sources
+                    .Concat(action.Sources)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray()
+            };
+        }
+
+        return merged;
     }
 
     private BlueprintRepairAction ToAction(
@@ -341,4 +370,7 @@ internal sealed record BlueprintRepairAction(
     IReadOnlyList<string> AllowedKinds,
     IReadOnlyList<string> AllowedValues,
     JsonElement? SuggestedValue,
-    string? RendererTemplatePath);
+    string? RendererTemplatePath)
+{
+    public IReadOnlyList<string> Sources { get; init; } = [Source];
+}

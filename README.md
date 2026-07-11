@@ -24,7 +24,7 @@ irm https://installer.wpf-mcptools.evanlau1798.com | iex
 Pinned pre-release install for beta or preview validation; replace the example with the selected public pre-release tag:
 
 ```powershell
-$version = 'v1.0.0-beta.42'
+$version = 'v1.0.0-beta.43'
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 

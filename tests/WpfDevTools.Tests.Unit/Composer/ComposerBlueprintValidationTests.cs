@@ -286,7 +286,7 @@ public sealed class ComposerBlueprintValidationTests
     }
 
     [Fact]
-    public void ValidateBlueprint_ShouldAllowTextPrimitiveInTextSlot()
+    public void ValidateBlueprint_ShouldAllowCoreTextInTextSlot()
     {
         var validator = CreateValidator();
         var blueprint = Blueprint("""
@@ -294,7 +294,7 @@ public sealed class ComposerBlueprintValidationTests
               "layout": {
                 "kind": "wpfui.card",
                 "slots": {
-                  "content": [{ "kind": "text", "properties": { "value": "Hello" } }]
+                  "content": [{ "kind": "core.text", "properties": { "text": "Hello" } }]
                 }
               }
             }
@@ -366,7 +366,7 @@ public sealed class ComposerBlueprintValidationTests
                     "properties": { "itemsSource": "{Binding Rows}" },
                     "slots": {
                       "emptyState": [{ "kind": "wpfui.textBlock", "properties": { "text": "No rows" } }],
-                      "columns": [{ "kind": "template" }]
+                      "columns": [{ "kind": "core.template" }]
                     }
                   }
                 }
@@ -377,7 +377,7 @@ public sealed class ComposerBlueprintValidationTests
                     "kind": "wpfui.contentDialog",
                     "properties": { "title": "Confirm" },
                     "slots": {
-                      "content": [{ "kind": "text", "properties": { "value": "Proceed?" } }],
+                      "content": [{ "kind": "core.text", "properties": { "text": "Proceed?" } }],
                       "actions": [{ "kind": "wpfui.button", "properties": { "text": "OK" } }]
                     }
                   }
@@ -401,7 +401,12 @@ public sealed class ComposerBlueprintValidationTests
         var root = document.RootElement;
         var packs = root.TryGetProperty("packs", out var packElement)
             ? packElement.GetRawText()
-            : """[{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }]""";
+            : """
+              [
+                { "id": "core", "version": "0.1.0", "required": true, "role": "optional" },
+                { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }
+              ]
+              """;
         var primaryPack = root.TryGetProperty("primaryPack", out var primaryElement)
             ? primaryElement.GetRawText()
             : JsonSerializer.Serialize("wpfui");

@@ -14,9 +14,9 @@
   "slots": {
     "content": {
       "allowedKinds": [
-        "text",
-        "stack",
-        "template",
+        "core.text",
+        "core.stack",
+        "core.template",
         "wpfui.card",
         "wpfui.navigationViewDemo"
       ]

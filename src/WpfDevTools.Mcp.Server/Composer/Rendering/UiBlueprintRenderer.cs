@@ -67,23 +67,6 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
         List<BlueprintValidationIssue> errors,
         List<RenderSourceMapEntry> sourceMap)
     {
-        if (node.Kind == "text")
-        {
-            return Escape(GetPropertyValue(node, "value") ?? GetPropertyValue(node, "text") ?? string.Empty);
-        }
-
-        if (node.Kind == "template")
-        {
-            return "<!-- template -->";
-        }
-
-        if (node.Kind == "stack")
-        {
-            var children = node.Slots.Values.SelectMany(slot => slot)
-                .Select((child, index) => RenderNode(child, $"{path}.slots.stack[{index}]", packs, context, errors, sourceMap));
-            return "<StackPanel>" + Environment.NewLine + string.Join(Environment.NewLine, children) + Environment.NewLine + "</StackPanel>";
-        }
-
         if (!context.Blocks.TryGetValue(node.Kind, out var block))
         {
             errors.Add(Issue(path, "UnknownBlockKind", $"Block kind '{node.Kind}' was not loaded.", "Refresh the catalog and choose a loaded block kind."));
@@ -129,7 +112,10 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
             }
 
             return string.Join(Environment.NewLine, children.Select((child, index) =>
-                RenderNode(child, $"{path}.slots.{slotName}[{index}]", packs, context, errors, sourceMap)));
+            {
+                var childXaml = RenderNode(child, $"{path}.slots.{slotName}[{index}]", packs, context, errors, sourceMap);
+                return WrapSlotItem(block.Slots[slotName], childXaml, node, block, path, errors);
+            }));
         }
 
         if (!block.Properties.ContainsKey(token))
@@ -142,6 +128,32 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
             ?? GetDefaultPropertyValue(block, token)
             ?? string.Empty;
         return Escape(value);
+    }
+
+    private static string WrapSlotItem(UiBlockSlot slot, string childXaml, UiBlueprintNode node,
+        UiBlockDefinition block, string path, List<BlueprintValidationIssue> errors)
+    {
+        if (string.IsNullOrWhiteSpace(slot.XamlItemTemplate))
+        {
+            return childXaml;
+        }
+
+        return TokenPattern.Replace(slot.XamlItemTemplate, match =>
+        {
+            var token = match.Groups["name"].Value;
+            if (token == "item")
+            {
+                return childXaml;
+            }
+
+            if (block.Properties.ContainsKey(token))
+            {
+                return Escape(GetPropertyValue(node, token) ?? GetDefaultPropertyValue(block, token) ?? string.Empty);
+            }
+
+            errors.Add(Issue(path, "RendererTokenMismatch", $"Slot item template token '{token}' does not match block '{block.Kind}'.", "Use {{item}} or a declared block property in xamlItemTemplate."));
+            return string.Empty;
+        });
     }
 
     private static string? GetPropertyValue(UiBlueprintNode node, string name)

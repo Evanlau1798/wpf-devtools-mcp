@@ -6,17 +6,17 @@ internal static class UiComposerCompositionExamples
 {
     private static readonly JsonElement MultipleCardsFragment = JsonSerializer.Deserialize<JsonElement>("""
         {
-          "kind": "stack",
+          "kind": "core.stack",
           "slots": {
-            "stack": [
+            "children": [
               {
                 "kind": "wpfui.card",
                 "slots": {
                   "content": [
                     {
-                      "kind": "stack",
+                      "kind": "core.stack",
                       "slots": {
-                        "stack": [
+                        "children": [
                           { "kind": "wpfui.textBlock", "properties": { "text": "First card" } }
                         ]
                       }
@@ -29,9 +29,9 @@ internal static class UiComposerCompositionExamples
                 "slots": {
                   "content": [
                     {
-                      "kind": "stack",
+                      "kind": "core.stack",
                       "slots": {
-                        "stack": [
+                        "children": [
                           { "kind": "wpfui.textBlock", "properties": { "text": "Second card" } }
                         ]
                       }
@@ -57,7 +57,7 @@ internal static class UiComposerCompositionExamples
         var textBlock = textBlocks[0];
         if (!string.Equals(card.PackVersion, textBlock.PackVersion, StringComparison.Ordinal)
             || !card.Slots.TryGetValue("content", out var contentSlot)
-            || !contentSlot.AllowedKinds.Contains("stack", StringComparer.Ordinal))
+            || !contentSlot.AllowedKinds.Contains("core.stack", StringComparer.Ordinal))
         {
             return [];
         }
@@ -84,6 +84,7 @@ internal static class UiComposerCompositionExamples
             name = "CatalogCompositionExample",
             packs = new[]
             {
+                new { id = "core", version = "0.1.0", required = true, role = "optional" },
                 new { id = "wpfui", version = packVersion, required = true, role = "primary" }
             },
             primaryPack = "wpfui",

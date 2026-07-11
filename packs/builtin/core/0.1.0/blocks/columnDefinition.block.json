@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "core.columnDefinition",
+  "displayName": "Column Definition",
+  "category": "layout-definition",
+  "properties": {
+    "width": { "type": "string", "default": "*", "format": "gridLength" },
+    "minWidth": { "type": "number", "default": 0, "minimum": 0 },
+    "maxWidth": { "type": "number", "default": 1000000, "minimum": 0 }
+  },
+  "slots": {},
+  "renderer": { "xamlTemplate": "renderers/xaml/columnDefinition.xaml.sbn" },
+  "sourceHints": [{ "path": "System.Windows.Controls.ColumnDefinition", "usage": "native WPF grid definition" }]
+}

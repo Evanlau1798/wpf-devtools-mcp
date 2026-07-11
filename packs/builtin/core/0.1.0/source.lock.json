@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "wpfdevtools.source-lock.v1",
+  "sources": [
+    {
+      "name": "WPF",
+      "url": "https://learn.microsoft.com/dotnet/desktop/wpf/",
+      "version": "net8.0-windows",
+      "paths": ["System.Windows.Controls"]
+    }
+  ],
+  "transformPolicy": {}
+}

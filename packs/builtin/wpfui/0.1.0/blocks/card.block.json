@@ -13,14 +13,14 @@
     },
     "content": {
       "allowedKinds": [
-        "text",
-        "stack",
-        "template"
+        "core.text",
+        "core.stack",
+        "core.template"
       ]
     },
     "header": {
       "allowedKinds": [
-        "text",
+        "core.text",
         "wpfui.textBlock"
       ]
     }

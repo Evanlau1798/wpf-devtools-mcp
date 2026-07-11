@@ -6,6 +6,12 @@
   "packId": "wpfui",
   "requiredPacks": [
     {
+      "id": "core",
+      "version": "0.1.0",
+      "required": true,
+      "role": "optional"
+    },
+    {
       "id": "wpfui",
       "version": "0.1.0",
       "required": true,
@@ -116,9 +122,9 @@
                   ],
                   "content": [
                     {
-                      "kind": "stack",
+                      "kind": "core.stack",
                       "slots": {
-                        "stack": [
+                        "children": [
                           {
                             "kind": "wpfui.textBlock",
                             "properties": {
@@ -151,9 +157,9 @@
                 "slots": {
                   "content": [
                     {
-                      "kind": "text",
+                      "kind": "core.text",
                       "properties": {
-                        "value": "{{settingsText}}"
+                        "text": "{{settingsText}}"
                       }
                     }
                   ],
@@ -180,9 +186,9 @@
                 "slots": {
                   "content": [
                     {
-                      "kind": "text",
+                      "kind": "core.text",
                       "properties": {
-                        "value": "{{navigationItem1Text}}"
+                        "text": "{{navigationItem1Text}}"
                       }
                     }
                   ],
@@ -206,9 +212,9 @@
                 "slots": {
                   "content": [
                     {
-                      "kind": "text",
+                      "kind": "core.text",
                       "properties": {
-                        "value": "{{navigationItem2Text}}"
+                        "text": "{{navigationItem2Text}}"
                       }
                     }
                   ],
@@ -232,9 +238,9 @@
                 "slots": {
                   "content": [
                     {
-                      "kind": "text",
+                      "kind": "core.text",
                       "properties": {
-                        "value": "{{navigationItem3Text}}"
+                        "text": "{{navigationItem3Text}}"
                       }
                     }
                   ],
@@ -258,9 +264,9 @@
                 "slots": {
                   "content": [
                     {
-                      "kind": "text",
+                      "kind": "core.text",
                       "properties": {
-                        "value": "{{navigationItem4Text}}"
+                        "text": "{{navigationItem4Text}}"
                       }
                     }
                   ],

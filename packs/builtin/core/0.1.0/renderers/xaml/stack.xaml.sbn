@@ -1,0 +1,1 @@
+<StackPanel Orientation="{{orientation}}" Margin="{{margin}}" HorizontalAlignment="{{horizontalAlignment}}" VerticalAlignment="{{verticalAlignment}}">{{slot.children}}</StackPanel>

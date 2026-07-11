@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "core.stack",
+  "displayName": "Stack",
+  "category": "layout",
+  "properties": {
+    "orientation": { "type": "string", "default": "Vertical", "enum": ["Vertical", "Horizontal"] },
+    "spacing": { "type": "string", "default": "0", "format": "thickness" },
+    "margin": { "type": "string", "default": "0", "format": "thickness" },
+    "horizontalAlignment": { "type": "string", "default": "Stretch", "enum": ["Left", "Center", "Right", "Stretch"] },
+    "verticalAlignment": { "type": "string", "default": "Stretch", "enum": ["Top", "Center", "Bottom", "Stretch"] }
+  },
+  "slots": {
+    "children": {
+      "allowedKinds": ["*"],
+      "xamlItemTemplate": "<Border Margin=\"{{spacing}}\">{{item}}</Border>"
+    }
+  },
+  "renderer": { "xamlTemplate": "renderers/xaml/stack.xaml.sbn" },
+  "sourceHints": [{ "path": "System.Windows.Controls.ItemsControl", "usage": "native WPF layout" }]
+}

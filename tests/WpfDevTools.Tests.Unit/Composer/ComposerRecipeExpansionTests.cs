@@ -96,7 +96,7 @@ public sealed class ComposerRecipeExpansionTests
         result.Validation.Success.Should().BeTrue();
         var navigation = result.Blueprint.Layout.Slots["content"].Should().ContainSingle().Subject;
         navigation.Slots["items"]
-            .Select(item => item.Slots["content"].Single().Properties["value"].GetString())
+            .Select(item => item.Slots["content"].Single().Properties["text"].GetString())
             .Should().Equal("Berth Board", "Tide Watch", "Pilot Roster", "Manifest Desk");
         var serialized = JsonSerializer.Serialize(result.Blueprint);
         serialized.Should().ContainAll("Live Berth Operations", "Open Incident Log");

@@ -1,0 +1,5 @@
+<Grid Margin="{{margin}}" HorizontalAlignment="{{horizontalAlignment}}" VerticalAlignment="{{verticalAlignment}}">
+  <Grid.RowDefinitions>{{slot.rows}}</Grid.RowDefinitions>
+  <Grid.ColumnDefinitions>{{slot.columns}}</Grid.ColumnDefinitions>
+  {{slot.children}}
+</Grid>

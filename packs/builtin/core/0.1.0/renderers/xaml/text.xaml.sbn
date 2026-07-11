@@ -1,0 +1,1 @@
+<TextBlock Text="{{text}}" FontSize="{{fontSize}}" FontWeight="{{fontWeight}}" TextWrapping="{{textWrapping}}" TextAlignment="{{textAlignment}}" Margin="{{margin}}" Foreground="{{foreground}}" />

@@ -19,7 +19,7 @@
     },
     "content": {
       "allowedKinds": [
-        "text",
+        "core.text",
         "wpfui.textBlock"
       ]
     }

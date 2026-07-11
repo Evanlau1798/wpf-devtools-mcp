@@ -6,6 +6,12 @@
   "packId": "wpfui",
   "requiredPacks": [
     {
+      "id": "core",
+      "version": "0.1.0",
+      "required": true,
+      "role": "optional"
+    },
+    {
       "id": "wpfui",
       "version": "0.1.0",
       "required": true,
@@ -36,9 +42,9 @@
             ],
             "header": [
               {
-                "kind": "text",
+                "kind": "core.text",
                 "properties": {
-                  "value": "{{generalTitle}}"
+                  "text": "{{generalTitle}}"
                 }
               }
             ]
@@ -54,9 +60,9 @@
             ],
             "header": [
               {
-                "kind": "text",
+                "kind": "core.text",
                 "properties": {
-                  "value": "{{securityTitle}}"
+                  "text": "{{securityTitle}}"
                 }
               }
             ]

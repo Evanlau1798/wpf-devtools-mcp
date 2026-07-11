@@ -89,7 +89,7 @@ public sealed class ComposerPerformanceSmokeTests
                     "items": [{
                       "kind": "wpfui.navigationViewItem",
                       "slots": {
-                        "content": [{ "kind": "text", "properties": { "value": "Home" } }],
+                        "content": [{ "kind": "core.text", "properties": { "text": "Home" } }],
                         "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "Home24" } }]
                       }
                     }],
@@ -105,14 +105,14 @@ public sealed class ComposerPerformanceSmokeTests
         var children = string.Join(
             ",",
             Enumerable.Range(0, childCount).Select(index =>
-                $$"""{ "kind": "text", "properties": { "value": "Item {{index}}" } }"""));
+                $$"""{ "kind": "core.text", "properties": { "text": "Item {{index}}" } }"""));
         return Blueprint($$"""
             {
               "kind": "wpfui.card",
               "slots": {
                 "content": [{
-                  "kind": "stack",
-                  "slots": { "stack": [{{children}}] }
+                  "kind": "core.stack",
+                  "slots": { "children": [{{children}}] }
                 }]
               }
             }
@@ -124,7 +124,10 @@ public sealed class ComposerPerformanceSmokeTests
             {
               "schemaVersion": "wpfdevtools.ui-blueprint.v1",
               "name": "PerformanceSmoke",
-              "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+              "packs": [
+                { "id": "core", "version": "0.1.0", "required": true, "role": "optional" },
+                { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }
+              ],
               "primaryPack": "wpfui",
               "layout": {{layoutJson}}
             }

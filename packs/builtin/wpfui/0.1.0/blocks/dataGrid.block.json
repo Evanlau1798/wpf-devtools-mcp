@@ -13,12 +13,12 @@
   "slots": {
     "columns": {
       "allowedKinds": [
-        "template"
+        "core.template"
       ]
     },
     "emptyState": {
       "allowedKinds": [
-        "text",
+        "core.text",
         "wpfui.textBlock",
         "wpfui.card"
       ]

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "core.template",
+  "displayName": "Template Placeholder",
+  "category": "template",
+  "properties": {},
+  "slots": {},
+  "renderer": { "xamlTemplate": "renderers/xaml/template.xaml.sbn" },
+  "sourceHints": [{ "path": "System.Windows.Markup", "usage": "safe placeholder for authored template content" }]
+}

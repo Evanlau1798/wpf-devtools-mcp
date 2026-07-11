@@ -33,15 +33,15 @@ public sealed class ComposerBlueprintProductionFixtureTests
         => new()
         {
             Blueprint("""{ "kind": "wpfui.button", "properties": { "text": "Save" }, "slots": { "icon": [{ "kind": "wpfui.symbolIcon" }] } }"""),
-            Blueprint("""{ "kind": "wpfui.card", "slots": { "header": [{ "kind": "text", "properties": { "value": "Status" } }], "content": [{ "kind": "text", "properties": { "value": "Ready" } }], "actions": [{ "kind": "wpfui.button" }] } }"""),
-            Blueprint("""{ "kind": "wpfui.navigationView", "slots": { "items": [{ "kind": "wpfui.navigationViewItem", "slots": { "content": [{ "kind": "text", "properties": { "value": "Home" } }], "icon": [{ "kind": "wpfui.symbolIcon" }] } }], "content": [{ "kind": "wpfui.card" }] } }"""),
-            Blueprint("""{ "kind": "wpfui.tabView", "slots": { "items": [{ "kind": "wpfui.tabViewItem", "slots": { "header": [{ "kind": "text", "properties": { "value": "General" } }], "content": [{ "kind": "wpfui.card" }] } }] } }"""),
-            Blueprint("""{ "kind": "wpfui.contentDialog", "slots": { "content": [{ "kind": "text", "properties": { "value": "Continue?" } }], "actions": [{ "kind": "wpfui.button" }] } }"""),
-            Blueprint("""{ "kind": "wpfui.dataGrid", "properties": { "itemsSource": "{Binding Rows}" }, "slots": { "columns": [{ "kind": "template" }], "emptyState": [{ "kind": "wpfui.textBlock" }] } }"""),
+            Blueprint("""{ "kind": "wpfui.card", "slots": { "header": [{ "kind": "core.text", "properties": { "text": "Status" } }], "content": [{ "kind": "core.text", "properties": { "text": "Ready" } }], "actions": [{ "kind": "wpfui.button" }] } }"""),
+            Blueprint("""{ "kind": "wpfui.navigationView", "slots": { "items": [{ "kind": "wpfui.navigationViewItem", "slots": { "content": [{ "kind": "core.text", "properties": { "text": "Home" } }], "icon": [{ "kind": "wpfui.symbolIcon" }] } }], "content": [{ "kind": "wpfui.card" }] } }"""),
+            Blueprint("""{ "kind": "wpfui.tabView", "slots": { "items": [{ "kind": "wpfui.tabViewItem", "slots": { "header": [{ "kind": "core.text", "properties": { "text": "General" } }], "content": [{ "kind": "wpfui.card" }] } }] } }"""),
+            Blueprint("""{ "kind": "wpfui.contentDialog", "slots": { "content": [{ "kind": "core.text", "properties": { "text": "Continue?" } }], "actions": [{ "kind": "wpfui.button" }] } }"""),
+            Blueprint("""{ "kind": "wpfui.dataGrid", "properties": { "itemsSource": "{Binding Rows}" }, "slots": { "columns": [{ "kind": "core.template" }], "emptyState": [{ "kind": "wpfui.textBlock" }] } }"""),
             Blueprint("""{ "kind": "wpfui.snackbar", "slots": { "content": [{ "kind": "wpfui.textBlock" }], "actions": [{ "kind": "wpfui.button" }] } }"""),
             Blueprint("""{ "kind": "wpfui.fluentWindow", "slots": { "titleBar": [{ "kind": "wpfui.titleBar" }], "content": [{ "kind": "wpfui.navigationView" }] } }"""),
             Blueprint("""{ "kind": "wpfui.textBlock", "properties": { "text": "Hello", "appearance": "Primary" } }"""),
-            Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "stack", "slots": { "stack": [{ "kind": "text", "properties": { "value": "Line" } }, { "kind": "template" }] } }] } }""")
+            Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "core.stack", "slots": { "children": [{ "kind": "core.text", "properties": { "text": "Line" } }, { "kind": "core.template" }] } }] } }""")
         };
 
     public static TheoryData<string, string> InvalidBlueprints()
@@ -58,7 +58,7 @@ public sealed class ComposerBlueprintProductionFixtureTests
             { Blueprint("""{ "kind": "wpfui.navigationView", "slots": { "items": [{ "kind": "wpfui.button" }] } }"""), "SlotChildKindNotAllowed" },
             { Blueprint("""{ "kind": "wpfui.button", "properties": { "rawXaml": "<Button />" } }"""), "UnknownProperty" },
             { Blueprint("""{ "kind": "wpfui.textBlock", "properties": { "appearance": "Body" } }"""), "PropertyValueNotAllowed" },
-            { Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "stack", "slots": { "stack": [{ "kind": "text", "properties": { "value": "Line" } }, { "kind": "wpfui.button", "properties": { "rawXaml": "<Button />" } }] } }] } }"""), "UnknownProperty" },
+            { Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "core.stack", "slots": { "children": [{ "kind": "core.text", "properties": { "text": "Line" } }, { "kind": "wpfui.button", "properties": { "rawXaml": "<Button />" } }] } }] } }"""), "UnknownProperty" },
             { Blueprint("""{ "kind": "wpfui.snackbar", "properties": { "timeout": "slow" } }"""), "PropertyTypeMismatch" }
         };
 
@@ -70,7 +70,10 @@ public sealed class ComposerBlueprintProductionFixtureTests
             {
               "schemaVersion": "wpfdevtools.ui-blueprint.v1",
               "name": "ProductionFixture",
-              "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+              "packs": [
+                { "id": "core", "version": "0.1.0", "required": true, "role": "optional" },
+                { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }
+              ],
               "primaryPack": "wpfui",
               "layout": {{layoutJson}}
             }

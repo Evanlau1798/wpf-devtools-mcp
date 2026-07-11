@@ -283,7 +283,7 @@ public sealed partial class ComposerPreviewCompileTests
             {
               "kind": "wpfui.dataGrid",
               "properties": { "itemsSource": "{Binding Rows}" },
-              "slots": { "columns": [{ "kind": "template" }] }
+              "slots": { "columns": [{ "kind": "core.template" }] }
             }
             """);
 
@@ -300,7 +300,7 @@ public sealed partial class ComposerPreviewCompileTests
                     "items": [{
                       "kind": "wpfui.navigationViewItem",
                       "slots": {
-                        "content": [{ "kind": "text", "properties": { "value": "Home" } }],
+                        "content": [{ "kind": "core.text", "properties": { "text": "Home" } }],
                         "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "Home24" } }]
                       }
                     }],
@@ -316,8 +316,8 @@ public sealed partial class ComposerPreviewCompileTests
             {
               "kind": "wpfui.card",
               "slots": {
-                "header": [{ "kind": "text", "properties": { "value": "Dashboard" } }],
-                "content": [{ "kind": "text", "properties": { "value": "Compiled preview" } }],
+                "header": [{ "kind": "core.text", "properties": { "text": "Dashboard" } }],
+                "content": [{ "kind": "core.text", "properties": { "text": "Compiled preview" } }],
                 "actions": [{ "kind": "wpfui.button", "properties": { "text": "Refresh" } }]
               }
             }
@@ -329,7 +329,7 @@ public sealed partial class ComposerPreviewCompileTests
               "kind": "wpfui.contentDialog",
               "properties": { "title": "Confirm" },
               "slots": {
-                "content": [{ "kind": "text", "properties": { "value": "Continue?" } }],
+                "content": [{ "kind": "core.text", "properties": { "text": "Continue?" } }],
                 "actions": [{ "kind": "wpfui.button", "properties": { "text": "Continue" } }]
               }
             }
@@ -341,7 +341,7 @@ public sealed partial class ComposerPreviewCompileTests
               "kind": "wpfui.snackbar",
               "properties": { "timeout": 4000 },
               "slots": {
-                "content": [{ "kind": "text", "properties": { "value": "Saved" } }],
+                "content": [{ "kind": "core.text", "properties": { "text": "Saved" } }],
                 "actions": [{ "kind": "wpfui.button", "properties": { "text": "Undo" } }]
               }
             }
@@ -356,14 +356,14 @@ public sealed partial class ComposerPreviewCompileTests
                   {
                     "kind": "wpfui.tabViewItem",
                     "slots": {
-                      "header": [{ "kind": "text", "properties": { "value": "General" } }],
+                      "header": [{ "kind": "core.text", "properties": { "text": "General" } }],
                       "content": [{ "kind": "wpfui.card" }]
                     }
                   },
                   {
                     "kind": "wpfui.tabViewItem",
                     "slots": {
-                      "header": [{ "kind": "text", "properties": { "value": "Security" } }],
+                      "header": [{ "kind": "core.text", "properties": { "text": "Security" } }],
                       "content": [{ "kind": "wpfui.card" }]
                     }
                   }
@@ -377,7 +377,10 @@ public sealed partial class ComposerPreviewCompileTests
             {
               "schemaVersion": "wpfdevtools.ui-blueprint.v1",
               "name": "PreviewView",
-              "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+              "packs": [
+                { "id": "core", "version": "0.1.0", "required": true, "role": "optional" },
+                { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }
+              ],
               "primaryPack": "wpfui",
               "layout": {{layoutJson}}
             }

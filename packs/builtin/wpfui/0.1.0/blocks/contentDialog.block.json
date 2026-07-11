@@ -19,9 +19,9 @@
     },
     "content": {
       "allowedKinds": [
-        "text",
-        "stack",
-        "template"
+        "core.text",
+        "core.stack",
+        "core.template"
       ]
     }
   },

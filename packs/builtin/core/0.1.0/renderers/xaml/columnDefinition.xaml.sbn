@@ -1,0 +1,1 @@
+<ColumnDefinition Width="{{width}}" MinWidth="{{minWidth}}" MaxWidth="{{maxWidth}}" />

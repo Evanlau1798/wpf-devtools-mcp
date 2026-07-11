@@ -1,0 +1,1 @@
+<Grid Grid.Row="{{row}}" Grid.Column="{{column}}" Grid.RowSpan="{{rowSpan}}" Grid.ColumnSpan="{{columnSpan}}" Margin="{{margin}}" HorizontalAlignment="{{horizontalAlignment}}" VerticalAlignment="{{verticalAlignment}}">{{slot.content}}</Grid>

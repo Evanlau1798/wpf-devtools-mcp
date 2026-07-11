@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
@@ -7,8 +8,6 @@ namespace WpfDevTools.Mcp.Server.Composer.Blueprints;
 
 internal sealed class BlueprintValidationService(PackRegistry registry)
 {
-    private static readonly HashSet<string> PrimitiveKinds = new(StringComparer.Ordinal) { "stack", "template", "text" };
-
     public BlueprintValidationResult Validate(string blueprintJson)
     {
         var errors = new List<BlueprintValidationIssue>();
@@ -266,17 +265,6 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
             return;
         }
 
-        if (PrimitiveKinds.Contains(node.Kind))
-        {
-            ValidatePrimitiveNode(node, path, parentSlot, allowedKinds, errors);
-            if (node.Kind == "stack" && allowedKinds is not null)
-            {
-                ValidateStackPrimitiveSlots(node, path, context, usedPackIds, errors, warnings);
-            }
-
-            return;
-        }
-
         if (!node.Kind.Contains('.', StringComparison.Ordinal))
         {
             errors.Add(Issue(path, "UnqualifiedBlockKind", $"Block kind '{node.Kind}' is not pack-qualified.", "Use a pack-qualified kind such as wpfui.button."));
@@ -305,7 +293,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
             return;
         }
 
-        if (allowedKinds is not null && !allowedKinds.Contains(node.Kind, StringComparer.Ordinal))
+        if (allowedKinds is not null && !IsAllowedKind(node.Kind, allowedKinds))
         {
             errors.Add(Issue(
                 path,
@@ -319,62 +307,6 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
 
         ValidateProperties(node, path, block, errors, warnings);
         ValidateSlots(node, path, block, context, usedPackIds, errors, warnings);
-    }
-
-    private static void ValidatePrimitiveNode(
-        UiBlueprintNode node,
-        string path,
-        string? parentSlot,
-        IReadOnlyList<string>? allowedKinds,
-        List<BlueprintValidationIssue> errors)
-    {
-        if (allowedKinds is null || !allowedKinds.Contains(node.Kind, StringComparer.Ordinal))
-        {
-            errors.Add(Issue(
-                path,
-                allowedKinds is null ? "UnqualifiedBlockKind" : "SlotChildKindNotAllowed",
-                $"Primitive kind '{node.Kind}' is only valid when a parent slot allows it.",
-                allowedKinds is null
-                    ? "Use a pack-qualified root block kind."
-                    : $"Use one of the allowedKinds for slot '{parentSlot}': {string.Join(", ", allowedKinds)}.",
-                allowedKinds ?? [],
-                parentSlot: parentSlot));
-        }
-    }
-
-    private static void ValidateStackPrimitiveSlots(
-        UiBlueprintNode node,
-        string path,
-        BlueprintValidationContext context,
-        HashSet<string> usedPackIds,
-        List<BlueprintValidationIssue> errors,
-        List<BlueprintValidationIssue> warnings)
-    {
-        foreach (var (slotName, children) in node.Slots)
-        {
-            if (!string.Equals(slotName, "stack", StringComparison.Ordinal))
-            {
-                errors.Add(Issue(
-                    $"{path}.slots.{slotName}",
-                    "UnknownSlot",
-                    $"Primitive kind 'stack' does not define slot '{slotName}'.",
-                    "Use the stack slot for StackPanel children."));
-                continue;
-            }
-
-            for (var index = 0; index < children.Length; index++)
-            {
-                ValidateNode(
-                    children[index],
-                    $"{path}.slots.{slotName}[{index}]",
-                    slotName,
-                    context.Blocks.Keys.Concat(PrimitiveKinds).Order(StringComparer.Ordinal).ToArray(),
-                    context,
-                    usedPackIds,
-                    errors,
-                    warnings);
-            }
-        }
     }
 
     private static void ValidateProperties(
@@ -409,6 +341,8 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
                 errors.Add(Issue($"{path}.properties.{name}", "PropertyTypeMismatch", $"Property '{name}' must be type '{property.Type}'.", $"Set property '{name}' to a JSON value compatible with '{property.Type}'."));
                 continue;
             }
+
+            ValidatePropertyConstraints(path, name, value, property, errors);
 
             var allowedValues = GetAllowedValues(property);
             if (allowedValues.Length > 0
@@ -473,8 +407,74 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
             "boolean" or "bool" => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
             "number" => value.ValueKind == JsonValueKind.Number,
             "object" => value.ValueKind == JsonValueKind.Object,
-            _ => true
+            _ => false
         };
+
+    private static bool IsAllowedKind(string kind, IReadOnlyList<string> patterns)
+        => patterns.Any(pattern => pattern == "*"
+            || string.Equals(pattern, kind, StringComparison.Ordinal)
+            || pattern.EndsWith(".*", StringComparison.Ordinal)
+            && kind.StartsWith(pattern[..^1], StringComparison.Ordinal));
+
+    private static void ValidatePropertyConstraints(
+        string path,
+        string name,
+        JsonElement value,
+        UiBlockProperty property,
+        List<BlueprintValidationIssue> errors)
+    {
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number))
+        {
+            if (property.Minimum is double minimum && number < minimum)
+            {
+                errors.Add(Issue($"{path}.properties.{name}", "PropertyMinimumViolation", $"Property '{name}' must be at least {minimum}.", $"Set property '{name}' to {minimum} or greater."));
+            }
+
+            if (property.Maximum is double maximum && number > maximum)
+            {
+                errors.Add(Issue($"{path}.properties.{name}", "PropertyMaximumViolation", $"Property '{name}' must be at most {maximum}.", $"Set property '{name}' to {maximum} or less."));
+            }
+
+            if (property.Integer && number != Math.Truncate(number))
+            {
+                errors.Add(Issue($"{path}.properties.{name}", "PropertyIntegerRequired", $"Property '{name}' must be an integer.", $"Set property '{name}' to a whole number."));
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(property.Format)
+            && value.ValueKind == JsonValueKind.String
+            && !MatchesFormat(value.GetString() ?? string.Empty, property.Format))
+        {
+            errors.Add(Issue($"{path}.properties.{name}", "PropertyFormatMismatch", $"Property '{name}' must use format '{property.Format}'.", $"Set property '{name}' to a valid {property.Format} value."));
+        }
+    }
+
+    private static bool MatchesFormat(string value, string format)
+        => format switch
+        {
+            "thickness" => IsThickness(value),
+            "gridLength" => IsGridLength(value),
+            _ => false
+        };
+
+    private static bool IsThickness(string value)
+    {
+        var parts = value.Split(',', StringSplitOptions.TrimEntries);
+        return parts.Length is 1 or 2 or 4
+            && parts.All(part => double.TryParse(part, NumberStyles.Float, CultureInfo.InvariantCulture, out _));
+    }
+
+    private static bool IsGridLength(string value)
+    {
+        if (string.Equals(value, "Auto", StringComparison.OrdinalIgnoreCase) || value == "*")
+        {
+            return true;
+        }
+
+        var number = value.EndsWith('*') ? value[..^1] : value;
+        return double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            && parsed >= 0;
+    }
 
     private static string[] GetAllowedValues(UiBlockProperty property)
         => property.AllowedValues.Length > 0 ? property.AllowedValues : property.EnumValues;

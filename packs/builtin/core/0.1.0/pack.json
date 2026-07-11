@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "wpfdevtools.ui-pack.v1",
+  "id": "core",
+  "displayName": "WPF Core",
+  "version": "0.1.0",
+  "nugetPackages": [],
+  "xmlNamespaces": {},
+  "resourceSetup": { "applicationMergedDictionaries": [] },
+  "blocks": [
+    "core.stack",
+    "core.grid",
+    "core.rowDefinition",
+    "core.columnDefinition",
+    "core.gridCell",
+    "core.border",
+    "core.text",
+    "core.template"
+  ],
+  "recipes": []
+}

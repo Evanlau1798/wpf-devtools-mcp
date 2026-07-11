@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "core.gridCell",
+  "displayName": "Grid Cell",
+  "category": "layout",
+  "properties": {
+    "row": { "type": "number", "default": 0, "minimum": 0, "integer": true },
+    "column": { "type": "number", "default": 0, "minimum": 0, "integer": true },
+    "rowSpan": { "type": "number", "default": 1, "minimum": 1, "integer": true },
+    "columnSpan": { "type": "number", "default": 1, "minimum": 1, "integer": true },
+    "margin": { "type": "string", "default": "0", "format": "thickness" },
+    "horizontalAlignment": { "type": "string", "default": "Stretch", "enum": ["Left", "Center", "Right", "Stretch"] },
+    "verticalAlignment": { "type": "string", "default": "Stretch", "enum": ["Top", "Center", "Bottom", "Stretch"] }
+  },
+  "slots": { "content": { "allowedKinds": ["*"] } },
+  "renderer": { "xamlTemplate": "renderers/xaml/gridCell.xaml.sbn" },
+  "sourceHints": [{ "path": "System.Windows.Controls.Grid", "usage": "native WPF attached layout properties" }]
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "core.rowDefinition",
+  "displayName": "Row Definition",
+  "category": "layout-definition",
+  "properties": {
+    "height": { "type": "string", "default": "*", "format": "gridLength" },
+    "minHeight": { "type": "number", "default": 0, "minimum": 0 },
+    "maxHeight": { "type": "number", "default": 1000000, "minimum": 0 }
+  },
+  "slots": {},
+  "renderer": { "xamlTemplate": "renderers/xaml/rowDefinition.xaml.sbn" },
+  "sourceHints": [{ "path": "System.Windows.Controls.RowDefinition", "usage": "native WPF grid definition" }]
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "core.grid",
+  "displayName": "Grid",
+  "category": "layout",
+  "properties": {
+    "margin": { "type": "string", "default": "0", "format": "thickness" },
+    "horizontalAlignment": { "type": "string", "default": "Stretch", "enum": ["Left", "Center", "Right", "Stretch"] },
+    "verticalAlignment": { "type": "string", "default": "Stretch", "enum": ["Top", "Center", "Bottom", "Stretch"] }
+  },
+  "slots": {
+    "rows": { "allowedKinds": ["core.rowDefinition"] },
+    "columns": { "allowedKinds": ["core.columnDefinition"] },
+    "children": { "allowedKinds": ["core.gridCell"] }
+  },
+  "renderer": { "xamlTemplate": "renderers/xaml/grid.xaml.sbn" },
+  "sourceHints": [{ "path": "System.Windows.Controls.Grid", "usage": "native WPF layout" }]
+}

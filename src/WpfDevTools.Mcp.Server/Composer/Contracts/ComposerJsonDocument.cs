@@ -54,6 +54,10 @@ internal sealed class UiBlockProperty
     public string Type { get; set; } = string.Empty;
     public bool Required { get; set; }
     public JsonElement? Default { get; set; }
+    public double? Minimum { get; set; }
+    public double? Maximum { get; set; }
+    public bool Integer { get; set; }
+    public string Format { get; set; } = string.Empty;
     public string[] AllowedValues { get; set; } = [];
 
     [JsonPropertyName("enum")]
@@ -63,6 +67,7 @@ internal sealed class UiBlockProperty
 internal sealed class UiBlockSlot
 {
     public string[] AllowedKinds { get; set; } = [];
+    public string XamlItemTemplate { get; set; } = string.Empty;
 }
 
 internal sealed class UiBlockRenderer

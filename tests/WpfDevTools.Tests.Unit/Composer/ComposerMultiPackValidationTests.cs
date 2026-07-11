@@ -103,7 +103,8 @@ public sealed class ComposerMultiPackValidationTests
                   "name": "OptionalSyntaxHighlight",
                   "packs": [
                     { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
-                    { "id": "wpfui.syntaxhighlight", "version": "1.0.0", "required": false, "role": "optional-control" }
+                    { "id": "wpfui.syntaxhighlight", "version": "1.0.0", "required": false, "role": "optional-control" },
+                    { "id": "core", "version": "0.1.0", "required": true, "role": "optional" }
                   ],
                   "primaryPack": "wpfui",
                   "layout": {
@@ -111,9 +112,9 @@ public sealed class ComposerMultiPackValidationTests
                     "slots": {
                       "content": [
                         {
-                          "kind": "stack",
+                          "kind": "core.stack",
                           "slots": {
-                            "stack": [{ "kind": "wpfui.syntaxhighlight.codeEditor" }]
+                            "children": [{ "kind": "wpfui.syntaxhighlight.codeEditor" }]
                           }
                         }
                       ]
@@ -141,7 +142,8 @@ public sealed class ComposerMultiPackValidationTests
               "name": "MissingOptionalSyntaxHighlight",
               "packs": [
                 { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
-                { "id": "wpfui.syntaxhighlight", "version": "1.0.0", "required": false, "role": "optional-control" }
+                { "id": "wpfui.syntaxhighlight", "version": "1.0.0", "required": false, "role": "optional-control" },
+                { "id": "core", "version": "0.1.0", "required": true, "role": "optional" }
               ],
               "primaryPack": "wpfui",
               "layout": {
@@ -149,9 +151,9 @@ public sealed class ComposerMultiPackValidationTests
                 "slots": {
                   "content": [
                     {
-                      "kind": "stack",
+                      "kind": "core.stack",
                       "slots": {
-                        "stack": [{ "kind": "wpfui.syntaxhighlight.codeEditor" }]
+                        "children": [{ "kind": "wpfui.syntaxhighlight.codeEditor" }]
                       }
                     }
                   ]
@@ -160,7 +162,7 @@ public sealed class ComposerMultiPackValidationTests
             }
             """);
 
-        result.Errors.Should().Contain(issue => issue.JsonPath == "$.layout.slots.content[0].slots.stack[0]"
+        result.Errors.Should().Contain(issue => issue.JsonPath == "$.layout.slots.content[0].slots.children[0]"
             && issue.Code == "OptionalPackMissing"
             && issue.Message.Contains("wpfui.syntaxhighlight", StringComparison.Ordinal));
         result.Errors.Should().NotContain(issue => issue.Code == "UnknownBlockKind"

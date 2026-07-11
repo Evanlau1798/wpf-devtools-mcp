@@ -64,7 +64,7 @@ public sealed class ComposerContractTests
         block.Slots.Should().ContainKey("icon")
             .WhoseValue.AllowedKinds.Should().Contain("wpfui.symbolIcon");
         recipe.PackId.Should().Be("wpfui");
-        recipe.RequiredPacks.Should().ContainSingle().Which.Id.Should().Be("wpfui");
+        recipe.RequiredPacks.Select(pack => pack.Id).Should().Equal("core", "wpfui");
         blueprint.PrimaryPack.Should().Be("wpfui");
         blueprint.Layout.Kind.Should().Be("wpfui.fluentWindow");
         pack.SourceFilePath.Should().EndWith("pack.json");

@@ -26,8 +26,8 @@
       "allowedKinds": [
         "wpfui.navigationView",
         "wpfui.card",
-        "stack",
-        "template"
+        "core.stack",
+        "core.template"
       ]
     },
     "titleBar": {

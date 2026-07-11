@@ -85,7 +85,7 @@ public sealed class ComposerRendererDryRunTests
             {
               "kind": "wpfui.dataGrid",
               "properties": { "itemsSource": "{Binding Rows}" },
-              "slots": { "columns": [{ "kind": "template" }] }
+              "slots": { "columns": [{ "kind": "core.template" }] }
             }
             """)));
 
@@ -124,7 +124,7 @@ public sealed class ComposerRendererDryRunTests
         var result = renderer.Render(new RenderBlueprintRequest(Blueprint("""
             {
               "kind": "wpfui.card",
-              "slots": { "content": [{ "kind": "text", "properties": { "value": "Ready" } }] }
+              "slots": { "content": [{ "kind": "core.text", "properties": { "text": "Ready" } }] }
             }
             """)));
 
@@ -253,11 +253,11 @@ public sealed class ComposerRendererDryRunTests
             { Blueprint("""{ "kind": "wpfui.navigationView", "slots": { "items": [{ "kind": "wpfui.navigationViewItem", "slots": { "icon": [{ "kind": "wpfui.symbolIcon" }] } }] } }"""), "<ui:NavigationViewItem" },
             { Blueprint("""{ "kind": "wpfui.tabView", "slots": { "items": [{ "kind": "wpfui.tabViewItem" }] } }"""), "<ui:TabViewItem" },
             { Blueprint("""{ "kind": "wpfui.contentDialog", "slots": { "actions": [{ "kind": "wpfui.button" }] } }"""), "<ui:ContentDialog" },
-            { Blueprint("""{ "kind": "wpfui.dataGrid", "slots": { "columns": [{ "kind": "template" }] } }"""), "<ui:DataGrid.Columns>" },
+            { Blueprint("""{ "kind": "wpfui.dataGrid", "slots": { "columns": [{ "kind": "core.template" }] } }"""), "<ui:DataGrid.Columns>" },
             { Blueprint("""{ "kind": "wpfui.snackbar", "slots": { "actions": [{ "kind": "wpfui.button" }] } }"""), "<ui:Snackbar" },
             { Blueprint("""{ "kind": "wpfui.navigationViewDemo" }"""), "NavigationView Header" },
-            { Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "text", "properties": { "value": "Plain preview" } }] } }"""), "Plain preview" },
-            { Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "stack", "slots": { "stack": [{ "kind": "text", "properties": { "value": "Line 1" } }, { "kind": "template" }] } }] } }"""), "<StackPanel>" }
+            { Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "core.text", "properties": { "text": "Plain preview" } }] } }"""), "Plain preview" },
+            { Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "core.stack", "slots": { "children": [{ "kind": "core.text", "properties": { "text": "Line 1" } }, { "kind": "core.template" }] } }] } }"""), "<StackPanel" }
         };
 
     private static PackRegistry CreateRegistry()
@@ -268,7 +268,10 @@ public sealed class ComposerRendererDryRunTests
             {
               "schemaVersion": "wpfdevtools.ui-blueprint.v1",
               "name": "GeneratedView",
-              "packs": [{ "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }],
+              "packs": [
+                { "id": "core", "version": "0.1.0", "required": true, "role": "optional" },
+                { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }
+              ],
               "primaryPack": "wpfui",
               "layout": {{layoutJson}}
             }

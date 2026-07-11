@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "core.border",
+  "displayName": "Border",
+  "category": "layout",
+  "properties": {
+    "padding": { "type": "string", "default": "0", "format": "thickness" },
+    "margin": { "type": "string", "default": "0", "format": "thickness" },
+    "borderThickness": { "type": "string", "default": "0", "format": "thickness" },
+    "cornerRadius": { "type": "string", "default": "0", "format": "thickness" },
+    "background": { "type": "string", "default": "Transparent" },
+    "borderBrush": { "type": "string", "default": "Transparent" },
+    "maxWidth": { "type": "number", "default": 1000000, "minimum": 0 },
+    "minHeight": { "type": "number", "default": 0, "minimum": 0 }
+  },
+  "slots": { "content": { "allowedKinds": ["*"] } },
+  "renderer": { "xamlTemplate": "renderers/xaml/border.xaml.sbn" },
+  "sourceHints": [{ "path": "System.Windows.Controls.Border", "usage": "native WPF surface" }]
+}

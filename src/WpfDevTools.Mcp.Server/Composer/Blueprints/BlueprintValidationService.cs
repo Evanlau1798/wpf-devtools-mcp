@@ -35,7 +35,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         var registryResult = registry.ListPacks();
         var declaredPacks = ValidatePacks(blueprint, registryResult.Packs, errors, warnings);
         ValidateRequiredFields(blueprint, errors);
-        ValidatePackRoles(blueprint, errors);
+        errors.AddRange(ComposerPackRoleValidator.Validate(blueprint));
         ValidatePrimaryPackRole(blueprint, errors);
         warnings.AddRange(BlueprintPackConflictDiagnostics.FindResourceConflicts(declaredPacks));
 
@@ -447,22 +447,6 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
             && !MatchesFormat(value.GetString() ?? string.Empty, property.Format))
         {
             errors.Add(Issue($"{path}.properties.{name}", "PropertyFormatMismatch", $"Property '{name}' must use format '{property.Format}'.", $"Set property '{name}' to a valid {property.Format} value."));
-        }
-    }
-
-    private static void ValidatePackRoles(UiBlueprint blueprint, List<BlueprintValidationIssue> errors)
-    {
-        for (var index = 0; index < blueprint.Packs.Length; index++)
-        {
-            var role = blueprint.Packs[index].Role;
-            if (!string.IsNullOrWhiteSpace(role) && !ComposerPackRoles.All.Contains(role))
-            {
-                errors.Add(Issue(
-                    $"$.packs[{index}].role",
-                    "InvalidPackRole",
-                    $"Pack role '{role}' is not supported.",
-                    $"Use one of: {string.Join(", ", ComposerPackRoles.All.Order(StringComparer.Ordinal))}."));
-            }
         }
     }
 

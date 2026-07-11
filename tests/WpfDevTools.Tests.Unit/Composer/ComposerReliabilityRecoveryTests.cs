@@ -47,7 +47,7 @@ public sealed class ComposerReliabilityRecoveryTests
               "name": "OptionalMissing",
               "packs": [
                 { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
-                { "id": "missing.optional", "version": "1.0.0", "required": false, "role": "optional" }
+                { "id": "missing.optional", "version": "1.0.0", "required": false, "role": "control-pack" }
               ],
               "primaryPack": "wpfui",
               "layout": { "kind": "wpfui.button", "properties": { "text": "OK" } }

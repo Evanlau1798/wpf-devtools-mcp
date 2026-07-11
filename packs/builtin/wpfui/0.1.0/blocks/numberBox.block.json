@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "wpfui.numberBox",
+  "displayName": "Number Box",
+  "description": "Numeric input with bounded range and step controls.",
+  "category": "input",
+  "properties": {
+    "margin": { "default": "0", "format": "thickness", "type": "string" },
+    "maximum": { "default": 100, "type": "number" },
+    "minimum": { "default": 0, "type": "number" },
+    "smallChange": { "default": 1, "minimum": 0, "type": "number" },
+    "value": { "default": 0, "type": "number" }
+  },
+  "slots": {},
+  "renderer": { "xamlTemplate": "renderers/xaml/numberBox.xaml.sbn" },
+  "sourceHints": [{ "path": "src/Wpf.Ui/Controls/NumberBox/NumberBox.cs", "usage": "semantic extraction" }]
+}

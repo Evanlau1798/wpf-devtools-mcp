@@ -1,11 +1,13 @@
-<ui:Card>
+<ui:Card Margin="{{margin}}" MaxWidth="{{maxWidth}}" MinHeight="{{minHeight}}">
   <ui:Card.Footer>
     <StackPanel Orientation="Horizontal">
       {{slot.actions}}
     </StackPanel>
   </ui:Card.Footer>
-  <StackPanel>
-    {{slot.header}}
-    {{slot.content}}
-  </StackPanel>
+  <Border Padding="{{padding}}">
+    <StackPanel HorizontalAlignment="{{horizontalContentAlignment}}" VerticalAlignment="{{verticalContentAlignment}}">
+      {{slot.header}}
+      {{slot.content}}
+    </StackPanel>
+  </Border>
 </ui:Card>

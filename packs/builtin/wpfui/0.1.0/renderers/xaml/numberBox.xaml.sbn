@@ -1,0 +1,1 @@
+<ui:NumberBox Value="{{value}}" Minimum="{{minimum}}" Maximum="{{maximum}}" SmallChange="{{smallChange}}" Margin="{{margin}}" />

@@ -36,6 +36,8 @@
     "wpfui.navigationViewDemo",
     "wpfui.navigationViewItem",
     "wpfui.navigationViewItemSeparator",
+    "wpfui.numberBox",
+    "wpfui.progressRing",
     "wpfui.tabView",
     "wpfui.tabViewItem",
     "wpfui.contentDialog",
@@ -44,6 +46,7 @@
     "wpfui.snackbar",
     "wpfui.button",
     "wpfui.titleBar",
+    "wpfui.toggleSwitch",
     "wpfui.symbolIcon",
     "wpfui.textBlock"
   ],

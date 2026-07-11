@@ -32,32 +32,32 @@ python <skill-root>/wpf-extension-pack-creator/scripts/audit_pack_coverage.py <w
 exit code: 0; valid: true; errors: 0; warnings: 1
 
 python <skill-root>/wpf-extension-pack-creator/scripts/package_pack.py <workspace>/out/packs/wpfui/0.1.0 --out <workspace>/out/archives/wpfui-0.1.0.zip
-exit code: 0; archive entries: 39; root: wpfui/0.1.0/
+exit code: 0; archive entries: 45; root: wpfui/0.1.0/
 
-python <skill-root>/wpf-extension-pack-creator/scripts/check_pack_readiness.py <workspace>/out/packs/wpfui/0.1.0 --level release --archive <workspace>/out/archives/wpfui-0.1.0.zip --e2e-report <workspace>/out/wpfui-0.1.0-generation-report.md --required-block wpfui.button --required-block wpfui.titleBar --required-block wpfui.symbolIcon --required-block wpfui.dataGrid --required-block wpfui.snackbar --required-slot wpfui.card.header --required-slot wpfui.navigationView.items --required-slot wpfui.navigationViewItem.icon --required-slot wpfui.tabView.items --required-slot wpfui.contentDialog.content --required-slot wpfui.fluentWindow.content --required-slot wpfui.dataGrid.columns --required-slot wpfui.dataGrid.emptyState --required-slot wpfui.snackbar.content --required-slot wpfui.snackbar.actions --required-slot-kind wpfui.navigationView.items=wpfui.navigationViewItem --required-slot-kind wpfui.navigationView.items=wpfui.navigationViewItemSeparator --required-slot-kind wpfui.navigationViewItem.icon=wpfui.symbolIcon --required-slot-kind wpfui.tabView.items=wpfui.tabViewItem --required-slot-kind wpfui.contentDialog.actions=wpfui.button --required-slot-kind wpfui.fluentWindow.titleBar=wpfui.titleBar --required-slot-kind wpfui.snackbar.actions=wpfui.button --report <workspace>/out/reports/wpfui-0.1.0.readiness.json
+python <skill-root>/wpf-extension-pack-creator/scripts/check_pack_readiness.py <workspace>/out/packs/wpfui/0.1.0 --level release --archive <workspace>/out/archives/wpfui-0.1.0.zip --e2e-report <workspace>/out/wpfui-0.1.0-generation-report.md --required-block wpfui.button --required-block wpfui.titleBar --required-block wpfui.symbolIcon --required-block wpfui.dataGrid --required-block wpfui.snackbar --required-block wpfui.numberBox --required-block wpfui.toggleSwitch --required-block wpfui.progressRing --required-slot wpfui.card.header --required-slot wpfui.navigationView.items --required-slot wpfui.navigationViewItem.icon --required-slot wpfui.tabView.items --required-slot wpfui.contentDialog.content --required-slot wpfui.fluentWindow.content --required-slot wpfui.dataGrid.columns --required-slot wpfui.dataGrid.emptyState --required-slot wpfui.snackbar.content --required-slot wpfui.snackbar.actions --required-slot-kind wpfui.navigationView.items=wpfui.navigationViewItem --required-slot-kind wpfui.navigationView.items=wpfui.navigationViewItemSeparator --required-slot-kind wpfui.navigationViewItem.icon=wpfui.symbolIcon --required-slot-kind wpfui.tabView.items=wpfui.tabViewItem --required-slot-kind wpfui.contentDialog.actions=wpfui.button --required-slot-kind wpfui.fluentWindow.titleBar=wpfui.titleBar --required-slot-kind wpfui.snackbar.actions=wpfui.button --report <workspace>/out/reports/wpfui-0.1.0.readiness.json
 exit code: 0; valid: true; errors: 0; warnings: 0
 ```
 
 ## Counts
 
-- Blocks: 15
-- Renderers: 15
+- Blocks: 18
+- Renderers: 18
 - Recipes: 5
 - Examples: 1
 - Eligible source candidate kinds: 87
-- Generated from candidates: 14
+- Generated from candidates: 17
 - Style-only generated blocks: 1
-- Missing eligible candidates: 73
+- Missing eligible candidates: 70
 - Excluded candidates: 363
-- Coverage ratio: 0.1609
+- Coverage ratio: 0.1954
 
 ## Coverage Audit Summary
 
 Coverage audit passed with one warning: `SourceInventoryEligibleCandidatesMissing`.
 
-The generated pack intentionally covers the reusable/default semantic baseline first: `card`, `navigationView`, `navigationViewItem`, `navigationViewItemSeparator`, `tabView`, `tabViewItem`, `contentDialog`, `fluentWindow`, `dataGrid`, `snackbar`, plus primitive blocks `button`, `titleBar`, `symbolIcon`, and `textBlock`.
+The generated pack intentionally covers the reusable/default semantic baseline first: `card`, `navigationView`, `navigationViewItem`, `navigationViewItemSeparator`, `tabView`, `tabViewItem`, `contentDialog`, `fluentWindow`, `dataGrid`, `snackbar`, plus `button`, `titleBar`, `symbolIcon`, `textBlock`, `numberBox`, `toggleSwitch`, and `progressRing`.
 
-Known missing candidates include additional controls and gallery/sample surfaces such as `autoSuggestBox`, `breadcrumbBar`, `infoBar`, `listView`, `numberBox`, `passwordBox`, `progressRing`, `toggleSwitch`, `treeViewItem`, and several sample pages. These are not modeled in this stability-test pack.
+Known missing candidates include additional controls and gallery/sample surfaces such as `autoSuggestBox`, `breadcrumbBar`, `infoBar`, `listView`, `passwordBox`, `treeViewItem`, and several sample pages. These are not modeled in this stability-test pack.
 
 ## Release Readiness Summary
 

@@ -113,7 +113,7 @@ public sealed class ComposerRendererDryRunTests
         result.Xaml.Should().Contain("<ui:AutoSuggestBox PlaceholderText=\"Search\"");
         result.Xaml.Should().Contain("<ui:NavigationView Width=\"386\" Margin=\"-12,0,0,0\"");
         result.Xaml.Should().Contain("<Grid Grid.Column=\"1\" Background=\"#252B33\">");
-        result.Xaml.Should().Contain("<ui:Card>");
+        result.Xaml.Should().Contain("<ui:Card");
     }
 
     [Fact]
@@ -152,8 +152,8 @@ public sealed class ComposerRendererDryRunTests
         result.Xaml.Should().NotContain("FluentWindow.TitleBar");
         result.Xaml.Should().Contain("<Grid>");
         result.Xaml.Should().Contain("Grid.Row=\"0\"");
-        result.Xaml.Should().Contain("<ui:TitleBar Title=\"Shell\" Height=\"72\"");
-        result.Xaml.Should().Contain("<ui:TitleBar.Icon>");
+        result.Xaml.Should().Contain("<ui:TitleBar Title=\"Shell\" Height=\"56\"");
+        result.Xaml.Should().NotContain("<ui:TitleBar.Icon>");
         result.Xaml.Should().Contain("Grid.Row=\"1\"");
     }
 
@@ -269,7 +269,7 @@ public sealed class ComposerRendererDryRunTests
               "schemaVersion": "wpfdevtools.ui-blueprint.v1",
               "name": "GeneratedView",
               "packs": [
-                { "id": "core", "version": "0.1.0", "required": true, "role": "optional" },
+                { "id": "core", "version": "0.1.0", "required": true, "role": "layout-pack" },
                 { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }
               ],
               "primaryPack": "wpfui",

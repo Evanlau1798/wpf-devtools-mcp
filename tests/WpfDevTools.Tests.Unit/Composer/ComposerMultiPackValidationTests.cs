@@ -104,7 +104,7 @@ public sealed class ComposerMultiPackValidationTests
                   "packs": [
                     { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
                     { "id": "wpfui.syntaxhighlight", "version": "1.0.0", "required": false, "role": "optional-control" },
-                    { "id": "core", "version": "0.1.0", "required": true, "role": "optional" }
+                    { "id": "core", "version": "0.1.0", "required": true, "role": "layout-pack" }
                   ],
                   "primaryPack": "wpfui",
                   "layout": {
@@ -143,7 +143,7 @@ public sealed class ComposerMultiPackValidationTests
               "packs": [
                 { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
                 { "id": "wpfui.syntaxhighlight", "version": "1.0.0", "required": false, "role": "optional-control" },
-                { "id": "core", "version": "0.1.0", "required": true, "role": "optional" }
+                { "id": "core", "version": "0.1.0", "required": true, "role": "layout-pack" }
               ],
               "primaryPack": "wpfui",
               "layout": {

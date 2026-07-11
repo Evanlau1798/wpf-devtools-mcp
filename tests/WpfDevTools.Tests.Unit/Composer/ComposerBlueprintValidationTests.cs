@@ -403,7 +403,7 @@ public sealed class ComposerBlueprintValidationTests
             ? packElement.GetRawText()
             : """
               [
-                { "id": "core", "version": "0.1.0", "required": true, "role": "optional" },
+                { "id": "core", "version": "0.1.0", "required": true, "role": "layout-pack" },
                 { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }
               ]
               """;

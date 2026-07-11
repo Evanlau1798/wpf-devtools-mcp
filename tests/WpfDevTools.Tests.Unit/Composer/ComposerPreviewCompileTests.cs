@@ -378,7 +378,7 @@ public sealed partial class ComposerPreviewCompileTests
               "schemaVersion": "wpfdevtools.ui-blueprint.v1",
               "name": "PreviewView",
               "packs": [
-                { "id": "core", "version": "0.1.0", "required": true, "role": "optional" },
+                { "id": "core", "version": "0.1.0", "required": true, "role": "layout-pack" },
                 { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }
               ],
               "primaryPack": "wpfui",

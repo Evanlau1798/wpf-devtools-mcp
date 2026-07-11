@@ -15,6 +15,21 @@
       "required": false,
       "type": "binding"
     },
+    "horizontalAlignment": {
+      "default": "Left",
+      "enum": ["Left", "Center", "Right", "Stretch"],
+      "type": "string"
+    },
+    "margin": {
+      "default": "0",
+      "format": "thickness",
+      "type": "string"
+    },
+    "minWidth": {
+      "default": 0,
+      "minimum": 0,
+      "type": "number"
+    },
     "text": {
       "default": "Button",
       "required": false,

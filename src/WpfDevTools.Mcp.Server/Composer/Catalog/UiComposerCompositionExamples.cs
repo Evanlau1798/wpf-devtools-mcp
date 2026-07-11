@@ -57,7 +57,7 @@ internal static class UiComposerCompositionExamples
         var textBlock = textBlocks[0];
         if (!string.Equals(card.PackVersion, textBlock.PackVersion, StringComparison.Ordinal)
             || !card.Slots.TryGetValue("content", out var contentSlot)
-            || !contentSlot.AllowedKinds.Contains("core.stack", StringComparer.Ordinal))
+            || !contentSlot.AllowedKinds.Any(kind => kind is "*" or "core.stack"))
         {
             return [];
         }

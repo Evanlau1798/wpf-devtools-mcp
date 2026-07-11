@@ -125,7 +125,7 @@ public sealed class ComposerPerformanceSmokeTests
               "schemaVersion": "wpfdevtools.ui-blueprint.v1",
               "name": "PerformanceSmoke",
               "packs": [
-                { "id": "core", "version": "0.1.0", "required": true, "role": "optional" },
+                { "id": "core", "version": "0.1.0", "required": true, "role": "layout-pack" },
                 { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }
               ],
               "primaryPack": "wpfui",

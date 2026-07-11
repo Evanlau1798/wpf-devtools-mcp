@@ -9,7 +9,7 @@
       "id": "core",
       "version": "0.1.0",
       "required": true,
-      "role": "optional"
+      "role": "layout-pack"
     },
     {
       "id": "wpfui",

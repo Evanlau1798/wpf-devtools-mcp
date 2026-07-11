@@ -4,7 +4,22 @@
   "displayName": "Card",
   "description": "Semantic WPF UI Card block.",
   "category": "container",
-  "properties": {},
+  "properties": {
+    "horizontalContentAlignment": {
+      "default": "Stretch",
+      "enum": ["Left", "Center", "Right", "Stretch"],
+      "type": "string"
+    },
+    "margin": { "default": "0", "format": "thickness", "type": "string" },
+    "maxWidth": { "default": 1000000, "minimum": 0, "type": "number" },
+    "minHeight": { "default": 0, "minimum": 0, "type": "number" },
+    "padding": { "default": "16", "format": "thickness", "type": "string" },
+    "verticalContentAlignment": {
+      "default": "Stretch",
+      "enum": ["Top", "Center", "Bottom", "Stretch"],
+      "type": "string"
+    }
+  },
   "slots": {
     "actions": {
       "allowedKinds": [
@@ -12,11 +27,7 @@
       ]
     },
     "content": {
-      "allowedKinds": [
-        "core.text",
-        "core.stack",
-        "core.template"
-      ]
+      "allowedKinds": ["*"]
     },
     "header": {
       "allowedKinds": [

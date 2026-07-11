@@ -6,8 +6,8 @@
   "errors": [],
   "warnings": [],
   "summary": {
-    "blockCount": 15,
-    "rendererTemplateCount": 15,
+    "blockCount": 18,
+    "rendererTemplateCount": 18,
     "recipeCount": 5,
     "exampleCount": 1,
     "blockKinds": [
@@ -20,19 +20,22 @@
       "wpfui.navigationViewDemo",
       "wpfui.navigationViewItem",
       "wpfui.navigationViewItemSeparator",
+      "wpfui.numberBox",
+      "wpfui.progressRing",
       "wpfui.snackbar",
       "wpfui.symbolIcon",
       "wpfui.tabView",
       "wpfui.tabViewItem",
       "wpfui.textBlock",
-      "wpfui.titleBar"
+      "wpfui.titleBar",
+      "wpfui.toggleSwitch"
     ],
-    "blocksWithPropertiesCount": 12,
+    "blocksWithPropertiesCount": 16,
     "blocksWithSlotsCount": 11,
-    "templatesWithTokensCount": 13,
+    "templatesWithTokensCount": 16,
     "missingRendererTemplateCount": 0,
-    "genericContentSlotCount": 2,
-    "nonGenericSlotCount": 20,
+    "genericContentSlotCount": 0,
+    "nonGenericSlotCount": 23,
     "distinctSlotNames": [
       "actions",
       "columns",
@@ -66,7 +69,8 @@
       "wpfui.tabView.items",
       "wpfui.tabViewItem.content",
       "wpfui.tabViewItem.header",
-      "wpfui.titleBar.actions"
+      "wpfui.titleBar.actions",
+      "wpfui.titleBar.icon"
     ],
     "slotAllowedKinds": {
       "wpfui.button.icon": [
@@ -76,43 +80,38 @@
         "wpfui.button"
       ],
       "wpfui.card.content": [
-        "text",
-        "stack",
-        "template"
+        "*"
       ],
       "wpfui.card.header": [
-        "text",
+        "core.text",
         "wpfui.textBlock"
       ],
       "wpfui.contentDialog.actions": [
         "wpfui.button"
       ],
       "wpfui.contentDialog.content": [
-        "text",
-        "stack",
-        "template"
+        "core.text",
+        "core.stack",
+        "core.template"
       ],
       "wpfui.dataGrid.columns": [
-        "template"
+        "core.template"
       ],
       "wpfui.dataGrid.emptyState": [
-        "text",
+        "core.text",
         "wpfui.textBlock",
         "wpfui.card"
       ],
       "wpfui.fluentWindow.content": [
-        "wpfui.navigationView",
-        "wpfui.card",
-        "stack",
-        "template"
+        "*"
       ],
       "wpfui.fluentWindow.titleBar": [
         "wpfui.titleBar"
       ],
       "wpfui.navigationView.content": [
-        "text",
-        "stack",
-        "template",
+        "core.text",
+        "core.stack",
+        "core.template",
         "wpfui.card",
         "wpfui.navigationViewDemo"
       ],
@@ -125,7 +124,7 @@
         "wpfui.navigationViewItemSeparator"
       ],
       "wpfui.navigationViewItem.content": [
-        "text",
+        "core.text",
         "wpfui.textBlock"
       ],
       "wpfui.navigationViewItem.icon": [
@@ -138,45 +137,52 @@
         "wpfui.button"
       ],
       "wpfui.snackbar.content": [
-        "text",
+        "core.text",
         "wpfui.textBlock"
       ],
       "wpfui.tabView.items": [
         "wpfui.tabViewItem"
       ],
       "wpfui.tabViewItem.content": [
-        "text",
-        "stack",
-        "template",
+        "core.text",
+        "core.stack",
+        "core.template",
         "wpfui.card"
       ],
       "wpfui.tabViewItem.header": [
-        "text",
+        "core.text",
         "wpfui.textBlock"
       ],
       "wpfui.titleBar.actions": [
         "wpfui.button"
+      ],
+      "wpfui.titleBar.icon": [
+        "wpfui.symbolIcon"
       ]
     },
     "sourceLockPaths": [
       "src/Wpf.Ui"
     ],
-    "sourceHintPathCount": 15,
+    "sourceHintPathCount": 18,
     "uncoveredSourceHintCount": 0,
     "uncoveredSourceHints": [],
     "blocksWithProperties": [
       "wpfui.button",
+      "wpfui.card",
       "wpfui.contentDialog",
       "wpfui.dataGrid",
       "wpfui.fluentWindow",
       "wpfui.navigationView",
       "wpfui.navigationViewItem",
+      "wpfui.numberBox",
+      "wpfui.progressRing",
       "wpfui.snackbar",
       "wpfui.symbolIcon",
       "wpfui.tabView",
       "wpfui.tabViewItem",
       "wpfui.textBlock",
-      "wpfui.titleBar"
+      "wpfui.titleBar",
+      "wpfui.toggleSwitch"
     ],
     "blocksWithSlots": [
       "wpfui.button",
@@ -199,22 +205,24 @@
       "renderers\\xaml\\fluentWindow.xaml.sbn",
       "renderers\\xaml\\navigationView.xaml.sbn",
       "renderers\\xaml\\navigationViewItem.xaml.sbn",
+      "renderers\\xaml\\numberBox.xaml.sbn",
+      "renderers\\xaml\\progressRing.xaml.sbn",
       "renderers\\xaml\\snackbar.xaml.sbn",
       "renderers\\xaml\\symbolIcon.xaml.sbn",
       "renderers\\xaml\\tabView.xaml.sbn",
       "renderers\\xaml\\tabViewItem.xaml.sbn",
       "renderers\\xaml\\textBlock.xaml.sbn",
-      "renderers\\xaml\\titleBar.xaml.sbn"
+      "renderers\\xaml\\titleBar.xaml.sbn",
+      "renderers\\xaml\\toggleSwitch.xaml.sbn"
     ],
-    "genericContentSlots": [
-      "wpfui.card.content",
-      "wpfui.contentDialog.content"
-    ],
+    "genericContentSlots": [],
     "nonGenericSlots": [
       "wpfui.button.icon",
       "wpfui.card.actions",
+      "wpfui.card.content",
       "wpfui.card.header",
       "wpfui.contentDialog.actions",
+      "wpfui.contentDialog.content",
       "wpfui.dataGrid.columns",
       "wpfui.dataGrid.emptyState",
       "wpfui.fluentWindow.content",
@@ -230,7 +238,8 @@
       "wpfui.tabView.items",
       "wpfui.tabViewItem.content",
       "wpfui.tabViewItem.header",
-      "wpfui.titleBar.actions"
+      "wpfui.titleBar.actions",
+      "wpfui.titleBar.icon"
     ],
     "missingRendererTemplates": []
   }

@@ -1,0 +1,1 @@
+<ui:ProgressRing Progress="{{progress}}" IsIndeterminate="{{isIndeterminate}}" Width="{{size}}" Height="{{size}}" Margin="{{margin}}" />

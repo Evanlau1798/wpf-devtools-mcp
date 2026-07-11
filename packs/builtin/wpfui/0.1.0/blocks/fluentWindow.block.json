@@ -10,6 +10,10 @@
       "required": false,
       "type": "number"
     },
+    "contentMaxWidth": { "default": 1000000, "minimum": 0, "type": "number" },
+    "contentPadding": { "default": "0", "format": "thickness", "type": "string" },
+    "minHeight": { "default": 600, "minimum": 0, "type": "number" },
+    "minWidth": { "default": 900, "minimum": 0, "type": "number" },
     "title": {
       "default": "Window",
       "required": false,
@@ -23,12 +27,7 @@
   },
   "slots": {
     "content": {
-      "allowedKinds": [
-        "wpfui.navigationView",
-        "wpfui.card",
-        "core.stack",
-        "core.template"
-      ]
+      "allowedKinds": ["*"]
     },
     "titleBar": {
       "allowedKinds": [

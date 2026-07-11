@@ -16,9 +16,35 @@
       "required": false,
       "type": "string"
     },
+    "fontSize": {
+      "default": 14,
+      "maximum": 200,
+      "minimum": 1,
+      "type": "number"
+    },
+    "fontWeight": {
+      "default": "Normal",
+      "enum": ["Thin", "ExtraLight", "Light", "Normal", "Medium", "SemiBold", "Bold", "ExtraBold", "Black"],
+      "type": "string"
+    },
+    "margin": {
+      "default": "0",
+      "format": "thickness",
+      "type": "string"
+    },
     "text": {
       "default": "Text",
       "required": false,
+      "type": "string"
+    },
+    "textAlignment": {
+      "default": "Left",
+      "enum": ["Left", "Center", "Right", "Justify"],
+      "type": "string"
+    },
+    "textWrapping": {
+      "default": "Wrap",
+      "enum": ["NoWrap", "Wrap", "WrapWithOverflow"],
       "type": "string"
     }
   },

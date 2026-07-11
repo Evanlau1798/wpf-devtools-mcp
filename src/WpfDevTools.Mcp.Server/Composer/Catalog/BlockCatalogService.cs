@@ -63,7 +63,15 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             StringComparer.Ordinal);
         var properties = block.Properties.ToDictionary(
             pair => pair.Key,
-            pair => new BlockCatalogProperty(pair.Value.Type, pair.Value.Required, pair.Value.Default),
+            pair => new BlockCatalogProperty(
+                pair.Value.Type,
+                pair.Value.Required,
+                pair.Value.Default,
+                pair.Value.AllowedValues.Length > 0 ? pair.Value.AllowedValues : pair.Value.EnumValues,
+                pair.Value.Minimum,
+                pair.Value.Maximum,
+                pair.Value.Integer,
+                pair.Value.Format),
             StringComparer.Ordinal);
 
         return new BlockCatalogItem(
@@ -124,6 +132,14 @@ internal sealed record BlockCatalogItem(
     bool RendererAvailable,
     IReadOnlyList<string> SourceHintSummary);
 
-internal sealed record BlockCatalogProperty(string Type, bool Required, JsonElement? Default);
+internal sealed record BlockCatalogProperty(
+    string Type,
+    bool Required,
+    JsonElement? Default,
+    IReadOnlyList<string> AllowedValues,
+    double? Minimum,
+    double? Maximum,
+    bool Integer,
+    string Format);
 
 internal sealed record BlockCatalogSlot(IReadOnlyList<string> AllowedKinds);

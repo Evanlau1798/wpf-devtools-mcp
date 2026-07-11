@@ -5,6 +5,8 @@
   "description": "Semantic WPF UI Title Bar block.",
   "category": "shell",
   "properties": {
+    "height": { "default": 56, "minimum": 0, "type": "number" },
+    "padding": { "default": "16,0", "format": "thickness", "type": "string" },
     "title": {
       "default": "Application",
       "required": false,
@@ -16,6 +18,9 @@
       "allowedKinds": [
         "wpfui.button"
       ]
+    },
+    "icon": {
+      "allowedKinds": ["wpfui.symbolIcon"]
     }
   },
   "renderer": {

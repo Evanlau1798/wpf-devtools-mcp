@@ -1,4 +1,4 @@
-<ui:FluentWindow Title="{{title}}" Width="{{width}}" Height="{{height}}" MinWidth="900" MinHeight="600">
+<ui:FluentWindow Title="{{title}}" Width="{{width}}" Height="{{height}}" MinWidth="{{minWidth}}" MinHeight="{{minHeight}}">
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -7,8 +7,8 @@
     <Grid Grid.Row="0">
       {{slot.titleBar}}
     </Grid>
-    <Grid Grid.Row="1">
+    <Border Grid.Row="1" Padding="{{contentPadding}}" MaxWidth="{{contentMaxWidth}}" HorizontalAlignment="Stretch">
       {{slot.content}}
-    </Grid>
+    </Border>
   </Grid>
 </ui:FluentWindow>

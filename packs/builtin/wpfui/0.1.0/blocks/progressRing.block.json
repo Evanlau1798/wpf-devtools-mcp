@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "wpfui.progressRing",
+  "displayName": "Progress Ring",
+  "description": "Determinate or indeterminate circular progress feedback.",
+  "category": "feedback",
+  "properties": {
+    "isIndeterminate": { "default": true, "type": "boolean" },
+    "margin": { "default": "0", "format": "thickness", "type": "string" },
+    "progress": { "default": 0, "maximum": 100, "minimum": 0, "type": "number" },
+    "size": { "default": 24, "minimum": 1, "type": "number" }
+  },
+  "slots": {},
+  "renderer": { "xamlTemplate": "renderers/xaml/progressRing.xaml.sbn" },
+  "sourceHints": [{ "path": "src/Wpf.Ui/Controls/ProgressRing/ProgressRing.cs", "usage": "semantic extraction" }]
+}

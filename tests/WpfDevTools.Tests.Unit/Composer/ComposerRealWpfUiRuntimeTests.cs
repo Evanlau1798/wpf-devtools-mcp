@@ -21,6 +21,9 @@ using WpfUiCard = Wpf.Ui.Controls.Card;
 using WpfUiFluentWindow = Wpf.Ui.Controls.FluentWindow;
 using WpfUiNavigationView = Wpf.Ui.Controls.NavigationView;
 using WpfUiNavigationViewItem = Wpf.Ui.Controls.NavigationViewItem;
+using WpfUiNumberBox = Wpf.Ui.Controls.NumberBox;
+using WpfUiProgressRing = Wpf.Ui.Controls.ProgressRing;
+using WpfUiToggleSwitch = Wpf.Ui.Controls.ToggleSwitch;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
@@ -106,6 +109,44 @@ public sealed class ComposerRealWpfUiRuntimeTests
         {
             window.Close();
         }
+    }
+
+    [StaFact]
+    public void VisualFoundationControls_ShouldLoadWithRealWpfUiTypes()
+    {
+        var registry = PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
+        var blueprint = """
+            {
+              "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+              "name": "VisualFoundationControls",
+              "packs": [
+                { "id": "core", "version": "0.1.0", "required": true, "role": "layout-pack" },
+                { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }
+              ],
+              "primaryPack": "wpfui",
+              "layout": {
+                "kind": "wpfui.fluentWindow",
+                "slots": { "content": [{
+                  "kind": "core.stack",
+                  "slots": { "children": [
+                    { "kind": "wpfui.numberBox", "properties": { "value": 42, "minimum": 0, "maximum": 100, "smallChange": 5 } },
+                    { "kind": "wpfui.toggleSwitch", "properties": { "isChecked": true, "offContent": "Off", "onContent": "On", "labelPosition": "Right" } },
+                    { "kind": "wpfui.progressRing", "properties": { "progress": 65, "isIndeterminate": false, "size": 32 } }
+                  ] }
+                }] }
+              }
+            }
+            """;
+        var render = new UiBlueprintRenderer(registry).Render(new RenderBlueprintRequest(blueprint));
+
+        render.Success.Should().BeTrue(string.Join(Environment.NewLine, render.Errors.Select(error => error.Message)));
+        var window = (WpfUiFluentWindow)XamlReader.Parse(render.Xaml);
+        AddWpfUiResourcesFromPlan(window, render.RequiredResources);
+        var descendants = EnumerateDescendants(window).ToArray();
+
+        descendants.OfType<WpfUiNumberBox>().Should().ContainSingle(box => box.Value == 42);
+        descendants.OfType<WpfUiToggleSwitch>().Should().ContainSingle(toggle => toggle.IsChecked == true);
+        descendants.OfType<WpfUiProgressRing>().Should().ContainSingle(ring => ring.Progress == 65);
     }
 
     private static void AssertVisibleWithinWindow(

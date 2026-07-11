@@ -24,12 +24,15 @@ public sealed class ComposerBaselinePackTests
         "wpfui.navigationViewDemo",
         "wpfui.navigationViewItem",
         "wpfui.navigationViewItemSeparator",
+        "wpfui.numberBox",
+        "wpfui.progressRing",
         "wpfui.snackbar",
         "wpfui.symbolIcon",
         "wpfui.tabView",
         "wpfui.tabViewItem",
         "wpfui.textBlock",
-        "wpfui.titleBar"
+        "wpfui.titleBar",
+        "wpfui.toggleSwitch"
     ];
 
     [Fact]
@@ -46,9 +49,9 @@ public sealed class ComposerBaselinePackTests
         GetStringArray(pack.RootElement, "blocks").Should().BeEquivalentTo(ExpectedBlockKinds);
 
         Directory.GetFiles(Path.Combine(packRoot, "blocks"), "*.block.json")
-            .Should().HaveCount(15);
+            .Should().HaveCount(18);
         Directory.GetFiles(Path.Combine(packRoot, "renderers", "xaml"), "*.xaml.sbn")
-            .Should().HaveCount(15);
+            .Should().HaveCount(18);
         Directory.GetFiles(Path.Combine(packRoot, "recipes"), "*.recipe.json")
             .Should().HaveCount(5);
         Directory.GetFiles(Path.Combine(packRoot, "examples"), "*.ui.json")

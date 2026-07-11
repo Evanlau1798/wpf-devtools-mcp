@@ -264,12 +264,19 @@ internal static class UiPreviewProjectFiles
 
     private static string AddPreviewHostClass(string generatedXaml, string rootTag, string namespaceAttributes)
     {
-        var opening = "<" + rootTag;
-        var replacement = opening
-            + " x:Class=\"PreviewHost.MainWindow\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\""
+        var rootStart = FindRootElementStart(generatedXaml);
+        var attributeStart = rootStart + 1 + rootTag.Length;
+        if (rootStart < 0
+            || attributeStart > generatedXaml.Length
+            || !generatedXaml.AsSpan(rootStart + 1, rootTag.Length).SequenceEqual(rootTag))
+        {
+            return generatedXaml;
+        }
+
+        var attributes = " x:Class=\"PreviewHost.MainWindow\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\""
             + " xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\""
             + namespaceAttributes;
-        return generatedXaml.Replace(opening, replacement, StringComparison.Ordinal);
+        return generatedXaml.Insert(attributeStart, attributes);
     }
 
     private static string RemoveRootXmlNamespaceDeclarations(string xaml)

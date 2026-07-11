@@ -120,6 +120,41 @@ public sealed class ComposerGenericPreviewContractTests
     }
 
     [Fact]
+    public async Task PreviewBlueprint_ShouldCompileThirdPartyWindowPropertyElement()
+    {
+        var projectRoot = CreateProjectPack(includePreview: true, baseKind: "window", contentPropertyType: "object");
+        var previewRoot = CreateTempDirectory();
+        try
+        {
+            var renderer = Path.Combine(
+                projectRoot,
+                ".wpfdevtools",
+                "packs",
+                "sample",
+                "1.0.0",
+                "renderers",
+                "xaml",
+                "panel.xaml.sbn");
+            File.WriteAllText(renderer, "<sample:Panel><sample:Panel.Caption><Grid /></sample:Panel.Caption></sample:Panel>");
+
+            var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot)).PreviewAsync(
+                new PreviewBlueprintRequest(
+                    Blueprint("sample.panel"),
+                    RestoreEnabled: true,
+                    StartHost: false,
+                    TemporaryRoot: previewRoot,
+                    KeepArtifacts: true));
+
+            result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+            DeleteDirectory(previewRoot);
+        }
+    }
+
+    [Fact]
     public async Task PreviewBlueprint_ShouldCompileNewWpfUiControlsFromPackMetadata()
     {
         var blueprint = """
@@ -156,7 +191,7 @@ public sealed class ComposerGenericPreviewContractTests
             projectRoot is null ? null : ComposerPackPaths.ProjectLocalRoot(projectRoot));
     }
 
-    private static string CreateProjectPack(bool includePreview, string baseKind)
+    private static string CreateProjectPack(bool includePreview, string baseKind, string contentPropertyType = "string")
     {
         var projectRoot = CreateTempDirectory();
         var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", "sample", "1.0.0");
@@ -170,12 +205,13 @@ public sealed class ComposerGenericPreviewContractTests
                 "namespaceUri":"urn:sample-controls",
                 "clrNamespace":"Sample.Controls",
                 "types":{
-                  "Panel":{"baseKind":"BASE_KIND","contentProperty":"Caption","properties":{"Caption":"string"}},
+                  "Panel":{"baseKind":"BASE_KIND","contentProperty":"Caption","properties":{"Caption":"CONTENT_TYPE"}},
                   "Label":{"baseKind":"contentControl","contentProperty":"Text","properties":{"Text":"string"}}
                 }
               }
               """
                 .Replace("BASE_KIND", baseKind, StringComparison.Ordinal)
+                .Replace("CONTENT_TYPE", contentPropertyType, StringComparison.Ordinal)
             : string.Empty;
         File.WriteAllText(Path.Combine(packRoot, "pack.json"),
             """{"schemaVersion":"wpfdevtools.ui-pack.v1","id":"sample","displayName":"Sample","version":"1.0.0","blocks":["sample.panel"],"recipes":[],"xmlNamespaces":{"sample":"urn:sample-controls"}PREVIEW}"""

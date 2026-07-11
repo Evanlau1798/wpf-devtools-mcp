@@ -16,7 +16,17 @@ Composer currently supports these v1 contracts and fails closed when `schemaVers
 | Pack install manifest | `wpfdevtools.pack-install-manifest.v1` | Records copied pack installation metadata without changing the pack artifact. |
 | Composer project | `wpfdevtools.composer-project.v1` | Reserved for project-local Composer configuration. |
 
-Unknown JSON fields are ignored for v1 compatibility, while documented `metadata` objects are preserved on models that expose metadata. A breaking contract change requires a new schema version or a migration note.
+This contract is still pre-release. Beta builds may intentionally correct v1 shapes without legacy aliases; packs, validators, docs, and the extension-pack creator must move together. Stable-release compatibility policy starts with the first public stable contract.
+
+## Data-driven visual foundation
+
+- Native WPF layout comes from the explicit `core@0.1.0` pack with `role="layout-pack"`. Use qualified kinds such as `core.stack`, `core.grid`, `core.rowDefinition`, `core.columnDefinition`, `core.gridCell`, `core.border`, `core.text`, and `core.template`.
+- `core.grid` supports real rows, columns, grid cells, spanning, alignment, and WPF `gridLength` values. Layout behavior is pack data, not an engine primitive or WPF UI special case.
+- The built-in WPF UI visual set includes `wpfui.numberBox`, `wpfui.toggleSwitch`, and `wpfui.progressRing`, plus configurable typography, margin, padding, alignment, width, and window content constraints.
+- Property contracts can expose `minimum`, `maximum`, `integer`, `thickness`, and `gridLength` constraints. Slot `allowedKinds` accepts exact qualified kinds, `*`, or `<pack-id>.*`; `xamlItemTemplate` applies a declared wrapper to each child.
+- Third-party renderers that emit a pack XML namespace declare safe structural preview metadata in `pack.json`. Composer generates preview types from that metadata and returns `PreviewContractMissing` when a used custom namespace has no contract. Native-only third-party renderers need no stub contract. Packs cannot provide arbitrary preview C#.
+
+For an original app, query `get_ui_block_catalog` with `includeRecipes=false` first and choose a creative brief from available capabilities. Request recipes later as optional accelerators; do not let the first recipe determine the app concept.
 
 ## Composer observability
 
@@ -112,7 +122,7 @@ Request options:
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
-The tool writes only to an isolated temporary preview directory and deletes it after the compile smoke. The preview project uses local WPF UI stubs, so tests do not depend on a NuGet cache or network access. Every completed preview result therefore reports `visualFidelity="structural-stub"` and provides `visualValidationGuidance`: preview screenshots are structural-only evidence and must not be used to approve final styling. Its `visualComparisonChecklist` gives a compact preview-versus-final-app comparison for window chrome, icons, control templates, and layout/spacing, plus the required final-app check for each area. Apply the blueprint, build and launch the real WPF application, then inspect that application for final visual validation. Successful results include `buildSucceeded=true`, generated `xaml`, captured `buildOutput`, and a `previewHost` summary. Runtime diagnostics are opt-in and returned under `previewHost.runtimeDiagnostics`. A successful `screenshotOutputMode="file"` resource is detached from the short-lived preview process, remains subject to the 24-hour and 100-resource `SessionManager` bounds, and is removed on expiry, eviction, or server session-manager disposal. Build failures return diagnostics that map back to the blueprint root and renderer template path when available.
+The tool writes only to an isolated temporary preview directory and deletes it after the compile smoke. The preview project generates structural stubs from each pack's safe metadata, so the engine does not hardcode WPF UI or execute pack code. Every completed preview result reports `visualFidelity="structural-stub"` and provides `visualValidationGuidance`: preview screenshots are structural-only evidence and must not be used to approve final styling. Its `visualComparisonChecklist` gives a compact preview-versus-final-app comparison for window chrome, icons, control templates, and layout/spacing, plus the required final-app check for each area. Apply the blueprint, build and launch the real WPF application, then inspect that application for final visual validation. Successful results include `buildSucceeded=true`, generated `xaml`, captured `buildOutput`, and a `previewHost` summary. Runtime diagnostics are opt-in and returned under `previewHost.runtimeDiagnostics`. A successful `screenshotOutputMode="file"` resource is detached from the short-lived preview process, remains subject to the 24-hour and 100-resource `SessionManager` bounds, and is removed on expiry, eviction, or server session-manager disposal. Build failures return diagnostics that map back to the blueprint root and renderer template path when available.
 
 ## `repair_ui_blueprint`
 
@@ -126,7 +136,7 @@ Request options:
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
-The response includes `repairable`, `generatedXamlPatch=false`, `actionCount`, and `actions`. Actions identify whether the repair belongs in the blueprint or in the pack renderer template contract. The tool never patches generated XAML directly.
+The response includes `repairable`, `generatedXamlPatch=false`, `actionCount`, and `actions`. Duplicate issues with the same `issueCode` and `jsonPath` become one action: `source` preserves the first observation and ordered `sources[]` lists every contributing validation, renderer, or diagnostic source. Actions identify whether the repair belongs in the blueprint or in the pack renderer template contract. The tool never patches generated XAML directly.
 
 ## `apply_ui_blueprint`
 

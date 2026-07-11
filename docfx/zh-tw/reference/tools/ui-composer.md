@@ -16,7 +16,17 @@ Composer 目前支援下列 v1 contracts；`schemaVersion` 缺失或不同時會
 | Pack install manifest | `wpfdevtools.pack-install-manifest.v1` | 記錄 copied pack installation metadata，不改變 pack artifact。 |
 | Composer project | `wpfdevtools.composer-project.v1` | 保留給 project-local Composer configuration。 |
 
-未知 JSON 欄位會依 v1 compatibility 被忽略；有明確 `metadata` model 的文件會保留 `metadata`。破壞 contract compatibility 的變更需要新的 schema version 或 migration note。
+目前 contract 仍在 pre-release。Beta 版本可以刻意修正 v1 shape 而不保留 legacy aliases；packs、validators、文件與 extension-pack creator 必須一起更新。第一個 public stable contract 發布後才開始套用 stable compatibility policy。
+
+## 資料驅動的視覺基礎
+
+- Native WPF layout 由明確的 `core@0.1.0` pack 提供，並使用 `role="layout-pack"`。請使用 `core.stack`、`core.grid`、`core.rowDefinition`、`core.columnDefinition`、`core.gridCell`、`core.border`、`core.text` 與 `core.template` 等 qualified kinds。
+- `core.grid` 支援真實 rows、columns、grid cells、spanning、alignment 與 WPF `gridLength`。Layout 行為來自 pack data，不是 engine primitive 或 WPF UI 特例。
+- Built-in WPF UI visual set 包含 `wpfui.numberBox`、`wpfui.toggleSwitch`、`wpfui.progressRing`，也提供可設定的 typography、margin、padding、alignment、width 與 window content constraints。
+- Property contract 可宣告 `minimum`、`maximum`、`integer`、`thickness` 與 `gridLength` constraints。Slot `allowedKinds` 接受 exact qualified kind、`*` 或 `<pack-id>.*`；`xamlItemTemplate` 會對每個 child 套用宣告的 wrapper。
+- 會輸出 pack XML namespace 的第三方 renderer 必須在 `pack.json` 宣告安全 structural preview metadata。Composer 依 metadata 產生 preview types；使用 custom namespace 卻缺少 contract 時回傳 `PreviewContractMissing`。只輸出 native controls 的第三方 renderer 不需要 stub contract。Pack 不可提供 arbitrary preview C#。
+
+建立原創 app 時，先以 `includeRecipes=false` 呼叫 `get_ui_block_catalog`，依 available capabilities 決定 creative brief。稍後再把 recipes 當作 optional accelerator；不要讓第一個 recipe 決定 app concept。
 
 ## Composer observability
 
@@ -112,7 +122,7 @@ Request options:
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
-此 tool 只會寫入隔離的 temporary preview directory，compile smoke 後會刪除。Preview project 使用本機 WPF UI stubs，因此測試不依賴 NuGet cache 或 network access。每個已完成的 preview result 都會回報 `visualFidelity="structural-stub"` 並提供 `visualValidationGuidance`：preview screenshot 只適合當作結構證據，不可用來核准最終 styling。`visualComparisonChecklist` 會精簡並列 preview 與 final app 在 window chrome、icons、control templates、layout/spacing 的已知差異，以及每一項必要的 final-app 檢查。請 apply blueprint、build 並 launch 真實 WPF application，再檢查該 application 完成最終視覺驗證。成功結果包含 `buildSucceeded=true`、generated `xaml`、captured `buildOutput` 與 `previewHost` summary。Runtime diagnostics 是 opt-in，會回傳在 `previewHost.runtimeDiagnostics`。成功的 `screenshotOutputMode="file"` resource 會與短生命週期 preview process 分離，仍受 `SessionManager` 的 24 小時與 100-resource 上限管理，並在 expiry、eviction 或 server session-manager disposal 時移除。Build failure 會回傳 diagnostics，能在可用時對應回 blueprint root 與 renderer template path。
+此 tool 只會寫入隔離的 temporary preview directory，compile smoke 後會刪除。Preview project 會依每個 pack 的安全 metadata 產生 structural stubs，因此 engine 不會硬編碼 WPF UI，也不會執行 pack code。每個已完成的 preview result 都會回報 `visualFidelity="structural-stub"` 並提供 `visualValidationGuidance`：preview screenshot 只適合當作結構證據，不可用來核准最終 styling。`visualComparisonChecklist` 會精簡並列 preview 與 final app 在 window chrome、icons、control templates、layout/spacing 的已知差異，以及每一項必要的 final-app 檢查。請 apply blueprint、build 並 launch 真實 WPF application，再檢查該 application 完成最終視覺驗證。成功結果包含 `buildSucceeded=true`、generated `xaml`、captured `buildOutput` 與 `previewHost` summary。Runtime diagnostics 是 opt-in，會回傳在 `previewHost.runtimeDiagnostics`。成功的 `screenshotOutputMode="file"` resource 會與短生命週期 preview process 分離，仍受 `SessionManager` 的 24 小時與 100-resource 上限管理，並在 expiry、eviction 或 server session-manager disposal 時移除。Build failure 會回傳 diagnostics，能在可用時對應回 blueprint root 與 renderer template path。
 
 ## `repair_ui_blueprint`
 
@@ -126,7 +136,7 @@ Request options:
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
-Response 包含 `repairable`、`generatedXamlPatch=false`、`actionCount` 與 `actions`。Actions 會標示 repair 應落在 blueprint 或 pack renderer template contract。此 tool 不會直接 patch generated XAML。
+Response 包含 `repairable`、`generatedXamlPatch=false`、`actionCount` 與 `actions`。相同 `issueCode` 與 `jsonPath` 的重複 issue 會合併成一個 action：`source` 保留第一個觀察來源，ordered `sources[]` 列出所有 validation、renderer 或 diagnostic contributors。Actions 會標示 repair 應落在 blueprint 或 pack renderer template contract。此 tool 不會直接 patch generated XAML。
 
 ## `apply_ui_blueprint`
 

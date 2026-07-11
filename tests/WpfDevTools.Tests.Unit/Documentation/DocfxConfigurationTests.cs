@@ -67,6 +67,30 @@ public sealed class DocfxConfigurationTests
         ReadRepoText("docfx/zh-tw/quickstart/index.md").Should().Contain("../reference/tools/ui-composer.md");
     }
 
+    [Theory]
+    [InlineData("docfx/reference/tools/ui-composer.md")]
+    [InlineData("docfx/zh-tw/reference/tools/ui-composer.md")]
+    public void ComposerDocs_ShouldDescribeTheDataDrivenVisualFoundation(string relativePath)
+    {
+        var content = ReadRepoText(relativePath);
+        string[] requiredTerms =
+        [
+            "core@0.1.0",
+            "core.grid",
+            "wpfui.numberBox",
+            "wpfui.toggleSwitch",
+            "wpfui.progressRing",
+            "xamlItemTemplate",
+            "PreviewContractMissing",
+            "sources[]"
+        ];
+
+        foreach (var term in requiredTerms)
+        {
+            content.Should().Contain(term);
+        }
+    }
+
     [Fact]
     public void MainCss_ShouldConstrainDocfxTablesOnMobile()
     {

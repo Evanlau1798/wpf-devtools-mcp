@@ -45,7 +45,7 @@ public sealed partial class EventHandlerTraceModeTests
                 mode = "start",
                 elementId,
                 eventName = "Click",
-                duration = 1000,
+                duration = 5000,
                 allowShortStartDuration = true
             }),
             CancellationToken.None).GetAwaiter().GetResult();
@@ -69,6 +69,9 @@ public sealed partial class EventHandlerTraceModeTests
 
         JsonSerializer.SerializeToElement(analyzer.GetEventHandlers(elementId, "Click"))
             .GetProperty("handlerCount").GetInt32().Should().Be(1);
+
+        analyzer.CleanupActiveTraceSession(out var cleanupException).Should().BeTrue();
+        cleanupException.Should().BeNull();
     }
 
     [StaFact]

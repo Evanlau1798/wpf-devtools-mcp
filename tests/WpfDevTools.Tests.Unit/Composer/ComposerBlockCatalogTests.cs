@@ -30,6 +30,36 @@ public sealed class ComposerBlockCatalogTests
     }
 
     [Fact]
+    public async Task GetUiBlockCatalogTool_ShouldExposePackDefinedAuthoringHints()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var result = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["core"],
+                kind: "core.stack",
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+
+            var stack = result.StructuredContent!.Value.GetProperty("items")[0];
+            stack.GetProperty("description").GetString().Should()
+                .Contain("vertically or horizontally");
+            var spacing = stack.GetProperty("properties").GetProperty("spacing");
+            spacing.GetProperty("description").GetString().Should()
+                .Contain("each child");
+            spacing.GetProperty("previewWarning").GetString().Should()
+                .Contain("final app");
+            stack.GetProperty("slots").GetProperty("children")
+                .GetProperty("description").GetString().Should()
+                .Contain("Ordered child");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void BlockCatalog_ShouldFilterByPackCategoryKindPrefixComposableAndDetail()
     {
         var catalog = CreateCatalog();

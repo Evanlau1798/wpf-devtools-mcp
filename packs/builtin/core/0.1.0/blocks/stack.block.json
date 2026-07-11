@@ -6,13 +6,20 @@
   "category": "layout",
   "properties": {
     "orientation": { "type": "string", "default": "Vertical", "enum": ["Vertical", "Horizontal"] },
-    "spacing": { "type": "string", "default": "0", "format": "thickness" },
+    "spacing": {
+      "type": "string",
+      "description": "WPF Thickness applied as an outer Margin to each child. For a horizontal trailing gap of N, use 0,0,N,0; a scalar N applies N on every side, so adjacent children consume 2N.",
+      "previewWarning": "Structural preview controls can measure differently from the real package. Check final app clipping and horizontal fit when this margin is non-zero.",
+      "default": "0",
+      "format": "thickness"
+    },
     "margin": { "type": "string", "default": "0", "format": "thickness" },
     "horizontalAlignment": { "type": "string", "default": "Stretch", "enum": ["Left", "Center", "Right", "Stretch"] },
     "verticalAlignment": { "type": "string", "default": "Stretch", "enum": ["Top", "Center", "Bottom", "Stretch"] }
   },
   "slots": {
     "children": {
+      "description": "Ordered child elements rendered inside the StackPanel.",
       "allowedKinds": ["*"],
       "xamlItemTemplate": "<Border Margin=\"{{spacing}}\">{{item}}</Border>"
     }

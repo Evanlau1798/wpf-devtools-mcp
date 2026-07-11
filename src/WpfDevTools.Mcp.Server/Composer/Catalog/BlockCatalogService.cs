@@ -59,12 +59,14 @@ internal sealed class BlockCatalogService(PackRegistry registry)
     {
         var slots = block.Slots.ToDictionary(
             pair => pair.Key,
-            pair => new BlockCatalogSlot(pair.Value.AllowedKinds),
+            pair => new BlockCatalogSlot(pair.Value.Description, pair.Value.AllowedKinds),
             StringComparer.Ordinal);
         var properties = block.Properties.ToDictionary(
             pair => pair.Key,
             pair => new BlockCatalogProperty(
                 pair.Value.Type,
+                pair.Value.Description,
+                pair.Value.PreviewWarning,
                 pair.Value.Required,
                 pair.Value.Default,
                 pair.Value.AllowedValues.Length > 0 ? pair.Value.AllowedValues : pair.Value.EnumValues,
@@ -79,6 +81,7 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             pack.Version,
             block.Kind,
             block.DisplayName,
+            block.Description,
             block.Category,
             properties,
             slots,
@@ -125,6 +128,7 @@ internal sealed record BlockCatalogItem(
     string PackVersion,
     string Kind,
     string DisplayName,
+    string Description,
     string Category,
     IReadOnlyDictionary<string, BlockCatalogProperty> Properties,
     IReadOnlyDictionary<string, BlockCatalogSlot> Slots,
@@ -134,6 +138,8 @@ internal sealed record BlockCatalogItem(
 
 internal sealed record BlockCatalogProperty(
     string Type,
+    string Description,
+    string PreviewWarning,
     bool Required,
     JsonElement? Default,
     IReadOnlyList<string> AllowedValues,
@@ -142,4 +148,4 @@ internal sealed record BlockCatalogProperty(
     bool Integer,
     string Format);
 
-internal sealed record BlockCatalogSlot(IReadOnlyList<string> AllowedKinds);
+internal sealed record BlockCatalogSlot(string Description, IReadOnlyList<string> AllowedKinds);

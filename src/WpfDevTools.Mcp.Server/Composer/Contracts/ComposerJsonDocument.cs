@@ -43,6 +43,7 @@ internal sealed class UiBlockDefinition : ComposerJsonDocument
 {
     public string Kind { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public Dictionary<string, UiBlockProperty> Properties { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, UiBlockSlot> Slots { get; set; } = new(StringComparer.Ordinal);
@@ -53,6 +54,8 @@ internal sealed class UiBlockDefinition : ComposerJsonDocument
 internal sealed class UiBlockProperty
 {
     public string Type { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string PreviewWarning { get; set; } = string.Empty;
     public bool Required { get; set; }
     public JsonElement? Default { get; set; }
     public double? Minimum { get; set; }
@@ -67,6 +70,7 @@ internal sealed class UiBlockProperty
 
 internal sealed class UiBlockSlot
 {
+    public string Description { get; set; } = string.Empty;
     public string[] AllowedKinds { get; set; } = [];
     public string XamlItemTemplate { get; set; } = string.Empty;
 }

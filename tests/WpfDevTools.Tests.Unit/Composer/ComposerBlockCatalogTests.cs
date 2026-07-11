@@ -144,13 +144,31 @@ public sealed class ComposerBlockCatalogTests
                 .And.Contain("<ui:TextBlock Text=\"Second card\"");
 
             var projectRoot = Path.Combine(tempRoot, "project");
-            CreatePartiallyRenderableWpfUiOverride(projectRoot);
+            CreateRenderableWpfUiOverride(projectRoot, cardAcceptsStack: true);
             var overridden = await UiComposerMcpTools.GetUiBlockCatalog(
                 packIds: ["wpfui"],
                 projectRoot: projectRoot,
                 localAppDataRoot: tempRoot,
                 cancellationToken: CancellationToken.None);
-            overridden.StructuredContent!.Value.GetProperty("compositionExampleCount").GetInt32().Should().Be(0);
+            var overriddenPayload = overridden.StructuredContent!.Value;
+            overriddenPayload.GetProperty("compositionExampleCount").GetInt32().Should().Be(1);
+            var overriddenWrapper = overriddenPayload.GetProperty("compositionExamples")[0]
+                .GetProperty("wrapperBlueprint");
+            overriddenWrapper.GetProperty("packs")[0].GetProperty("version").GetString().Should().Be("9.9.9");
+            var overriddenValidation = await UiComposerMcpTools.ValidateUiBlueprint(
+                overriddenWrapper.GetRawText(),
+                projectRoot: projectRoot,
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+            overriddenValidation.StructuredContent!.Value.GetProperty("valid").GetBoolean().Should().BeTrue();
+
+            CreateRenderableWpfUiOverride(projectRoot, cardAcceptsStack: false);
+            var incompatible = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["wpfui"],
+                projectRoot: projectRoot,
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+            incompatible.StructuredContent!.Value.GetProperty("compositionExampleCount").GetInt32().Should().Be(0);
         }
         finally
         {
@@ -171,7 +189,7 @@ public sealed class ComposerBlockCatalogTests
         return path;
     }
 
-    private static void CreatePartiallyRenderableWpfUiOverride(string projectRoot)
+    private static void CreateRenderableWpfUiOverride(string projectRoot, bool cardAcceptsStack)
     {
         var root = Path.Combine(projectRoot, ".wpfdevtools", "packs", "wpfui", "9.9.9");
         Directory.CreateDirectory(Path.Combine(root, "blocks"));
@@ -182,11 +200,14 @@ public sealed class ComposerBlockCatalogTests
             """{"schemaVersion":"wpfdevtools.ui-pack.v1","id":"wpfui","displayName":"Override","version":"9.9.9","blocks":["wpfui.card","wpfui.textBlock"],"recipes":[]}""");
         File.WriteAllText(Path.Combine(root, "source.lock.json"),
             """{"schemaVersion":"wpfdevtools.source-lock.v1","sources":[{"name":"Override","url":"https://example.invalid/override","version":"9.9.9","paths":["src"]}],"transformPolicy":{}}""");
+        var allowedContentKind = cardAcceptsStack ? "stack" : "wpfui.textBlock";
         File.WriteAllText(Path.Combine(root, "blocks", "card.block.json"),
-            """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"wpfui.card","displayName":"Card","category":"container","properties":{},"slots":{"content":{"allowedKinds":["stack"]}},"renderer":{"xamlTemplate":"renderers/xaml/card.xaml.sbn"},"sourceHints":[]}""");
+            """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"wpfui.card","displayName":"Card","category":"container","properties":{},"slots":{"content":{"allowedKinds":["ALLOWED_KIND"]}},"renderer":{"xamlTemplate":"renderers/xaml/card.xaml.sbn"},"sourceHints":[]}"""
+                .Replace("ALLOWED_KIND", allowedContentKind, StringComparison.Ordinal));
         File.WriteAllText(Path.Combine(root, "blocks", "textBlock.block.json"),
             """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"wpfui.textBlock","displayName":"Text Block","category":"display","properties":{"text":{"type":"string","required":false,"default":"Text"}},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/textBlock.xaml.sbn"},"sourceHints":[]}""");
         File.WriteAllText(Path.Combine(root, "renderers", "xaml", "card.xaml.sbn"), "<ui:Card>{{slot.content}}</ui:Card>");
+        File.WriteAllText(Path.Combine(root, "renderers", "xaml", "textBlock.xaml.sbn"), "<ui:TextBlock Text=\"{{property.text}}\" />");
         var escapedRoot = root.Replace("\\", "\\\\");
         File.WriteAllText(Path.Combine(root, "install.manifest.json"),
             $$"""{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"wpfui","version":"9.9.9","scope":"project","path":"{{escapedRoot}}","enabled":true}""");

@@ -44,26 +44,15 @@ internal static class UiComposerCompositionExamples
         }
         """);
 
-    private static readonly JsonElement MultipleCardsWrapperBlueprint = JsonSerializer.SerializeToElement(new
+    internal static object[] ForResolvedComposableItems(IReadOnlyCollection<BlockCatalogItem> items)
     {
-        schemaVersion = "wpfdevtools.ui-blueprint.v1",
-        name = "CatalogCompositionExample",
-        packs = new[]
-        {
-            new { id = "wpfui", version = "0.1.0", required = true, role = "primary" }
-        },
-        primaryPack = "wpfui",
-        layout = new
-        {
-            kind = "wpfui.card",
-            slots = new { content = new[] { MultipleCardsFragment } }
-        }
-    });
-
-    internal static object[] ForResolvedComposableBlockKinds(IReadOnlyCollection<string> blockKinds)
-    {
-        if (!blockKinds.Contains("wpfui.card", StringComparer.Ordinal)
-            || !blockKinds.Contains("wpfui.textBlock", StringComparer.Ordinal))
+        var card = items.SingleOrDefault(item => item.Kind == "wpfui.card");
+        var textBlock = items.SingleOrDefault(item => item.Kind == "wpfui.textBlock");
+        if (card is null
+            || textBlock is null
+            || !string.Equals(card.PackVersion, textBlock.PackVersion, StringComparison.Ordinal)
+            || !card.Slots.TryGetValue("content", out var contentSlot)
+            || !contentSlot.AllowedKinds.Contains("stack", StringComparer.Ordinal))
         {
             return [];
         }
@@ -78,8 +67,25 @@ internal static class UiComposerCompositionExamples
                 placementMode = "slotChild",
                 compatibleParentSlots = new[] { "wpfui.card.content" },
                 fragment = MultipleCardsFragment,
-                wrapperBlueprint = MultipleCardsWrapperBlueprint
+                wrapperBlueprint = CreateWrapperBlueprint(card.PackVersion)
             }
         ];
     }
+
+    private static JsonElement CreateWrapperBlueprint(string packVersion)
+        => JsonSerializer.SerializeToElement(new
+        {
+            schemaVersion = "wpfdevtools.ui-blueprint.v1",
+            name = "CatalogCompositionExample",
+            packs = new[]
+            {
+                new { id = "wpfui", version = packVersion, required = true, role = "primary" }
+            },
+            primaryPack = "wpfui",
+            layout = new
+            {
+                kind = "wpfui.card",
+                slots = new { content = new[] { MultipleCardsFragment } }
+            }
+        });
 }

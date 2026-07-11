@@ -42,7 +42,7 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                     rendererTemplatePath)).ToArray());
         }
 
-        var previewContract = new UiPackPreviewContractGenerator(registry).Generate(request.BlueprintJson);
+        var previewContract = new UiPackPreviewContractGenerator(registry).Generate(request.BlueprintJson, render.Xaml);
         if (!previewContract.Success)
         {
             return PreviewBlueprintResult.Invalid(request.RestoreEnabled, render.Xaml, previewContract.Diagnostics);

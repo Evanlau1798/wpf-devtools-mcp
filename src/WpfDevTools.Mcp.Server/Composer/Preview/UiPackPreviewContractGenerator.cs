@@ -30,7 +30,7 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
         ["objectCollection"] = "ObservableCollection<object>"
     };
 
-    public PreviewContractGenerationResult Generate(string blueprintJson)
+    public PreviewContractGenerationResult Generate(string blueprintJson, string renderedXaml)
     {
         var blueprint = ComposerJsonLoader.Parse<UiBlueprint>(blueprintJson, "<inline-blueprint>", UiComposerSchemaVersions.UiBlueprint);
         var usedPackIds = CollectUsedPackIds(blueprint.Layout, blueprint.Packs.Select(pack => pack.Id).ToArray());
@@ -48,7 +48,7 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
             var manifest = ComposerPackLoader.Load(pack.RootPath).Manifest;
             if (manifest.Preview is null)
             {
-                if (!string.Equals(pack.Id, "core", StringComparison.Ordinal))
+                if (RequiresPreviewContract(manifest, renderedXaml))
                 {
                     diagnostics.Add(Diagnostic("PreviewContractMissing", $"Pack '{pack.Id}' does not declare preview metadata."));
                 }
@@ -105,6 +105,10 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
 
         return result;
     }
+
+    private static bool RequiresPreviewContract(UiPackManifest manifest, string renderedXaml)
+        => manifest.XmlNamespaces.Keys.Any(prefix =>
+            renderedXaml.Contains("<" + prefix + ":", StringComparison.Ordinal));
 
     private static string? Validate(string packId, string? prefix, UiPackPreviewContract contract)
     {

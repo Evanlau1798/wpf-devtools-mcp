@@ -54,6 +54,35 @@ public sealed class ComposerGenericPreviewContractTests
     }
 
     [Fact]
+    public async Task PreviewBlueprint_ShouldAllowNativeOnlyThirdPartyRendererWithoutPreviewContract()
+    {
+        var projectRoot = CreateProjectPack(includePreview: false, baseKind: "contentControl");
+        try
+        {
+            var renderer = Path.Combine(
+                projectRoot,
+                ".wpfdevtools",
+                "packs",
+                "sample",
+                "1.0.0",
+                "renderers",
+                "xaml",
+                "panel.xaml.sbn");
+            File.WriteAllText(renderer, "<Border><TextBlock Text=\"Native preview\" /></Border>");
+
+            var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot)).PreviewAsync(
+                new PreviewBlueprintRequest(Blueprint("sample.panel"), RestoreEnabled: true));
+
+            result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+            result.Diagnostics.Should().NotContain(diagnostic => diagnostic.Code == "PreviewContractMissing");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
     public async Task PreviewBlueprint_ShouldRejectUnsafePreviewBaseKind()
     {
         var projectRoot = CreateProjectPack(includePreview: true, baseKind: "arbitraryCode");

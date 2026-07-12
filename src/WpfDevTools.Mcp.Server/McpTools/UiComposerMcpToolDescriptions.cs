@@ -13,8 +13,9 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this for live WPF runtime inspection. Use connect, get_ui_summary, and scene tools for a running target application.
 
         RESPONSE SUMMARY:
-        - Returns success, packCount, packs, and diagnostics.
+        - Returns success, packCount, packs, allowedPackRoles, and diagnostics.
         - Each pack entry includes id, version, scope, role, required, blockCount, recipeCount, exampleCount, rendererCount, readinessValid, sourceRepository, and blockKinds.
+        - allowedPackRoles is the authoritative pack-neutral role list for blueprint packs[].role values.
         - The response omits absolute pack root paths; read structuredContent for the canonical payload and content[0].text only as a compact fallback.
 
         REQUEST OPTIONS:

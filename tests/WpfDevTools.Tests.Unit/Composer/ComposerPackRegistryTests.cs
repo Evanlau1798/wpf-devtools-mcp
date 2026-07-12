@@ -203,6 +203,9 @@ public sealed class ComposerPackRegistryTests
                     && pack.GetProperty("blockCount").GetInt32() == 16
                     && pack.GetProperty("role").GetString() == ComposerPackRoles.Primary
                     && pack.GetProperty("required").GetBoolean());
+            payload.GetProperty("allowedPackRoles").EnumerateArray()
+                .Select(role => role.GetString()).Should()
+                .Equal(ComposerPackRoles.All.Order(StringComparer.Ordinal));
         }
         finally
         {

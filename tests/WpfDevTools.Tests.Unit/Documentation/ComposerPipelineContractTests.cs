@@ -114,8 +114,8 @@ public sealed class ComposerPipelineContractTests
         var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
         var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
 
-        english.Should().ContainAll("pack-neutral `compositionSkeleton`", "required", "declared slots");
-        zhTw.Should().ContainAll("pack-neutral", "`compositionSkeleton`", "declared slots");
+        english.Should().ContainAll("pack-neutral `compositionSkeleton`", "required", "declared slots", "allowedPackRoles");
+        zhTw.Should().ContainAll("pack-neutral", "`compositionSkeleton`", "declared slots", "allowedPackRoles");
     }
 
     [Fact]

@@ -236,6 +236,7 @@ public static class UiComposerMcpTools
             success = true,
             packCount = result.Packs.Count,
             packs = result.Packs.Select(ToPayload).ToArray(),
+            allowedPackRoles = ComposerPackRoles.All.Order(StringComparer.Ordinal).ToArray(),
             diagnostics = result.Diagnostics,
             observability = ComposerObservability.ForPackList(result.Diagnostics)
         };

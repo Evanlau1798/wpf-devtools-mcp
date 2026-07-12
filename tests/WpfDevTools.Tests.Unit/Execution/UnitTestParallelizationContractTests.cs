@@ -122,12 +122,11 @@ public sealed class UnitTestParallelizationContractTests
             "contracts in the split release test assembly must inspect the active harness copy, not the stale file left in the original unit assembly");
     }
 
-    [Theory]
-    [InlineData("tests/WpfDevTools.Tests.Unit/Release/ReleaseScriptTestHarness.Packaging.cs")]
-    [InlineData("tests/WpfDevTools.Tests.Unit.Release/Release/ReleaseScriptTestHarness.Packaging.cs")]
-    public void ReleaseScriptHarnessPackageCache_ShouldUseCrossProcessLock(string relativePath)
+    [Fact]
+    public void ReleaseScriptHarnessPackageCache_ShouldUseCrossProcessLock()
     {
-        var source = ReadRepoFile(relativePath);
+        var source = ReadRepoFile(
+            "tests/WpfDevTools.Tests.Unit.Release/Release/ReleaseScriptTestHarness.Packaging.cs");
         var buildStart = source.IndexOf(
             "private static CachedPackageArtifacts BuildCachedPackageArtifacts",
             StringComparison.Ordinal);

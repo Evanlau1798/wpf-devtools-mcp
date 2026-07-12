@@ -5,7 +5,7 @@ using Xunit;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Tests.Unit.Execution;
-using WpfDevTools.Tests.Unit.Release;
+using WpfDevTools.Tests.Unit.TestSupport;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -286,14 +286,14 @@ public class SignaturePolicyTests
         var previousTrustedLocalDevelopmentBuild = DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting;
         var previousSignerThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
         var previousSignerSubject = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT");
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        var tempRoot = TestDirectory.Create();
         var verifyMethod = typeof(DllPathValidator).GetMethod(
             "VerifyAuthenticodeSignature",
             BindingFlags.NonPublic | BindingFlags.Static);
 
         try
         {
-            var packageRoot = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, useSignedPayload: false);
+            var packageRoot = TestPackageFixture.CreateUnsignedInspectorPackage(tempRoot);
             var baseDirectory = Path.Combine(packageRoot, "bin");
             var dllPath = Path.Combine(packageRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll");
             verifyMethod.Should().NotBeNull();
@@ -317,7 +317,7 @@ public class SignaturePolicyTests
             DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = previousTrustedLocalDevelopmentBuild;
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", previousSignerThumbprint);
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", previousSignerSubject);
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+            TestDirectory.Delete(tempRoot);
         }
     }
 
@@ -330,14 +330,14 @@ public class SignaturePolicyTests
         var previousTrustedLocalDevelopmentBuild = DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting;
         var previousSignerThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
         var previousSignerSubject = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT");
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        var tempRoot = TestDirectory.Create();
         var verifyMethod = typeof(DllPathValidator).GetMethod(
             "VerifyAuthenticodeSignature",
             BindingFlags.NonPublic | BindingFlags.Static);
 
         try
         {
-            var packageRoot = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, useSignedPayload: false);
+            var packageRoot = TestPackageFixture.CreateUnsignedInspectorPackage(tempRoot);
             var baseDirectory = Path.Combine(packageRoot, "bin");
             var dllPath = Path.Combine(packageRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll");
             verifyMethod.Should().NotBeNull();
@@ -364,7 +364,7 @@ public class SignaturePolicyTests
             DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = previousTrustedLocalDevelopmentBuild;
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", previousSignerThumbprint);
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", previousSignerSubject);
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+            TestDirectory.Delete(tempRoot);
         }
     }
 
@@ -377,14 +377,14 @@ public class SignaturePolicyTests
         var previousTrustedLocalDevelopmentBuild = DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting;
         var previousSignerThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT");
         var previousSignerSubject = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT");
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        var tempRoot = TestDirectory.Create();
         var verifyMethod = typeof(DllPathValidator).GetMethod(
             "VerifyAuthenticodeSignature",
             BindingFlags.NonPublic | BindingFlags.Static);
 
         try
         {
-            var packageRoot = ReleaseScriptTestHarness.CreatePackageDirectory(tempRoot, useSignedPayload: false);
+            var packageRoot = TestPackageFixture.CreateUnsignedInspectorPackage(tempRoot);
             var baseDirectory = Path.Combine(packageRoot, "bin");
             var dllPath = Path.Combine(packageRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll");
             verifyMethod.Should().NotBeNull();
@@ -411,7 +411,7 @@ public class SignaturePolicyTests
             DllPathValidator.TrustedLocalDevelopmentBuildOverrideForTesting = previousTrustedLocalDevelopmentBuild;
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT", previousSignerThumbprint);
             Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT", previousSignerSubject);
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+            TestDirectory.Delete(tempRoot);
         }
     }
 

@@ -8,7 +8,7 @@ using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Enums;
 using WpfDevTools.Shared.Security;
-using WpfDevTools.Tests.Unit.Release;
+using WpfDevTools.Tests.Unit.TestSupport;
 using Xunit;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
@@ -109,7 +109,7 @@ public sealed class ConnectToolSecurityErrorTests
         }
         finally
         {
-            ReleaseScriptTestHarness.DeleteDirectory(tempDirectory.FullName);
+            TestDirectory.Delete(tempDirectory.FullName);
         }
     }
 
@@ -147,7 +147,7 @@ public sealed class ConnectToolSecurityErrorTests
         }
         finally
         {
-            ReleaseScriptTestHarness.DeleteDirectory(tempDirectory.FullName);
+            TestDirectory.Delete(tempDirectory.FullName);
         }
     }
 
@@ -185,7 +185,7 @@ public sealed class ConnectToolSecurityErrorTests
         }
         finally
         {
-            ReleaseScriptTestHarness.DeleteDirectory(tempDirectory.FullName);
+            TestDirectory.Delete(tempDirectory.FullName);
         }
     }
 
@@ -239,7 +239,7 @@ public sealed class ConnectToolSecurityErrorTests
         }
         finally
         {
-            ReleaseScriptTestHarness.DeleteDirectory(tempDirectory.FullName);
+            TestDirectory.Delete(tempDirectory.FullName);
         }
     }
 
@@ -294,7 +294,7 @@ public sealed class ConnectToolSecurityErrorTests
         }
         finally
         {
-            ReleaseScriptTestHarness.DeleteDirectory(tempDirectory.FullName);
+            TestDirectory.Delete(tempDirectory.FullName);
         }
     }
 
@@ -333,7 +333,7 @@ public sealed class ConnectToolSecurityErrorTests
         }
         finally
         {
-            ReleaseScriptTestHarness.DeleteDirectory(tempDirectory.FullName);
+            TestDirectory.Delete(tempDirectory.FullName);
         }
     }
 
@@ -388,7 +388,7 @@ public sealed class ConnectToolSecurityErrorTests
         }
         finally
         {
-            ReleaseScriptTestHarness.DeleteDirectory(tempDirectory.FullName);
+            TestDirectory.Delete(tempDirectory.FullName);
         }
     }
 

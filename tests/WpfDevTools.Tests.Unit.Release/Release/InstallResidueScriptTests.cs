@@ -1,12 +1,11 @@
 using System.Diagnostics;
 using FluentAssertions;
-using WpfDevTools.Tests.Unit.TestSupport;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
 public sealed class InstallResidueScriptTests
 {
-    private static readonly string ScriptPath = TestRepositoryPaths.GetRepoFilePath(
+    private static readonly string ScriptPath = ReleaseScriptTestHarness.GetRepoFilePath(
         "scripts/tools/packaging/Test-InstallResidue.ps1");
 
     [Fact]

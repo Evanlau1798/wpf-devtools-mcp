@@ -1,8 +1,10 @@
 using System.Security.AccessControl;
+using System.Runtime.Versioning;
 using FluentAssertions;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
+[SupportedOSPlatform("windows")]
 public sealed class ReleaseSigningScriptSecurityTests
 {
     [Fact]

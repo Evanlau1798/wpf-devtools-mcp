@@ -13,7 +13,6 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             ? query.PackIds.ToHashSet(StringComparer.Ordinal)
             : null;
         var items = new List<BlockCatalogItem>();
-        var resolvedComposableItems = new List<BlockCatalogItem>();
 
         foreach (var pack in registryResult.Packs)
         {
@@ -26,11 +25,6 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             foreach (var block in loadedPack.Blocks)
             {
                 var item = CreateItem(pack, loadedPack.Manifest, block);
-                if (item.RendererAvailable)
-                {
-                    resolvedComposableItems.Add(item);
-                }
-
                 if (Matches(query, item))
                 {
                     items.Add(item);
@@ -40,7 +34,6 @@ internal sealed class BlockCatalogService(PackRegistry registry)
 
         return new BlockCatalogResult(
             items.OrderBy(item => item.Kind, StringComparer.Ordinal).ToArray(),
-            resolvedComposableItems.OrderBy(item => item.Kind, StringComparer.Ordinal).ToArray(),
             registryResult.Diagnostics);
     }
 
@@ -87,7 +80,53 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             slots,
             slots.Values.SelectMany(slot => slot.AllowedKinds).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
             HasRenderer(manifest, block),
+            CreateCompositionSkeleton(block),
             block.SourceHints.Select(hint => hint.Path).Where(path => !string.IsNullOrWhiteSpace(path)).ToArray());
+    }
+
+    private static JsonElement CreateCompositionSkeleton(UiBlockDefinition block)
+    {
+        var node = new Dictionary<string, object?> { ["kind"] = block.Kind };
+        var properties = block.Properties
+            .Where(pair => pair.Value.Required)
+            .ToDictionary(pair => pair.Key, pair => GetSkeletonValue(pair.Value), StringComparer.Ordinal);
+        if (properties.Count > 0)
+        {
+            node["properties"] = properties;
+        }
+
+        if (block.Slots.Count > 0)
+        {
+            node["slots"] = block.Slots.ToDictionary(
+                pair => pair.Key,
+                _ => Array.Empty<object>(),
+                StringComparer.Ordinal);
+        }
+
+        return JsonSerializer.SerializeToElement(node);
+    }
+
+    private static object? GetSkeletonValue(UiBlockProperty property)
+    {
+        if (property.Default.HasValue)
+        {
+            return property.Default.Value;
+        }
+
+        var allowedValues = property.AllowedValues.Length > 0 ? property.AllowedValues : property.EnumValues;
+        if (allowedValues.Length > 0)
+        {
+            return allowedValues[0];
+        }
+
+        return property.Type switch
+        {
+            "boolean" => false,
+            "number" => property.Integer ? (int)Math.Ceiling(property.Minimum ?? 0) : property.Minimum ?? 0,
+            "object" => new Dictionary<string, object?>(),
+            "array" => Array.Empty<object>(),
+            _ => "Value"
+        };
     }
 
     private static bool HasRenderer(UiPackManifest manifest, UiBlockDefinition block)
@@ -120,7 +159,6 @@ internal sealed record BlockCatalogQuery(
 
 internal sealed record BlockCatalogResult(
     IReadOnlyList<BlockCatalogItem> Items,
-    IReadOnlyList<BlockCatalogItem> ResolvedComposableItems,
     IReadOnlyList<string> Diagnostics);
 
 internal sealed record BlockCatalogItem(
@@ -134,6 +172,7 @@ internal sealed record BlockCatalogItem(
     IReadOnlyDictionary<string, BlockCatalogSlot> Slots,
     IReadOnlyList<string> AllowedKinds,
     bool RendererAvailable,
+    JsonElement CompositionSkeleton,
     IReadOnlyList<string> SourceHintSummary);
 
 internal sealed record BlockCatalogProperty(

@@ -257,9 +257,6 @@ public static class UiComposerMcpTools
         var recipes = includeRecipes
             ? new RecipeCatalogService(registry).GetCatalog(new RecipeCatalogQuery(packIds)).Items
             : [];
-        var compositionExamples = UiComposerCompositionExamples.ForResolvedComposableItems(
-            result.ResolvedComposableItems);
-
         return new
         {
             success = true,
@@ -267,8 +264,6 @@ public static class UiComposerMcpTools
             items = result.Items,
             recipeCount = recipes.Count,
             recipes,
-            compositionExampleCount = compositionExamples.Length,
-            compositionExamples,
             diagnostics = result.Diagnostics,
             observability = ComposerObservability.ForCatalog(result.Diagnostics)
         };

@@ -119,9 +119,9 @@ jobs:
       run: dotnet build --configuration ${{ matrix.configuration }} --no-restore -m:1 -p:Platform=${{ matrix.platform }} -nodeReuse:false -p:UseSharedCompilation=false
 
     - name: Run unit tests
-      if: matrix.platform == 'x64'
+      if: matrix.configuration == 'Release' && matrix.platform == 'x64'
       timeout-minutes: 20
-      run: dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=unit-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/unit
+      run: dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --filter FullyQualifiedName!~WpfDevTools.Tests.Unit.Composer --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=unit-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/unit
 
     - name: Run release unit tests
       if: matrix.configuration == 'Release' && matrix.platform == 'x64'
@@ -738,7 +738,7 @@ jobs:
         --blame-hang-timeout 10m
         --logger "trx;LogFileName=coverage-debug.trx"
         --results-directory ./TestResults/coverage
-        --filter "FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation"
+        --filter "FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation&FullyQualifiedName!~ComposerPreviewCompileTests&FullyQualifiedName!~ComposerGenericPreviewContractTests&FullyQualifiedName!~ComposerPreviewRecipeRuntimeTests"
         -nodeReuse:false
         -p:UseSharedCompilation=false
 

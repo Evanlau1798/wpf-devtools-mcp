@@ -79,6 +79,10 @@ public class BuildConfigurationTests
         coverageTestStep.Should().Contain("-c Debug");
         coverageTestStep.Should().Contain("--no-build");
         coverageTestStep.Should().Contain("--settings coverlet.runsettings");
+        coverageTestStep.Should().Contain("FullyQualifiedName!~ComposerPreviewCompileTests")
+            .And.Contain("FullyQualifiedName!~ComposerGenericPreviewContractTests")
+            .And.Contain("FullyQualifiedName!~ComposerPreviewRecipeRuntimeTests",
+                "external-build Composer tests belong to the dedicated Release Composer lane rather than the Debug coverage rerun");
     }
 
     [Fact]
@@ -97,8 +101,10 @@ public class BuildConfigurationTests
             "CI should shard integration tests into an explicit no-build project invocation instead of a broad solution test run");
         content.Should().NotContain("dotnet test --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}",
             "the broad solution-level test command should be replaced by project-specific lanes");
-        unitTestStep.Should().Contain("      if: matrix.platform == 'x64'",
-            "x86 matrix builds validate compilation, while unit tests depend on AnyCPU test output and platformed SDK references");
+        unitTestStep.Should().Contain("      if: matrix.configuration == 'Release' && matrix.platform == 'x64'",
+            "Debug correctness is covered by the blocking coverage lane, while Release retains the full contract suite");
+        string.Join('\n', unitTestStep).Should().Contain("--filter FullyQualifiedName!~WpfDevTools.Tests.Unit.Composer",
+            "the dedicated Release Composer job should own Composer execution instead of rerunning it in the full Release unit lane");
         integrationTestStep.Should().Contain("      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'",
             "integration tests should only run on the hosted architecture that has matching runtime dependencies");
     }

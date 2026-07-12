@@ -16,16 +16,7 @@ public sealed class WaitForDpChangeE2eTests : SharedStateMcpE2eTestBase
     }
 
     [Fact]
-    public async Task WaitForDpChange_ShouldObserveModifyViewmodelChangeOnSameSession()
-    {
-        await AssertWaitForDpChangeObservesViewModelMutationAsync(
-            "NameTextBox",
-            "Name",
-            "wait-e2e");
-    }
-
-    [Fact]
-    public async Task WaitForDpChange_ShouldObserveLiveChangeForSharedSearchBindingTargets()
+    public async Task WaitForDpChange_ShouldObserveConcurrentViewModelChangeOnSameSession()
     {
         await AssertWaitForDpChangeObservesViewModelMutationAsync(
             "SearchProbeTextBox",

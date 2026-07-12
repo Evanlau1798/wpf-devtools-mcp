@@ -274,12 +274,7 @@ public sealed class ComposerPackRegistryTests
     }
 
     private static void DeleteDirectory(string path)
-    {
-        if (Directory.Exists(path))
-        {
-            Directory.Delete(path, recursive: true);
-        }
-    }
+        => TestDirectory.Delete(path);
 
     private static string GetRepoFilePath(string relativePath)
         => TestRepositoryPaths.GetRepoFilePath(relativePath);

@@ -19,7 +19,8 @@ $marker = '{{EscapePowerShellSingleQuotedString(TestHelpers.OnlineInstallerDefin
 $markerIndex = $scriptContent.IndexOf($marker, [System.StringComparison]::Ordinal)
 if ($markerIndex -lt 0) { throw 'Main script boundary marker not found.' }
 $sourceScriptRoot = Split-Path -Parent $scriptPath
-$definitionsRoot = Join-Path (Split-Path -Parent $sourceScriptRoot) 'tmp\online-installer-definitions'
+$definitionsBaseRoot = Join-Path (Split-Path -Parent $sourceScriptRoot) 'tmp\online-installer-definitions'
+$definitionsRoot = Join-Path $definitionsBaseRoot ([guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $definitionsRoot | Out-Null
 $definitionsInstallerRoot = Join-Path $definitionsRoot 'installer'
 New-Item -ItemType Directory -Force -Path $definitionsInstallerRoot | Out-Null
@@ -30,7 +31,7 @@ if (-not (Test-Path -LiteralPath $releaseAssetModuleSource -PathType Leaf)) {
 if (Test-Path -LiteralPath $releaseAssetModuleSource -PathType Leaf) {
     Copy-Item -LiteralPath $releaseAssetModuleSource -Destination (Join-Path $definitionsInstallerRoot 'online-installer.release-assets.ps1') -Force
 }
-$definitionsPath = Join-Path $definitionsRoot ('online-installer-definitions-' + [guid]::NewGuid().ToString('N') + '.ps1')
+$definitionsPath = Join-Path $definitionsRoot 'online-installer-definitions.ps1'
 $definitions = $scriptContent.Substring(0, $markerIndex)
 {{BuildInternalTestModeReplacementLine(enableInternalTestMode)}}
 $script:WpfDevToolsInstallerTestModeHarnessEnabled = ${{(enableInternalTestMode ? "true" : "false")}}
@@ -45,6 +46,7 @@ try {
 }
 finally {
     Remove-Item -LiteralPath $definitionsPath -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $definitionsRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 """;
     }

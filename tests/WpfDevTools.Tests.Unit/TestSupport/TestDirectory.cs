@@ -11,13 +11,24 @@ internal static class TestDirectory
 
     public static void Delete(string path)
     {
-        if (!Directory.Exists(path))
+        for (var attempt = 0; attempt < 4; attempt++)
         {
-            return;
-        }
+            if (!Directory.Exists(path))
+            {
+                return;
+            }
 
-        NormalizeAttributes(path);
-        Directory.Delete(path, recursive: true);
+            try
+            {
+                NormalizeAttributes(path);
+                Directory.Delete(path, recursive: true);
+                return;
+            }
+            catch (IOException) when (attempt < 3)
+            {
+                Thread.Sleep(50 * (attempt + 1));
+            }
+        }
     }
 
     private static void NormalizeAttributes(string root)

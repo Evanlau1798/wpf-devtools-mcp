@@ -17,7 +17,6 @@ public sealed class ComposerBaselinePackTests
     [
         "wpfui.button",
         "wpfui.card",
-        "wpfui.contentDialog",
         "wpfui.dataGrid",
         "wpfui.fluentWindow",
         "wpfui.navigationView",
@@ -26,7 +25,6 @@ public sealed class ComposerBaselinePackTests
         "wpfui.navigationViewItemSeparator",
         "wpfui.numberBox",
         "wpfui.progressRing",
-        "wpfui.snackbar",
         "wpfui.symbolIcon",
         "wpfui.tabView",
         "wpfui.tabViewItem",
@@ -49,11 +47,11 @@ public sealed class ComposerBaselinePackTests
         GetStringArray(pack.RootElement, "blocks").Should().BeEquivalentTo(ExpectedBlockKinds);
 
         Directory.GetFiles(Path.Combine(packRoot, "blocks"), "*.block.json")
-            .Should().HaveCount(18);
+            .Should().HaveCount(16);
         Directory.GetFiles(Path.Combine(packRoot, "renderers", "xaml"), "*.xaml.sbn")
-            .Should().HaveCount(18);
+            .Should().HaveCount(16);
         Directory.GetFiles(Path.Combine(packRoot, "recipes"), "*.recipe.json")
-            .Should().HaveCount(5);
+            .Should().HaveCount(4);
         Directory.GetFiles(Path.Combine(packRoot, "examples"), "*.ui.json")
             .Should().HaveCount(1);
 
@@ -99,9 +97,9 @@ public sealed class ComposerBaselinePackTests
             entry.FullName.StartsWith("wpfui/0.1.0/", StringComparison.Ordinal)
             && !entry.FullName.Contains('\\'));
         archive.Entries.Select(entry => entry.FullName).Should().Contain("wpfui/0.1.0/pack.json");
-        GetStringArray(pack.RootElement, "recipes").Should().HaveCount(5);
-        readiness.RootElement.GetProperty("summary").GetProperty("recipeCount").GetInt32().Should().Be(5);
-        coverage.RootElement.GetProperty("summary").GetProperty("recipeCount").GetInt32().Should().Be(5);
+        GetStringArray(pack.RootElement, "recipes").Should().HaveCount(4);
+        readiness.RootElement.GetProperty("summary").GetProperty("recipeCount").GetInt32().Should().Be(4);
+        coverage.RootElement.GetProperty("summary").GetProperty("recipeCount").GetInt32().Should().Be(4);
         var builtInRecipeFiles = Directory.GetFiles(Path.Combine(GetRepoFilePath(PackRoot), "recipes"), "*.recipe.json")
             .Select(Path.GetFileName)
             .Order(StringComparer.Ordinal)
@@ -179,9 +177,7 @@ public sealed class ComposerBaselinePackTests
         ("wpfui.navigationView", "items", "wpfui.navigationViewItemSeparator"),
         ("wpfui.navigationViewItem", "icon", "wpfui.symbolIcon"),
         ("wpfui.tabView", "items", "wpfui.tabViewItem"),
-        ("wpfui.contentDialog", "actions", "wpfui.button"),
         ("wpfui.fluentWindow", "titleBar", "wpfui.titleBar"),
-        ("wpfui.snackbar", "actions", "wpfui.button")
     ];
 
     private static JsonDocument ReadJson(string relativePath)

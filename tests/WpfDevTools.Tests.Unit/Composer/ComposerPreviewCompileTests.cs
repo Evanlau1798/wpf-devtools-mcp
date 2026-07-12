@@ -261,8 +261,6 @@ public sealed partial class ComposerPreviewCompileTests
             { NavigationShellBlueprint(), "PreviewXamlCompiled" },
             { DataGridBlueprint(), "DataGridColumnsPropertyElementValid" },
             { DashboardCardBlueprint(), "PreviewXamlCompiled" },
-            { ContentDialogBlueprint(), "PreviewXamlCompiled" },
-            { SnackbarBlueprint(), "PreviewXamlCompiled" },
             { TabbedSettingsBlueprint(), "PreviewXamlCompiled" }
         };
 
@@ -319,30 +317,6 @@ public sealed partial class ComposerPreviewCompileTests
                 "header": [{ "kind": "core.text", "properties": { "text": "Dashboard" } }],
                 "content": [{ "kind": "core.text", "properties": { "text": "Compiled preview" } }],
                 "actions": [{ "kind": "wpfui.button", "properties": { "text": "Refresh" } }]
-              }
-            }
-            """);
-
-    private static string ContentDialogBlueprint()
-        => Blueprint("""
-            {
-              "kind": "wpfui.contentDialog",
-              "properties": { "title": "Confirm" },
-              "slots": {
-                "content": [{ "kind": "core.text", "properties": { "text": "Continue?" } }],
-                "actions": [{ "kind": "wpfui.button", "properties": { "text": "Continue" } }]
-              }
-            }
-            """);
-
-    private static string SnackbarBlueprint()
-        => Blueprint("""
-            {
-              "kind": "wpfui.snackbar",
-              "properties": { "timeout": 4000 },
-              "slots": {
-                "content": [{ "kind": "core.text", "properties": { "text": "Saved" } }],
-                "actions": [{ "kind": "wpfui.button", "properties": { "text": "Undo" } }]
               }
             }
             """);

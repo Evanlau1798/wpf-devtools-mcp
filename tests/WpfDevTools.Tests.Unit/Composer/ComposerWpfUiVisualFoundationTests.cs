@@ -15,7 +15,7 @@ public sealed class ComposerWpfUiVisualFoundationTests
             .GetCatalog(new BlockCatalogQuery(PackIds: ["wpfui"]))
             .Items;
 
-        items.Should().HaveCount(18);
+        items.Should().HaveCount(16);
         items.Select(item => item.Kind).Should().Contain([
             "wpfui.numberBox",
             "wpfui.progressRing",
@@ -26,6 +26,21 @@ public sealed class ComposerWpfUiVisualFoundationTests
         fontSize.Maximum.Should().Be(200);
         var margin = items.Single(item => item.Kind == "wpfui.button").Properties["margin"];
         margin.Format.Should().Be("thickness");
+    }
+
+    [Fact]
+    public void WpfUiCatalog_ShouldExcludeHostBackedControlsAndUnsupportedTabProperties()
+    {
+        var items = new BlockCatalogService(CreateRegistry())
+            .GetCatalog(new BlockCatalogQuery(PackIds: ["wpfui"]))
+            .Items;
+
+        items.Select(item => item.Kind).Should().NotContain([
+            "wpfui.contentDialog",
+            "wpfui.snackbar"
+        ]);
+        items.Single(item => item.Kind == "wpfui.tabViewItem")
+            .Properties.Should().NotContainKey("isClosable");
     }
 
     [Fact]

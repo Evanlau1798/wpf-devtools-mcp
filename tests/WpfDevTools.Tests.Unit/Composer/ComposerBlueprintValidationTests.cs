@@ -396,11 +396,12 @@ public sealed class ComposerBlueprintValidationTests
             Blueprint("""
                 {
                   "layout": {
-                    "kind": "wpfui.contentDialog",
-                    "properties": { "title": "Confirm" },
+                    "kind": "wpfui.tabView",
                     "slots": {
-                      "content": [{ "kind": "core.text", "properties": { "text": "Proceed?" } }],
-                      "actions": [{ "kind": "wpfui.button", "properties": { "text": "OK" } }]
+                      "items": [{
+                        "kind": "wpfui.tabViewItem",
+                        "slots": { "content": [{ "kind": "core.text", "properties": { "text": "Ready" } }] }
+                      }]
                     }
                   }
                 }

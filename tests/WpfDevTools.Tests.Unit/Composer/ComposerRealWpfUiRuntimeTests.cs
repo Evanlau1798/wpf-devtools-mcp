@@ -23,6 +23,8 @@ using WpfUiNavigationView = Wpf.Ui.Controls.NavigationView;
 using WpfUiNavigationViewItem = Wpf.Ui.Controls.NavigationViewItem;
 using WpfUiNumberBox = Wpf.Ui.Controls.NumberBox;
 using WpfUiProgressRing = Wpf.Ui.Controls.ProgressRing;
+using WpfUiTabView = Wpf.Ui.Controls.TabView;
+using WpfUiTitleBar = Wpf.Ui.Controls.TitleBar;
 using WpfUiToggleSwitch = Wpf.Ui.Controls.ToggleSwitch;
 
 namespace WpfDevTools.Tests.Unit.Composer;
@@ -147,6 +149,74 @@ public sealed class ComposerRealWpfUiRuntimeTests
         descendants.OfType<WpfUiNumberBox>().Should().ContainSingle(box => box.Value == 42);
         descendants.OfType<WpfUiToggleSwitch>().Should().ContainSingle(toggle => toggle.IsChecked == true);
         descendants.OfType<WpfUiProgressRing>().Should().ContainSingle(ring => ring.Progress == 65);
+    }
+
+    [StaFact]
+    public void TitleBarActions_ShouldLoadThroughRealWpfUiTrailingContent()
+    {
+        var render = Render("""
+            {
+              "kind": "wpfui.fluentWindow",
+              "slots": {
+                "titleBar": [{
+                  "kind": "wpfui.titleBar",
+                  "properties": { "title": "Studio" },
+                  "slots": { "actions": [{ "kind": "wpfui.button", "properties": { "text": "History" } }] }
+                }],
+                "content": [{ "kind": "core.text", "properties": { "text": "Ready" } }]
+              }
+            }
+            """);
+
+        render.Success.Should().BeTrue(string.Join(Environment.NewLine, render.Errors.Select(error => error.Message)));
+        var window = (WpfUiFluentWindow)XamlReader.Parse(render.Xaml);
+        var titleBar = EnumerateDescendants(window).OfType<WpfUiTitleBar>().Should().ContainSingle().Subject;
+
+        titleBar.TrailingContent.Should().BeOfType<StackPanel>()
+            .Which.Children.OfType<WpfUiButton>().Should().ContainSingle(button =>
+                string.Equals(button.Content as string, "History", StringComparison.Ordinal));
+    }
+
+    [StaFact]
+    public void TabViewItems_ShouldLoadWithoutUnsupportedProperties()
+    {
+        var render = Render("""
+            {
+              "kind": "wpfui.fluentWindow",
+              "slots": { "content": [{
+                "kind": "wpfui.tabView",
+                "slots": { "items": [{
+                  "kind": "wpfui.tabViewItem",
+                  "slots": {
+                    "header": [{ "kind": "core.text", "properties": { "text": "General" } }],
+                    "content": [{ "kind": "core.text", "properties": { "text": "Ready" } }]
+                  }
+                }] }
+              }] }
+            }
+            """);
+
+        render.Success.Should().BeTrue(string.Join(Environment.NewLine, render.Errors.Select(error => error.Message)));
+        var window = (WpfUiFluentWindow)XamlReader.Parse(render.Xaml);
+
+        EnumerateDescendants(window).OfType<WpfUiTabView>().Should().ContainSingle();
+    }
+
+    private static RenderBlueprintResult Render(string layout)
+    {
+        var registry = PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
+        return new UiBlueprintRenderer(registry).Render(new RenderBlueprintRequest($$"""
+            {
+              "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+              "name": "RealWpfUiContract",
+              "packs": [
+                { "id": "core", "version": "0.1.0", "required": true, "role": "layout-pack" },
+                { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" }
+              ],
+              "primaryPack": "wpfui",
+              "layout": {{layout}}
+            }
+            """));
     }
 
     private static void AssertVisibleWithinWindow(

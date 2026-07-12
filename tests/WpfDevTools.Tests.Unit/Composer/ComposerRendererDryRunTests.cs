@@ -205,7 +205,7 @@ public sealed class ComposerRendererDryRunTests
         try
         {
             var result = await UiComposerMcpTools.RenderUiBlueprint(
-                Blueprint("""{ "kind": "wpfui.snackbar", "slots": { "actions": [{ "kind": "wpfui.button" }] } }"""),
+                Blueprint("""{ "kind": "wpfui.titleBar", "slots": { "actions": [{ "kind": "wpfui.button" }] } }"""),
                 localAppDataRoot: tempRoot,
                 cancellationToken: CancellationToken.None);
 
@@ -213,7 +213,7 @@ public sealed class ComposerRendererDryRunTests
             var payload = result.StructuredContent!.Value;
             payload.GetProperty("success").GetBoolean().Should().BeTrue();
             payload.GetProperty("dryRun").GetBoolean().Should().BeTrue();
-            payload.GetProperty("xaml").GetString().Should().Contain("<ui:Snackbar");
+            payload.GetProperty("xaml").GetString().Should().Contain("<ui:TitleBar.TrailingContent>");
             payload.GetProperty("filePlan").GetProperty("wouldWriteFiles").GetBoolean().Should().BeFalse();
         }
         finally
@@ -252,9 +252,7 @@ public sealed class ComposerRendererDryRunTests
             { Blueprint("""{ "kind": "wpfui.fluentWindow", "slots": { "titleBar": [{ "kind": "wpfui.titleBar" }], "content": [{ "kind": "wpfui.navigationView" }] } }"""), "<ui:FluentWindow" },
             { Blueprint("""{ "kind": "wpfui.navigationView", "slots": { "items": [{ "kind": "wpfui.navigationViewItem", "slots": { "icon": [{ "kind": "wpfui.symbolIcon" }] } }] } }"""), "<ui:NavigationViewItem" },
             { Blueprint("""{ "kind": "wpfui.tabView", "slots": { "items": [{ "kind": "wpfui.tabViewItem" }] } }"""), "<ui:TabViewItem" },
-            { Blueprint("""{ "kind": "wpfui.contentDialog", "slots": { "actions": [{ "kind": "wpfui.button" }] } }"""), "<ui:ContentDialog" },
             { Blueprint("""{ "kind": "wpfui.dataGrid", "slots": { "columns": [{ "kind": "core.template" }] } }"""), "<ui:DataGrid.Columns>" },
-            { Blueprint("""{ "kind": "wpfui.snackbar", "slots": { "actions": [{ "kind": "wpfui.button" }] } }"""), "<ui:Snackbar" },
             { Blueprint("""{ "kind": "wpfui.navigationViewDemo" }"""), "NavigationView Header" },
             { Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "core.text", "properties": { "text": "Plain preview" } }] } }"""), "Plain preview" },
             { Blueprint("""{ "kind": "wpfui.card", "slots": { "content": [{ "kind": "core.stack", "slots": { "children": [{ "kind": "core.text", "properties": { "text": "Line 1" } }, { "kind": "core.template" }] } }] } }"""), "<StackPanel" }

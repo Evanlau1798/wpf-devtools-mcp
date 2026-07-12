@@ -16,7 +16,7 @@ public sealed class ComposerBlockCatalogTests
 
         var result = catalog.GetCatalog(new BlockCatalogQuery());
 
-        result.Items.Count(item => item.PackId == "wpfui").Should().Be(18);
+        result.Items.Count(item => item.PackId == "wpfui").Should().Be(16);
         var button = result.Items.Single(item => item.Kind == "wpfui.button");
         button.PackId.Should().Be("wpfui");
         button.PackVersion.Should().Be("0.1.0");
@@ -88,9 +88,7 @@ public sealed class ComposerBlockCatalogTests
     [InlineData("wpfui.navigationView", "items", "wpfui.navigationViewItemSeparator")]
     [InlineData("wpfui.navigationViewItem", "icon", "wpfui.symbolIcon")]
     [InlineData("wpfui.tabView", "items", "wpfui.tabViewItem")]
-    [InlineData("wpfui.contentDialog", "actions", "wpfui.button")]
     [InlineData("wpfui.fluentWindow", "titleBar", "wpfui.titleBar")]
-    [InlineData("wpfui.snackbar", "actions", "wpfui.button")]
     public void BlockCatalog_ShouldExposeSlotCompositionRules(string kind, string slot, string allowedKind)
     {
         var catalog = CreateCatalog();

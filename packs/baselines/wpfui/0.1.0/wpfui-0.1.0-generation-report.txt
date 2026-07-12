@@ -11,7 +11,8 @@
 7. Ran strict validation.
 8. Ran source-inventory coverage audit.
 9. Packaged normalized archive to `out/archives/wpfui-0.1.0.zip`.
-10. Ran release readiness gate after this report existed.
+10. Ran real WPF-UI 4.3.0 load tests for retained TitleBar and TabView composition.
+11. Ran release readiness gate after this report existed.
 
 ## Validation Commands and Results
 
@@ -32,36 +33,41 @@ python <skill-root>/wpf-extension-pack-creator/scripts/audit_pack_coverage.py <w
 exit code: 0; valid: true; errors: 0; warnings: 1
 
 python <skill-root>/wpf-extension-pack-creator/scripts/package_pack.py <workspace>/out/packs/wpfui/0.1.0 --out <workspace>/out/archives/wpfui-0.1.0.zip
-exit code: 0; archive entries: 45; root: wpfui/0.1.0/
+exit code: 0; archive entries: 40; root: wpfui/0.1.0/
 
-python <skill-root>/wpf-extension-pack-creator/scripts/check_pack_readiness.py <workspace>/out/packs/wpfui/0.1.0 --level release --archive <workspace>/out/archives/wpfui-0.1.0.zip --e2e-report <workspace>/out/wpfui-0.1.0-generation-report.md --required-block wpfui.button --required-block wpfui.titleBar --required-block wpfui.symbolIcon --required-block wpfui.dataGrid --required-block wpfui.snackbar --required-block wpfui.numberBox --required-block wpfui.toggleSwitch --required-block wpfui.progressRing --required-slot wpfui.card.header --required-slot wpfui.navigationView.items --required-slot wpfui.navigationViewItem.icon --required-slot wpfui.tabView.items --required-slot wpfui.contentDialog.content --required-slot wpfui.fluentWindow.content --required-slot wpfui.dataGrid.columns --required-slot wpfui.dataGrid.emptyState --required-slot wpfui.snackbar.content --required-slot wpfui.snackbar.actions --required-slot-kind wpfui.navigationView.items=wpfui.navigationViewItem --required-slot-kind wpfui.navigationView.items=wpfui.navigationViewItemSeparator --required-slot-kind wpfui.navigationViewItem.icon=wpfui.symbolIcon --required-slot-kind wpfui.tabView.items=wpfui.tabViewItem --required-slot-kind wpfui.contentDialog.actions=wpfui.button --required-slot-kind wpfui.fluentWindow.titleBar=wpfui.titleBar --required-slot-kind wpfui.snackbar.actions=wpfui.button --report <workspace>/out/reports/wpfui-0.1.0.readiness.json
+dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Release --no-build --filter "FullyQualifiedName~TitleBarActions_ShouldLoadThroughRealWpfUiTrailingContent|FullyQualifiedName~TabViewItems_ShouldLoadWithoutUnsupportedProperties|FullyQualifiedName~WpfUiCatalog_ShouldExcludeHostBackedControlsAndUnsupportedTabProperties"
+exit code: 0; passed: 3; failed: 0
+
+python <skill-root>/wpf-extension-pack-creator/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt --required-block wpfui.button --required-block wpfui.titleBar --required-block wpfui.symbolIcon --required-block wpfui.dataGrid --required-block wpfui.numberBox --required-block wpfui.toggleSwitch --required-block wpfui.progressRing --required-slot wpfui.card.header --required-slot wpfui.navigationView.items --required-slot wpfui.navigationViewItem.icon --required-slot wpfui.tabView.items --required-slot wpfui.fluentWindow.content --required-slot wpfui.dataGrid.columns --required-slot wpfui.dataGrid.emptyState --required-slot-kind wpfui.navigationView.items=wpfui.navigationViewItem --required-slot-kind wpfui.navigationView.items=wpfui.navigationViewItemSeparator --required-slot-kind wpfui.navigationViewItem.icon=wpfui.symbolIcon --required-slot-kind wpfui.tabView.items=wpfui.tabViewItem --required-slot-kind wpfui.fluentWindow.titleBar=wpfui.titleBar --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
 exit code: 0; valid: true; errors: 0; warnings: 0
 ```
 
 ## Counts
 
-- Blocks: 18
-- Renderers: 18
-- Recipes: 5
+- Blocks: 16
+- Renderers: 16
+- Recipes: 4
 - Examples: 1
 - Eligible source candidate kinds: 87
-- Generated from candidates: 17
+- Generated from candidates: 15
 - Style-only generated blocks: 1
-- Missing eligible candidates: 70
+- Missing eligible candidates: 72
 - Excluded candidates: 363
-- Coverage ratio: 0.1954
+- Coverage ratio: 0.1724
 
 ## Coverage Audit Summary
 
 Coverage audit passed with one warning: `SourceInventoryEligibleCandidatesMissing`.
 
-The generated pack intentionally covers the reusable/default semantic baseline first: `card`, `navigationView`, `navigationViewItem`, `navigationViewItemSeparator`, `tabView`, `tabViewItem`, `contentDialog`, `fluentWindow`, `dataGrid`, `snackbar`, plus `button`, `titleBar`, `symbolIcon`, `textBlock`, `numberBox`, `toggleSwitch`, and `progressRing`.
+The generated pack intentionally covers the directly composable reusable baseline: `card`, `navigationView`, `navigationViewItem`, `navigationViewItemSeparator`, `tabView`, `tabViewItem`, `fluentWindow`, and `dataGrid`, plus `button`, `titleBar`, `symbolIcon`, `textBlock`, `numberBox`, `toggleSwitch`, and `progressRing`.
+
+`contentDialog` and `snackbar` were intentionally removed after public E2E proved their direct renderer shapes were not valid WPF-UI 4.3.0 layout composition. `ContentDialog` requires host/show behavior for modal semantics, and `Snackbar` has no public parameterless constructor and requires a `SnackbarPresenter`. They can return only with an explicit behavior-integration contract and real-package compile/load evidence.
 
 Known missing candidates include additional controls and gallery/sample surfaces such as `autoSuggestBox`, `breadcrumbBar`, `infoBar`, `listView`, `passwordBox`, `treeViewItem`, and several sample pages. These are not modeled in this stability-test pack.
 
 ## Release Readiness Summary
 
-Release readiness passed with the default semantic baseline required blocks, slots, and slot-kind relationships. Final readiness result is recorded in `out/reports/wpfui-0.1.0.readiness.json`.
+Release readiness passed with retained directly composable blocks, slots, slot-kind relationships, and real WPF-UI 4.3.0 load tests. Final readiness result is recorded in `reports/wpfui-0.1.0.readiness.json`.
 
 ## Friction Points
 

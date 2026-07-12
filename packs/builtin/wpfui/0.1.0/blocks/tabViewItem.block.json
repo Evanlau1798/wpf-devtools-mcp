@@ -4,13 +4,7 @@
   "displayName": "Tab View Item",
   "description": "Semantic WPF UI Tab View Item block.",
   "category": "container",
-  "properties": {
-    "isClosable": {
-      "default": false,
-      "required": false,
-      "type": "boolean"
-    }
-  },
+  "properties": {},
   "slots": {
     "content": {
       "allowedKinds": [

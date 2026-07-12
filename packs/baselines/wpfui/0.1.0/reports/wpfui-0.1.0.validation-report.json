@@ -1,8 +1,1 @@
-{
-  "schemaVersion": "wpfdevtools.pack-validation-report.v1",
-  "packPath": "packs\\builtin\\wpfui\\0.1.0",
-  "strict": true,
-  "valid": true,
-  "errors": [],
-  "warnings": []
-}
+{"schemaVersion":"wpfdevtools.pack-validation-report.v1","packPath":"packs\\builtin\\wpfui\\0.1.0","strict":true,"valid":true,"errors":[],"warnings":[]}

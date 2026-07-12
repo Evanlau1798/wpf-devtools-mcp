@@ -14,7 +14,6 @@ public sealed class ComposerRecipeExpansionTests
     [
         "wpfui.dashboardCards",
         "wpfui.dataGridPage",
-        "wpfui.dialogFlow",
         "wpfui.shellWithNavigation",
         "wpfui.tabbedSettings"
     ];
@@ -51,9 +50,9 @@ public sealed class ComposerRecipeExpansionTests
             var payload = catalog.StructuredContent!.Value;
 
             payload.GetProperty("success").GetBoolean().Should().BeTrue();
-            payload.GetProperty("recipeCount").GetInt32().Should().Be(5);
+            payload.GetProperty("recipeCount").GetInt32().Should().Be(4);
             payload.GetProperty("recipes").EnumerateArray()
-                .Should().Contain(recipe => recipe.GetProperty("id").GetString() == "wpfui.dialogFlow");
+                .Should().Contain(recipe => recipe.GetProperty("id").GetString() == "wpfui.tabbedSettings");
         }
         finally
         {
@@ -173,8 +172,8 @@ public sealed class ComposerRecipeExpansionTests
         try
         {
             var result = await UiComposerMcpTools.ExpandUiRecipe(
-                "wpfui.dialogFlow",
-                inputs: Inputs(("title", "Confirm action")),
+                "wpfui.tabbedSettings",
+                inputs: Inputs(("generalTitle", "General settings")),
                 localAppDataRoot: tempRoot,
                 cancellationToken: CancellationToken.None);
 
@@ -182,9 +181,9 @@ public sealed class ComposerRecipeExpansionTests
             var payload = result.StructuredContent!.Value;
             payload.GetProperty("success").GetBoolean().Should().BeTrue();
             payload.GetProperty("valid").GetBoolean().Should().BeTrue();
-            payload.GetProperty("recipeId").GetString().Should().Be("wpfui.dialogFlow");
+            payload.GetProperty("recipeId").GetString().Should().Be("wpfui.tabbedSettings");
             payload.GetProperty("blueprint").GetProperty("layout").GetProperty("kind").GetString()
-                .Should().Be("wpfui.contentDialog");
+                .Should().Be("wpfui.tabView");
         }
         finally
         {

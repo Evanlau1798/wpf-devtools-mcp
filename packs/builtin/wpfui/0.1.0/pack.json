@@ -48,11 +48,6 @@
         "contentProperty": "Footer",
         "properties": { "Footer": "object" }
       },
-      "ContentDialog": {
-        "baseKind": "itemsControl",
-        "contentProperty": "Title",
-        "properties": { "Title": "string" }
-      },
       "DataGrid": {
         "baseKind": "itemsControl",
         "properties": { "Columns": "objectCollection" }
@@ -98,10 +93,6 @@
         "baseKind": "frameworkElement",
         "properties": { "IsIndeterminate": "boolean", "Progress": "double" }
       },
-      "Snackbar": {
-        "baseKind": "itemsControl",
-        "properties": { "Timeout": "double" }
-      },
       "SymbolIcon": {
         "baseKind": "contentControl",
         "contentProperty": "Symbol",
@@ -113,7 +104,7 @@
       },
       "TabViewItem": {
         "baseKind": "contentControl",
-        "properties": { "Header": "object", "IsClosable": "boolean" }
+        "properties": { "Header": "object" }
       },
       "TextBlock": {
         "baseKind": "contentControl",
@@ -121,9 +112,8 @@
         "properties": { "Appearance": "string", "Text": "string", "TextAlignment": "string", "TextWrapping": "string" }
       },
       "TitleBar": {
-        "baseKind": "itemsControl",
-        "contentProperty": "Title",
-        "properties": { "Icon": "object", "Title": "string" }
+        "baseKind": "control",
+        "properties": { "Icon": "object", "Title": "string", "TrailingContent": "object" }
       },
       "ToggleSwitch": {
         "baseKind": "toggleButton",
@@ -141,10 +131,8 @@
     "wpfui.progressRing",
     "wpfui.tabView",
     "wpfui.tabViewItem",
-    "wpfui.contentDialog",
     "wpfui.fluentWindow",
     "wpfui.dataGrid",
-    "wpfui.snackbar",
     "wpfui.button",
     "wpfui.titleBar",
     "wpfui.toggleSwitch",
@@ -155,7 +143,6 @@
     "wpfui.shellWithNavigation",
     "wpfui.dashboardCards",
     "wpfui.dataGridPage",
-    "wpfui.dialogFlow",
     "wpfui.tabbedSettings"
   ],
   "compatibility": {

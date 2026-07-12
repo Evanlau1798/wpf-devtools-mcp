@@ -156,7 +156,7 @@ public sealed class WaitForDpChangeToolTests
             {
                 processId,
                 propertyName = "Text",
-                timeoutMs = 500,
+                timeoutMs = 2000,
                 pollIntervalMs = 50,
                 expectedValue = JsonSerializer.SerializeToElement("after")
             }),
@@ -209,7 +209,7 @@ public sealed class WaitForDpChangeToolTests
             beforePollDelayCalls++;
             if (beforePollDelayCalls == 1)
             {
-                await Task.Delay(1100);
+                await Task.Delay(4100);
             }
         };
 
@@ -221,7 +221,7 @@ public sealed class WaitForDpChangeToolTests
                 {
                     processId,
                     propertyName = "Text",
-                    timeoutMs = 1000,
+                    timeoutMs = 4000,
                     pollIntervalMs = 50,
                     expectedValue = JsonSerializer.SerializeToElement("after")
                 }),

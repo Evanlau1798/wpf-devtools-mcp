@@ -90,6 +90,7 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
             var installedHelperRoot = Path.Combine(installRoot, "x64", "current", "bin", "installer");
             ReleaseScriptTestHarness.DeleteDirectory(installedHelperRoot);
 
+            var removalWorkingRoot = Path.Combine(tempRoot, "working-removal");
             var standaloneRoot = Path.Combine(tempRoot, "standalone-external");
             Directory.CreateDirectory(standaloneRoot);
             var standaloneScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
@@ -107,6 +108,7 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
                     "-Action " + action + " " +
                     "-Architecture x64 " +
                     "-InstallRoot '" + installRoot.Replace("'", "''") + "' " +
+                    "-WorkingRoot '" + removalWorkingRoot.Replace("'", "''") + "' " +
                     "-Client visual-studio " +
                     "-VisualStudioConfigPath '" + visualStudioConfigPath.Replace("'", "''") + "' " +
                     "-NonInteractive -Force -OutputJson"

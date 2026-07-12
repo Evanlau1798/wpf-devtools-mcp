@@ -22,6 +22,7 @@ public sealed class InstallerTuiVisualRefinementTests
             ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "code", Path.Combine(tempRoot, "code.log"));
             ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "codex", Path.Combine(tempRoot, "codex.log"));
             ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "grok", Path.Combine(tempRoot, "grok.log"));
+            var selectOtherKeys = string.Join("||", Enumerable.Repeat("DownArrow", 16));
             var installerPath = string.Join(
                 Path.PathSeparator,
                 fakeBin,
@@ -35,7 +36,7 @@ public sealed class InstallerTuiVisualRefinementTests
             var result = RunInteractiveInstaller(tempRoot, appData, localAppData, userProfile, new[]
             {
                 "$env:PATH='" + installerPath.Replace("'", "''") + "'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Enter||Escape||Escape||Enter'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Enter||" + selectOtherKeys + "||Escape||Escape||Enter'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='96'",
@@ -44,17 +45,38 @@ public sealed class InstallerTuiVisualRefinementTests
             });
 
             result.ExitCode.Should().Be(0, result.Stderr);
+            const string installMarker = "Where would you like to install?";
+            var installStart = result.Stdout.IndexOf(installMarker, StringComparison.Ordinal);
+            var nextInstallStart = result.Stdout.IndexOf(installMarker, installStart + installMarker.Length, StringComparison.Ordinal);
+            var confirmStart = result.Stdout.LastIndexOf("Confirm close", StringComparison.Ordinal);
+            installStart.Should().BeGreaterThanOrEqualTo(0);
+            nextInstallStart.Should().BeGreaterThan(installStart);
+            confirmStart.Should().BeGreaterThan(nextInstallStart);
+            var installTranscript = result.Stdout[installStart..confirmStart];
+            var grokLabel = installTranscript.IndexOf("Grok Build CLI", StringComparison.Ordinal);
+            var grokButtonStart = installTranscript.LastIndexOf('┌', grokLabel);
+            var grokButtonEnd = installTranscript.IndexOf('┘', grokLabel);
+            grokLabel.Should().BeGreaterThanOrEqualTo(0);
+            grokButtonStart.Should().BeGreaterThanOrEqualTo(0);
+            grokButtonEnd.Should().BeGreaterThan(grokLabel);
+            var grokButton = installTranscript[grokButtonStart..(grokButtonEnd + 1)];
+            var lastInstallStart = installTranscript.LastIndexOf(installMarker, StringComparison.Ordinal);
+            var lastInstallFrame = installTranscript[lastInstallStart..];
+
             result.Stdout.Should().Contain("[_]").And.Contain("[ ]").And.Contain("[X]");
             result.Stdout.Should().Contain("Update All");
             result.Stdout.Should().Contain("Install location");
             result.Stdout.Should().NotContain("│ Exit");
-            result.Stdout.Should().Contain("Where would you like to install?");
-            result.Stdout.Should().Contain("┌").And.Contain("┐").And.Contain("└").And.Contain("┘").And.Contain("│").And.Contain("─");
-            result.Stdout.Should().Contain("Grok Build CLI");
-            result.Stdout.Should().Contain("Cursor");
-            result.Stdout.Should().Contain("Codex/Codex CLI");
-            result.Stdout.Should().Contain("VS Code");
-            result.Stdout.Should().NotContain("Select this target to install or repair the MCP registration.");
+            grokButton.Should().Contain("┌").And.Contain("┐").And.Contain("└").And.Contain("┘").And.Contain("│").And.Contain("─");
+            installTranscript.Should().Contain("Grok Build CLI");
+            installTranscript.Should().Contain("Cursor");
+            installTranscript.Should().Contain("Codex/Codex CLI");
+            installTranscript.Should().Contain("VS Code");
+            installTranscript.Should().NotContain("Select this target to install or repair the MCP registration.");
+            lastInstallFrame.Should().Contain("other.mcpServers.json");
+            lastInstallFrame.Should().Contain("claude-code.txt");
+            lastInstallFrame.Should().Contain("codex.txt");
+            lastInstallFrame.Should().Contain("Registration examples");
             result.Stdout.Should().NotContain("HomeScreen | x64");
             result.Stdout.Should().Contain("Confirm close");
             result.Stdout.Should().Contain("Press Enter once to close the installer");

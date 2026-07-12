@@ -252,7 +252,7 @@ public class ReleasePackagingWorkflowTests
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
 
-        content.Should().Contain("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal",
+        content.Should().Contain("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build --filter FullyQualifiedName!~WpfDevTools.Tests.Unit.Composer --verbosity normal",
             "the unit test assembly is emitted under bin/<configuration> by the solution build, not under bin/<platform>/<configuration>");
         content.Should().Contain("dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal",
             "integration tests should run from the no-build output that the preceding solution build actually produced");

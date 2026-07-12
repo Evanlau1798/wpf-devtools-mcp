@@ -141,7 +141,6 @@ public sealed class UnitTestParallelizationContractTests
             "DeleteDirectory(cacheRoot);",
             buildStart,
             StringComparison.Ordinal);
-
         buildStart.Should().BeGreaterThanOrEqualTo(0);
         lockIndex.Should().BeGreaterThan(buildStart,
             "shared release package cache rebuilds must be serialized across the Unit and ReleaseUnit assemblies");
@@ -155,7 +154,6 @@ public sealed class UnitTestParallelizationContractTests
         source.Should().NotContain("Thread.Sleep(250)",
             "cache lock contention should not wake every quarter-second for up to a minute");
     }
-
     [Fact]
     public void SignaturePolicyTests_ShouldUseProcessEnvironmentCollection()
     {

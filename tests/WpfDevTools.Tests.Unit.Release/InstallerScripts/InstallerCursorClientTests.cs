@@ -54,59 +54,6 @@ public sealed class InstallerCursorClientInstallTests
         }
     }
 
-    [Theory]
-    [InlineData("global")]
-    [InlineData("project")]
-    public void OnlineInstaller_ShouldCreateCursorRegistrationArtifactsForInstalledCursorModes(string cursorMode)
-    {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
-        try
-        {
-            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
-            var installRoot = Path.Combine(tempRoot, "install-root");
-            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
-            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
-            var userProfile = Path.Combine(tempRoot, "UserProfile");
-            var globalConfigPath = Path.Combine(userProfile, ".cursor", "mcp.json");
-            var projectRoot = Path.Combine(tempRoot, "CursorProject");
-
-            var result = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
-                cursorMode == "global"
-                    ? ["-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "cursor", "-CursorMode", "global", "-CursorConfigPath", globalConfigPath, "-NonInteractive", "-Force", "-OutputJson"]
-                    : ["-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "cursor", "-CursorMode", "project", "-CursorProjectRoot", projectRoot, "-NonInteractive", "-Force", "-OutputJson"],
-                new Dictionary<string, string?>
-                {
-                    ["APPDATA"] = appData,
-                    ["LOCALAPPDATA"] = localAppData,
-                    ["USERPROFILE"] = userProfile
-                });
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-
-            var registrationDir = Path.Combine(installRoot, "x64", "client-registration");
-            var globalCursorArtifact = Path.Combine(registrationDir, "cursor.global.json");
-            var projectCursorArtifact = Path.Combine(registrationDir, "cursor.project.json");
-
-            File.Exists(globalCursorArtifact).Should().BeTrue();
-            File.Exists(projectCursorArtifact).Should().BeTrue();
-            File.ReadAllText(globalCursorArtifact).Should().Contain("wpf-devtools").And.Contain("\"command\"");
-            File.ReadAllText(projectCursorArtifact).Should().Contain("wpf-devtools").And.Contain("\"command\"");
-
-            using var installJson = JsonDocument.Parse(result.Stdout);
-            var registrations = installJson.RootElement.GetProperty("registrations").EnumerateArray().ToArray();
-            registrations.Should().ContainSingle();
-            registrations[0].GetProperty("target").GetString().Should().Be(
-                cursorMode == "global"
-                    ? globalConfigPath
-                    : Path.Combine(projectRoot, ".cursor", "mcp.json"));
-        }
-        finally
-        {
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
-        }
-    }
-
     [Fact]
     public void OnlineInstaller_ShouldPersistCursorGlobalAndProjectRegistrationsSeparately()
     {

@@ -6,10 +6,8 @@ namespace WpfDevTools.Tests.Unit.Release;
 
 public sealed class InstallerCursorClientUninstallTests
 {
-    [Theory]
-    [InlineData("global")]
-    [InlineData("project")]
-    public void OnlineInstaller_ShouldUninstallOnlySelectedCursorScopeAndKeepInstallerStateAccurate(string removedScope)
+    [Fact]
+    public void OnlineInstaller_ShouldUninstallEachSelectedCursorScopeAndKeepTheOtherScopeAccurate()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -25,10 +23,12 @@ public sealed class InstallerCursorClientUninstallTests
             JsonRegistrationTestAssertions.SeedRegistrationFile(globalConfigPath, "mcpServers", "existing", "global-existing.exe");
             JsonRegistrationTestAssertions.SeedRegistrationFile(projectConfigPath, "mcpServers", "existing", "project-existing.exe");
 
+            var globalInstallArguments = new[] { "-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "cursor", "-CursorMode", "global", "-CursorConfigPath", globalConfigPath, "-NonInteractive", "-Force", "-OutputJson" };
+            var projectInstallArguments = new[] { "-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "cursor", "-CursorMode", "project", "-CursorProjectRoot", projectRoot, "-NonInteractive", "-Force", "-OutputJson" };
             foreach (var installArguments in new[]
             {
-                new[] { "-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "cursor", "-CursorMode", "global", "-CursorConfigPath", globalConfigPath, "-NonInteractive", "-Force", "-OutputJson" },
-                new[] { "-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Client", "cursor", "-CursorMode", "project", "-CursorProjectRoot", projectRoot, "-NonInteractive", "-Force", "-OutputJson" }
+                globalInstallArguments,
+                projectInstallArguments
             })
             {
                 var installResult = ReleaseScriptTestHarness.RunPowerShellScript(
@@ -38,39 +38,51 @@ public sealed class InstallerCursorClientUninstallTests
                 installResult.ExitCode.Should().Be(0, installResult.Stderr);
             }
 
-            var uninstallResult = ReleaseScriptTestHarness.RunPowerShellScript(
-                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
-                removedScope == "global"
-                    ? ["-Action", "uninstall", "-InstallRoot", installRoot, "-Architecture", "x64", "-Client", "cursor", "-CursorMode", "global", "-CursorConfigPath", globalConfigPath, "-NonInteractive", "-OutputJson"]
-                    : ["-Action", "uninstall", "-InstallRoot", installRoot, "-Architecture", "x64", "-Client", "cursor", "-CursorMode", "project", "-CursorProjectRoot", projectRoot, "-NonInteractive", "-OutputJson"],
-                CreateInstallerEnvironment(appData, localAppData, userProfile));
-
-            uninstallResult.ExitCode.Should().Be(0, uninstallResult.Stderr);
-
-            if (removedScope == "global")
+            foreach (var removedScope in new[] { "global", "project" })
             {
-                JsonRegistrationTestAssertions.AssertRegistrationAbsent(globalConfigPath, "mcpServers", "wpf-devtools");
-                JsonRegistrationTestAssertions.AssertRegistrationCommand(globalConfigPath, "mcpServers", "existing", "global-existing.exe");
-                JsonRegistrationTestAssertions.AssertRegistrationPresent(projectConfigPath, "mcpServers", "wpf-devtools");
-                JsonRegistrationTestAssertions.AssertRegistrationCommand(projectConfigPath, "mcpServers", "existing", "project-existing.exe");
-            }
-            else
-            {
-                JsonRegistrationTestAssertions.AssertRegistrationAbsent(projectConfigPath, "mcpServers", "wpf-devtools");
-                JsonRegistrationTestAssertions.AssertRegistrationCommand(projectConfigPath, "mcpServers", "existing", "project-existing.exe");
-                JsonRegistrationTestAssertions.AssertRegistrationPresent(globalConfigPath, "mcpServers", "wpf-devtools");
-                JsonRegistrationTestAssertions.AssertRegistrationCommand(globalConfigPath, "mcpServers", "existing", "global-existing.exe");
-            }
+                var uninstallResult = ReleaseScriptTestHarness.RunPowerShellScript(
+                    ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                    removedScope == "global"
+                        ? ["-Action", "uninstall", "-InstallRoot", installRoot, "-Architecture", "x64", "-Client", "cursor", "-CursorMode", "global", "-CursorConfigPath", globalConfigPath, "-NonInteractive", "-OutputJson"]
+                        : ["-Action", "uninstall", "-InstallRoot", installRoot, "-Architecture", "x64", "-Client", "cursor", "-CursorMode", "project", "-CursorProjectRoot", projectRoot, "-NonInteractive", "-OutputJson"],
+                    CreateInstallerEnvironment(appData, localAppData, userProfile));
 
-            var statePath = Path.Combine(appData, "WpfDevToolsMcp", "installer-state.json");
-            using var stateJson = JsonDocument.Parse(File.ReadAllText(statePath));
-            var registrations = stateJson.RootElement.GetProperty("registrations");
-            registrations.TryGetProperty(removedScope == "global" ? "cursor-global" : "cursor-project", out _).Should().BeFalse();
-            registrations.TryGetProperty(removedScope == "global" ? "cursor-project" : "cursor-global", out var remainingRegistration).Should().BeTrue();
-            remainingRegistration.GetProperty("target").GetString().Should().Be(
-                removedScope == "global"
-                    ? projectConfigPath
-                    : globalConfigPath);
+                uninstallResult.ExitCode.Should().Be(0, uninstallResult.Stderr);
+
+                if (removedScope == "global")
+                {
+                    JsonRegistrationTestAssertions.AssertRegistrationAbsent(globalConfigPath, "mcpServers", "wpf-devtools");
+                    JsonRegistrationTestAssertions.AssertRegistrationCommand(globalConfigPath, "mcpServers", "existing", "global-existing.exe");
+                    JsonRegistrationTestAssertions.AssertRegistrationPresent(projectConfigPath, "mcpServers", "wpf-devtools");
+                    JsonRegistrationTestAssertions.AssertRegistrationCommand(projectConfigPath, "mcpServers", "existing", "project-existing.exe");
+                }
+                else
+                {
+                    JsonRegistrationTestAssertions.AssertRegistrationAbsent(projectConfigPath, "mcpServers", "wpf-devtools");
+                    JsonRegistrationTestAssertions.AssertRegistrationCommand(projectConfigPath, "mcpServers", "existing", "project-existing.exe");
+                    JsonRegistrationTestAssertions.AssertRegistrationPresent(globalConfigPath, "mcpServers", "wpf-devtools");
+                    JsonRegistrationTestAssertions.AssertRegistrationCommand(globalConfigPath, "mcpServers", "existing", "global-existing.exe");
+                }
+
+                var statePath = Path.Combine(appData, "WpfDevToolsMcp", "installer-state.json");
+                using var stateJson = JsonDocument.Parse(File.ReadAllText(statePath));
+                var registrations = stateJson.RootElement.GetProperty("registrations");
+                registrations.TryGetProperty(removedScope == "global" ? "cursor-global" : "cursor-project", out _).Should().BeFalse();
+                registrations.TryGetProperty(removedScope == "global" ? "cursor-project" : "cursor-global", out var remainingRegistration).Should().BeTrue();
+                remainingRegistration.GetProperty("target").GetString().Should().Be(
+                    removedScope == "global"
+                        ? projectConfigPath
+                        : globalConfigPath);
+
+                if (removedScope == "global")
+                {
+                    var reinstallResult = ReleaseScriptTestHarness.RunPowerShellScript(
+                        ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                        globalInstallArguments,
+                        CreateInstallerEnvironment(appData, localAppData, userProfile));
+                    reinstallResult.ExitCode.Should().Be(0, reinstallResult.Stderr);
+                }
+            }
         }
         finally
         {

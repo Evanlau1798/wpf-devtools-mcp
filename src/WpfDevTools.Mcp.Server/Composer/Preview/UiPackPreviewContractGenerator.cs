@@ -21,7 +21,9 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
         ["toggleButton"] = "ToggleButton",
         ["window"] = "Window",
         ["resourceDictionary"] = "ResourceDictionary",
-        ["stackPanel"] = "System.Windows.Controls.StackPanel"
+        ["stackPanel"] = "System.Windows.Controls.StackPanel",
+        ["tabControl"] = "System.Windows.Controls.TabControl",
+        ["tabItem"] = "System.Windows.Controls.TabItem"
     };
     private static readonly IReadOnlyDictionary<string, string> PropertyTypes = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -37,6 +39,7 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
         "contentControl",
         "itemsControl",
         "stackPanel",
+        "tabItem",
         "toggleButton",
         "window"
     };

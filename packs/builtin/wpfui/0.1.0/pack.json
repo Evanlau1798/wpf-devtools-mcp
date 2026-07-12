@@ -99,12 +99,12 @@
         "properties": { "Symbol": "string" }
       },
       "TabView": {
-        "baseKind": "itemsControl",
-        "properties": { "SelectedIndex": "double" }
+        "baseKind": "tabControl",
+        "properties": {}
       },
       "TabViewItem": {
-        "baseKind": "contentControl",
-        "properties": { "Header": "object" }
+        "baseKind": "tabItem",
+        "properties": {}
       },
       "TextBlock": {
         "baseKind": "contentControl",

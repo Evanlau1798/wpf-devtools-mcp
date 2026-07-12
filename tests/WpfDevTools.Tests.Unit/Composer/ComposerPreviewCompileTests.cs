@@ -138,6 +138,21 @@ public sealed partial class ComposerPreviewCompileTests
     }
 
     [Fact]
+    public async Task PreviewBlueprintAsync_WhenTabStylesTargetNativeBases_ShouldLoadGeneratedView()
+    {
+        var service = new UiBlueprintPreviewService(CreateRegistry());
+        using var timeout = CreateTimeout();
+
+        var result = await service.PreviewAsync(
+            new PreviewBlueprintRequest(TabbedSettingsBlueprint(), RestoreEnabled: true, StartHost: true),
+            timeout.Token);
+
+        result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+        result.PreviewHost.Status.Should().Be("loaded", result.BuildOutput);
+        result.PreviewHost.ViewLoaded.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task PreviewBlueprintAsync_WhenRuntimeDiagnosticsNotRequested_ShouldNotGenerateInspectorSdkDependency()
     {
         var tempRoot = Path.Combine(

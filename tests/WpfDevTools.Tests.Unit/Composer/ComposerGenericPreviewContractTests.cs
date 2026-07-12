@@ -251,7 +251,9 @@ public sealed class ComposerGenericPreviewContractTests
 
             result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
             File.ReadAllText(Path.Combine(previewRoot, "PackPreviewStubs.cs"))
-                .Should().Contain("class NavigationViewItem : System.Windows.Controls.Button");
+                .Should().Contain("class NavigationViewItem : System.Windows.Controls.Button")
+                .And.Contain("class TabView : System.Windows.Controls.TabControl")
+                .And.Contain("class TabViewItem : System.Windows.Controls.TabItem");
         }
         finally
         {

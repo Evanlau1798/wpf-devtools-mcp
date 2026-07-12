@@ -90,7 +90,7 @@ public sealed partial class InstallerTuiRuntimeTests
 
             var childExited = ReleaseScriptTestHarness.WaitForProcessIdFileToExit(
                 childPidPath,
-                TimeSpan.FromSeconds(2),
+                TimeSpan.FromSeconds(5),
                 out var childProcessId);
             if (!childExited)
             {

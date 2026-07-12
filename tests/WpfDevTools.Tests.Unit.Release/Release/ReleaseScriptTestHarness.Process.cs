@@ -83,15 +83,32 @@ internal static partial class ReleaseScriptTestHarness
                 processId = detectedProcessId;
             }
 
-            if (processId.HasValue && !IsProcessRunning(processId.Value))
+            if (processId.HasValue)
             {
-                return true;
+                return WaitForProcessExit(processId.Value, deadline - DateTimeOffset.UtcNow);
             }
 
             Thread.Sleep(50);
         }
 
         return processId.HasValue && !IsProcessRunning(processId.Value);
+    }
+
+    private static bool WaitForProcessExit(int processId, TimeSpan remaining)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            return process.WaitForExit(Math.Max(0, (int)remaining.TotalMilliseconds));
+        }
+        catch (ArgumentException)
+        {
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return true;
+        }
     }
 
     internal static void KillProcessTreeIfRunning(int? processId)

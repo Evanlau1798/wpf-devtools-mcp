@@ -149,8 +149,11 @@ public sealed class UnitTestParallelizationContractTests
             "cache validity probes must run under the same cross-process lock as destructive rebuilds");
         firstCacheDelete.Should().BeGreaterThan(lockIndex,
             "deleting the shared cache root must happen only after the lock is held");
-        source.Should().Contain("private static FileStream AcquirePackageArtifactCacheLock(string cacheKey)");
-        source.Should().Contain("release-script-harness-cache-locks");
+        source.Should().Contain("private static IDisposable AcquirePackageArtifactCacheLock(string cacheKey)");
+        source.Should().Contain("Mutex").And.Contain("WaitOne",
+            "cross-process cache waiters should block on a kernel signal instead of polling the filesystem");
+        source.Should().NotContain("Thread.Sleep(250)",
+            "cache lock contention should not wake every quarter-second for up to a minute");
     }
 
     [Fact]

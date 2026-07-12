@@ -328,7 +328,6 @@ public sealed partial class ReleasePackagingContractTests
             await Task.Delay(TimeSpan.FromMilliseconds(50));
         }
 
-        await Task.Delay(TimeSpan.FromMilliseconds(1800));
         releaseLock();
     }
 

@@ -260,34 +260,47 @@ internal static partial class ReleaseScriptTestHarness
         return new CachedPackageArtifacts(packageDir, archivePath, metadataDirectoryPath);
     }
 
-    private static FileStream AcquirePackageArtifactCacheLock(string cacheKey)
+    private static IDisposable AcquirePackageArtifactCacheLock(string cacheKey)
     {
-        var lockRoot = Path.Combine(GetRepoFilePath("tmp"), "release-script-harness-cache-locks");
-        Directory.CreateDirectory(lockRoot);
-        var lockPath = Path.Combine(lockRoot, cacheKey + ".lock");
-        Exception? lastException = null;
-
-        for (var attempt = 0; attempt < 240; attempt++)
+        var mutex = new Mutex(initiallyOwned: false, "Local\\WpfDevTools.ReleaseCache." + cacheKey);
+        try
         {
             try
             {
-                return new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+                if (!mutex.WaitOne(TimeSpan.FromMinutes(1)))
+                {
+                    throw new TimeoutException("Timed out waiting for release package artifact cache lock.");
+                }
             }
-            catch (IOException ex)
+            catch (AbandonedMutexException)
             {
-                lastException = ex;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                lastException = ex;
+                // The abandoned mutex is acquired by this thread and the cache is revalidated below.
             }
 
-            Thread.Sleep(250);
+            return new MutexLease(mutex);
         }
+        catch
+        {
+            mutex.Dispose();
+            throw;
+        }
+    }
 
-        throw new TimeoutException(
-            $"Timed out waiting for release package artifact cache lock: {lockPath}",
-            lastException);
+    private sealed class MutexLease(Mutex mutex) : IDisposable
+    {
+        private Mutex? ownedMutex = mutex;
+
+        public void Dispose()
+        {
+            var current = Interlocked.Exchange(ref ownedMutex, null);
+            if (current is null)
+            {
+                return;
+            }
+
+            current.ReleaseMutex();
+            current.Dispose();
+        }
     }
 
     private static void BuildPackageDirectory(string packageDir, string architecture, bool useSignedPayload)

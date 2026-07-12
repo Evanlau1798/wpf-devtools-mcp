@@ -1,7 +1,9 @@
 using System.IO;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text.Json;
 using FluentAssertions;
+using WpfDevTools.Tests.Integration.E2E;
 using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
 
@@ -13,54 +15,7 @@ public sealed class ReleasePackagingIntegrationTests
     private static readonly TimeSpan BuildReleaseTimeout = TimeSpan.FromMinutes(5);
 
     [Fact]
-    public void BuildReleaseScript_ShouldProduceVersionedPackageWithBinLayout()
-    {
-        var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
-        try
-        {
-            var outputRoot = Path.Combine(tempRoot, "release-output");
-            var result = ReleasePackagingTestHarness.RunPowerShellScript(
-                ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1"),
-                new[] { "-Configuration", "Debug", "-Architectures", "x64", "-OutputRoot", outputRoot },
-                timeout: BuildReleaseTimeout);
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-            var archivePath = Directory.GetFiles(outputRoot, "release_*_win-x64.zip").Single();
-            File.Exists(Path.Combine(outputRoot, "SHA256SUMS.txt")).Should().BeTrue();
-            File.Exists(Path.Combine(outputRoot, "release-assets.json")).Should().BeTrue();
-            var extractRoot = ReleasePackagingTestHarness.ExtractArchive(archivePath, tempRoot);
-
-            File.Exists(Path.Combine(extractRoot, "run.bat")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "install.ps1")).Should().BeTrue(
-                CreateArchiveLayoutDiagnostic(archivePath, extractRoot));
-            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.ScreenModel.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Renderer.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Input.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Flow.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Tui.Confirm.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Discovery.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "installer", "Installer.Uninstall.ps1")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "manifest.json")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "wpf-devtools-x64.exe")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "WpfDevTools.Inspector.Sdk.dll")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net8.0-windows", "WpfDevTools.Inspector.dll")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "inspectors", "net48", "WpfDevTools.Inspector.dll")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "bootstrapper", "x64", "WpfDevTools.Bootstrapper.x64.dll")).Should().BeTrue();
-            File.Exists(Path.Combine(extractRoot, "bin", "internal-install.ps1")).Should().BeFalse(
-                "the simplified package should not ship a second PowerShell installer chain");
-
-            using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(extractRoot, "bin", "manifest.json")));
-            manifest.RootElement.GetProperty("entryExecutable").GetString()
-                .Should().Be("bin/wpf-devtools-x64.exe");
-        }
-        finally
-        {
-            ReleasePackagingTestHarness.DeleteDirectory(tempRoot);
-        }
-    }
-
-    [Fact]
-    public void BuildReleaseScript_MultiArchitecturePackaging_ShouldNotLeakForeignRidInspectorOutputs()
+    public async Task BuildReleaseScript_MultiArchitecturePackage_ShouldInstallAndExposeExpectedRuntime()
     {
         var tempRoot = ReleasePackagingTestHarness.CreateTempDirectory();
         try
@@ -75,13 +30,19 @@ public sealed class ReleasePackagingIntegrationTests
                 timeout: BuildReleaseTimeout);
 
             result.ExitCode.Should().Be(0, result.Stderr);
+            File.Exists(Path.Combine(outputRoot, "SHA256SUMS.txt")).Should().BeTrue();
+            File.Exists(Path.Combine(outputRoot, "release-assets.json")).Should().BeTrue();
 
+            var x64ArchivePath = Directory.GetFiles(outputRoot, "release_*_win-x64.zip").Single();
             var x86ArchivePath = Directory.GetFiles(outputRoot, "release_*_win-x86.zip").Single();
             var extractRoot = ReleasePackagingTestHarness.ExtractArchive(x86ArchivePath, Path.Combine(tempRoot, "x86-extract"));
             var inspectorNet8Root = Path.Combine(extractRoot, "bin", "inspectors", "net8.0-windows");
 
             Directory.Exists(Path.Combine(inspectorNet8Root, "win-x64")).Should().BeFalse(
                 "the x86 package must not include RID-specific inspector output from a previous x64 publish");
+
+            AssertPackageLayout(x64ArchivePath, tempRoot);
+            await AssertOfflineInstallAsync(x64ArchivePath, tempRoot);
         }
         finally
         {
@@ -173,6 +134,119 @@ public sealed class ReleasePackagingIntegrationTests
         {
             ReleasePackagingTestHarness.DeleteDirectory(tempRoot);
         }
+    }
+
+    private static void AssertPackageLayout(string archivePath, string tempRoot)
+    {
+        var extractRoot = ReleasePackagingTestHarness.ExtractArchive(
+            archivePath,
+            Path.Combine(tempRoot, "x64-extract"));
+        File.Exists(Path.Combine(extractRoot, "run.bat")).Should().BeTrue();
+        File.Exists(Path.Combine(extractRoot, "bin", "install.ps1")).Should().BeTrue(
+            CreateArchiveLayoutDiagnostic(archivePath, extractRoot));
+        foreach (var helper in new[]
+        {
+            "Tui.ScreenModel.ps1", "Tui.Renderer.ps1", "Tui.Input.ps1", "Tui.Flow.ps1",
+            "Tui.Confirm.ps1", "Installer.Discovery.ps1", "Installer.Uninstall.ps1"
+        })
+        {
+            File.Exists(Path.Combine(extractRoot, "bin", "installer", helper)).Should().BeTrue(helper);
+        }
+
+        foreach (var relativePath in new[]
+        {
+            "bin/manifest.json", "bin/wpf-devtools-x64.exe", "bin/WpfDevTools.Inspector.Sdk.dll",
+            "bin/inspectors/net8.0-windows/WpfDevTools.Inspector.dll",
+            "bin/inspectors/net48/WpfDevTools.Inspector.dll",
+            "bin/bootstrapper/x64/WpfDevTools.Bootstrapper.x64.dll"
+        })
+        {
+            File.Exists(Path.Combine(extractRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)))
+                .Should().BeTrue(relativePath);
+        }
+
+        File.Exists(Path.Combine(extractRoot, "bin", "internal-install.ps1")).Should().BeFalse();
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(extractRoot, "bin", "manifest.json")));
+        manifest.RootElement.GetProperty("entryExecutable").GetString().Should().Be("bin/wpf-devtools-x64.exe");
+    }
+
+    private static async Task AssertOfflineInstallAsync(string archivePath, string tempRoot)
+    {
+        var installRoot = Path.Combine(tempRoot, "install-root");
+        var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+        var localAppData = Path.Combine(tempRoot, "AppData", "Local");
+        var userProfile = Path.Combine(tempRoot, "UserProfile");
+        var installResult = ReleasePackagingTestHarness.RunPowerShellScript(
+            ReleasePackagingTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+            [
+                "-Version", "latest", "-Architecture", "x64", "-Client", "vscode",
+                "-PackageArchivePath", archivePath, "-InstallRoot", installRoot, "-Force", "-OutputJson"
+            ],
+            new Dictionary<string, string?>
+            {
+                ["APPDATA"] = appData,
+                ["LOCALAPPDATA"] = localAppData,
+                ["USERPROFILE"] = userProfile
+            });
+
+        installResult.ExitCode.Should().Be(0, installResult.Stderr);
+        var installedExecutable = Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe");
+        File.Exists(installedExecutable).Should().BeTrue();
+        File.Exists(Path.Combine(appData, "WpfDevToolsMcp", "installer-state.json")).Should().BeTrue();
+        using var json = JsonDocument.Parse(installResult.Stdout);
+        json.RootElement.GetProperty("mode").GetString().Should().Be("offline");
+        json.RootElement.GetProperty("selectedClients").EnumerateArray().Select(x => x.GetString())
+            .Should().Contain("vscode");
+        json.RootElement.GetProperty("statePath").GetString().Should().EndWith("installer-state.json");
+
+        var vscodeConfigPath = Path.Combine(appData, "Code", "User", "mcp.json");
+        using var registration = JsonDocument.Parse(File.ReadAllText(vscodeConfigPath));
+        var command = registration.RootElement.GetProperty("servers").GetProperty("wpf-devtools")
+            .GetProperty("command").GetString();
+        command.Should().Be(installedExecutable);
+        Path.IsPathFullyQualified(command!).Should().BeTrue();
+
+        var registrationRoot = Path.Combine(installRoot, "x64", "client-registration");
+        foreach (var artifact in new[]
+        {
+            ("vscode.json", "servers"), ("visual-studio.json", "servers"),
+            ("cursor.global.json", "mcpServers"), ("cursor.project.json", "mcpServers"),
+            ("claude-desktop.json", "mcpServers"), ("other.mcpServers.json", "mcpServers")
+        })
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(registrationRoot, artifact.Item1)));
+            document.RootElement.GetProperty(artifact.Item2).GetProperty("wpf-devtools")
+                .GetProperty("command").GetString().Should().Be(installedExecutable, artifact.Item1);
+        }
+
+        File.ReadAllText(Path.Combine(registrationRoot, "claude-code.txt"))
+            .Should().Contain($"claude mcp add --transport stdio wpf-devtools -- \"{installedExecutable}\"");
+        File.ReadAllText(Path.Combine(registrationRoot, "codex.txt"))
+            .Should().Contain($"codex mcp add wpf-devtools -- \"{installedExecutable}\"");
+
+        using var client = new McpStdioClient();
+        var initializeResponse = await client.StartAsync(
+            command!,
+            new Dictionary<string, string>
+            {
+                ["APPDATA"] = appData,
+                ["LOCALAPPDATA"] = localAppData,
+                ["USERPROFILE"] = userProfile,
+                ["WPFDEVTOOLS_AUTH_SECRET"] = CreateAuthSecret(),
+                ["WPFDEVTOOLS_CERT_DIR"] = Path.Combine(tempRoot, "McpCerts")
+            });
+        initializeResponse.TryGetProperty("error", out _).Should().BeFalse(initializeResponse.GetRawText());
+        var tools = (await client.ListToolsAsync()).GetProperty("result").GetProperty("tools").EnumerateArray().ToArray();
+        tools.Should().HaveCount(72);
+        tools.Select(tool => tool.GetProperty("name").GetString()).Should()
+            .Contain(["connect", "get_ui_summary", "get_binding_errors"]);
+    }
+
+    private static string CreateAuthSecret()
+    {
+        var secretBytes = new byte[32];
+        RandomNumberGenerator.Fill(secretBytes);
+        return Convert.ToBase64String(secretBytes);
     }
 
     private static string CreateArchiveLayoutDiagnostic(string archivePath, string extractRoot)

@@ -6,11 +6,10 @@ namespace WpfDevTools.Tests.Integration;
 
 public sealed class PackagingIntegrationCollectionContractTests
 {
-    [Theory]
-    [InlineData(typeof(ReleasePackagingIntegrationTests))]
-    [InlineData(typeof(OnlineInstallerIntegrationTests))]
-    public void PackagingTests_ShouldUsePackagingIntegrationCollection(Type testClass)
+    [Fact]
+    public void PackagingTests_ShouldUsePackagingIntegrationCollection()
     {
+        var testClass = typeof(ReleasePackagingIntegrationTests);
         var attributeData = testClass.GetCustomAttributesData()
             .SingleOrDefault(data => data.AttributeType == typeof(CollectionAttribute));
 

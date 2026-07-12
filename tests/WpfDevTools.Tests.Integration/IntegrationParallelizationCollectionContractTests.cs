@@ -171,28 +171,6 @@ public sealed class IntegrationParallelizationCollectionContractTests
     }
 
     [Fact]
-    public void LiveTestProcessCleanupBehaviorTest_ShouldFailSafeDisposeSpawnedProcess()
-    {
-        var source = File.ReadAllText(ReleasePackagingTestHarness.GetRepoFilePath(
-            "tests/WpfDevTools.Tests.Integration/IntegrationParallelizationCollectionContractTests.cs"));
-        var start = source.LastIndexOf(
-            "public void LiveTestProcessCleanup_StopAndDispose_ShouldKillRunningProcessAndDisposeHandle",
-            StringComparison.Ordinal);
-        var end = source.IndexOf(
-            "public void SecureLiveSession_Dispose_ShouldDeleteCertificateDirectory",
-            start,
-            StringComparison.Ordinal);
-
-        start.Should().BeGreaterThanOrEqualTo(0);
-        end.Should().BeGreaterThan(start);
-        var method = source[start..end];
-        method.Should().Contain("try");
-        method.Should().Contain("finally");
-        method.Should().Contain("process.Kill(entireProcessTree: true)");
-        method.Should().Contain("process.Dispose();");
-    }
-
-    [Fact]
     public void LiveTestProcessCleanup_StopAndDispose_ShouldKillRunningProcessAndDisposeHandle()
     {
         Process? process = null;

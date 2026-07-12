@@ -2,6 +2,12 @@ $ErrorActionPreference = 'Stop'
 $script:SmokeTargetKnownSnapshotsByKey = @{}
 $script:SmokeTargetRootSnapshotsByProcessId = @{}
 
+function New-SmokeTargetCleanupFailureMessage {
+    param([string]$StartupFailure, [string]$CleanupFailure)
+
+    return "Smoke target startup failed and cleanup failed. Startup failure: $StartupFailure Cleanup failure: $CleanupFailure"
+}
+
 function Start-SmokeTarget {
     if ([string]::IsNullOrWhiteSpace($SmokeTargetPath)) {
         return $null
@@ -53,7 +59,7 @@ function Start-SmokeTarget {
             Stop-SmokeTarget -Process $process -KnownSnapshots $startupSnapshots
         }
         catch {
-            throw "Smoke target startup failed and cleanup failed. Startup failure: $startupFailure Cleanup failure: $($_.Exception.Message)"
+            throw (New-SmokeTargetCleanupFailureMessage -StartupFailure $startupFailure -CleanupFailure $_.Exception.Message)
         }
 
         throw

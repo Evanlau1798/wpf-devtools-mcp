@@ -27,6 +27,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\WpfDevTools.Tests.SandboxSleeper\WpfDevTools.Tests.SandboxSleeper.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\WpfDevTools.Shared\WpfDevTools.Shared.csproj">
       <SetTargetFramework>TargetFramework=net8.0;NoWarn=NU1900;WarningsNotAsErrors=NU1900</SetTargetFramework>
     </ProjectReference>

@@ -23,6 +23,8 @@ public sealed partial class SandboxCiScriptContractTests
             $ErrorActionPreference = 'Stop'
             {{GetSmokeTargetFunctionBootstrap(scriptPath)}}
 
+            $env:WPFDEVTOOLS_TEST_CHILD_MARKER = '{{token}}'
+            $env:WPFDEVTOOLS_TEST_CHILD_STARTED_PATH = '{{EscapePowerShellPath(childStartedPath)}}'
             $SmokeTargetPath = '{{EscapePowerShellPath(smokeTargetPath)}}'
             $SmokeTargetStartupTimeoutSeconds = 3
             try {
@@ -63,44 +65,22 @@ public sealed partial class SandboxCiScriptContractTests
     }
 
     [Fact]
-    public void SandboxArtifactPreflight_ShouldSurfaceCleanupFailureWhenStartupTimesOut()
+    public void SandboxProcessCleanup_ShouldComposeStartupAndCleanupFailures()
     {
-        var tempRoot = CreateTempRoot();
-        var token = $"smoke-cleanup-failure-{Guid.NewGuid():N}";
-        try
-        {
-            var smokeTargetPath = CreateSleeperExecutable(Path.Combine(tempRoot, token));
-            var scriptPath = Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.ArtifactPreflight.ps1");
-            var probeOutputPath = Path.Combine(tempRoot, "probe-output.txt");
-            var command = $$"""
-            $ErrorActionPreference = 'Stop'
-            try {
-                {{GetSmokeTargetFunctionBootstrap(scriptPath)}}
-                function Stop-ProcessSnapshots { throw 'simulated cleanup failure' }
-                $SmokeTargetPath = '{{EscapePowerShellPath(smokeTargetPath)}}'
-                $SmokeTargetStartupTimeoutSeconds = 3
-                Start-SmokeTarget | Out-Null
-                throw 'Start-SmokeTarget unexpectedly returned.'
-            }
-            catch {
-                [System.IO.File]::WriteAllText('{{EscapePowerShellPath(probeOutputPath)}}', $_.Exception.Message)
-                if ($_.Exception.Message -notlike '*Timed out waiting for smoke target main window:*') { exit 1 }
-                if ($_.Exception.Message -notlike '*simulated cleanup failure*') { exit 1 }
-            }
-            """;
-            var probePath = Path.Combine(tempRoot, "probe-cleanup-failure.ps1");
-            File.WriteAllText(probePath, command);
+        var scriptPath = Path.Combine(RepoRoot, "scripts", "ci", "SandboxCi.ProcessCleanup.ps1");
+        var command = $$"""
+        $ErrorActionPreference = 'Stop'
+        . '{{EscapePowerShellPath(scriptPath)}}'
+        New-SmokeTargetCleanupFailureMessage `
+            -StartupFailure 'Timed out waiting for smoke target main window: fixture.exe' `
+            -CleanupFailure 'simulated cleanup failure'
+        """;
 
-            var result = RunPowerShellFileWithoutRedirect(probePath);
+        var result = RunPowerShell(command);
 
-            var probeOutput = File.Exists(probeOutputPath) ? File.ReadAllText(probeOutputPath) : "";
-            result.ExitCode.Should().Be(0, "PowerShell output: {0}", probeOutput);
-        }
-        finally
-        {
-            KillProcessesCommandLineContains(token);
-            DeleteTempRoot(tempRoot);
-        }
+        result.ExitCode.Should().Be(0, result.Output);
+        result.Output.Should().Contain("Timed out waiting for smoke target main window: fixture.exe");
+        result.Output.Should().Contain("simulated cleanup failure");
     }
 
     [Fact]
@@ -213,45 +193,35 @@ public sealed partial class SandboxCiScriptContractTests
 
     private static string CreateSleeperExecutable(string projectRoot)
     {
-        Directory.CreateDirectory(projectRoot);
-        var projectPath = Path.Combine(projectRoot, "SmokeTarget.csproj");
-        File.WriteAllText(
-            projectPath,
-            """
-            <Project Sdk="Microsoft.NET.Sdk">
-              <PropertyGroup>
-                <OutputType>WinExe</OutputType>
-                <TargetFramework>net8.0-windows</TargetFramework>
-                <ImplicitUsings>enable</ImplicitUsings>
-                <Nullable>enable</Nullable>
-              </PropertyGroup>
-            </Project>
-            """);
-        var markerLiteral = System.Text.Json.JsonSerializer.Serialize(ToPowerShellSingleQuotedLiteral(projectRoot));
-        var childStartedPathLiteral = System.Text.Json.JsonSerializer.Serialize(Path.Combine(projectRoot, "child-started.txt"));
-        File.WriteAllText(
-            Path.Combine(projectRoot, "Program.cs"),
-            $$"""
-            var childCode = "$childMarker = " + {{markerLiteral}} + "; Start-Sleep -Seconds 120";
-            var startInfo = new System.Diagnostics.ProcessStartInfo("powershell.exe")
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            startInfo.ArgumentList.Add("-NoProfile");
-            startInfo.ArgumentList.Add("-ExecutionPolicy");
-            startInfo.ArgumentList.Add("Bypass");
-            startInfo.ArgumentList.Add("-Command");
-            startInfo.ArgumentList.Add(childCode);
-            System.Diagnostics.Process.Start(startInfo);
-            System.IO.File.WriteAllText({{childStartedPathLiteral}}, "started");
-            Thread.Sleep(TimeSpan.FromSeconds(120));
-            """);
+        var configuration = FindBuildConfiguration(AppContext.BaseDirectory);
+        var sourceRoot = Path.Combine(
+            RepoRoot,
+            "tests",
+            "WpfDevTools.Tests.SandboxSleeper",
+            "bin",
+            configuration,
+            "net8.0-windows");
+        var destination = Path.Combine(projectRoot, "publish");
+        Directory.CreateDirectory(destination);
+        foreach (var source in Directory.EnumerateFiles(sourceRoot))
+        {
+            File.Copy(source, Path.Combine(destination, Path.GetFileName(source)), overwrite: true);
+        }
 
-        var publishRoot = Path.Combine(projectRoot, "publish");
-        var result = RunProcess("dotnet", "publish", projectPath, "-c", "Release", "-o", publishRoot, "-v", "q");
-        result.ExitCode.Should().Be(0, "PowerShell output: {0}", result.Output);
-        return Path.Combine(publishRoot, "SmokeTarget.exe");
+        return Path.Combine(destination, "WpfDevTools.Tests.SandboxSleeper.exe");
+    }
+
+    private static string FindBuildConfiguration(string outputDirectory)
+    {
+        for (var current = new DirectoryInfo(outputDirectory); current is not null; current = current.Parent)
+        {
+            if (current.Name is "Debug" or "Release")
+            {
+                return current.Name;
+            }
+        }
+
+        throw new InvalidOperationException($"Could not resolve build configuration from '{outputDirectory}'.");
     }
 
     private static CommandResult RunPowerShellFileWithoutRedirect(string scriptPath)

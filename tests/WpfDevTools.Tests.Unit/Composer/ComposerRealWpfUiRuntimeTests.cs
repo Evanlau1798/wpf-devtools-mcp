@@ -197,9 +197,23 @@ public sealed class ComposerRealWpfUiRuntimeTests
             """);
 
         render.Success.Should().BeTrue(string.Join(Environment.NewLine, render.Errors.Select(error => error.Message)));
+        render.RequiredResources.Should().Equal(
+            "<ui:ThemesDictionary Theme=\"Dark\" />",
+            "<ui:ControlsDictionary />");
         var window = (WpfUiFluentWindow)XamlReader.Parse(render.Xaml);
+        AddWpfUiResourcesFromPlan(window, render.RequiredResources);
 
-        EnumerateDescendants(window).OfType<WpfUiTabView>().Should().ContainSingle();
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var tabView = EnumerateDescendants(window).OfType<WpfUiTabView>().Should().ContainSingle().Subject;
+            tabView.IsVisible.Should().BeTrue();
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     private static RenderBlueprintResult Render(string layout)

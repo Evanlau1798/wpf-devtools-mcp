@@ -431,7 +431,7 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
             return new RenderContext(
                 blocks,
                 packages.Distinct().OrderBy(package => package.Id, StringComparer.Ordinal).ToArray(),
-                resources.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
+                resources.Distinct(StringComparer.Ordinal).ToArray(),
                 xmlNamespaces,
                 registryResult.Diagnostics);
         }

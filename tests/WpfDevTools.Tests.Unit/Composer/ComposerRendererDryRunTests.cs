@@ -43,6 +43,20 @@ public sealed class ComposerRendererDryRunTests
     }
 
     [Fact]
+    public void RenderBlueprint_ShouldPreservePackResourceDeclarationOrder()
+    {
+        var renderer = new UiBlueprintRenderer(CreateRegistry());
+
+        var result = renderer.Render(new RenderBlueprintRequest(Blueprint(
+            """{ "kind": "wpfui.tabView", "slots": { "items": [{ "kind": "wpfui.tabViewItem" }] } }""")));
+
+        result.Success.Should().BeTrue();
+        result.RequiredResources.Should().Equal(
+            "<ui:ThemesDictionary Theme=\"Dark\" />",
+            "<ui:ControlsDictionary />");
+    }
+
+    [Fact]
     public void RenderBlueprint_ShouldRenderButtonIconSlotWithPropertyElement()
     {
         var renderer = new UiBlueprintRenderer(CreateRegistry());

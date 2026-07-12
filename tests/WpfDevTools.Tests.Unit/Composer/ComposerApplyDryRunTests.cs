@@ -30,8 +30,9 @@ public sealed class ComposerApplyDryRunTests
             result.FilePlan.Should().Contain(item => item.Role == "viewmodel-binding-contract"
                 && item.TargetPath.EndsWith("GeneratedView.Bindings.json", StringComparison.Ordinal)
                 && item.WouldWrite == false);
-            result.ResourcePlan.Should().Contain(resource => resource.Contains("ThemesDictionary", StringComparison.Ordinal));
-            result.ResourcePlan.Should().Contain(resource => resource.Contains("ControlsDictionary", StringComparison.Ordinal));
+            result.ResourcePlan.Should().Equal(
+                "<ui:ThemesDictionary Theme=\"Dark\" />",
+                "<ui:ControlsDictionary />");
             result.RequiredNuGetPackages.Should().Contain(package => package.Id == "WPF-UI");
             result.ViewModelBindingContract.TargetPath.Should().EndWith("GeneratedView.Bindings.json");
             File.Exists(Path.Combine(projectRoot, "Views", "GeneratedView.xaml")).Should().BeFalse();

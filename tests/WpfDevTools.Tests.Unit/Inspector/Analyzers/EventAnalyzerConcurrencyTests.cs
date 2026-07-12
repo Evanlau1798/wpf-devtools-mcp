@@ -17,7 +17,10 @@ public class EventAnalyzerConcurrencyTests
     {
         const int callerCount = 10;
         var finder = new ElementFinder();
-        var analyzer = new EventAnalyzer(finder);
+        var analyzer = new EventAnalyzer(
+            finder,
+            watchEventBuffer: null,
+            registrationInvoker: (_, _, _, _, _) => { });
         var button = new Button();
         var elementId = finder.GenerateElementId(button);
         using var ready = new CountdownEvent(callerCount);
@@ -32,8 +35,9 @@ public class EventAnalyzerConcurrencyTests
             }))
             .ToArray();
 
-        ready.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
-        start.SetResult();
+        var allCallersReady = ready.Wait(TimeSpan.FromSeconds(5));
+        start.TrySetResult();
+        allCallersReady.Should().BeTrue();
 
         var results = await Task.WhenAll(tasks);
         var payloads = results.Select(result => JsonSerializer.SerializeToElement(result)).ToArray();

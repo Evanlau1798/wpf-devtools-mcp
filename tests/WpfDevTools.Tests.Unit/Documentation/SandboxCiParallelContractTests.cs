@@ -345,12 +345,23 @@ public sealed partial class SandboxCiScriptContractTests
 
         filters.Should().HaveCount(8);
         testClasses.Should().NotBeEmpty();
-        filters[0].Should().StartWith("FullyQualifiedName!~",
-            "the 185-second catch-all shard should start first instead of waiting behind shorter groups");
-        filters[1].Should().Contain("FullyQualifiedName~WpfDevTools.Tests.Unit.Release.InstallerScriptTests",
-            "the 158-second installer script group should start second under two-lane LPT scheduling");
-        filters[^1].Should().Contain("FullyQualifiedName~WpfDevTools.Tests.Unit.Release.PackagedServerRuntimeSmokeScriptTests",
-            "the 63-second bootstrap and packaged runtime group should remain last");
+        string[] priorityMarkers =
+        [
+            "FullyQualifiedName!~",
+            "InstallerScriptTests",
+            "InstallerFullUninstallTests",
+            "InstallerCursorClientUninstallTests",
+            "InstallerTuiRuntimeTests",
+            "InstallerIdeRegistrationShimBackedTests",
+            "InstallerInteractiveUiScriptTests",
+            "PackagedServerRuntimeSmokeScriptTests"
+        ];
+        for (var index = 0; index < priorityMarkers.Length; index++)
+        {
+            filters[index].Should().Contain(priorityMarkers[index],
+                $"release-unit shard {index + 1} should preserve the measured longest-first priority order");
+        }
+
         foreach (var fullyQualifiedClassName in testClasses)
         {
             var fullyQualifiedName = $"{fullyQualifiedClassName}.SyntheticTest";

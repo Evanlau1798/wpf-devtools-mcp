@@ -2,7 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "core.text",
   "displayName": "Text",
-  "description": "Displays theme-neutral native WPF text with common typography and alignment options.",
+  "description": "Displays native WPF text that inherits the surrounding theme foreground unless an explicit foreground is provided.",
   "category": "display",
   "properties": {
     "text": { "type": "string", "default": "Text" },
@@ -11,7 +11,7 @@
     "textWrapping": { "type": "string", "default": "Wrap", "enum": ["NoWrap", "Wrap", "WrapWithOverflow"] },
     "textAlignment": { "type": "string", "default": "Left", "enum": ["Left", "Center", "Right", "Justify"] },
     "margin": { "type": "string", "default": "0", "format": "thickness" },
-    "foreground": { "type": "string", "default": "{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}" }
+    "foreground": { "type": "string" }
   },
   "slots": {},
   "renderer": { "xamlTemplate": "renderers/xaml/text.xaml.sbn" },

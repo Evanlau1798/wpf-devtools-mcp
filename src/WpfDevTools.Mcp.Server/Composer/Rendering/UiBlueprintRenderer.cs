@@ -16,6 +16,8 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
     private static readonly Regex EmptyPropertyElementPattern = new(
         @"\s*<(?<prefix>[A-Za-z_][A-Za-z0-9_]*):(?<type>[A-Za-z_][A-Za-z0-9_]*)\.(?<property>[A-Za-z_][A-Za-z0-9_]*)>\s*</\k<prefix>:\k<type>\.\k<property>>",
         RegexOptions.CultureInvariant);
+    private static readonly Regex EmptyAttributePattern = new(
+        "\\s+[A-Za-z_][A-Za-z0-9_.:-]*=\\\"\\\"", RegexOptions.CultureInvariant);
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -82,6 +84,7 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
 
         var rendered = TokenPattern.Replace(templateResult.Template.Content, match =>
             ResolveToken(match.Groups["name"].Value, node, block, path, packs, context, errors, sourceMap));
+        rendered = EmptyAttributePattern.Replace(rendered, string.Empty);
         rendered = EmptyPropertyElementPattern.Replace(rendered, string.Empty);
         sourceMap.Add(new RenderSourceMapEntry(path, node.Kind, templateResult.Template.TemplatePath, rendered));
         return rendered;

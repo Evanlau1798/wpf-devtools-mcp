@@ -213,8 +213,11 @@ public sealed class ComposerRealWpfUiRuntimeTests
             tabView.Style.Should().BeSameAs(window.FindResource(typeof(TabControl)));
             tabView.Background.Should().BeOfType<SolidColorBrush>()
                 .Which.Color.A.Should().Be(0);
-            tabView.Items.OfType<WpfUiTabViewItem>().Should().ContainSingle()
-                .Which.Style.Should().BeSameAs(window.FindResource(typeof(TabItem)));
+            var tabItem = tabView.Items.OfType<WpfUiTabViewItem>().Should().ContainSingle().Subject;
+            tabItem.Style.Should().BeSameAs(window.FindResource(typeof(TabItem)));
+            var header = tabItem.Header.Should().BeOfType<TextBlock>().Subject;
+            header.ReadLocalValue(TextBlock.ForegroundProperty).Should().BeSameAs(DependencyProperty.UnsetValue);
+            header.Foreground.Should().BeSameAs(tabItem.Foreground);
         }
         finally
         {

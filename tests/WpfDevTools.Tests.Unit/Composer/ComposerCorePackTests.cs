@@ -136,18 +136,25 @@ public sealed class ComposerCorePackTests
     }
 
     [Fact]
-    public void CoreText_ShouldRemainThemeNeutralByDefault()
+    public void CoreText_ShouldInheritThemeForegroundUnlessExplicitlyConfigured()
     {
-        var blueprint = Blueprint(
+        var inheritedBlueprint = Blueprint(
             """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
             "core",
             """{ "kind": "core.text", "properties": { "text": "Theme neutral" } }""");
+        var explicitBlueprint = Blueprint(
+            """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
+            "core",
+            """{ "kind": "core.text", "properties": { "text": "Accent", "foreground": "#123456" } }""");
 
-        var result = new UiBlueprintRenderer(CreateRegistry()).Render(new RenderBlueprintRequest(blueprint));
+        var renderer = new UiBlueprintRenderer(CreateRegistry());
+        var inherited = renderer.Render(new RenderBlueprintRequest(inheritedBlueprint));
+        var explicitColor = renderer.Render(new RenderBlueprintRequest(explicitBlueprint));
 
-        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
-        result.Xaml.Should().NotContain("TextFillColorPrimaryBrush")
-            .And.NotContain("Foreground=\"\"");
+        inherited.Success.Should().BeTrue(inherited.Errors.FirstOrDefault()?.Message);
+        inherited.Xaml.Should().NotContain("Foreground=");
+        explicitColor.Success.Should().BeTrue(explicitColor.Errors.FirstOrDefault()?.Message);
+        explicitColor.Xaml.Should().Contain("Foreground=\"#123456\"");
     }
 
     [Fact]

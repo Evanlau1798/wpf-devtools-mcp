@@ -29,7 +29,7 @@ public sealed class ComposerWpfUiVisualFoundationTests
     }
 
     [Fact]
-    public void WpfUiCatalog_ShouldExcludeHostBackedControlsAndUnsupportedTabProperties()
+    public void WpfUiCatalog_ShouldExposeSupportedTabContractsAndExcludeHostBackedControls()
     {
         var items = new BlockCatalogService(CreateRegistry())
             .GetCatalog(new BlockCatalogQuery(PackIds: ["wpfui"]))

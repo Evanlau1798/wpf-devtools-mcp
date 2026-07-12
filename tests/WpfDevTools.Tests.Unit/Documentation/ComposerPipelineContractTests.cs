@@ -98,11 +98,13 @@ public sealed class ComposerPipelineContractTests
 
         english.Should().Contain("Serialize the `blueprint` object");
         english.Should().Contain("pass it under the `blueprintJson` parameter name");
-        english.Should().Contain("8,192 characters");
+        english.Should().Contain("65,536 characters");
+        english.Should().Contain("host-backed controls");
         english.Should().Contain("ConvertTo-Json -Depth 100 -Compress");
         zhTw.Should().Contain("將 `blueprint` object 序列化");
         zhTw.Should().Contain("以 `blueprintJson` 參數名稱傳入");
-        zhTw.Should().Contain("8,192 字元");
+        zhTw.Should().Contain("65,536 字元");
+        zhTw.Should().Contain("需要 host 的控制項");
         zhTw.Should().Contain("ConvertTo-Json -Depth 100 -Compress");
     }
 

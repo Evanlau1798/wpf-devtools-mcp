@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -419,7 +420,7 @@ public class McpToolAttributeTests
             .Where(method => method.GetParameters().Any(parameter => parameter.Name == "blueprintJson")).Select(method => method.Name).ToArray();
         composerBlueprintMethods.Should().NotBeEmpty();
         foreach (var methodName in composerBlueprintMethods)
-            AssertStringMaxLength(CreateInputSchema(typeof(UiComposerMcpTools), methodName), "blueprintJson", 8192);
+            AssertStringMaxLength(CreateInputSchema(typeof(UiComposerMcpTools), methodName), "blueprintJson", BoundaryStringLimits.MaxStringifiedJsonArgumentLength);
         var previewSchema = CreateInputSchema(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint));
         AssertEnumConstraint(previewSchema, "screenshotOutputMode", "metadata", "file");
     }

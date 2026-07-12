@@ -91,11 +91,13 @@ Request options:
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
-The response includes `valid`, `recipeId`, the expanded `blueprint`, and the nested validation result. Built-in WPF UI starter recipes cover navigation shell, dashboard card, data grid page, dialog flow, and tabbed settings patterns.
+The response includes `valid`, `recipeId`, the expanded `blueprint`, and the nested validation result. Built-in WPF UI starter recipes cover navigation shell, dashboard card, data grid page, and tabbed settings patterns.
+
+The built-in catalog intentionally excludes host-backed controls such as WPF UI `Snackbar` and `ContentDialog`. Those controls require presenter, host, or runtime show behavior that a standalone layout node cannot represent safely. Runtime catalog discovery is authoritative; third-party packs may expose comparable controls only when their renderer and behavior contracts cover those requirements.
 
 Serialize the `blueprint` object from `structuredContent` to JSON text before the next Composer call, then pass it under the `blueprintJson` parameter name. Do not pass the object under a parameter named `blueprint`; validation, render, preview, repair, and apply intentionally share the same JSON-string document shape.
 
-Every Composer `blueprintJson` parameter accepts at most 8,192 characters. Use a compact serializer so formatting whitespace does not consume that limit. In PowerShell, serialize the structured blueprint object with `$blueprint | ConvertTo-Json -Depth 100 -Compress`; the explicit depth preserves nested properties in built-in recipes. Other clients should disable indentation when serializing the expanded object.
+Every Composer `blueprintJson` parameter accepts at most 65,536 characters. Use a compact serializer so formatting whitespace does not consume that limit. In PowerShell, serialize the structured blueprint object with `$blueprint | ConvertTo-Json -Depth 100 -Compress`; the explicit depth preserves nested properties in built-in recipes. Other clients should disable indentation when serializing the expanded object.
 
 ## `render_ui_blueprint`
 

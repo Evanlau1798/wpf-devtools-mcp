@@ -54,6 +54,7 @@ public static class BoundaryJsonStringValidator
 
     private static readonly HashSet<string> StringifiedJsonProperties = new(StringComparer.OrdinalIgnoreCase)
     {
+        "blueprintJson",
         "captureSnapshot",
         "triggerMutation"
     };

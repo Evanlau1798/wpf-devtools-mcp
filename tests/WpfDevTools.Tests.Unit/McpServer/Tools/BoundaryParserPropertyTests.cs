@@ -41,6 +41,8 @@ public sealed class BoundaryParserPropertyTests
     [InlineData("propertyName", BoundaryStringLimits.MaxLabelLength + 1, false)]
     [InlineData("captureSnapshot", BoundaryStringLimits.MaxStringifiedJsonArgumentLength, true)]
     [InlineData("captureSnapshot", BoundaryStringLimits.MaxStringifiedJsonArgumentLength + 1, false)]
+    [InlineData("blueprintJson", BoundaryStringLimits.MaxStringifiedJsonArgumentLength, true)]
+    [InlineData("blueprintJson", BoundaryStringLimits.MaxStringifiedJsonArgumentLength + 1, false)]
     [InlineData("customPayload", BoundaryStringLimits.MaxStringArgumentLength, true)]
     [InlineData("customPayload", BoundaryStringLimits.MaxStringArgumentLength + 1, false)]
     public void BoundaryParameterValidator_ShouldApplyConfiguredStringLimits(

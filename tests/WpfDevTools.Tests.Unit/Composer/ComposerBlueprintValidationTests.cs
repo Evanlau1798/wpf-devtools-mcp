@@ -3,6 +3,7 @@ using FluentAssertions;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Shared.Validation;
 using WpfDevTools.Tests.Unit.TestSupport;
 
 namespace WpfDevTools.Tests.Unit.Composer;
@@ -347,9 +348,11 @@ public sealed class ComposerBlueprintValidationTests
             payload.GetProperty("errors")[0].GetProperty("jsonPath").GetString().Should().Be("$.layout");
             var size = payload.GetProperty("blueprintSize");
             size.GetProperty("currentCharacters").GetInt32().Should().Be(blueprintJson.Length);
-            size.GetProperty("maximumCharacters").GetInt32().Should().Be(8192);
-            size.GetProperty("remainingCharacters").GetInt32().Should().Be(8192 - blueprintJson.Length);
-            size.GetProperty("utilizationPercent").GetDouble().Should().BeApproximately(blueprintJson.Length * 100d / 8192, 0.01);
+            size.GetProperty("maximumCharacters").GetInt32().Should().Be(BoundaryStringLimits.MaxStringifiedJsonArgumentLength);
+            size.GetProperty("remainingCharacters").GetInt32().Should().Be(BoundaryStringLimits.MaxStringifiedJsonArgumentLength - blueprintJson.Length);
+            size.GetProperty("utilizationPercent").GetDouble().Should().BeApproximately(
+                blueprintJson.Length * 100d / BoundaryStringLimits.MaxStringifiedJsonArgumentLength,
+                0.01);
         }
         finally
         {

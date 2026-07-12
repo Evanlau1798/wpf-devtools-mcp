@@ -282,6 +282,11 @@ public static class UiComposerMcpTools
             warningCount = result.Warnings.Count,
             errors = result.Errors,
             warnings = result.Warnings,
+            blueprintSize = new {
+                currentCharacters = blueprintJson.Length,
+                maximumCharacters = BoundaryStringLimits.MaxStringArgumentLength,
+                remainingCharacters = BoundaryStringLimits.MaxStringArgumentLength - blueprintJson.Length,
+                utilizationPercent = blueprintJson.Length * 100d / BoundaryStringLimits.MaxStringArgumentLength },
             diagnostics = result.Diagnostics,
             observability = ComposerObservability.ForBlueprintValidation(result)
         };

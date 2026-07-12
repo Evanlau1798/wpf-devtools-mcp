@@ -81,6 +81,19 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("description");
         description.Should().Contain("previewWarning");
         description.Should().Contain("pack-defined");
+        description.Should().Contain("compositionSkeleton");
+        description.Should().Contain("pack-neutral");
+    }
+
+    [Fact]
+    public void ValidateUiBlueprintDescription_ShouldExplainSizeBudget()
+    {
+        var description = GetMcpTools()
+            .Single(tool => string.Equals(tool.Name, "validate_ui_blueprint", StringComparison.Ordinal))
+            .Description;
+
+        description.Should().Contain("blueprintSize");
+        description.Should().Contain("remainingCharacters");
     }
 
     private static IEnumerable<(string Name, string Description)> GetMcpTools()

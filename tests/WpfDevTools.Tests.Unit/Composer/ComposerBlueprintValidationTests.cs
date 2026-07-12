@@ -330,12 +330,11 @@ public sealed class ComposerBlueprintValidationTests
         var tempRoot = CreateTempDirectory();
         try
         {
+            var blueprintJson = Blueprint("""
+                { "layout": { "kind": "button" } }
+                """);
             var result = await UiComposerMcpTools.ValidateUiBlueprint(
-                Blueprint("""
-                    {
-                      "layout": { "kind": "button" }
-                    }
-                    """),
+                blueprintJson,
                 localAppDataRoot: tempRoot,
                 cancellationToken: CancellationToken.None);
 
@@ -346,6 +345,11 @@ public sealed class ComposerBlueprintValidationTests
             payload.GetProperty("errorCount").GetInt32().Should().Be(1);
             payload.GetProperty("errors")[0].GetProperty("code").GetString().Should().Be("UnqualifiedBlockKind");
             payload.GetProperty("errors")[0].GetProperty("jsonPath").GetString().Should().Be("$.layout");
+            var size = payload.GetProperty("blueprintSize");
+            size.GetProperty("currentCharacters").GetInt32().Should().Be(blueprintJson.Length);
+            size.GetProperty("maximumCharacters").GetInt32().Should().Be(8192);
+            size.GetProperty("remainingCharacters").GetInt32().Should().Be(8192 - blueprintJson.Length);
+            size.GetProperty("utilizationPercent").GetDouble().Should().BeApproximately(blueprintJson.Length * 100d / 8192, 0.01);
         }
         finally
         {

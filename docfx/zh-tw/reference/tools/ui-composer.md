@@ -62,10 +62,10 @@ Catalog entries 只包含 source hint paths，不會把第三方 source code 複
 
 Pack author 可為 blocks、properties 與 slots 提供 inert `description` text。當 structural preview 的 measurement 或 styling 可能與 final package 不同時，property 也可提供 `previewWarning`。選擇值之前應先讀取這些 pack-defined fields；它們能說明 renderer 行為，而不需在 Composer 加入 library-specific logic。
 
-只有 fragment 的 `compositionExamples` 會標示 `placementMode` 與具體的
-`compatibleParentSlots`。可直接使用配對的 `wrapperBlueprint` 作為能夠 validate
-或 render 的完整最小 blueprint，亦可將其 `fragment` 放入較大 blueprint 所列出的
-parent slot 之一。
+每個 catalog item 都包含依該 block 自身 contract 產生的 pack-neutral
+`compositionSkeleton`。其中會提供精確 `kind`、required properties 的值，以及
+declared slots 的空陣列。Agent 可直接將此 compact node 放入 blueprint，再加入
+children 或 optional properties，不必手動重打 pack-specific kind 與 slot names。
 
 ## `validate_ui_blueprint`
 
@@ -77,7 +77,7 @@ Request options:
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
-完成 validation 呼叫時 response 會維持 `success=true`，並用 `valid` 表示 blueprint 是否有效。Validation issues 會包含 `jsonPath`、`code`、`message`、`repairSuggestion`，以及相關的 `allowedKinds` 或 `allowedValues`。
+完成 validation 呼叫時 response 會維持 `success=true`，並用 `valid` 表示 blueprint 是否有效。Validation issues 會包含 `jsonPath`、`code`、`message`、`repairSuggestion`，以及相關的 `allowedKinds` 或 `allowedValues`。`blueprintSize` 會回傳 `currentCharacters`、`maximumCharacters`、`remainingCharacters` 與 `utilizationPercent`，讓 Agent 能在碰到 public input limit 前先精簡文件。
 
 ## `expand_ui_recipe`
 

@@ -37,11 +37,10 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this for live WPF runtime inspection or to read third-party source code. Use scene tools for running target state.
 
         RESPONSE SUMMARY:
-        - Returns success, itemCount, items, compositionExampleCount, compositionExamples, and diagnostics.
-        - Each item includes packId, packVersion, kind, displayName, pack-defined description, category, properties, slots, allowedKinds, rendererAvailable, and sourceHintSummary.
+        - Returns success, itemCount, items, and diagnostics.
+        - Each item includes packId, packVersion, kind, displayName, pack-defined description, category, properties, slots, allowedKinds, rendererAvailable, compositionSkeleton, and sourceHintSummary.
         - Property and slot description fields explain renderer semantics. A property previewWarning identifies pack-defined final-app checks without executing pack code.
-        - compositionExamples includes compact machine-readable core layout fragments, such as stack with multiple cards, when the required pack is in scope.
-        - Fragment examples expose placementMode, compatibleParentSlots, and a complete wrapperBlueprint that can be validated or rendered directly.
+        - compositionSkeleton is a compact pack-neutral node fragment generated from that block's own required properties and declared slots. Copy it into a blueprint instead of retyping kind and slot names.
         - Catalog source hints are path summaries only and do not include copied third-party source text.
 
         REQUEST OPTIONS:
@@ -69,8 +68,9 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this for live WPF runtime inspection or mutation. Use connect and scene tools for a running target application.
 
         RESPONSE SUMMARY:
-        - Returns success, valid, errorCount, warningCount, errors, warnings, and diagnostics.
+        - Returns success, valid, errorCount, warningCount, errors, warnings, blueprintSize, and diagnostics.
         - Errors and warnings include jsonPath, code, message, repairSuggestion, and relevant allowedKinds or allowedValues.
+        - blueprintSize reports currentCharacters, maximumCharacters, remainingCharacters, and utilizationPercent for the public blueprintJson limit.
         - valid=false is a validation result, not an MCP transport failure.
 
         REQUEST OPTIONS:

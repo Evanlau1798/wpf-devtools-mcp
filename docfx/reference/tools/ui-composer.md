@@ -62,10 +62,11 @@ Catalog entries include source hint paths only. They do not copy third-party sou
 
 Pack authors can provide inert `description` text for blocks, properties, and slots. Properties can also provide `previewWarning` when structural preview may differ from final package measurement or styling. Read these pack-defined fields before choosing values; they describe renderer behavior without adding library-specific logic to Composer.
 
-Fragment-only `compositionExamples` identify `placementMode` and concrete
-`compatibleParentSlots`. Use the matching `wrapperBlueprint` as a complete
-minimal blueprint that can be validated or rendered directly, or place its
-`fragment` under one of the advertised parent slots in a larger blueprint.
+Every catalog item includes a pack-neutral `compositionSkeleton` generated from
+that block's own contract. It contains the exact `kind`, values for required
+properties, and empty arrays for declared slots. Copy the compact node into a
+blueprint and add children or optional properties without retyping pack-specific
+kind and slot names.
 
 ## `validate_ui_blueprint`
 
@@ -77,7 +78,7 @@ Request options:
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
-The response keeps `success=true` for a completed validation call and reports blueprint validity in `valid`. Validation issues include `jsonPath`, `code`, `message`, `repairSuggestion`, and relevant `allowedKinds` or `allowedValues`.
+The response keeps `success=true` for a completed validation call and reports blueprint validity in `valid`. Validation issues include `jsonPath`, `code`, `message`, `repairSuggestion`, and relevant `allowedKinds` or `allowedValues`. `blueprintSize` reports `currentCharacters`, `maximumCharacters`, `remainingCharacters`, and `utilizationPercent` so an agent can simplify the document before it reaches the public input limit.
 
 ## `expand_ui_recipe`
 

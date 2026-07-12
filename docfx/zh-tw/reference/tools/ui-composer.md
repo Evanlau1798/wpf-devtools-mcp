@@ -25,6 +25,7 @@ Composer 目前支援下列 v1 contracts；`schemaVersion` 缺失或不同時會
 - Built-in WPF UI visual set 包含 `wpfui.numberBox`、`wpfui.toggleSwitch`、`wpfui.progressRing`，也提供可設定的 typography、margin、padding、alignment、width 與 window content constraints。
 - Property contract 可宣告 `minimum`、`maximum`、`integer`、`thickness` 與 `gridLength` constraints。Slot `allowedKinds` 接受 exact qualified kind、`*` 或 `<pack-id>.*`；`xamlItemTemplate` 會對每個 child 套用宣告的 wrapper。
 - 會輸出 pack XML namespace 的第三方 renderer 必須在 `pack.json` 宣告安全 structural preview metadata。Composer 依 metadata 產生 preview types；使用 custom namespace 卻缺少 contract 時回傳 `PreviewContractMissing`。只輸出 native controls 的第三方 renderer 不需要 stub contract。Pack 不可提供 arbitrary preview C#。
+- Preview metadata 保持 pack-neutral：語意子類別若套用以原生基底為 TargetType 的樣式，應使用 `tabControl` 或 `tabItem`。`SelectedIndex` 與 `Header` 等原生繼承屬性不需要重複宣告。沒有 authored value 的 renderer attribute 會被省略；除非 blueprint 明確覆寫目前 theme，否則不要設定 `Foreground` 等可繼承 visual property。
 
 建立原創 app 時，先以 `includeRecipes=false` 呼叫 `get_ui_block_catalog`，依 available capabilities 決定 creative brief。稍後再把 recipes 當作 optional accelerator；不要讓第一個 recipe 決定 app concept。
 

@@ -25,6 +25,7 @@ This contract is still pre-release. Beta builds may intentionally correct v1 sha
 - The built-in WPF UI visual set includes `wpfui.numberBox`, `wpfui.toggleSwitch`, and `wpfui.progressRing`, plus configurable typography, margin, padding, alignment, width, and window content constraints.
 - Property contracts can expose `minimum`, `maximum`, `integer`, `thickness`, and `gridLength` constraints. Slot `allowedKinds` accepts exact qualified kinds, `*`, or `<pack-id>.*`; `xamlItemTemplate` applies a declared wrapper to each child.
 - Third-party renderers that emit a pack XML namespace declare safe structural preview metadata in `pack.json`. Composer generates preview types from that metadata and returns `PreviewContractMissing` when a used custom namespace has no contract. Native-only third-party renderers need no stub contract. Packs cannot provide arbitrary preview C#.
+- Preview metadata remains pack-neutral: use `tabControl` or `tabItem` for semantic subclasses that receive native base-targeted styles. Native inherited properties such as `SelectedIndex` and `Header` need no duplicate declaration. Renderer attributes with no authored value are omitted; leave inheritable visual properties such as `Foreground` unset unless the blueprint explicitly overrides the active theme.
 
 For an original app, query `get_ui_block_catalog` with `includeRecipes=false` first and choose a creative brief from available capabilities. Request recipes later as optional accelerators; do not let the first recipe determine the app concept.
 

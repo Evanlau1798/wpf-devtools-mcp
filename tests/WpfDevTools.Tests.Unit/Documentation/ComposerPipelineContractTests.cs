@@ -119,6 +119,16 @@ public sealed class ComposerPipelineContractTests
     }
 
     [Fact]
+    public void UiComposerDocs_ShouldDocumentPackNeutralTabPreviewInheritance()
+    {
+        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
+        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
+
+        english.Should().ContainAll("`tabControl`", "`tabItem`", "inherited properties", "Foreground");
+        zhTw.Should().ContainAll("`tabControl`", "`tabItem`", "繼承屬性", "Foreground");
+    }
+
+    [Fact]
     public void UiComposerDocs_ShouldPublishCompleteApplyToRunningAppWorkflow()
     {
         var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");

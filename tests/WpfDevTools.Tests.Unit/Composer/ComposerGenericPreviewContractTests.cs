@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Text.Json.Nodes;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Tests.Unit.TestSupport;
@@ -93,6 +94,36 @@ public sealed class ComposerGenericPreviewContractTests
 
             result.Success.Should().BeFalse();
             result.Diagnostics.Should().ContainSingle(diagnostic => diagnostic.Code == "PreviewContractInvalid");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Theory]
+    [InlineData("tabControl", "SelectedIndex")]
+    [InlineData("tabItem", "Header")]
+    public async Task PreviewBlueprint_ShouldRejectRedeclaredNativeTabProperty(
+        string baseKind,
+        string propertyName)
+    {
+        var projectRoot = CreateProjectPack(includePreview: true, baseKind: "contentControl");
+        try
+        {
+            var packFile = Path.Combine(projectRoot, ".wpfdevtools", "packs", "sample", "1.0.0", "pack.json");
+            var pack = JsonNode.Parse(File.ReadAllText(packFile))!.AsObject();
+            var panel = pack["preview"]!["types"]!["Panel"]!.AsObject();
+            panel["baseKind"] = baseKind;
+            panel.Remove("contentProperty");
+            panel["properties"] = new JsonObject { [propertyName] = "object" };
+            File.WriteAllText(packFile, pack.ToJsonString());
+
+            var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot)).PreviewAsync(
+                new PreviewBlueprintRequest(Blueprint("sample.panel"), RestoreEnabled: false));
+
+            result.Diagnostics.Should().ContainSingle(diagnostic => diagnostic.Code == "PreviewContractInvalid")
+                .Which.Message.Should().ContainAll(propertyName, "inherited");
         }
         finally
         {

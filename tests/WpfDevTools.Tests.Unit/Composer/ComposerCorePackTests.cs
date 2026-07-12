@@ -146,15 +146,22 @@ public sealed class ComposerCorePackTests
             """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
             "core",
             """{ "kind": "core.text", "properties": { "text": "Accent", "foreground": "#123456" } }""");
+        var explicitEmptyTextBlueprint = Blueprint(
+            """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
+            "core",
+            """{ "kind": "core.text", "properties": { "text": "" } }""");
 
         var renderer = new UiBlueprintRenderer(CreateRegistry());
         var inherited = renderer.Render(new RenderBlueprintRequest(inheritedBlueprint));
         var explicitColor = renderer.Render(new RenderBlueprintRequest(explicitBlueprint));
+        var explicitEmptyText = renderer.Render(new RenderBlueprintRequest(explicitEmptyTextBlueprint));
 
         inherited.Success.Should().BeTrue(inherited.Errors.FirstOrDefault()?.Message);
         inherited.Xaml.Should().NotContain("Foreground=");
         explicitColor.Success.Should().BeTrue(explicitColor.Errors.FirstOrDefault()?.Message);
         explicitColor.Xaml.Should().Contain("Foreground=\"#123456\"");
+        explicitEmptyText.Success.Should().BeTrue(explicitEmptyText.Errors.FirstOrDefault()?.Message);
+        explicitEmptyText.Xaml.Should().Contain("Text=\"\"");
     }
 
     [Fact]

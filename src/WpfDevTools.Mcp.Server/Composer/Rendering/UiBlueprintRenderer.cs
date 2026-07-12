@@ -7,7 +7,7 @@ using WpfDevTools.Mcp.Server.Composer.Packs;
 
 namespace WpfDevTools.Mcp.Server.Composer.Rendering;
 
-internal sealed class UiBlueprintRenderer(PackRegistry registry)
+internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
 {
     private static readonly Regex TokenPattern = new(
         @"\{\{\s*(?<name>[A-Za-z0-9_.-]+)\s*\}\}",
@@ -16,9 +16,6 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
     private static readonly Regex EmptyPropertyElementPattern = new(
         @"\s*<(?<prefix>[A-Za-z_][A-Za-z0-9_]*):(?<type>[A-Za-z_][A-Za-z0-9_]*)\.(?<property>[A-Za-z_][A-Za-z0-9_]*)>\s*</\k<prefix>:\k<type>\.\k<property>>",
         RegexOptions.CultureInvariant);
-    private static readonly Regex EmptyAttributePattern = new(
-        "\\s+[A-Za-z_][A-Za-z0-9_.:-]*=\\\"\\\"", RegexOptions.CultureInvariant);
-
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
@@ -82,9 +79,9 @@ internal sealed class UiBlueprintRenderer(PackRegistry registry)
             return string.Empty;
         }
 
-        var rendered = TokenPattern.Replace(templateResult.Template.Content, match =>
+        var template = OmitUnsetPropertyAttributes(templateResult.Template.Content, node, block);
+        var rendered = TokenPattern.Replace(template, match =>
             ResolveToken(match.Groups["name"].Value, node, block, path, packs, context, errors, sourceMap));
-        rendered = EmptyAttributePattern.Replace(rendered, string.Empty);
         rendered = EmptyPropertyElementPattern.Replace(rendered, string.Empty);
         sourceMap.Add(new RenderSourceMapEntry(path, node.Kind, templateResult.Template.TemplatePath, rendered));
         return rendered;

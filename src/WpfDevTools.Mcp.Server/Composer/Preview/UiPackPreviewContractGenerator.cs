@@ -33,6 +33,12 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
         ["object"] = "object?",
         ["objectCollection"] = "ObservableCollection<object>"
     };
+    private static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> NativeTabProperties =
+        new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
+        {
+            ["tabControl"] = new HashSet<string>(["SelectedIndex", "SelectedItem", "SelectedValue", "SelectedValuePath"], StringComparer.Ordinal),
+            ["tabItem"] = new HashSet<string>(["Header", "HeaderStringFormat", "HeaderTemplate", "IsSelected"], StringComparer.Ordinal)
+        };
     private static readonly IReadOnlySet<string> ContentCapableBaseKinds = new HashSet<string>(StringComparer.Ordinal)
     {
         "button",
@@ -162,6 +168,12 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
 
             foreach (var (propertyName, propertyType) in type.Properties)
             {
+                if (NativeTabProperties.TryGetValue(type.BaseKind, out var inherited)
+                    && inherited.Contains(propertyName))
+                {
+                    return $"Pack '{packId}' preview property '{typeName}.{propertyName}' redeclares an inherited '{type.BaseKind}' property.";
+                }
+
                 if (!IdentifierPattern.IsMatch(propertyName) || !PropertyTypes.ContainsKey(propertyType))
                 {
                     return $"Pack '{packId}' preview property '{typeName}.{propertyName}' is unsafe.";

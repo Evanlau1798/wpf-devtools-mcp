@@ -83,28 +83,31 @@ public class BuildConfigurationTests
             .And.Contain("FullyQualifiedName!~ComposerGenericPreviewContractTests")
             .And.Contain("FullyQualifiedName!~ComposerPreviewRecipeRuntimeTests",
                 "external-build Composer tests belong to the dedicated Release Composer lane rather than the Debug coverage rerun");
+        coverageTestStep.Should().Contain("FullyQualifiedName!~WpfDevTools.Tests.Unit.Release")
+            .And.NotContain("FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation",
+                "Debug coverage should own documentation contracts after removing the duplicate Release general-unit lane");
     }
 
     [Fact]
-    public void BuildAndTestWorkflow_ShouldRunExplicitNoBuildTestProjectLanes()
+    public void BuildAndTestWorkflow_ShouldAvoidDuplicateReleaseGeneralUnitLane()
     {
         var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/ci-cd.yml"));
         var content = string.Join('\n', lines);
-        var unitTestStep = GetNamedStepBlock(lines, "Run unit tests");
         var integrationTestStep = GetNamedStepBlock(lines, "Run integration tests");
+        var composerTestStep = GetNamedStepBlock(lines, "Run Composer targeted unit and smoke tests");
+        var releaseUnitTestStep = GetNamedStepBlock(lines, "Run release unit tests");
 
-        content.Should().Contain("name: Run unit tests");
-        content.Should().Contain("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --configuration ${{ matrix.configuration }} --no-build",
-            "CI should shard unit tests into an explicit no-build project invocation instead of a broad solution test run");
+        content.Should().NotContain("name: Run unit tests",
+            "Debug coverage owns general unit correctness, so Release should not rerun the same suite");
         content.Should().Contain("name: Run integration tests");
         content.Should().Contain("dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build",
             "CI should shard integration tests into an explicit no-build project invocation instead of a broad solution test run");
         content.Should().NotContain("dotnet test --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}",
             "the broad solution-level test command should be replaced by project-specific lanes");
-        unitTestStep.Should().Contain("      if: matrix.configuration == 'Release' && matrix.platform == 'x64'",
-            "Debug correctness is covered by the blocking coverage lane, while Release retains the full contract suite");
-        string.Join('\n', unitTestStep).Should().Contain("--filter FullyQualifiedName!~WpfDevTools.Tests.Unit.Composer",
-            "the dedicated Release Composer job should own Composer execution instead of rerunning it in the full Release unit lane");
+        string.Join('\n', composerTestStep).Should().Contain("--filter FullyQualifiedName~Composer",
+            "the dedicated Release Composer lane should own all Composer tests");
+        string.Join('\n', releaseUnitTestStep).Should().Contain("-IncludeReleaseUnit",
+            "release-specific tests should remain owned by the sharded release lane");
         integrationTestStep.Should().Contain("      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'",
             "integration tests should only run on the hosted architecture that has matching runtime dependencies");
     }

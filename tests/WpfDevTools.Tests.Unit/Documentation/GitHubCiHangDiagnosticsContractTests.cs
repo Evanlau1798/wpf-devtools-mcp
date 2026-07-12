@@ -7,7 +7,6 @@ public sealed class GitHubCiHangDiagnosticsContractTests
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Theory]
-    [InlineData("Run unit tests", "unit-${{ matrix.configuration }}-${{ matrix.platform }}.trx", "./TestResults/${{ matrix.configuration }}/unit", "20")]
     [InlineData("Run integration tests", "integration-${{ matrix.configuration }}-${{ matrix.platform }}.trx", "./TestResults/${{ matrix.configuration }}/integration", "20")]
     public void BuildAndTestWorkflow_TestSteps_ShouldFailFastAndPersistHangDiagnostics(
         string stepName,
@@ -81,8 +80,8 @@ public sealed class GitHubCiHangDiagnosticsContractTests
         step.Should().Contain("--logger \"trx;LogFileName=coverage-debug.trx\"",
             "coverage failures should leave a structured TRX file for hosted CI and GitHub artifacts");
         step.Should().Contain("--results-directory ./TestResults/coverage");
-        step.Should().Contain("--filter \"FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation&FullyQualifiedName!~ComposerPreviewCompileTests&FullyQualifiedName!~ComposerGenericPreviewContractTests&FullyQualifiedName!~ComposerPreviewRecipeRuntimeTests\"",
-            "release and documentation contracts already run in unit lanes and do not contribute managed coverage");
+        step.Should().Contain("--filter \"FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~ComposerPreviewCompileTests&FullyQualifiedName!~ComposerGenericPreviewContractTests&FullyQualifiedName!~ComposerPreviewRecipeRuntimeTests\"",
+            "release contracts have a dedicated lane while documentation contracts now run in coverage instead of a duplicate Release unit lane");
     }
 
     [Fact]

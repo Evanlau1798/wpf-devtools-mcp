@@ -103,7 +103,13 @@ public sealed class ComposerGenericPreviewContractTests
 
     [Theory]
     [InlineData("tabControl", "SelectedIndex")]
+    [InlineData("tabControl", "SelectedItem")]
+    [InlineData("tabControl", "SelectedValue")]
+    [InlineData("tabControl", "SelectedValuePath")]
     [InlineData("tabItem", "Header")]
+    [InlineData("tabItem", "HeaderStringFormat")]
+    [InlineData("tabItem", "HeaderTemplate")]
+    [InlineData("tabItem", "IsSelected")]
     public async Task PreviewBlueprint_ShouldRejectRedeclaredNativeTabProperty(
         string baseKind,
         string propertyName)

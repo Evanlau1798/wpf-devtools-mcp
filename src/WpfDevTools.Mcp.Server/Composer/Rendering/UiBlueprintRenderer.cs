@@ -138,7 +138,8 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             return childXaml;
         }
 
-        return TokenPattern.Replace(slot.XamlItemTemplate, match =>
+        var itemTemplate = OmitUnsetPropertyAttributes(slot.XamlItemTemplate, node, block);
+        return TokenPattern.Replace(itemTemplate, match =>
         {
             var token = match.Groups["name"].Value;
             if (token == "item")

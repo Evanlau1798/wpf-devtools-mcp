@@ -83,9 +83,7 @@ public class BuildConfigurationTests
             .And.Contain("FullyQualifiedName!~ComposerGenericPreviewContractTests")
             .And.Contain("FullyQualifiedName!~ComposerPreviewRecipeRuntimeTests",
                 "external-build Composer tests belong to the dedicated Release Composer lane rather than the Debug coverage rerun");
-        coverageTestStep.Should().Contain("FullyQualifiedName!~WpfDevTools.Tests.Unit.Release")
-            .And.NotContain("FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation",
-                "Debug coverage should own documentation contracts after removing the duplicate Release general-unit lane");
+        coverageTestStep.Should().Contain("FullyQualifiedName!~WpfDevTools.Tests.Unit.Release");
     }
 
     [Fact]

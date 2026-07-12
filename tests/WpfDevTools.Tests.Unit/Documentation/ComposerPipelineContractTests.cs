@@ -39,10 +39,11 @@ public sealed class ComposerPipelineContractTests
     }
 
     [Fact]
-    public void ReleasePipeline_ShouldGateStagedProductionPublishing()
+    public void ReleasePipeline_ShouldGatePublishingAndIndependentCiLaneOwnership()
     {
         var releaseWorkflow = ReadRepoFile(".github/workflows/release.yml");
         var releaseExportScript = ReadRepoFile("scripts/tools/packaging/Export-GitHubReleaseAssets.ps1");
+        var ciWorkflow = ReadRepoFile(".github/workflows/ci-cd.yml");
 
         releaseWorkflow.Should().Contain("Resolve release tag");
         releaseWorkflow.Should().Contain("must be a v-prefixed SemVer tag");
@@ -61,6 +62,9 @@ public sealed class ComposerPipelineContractTests
         uploadReleaseAssetsJob.Should().Contain("gh release create");
         uploadReleaseAssetsJob.Should().Contain("Upload staged assets to GitHub Release");
         releaseWorkflow.Should().Contain("Upload staged assets to GitHub Release");
+        ciWorkflow.Should().Contain("--filter FullyQualifiedName~Composer");
+        ciWorkflow.Should().NotContain("FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation",
+            "this Composer-owned contract must independently prevent Documentation tests from disappearing from coverage");
     }
 
     [Fact]

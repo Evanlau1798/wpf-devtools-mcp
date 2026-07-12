@@ -26,7 +26,6 @@ public sealed class DependencyPropertyAnalyzerWatchEventTests : IDisposable
 
         analyzer.WatchChanges("Width", elementId);
         button.Width = 120;
-        Thread.Sleep(50);
 
         var events = buffer.GetSnapshot();
         events.Should().ContainSingle();
@@ -48,7 +47,6 @@ public sealed class DependencyPropertyAnalyzerWatchEventTests : IDisposable
         analyzer.WatchChanges("Width", elementId);
         button.Width = 100;
         button.Width = 200;
-        Thread.Sleep(50);
 
         var events = buffer.GetSnapshot();
         events.Should().ContainSingle();

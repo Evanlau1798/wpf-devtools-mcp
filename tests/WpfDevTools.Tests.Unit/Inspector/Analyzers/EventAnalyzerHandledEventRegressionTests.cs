@@ -53,8 +53,6 @@ public class EventAnalyzerHandledEventRegressionTests
         var fireResult = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(analyzer.FireRoutedEvent(elementId, "Click", null)));
         fireResult.GetProperty("success").GetBoolean().Should().BeTrue(fireResult.GetRawText());
 
-        Thread.Sleep(25);
-
         var payload = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(analyzer.GetEventTrace()));
         payload.GetProperty("success").GetBoolean().Should().BeTrue();
         payload.GetProperty("eventCount").GetInt32().Should().BeGreaterThan(0);
@@ -74,8 +72,6 @@ public class EventAnalyzerHandledEventRegressionTests
 
         var fireResult = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(analyzer.FireRoutedEvent(elementId, "Click", null)));
         fireResult.GetProperty("success").GetBoolean().Should().BeTrue(fireResult.GetRawText());
-
-        Thread.Sleep(25);
 
         var payload = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(analyzer.GetEventTrace()));
         payload.GetProperty("success").GetBoolean().Should().BeTrue();

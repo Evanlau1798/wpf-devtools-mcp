@@ -26,8 +26,6 @@ public sealed class EventAnalyzerWatchEventTests
             JsonSerializer.Serialize(analyzer.FireRoutedEvent(elementId, "Click", null)));
         fire.GetProperty("success").GetBoolean().Should().BeTrue();
 
-        Thread.Sleep(50);
-
         var events = buffer.GetSnapshot();
         events.Should().NotBeEmpty();
         events.Should().Contain(record => record.EventType == "RoutedEvent"

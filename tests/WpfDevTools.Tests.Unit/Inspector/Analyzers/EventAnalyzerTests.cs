@@ -162,8 +162,6 @@ public partial class EventAnalyzerTests
                 JsonSerializer.Serialize(interactionAnalyzer.ClickElement(cbId)));
             clickResult.GetProperty("success").GetBoolean().Should().BeTrue();
 
-            Thread.Sleep(50);
-
             // Get trace - should have captured events
             var trace = JsonSerializer.Deserialize<JsonElement>(
                 JsonSerializer.Serialize(eventAnalyzer.GetEventTrace()));
@@ -284,8 +282,6 @@ public partial class EventAnalyzerTests
             {
                 RoutedEvent = System.Windows.UIElement.MouseDownEvent
             });
-
-            Thread.Sleep(50);
 
             var trace = JsonSerializer.Deserialize<JsonElement>(
                 JsonSerializer.Serialize(eventAnalyzer.GetEventTrace()));

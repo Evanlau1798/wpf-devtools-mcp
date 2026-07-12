@@ -223,14 +223,11 @@ public class DependencyPropertyAnalyzerTests : IDisposable
         // Start watching
         analyzer.WatchChanges("Width", elementId);
 
-        // Act - Trigger more than 10000 changes
-        for (int i = 0; i < 12000; i++)
+        // Act - Trigger one more change than the retained log capacity.
+        for (int i = 0; i < 10001; i++)
         {
             button.Width = i;
         }
-
-        // Wait for all changes to be processed
-        System.Threading.Thread.Sleep(100);
 
         // Assert - Change log should be capped at 10000
         dynamic result = analyzer.GetChangeLog();
@@ -262,12 +259,11 @@ public class DependencyPropertyAnalyzerTests : IDisposable
         // Act - Trigger changes directly (avoid Dispatcher.Invoke deadlock on STA thread)
         for (int buttonIndex = 0; buttonIndex < buttons.Count; buttonIndex++)
         {
-            for (int i = 0; i < 3000; i++)
+            for (int i = 0; i < 2001; i++)
             {
                 buttons[buttonIndex].Width = i;
             }
         }
-        System.Threading.Thread.Sleep(200);
 
         // Assert - Total changes should be capped at 10000
         dynamic result = analyzer.GetChangeLog();
@@ -319,20 +315,18 @@ public class DependencyPropertyAnalyzerTests : IDisposable
         analyzer.WatchChanges("Width", elementId);
 
         // Trigger some initial changes
-        for (int i = 0; i < 100; i++)
+        for (int i = 0; i < 2; i++)
         {
             button.Width = i;
         }
-        System.Threading.Thread.Sleep(50);
 
         // Act - Clear log and then trigger more changes on STA thread
         dynamic clearResult = analyzer.ClearChangeLog();
 
-        for (int i = 0; i < 500; i++)
+        for (int i = 0; i < 2; i++)
         {
             button.Width = i;
         }
-        System.Threading.Thread.Sleep(100);
 
         // Assert - Clear should succeed
         ((bool)clearResult.success).Should().BeTrue();
@@ -342,8 +336,7 @@ public class DependencyPropertyAnalyzerTests : IDisposable
         ((bool)finalResult.success).Should().BeTrue();
         int finalCount = finalResult.changeCount;
 
-        // Should have some changes from after the clear, but not the initial 100
-        finalCount.Should().BeLessThan(600); // Less than total changes
+        finalCount.Should().Be(2, "only the two changes made after clearing should remain");
     }
 
     [StaFact]
@@ -397,7 +390,6 @@ public class DependencyPropertyAnalyzerTests : IDisposable
         dynamic unwatchResult = analyzer.UnwatchChanges("Width", elementId);
         button.Width = 100;
         button.Width = 200;
-        System.Threading.Thread.Sleep(50);
 
         // Assert - Unwatch should succeed
         ((bool)unwatchResult.success).Should().BeTrue();

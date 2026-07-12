@@ -18,43 +18,6 @@ public sealed class InstallerCursorClientInstallTests
     }
 
     [Fact]
-    public void OnlineInstaller_InstallScreen_ShouldRenderCursorAndCodexCliLabels()
-    {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
-        try
-        {
-            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
-            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
-            var userProfile = Path.Combine(tempRoot, "UserProfile");
-            Directory.CreateDirectory(appData);
-            Directory.CreateDirectory(localAppData);
-            Directory.CreateDirectory(userProfile);
-            var toolShimDirectory = Path.Combine(tempRoot, "tools");
-            Directory.CreateDirectory(toolShimDirectory);
-            File.WriteAllText(Path.Combine(toolShimDirectory, "codex.cmd"), "@echo off\r\nexit /b 0\r\n");
-
-            var result = RunInteractiveInstaller(tempRoot, appData, localAppData, userProfile, new[]
-            {
-                "$env:PATH='" + toolShimDirectory.Replace("'", "''") + ";' + $env:PATH",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Enter||Escape||Escape||Enter'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='96'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_HEIGHT='28'"
-            });
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain("Where would you like to install?");
-            result.Stdout.Should().Contain("Cursor");
-            result.Stdout.Should().Contain("Codex/Codex CLI");
-        }
-        finally
-        {
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
-        }
-    }
-
-    [Fact]
     public void OnlineInstaller_ShouldPersistCursorGlobalAndProjectRegistrationsSeparately()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
@@ -183,4 +146,5 @@ public sealed class InstallerCursorClientInstallTests
 
         return ReleaseScriptTestHarness.RunPowerShellCommand(string.Join(" ; ", commandParts));
     }
+
 }

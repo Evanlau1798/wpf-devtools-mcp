@@ -20,6 +20,7 @@ public sealed class InstallerTuiVisualRefinementTests
             Directory.CreateDirectory(userProfile);
             Directory.CreateDirectory(fakeBin);
             ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "code", Path.Combine(tempRoot, "code.log"));
+            ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "codex", Path.Combine(tempRoot, "codex.log"));
             ReleaseScriptTestHarness.CreateFakeCommand(fakeBin, "grok", Path.Combine(tempRoot, "grok.log"));
             var installerPath = string.Join(
                 Path.PathSeparator,
@@ -48,8 +49,13 @@ public sealed class InstallerTuiVisualRefinementTests
             result.Stdout.Should().Contain("Install location");
             result.Stdout.Should().NotContain("│ Exit");
             result.Stdout.Should().Contain("Where would you like to install?");
+            result.Stdout.Should().Contain("┌").And.Contain("┐").And.Contain("└").And.Contain("┘").And.Contain("│").And.Contain("─");
             result.Stdout.Should().Contain("Grok Build CLI");
+            result.Stdout.Should().Contain("Cursor");
+            result.Stdout.Should().Contain("Codex/Codex CLI");
             result.Stdout.Should().Contain("VS Code");
+            result.Stdout.Should().NotContain("Select this target to install or repair the MCP registration.");
+            result.Stdout.Should().NotContain("HomeScreen | x64");
             result.Stdout.Should().Contain("Confirm close");
             result.Stdout.Should().Contain("Press Enter once to close the installer");
         }

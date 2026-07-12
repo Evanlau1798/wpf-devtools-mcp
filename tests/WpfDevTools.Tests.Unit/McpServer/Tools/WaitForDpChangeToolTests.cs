@@ -209,7 +209,7 @@ public sealed class WaitForDpChangeToolTests
             beforePollDelayCalls++;
             if (beforePollDelayCalls == 1)
             {
-                await Task.Delay(4100);
+                await Task.Delay(120);
             }
         };
 
@@ -221,7 +221,7 @@ public sealed class WaitForDpChangeToolTests
                 {
                     processId,
                     propertyName = "Text",
-                    timeoutMs = 4000,
+                    timeoutMs = 100,
                     pollIntervalMs = 50,
                     expectedValue = JsonSerializer.SerializeToElement("after")
                 }),

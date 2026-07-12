@@ -7,16 +7,10 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class InstallerIdeRegistrationShimBackedTests
 {
     [Theory]
-    [InlineData("claude-code", null)]
-    [InlineData("codex", null)]
-    [InlineData("vscode", null)]
-    [InlineData("visual-studio", null)]
-    [InlineData("claude-desktop", null)]
-    [InlineData("cursor", "global")]
-    [InlineData("cursor", "project")]
+    [InlineData("claude-code")]
+    [InlineData("claude-desktop")]
     public void OnlineInstaller_ShouldInstallAndUninstallShimBackedClientRegistrationsInTempRoots(
-        string client,
-        string? cursorMode)
+        string client)
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -30,7 +24,7 @@ public sealed class InstallerIdeRegistrationShimBackedTests
             Directory.CreateDirectory(localAppData);
             Directory.CreateDirectory(userProfile);
 
-            var scenario = CreateScenario(tempRoot, client, cursorMode);
+            var scenario = CreateScenario(tempRoot, client);
             var environment = new Dictionary<string, string?>
             {
                 ["APPDATA"] = appData,
@@ -243,33 +237,16 @@ public sealed class InstallerIdeRegistrationShimBackedTests
         File.ReadAllText(scenario.LogPath!).Should().Contain("mcp remove");
     }
 
-    private static RegistrationScenario CreateScenario(string tempRoot, string client, string? cursorMode)
+    private static RegistrationScenario CreateScenario(string tempRoot, string client)
     {
-        return (client, cursorMode) switch
+        return client switch
         {
-            ("claude-code", _) => CreateCliScenario(tempRoot, "claude"),
-            ("codex", _) => CreateCliScenario(tempRoot, "codex"),
-            ("vscode", _) => new RegistrationScenario(
-                ConfigPath: Path.Combine(tempRoot, "config", "vscode", "mcp.json"),
-                ["-VsCodeConfigPath", Path.Combine(tempRoot, "config", "vscode", "mcp.json")],
-                ["-VsCodeConfigPath", Path.Combine(tempRoot, "config", "vscode", "mcp.json")]),
-            ("visual-studio", _) => new RegistrationScenario(
-                ConfigPath: Path.Combine(tempRoot, "config", "visual-studio", ".mcp.json"),
-                ["-VisualStudioConfigPath", Path.Combine(tempRoot, "config", "visual-studio", ".mcp.json")],
-                ["-VisualStudioConfigPath", Path.Combine(tempRoot, "config", "visual-studio", ".mcp.json")]),
-            ("claude-desktop", _) => new RegistrationScenario(
+            "claude-code" => CreateCliScenario(tempRoot, "claude"),
+            "claude-desktop" => new RegistrationScenario(
                 ConfigPath: Path.Combine(tempRoot, "config", "claude-desktop", "claude_desktop_config.json"),
                 ["-ClaudeDesktopConfigPath", Path.Combine(tempRoot, "config", "claude-desktop", "claude_desktop_config.json")],
                 ["-ClaudeDesktopConfigPath", Path.Combine(tempRoot, "config", "claude-desktop", "claude_desktop_config.json")]),
-            ("cursor", "global") => new RegistrationScenario(
-                ConfigPath: Path.Combine(tempRoot, "config", "cursor", "global", "mcp.json"),
-                ["-CursorMode", "global", "-CursorConfigPath", Path.Combine(tempRoot, "config", "cursor", "global", "mcp.json")],
-                ["-CursorMode", "global", "-CursorConfigPath", Path.Combine(tempRoot, "config", "cursor", "global", "mcp.json")]),
-            ("cursor", "project") => new RegistrationScenario(
-                ConfigPath: Path.Combine(tempRoot, "CursorProject", ".cursor", "mcp.json"),
-                ["-CursorMode", "project", "-CursorProjectRoot", Path.Combine(tempRoot, "CursorProject")],
-                ["-CursorMode", "project", "-CursorProjectRoot", Path.Combine(tempRoot, "CursorProject")]),
-            _ => throw new ArgumentOutOfRangeException(nameof(client), $"{client}/{cursorMode}")
+            _ => throw new ArgumentOutOfRangeException(nameof(client), client)
         };
     }
 

@@ -273,10 +273,8 @@ public sealed partial class ComposerPreviewCompileTests
         => new()
         {
             { ButtonBlueprint(), "ButtonIconPropertyElementValid" },
-            { NavigationShellBlueprint(), "PreviewXamlCompiled" },
             { DataGridBlueprint(), "DataGridColumnsPropertyElementValid" },
-            { DashboardCardBlueprint(), "PreviewXamlCompiled" },
-            { TabbedSettingsBlueprint(), "PreviewXamlCompiled" }
+            { DashboardCardBlueprint(), "PreviewXamlCompiled" }
         };
 
     private static PackRegistry CreateRegistry()

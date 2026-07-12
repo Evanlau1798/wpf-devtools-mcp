@@ -57,20 +57,24 @@ public sealed class ReleasePackagingIntegrationTests
         try
         {
             var outputRoot = Path.Combine(tempRoot, "release-output");
+            var buildLog = Path.Combine(tempRoot, "unexpected-msbuild.log");
+            var fakeMsbuild = ReleasePackagingTestHarness.CreateFakeCommand(tempRoot, "unexpected-msbuild", buildLog, "exit /b 1");
             var result = ReleasePackagingTestHarness.RunPowerShellScript(
                 ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1"),
                 new[] { "-Configuration", "Release", "-Architectures", "x64", "-OutputRoot", outputRoot },
                 new Dictionary<string, string?>
                 {
                     ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "1",
-                    ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "NotSigned"
+                    ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "NotSigned",
+                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuild
                 },
                 timeout: BuildReleaseTimeout);
 
             result.ExitCode.Should().NotBe(0);
             result.Stderr.Should().Contain("signature",
                 "Release packaging should refuse to emit RequireAuthenticodeSignature packages when payloads are unsigned");
-            Directory.GetFiles(outputRoot, "release_*_win-*.zip").Should().BeEmpty();
+            File.Exists(buildLog).Should().BeFalse("invalid signing policy should fail before native build execution");
+            Directory.Exists(outputRoot).Should().BeFalse("signing preflight should reject before creating release output");
         }
         finally
         {
@@ -85,19 +89,23 @@ public sealed class ReleasePackagingIntegrationTests
         try
         {
             var outputRoot = Path.Combine(tempRoot, "release-output");
+            var buildLog = Path.Combine(tempRoot, "unexpected-msbuild.log");
+            var fakeMsbuild = ReleasePackagingTestHarness.CreateFakeCommand(tempRoot, "unexpected-msbuild", buildLog, "exit /b 1");
             var result = ReleasePackagingTestHarness.RunPowerShellScript(
                 ReleasePackagingTestHarness.GetRepoFilePath("scripts/tools/build-release.ps1"),
                 new[] { "-Configuration", "Release", "-Architectures", "x64", "-OutputRoot", outputRoot },
                 new Dictionary<string, string?>
                 {
                     ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0",
-                    ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "Valid"
+                    ["WPFDEVTOOLS_TEST_SIGNATURE_STATUS"] = "Valid",
+                    ["WPFDEVTOOLS_PUBLISH_RELEASE_MSBUILD_PATH"] = fakeMsbuild
                 });
 
             result.ExitCode.Should().NotBe(0);
             result.Stderr.Should().Contain("WPFDEVTOOLS_TEST_SIGNATURE_STATUS",
                 "production packaging must not honor test-only signature overrides");
-            Directory.GetFiles(outputRoot, "release_*_win-*.zip").Should().BeEmpty();
+            File.Exists(buildLog).Should().BeFalse("test-only signing overrides should fail before native build execution");
+            Directory.Exists(outputRoot).Should().BeFalse("signing preflight should reject before creating release output");
         }
         finally
         {

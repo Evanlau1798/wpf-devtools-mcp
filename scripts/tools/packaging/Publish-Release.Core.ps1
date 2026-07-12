@@ -106,6 +106,30 @@ function Get-SignaturePolicy {
     return 'RequireAuthenticodeSignature'
 }
 
+function Assert-ReleaseSignatureOverridePreconditions {
+    param([Parameter(Mandatory)] [string]$SignaturePolicy)
+
+    if ($SignaturePolicy -ne 'RequireAuthenticodeSignature' -or
+        [string]::IsNullOrWhiteSpace([string]$env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS)) {
+        return
+    }
+
+    $isTestMode = [string]::Equals(
+        [string]$env:WPFDEVTOOLS_INSTALLER_TEST_MODE,
+        '1',
+        [System.StringComparison]::Ordinal)
+    if (-not $isTestMode) {
+        throw 'WPFDEVTOOLS_TEST_SIGNATURE_STATUS is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1.'
+    }
+
+    if (-not [string]::Equals(
+        [string]$env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS,
+        'Valid',
+        [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Release payload signature status '$($env:WPFDEVTOOLS_TEST_SIGNATURE_STATUS)' does not satisfy RequireAuthenticodeSignature."
+    }
+}
+
 function Normalize-ReleaseTag {
     param([Parameter(Mandatory)] [string]$Tag)
 

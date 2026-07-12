@@ -31,6 +31,9 @@ foreach ($helperLeafName in $publishReleaseHelperLeafNames) {
     . $helperPath
 }
 
+$signaturePolicy = Get-SignaturePolicy -BuildConfiguration $Configuration -ReleaseTrustMode $ReleaseTrustMode
+Assert-ReleaseSignatureOverridePreconditions -SignaturePolicy $signaturePolicy
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $serverProject = Join-Path $repoRoot 'src\WpfDevTools.Mcp.Server\WpfDevTools.Mcp.Server.csproj'
 $inspectorProject = Join-Path $repoRoot 'src\WpfDevTools.Inspector\WpfDevTools.Inspector.csproj'
@@ -65,7 +68,6 @@ foreach ($architecture in $resolvedArchitectures) {
     $runtimeId = Get-RuntimeId -Architecture $architecture
     $bootstrapperPlatform = Get-BootstrapperPlatform -Architecture $architecture
     $channel = Get-PackageChannel -BuildConfiguration $Configuration
-    $signaturePolicy = Get-SignaturePolicy -BuildConfiguration $Configuration -ReleaseTrustMode $ReleaseTrustMode
     $packageDir = Join-Path $outputRootFullPath "release_${version}_win-$architecture"
     $packageArchiveName = "release_${version}_win-$architecture.zip"
     $packageArchivePath = Join-Path $outputRootFullPath $packageArchiveName

@@ -39,8 +39,11 @@ public sealed class ComposerWpfUiVisualFoundationTests
             "wpfui.contentDialog",
             "wpfui.snackbar"
         ]);
-        items.Single(item => item.Kind == "wpfui.tabViewItem")
-            .Properties.Should().NotContainKey("isClosable");
+        var tabView = items.Single(item => item.Kind == "wpfui.tabView");
+        var tabViewItem = items.Single(item => item.Kind == "wpfui.tabViewItem");
+        tabViewItem.Properties.Should().NotContainKey("isClosable");
+        tabView.Description.Should().ContainEquivalentOf("themed");
+        tabViewItem.Description.Should().ContainEquivalentOf("themed");
     }
 
     [Fact]

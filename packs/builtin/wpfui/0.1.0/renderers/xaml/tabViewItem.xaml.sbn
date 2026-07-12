@@ -1,4 +1,4 @@
-<ui:TabViewItem>
+<ui:TabViewItem Style="{DynamicResource {x:Type TabItem}}">
   <ui:TabViewItem.Header>{{slot.header}}</ui:TabViewItem.Header>
   {{slot.content}}
 </ui:TabViewItem>

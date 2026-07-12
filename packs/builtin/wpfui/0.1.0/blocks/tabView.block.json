@@ -2,7 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "wpfui.tabView",
   "displayName": "Tab View",
-  "description": "Semantic WPF UI Tab View block.",
+  "description": "Themed WPF UI Tab View that explicitly applies the upstream TabControl style to its semantic subclass.",
   "category": "navigation",
   "properties": {
     "selectedIndex": {

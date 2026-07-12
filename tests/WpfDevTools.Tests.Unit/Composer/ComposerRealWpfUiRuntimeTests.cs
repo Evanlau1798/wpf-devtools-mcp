@@ -24,6 +24,7 @@ using WpfUiNavigationViewItem = Wpf.Ui.Controls.NavigationViewItem;
 using WpfUiNumberBox = Wpf.Ui.Controls.NumberBox;
 using WpfUiProgressRing = Wpf.Ui.Controls.ProgressRing;
 using WpfUiTabView = Wpf.Ui.Controls.TabView;
+using WpfUiTabViewItem = Wpf.Ui.Controls.TabViewItem;
 using WpfUiTitleBar = Wpf.Ui.Controls.TitleBar;
 using WpfUiToggleSwitch = Wpf.Ui.Controls.ToggleSwitch;
 
@@ -209,6 +210,11 @@ public sealed class ComposerRealWpfUiRuntimeTests
             window.UpdateLayout();
             var tabView = EnumerateDescendants(window).OfType<WpfUiTabView>().Should().ContainSingle().Subject;
             tabView.IsVisible.Should().BeTrue();
+            tabView.Style.Should().BeSameAs(window.FindResource(typeof(TabControl)));
+            tabView.Background.Should().BeOfType<SolidColorBrush>()
+                .Which.Color.A.Should().Be(0);
+            tabView.Items.OfType<WpfUiTabViewItem>().Should().ContainSingle()
+                .Which.Style.Should().BeSameAs(window.FindResource(typeof(TabItem)));
         }
         finally
         {

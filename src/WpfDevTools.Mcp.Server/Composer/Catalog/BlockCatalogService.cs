@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 
@@ -84,12 +85,20 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             block.SourceHints.Select(hint => hint.Path).Where(path => !string.IsNullOrWhiteSpace(path)).ToArray());
     }
 
-    private static JsonElement CreateCompositionSkeleton(UiBlockDefinition block)
+    private static JsonElement? CreateCompositionSkeleton(UiBlockDefinition block)
     {
         var node = new Dictionary<string, object?> { ["kind"] = block.Kind };
-        var properties = block.Properties
-            .Where(pair => pair.Value.Required)
-            .ToDictionary(pair => pair.Key, pair => GetSkeletonValue(pair.Value), StringComparer.Ordinal);
+        var properties = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var (name, property) in block.Properties.Where(pair => pair.Value.Required))
+        {
+            if (!TryGetSkeletonValue(property, out var value))
+            {
+                return null;
+            }
+
+            properties[name] = value;
+        }
+
         if (properties.Count > 0)
         {
             node["properties"] = properties;
@@ -106,27 +115,59 @@ internal sealed class BlockCatalogService(PackRegistry registry)
         return JsonSerializer.SerializeToElement(node);
     }
 
-    private static object? GetSkeletonValue(UiBlockProperty property)
+    private static bool TryGetSkeletonValue(UiBlockProperty property, out object? value)
     {
-        if (property.Default.HasValue)
+        if (property.Default.HasValue && UiBlockPropertyValueRules.IsValid(property.Default.Value, property))
         {
-            return property.Default.Value;
+            value = property.Default.Value;
+            return true;
         }
 
         var allowedValues = property.AllowedValues.Length > 0 ? property.AllowedValues : property.EnumValues;
-        if (allowedValues.Length > 0)
+        foreach (var allowedValue in allowedValues)
         {
-            return allowedValues[0];
+            if (TryCandidate(allowedValue, property, out value))
+            {
+                return true;
+            }
         }
 
-        return property.Type switch
+        var candidate = property.Type switch
         {
-            "boolean" => false,
-            "number" => property.Integer ? (int)Math.Ceiling(property.Minimum ?? 0) : property.Minimum ?? 0,
+            "boolean" or "bool" => false,
+            "binding" => "{Binding}",
+            "string" when property.Format == "thickness" => "0",
+            "string" when property.Format == "gridLength" => "Auto",
+            "string" => "Value",
+            "number" => GetNumberCandidate(property),
             "object" => new Dictionary<string, object?>(),
-            "array" => Array.Empty<object>(),
-            _ => "Value"
+            _ => null
         };
+        return TryCandidate(candidate, property, out value);
+    }
+
+    private static object GetNumberCandidate(UiBlockProperty property)
+    {
+        var candidate = 0d;
+        if (property.Minimum is double minimum && candidate < minimum)
+        {
+            candidate = minimum;
+        }
+        if (property.Maximum is double maximum && candidate > maximum)
+        {
+            candidate = maximum;
+        }
+
+        return property.Integer
+            ? property.Minimum.HasValue ? Math.Ceiling(candidate) : Math.Floor(candidate)
+            : candidate;
+    }
+
+    private static bool TryCandidate(object? candidate, UiBlockProperty property, out object? value)
+    {
+        var element = JsonSerializer.SerializeToElement(candidate);
+        value = candidate;
+        return UiBlockPropertyValueRules.IsValid(element, property);
     }
 
     private static bool HasRenderer(UiPackManifest manifest, UiBlockDefinition block)
@@ -172,7 +213,7 @@ internal sealed record BlockCatalogItem(
     IReadOnlyDictionary<string, BlockCatalogSlot> Slots,
     IReadOnlyList<string> AllowedKinds,
     bool RendererAvailable,
-    JsonElement CompositionSkeleton,
+    JsonElement? CompositionSkeleton,
     IReadOnlyList<string> SourceHintSummary);
 
 internal sealed record BlockCatalogProperty(

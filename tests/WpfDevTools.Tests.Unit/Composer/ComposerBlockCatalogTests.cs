@@ -27,7 +27,7 @@ public sealed class ComposerBlockCatalogTests
         button.AllowedKinds.Should().Contain("wpfui.symbolIcon");
         button.RendererAvailable.Should().BeTrue();
         button.SourceHintSummary.Should().Contain("src/Wpf.Ui/Controls/Button/Button.cs");
-        button.CompositionSkeleton.GetProperty("kind").GetString()
+        button.CompositionSkeleton!.Value.GetProperty("kind").GetString()
             .Should().Be("wpfui.button");
     }
 
@@ -143,6 +143,12 @@ public sealed class ComposerBlockCatalogTests
             var skeleton = payload.GetProperty("items")[0].GetProperty("compositionSkeleton");
             skeleton.GetProperty("kind").GetString().Should().Be("sample.panel");
             skeleton.GetProperty("properties").GetProperty("title").GetString().Should().Be("Panel");
+            skeleton.GetProperty("properties").GetProperty("visible").GetBoolean().Should().BeFalse();
+            skeleton.GetProperty("properties").GetProperty("margin").GetString().Should().Be("0");
+            skeleton.GetProperty("properties").GetProperty("rowHeight").GetString().Should().Be("Auto");
+            skeleton.GetProperty("properties").GetProperty("offset").GetInt32().Should().Be(-1);
+            skeleton.GetProperty("properties").GetProperty("settings").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Object);
+            skeleton.GetProperty("properties").GetProperty("mode").GetString().Should().Be("compact");
             skeleton.GetProperty("slots").GetProperty("content").GetArrayLength().Should().Be(0);
 
             var blueprintJson = System.Text.Json.JsonSerializer.Serialize(new
@@ -200,7 +206,7 @@ public sealed class ComposerBlockCatalogTests
         File.WriteAllText(Path.Combine(root, "source.lock.json"),
             """{"schemaVersion":"wpfdevtools.source-lock.v1","sources":[{"name":"Sample","url":"https://example.invalid/sample","version":"1.0.0","paths":["src"]}],"transformPolicy":{}}""");
         File.WriteAllText(Path.Combine(root, "blocks", "panel.block.json"),
-            """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"sample.panel","displayName":"Panel","category":"container","properties":{"title":{"type":"string","required":true,"default":"Panel"}},"slots":{"content":{"allowedKinds":["*"]}},"renderer":{"xamlTemplate":"renderers/xaml/panel.xaml.sbn"},"sourceHints":[]}""");
+            """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"sample.panel","displayName":"Panel","category":"container","properties":{"title":{"type":"string","required":true,"default":"Panel"},"visible":{"type":"bool","required":true,"default":"invalid"},"margin":{"type":"string","format":"thickness","required":true,"default":"invalid"},"rowHeight":{"type":"string","format":"gridLength","required":true},"offset":{"type":"number","required":true,"integer":true,"maximum":-1,"default":4.5},"settings":{"type":"object","required":true,"default":[]},"mode":{"type":"string","required":true,"allowedValues":["compact","wide"],"default":"invalid"}},"slots":{"content":{"allowedKinds":["*"]}},"renderer":{"xamlTemplate":"renderers/xaml/panel.xaml.sbn"},"sourceHints":[]}""");
         File.WriteAllText(Path.Combine(root, "renderers", "xaml", "panel.xaml.sbn"),
             "<sample:Panel Title=\"{{title}}\">{{slot.content}}</sample:Panel>");
         var escapedRoot = root.Replace("\\", "\\\\");

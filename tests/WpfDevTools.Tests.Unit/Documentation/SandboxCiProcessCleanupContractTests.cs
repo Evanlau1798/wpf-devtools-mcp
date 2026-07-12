@@ -280,6 +280,7 @@ public sealed partial class SandboxCiScriptContractTests
         }
 
         $functionNames = @(
+            'New-SmokeTargetCleanupFailureMessage',
             'Get-SmokeTargetProcessId',
             'Set-SmokeTargetRootSnapshot',
             'Get-SmokeTargetRootSnapshot',

@@ -328,11 +328,11 @@ public sealed partial class SandboxCiScriptContractTests
 
         filters.Should().HaveCount(4);
         testClasses.Should().NotBeEmpty();
-        foreach (var testClass in testClasses)
+        foreach (var fullyQualifiedClassName in testClasses)
         {
-            var fullyQualifiedName = $"WpfDevTools.Tests.Unit.Release.{testClass}.SyntheticTest";
+            var fullyQualifiedName = $"{fullyQualifiedClassName}.SyntheticTest";
             filters.Count(filter => FilterMatchesFullyQualifiedName(filter, fullyQualifiedName))
-                .Should().Be(1, $"{testClass} should belong to exactly one release-unit shard");
+                .Should().Be(1, $"{fullyQualifiedClassName} should belong to exactly one release-unit shard");
         }
     }
 
@@ -345,11 +345,11 @@ public sealed partial class SandboxCiScriptContractTests
 
         filters.Should().HaveCount(8);
         testClasses.Should().NotBeEmpty();
-        foreach (var testClass in testClasses)
+        foreach (var fullyQualifiedClassName in testClasses)
         {
-            var fullyQualifiedName = $"WpfDevTools.Tests.Unit.Release.{testClass}.SyntheticTest";
+            var fullyQualifiedName = $"{fullyQualifiedClassName}.SyntheticTest";
             filters.Count(filter => FilterMatchesFullyQualifiedName(filter, fullyQualifiedName))
-                .Should().Be(1, $"{testClass} should belong to exactly one release-unit shard");
+                .Should().Be(1, $"{fullyQualifiedClassName} should belong to exactly one release-unit shard");
         }
     }
 
@@ -413,8 +413,13 @@ public sealed partial class SandboxCiScriptContractTests
         return Directory.GetFiles(releaseRoot, "*.cs", SearchOption.AllDirectories)
             .Select(File.ReadAllText)
             .Where(text => text.Contains("[Fact", StringComparison.Ordinal) || text.Contains("[Theory", StringComparison.Ordinal))
-            .SelectMany(text => System.Text.RegularExpressions.Regex.Matches(text, @"public sealed (?:partial )?class (?<name>[A-Za-z0-9_]+)")
-                .Select(match => match.Groups["name"].Value))
+            .SelectMany(text =>
+            {
+                var namespaceMatch = System.Text.RegularExpressions.Regex.Match(text, @"namespace\s+(?<name>[A-Za-z0-9_.]+)\s*;");
+                namespaceMatch.Success.Should().BeTrue("release test files should use a file-scoped namespace");
+                return System.Text.RegularExpressions.Regex.Matches(text, @"public sealed (?:partial )?class (?<name>[A-Za-z0-9_]+)")
+                    .Select(match => $"{namespaceMatch.Groups["name"].Value}.{match.Groups["name"].Value}");
+            })
             .Distinct(StringComparer.Ordinal)
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();

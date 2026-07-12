@@ -215,8 +215,10 @@ public sealed class ReleasePackagingIntegrationTests
         })
         {
             using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(registrationRoot, artifact.Item1)));
-            document.RootElement.GetProperty(artifact.Item2).GetProperty("wpf-devtools")
-                .GetProperty("command").GetString().Should().Be(installedExecutable, artifact.Item1);
+            var server = document.RootElement.GetProperty(artifact.Item2).GetProperty("wpf-devtools");
+            server.GetProperty("type").GetString().Should().Be("stdio", artifact.Item1);
+            server.GetProperty("args").EnumerateArray().Should().BeEmpty(artifact.Item1);
+            server.GetProperty("command").GetString().Should().Be(installedExecutable, artifact.Item1);
         }
 
         File.ReadAllText(Path.Combine(registrationRoot, "claude-code.txt"))
@@ -236,10 +238,11 @@ public sealed class ReleasePackagingIntegrationTests
                 ["WPFDEVTOOLS_CERT_DIR"] = Path.Combine(tempRoot, "McpCerts")
             });
         initializeResponse.TryGetProperty("error", out _).Should().BeFalse(initializeResponse.GetRawText());
+        initializeResponse.TryGetProperty("result", out _).Should().BeTrue(initializeResponse.GetRawText());
         var tools = (await client.ListToolsAsync()).GetProperty("result").GetProperty("tools").EnumerateArray().ToArray();
         tools.Should().HaveCount(72);
         tools.Select(tool => tool.GetProperty("name").GetString()).Should()
-            .Contain(["connect", "get_ui_summary", "get_binding_errors"]);
+            .Contain(["get_processes", "connect", "ping", "get_ui_summary", "get_binding_errors"]);
     }
 
     private static string CreateAuthSecret()

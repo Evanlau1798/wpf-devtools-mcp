@@ -49,7 +49,10 @@ public sealed class InstallerProcessLifecycleTests
                 "Start-Sleep -Seconds 60"
             ]);
 
-            var act = () => ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(10));
+            var act = () => ReleaseScriptTestHarness.RunPowerShellCommand(
+                command,
+                timeout: TimeSpan.FromSeconds(10),
+                applyTimeoutScale: false);
 
             act.Should().Throw<TimeoutException>();
             File.Exists(readyPath).Should().BeTrue(

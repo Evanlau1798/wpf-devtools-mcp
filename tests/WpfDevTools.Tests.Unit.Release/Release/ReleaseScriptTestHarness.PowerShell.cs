@@ -221,7 +221,8 @@ internal static partial class ReleaseScriptTestHarness
     public static (int ExitCode, string Stdout, string Stderr) RunPowerShellCommand(
         string command,
         IReadOnlyDictionary<string, string?>? environmentOverrides = null,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        bool applyTimeoutScale = true)
     {
         var isolatedEnvironmentRoot = CreateShortTempDirectory("e");
         var startInfo = new ProcessStartInfo
@@ -280,7 +281,7 @@ internal static partial class ReleaseScriptTestHarness
 
         try
         {
-            return RunProcess(startInfo, timeout);
+            return RunProcess(startInfo, timeout, applyTimeoutScale);
         }
         finally
         {

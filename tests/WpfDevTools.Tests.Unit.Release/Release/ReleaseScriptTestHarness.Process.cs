@@ -7,14 +7,15 @@ internal static partial class ReleaseScriptTestHarness
 {
     private static (int ExitCode, string Stdout, string Stderr) RunProcess(
         ProcessStartInfo startInfo,
-        TimeSpan? timeout)
+        TimeSpan? timeout,
+        bool applyTimeoutScale = true)
     {
         using var process = new Process { StartInfo = startInfo };
         process.Start();
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();
-        var effectiveTimeout = ScaleTimeout(timeout ?? DefaultProcessTimeout);
+        var effectiveTimeout = ResolveTimeout(timeout ?? DefaultProcessTimeout, applyTimeoutScale);
         var timeoutMilliseconds = effectiveTimeout.TotalMilliseconds > int.MaxValue
             ? int.MaxValue
             : (int)Math.Ceiling(effectiveTimeout.TotalMilliseconds);
@@ -67,6 +68,9 @@ internal static partial class ReleaseScriptTestHarness
         scale = Math.Min(scale, 10);
         return TimeSpan.FromMilliseconds(timeout.TotalMilliseconds * scale);
     }
+
+    internal static TimeSpan ResolveTimeout(TimeSpan timeout, bool applyTimeoutScale)
+        => applyTimeoutScale ? ScaleTimeout(timeout) : timeout;
 
     internal static bool WaitForProcessIdFileToExit(
         string processIdPath,

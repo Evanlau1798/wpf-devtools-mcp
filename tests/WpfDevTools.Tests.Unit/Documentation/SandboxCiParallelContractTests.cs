@@ -337,7 +337,7 @@ public sealed partial class SandboxCiScriptContractTests
     }
 
     [Fact]
-    public void SandboxManagedScript_ReleaseUnitEightShardFilters_ShouldCoverEveryReleaseTestClassOnce()
+    public void SandboxManagedScript_ReleaseUnitEightShardFilters_ShouldCoverEveryClassOnceAndPrioritizeLongestGroups()
     {
         var managed = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "SandboxCi.Managed.ps1");
         var filters = ExtractReleaseEightShardFilters(managed);
@@ -345,6 +345,12 @@ public sealed partial class SandboxCiScriptContractTests
 
         filters.Should().HaveCount(8);
         testClasses.Should().NotBeEmpty();
+        filters[0].Should().StartWith("FullyQualifiedName!~",
+            "the 185-second catch-all shard should start first instead of waiting behind shorter groups");
+        filters[1].Should().Contain("FullyQualifiedName~WpfDevTools.Tests.Unit.Release.InstallerScriptTests",
+            "the 158-second installer script group should start second under two-lane LPT scheduling");
+        filters[^1].Should().Contain("FullyQualifiedName~WpfDevTools.Tests.Unit.Release.PackagedServerRuntimeSmokeScriptTests",
+            "the 63-second bootstrap and packaged runtime group should remain last");
         foreach (var fullyQualifiedClassName in testClasses)
         {
             var fullyQualifiedName = $"{fullyQualifiedClassName}.SyntheticTest";

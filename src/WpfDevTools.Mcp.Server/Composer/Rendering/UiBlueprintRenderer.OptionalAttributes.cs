@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
@@ -9,10 +10,6 @@ internal sealed partial class UiBlueprintRenderer
     private static readonly Regex MarkupSegmentPattern = new(
         """<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<(?!!|/|\?)(?:[^"'<>]|"[^"]*"|'[^']*')+>""",
         RegexOptions.CultureInvariant);
-    private static readonly Regex OptionalAttributePattern = new(
-        """\s+[A-Za-z_][A-Za-z0-9_.:-]*\s*=\s*(?<quote>["'])\{\{\s*(?<name>[A-Za-z0-9_.-]+)\s*\}\}\k<quote>""",
-        RegexOptions.CultureInvariant);
-
     internal static string OmitUnsetPropertyAttributes(
         string template,
         UiBlueprintNode node,
@@ -24,16 +21,100 @@ internal sealed partial class UiBlueprintRenderer
                 return segment.Value;
             }
 
-            return OptionalAttributePattern.Replace(segment.Value, attribute =>
-            {
-                var propertyName = attribute.Groups["name"].Value;
-                if (!block.Properties.ContainsKey(propertyName))
-                {
-                    return attribute.Value;
-                }
-
-                var value = GetPropertyValue(node, propertyName) ?? GetDefaultPropertyValue(block, propertyName);
-                return value is null ? string.Empty : attribute.Value;
-            });
+            return OmitUnsetAttributesFromStartTag(segment.Value, node, block);
         });
+
+    private static string OmitUnsetAttributesFromStartTag(
+        string tag,
+        UiBlueprintNode node,
+        UiBlockDefinition block)
+    {
+        var removals = new List<(int Start, int Length)>();
+        var index = 1;
+        while (index < tag.Length && IsAttributeNameCharacter(tag[index]))
+        {
+            index++;
+        }
+
+        while (index < tag.Length)
+        {
+            var attributeStart = index;
+            while (index < tag.Length && char.IsWhiteSpace(tag[index]))
+            {
+                index++;
+            }
+
+            if (index >= tag.Length || tag[index] is '>' or '/')
+            {
+                break;
+            }
+
+            var nameStart = index;
+            while (index < tag.Length && IsAttributeNameCharacter(tag[index]))
+            {
+                index++;
+            }
+
+            if (index == nameStart)
+            {
+                break;
+            }
+
+            while (index < tag.Length && char.IsWhiteSpace(tag[index]))
+            {
+                index++;
+            }
+
+            if (index >= tag.Length || tag[index++] != '=')
+            {
+                break;
+            }
+
+            while (index < tag.Length && char.IsWhiteSpace(tag[index]))
+            {
+                index++;
+            }
+
+            if (index >= tag.Length || tag[index] is not ('\'' or '"'))
+            {
+                break;
+            }
+
+            var quote = tag[index++];
+            var valueStart = index;
+            index = tag.IndexOf(quote, index);
+            if (index < 0)
+            {
+                break;
+            }
+
+            var value = tag[valueStart..index++];
+            var token = TokenPattern.Match(value);
+            if (token.Success && token.Length == value.Length)
+            {
+                var propertyName = token.Groups["name"].Value;
+                var propertyValue = GetPropertyValue(node, propertyName) ?? GetDefaultPropertyValue(block, propertyName);
+                if (block.Properties.ContainsKey(propertyName) && propertyValue is null)
+                {
+                    removals.Add((attributeStart, index - attributeStart));
+                }
+            }
+        }
+
+        if (removals.Count == 0)
+        {
+            return tag;
+        }
+
+        var result = new StringBuilder(tag);
+        foreach (var (start, length) in removals.AsEnumerable().Reverse())
+        {
+            result.Remove(start, length);
+        }
+
+        return result.ToString();
+    }
+
+    private static bool IsAttributeNameCharacter(char value)
+        => char.IsLetterOrDigit(value) || value is '_' or '.' or ':' or '-';
 }

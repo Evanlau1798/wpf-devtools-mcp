@@ -12,6 +12,8 @@ public sealed class ComposerOptionalAttributeRenderingTests
     [InlineData("<Border Tag=\"\" Foreground=\"{{foreground}}\">{{item}}</Border>", "<Border Tag=\"\">{{item}}</Border>")]
     [InlineData("<!-- <Border Foreground=\"{{foreground}}\" /> -->", "<!-- <Border Foreground=\"{{foreground}}\" /> -->")]
     [InlineData("<Border /> Foreground=\"{{foreground}}\"", "<Border /> Foreground=\"{{foreground}}\"")]
+    [InlineData("<Border Tag='literal Foreground=\"{{foreground}}\"' />", "<Border Tag='literal Foreground=\"{{foreground}}\"' />")]
+    [InlineData("<Border Tag=\"literal Foreground='{{foreground}}'\" />", "<Border Tag=\"literal Foreground='{{foreground}}'\" />")]
     public void UnsetPropertyAttribute_ShouldRespectXamlBoundaries(string template, string expected)
     {
         var result = UiBlueprintRenderer.OmitUnsetPropertyAttributes(template, Node(), Block());

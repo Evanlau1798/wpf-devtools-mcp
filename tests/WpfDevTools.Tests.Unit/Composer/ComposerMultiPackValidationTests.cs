@@ -1,6 +1,8 @@
+using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Packs;
+using WpfDevTools.Mcp.Server.Composer.Rendering;
 using WpfDevTools.Tests.Unit.TestSupport;
 using Xunit;
 
@@ -35,7 +37,7 @@ public sealed class ComposerMultiPackValidationTests
     [Fact]
     public void ValidateBlueprint_ShouldWarnForPackResourceConflicts()
     {
-        var projectRoot = CreateTempProjectWithResourcePack("conflict.resources");
+        var projectRoot = CreateTempProjectWithResourcePack("conflict.resources", WpfUiResourceDictionary);
         try
         {
             var result = CreateValidator(projectRoot).Validate("""
@@ -55,6 +57,39 @@ public sealed class ComposerMultiPackValidationTests
             result.Warnings.Should().Contain(issue => issue.JsonPath == "$.packs"
                 && issue.Code == "PackResourceConflict"
                 && issue.Message.Contains(WpfUiResourceDictionary, StringComparison.Ordinal));
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
+    public void RenderBlueprint_ShouldDeduplicateThirdPartyResourcesInDeclarationOrder()
+    {
+        var projectRoot = CreateTempProjectWithResourcePack("ordered.resources", "B", "A", "B");
+        try
+        {
+            var repoRoot = TestRepositoryPaths.GetRepoFilePath(".");
+            var registry = new PackRegistry(
+                ComposerPackPaths.BuiltinRoot(repoRoot),
+                ComposerPackPaths.ProjectLocalRoot(projectRoot));
+            var result = new UiBlueprintRenderer(registry).Render(new RenderBlueprintRequest("""
+                {
+                  "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+                  "name": "OrderedResources",
+                  "packs": [
+                    { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
+                    { "id": "ordered.resources", "version": "1.0.0", "required": false, "role": "extension" }
+                  ],
+                  "primaryPack": "wpfui",
+                  "layout": { "kind": "wpfui.button" }
+                }
+                """));
+
+            result.Success.Should().BeTrue();
+            result.RequiredResources.Where(resource => resource is "A" or "B")
+                .Should().Equal("B", "A");
         }
         finally
         {
@@ -176,7 +211,7 @@ public sealed class ComposerMultiPackValidationTests
         return new(new PackRegistry(ComposerPackPaths.BuiltinRoot(repoRoot), projectPackRoot));
     }
 
-    private static string CreateTempProjectWithResourcePack(string id)
+    private static string CreateTempProjectWithResourcePack(string id, params string[] resources)
     {
         var projectRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-pack-conflict-" + Guid.NewGuid().ToString("N"));
         var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", id, "1.0.0");
@@ -184,8 +219,9 @@ public sealed class ComposerMultiPackValidationTests
         File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"), $$"""
             {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"{{id}}","version":"1.0.0","scope":"project-local","path":"{{id}}/1.0.0","enabled":true}
             """);
+        var resourcesJson = JsonSerializer.Serialize(resources);
         File.WriteAllText(Path.Combine(packRoot, "pack.json"), $$"""
-            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"{{id}}","version":"1.0.0","displayName":"Conflict Resources","resourceSetup":{"applicationMergedDictionaries":["{{WpfUiResourceDictionary}}"]},"blocks":[],"recipes":[]}
+            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"{{id}}","version":"1.0.0","displayName":"Test Resources","resourceSetup":{"applicationMergedDictionaries":{{resourcesJson}}},"blocks":[],"recipes":[]}
             """);
         File.WriteAllText(Path.Combine(packRoot, "source.lock.json"), """
             {"schemaVersion":"wpfdevtools.source-lock.v1","sources":[]}

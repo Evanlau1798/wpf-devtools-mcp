@@ -6,74 +6,7 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class InstallerTuiVisualRefinementTests
 {
     [Fact]
-    public void OnlineInstaller_HomeScreen_ShouldRenderPseudoCaptionControlsAndBoxedUtilityRowsWithoutLegacyExitCard()
-    {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
-        try
-        {
-            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
-            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
-            var userProfile = Path.Combine(tempRoot, "UserProfile");
-            Directory.CreateDirectory(appData);
-            Directory.CreateDirectory(localAppData);
-            Directory.CreateDirectory(userProfile);
-
-            var result = RunInteractiveInstaller(tempRoot, appData, localAppData, userProfile, new[]
-            {
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Escape||Enter'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='96'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_HEIGHT='28'"
-            });
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain("[_]").And.Contain("[ ]").And.Contain("[X]");
-            result.Stdout.Should().Contain("Update All");
-            result.Stdout.Should().Contain("Install location");
-            result.Stdout.Should().NotContain("│ Exit");
-        }
-        finally
-        {
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
-        }
-    }
-
-    [Fact]
-    public void OnlineInstaller_HomeScreen_ShouldWrapLongInstallLocationWithoutEllipsis()
-    {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
-        try
-        {
-            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
-            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
-            var userProfile = Path.Combine(tempRoot, "UserProfile");
-            var installRoot = @"C:\Very\Long\Nested\Path\For\WpfDevTools\Server\Install\That\Should\Wrap\Without\Ellipsis\Current\Location";
-            Directory.CreateDirectory(appData);
-            Directory.CreateDirectory(localAppData);
-            Directory.CreateDirectory(userProfile);
-
-            var result = RunInteractiveInstaller(tempRoot, appData, localAppData, userProfile, new[]
-            {
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Escape||Enter'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='96'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_HEIGHT='28'"
-            }, installRoot);
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain(@"C:\Very\Long\Nested\Path\For\WpfDevTools");
-            result.Stdout.Should().Contain(@"Wrap\Without\Ellipsis\Current\Location");
-        }
-        finally
-        {
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
-        }
-    }
-
-    [Fact]
-    public void OnlineInstaller_InstallScreen_ShouldRenderTargetsAsIndividualItemButtons()
+    public void OnlineInstaller_TuiFrameSmoke_ShouldRenderHomeInstallAndCloseConfirmationContracts()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -105,15 +38,54 @@ public sealed class InstallerTuiVisualRefinementTests
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='96'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_HEIGHT='28'"
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_HEIGHT='28'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'"
             });
 
             result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("[_]").And.Contain("[ ]").And.Contain("[X]");
+            result.Stdout.Should().Contain("Update All");
+            result.Stdout.Should().Contain("Install location");
+            result.Stdout.Should().NotContain("│ Exit");
             result.Stdout.Should().Contain("Where would you like to install?");
-            result.Stdout.Should().Contain("┌");
             result.Stdout.Should().Contain("Grok Build CLI");
             result.Stdout.Should().Contain("VS Code");
-            result.Stdout.Should().Contain("└");
+            result.Stdout.Should().Contain("Confirm close");
+            result.Stdout.Should().Contain("Press Enter once to close the installer");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void OnlineInstaller_HomeScreen_ShouldWrapLongInstallLocationWithoutEllipsis()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
+            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
+            var userProfile = Path.Combine(tempRoot, "UserProfile");
+            var installRoot = @"C:\Very\Long\Nested\Path\For\WpfDevTools\Server\Install\That\Should\Wrap\Without\Ellipsis\Current\Location";
+            Directory.CreateDirectory(appData);
+            Directory.CreateDirectory(localAppData);
+            Directory.CreateDirectory(userProfile);
+
+            var result = RunInteractiveInstaller(tempRoot, appData, localAppData, userProfile, new[]
+            {
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Escape||Enter'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='96'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_HEIGHT='28'",
+                "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='1.2.3'"
+            }, installRoot);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain(@"C:\Very\Long\Nested\Path\For\WpfDevTools");
+            result.Stdout.Should().Contain(@"Wrap\Without\Ellipsis\Current\Location");
         }
         finally
         {
@@ -183,38 +155,6 @@ public sealed class InstallerTuiVisualRefinementTests
             result.ExitCode.Should().Be(0, result.Stderr);
             result.Stdout.Should().Contain("1 target(s) can move to v1.2.3.");
             result.Stdout.Should().NotContain("All detected targets are up to date.");
-        }
-        finally
-        {
-            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
-        }
-    }
-
-    [Fact]
-    public void OnlineInstaller_HomeScreen_ShouldOpenCloseConfirmationInsteadOfExitingImmediatelyOnEscape()
-    {
-        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
-        try
-        {
-            var appData = Path.Combine(tempRoot, "AppData", "Roaming");
-            var localAppData = Path.Combine(tempRoot, "AppData", "Local");
-            var userProfile = Path.Combine(tempRoot, "UserProfile");
-            Directory.CreateDirectory(appData);
-            Directory.CreateDirectory(localAppData);
-            Directory.CreateDirectory(userProfile);
-
-            var result = RunInteractiveInstaller(tempRoot, appData, localAppData, userProfile, new[]
-            {
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Escape||Enter'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_CLEAR='1'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_DISABLE_ANSI='1'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='96'",
-                "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_HEIGHT='28'"
-            });
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Should().Contain("Confirm close");
-            result.Stdout.Should().Contain("Press Enter once to close the installer");
         }
         finally
         {

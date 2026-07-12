@@ -2,6 +2,7 @@ using Xunit;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
+using System.Text.Json;
 using System.Windows.Controls;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
@@ -12,75 +13,35 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 public class EventAnalyzerConcurrencyTests
 {
     [StaFact]
-    public async Task TraceRoutedEvents_RapidCalls_ShouldNotThrowObjectDisposedException()
+    public async Task TraceRoutedEvents_WhenCallersAreReleasedTogether_ShouldReturnSuccessfulResults()
     {
-        // Arrange
+        const int callerCount = 10;
         var finder = new ElementFinder();
         var analyzer = new EventAnalyzer(finder);
         var button = new Button();
         var elementId = finder.GenerateElementId(button);
+        using var ready = new CountdownEvent(callerCount);
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        // Act - Call TraceRoutedEvents multiple times rapidly to trigger CTS disposal race
-        var tasks = new List<Task>();
-        for (int i = 0; i < 10; i++)
-        {
-            tasks.Add(Task.Run(() =>
+        var tasks = Enumerable.Range(0, callerCount)
+            .Select(_ => Task.Run(async () =>
             {
-                analyzer.TraceRoutedEvents(elementId, "Click", 50);
-            }));
-            await Task.Delay(5); // Small delay to increase chance of race condition
+                ready.Signal();
+                await start.Task;
+                return analyzer.TraceRoutedEvents(elementId, "Click", 50);
+            }))
+            .ToArray();
+
+        ready.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue();
+        start.SetResult();
+
+        var results = await Task.WhenAll(tasks);
+        var payloads = results.Select(result => JsonSerializer.SerializeToElement(result)).ToArray();
+        payloads.Should().Contain(result => result.GetProperty("success").GetBoolean());
+        foreach (var failure in payloads.Where(result => !result.GetProperty("success").GetBoolean()))
+        {
+            failure.GetProperty("errorCode").GetString().Should().Be("OperationFailed");
+            failure.GetProperty("hint").GetString().Should().NotBeNullOrWhiteSpace();
         }
-
-        // Assert - Should not throw ObjectDisposedException
-        var act = async () => await Task.WhenAll(tasks);
-        await act.Should().NotThrowAsync<ObjectDisposedException>();
-    }
-
-    [StaFact]
-    public async Task TraceRoutedEvents_ConcurrentCalls_ShouldHandleGracefully()
-    {
-        // Arrange
-        var finder = new ElementFinder();
-        var analyzer = new EventAnalyzer(finder);
-        var button = new Button();
-        var elementId = finder.GenerateElementId(button);
-
-        // Act - Start multiple traces concurrently
-        var result1 = analyzer.TraceRoutedEvents(elementId, "Click", 100);
-        await Task.Delay(10);
-        var result2 = analyzer.TraceRoutedEvents(elementId, "Click", 100);
-
-        // Assert - Both should succeed
-        result1.Should().NotBeNull();
-        result2.Should().NotBeNull();
-
-        // Wait for traces to complete
-        await Task.Delay(150);
-    }
-
-    [StaFact]
-    public async Task TraceRoutedEvents_SecondCallWhileFirstIsActive_ShouldCancelFirst()
-    {
-        // Arrange
-        var finder = new ElementFinder();
-        var analyzer = new EventAnalyzer(finder);
-        var button = new Button();
-        var elementId = finder.GenerateElementId(button);
-
-        // Act - Start first trace with longer duration
-        var result1 = analyzer.TraceRoutedEvents(elementId, "Click", 200);
-
-        // Wait a bit to ensure first trace is active
-        await Task.Delay(50);
-
-        // Start second trace - should cancel first
-        var result2 = analyzer.TraceRoutedEvents(elementId, "Click", 200);
-
-        // Assert - Both calls should succeed without throwing
-        result1.Should().NotBeNull();
-        result2.Should().NotBeNull();
-
-        // Wait for second trace to complete
-        await Task.Delay(250);
     }
 }

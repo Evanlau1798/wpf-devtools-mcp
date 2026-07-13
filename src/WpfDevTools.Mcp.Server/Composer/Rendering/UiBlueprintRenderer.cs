@@ -204,7 +204,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
 
     private static string AddRootXmlNamespaces(string xaml, IReadOnlyDictionary<string, string> xmlNamespaces)
     {
-        var rootStart = FindRootElementStart(xaml);
+        var rootStart = XamlDocumentRootLocator.FindStart(xaml);
         if (rootStart < 0)
         {
             return xaml;
@@ -244,28 +244,6 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
 
         var insertAt = rootEnd > rootStart && xaml[rootEnd - 1] == '/' ? rootEnd - 1 : rootEnd;
         return xaml[..insertAt] + " " + string.Join(" ", attributes) + xaml[insertAt..];
-    }
-
-    private static int FindRootElementStart(string xaml)
-    {
-        var index = 0;
-        while (index < xaml.Length)
-        {
-            var start = xaml.IndexOf('<', index);
-            if (start < 0 || start + 1 >= xaml.Length)
-            {
-                return -1;
-            }
-
-            if (xaml[start + 1] is not '/' and not '!' and not '?')
-            {
-                return start;
-            }
-
-            index = start + 1;
-        }
-
-        return -1;
     }
 
     private static int FindTagEnd(string xaml, int start)

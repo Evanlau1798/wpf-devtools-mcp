@@ -9,6 +9,8 @@ public sealed class ComposerPreviewProjectFilesTests
     [InlineData("  <Window><Grid /></Window>", 1)]
     [InlineData("<?xml version=\"1.0\"?><Window><Grid /></Window>", 1)]
     [InlineData("<!-- preview --><Window><Grid /></Window>", 1)]
+    [InlineData("<!-- <placeholder /> --><Window><Grid /></Window>", 1)]
+    [InlineData("<!DOCTYPE Window [<!ENTITY sample \"<placeholder />\">]><Window><Grid /></Window>", 1)]
     [InlineData("<Window.Foo><Grid /></Window.Foo>", 2)]
     public void Write_ShouldRecognizeOnlyNativeWindowDocumentRoots(string generatedXaml, int expectedWindowStarts)
     {

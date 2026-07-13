@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using WpfDevTools.Mcp.Server.Composer.Packs;
+using WpfDevTools.Mcp.Server.Composer.Rendering;
 
 namespace WpfDevTools.Mcp.Server.Composer.Preview;
 
@@ -262,7 +263,7 @@ internal static class UiPreviewProjectFiles
 
     private static bool HasNativeWindowRoot(string xaml)
     {
-        var rootStart = FindRootElementStart(xaml);
+        var rootStart = XamlDocumentRootLocator.FindStart(xaml);
         if (rootStart < 0)
         {
             return false;
@@ -281,7 +282,7 @@ internal static class UiPreviewProjectFiles
 
     private static string AddPreviewHostClass(string generatedXaml, string rootTag, string namespaceAttributes)
     {
-        var rootStart = FindRootElementStart(generatedXaml);
+        var rootStart = XamlDocumentRootLocator.FindStart(generatedXaml);
         var attributeStart = rootStart + 1 + rootTag.Length;
         if (rootStart < 0
             || attributeStart > generatedXaml.Length
@@ -298,7 +299,7 @@ internal static class UiPreviewProjectFiles
 
     private static string RemoveRootXmlNamespaceDeclarations(string xaml)
     {
-        var rootStart = FindRootElementStart(xaml);
+        var rootStart = XamlDocumentRootLocator.FindStart(xaml);
         if (rootStart < 0)
         {
             return xaml;
@@ -312,28 +313,6 @@ internal static class UiPreviewProjectFiles
 
         var rootTag = xaml[rootStart..rootEnd];
         return xaml[..rootStart] + RootXmlNamespaceAttributePattern.Replace(rootTag, string.Empty) + xaml[rootEnd..];
-    }
-
-    private static int FindRootElementStart(string xaml)
-    {
-        var index = 0;
-        while (index < xaml.Length)
-        {
-            var start = xaml.IndexOf('<', index);
-            if (start < 0 || start + 1 >= xaml.Length)
-            {
-                return -1;
-            }
-
-            if (xaml[start + 1] is not '/' and not '!' and not '?')
-            {
-                return start;
-            }
-
-            index = start + 1;
-        }
-
-        return -1;
     }
 
     private static int FindTagEnd(string xaml, int start)

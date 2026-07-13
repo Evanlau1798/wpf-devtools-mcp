@@ -17,7 +17,7 @@ internal sealed partial class UiBlueprintRenderer
         IReadOnlySet<string> reservedNames,
         List<RenderElementCorrelation> correlations)
     {
-        var rootStart = FindRootElementStart(xaml);
+        var rootStart = XamlDocumentRootLocator.FindStart(xaml);
         var rootEnd = rootStart < 0 ? -1 : FindTagEnd(xaml, rootStart + 1);
         if (rootEnd < 0)
         {
@@ -66,7 +66,7 @@ internal sealed partial class UiBlueprintRenderer
 
     private static string? GetRootElementName(string xaml)
     {
-        var rootStart = FindRootElementStart(xaml);
+        var rootStart = XamlDocumentRootLocator.FindStart(xaml);
         var rootEnd = rootStart < 0 ? -1 : FindTagEnd(xaml, rootStart + 1);
         if (rootEnd < 0)
         {

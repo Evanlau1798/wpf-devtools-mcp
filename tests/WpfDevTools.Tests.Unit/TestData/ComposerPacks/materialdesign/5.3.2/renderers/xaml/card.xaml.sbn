@@ -1,0 +1,1 @@
+<materialDesign:Card Margin="{{margin}}" Padding="{{padding}}">{{slot.content}}</materialDesign:Card>

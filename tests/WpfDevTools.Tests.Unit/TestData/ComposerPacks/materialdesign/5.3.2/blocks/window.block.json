@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "materialdesign.window",
+  "displayName": "Material Window",
+  "description": "Native WPF window using the public Material Design window style.",
+  "category": "window",
+  "properties": {
+    "title": { "type": "string", "required": true, "default": "Material app" },
+    "width": { "type": "number", "default": 880, "minimum": 320 },
+    "height": { "type": "number", "default": 560, "minimum": 240 }
+  },
+  "slots": {
+    "content": { "allowedKinds": ["*"] }
+  },
+  "renderer": { "xamlTemplate": "renderers/xaml/window.xaml.sbn" },
+  "sourceHints": [
+    { "path": "README.md", "usage": "official MaterialDesignWindow style setup" }
+  ]
+}

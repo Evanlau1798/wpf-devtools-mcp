@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "wpfdevtools.source-lock.v1",
+  "generatedAt": "2026-07-13T00:00:00Z",
+  "generatorSkill": "wpf-extension-pack-creator",
+  "sources": [
+    {
+      "kind": "official-source-repository",
+      "name": "Material Design In XAML Toolkit",
+      "url": "https://github.com/MaterialDesignInXAML/MaterialDesignInXamlToolkit",
+      "version": "v5.3.2",
+      "commit": "7ea409750f32de9ad6647921d54e4971e2621e5e",
+      "license": "MIT",
+      "paths": ["README.md", "src/MaterialDesignThemes.Wpf"],
+      "usage": "semantic extraction from the official public XAML namespace, Card control, theme resources, and button styles"
+    }
+  ],
+  "transformPolicy": {
+    "copyLargeXamlFiles": false,
+    "copyWholeScreens": false,
+    "extractSemanticPatternsOnly": true,
+    "includeInternalControls": false
+  }
+}

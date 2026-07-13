@@ -246,8 +246,10 @@ internal static class UiPreviewProjectFiles
     {
         var previewFragment = RemoveRootXmlNamespaceDeclarations(generatedXaml);
         var namespaceAttributes = BuildPreviewNamespaceAttributes(previewContract.XmlNamespaces);
-        return previewContract.WindowRootTag is not null
-            ? AddPreviewHostClass(previewFragment, previewContract.WindowRootTag, namespaceAttributes)
+        var windowRootTag = previewContract.WindowRootTag
+            ?? (HasNativeWindowRoot(previewFragment) ? "Window" : null);
+        return windowRootTag is not null
+            ? AddPreviewHostClass(previewFragment, windowRootTag, namespaceAttributes)
             : string.Join(
                 Environment.NewLine,
                 "<Window x:Class=\"PreviewHost.MainWindow\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"" + namespaceAttributes + ">",
@@ -256,6 +258,15 @@ internal static class UiPreviewProjectFiles
                 "  </Grid>",
                 "</Window>",
                 string.Empty);
+    }
+
+    private static bool HasNativeWindowRoot(string xaml)
+    {
+        var root = xaml.AsSpan().TrimStart();
+        const string tag = "<Window";
+        return root.StartsWith(tag, StringComparison.Ordinal)
+            && root.Length > tag.Length
+            && (char.IsWhiteSpace(root[tag.Length]) || root[tag.Length] is '>' or '/');
     }
 
     private static string BuildPreviewNamespaceAttributes(IReadOnlyDictionary<string, string> namespaces)

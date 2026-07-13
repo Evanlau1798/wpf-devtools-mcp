@@ -1,5 +1,10 @@
 using System.Security.Cryptography;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Markup;
+using System.Windows.Media;
 using FluentAssertions;
+using MaterialDesignThemes.Wpf;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Composer.Apply;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
@@ -14,20 +19,20 @@ namespace WpfDevTools.Tests.Unit.Composer;
 [Collection("ProcessEnvironment")]
 public sealed class ComposerThirdPartyPackAcceptanceTests
 {
-    [Fact]
-    public async Task NonWpfUiPack_ShouldCompleteResolutionPreviewApplyAndMcpInspection()
+    [StaFact]
+    public async Task MaterialDesignPack_ShouldCompleteRealRenderPreviewApplyLaunchAndMcpInspection()
     {
-        var projectRoot = ThirdPartyPackFixture.Create();
+        var projectRoot = RealExtensionPackFixture.CreateMaterialDesignProject();
         try
         {
             var registry = CreateRegistry(projectRoot);
-            var blueprint = ThirdPartyPackFixture.Blueprint;
+            var blueprint = RealExtensionPackFixture.MaterialDesignBlueprint;
             var validation = new BlueprintValidationService(registry).Validate(blueprint);
 
             validation.Success.Should().BeTrue(string.Join(Environment.NewLine,
                 validation.Errors.Select(error => error.Message)));
             validation.Resolution.Packs.Should().Contain(pack =>
-                pack.Id == "nebula" && pack.Kind == "style-pack" && pack.Status == "resolved");
+                pack.Id == "materialdesign" && pack.Kind == "style-pack" && pack.Status == "resolved");
             validation.Resolution.Packs.Should().Contain(pack =>
                 pack.Id == "core" && pack.Kind == "layout-pack" && pack.Status == "resolved");
 
@@ -35,20 +40,22 @@ public sealed class ComposerThirdPartyPackAcceptanceTests
                 new RenderBlueprintRequest(blueprint, ProjectRoot: projectRoot));
             render.Success.Should().BeTrue(string.Join(Environment.NewLine,
                 render.Errors.Select(error => error.Message)));
-            render.Xaml.Should().Contain("<nebula:NebulaWindow").And.Contain("<Button");
+            render.Xaml.Should().Contain("<materialDesign:Card").And.Contain("MaterialDesignFilledButton");
             render.PackageIntegrationGuidance.Mode.Should().Be("project");
+            render.RequiredNuGetPackages.Should().ContainSingle(package =>
+                package.Id == "MaterialDesignThemes" && package.VersionRange == "[5.3.2]");
+            AssertRealMaterialDesignSurface(render.Xaml, render.RequiredResources);
 
             var apply = new UiBlueprintApplyService(registry).Apply(
                 new ApplyBlueprintRequest(blueprint, projectRoot, "MainWindow.xaml"));
             apply.Success.Should().BeTrue(string.Join(Environment.NewLine,
                 apply.Errors.Select(error => error.Message)));
             apply.FilePlan.Should().Contain(item =>
-                item.Role == "code-behind-integration"
-                && item.Action.Contains("Nebula.Controls.NebulaWindow", StringComparison.Ordinal));
+                item.Role == "view" && item.TargetPath.EndsWith("MainWindow.xaml", StringComparison.Ordinal));
             var interaction = apply.BehaviorIntegrationContract.Interactions.Should().ContainSingle().Subject;
-            interaction.CommandPath.Should().Be("RunCommand");
-            interaction.CommandParameter.Should().Be("acceptance-42");
-            interaction.Label.Should().Be("Run acceptance");
+            interaction.CommandPath.Should().Be("OpenWorkspaceCommand");
+            interaction.CommandParameter.Should().Be("material-532");
+            interaction.Label.Should().Be("Open workspace");
 
             using var sensitiveReads = new EnvironmentVariableScope(
                 McpServerConfiguration.AllowSensitiveReadsEnvVar,
@@ -66,7 +73,8 @@ public sealed class ComposerThirdPartyPackAcceptanceTests
             preview.BuildSucceeded.Should().BeTrue(preview.BuildOutput + Environment.NewLine
                 + string.Join(Environment.NewLine, preview.Diagnostics.Select(diagnostic => diagnostic.Message)));
             preview.PreviewHost.Status.Should().Be("loaded", preview.BuildOutput);
-            preview.ElementCorrelations.Should().HaveCount(4);
+            preview.ElementCorrelations.Should().HaveCount(6);
+            preview.ElementCorrelations.Select(item => item.ElementName).Should().OnlyHaveUniqueItems();
             preview.PreviewHost.RuntimeDiagnostics.Should().Contain(diagnostic =>
                 diagnostic.Tool == "connect" && diagnostic.Success);
             preview.PreviewHost.RuntimeDiagnostics.Should().Contain(diagnostic =>
@@ -75,11 +83,61 @@ public sealed class ComposerThirdPartyPackAcceptanceTests
                 diagnostic.Tool == "find_elements" && diagnostic.Success);
             var summary = preview.PreviewHost.RuntimeDiagnostics.Should().ContainSingle(diagnostic =>
                 diagnostic.Tool == "get_ui_summary" && diagnostic.Success).Subject;
-            summary.Payload.GetRawText().Should().Contain("Pack-neutral runtime").And.Contain("Run acceptance");
+            summary.Payload.GetRawText().Should().Contain("Material workspace").And.Contain("Open workspace");
         }
         finally
         {
             TestDirectory.Delete(projectRoot);
+        }
+    }
+
+    private static void AssertRealMaterialDesignSurface(string xaml, IReadOnlyList<string> resources)
+    {
+        resources.Should().Contain(resource => resource.Contains("MaterialDesign3.Defaults.xaml", StringComparison.Ordinal));
+        var window = XamlReader.Parse(xaml).Should().BeOfType<Window>().Subject;
+        window.Resources.MergedDictionaries.Add((ResourceDictionary)XamlReader.Parse(
+            """<materialDesign:BundledTheme xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes" BaseTheme="Dark" PrimaryColor="DeepPurple" SecondaryColor="Lime" />"""));
+        window.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri(
+                "pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign3.Defaults.xaml",
+                UriKind.Absolute)
+        });
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var descendants = EnumerateDescendants(window).ToArray();
+            descendants.OfType<Card>().Should().ContainSingle(card => card.IsVisible && card.ActualWidth > 100);
+            descendants.OfType<Button>().Should().ContainSingle(button =>
+                button.IsVisible && button.IsEnabled && Equals(button.Content, "Open workspace"));
+            descendants.OfType<TextBlock>().Should().Contain(text =>
+                text.IsVisible && text.Text == "Material workspace");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    private static IEnumerable<DependencyObject> EnumerateDescendants(DependencyObject root)
+    {
+        var pending = new Stack<DependencyObject>();
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            var current = pending.Pop();
+            yield return current;
+            if (current is not Visual)
+            {
+                continue;
+            }
+
+            for (var index = VisualTreeHelper.GetChildrenCount(current) - 1; index >= 0; index--)
+            {
+                pending.Push(VisualTreeHelper.GetChild(current, index));
+            }
         }
     }
 
@@ -143,64 +201,4 @@ public sealed class ComposerThirdPartyPackAcceptanceTests
             TestDirectory.Delete(_certificateDirectory);
         }
     }
-}
-
-internal static class ThirdPartyPackFixture
-{
-    public const string Blueprint = """
-        {
-          "schemaVersion":"wpfdevtools.ui-blueprint.v1",
-          "name":"NebulaAcceptance",
-          "packs":[
-            {"id":"core","version":"0.1.0","required":true,"role":"layout-pack"},
-            {"id":"nebula","version":"1.0.0","required":true,"role":"primary"}
-          ],
-          "primaryPack":"nebula",
-          "layout":{
-            "kind":"nebula.window",
-            "properties":{"title":"Third-party acceptance"},
-            "slots":{"content":[{
-              "kind":"core.stack",
-              "slots":{"children":[
-                {"kind":"core.text","properties":{"text":"Pack-neutral runtime"}},
-                {"kind":"nebula.action","properties":{"execute":"{Binding RunCommand}","payload":"acceptance-42","caption":"Run acceptance"}}
-              ]}
-            }]}
-          }
-        }
-        """;
-
-    public static string Create()
-    {
-        var root = Path.Combine(Path.GetTempPath(), "wpfdevtools-third-party-" + Guid.NewGuid().ToString("N"));
-        var pack = Path.Combine(root, ".wpfdevtools", "packs", "nebula", "1.0.0");
-        Directory.CreateDirectory(Path.Combine(pack, "blocks"));
-        Directory.CreateDirectory(Path.Combine(pack, "renderers", "xaml"));
-        File.WriteAllText(Path.Combine(root, "ThirdPartyAcceptance.csproj"),
-            """<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework><UseWPF>true</UseWPF><RootNamespace>ThirdPartyAcceptance</RootNamespace></PropertyGroup></Project>""");
-        File.WriteAllText(Path.Combine(pack, "pack.json"), PackJson);
-        File.WriteAllText(Path.Combine(pack, "install.manifest.json"),
-            """{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"nebula","version":"1.0.0","scope":"project-local","path":".","enabled":true}""");
-        File.WriteAllText(Path.Combine(pack, "source.lock.json"),
-            """{"schemaVersion":"wpfdevtools.source-lock.v1","sources":[{"name":"Nebula Controls","url":"https://example.invalid/nebula","version":"1.0.0","paths":["src"]}],"transformPolicy":{}}""");
-        File.WriteAllText(Path.Combine(pack, "blocks", "window.block.json"), WindowBlockJson);
-        File.WriteAllText(Path.Combine(pack, "blocks", "action.block.json"), ActionBlockJson);
-        File.WriteAllText(Path.Combine(pack, "renderers", "xaml", "window.xaml.sbn"),
-            "<nebula:NebulaWindow Title=\"{{title}}\" Width=\"720\" Height=\"480\">{{slot.content}}</nebula:NebulaWindow>");
-        File.WriteAllText(Path.Combine(pack, "renderers", "xaml", "action.xaml.sbn"),
-            "<Button Content=\"{{caption}}\" Command=\"{{execute}}\" CommandParameter=\"{{payload}}\" />");
-        return root;
-    }
-
-    private const string PackJson = """
-        {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"nebula","kind":"style-pack","displayName":"Nebula Controls","version":"1.0.0","blocks":["nebula.window","nebula.action"],"recipes":[],"xmlNamespaces":{"nebula":"clr-namespace:Nebula.Controls"},"preview":{"namespaceUri":"clr-namespace:Nebula.Controls","clrNamespace":"Nebula.Controls","types":{"NebulaWindow":{"baseKind":"window","properties":{}}}}}
-        """;
-
-    private const string WindowBlockJson = """
-        {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"nebula.window","displayName":"Nebula Window","category":"window","properties":{"title":{"type":"string","required":true,"default":"Nebula"}},"slots":{"content":{"allowedKinds":["*"]}},"renderer":{"xamlTemplate":"renderers/xaml/window.xaml.sbn","codeBehindBaseType":"Nebula.Controls.NebulaWindow"},"sourceHints":[]}
-        """;
-
-    private const string ActionBlockJson = """
-        {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"nebula.action","displayName":"Nebula Action","category":"interaction","properties":{"execute":{"type":"binding","required":true},"payload":{"type":"string"},"caption":{"type":"string","required":true}},"slots":{},"interaction":{"kind":"action","commandProperty":"execute","commandParameterProperty":"payload","labelProperty":"caption"},"renderer":{"xamlTemplate":"renderers/xaml/action.xaml.sbn"},"sourceHints":[]}
-        """;
 }

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "materialdesign.card",
+  "displayName": "Material Card",
+  "description": "Material Design card content surface.",
+  "category": "container",
+  "properties": {
+    "margin": { "type": "string", "format": "thickness", "default": "0" },
+    "padding": { "type": "string", "format": "thickness", "default": "24" }
+  },
+  "slots": {
+    "content": { "allowedKinds": ["*"] }
+  },
+  "renderer": { "xamlTemplate": "renderers/xaml/card.xaml.sbn" },
+  "sourceHints": [
+    { "path": "src/MaterialDesignThemes.Wpf", "usage": "public Card control contract" }
+  ]
+}

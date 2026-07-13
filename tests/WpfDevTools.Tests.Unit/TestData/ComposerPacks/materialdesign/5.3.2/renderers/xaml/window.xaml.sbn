@@ -1,0 +1,1 @@
+<Window Title="{{title}}" Width="{{width}}" Height="{{height}}" Style="{DynamicResource MaterialDesignWindow}">{{slot.content}}</Window>

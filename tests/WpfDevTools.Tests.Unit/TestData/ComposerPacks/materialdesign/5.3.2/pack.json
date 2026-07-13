@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "wpfdevtools.ui-pack.v1",
+  "id": "materialdesign",
+  "kind": "style-pack",
+  "displayName": "Material Design In XAML",
+  "version": "5.3.2",
+  "source": {
+    "generatorSkill": "wpf-extension-pack-creator",
+    "license": "MIT",
+    "lockFile": "source.lock.json",
+    "upstream": "https://github.com/MaterialDesignInXAML/MaterialDesignInXamlToolkit"
+  },
+  "nugetPackages": [
+    { "id": "MaterialDesignThemes", "versionRange": "[5.3.2]" }
+  ],
+  "xmlNamespaces": {
+    "materialDesign": "http://materialdesigninxaml.net/winfx/xaml/themes"
+  },
+  "resourceSetup": {
+    "applicationMergedDictionaries": [
+      "<materialDesign:BundledTheme BaseTheme=\"Dark\" PrimaryColor=\"DeepPurple\" SecondaryColor=\"Lime\" />",
+      "<ResourceDictionary Source=\"pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign3.Defaults.xaml\" />"
+    ]
+  },
+  "preview": {
+    "namespaceUri": "http://materialdesigninxaml.net/winfx/xaml/themes",
+    "clrNamespace": "MaterialDesignThemes.Wpf",
+    "types": {
+      "Card": { "baseKind": "contentControl", "properties": {} }
+    }
+  },
+  "blocks": [
+    "materialdesign.window",
+    "materialdesign.card",
+    "materialdesign.action"
+  ],
+  "recipes": [],
+  "compatibility": { "wpfDevToolsComposer": ">=0.1.0" }
+}

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "wpfdevtools.pack-install-manifest.v1",
+  "id": "materialdesign",
+  "version": "5.3.2",
+  "scope": "project-local",
+  "path": ".",
+  "enabled": true
+}

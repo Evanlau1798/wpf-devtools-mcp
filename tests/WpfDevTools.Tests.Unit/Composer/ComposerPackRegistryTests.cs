@@ -134,6 +134,28 @@ public sealed class ComposerPackRegistryTests
     }
 
     [Fact]
+    public void PackRegistry_ShouldDeriveRoleFromArbitraryPackKind()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var projectPackRoot = ComposerPackPaths.ProjectLocalRoot(Path.Combine(tempRoot, "project"));
+            CreateMinimalPack(projectPackRoot, "sample-theme", "1.0.0", "style-pack");
+
+            var result = new PackRegistry(Path.Combine(tempRoot, "builtin"), projectPackRoot).ListPacks();
+
+            var pack = result.Packs.Should().ContainSingle().Subject;
+            pack.Id.Should().Be("sample-theme");
+            pack.Role.Should().Be(ComposerPackRoles.Primary);
+            pack.Required.Should().BeTrue();
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void PackRegistry_ShouldReportMissingInstallManifestAsPackHealthDiagnostic()
     {
         var tempRoot = CreateTempDirectory();
@@ -228,7 +250,11 @@ public sealed class ComposerPackRegistryTests
             """);
     }
 
-    private static void CreateMinimalPack(string packRoot, string packId, string version)
+    private static void CreateMinimalPack(
+        string packRoot,
+        string packId,
+        string version,
+        string kind = "control-pack")
     {
         var destination = Path.Combine(packRoot, packId, version);
         Directory.CreateDirectory(Path.Combine(destination, "blocks"));
@@ -239,7 +265,7 @@ public sealed class ComposerPackRegistryTests
         File.WriteAllText(
             Path.Combine(destination, "pack.json"),
             $$"""
-            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"{{packId}}","displayName":"Sample Pack","version":"{{version}}","blocks":["{{packId}}.text"],"recipes":[]}
+            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"{{packId}}","kind":"{{kind}}","displayName":"Sample Pack","version":"{{version}}","blocks":["{{packId}}.text"],"recipes":[]}
             """);
         File.WriteAllText(
             Path.Combine(destination, "source.lock.json"),

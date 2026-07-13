@@ -112,8 +112,7 @@ internal sealed class PackRegistry
 
         var readinessPath = GetReadinessPath(packRoot, pack.Manifest.Id, pack.Manifest.Version);
         var readinessValid = readinessPath is not null && ReadValid(readinessPath);
-        var rolePlan = ComposerPackRoleCatalog.WpfUiPacks.FirstOrDefault(plan =>
-            string.Equals(plan.Id, pack.Manifest.Id, StringComparison.Ordinal));
+        var rolePlan = ComposerPackKindRoleResolver.Resolve(pack.Manifest.Kind);
 
         return new PackRegistryItem(
             pack.Manifest.Id,
@@ -127,8 +126,8 @@ internal sealed class PackRegistry
             readinessValid,
             pack.SourceLock.Sources.FirstOrDefault()?.Url ?? string.Empty,
             pack.Blocks.Select(block => block.Kind).Order(StringComparer.Ordinal).ToArray(),
-            rolePlan?.Role ?? string.Empty,
-            rolePlan?.Required ?? false,
+            rolePlan.Role,
+            rolePlan.Required,
             pack.Manifest.Kind)
         {
             ThemeTokens = pack.Manifest.ThemeTokens

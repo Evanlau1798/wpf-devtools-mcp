@@ -35,7 +35,7 @@ public sealed class ComposerCorePackTests
         using var pack = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "pack.json")));
         using var sourceLock = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "source.lock.json")));
 
-        pack.RootElement.GetProperty("kind").GetString().Should().Be("control-pack");
+        pack.RootElement.GetProperty("kind").GetString().Should().Be("layout-pack");
         pack.RootElement.GetProperty("source").GetProperty("lockFile").GetString().Should().Be("source.lock.json");
         sourceLock.RootElement.GetProperty("generatedAt").GetString().Should().NotBeNullOrWhiteSpace();
         sourceLock.RootElement.GetProperty("generatorSkill").GetString().Should().Be("wpf-extension-pack-creator");

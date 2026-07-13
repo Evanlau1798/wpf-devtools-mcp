@@ -3,7 +3,7 @@
   "id": "core",
   "displayName": "WPF Core",
   "version": "0.1.0",
-  "kind": "control-pack",
+  "kind": "layout-pack",
   "source": {
     "generatorSkill": "wpf-extension-pack-creator",
     "upstream": "https://github.com/dotnet/wpf",

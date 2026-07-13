@@ -24,18 +24,20 @@ internal static class ComposerPackRoles
     };
 }
 
-internal sealed record ComposerPackRolePlan(string Id, string Role, bool Required);
+internal sealed record ComposerPackRolePlan(string Role, bool Required);
 
-internal static class ComposerPackRoleCatalog
+internal static class ComposerPackKindRoleResolver
 {
-    public const string DefaultWpfUiPackId = "wpfui";
-
-    public static IReadOnlyList<ComposerPackRolePlan> WpfUiPacks { get; } =
-    [
-        new(DefaultWpfUiPackId, ComposerPackRoles.Primary, true),
-        new("wpfui.gallery", ComposerPackRoles.RecipePack, false),
-        new("wpfui.syntaxhighlight", ComposerPackRoles.ControlPack, false),
-        new("wpfui.tray", ComposerPackRoles.ControlPack, false),
-        new("wpfui.templates", ComposerPackRoles.RecipePack, false)
-    ];
+    public static ComposerPackRolePlan Resolve(string packKind)
+        => packKind switch
+        {
+            "style-pack" or "skill-generated-style-pack" => new(ComposerPackRoles.Primary, true),
+            "control-pack" => new(ComposerPackRoles.ControlPack, false),
+            "layout-pack" => new(ComposerPackRoles.LayoutPack, false),
+            "icon-pack" => new(ComposerPackRoles.IconPack, false),
+            "recipe-pack" => new(ComposerPackRoles.RecipePack, false),
+            "extension-pack" => new(ComposerPackRoles.Extension, false),
+            "project-local-pack" => new(ComposerPackRoles.ProjectLocalPack, false),
+            _ => new(ComposerPackRoles.Other, false)
+        };
 }

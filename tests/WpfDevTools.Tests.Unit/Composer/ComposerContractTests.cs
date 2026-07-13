@@ -72,6 +72,50 @@ public sealed class ComposerContractTests
     }
 
     [Fact]
+    public void ComposerJsonLoader_ShouldPreserveCreatorGuidanceFields()
+    {
+        var pack = ComposerJsonLoader.Parse<UiPackManifest>(
+            """
+            {
+              "schemaVersion": "wpfdevtools.ui-pack.v1",
+              "id": "sample",
+              "kind": "control-pack",
+              "displayName": "Sample",
+              "version": "1.0.0",
+              "themeTokens": { "accent": "#123456", "spacing": 12 },
+              "blocks": []
+            }
+            """,
+            "pack.json",
+            UiComposerSchemaVersions.UiPack);
+        var recipe = ComposerJsonLoader.Parse<UiRecipeDefinition>(
+            """
+            {
+              "schemaVersion": "wpfdevtools.ui-recipe.v1",
+              "id": "sample.workspace",
+              "displayName": "Workspace",
+              "description": "A flexible workspace starting point.",
+              "packId": "sample",
+              "inputs": {
+                "heading": { "type": "string", "description": "Visible workspace heading." }
+              },
+              "requiredPacks": [],
+              "customizationGuidance": ["Invent the information architecture before choosing blocks."],
+              "expandsTo": { "kind": "sample.root" }
+            }
+            """,
+            "workspace.recipe.json",
+            UiComposerSchemaVersions.UiRecipe);
+
+        pack.Kind.Should().Be("control-pack");
+        pack.ThemeTokens["accent"].GetString().Should().Be("#123456");
+        pack.ThemeTokens["spacing"].GetInt32().Should().Be(12);
+        recipe.Description.Should().Be("A flexible workspace starting point.");
+        recipe.CustomizationGuidance.Should().Equal("Invent the information architecture before choosing blocks.");
+        recipe.Inputs["heading"].Description.Should().Be("Visible workspace heading.");
+    }
+
+    [Fact]
     public void ComposerJsonLoader_ShouldRejectUnknownSchemaVersion()
     {
         var json = """

@@ -467,6 +467,8 @@ public static class UiComposerMcpTools
             pack.ReadinessValid,
             pack.SourceRepository,
             pack.BlockKinds,
+            pack.Kind,
+            pack.ThemeTokens,
             pack.Role,
             pack.Required
         };

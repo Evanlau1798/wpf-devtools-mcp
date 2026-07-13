@@ -128,7 +128,11 @@ internal sealed class PackRegistry
             pack.SourceLock.Sources.FirstOrDefault()?.Url ?? string.Empty,
             pack.Blocks.Select(block => block.Kind).Order(StringComparer.Ordinal).ToArray(),
             rolePlan?.Role ?? string.Empty,
-            rolePlan?.Required ?? false);
+            rolePlan?.Required ?? false,
+            pack.Manifest.Kind)
+        {
+            ThemeTokens = pack.Manifest.ThemeTokens
+        };
     }
 
     private static string? GetReadinessPath(string packRoot, string id, string version)
@@ -166,7 +170,12 @@ internal sealed record PackRegistryItem(
     string SourceRepository,
     IReadOnlyList<string> BlockKinds,
     string Role = "",
-    bool Required = false);
+    bool Required = false,
+    string Kind = "")
+{
+    public IReadOnlyDictionary<string, JsonElement> ThemeTokens { get; init; }
+        = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+}
 
 internal enum PackScope
 {

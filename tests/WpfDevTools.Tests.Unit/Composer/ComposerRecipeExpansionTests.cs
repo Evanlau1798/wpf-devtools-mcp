@@ -32,6 +32,11 @@ public sealed class ComposerRecipeExpansionTests
         dataGrid.RootKind.Should().Be("wpfui.dataGrid");
         dataGrid.Inputs.Keys.Should().Contain(["itemsSource", "emptyText"]);
         dataGrid.RequiredPacks.Should().ContainSingle(pack => pack.Id == "wpfui" && pack.Version == "0.1.0");
+        var shell = result.Items.Single(item => item.Id == "wpfui.shellWithNavigation");
+        shell.Description.Contains("customizable", StringComparison.OrdinalIgnoreCase).Should().BeTrue();
+        shell.CustomizationGuidance.Should().Contain(guidance =>
+            guidance.Contains("information architecture", StringComparison.OrdinalIgnoreCase));
+        shell.Inputs["title"].Description.Contains("title", StringComparison.OrdinalIgnoreCase).Should().BeTrue();
         result.Diagnostics.Should().BeEmpty();
     }
 

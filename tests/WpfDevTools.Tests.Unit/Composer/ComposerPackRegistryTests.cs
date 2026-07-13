@@ -30,6 +30,8 @@ public sealed class ComposerPackRegistryTests
         pack.BlockCount.Should().Be(16);
         pack.ReadinessValid.Should().BeTrue();
         pack.SourceRepository.Should().Be("https://github.com/lepoco/wpfui");
+        pack.Kind.Should().Be("skill-generated-style-pack");
+        pack.ThemeTokens["spacing.medium"].GetString().Should().Be("12");
     }
 
     [Fact]
@@ -201,6 +203,8 @@ public sealed class ComposerPackRegistryTests
                 .Should().Contain(pack => pack.GetProperty("id").GetString() == "wpfui"
                     && pack.GetProperty("version").GetString() == "0.1.0"
                     && pack.GetProperty("blockCount").GetInt32() == 16
+                    && pack.GetProperty("kind").GetString() == "skill-generated-style-pack"
+                    && pack.GetProperty("themeTokens").GetProperty("cornerRadius.control").GetString() == "8"
                     && pack.GetProperty("role").GetString() == ComposerPackRoles.Primary
                     && pack.GetProperty("required").GetBoolean());
             payload.GetProperty("allowedPackRoles").EnumerateArray()

@@ -18,11 +18,13 @@ internal abstract class ComposerJsonDocument
 internal sealed class UiPackManifest : ComposerJsonDocument
 {
     public string Id { get; set; } = string.Empty;
+    public string Kind { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public string Version { get; set; } = string.Empty;
     public UiPackNuGetPackage[] NugetPackages { get; set; } = [];
     public Dictionary<string, string> XmlNamespaces { get; set; } = new(StringComparer.Ordinal);
     public UiPackResourceSetup ResourceSetup { get; set; } = new();
+    public Dictionary<string, JsonElement> ThemeTokens { get; set; } = new(StringComparer.Ordinal);
     public UiPackPreviewContract? Preview { get; set; }
     public string[] Blocks { get; set; } = [];
     public string[] Recipes { get; set; } = [];
@@ -104,9 +106,11 @@ internal sealed class UiRecipeDefinition : ComposerJsonDocument
 {
     public string Id { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
     public string PackId { get; set; } = string.Empty;
     public Dictionary<string, UiRecipeInput> Inputs { get; set; } = new(StringComparer.Ordinal);
     public ComposerPackReference[] RequiredPacks { get; set; } = [];
+    public string[] CustomizationGuidance { get; set; } = [];
     public JsonElement ExpandsTo { get; set; }
 }
 

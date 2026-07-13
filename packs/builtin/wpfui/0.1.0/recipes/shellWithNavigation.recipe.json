@@ -3,6 +3,10 @@
   "id": "wpfui.shellWithNavigation",
   "displayName": "WPF UI Navigation Shell",
   "description": "A customizable WPF UI shell with command-bound navigation destinations, a command-bound primary action, and application-specific content. Implement the returned behavior integration contract before treating the generated shell as functional.",
+  "customizationGuidance": [
+    "Invent the application's information architecture and domain language before selecting or renaming navigation destinations.",
+    "Use this recipe as a starting fragment, then change its content hierarchy and interactions to fit the application rather than preserving the sample topology."
+  ],
   "packId": "wpfui",
   "requiredPacks": [
     {

@@ -47,6 +47,7 @@ internal sealed class RecipeCatalogService(PackRegistry registry)
                 pair.Value.Type,
                 pair.Value.Required,
                 pair.Value.Default,
+                pair.Value.Description,
                 GetAllowedValues(pair.Value)),
             StringComparer.Ordinal);
 
@@ -55,9 +56,11 @@ internal sealed class RecipeCatalogService(PackRegistry registry)
             pack.Version,
             recipe.Id,
             recipe.DisplayName,
+            recipe.Description,
             recipe.RequiredPacks,
             inputs,
-            TryGetRootKind(recipe.ExpandsTo));
+            TryGetRootKind(recipe.ExpandsTo),
+            recipe.CustomizationGuidance);
     }
 
     private static string[] GetAllowedValues(UiRecipeInput input)
@@ -83,12 +86,15 @@ internal sealed record RecipeCatalogItem(
     string PackVersion,
     string Id,
     string DisplayName,
+    string Description,
     IReadOnlyList<ComposerPackReference> RequiredPacks,
     IReadOnlyDictionary<string, RecipeCatalogInput> Inputs,
-    string RootKind);
+    string RootKind,
+    IReadOnlyList<string> CustomizationGuidance);
 
 internal sealed record RecipeCatalogInput(
     string Type,
     bool Required,
     JsonElement? Default,
+    string Description,
     IReadOnlyList<string> AllowedValues);

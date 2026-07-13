@@ -227,26 +227,7 @@ public sealed partial class ElementSearchAnalyzer : DispatcherAnalyzerBase
                 truncationReason = "maxTraversalNodes";
             }
 
-            var recovery = traversalTruncated && results.Count == 0
-                ? new
-                {
-                    code = "TraversalBudgetExceededBeforeMatch",
-                    message = "No match was found before the bounded traversal ended; the zero-result response is inconclusive.",
-                    retry = new
-                    {
-                        parameter = "maxTraversalNodes",
-                        canIncrease = traversalLimit < TreeTraversalDefaults.MaxNodesLimit,
-                        suggestedValue = traversalLimit < TreeTraversalDefaults.MaxNodesLimit
-                            ? Math.Min(traversalLimit * 2, TreeTraversalDefaults.MaxNodesLimit)
-                            : (int?)null
-                    },
-                    alternative = new
-                    {
-                        parameter = "elementId",
-                        guidance = "Use get_ui_summary or a bounded tree read to choose a narrower ancestor, then retry within that element."
-                    }
-                }
-                : null;
+            var recovery = CreateTraversalRecovery(traversalTruncated, results.Count, traversalLimit);
 
             return new
             {
@@ -478,12 +459,6 @@ public sealed partial class ElementSearchAnalyzer : DispatcherAnalyzerBase
         {
             _dependencyPropertyCache.TryRemove(oldestKey, out _);
         }
-    }
-
-    private static int ResolveTraversalLimit(int? maxTraversalNodes)
-    {
-        var resolved = maxTraversalNodes ?? TreeTraversalDefaults.DefaultMaxNodes;
-        return Math.Max(1, Math.Min(resolved, TreeTraversalDefaults.MaxNodesLimit));
     }
 
     private DependencyObject? ResolveSearchRoot(string? rootElementId, int? maxTraversalNodes)

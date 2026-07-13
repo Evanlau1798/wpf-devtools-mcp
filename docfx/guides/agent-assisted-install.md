@@ -100,6 +100,7 @@ After installation, report:
 - release sidecar verification result when local sidecars are used
 - release trust mode checked
 - `releaseTrust.signaturePolicy` and the `releaseTrust.archiveChecksum` status, metadata source, expected SHA-256, and actual SHA-256 returned by installer JSON
+- installer JSON `serverCommand`: exact executable, STDIO transport, selected client/architecture/install root, and non-secret `policyTemplate`; replace target placeholders before starting the fresh server process
 - any manual registration step still required
 
 Do not report private keys, PFX passwords, GitHub secrets, auth secrets, or certificate private-key material.

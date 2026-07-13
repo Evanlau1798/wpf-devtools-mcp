@@ -25,6 +25,8 @@ Use the generated `client-registration` artifact as the source of truth. The exe
 
 For `-Client other -OutputJson`, the install result also includes `composerPolicyProfile`. Its `requiredEnvironment` map names the minimum project-write and destructive gates for `apply_ui_blueprint`, while `freshServerProcessRequired=true` reminds automation to start a new scoped server after setting them.
 
+Every successful install with `-OutputJson` includes a compact `serverCommand` object. Use its exact `executable` and empty `arguments` array to start the selected installed server with `transport="stdio"`; `client`, `architecture`, and `installRoot` identify the resolved installation. Its `policyTemplate` supplies the first-run fields `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`, `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`, and `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS`. Replace the target placeholders with the reviewed app path, omit raw-injection opt-in when it is unnecessary, and start a fresh process when `freshServerProcessRequired=true`. This object does not contain secrets; it intentionally omits auth and certificate configuration.
+
 ## First verification flow
 
 Before the first connection, set the reviewed target path for connection and raw-injection fallback, then enable sensitive reads for the first scene summary:

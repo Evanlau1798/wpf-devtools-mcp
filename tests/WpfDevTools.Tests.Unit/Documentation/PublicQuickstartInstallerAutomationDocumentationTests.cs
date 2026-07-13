@@ -75,6 +75,30 @@ public sealed class PublicQuickstartInstallerAutomationDocumentationTests
         }
     }
 
+    [Theory]
+    [InlineData("docfx/quickstart/ai-agent-clients.md", "does not contain secrets")]
+    [InlineData("docfx/zh-tw/quickstart/ai-agent-clients.md", "不包含 secrets")]
+    public void AgentClientQuickstarts_ShouldDocumentInstallerServerCommandContract(
+        string file,
+        string noSecretsPhrase)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(file));
+
+        content.Should().ContainAll(
+            "`serverCommand`",
+            "`executable`",
+            "`transport=\"stdio\"`",
+            "`client`",
+            "`architecture`",
+            "`installRoot`",
+            "`policyTemplate`",
+            "WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
+            "WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS",
+            "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS",
+            "freshServerProcessRequired");
+        content.Should().Contain(noSecretsPhrase);
+    }
+
     private static IEnumerable<string> EnumeratePublicInstallDocs()
     {
         yield return "README.md";

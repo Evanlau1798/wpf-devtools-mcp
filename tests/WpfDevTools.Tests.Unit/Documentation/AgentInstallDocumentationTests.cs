@@ -54,6 +54,8 @@ public sealed class AgentInstallDocumentationTests
             content.Should().Contain("mutation");
             content.Should().Contain("confirmation");
             content.Should().Contain("client-registration");
+            content.Should().Contain("serverCommand");
+            content.Should().Contain("policyTemplate");
             content.Should().Contain("private keys");
             content.Should().Contain("auth secrets");
             content.Should().NotContain("-ExecutionPolicy Bypass");

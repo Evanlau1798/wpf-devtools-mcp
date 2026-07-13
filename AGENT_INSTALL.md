@@ -109,6 +109,7 @@ Report:
 - for a reviewed local package, release archive and sidecar paths
 - hash, metadata, release SBOM, package SBOM, and release trust verification results when local sidecars are used
 - installer JSON `releaseTrust.signaturePolicy` plus `releaseTrust.archiveChecksum` status, metadata source, expected SHA-256, and actual SHA-256
+- installer JSON `serverCommand` fields: exact executable, STDIO transport, selected client/architecture/install root, and non-secret `policyTemplate`; replace target placeholders before starting the fresh server process
 - exact install command approved by the user
 - installed executable path and generated `client-registration` artifact path
 

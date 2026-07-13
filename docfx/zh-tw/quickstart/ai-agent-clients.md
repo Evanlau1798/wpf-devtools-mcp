@@ -25,6 +25,8 @@
 
 使用 `-Client other -OutputJson` 時，install result 也會包含 `composerPolicyProfile`。其中的 `requiredEnvironment` map 會列出 `apply_ui_blueprint` 所需的最小 project-write 與 destructive gates；`freshServerProcessRequired=true` 則提醒自動化流程在設定完成後啟動新的 scoped server。
 
+每次成功安裝搭配 `-OutputJson` 都會回傳 compact `serverCommand` object。請使用其中的 exact `executable` 與空的 `arguments` array，以 `transport="stdio"` 啟動所選 installed server；`client`、`architecture` 與 `installRoot` 會識別 resolved installation。`policyTemplate` 提供 first-run fields：`WPFDEVTOOLS_MCP_ALLOWED_TARGETS`、`WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` 與 `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS`。請把 target placeholders 換成 reviewed app path、不需要 raw injection 時省略該 opt-in，並在 `freshServerProcessRequired=true` 時啟動 fresh process。此 object 不包含 secrets，也刻意不提供 auth 或 certificate configuration。
+
 ## 第一次 verification flow
 
 第一次連線前，請把 reviewed target path 同時用於 connection 與 raw-injection fallback，並為第一次 scene summary 啟用 sensitive reads：

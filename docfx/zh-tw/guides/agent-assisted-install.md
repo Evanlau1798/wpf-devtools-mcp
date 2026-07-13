@@ -100,6 +100,7 @@ Package-local fallback：
 - 使用本機 sidecar 時的 release sidecar verification result
 - release trust mode checked
 - installer JSON 回傳的 `releaseTrust.signaturePolicy`，以及 `releaseTrust.archiveChecksum` status、metadata source、expected SHA-256 與 actual SHA-256
+- installer JSON 的 `serverCommand`：exact executable、STDIO transport、selected client/architecture/install root，以及不含 secrets 的 `policyTemplate`；啟動 fresh server process 前先替換 target placeholders
 - 是否仍需要 manual registration step
 
 不要回報 private keys、PFX passwords、GitHub secrets、auth secrets 或 certificate private-key material。

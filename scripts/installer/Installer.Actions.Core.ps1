@@ -1,14 +1,11 @@
 function Write-InstallerActionProgress {
     param([Parameter(Mandatory)] [string]$Message)
-
     if (Get-Command Write-InstallerMessage -ErrorAction SilentlyContinue) {
         Write-InstallerMessage $Message
     }
 }
-
 function Get-InstallerUninstallCleanupGuidance {
     param([Parameter(Mandatory)] [string]$ResolvedClient)
-
     $otherClause = if ((Resolve-ClientBaseId -ClientId $ResolvedClient) -eq 'other') {
         ' For -Client other, other.mcpServers.json is the selected artifact-only registration target.'
     }
@@ -18,14 +15,12 @@ function Get-InstallerUninstallCleanupGuidance {
 
     return "uninstall removes or verifies only the selected registration and leaves installer-owned server locations in place.$otherClause For E2E, temporary, or decommissioning cleanup, use the full cleanup action. Use -Action full-uninstall to remove all detected registrations, generated client-registration artifacts, and installer-owned server locations."
 }
-
 function Get-InstallerFullUninstallCleanupGuidance {
     return 'full-uninstall removes all detected registrations, generated client-registration artifacts, and installer-owned server locations. Persisted auth secrets and certificate stores remain manual cleanup items.'
 }
 
 function Get-InstallerComposerPolicyProfile {
     param([Parameter(Mandatory)] [string]$ResolvedClient)
-
     if (-not [string]::Equals($ResolvedClient, 'other', [System.StringComparison]::OrdinalIgnoreCase)) {
         return $null
     }
@@ -41,7 +36,28 @@ function Get-InstallerComposerPolicyProfile {
         guidance = 'Set these variables only on the MCP server process, use the exact reviewed WPF project root, then start a fresh server process before calling apply_ui_blueprint.'
     }
 }
-
+function Get-InstallerServerCommand {
+    param(
+        [Parameter(Mandatory)] [string]$InstalledExecutable,
+        [Parameter(Mandatory)] [string]$ResolvedClient,
+        [Parameter(Mandatory)] [string]$ResolvedArchitecture,
+        [Parameter(Mandatory)] [string]$ResolvedInstallRoot
+    )
+    return [ordered]@{
+        executable = $InstalledExecutable
+        arguments = @()
+        transport = 'stdio'
+        client = $ResolvedClient
+        architecture = $ResolvedArchitecture
+        installRoot = $ResolvedInstallRoot
+        freshServerProcessRequired = $true
+        policyTemplate = [ordered]@{
+            WPFDEVTOOLS_MCP_ALLOWED_TARGETS = '<exact absolute WPF target executable path>'
+            WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS = '<same exact target path only when raw injection is required>'
+            WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS = 'true'
+        }
+    }
+}
 function Get-InstallerFullUninstallResultSummary {
     param(
         [object[]]$RemovedInstallations,
@@ -424,6 +440,7 @@ function Invoke-InstallerActionCore {
             lastVerifiedUtc = [string]$verification.LastVerifiedUtc
             releaseTrust = $releaseTrust
             composerPolicyProfile = Get-InstallerComposerPolicyProfile -ResolvedClient $ResolvedClient
+            serverCommand = Get-InstallerServerCommand -InstalledExecutable $installResult.installedExecutable -ResolvedClient $ResolvedClient -ResolvedArchitecture $resolvedArchitecture -ResolvedInstallRoot $installResult.installRoot
         }
         Complete-InstalledPayloadCommit -InstallResult $installResult
         $allowPayloadRollback = $false

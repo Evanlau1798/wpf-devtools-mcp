@@ -138,6 +138,25 @@ $assetNameResult = [ordered]@{
             requiredEnvironment.GetProperty("WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS").GetString().Should().Be("true");
             requiredEnvironment.GetProperty("WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS").GetString()
                 .Should().Be("<exact absolute WPF project root>");
+
+            var serverCommand = json.RootElement.GetProperty("serverCommand");
+            serverCommand.GetProperty("executable").GetString().Should().Be(
+                Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe"));
+            serverCommand.GetProperty("arguments").GetArrayLength().Should().Be(0);
+            serverCommand.GetProperty("transport").GetString().Should().Be("stdio");
+            serverCommand.GetProperty("client").GetString().Should().Be("other");
+            serverCommand.GetProperty("architecture").GetString().Should().Be("x64");
+            serverCommand.GetProperty("installRoot").GetString().Should().Be(installRoot);
+            serverCommand.GetProperty("freshServerProcessRequired").GetBoolean().Should().BeTrue();
+
+            var policyTemplate = serverCommand.GetProperty("policyTemplate");
+            policyTemplate.GetProperty("WPFDEVTOOLS_MCP_ALLOWED_TARGETS").GetString()
+                .Should().Be("<exact absolute WPF target executable path>");
+            policyTemplate.GetProperty("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS").GetString()
+                .Should().Be("<same exact target path only when raw injection is required>");
+            policyTemplate.GetProperty("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS").GetString().Should().Be("true");
+            serverCommand.GetRawText().Should().NotContain("AUTH_SECRET").And.NotContain("CERT_DIR");
+            serverCommand.GetRawText().Should().NotContain("wpfui").And.NotContain("WPF-UI");
         }
         finally
         {

@@ -73,7 +73,10 @@ internal static class BlueprintResolutionPlanner
                 continue;
             }
 
-            foreach (var resource in loaded.Manifest.ResourceSetup.ApplicationMergedDictionaries)
+            blueprint.ResourceVariants.TryGetValue(available.Id, out var selectedVariant);
+            var resolvedResources = PackResourceVariantResolver.Resolve(loaded.Manifest, selectedVariant)
+                .ApplicationMergedDictionaries;
+            foreach (var resource in resolvedResources)
             {
                 if (string.IsNullOrWhiteSpace(resource))
                 {

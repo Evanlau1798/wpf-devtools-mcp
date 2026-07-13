@@ -9,7 +9,7 @@
     "margin": { "type": "string", "default": "0", "format": "thickness" },
     "borderThickness": { "type": "string", "default": "0", "format": "thickness" },
     "cornerRadius": { "type": "string", "default": "0", "format": "thickness" },
-    "background": { "type": "string", "default": "Transparent" },
+    "background": { "type": "string", "default": "Transparent", "visualRole": "surface" },
     "borderBrush": { "type": "string", "default": "Transparent" },
     "maxWidth": { "type": "number", "default": 1000000, "minimum": 0 },
     "minHeight": { "type": "number", "default": 0, "minimum": 0 }

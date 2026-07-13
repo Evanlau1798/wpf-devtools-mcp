@@ -20,10 +20,23 @@
     "ui": "http://schemas.lepo.co/wpfui/2022/xaml"
   },
   "resourceSetup": {
-    "applicationMergedDictionaries": [
-      "<ui:ThemesDictionary Theme=\"Dark\" />",
-      "<ui:ControlsDictionary />"
-    ]
+    "defaultVariant": "dark",
+    "variants": {
+      "dark": {
+        "appearance": "dark",
+        "applicationMergedDictionaries": [
+          "<ui:ThemesDictionary Theme=\"Dark\" />",
+          "<ui:ControlsDictionary />"
+        ]
+      },
+      "light": {
+        "appearance": "light",
+        "applicationMergedDictionaries": [
+          "<ui:ThemesDictionary Theme=\"Light\" />",
+          "<ui:ControlsDictionary />"
+        ]
+      }
+    }
   },
   "themeTokens": {
     "cornerRadius.control": "8",

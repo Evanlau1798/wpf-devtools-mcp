@@ -35,7 +35,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             request.BlueprintJson,
             "<inline-blueprint>",
             UiComposerSchemaVersions.UiBlueprint);
-        var context = RenderContext.Create(registry, blueprint.Packs);
+        var context = RenderContext.Create(registry, blueprint.Packs, blueprint.ResourceVariants);
         ReserveExistingElementNames(blueprint.Layout, blueprint.Packs, context.ReservedElementNames);
         var errors = new List<BlueprintValidationIssue>();
         var sourceMap = new List<RenderSourceMapEntry>();
@@ -406,7 +406,10 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         public IReadOnlyList<string> Diagnostics { get; }
         public HashSet<string> ReservedElementNames { get; }
 
-        public static RenderContext Create(PackRegistry registry, IReadOnlyList<ComposerPackReference> declaredPacks)
+        public static RenderContext Create(
+            PackRegistry registry,
+            IReadOnlyList<ComposerPackReference> declaredPacks,
+            IReadOnlyDictionary<string, string> resourceVariants)
         {
             var registryResult = registry.ListPacks();
             var registryById = registryResult.Packs.ToDictionary(pack => pack.Id, StringComparer.Ordinal);
@@ -431,7 +434,9 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
 
                 packages.AddRange(loaded.Manifest.NugetPackages.Select(package =>
                     new RequiredNuGetPackage(package.Id, package.VersionRange)));
-                resources.AddRange(loaded.Manifest.ResourceSetup.ApplicationMergedDictionaries);
+                resourceVariants.TryGetValue(declared.Id, out var selectedVariant);
+                resources.AddRange(PackResourceVariantResolver.Resolve(loaded.Manifest, selectedVariant)
+                    .ApplicationMergedDictionaries);
                 foreach (var xmlNamespace in loaded.Manifest.XmlNamespaces)
                 {
                     xmlNamespaces.TryAdd(xmlNamespace.Key, xmlNamespace.Value);

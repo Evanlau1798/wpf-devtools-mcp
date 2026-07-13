@@ -65,6 +65,8 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
             WarnForUnusedDeclaredPacks(blueprint, declaredPacks.Keys.ToHashSet(StringComparer.Ordinal), usedPackIds, warnings);
         }
 
+        BlueprintVisualThemeDiagnostics.AddIssues(blueprint, registryResult.Packs, errors, warnings);
+
         return new BlueprintValidationResult(errors, warnings, registryResult.Diagnostics, resolution);
     }
 

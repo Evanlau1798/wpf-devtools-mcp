@@ -62,6 +62,7 @@ internal static class ComposerPackLoader
             UiComposerSchemaVersions.SourceLock);
 
         ValidatePathContract(root, manifest);
+        PackResourceVariantResolver.Validate(manifest);
 
         var blocks = LoadDocuments<UiBlockDefinition>(
             Path.Combine(root, "blocks"),

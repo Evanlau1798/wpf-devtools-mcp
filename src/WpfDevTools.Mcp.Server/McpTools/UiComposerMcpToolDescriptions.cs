@@ -34,7 +34,8 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - Returns success, packCount, packs, allowedPackRoles, and diagnostics.
-        - Each pack entry includes id, version, scope, kind, themeTokens, role, required, blockCount, recipeCount, exampleCount, rendererCount, readinessValid, sourceRepository, and blockKinds.
+        - Each pack entry includes id, version, scope, kind, themeTokens, resourceVariants, role, required, blockCount, recipeCount, exampleCount, rendererCount, readinessValid, sourceRepository, and blockKinds.
+        - resourceVariants declares the pack-owned default plus ordered ids and light/dark/neutral appearances. Select one through blueprint resourceVariants; never infer a library-specific theme dictionary.
         - role is the pack-kind-derived suggested blueprint role. required=true marks a default required declaration; every pack whose blocks are used must still be declared.
         - allowedPackRoles is the authoritative pack-neutral role list for blueprint packs[].role values.
         - The response omits absolute pack root paths; read structuredContent for the canonical payload and content[0].text only as a compact fallback.
@@ -83,7 +84,7 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - Returns success, valid, errorCount, warningCount, errors, warnings, blueprintSize, and diagnostics.
-        - Errors and warnings include jsonPath, code, message, repairSuggestion, and relevant allowedKinds or allowedValues.
+        - Errors and warnings include jsonPath, code, message, repairSuggestion, and relevant allowedKinds or allowedValues. SurfaceThemeContrastRisk identifies explicit surfaces that conflict with a selected pack-owned resource variant.
         - blueprintSize reports currentCharacters, maximumCharacters, remainingCharacters, and utilizationPercent for the public blueprintJson limit.
         - valid=false is a validation result, not an MCP transport failure.
 

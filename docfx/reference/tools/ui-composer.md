@@ -11,7 +11,7 @@ Composer currently supports these v1 contracts and fails closed when `schemaVers
 | UI pack | `wpfdevtools.ui-pack.v1` | Reads the artifact as-is; install/import workflows copy pack files instead of rewriting them. |
 | UI block | `wpfdevtools.ui-block.v1` | Resolves pack-qualified block kinds from enabled packs only. |
 | UI recipe | `wpfdevtools.ui-recipe.v1` | Expands recipes only after the declared required packs are available. |
-| UI blueprint | `wpfdevtools.ui-blueprint.v1` | Requires `packs[]`, `primaryPack`, and pack-qualified block kinds. |
+| UI blueprint | `wpfdevtools.ui-blueprint.v1` | Requires `packs[]`, `primaryPack`, and pack-qualified block kinds; optional `resourceVariants` selects pack-owned resource variants. |
 | Source lock | `wpfdevtools.source-lock.v1` | Preserves provenance metadata for loaded packs. |
 | Pack install manifest | `wpfdevtools.pack-install-manifest.v1` | Records copied pack installation metadata without changing the pack artifact. |
 | Composer project | `wpfdevtools.composer-project.v1` | Reserved for project-local Composer configuration. |
@@ -24,6 +24,7 @@ This contract is still pre-release. Beta builds may intentionally correct v1 sha
 - `core.grid` supports real rows, columns, grid cells, spanning, alignment, and WPF `gridLength` values. Layout behavior is pack data, not an engine primitive or WPF UI special case.
 - The built-in WPF UI visual set includes `wpfui.numberBox`, `wpfui.toggleSwitch`, and `wpfui.progressRing`, plus configurable typography, margin, padding, alignment, width, and window content constraints.
 - Property contracts can expose `minimum`, `maximum`, `integer`, `thickness`, and `gridLength` constraints. Slot `allowedKinds` accepts exact qualified kinds, `*`, or `<pack-id>.*`; `xamlItemTemplate` applies a declared wrapper to each child.
+- Packs may expose named `resourceVariants` with a default and a pack-owned `appearance` (`light`, `dark`, or `neutral`). A blueprint selects variants by pack id, so Composer never needs library-specific theme logic. A block property may declare `visualRole` as `surface`; validation then emits `SurfaceThemeContrastRisk` at the exact property path when an explicit surface conflicts with a selected theme-styled subtree.
 - Third-party renderers that emit a pack XML namespace declare safe structural preview metadata in `pack.json`. Composer generates preview types from that metadata and returns `PreviewContractMissing` when a used custom namespace has no contract. Native-only third-party renderers need no stub contract. Packs cannot provide arbitrary preview C#.
 - Preview metadata remains pack-neutral: use `tabControl` or `tabItem` for semantic subclasses that receive native base-targeted styles. Do not redeclare members inherited from any selected `baseKind`; use native properties such as `Window.Content`, sizing, commands, items, and tab state directly in renderer XAML. Composer rejects shadow declarations that would disconnect authored values from the native visual tree, commands, styles, or templates. Renderer attributes whose entire value is an unset property token are omitted; explicit empty strings and literal empty attributes are preserved. Leave inheritable visual properties such as `Foreground` unset unless the blueprint explicitly overrides the active theme.
 
@@ -37,7 +38,7 @@ The observability payload does not include blueprint JSON, generated XAML, full 
 
 ## `list_ui_block_packs`
 
-Lists installed UI block packs from built-in, project-local, and user-global roots. Each entry includes `kind`, `themeTokens`, `role`, `required`, counts, provenance, readiness metadata, and available block kinds. `role` is the pack-kind-derived suggested blueprint role, while `required=true` marks a default required declaration; `required=false` never permits omitting a pack whose blocks the blueprint uses. Use the top-level `allowedPackRoles` as the authoritative pack-neutral values for blueprint `packs[].role`; do not guess a role from a pack id.
+Lists installed UI block packs from built-in, project-local, and user-global roots. Each entry includes `kind`, `themeTokens`, `resourceVariants`, `role`, `required`, counts, provenance, readiness metadata, and available block kinds. `resourceVariants.defaultVariant` and its ordered variant ids/appearances are the authoritative pack-neutral resource choices. `role` is the pack-kind-derived suggested blueprint role, while `required=true` marks a default required declaration; `required=false` never permits omitting a pack whose blocks the blueprint uses. Use the top-level `allowedPackRoles` as the authoritative pack-neutral values for blueprint `packs[].role`; do not guess a role from a pack id.
 
 Request options:
 
@@ -109,7 +110,7 @@ Request options:
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
-The response keeps `success=true` for a completed validation call and reports blueprint validity in `valid`. Validation issues include `jsonPath`, `code`, `message`, `repairSuggestion`, and relevant `allowedKinds` or `allowedValues`. `blueprintSize` reports `currentCharacters`, `maximumCharacters`, `remainingCharacters`, and `utilizationPercent` so an agent can simplify the document before it reaches the public input limit.
+The response keeps `success=true` for a completed validation call and reports blueprint validity in `valid`. Validation issues include `jsonPath`, `code`, `message`, `repairSuggestion`, and relevant `allowedKinds` or `allowedValues`. Unknown pack-owned resource selections fail with `UnknownResourceVariant`; explicit surface/theme conflicts return the bounded `SurfaceThemeContrastRisk` warning before preview or apply. `blueprintSize` reports `currentCharacters`, `maximumCharacters`, `remainingCharacters`, and `utilizationPercent` so an agent can simplify the document before it reaches the public input limit.
 
 ## `expand_ui_recipe`
 
@@ -200,7 +201,7 @@ Non-dry-run writes require `confirmApply=true`, `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTI
 1. Run dry apply and review `filePlan`, `requiredNuGetPackages`, `packageIntegrationGuidance`, `resourcePlan`, `viewModelBindingContract`, and `behaviorIntegrationContract`.
 2. Run confirmed apply only after the project-root gates are scoped to the intended project.
 3. Follow `packageIntegrationGuidance` for every pack-declared package. Detection is static XML best-effort; every result reports `inspectionConfidence`, `inspectionReason`, `inspectedFiles`, and `inspectionLimitations`, including the lack of evaluated MSBuild imports and conditions. When `mode="project"`, add each returned `projectPackageReference` to the reported project file. When `mode="central"` because `ManagePackageVersionsCentrally=true`, add the versionless `projectPackageReference` to the project and the matching `centralPackageVersion` to `Directory.Packages.props`. When `mode="unknown"`, package snippets are null: inspect the project first and do not infer either integration shape. Composer does not edit either file.
-4. Apply each entry in `resourcePlan` to the application resource location required by that pack. Treat the returned pack data as authoritative; do not assume a specific library namespace or dictionary.
+4. Apply each entry in `resourcePlan` to the application resource location required by that pack. The plan already reflects the blueprint's `resourceVariants` selections or each pack's default. Treat the returned pack data as authoritative; do not assume a specific library namespace or dictionary.
 5. If `filePlan` contains `role="code-behind-integration"`, use its action and the pack renderer's validated `codeBehindBaseType` so generated XAML `x:Class` and code-behind inherit the same type. Composer plans this change but does not write code-behind.
 
 6. Treat `behaviorIntegrationContract.status="required"` as a release gate. Each interaction includes `bindingStatus`, raw `commandBinding`, and a nullable parsed `commandPath`. Complex valid WPF bindings remain required when their path is unresolved; resolve them in the final view. Navigation commands receive `commandParameter` and must update selected application state and destination content; action commands must perform observable application behavior and expose an appropriate `CanExecute` policy. These are application contracts, not generated business logic.

@@ -28,6 +28,7 @@ public static partial class UiComposerMcpTools
             pack.BlockKinds,
             pack.Kind,
             pack.ThemeTokens,
+            pack.ResourceVariants,
             pack.Role,
             pack.Required
         };

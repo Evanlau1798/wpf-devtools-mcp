@@ -130,7 +130,8 @@ internal sealed class PackRegistry
             rolePlan.Required,
             pack.Manifest.Kind)
         {
-            ThemeTokens = pack.Manifest.ThemeTokens
+            ThemeTokens = pack.Manifest.ThemeTokens,
+            ResourceVariants = PackResourceVariantResolver.Describe(pack.Manifest)
         };
     }
 
@@ -174,6 +175,7 @@ internal sealed record PackRegistryItem(
 {
     public IReadOnlyDictionary<string, JsonElement> ThemeTokens { get; init; }
         = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+    public PackResourceVariantCatalog ResourceVariants { get; init; } = new(string.Empty, []);
 }
 
 internal enum PackScope

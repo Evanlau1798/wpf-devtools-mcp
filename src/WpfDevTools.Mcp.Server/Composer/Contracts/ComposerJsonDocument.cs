@@ -39,6 +39,14 @@ internal sealed class UiPackNuGetPackage
 internal sealed class UiPackResourceSetup
 {
     public string[] ApplicationMergedDictionaries { get; set; } = [];
+    public string DefaultVariant { get; set; } = string.Empty;
+    public Dictionary<string, UiPackResourceVariant> Variants { get; set; } = new(StringComparer.Ordinal);
+}
+
+internal sealed class UiPackResourceVariant
+{
+    public string Appearance { get; set; } = string.Empty;
+    public string[] ApplicationMergedDictionaries { get; set; } = [];
 }
 
 internal sealed class UiBlockDefinition : ComposerJsonDocument
@@ -59,6 +67,7 @@ internal sealed class UiBlockProperty
     public string Type { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string PreviewWarning { get; set; } = string.Empty;
+    public string VisualRole { get; set; } = string.Empty;
     public bool Required { get; set; }
     public JsonElement? Default { get; set; }
     public double? Minimum { get; set; }
@@ -142,6 +151,7 @@ internal sealed class UiBlueprint : ComposerJsonDocument
     public string Name { get; set; } = string.Empty;
     public ComposerPackReference[] Packs { get; set; } = [];
     public string PrimaryPack { get; set; } = string.Empty;
+    public Dictionary<string, string> ResourceVariants { get; set; } = new(StringComparer.Ordinal);
     public UiBlueprintNode Layout { get; set; } = new();
     public Dictionary<string, JsonElement> Metadata { get; set; } = new(StringComparer.Ordinal);
 }

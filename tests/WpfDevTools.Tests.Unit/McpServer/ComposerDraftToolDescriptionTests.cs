@@ -55,6 +55,9 @@ public sealed class ComposerDraftToolDescriptionTests
         description.Should().Contain("JSON-path set/remove");
         description.Should().Contain("changeSummary");
         description.Should().Contain("Do not combine patchJson with jsonPath");
+        method.GetParameters().Single(parameter => parameter.Name == "jsonPath")
+            .GetCustomAttribute<DescriptionAttribute>()!.Description
+            .Should().Contain("[\"accent.color\"]");
 
         using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
         var tool = document.RootElement.GetProperty("tools").EnumerateArray()

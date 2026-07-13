@@ -104,7 +104,7 @@ Creates one bounded ephemeral draft. The response includes `draftRef`, `characte
 Derives a new draft in one of two mutually exclusive modes:
 
 - Broad change: pass `draftRef` and `patchJson` for JSON Merge Patch.
-- Surgical change: pass `draftRef`, an exact path such as `$.layout.slots.children[0].properties.text`, and `value`; to delete that target, omit `value` and set `remove=true`.
+- Surgical change: pass `draftRef`, an exact path such as `$.layout.slots.children[0].properties.text`, and `value`; use bracket-quoted segments such as `$.layout.properties["accent.color"]` when a pack-defined property key is not a simple identifier. To delete the target, omit `value` and set `remove=true`.
 
 The response returns the new reference, `sourceDraftRef`, retention metadata, and a compact `changeSummary` containing `changeCount`, bounded `changes`, and truncation metadata. Each change identifies `jsonPath`, `changeType`, and compact `before`/`after` values. It never echoes the full blueprint. Use `compose_ui_blueprint` instead when inserting a catalog block into a slot array.
 

@@ -103,7 +103,7 @@ children 或 optional properties，不必手動重打 pack-specific kind 與 slo
 以兩種互斥模式之一衍生新 draft：
 
 - Broad change：傳入 `draftRef` 與 `patchJson`，使用 JSON Merge Patch。
-- Surgical change：傳入 `draftRef`、exact path（例如 `$.layout.slots.children[0].properties.text`）與 `value`；若要刪除 target，省略 `value` 並設定 `remove=true`。
+- Surgical change：傳入 `draftRef`、exact path（例如 `$.layout.slots.children[0].properties.text`）與 `value`；pack-defined property key 若不是 simple identifier，請使用 bracket-quoted segment，例如 `$.layout.properties["accent.color"]`。若要刪除 target，省略 `value` 並設定 `remove=true`。
 
 Response 會回傳新 reference、`sourceDraftRef`、retention metadata，以及 compact `changeSummary`；其中包含 `changeCount`、bounded `changes` 與 truncation metadata。每個 change 會列出 `jsonPath`、`changeType` 及 compact `before`/`after` values，且不會 echo 完整 blueprint。若目標是把 catalog block 插入 slot array，應改用 `compose_ui_blueprint`。
 

@@ -41,7 +41,7 @@
       },
       "Button": {
         "baseKind": "button",
-        "properties": { "Appearance": "string", "Command": "object", "Icon": "object" }
+        "properties": { "Appearance": "string", "Icon": "object" }
       },
       "Card": {
         "baseKind": "stackPanel",
@@ -75,8 +75,6 @@
         "NavigationViewItem": {
           "baseKind": "button",
         "properties": {
-          "Command": "object",
-          "CommandParameter": "object",
           "Icon": "object",
           "IsActive": "boolean",
           "IsExpanded": "boolean",

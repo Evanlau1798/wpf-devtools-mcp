@@ -73,6 +73,9 @@ public sealed class ComposerThirdPartyPackAcceptanceTests
                 diagnostic.Tool == "get_ui_summary" && diagnostic.Success);
             preview.PreviewHost.RuntimeDiagnostics.Should().Contain(diagnostic =>
                 diagnostic.Tool == "find_elements" && diagnostic.Success);
+            var summary = preview.PreviewHost.RuntimeDiagnostics.Should().ContainSingle(diagnostic =>
+                diagnostic.Tool == "get_ui_summary" && diagnostic.Success).Subject;
+            summary.Payload.GetRawText().Should().Contain("Pack-neutral runtime").And.Contain("Run acceptance");
         }
         finally
         {
@@ -190,7 +193,7 @@ internal static class ThirdPartyPackFixture
     }
 
     private const string PackJson = """
-        {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"nebula","kind":"style-pack","displayName":"Nebula Controls","version":"1.0.0","blocks":["nebula.window","nebula.action"],"recipes":[],"xmlNamespaces":{"nebula":"clr-namespace:Nebula.Controls"},"preview":{"namespaceUri":"clr-namespace:Nebula.Controls","clrNamespace":"Nebula.Controls","types":{"NebulaWindow":{"baseKind":"window","contentProperty":"Content","properties":{"Content":"object"}}}}}
+        {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"nebula","kind":"style-pack","displayName":"Nebula Controls","version":"1.0.0","blocks":["nebula.window","nebula.action"],"recipes":[],"xmlNamespaces":{"nebula":"clr-namespace:Nebula.Controls"},"preview":{"namespaceUri":"clr-namespace:Nebula.Controls","clrNamespace":"Nebula.Controls","types":{"NebulaWindow":{"baseKind":"window","properties":{}}}}}
         """;
 
     private const string WindowBlockJson = """

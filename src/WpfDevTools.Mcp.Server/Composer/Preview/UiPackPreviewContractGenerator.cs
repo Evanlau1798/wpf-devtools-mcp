@@ -36,11 +36,35 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
         ["object"] = "object?",
         ["objectCollection"] = "ObservableCollection<object>"
     };
-    private static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> NativeTabProperties =
+    private static readonly IReadOnlySet<string> FrameworkElementProperties = new HashSet<string>(
+        ["DataContext", "Focusable", "Height", "HorizontalAlignment", "IsEnabled", "Margin", "MaxHeight", "MaxWidth", "MinHeight", "MinWidth", "Name", "Opacity", "Resources", "Style", "Tag", "ToolTip", "VerticalAlignment", "Visibility", "Width"],
+        StringComparer.Ordinal);
+    private static readonly IReadOnlySet<string> ControlProperties = Extend(
+        FrameworkElementProperties,
+        "Background", "BorderBrush", "BorderThickness", "FontFamily", "FontSize", "FontStretch", "FontStyle", "FontWeight", "Foreground", "HorizontalContentAlignment", "Padding", "TabIndex", "VerticalContentAlignment");
+    private static readonly IReadOnlySet<string> ContentControlProperties = Extend(
+        ControlProperties,
+        "Content", "ContentStringFormat", "ContentTemplate");
+    private static readonly IReadOnlySet<string> ItemsControlProperties = Extend(
+        ControlProperties,
+        "AlternationCount", "ItemContainerStyle", "ItemsSource", "ItemTemplate");
+    private static readonly IReadOnlySet<string> ButtonProperties = Extend(
+        ContentControlProperties,
+        "Command", "CommandParameter");
+    private static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> InheritedPropertiesByBaseKind =
         new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
         {
-            ["tabControl"] = new HashSet<string>(["SelectedIndex", "SelectedItem", "SelectedValue", "SelectedValuePath"], StringComparer.Ordinal),
-            ["tabItem"] = new HashSet<string>(["Header", "HeaderStringFormat", "HeaderTemplate", "IsSelected"], StringComparer.Ordinal)
+            ["frameworkElement"] = FrameworkElementProperties,
+            ["control"] = ControlProperties,
+            ["contentControl"] = ContentControlProperties,
+            ["itemsControl"] = ItemsControlProperties,
+            ["resourceDictionary"] = Set(),
+            ["stackPanel"] = Extend(FrameworkElementProperties, "Background", "Orientation"),
+            ["tabControl"] = Extend(ItemsControlProperties, "SelectedIndex", "SelectedItem", "SelectedValue", "SelectedValuePath"),
+            ["tabItem"] = Extend(ContentControlProperties, "Header", "HeaderStringFormat", "HeaderTemplate", "IsSelected"),
+            ["button"] = ButtonProperties,
+            ["toggleButton"] = Extend(ButtonProperties, "IsChecked"),
+            ["window"] = Extend(ContentControlProperties, "AllowsTransparency", "Icon", "ResizeMode", "ShowInTaskbar", "SizeToContent", "Title", "Topmost", "WindowState", "WindowStyle")
         };
     private static readonly IReadOnlySet<string> ContentCapableBaseKinds = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -171,8 +195,7 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
 
             foreach (var (propertyName, propertyType) in type.Properties)
             {
-                if (NativeTabProperties.TryGetValue(type.BaseKind, out var inherited)
-                    && inherited.Contains(propertyName))
+                if (IsInheritedProperty(type.BaseKind, propertyName))
                 {
                     return $"Pack '{packId}' preview property '{typeName}.{propertyName}' redeclares an inherited '{type.BaseKind}' property.";
                 }
@@ -186,6 +209,16 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
 
         return null;
     }
+
+    private static bool IsInheritedProperty(string baseKind, string propertyName)
+        => InheritedPropertiesByBaseKind.TryGetValue(baseKind, out var inherited)
+           && inherited.Contains(propertyName);
+
+    private static IReadOnlySet<string> Set(params string[] names)
+        => new HashSet<string>(names, StringComparer.Ordinal);
+
+    private static IReadOnlySet<string> Extend(IReadOnlySet<string> inherited, params string[] names)
+        => inherited.Concat(names).ToHashSet(StringComparer.Ordinal);
 
     private static string GenerateSource(IReadOnlyList<ResolvedPreviewContract> contracts)
     {

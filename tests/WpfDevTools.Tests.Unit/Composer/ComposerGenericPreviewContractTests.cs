@@ -110,7 +110,11 @@ public sealed class ComposerGenericPreviewContractTests
     [InlineData("tabItem", "HeaderStringFormat")]
     [InlineData("tabItem", "HeaderTemplate")]
     [InlineData("tabItem", "IsSelected")]
-    public async Task PreviewBlueprint_ShouldRejectRedeclaredNativeTabProperty(
+    [InlineData("window", "Content")]
+    [InlineData("window", "Width")]
+    [InlineData("button", "Command")]
+    [InlineData("button", "CommandParameter")]
+    public async Task PreviewBlueprint_ShouldRejectRedeclaredInheritedProperty(
         string baseKind,
         string propertyName)
     {
@@ -244,7 +248,7 @@ public sealed class ComposerGenericPreviewContractTests
                 new PreviewBlueprintRequest(blueprint, RestoreEnabled: false));
 
             result.Success.Should().BeFalse();
-            result.Diagnostics.Should().ContainSingle(diagnostic => diagnostic.Code == "PreviewNamespacePrefixConflict")
+            result.Diagnostics.Should().ContainSingle(diagnostic => diagnostic.Code == "PackXmlNamespaceConflict")
                 .Which.Message.Should().ContainAll("sample", "other");
         }
         finally

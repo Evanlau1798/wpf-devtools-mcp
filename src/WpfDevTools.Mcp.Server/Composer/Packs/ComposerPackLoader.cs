@@ -237,7 +237,8 @@ internal static class ComposerPackLoader
             return;
         }
 
-        var valid = baseType.Split('.').All(part => part.Length > 0
+        var parts = baseType.Split('.');
+        var valid = parts.Length > 1 && parts.All(part => part.Length > 0
             && (char.IsLetter(part[0]) || part[0] == '_')
             && part.Skip(1).All(ch => char.IsLetterOrDigit(ch) || ch == '_'));
         if (!valid)

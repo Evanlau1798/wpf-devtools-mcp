@@ -35,10 +35,12 @@ public sealed class ComposerPackNeutralCodeBehindTests
         }
     }
 
-    [Fact]
-    public void PackLoader_ShouldRejectUnsafeCodeBehindBaseType()
+    [Theory]
+    [InlineData("Sample.Controls.ChromeWindow;Remove-Item")]
+    [InlineData("ChromeWindow")]
+    public void PackLoader_ShouldRejectInvalidCodeBehindBaseType(string baseType)
     {
-        var projectRoot = CreateProjectWithWindowPack("Sample.Controls.ChromeWindow;Remove-Item");
+        var projectRoot = CreateProjectWithWindowPack(baseType);
         try
         {
             var registry = CreateRegistry(projectRoot);

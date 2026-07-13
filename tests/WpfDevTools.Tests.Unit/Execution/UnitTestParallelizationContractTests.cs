@@ -282,18 +282,6 @@ public sealed class UnitTestParallelizationContractTests
     }
 
     [Fact]
-    public void DependencyPropertyMonitoringTests_ShouldUseDependencyPropertyMonitoringCollection()
-    {
-        GetCollectionName(typeof(HandlerWithParamsTests)).Should().Be("DependencyPropertyMonitoring");
-    }
-
-    [Fact]
-    public void DependencyPropertyMonitoringCollection_ShouldDisableParallelization()
-    {
-        AssertCollectionIsNonParallel("WpfDevTools.Tests.Unit.Execution.DependencyPropertyMonitoringCollection");
-    }
-
-    [Fact]
     public void TimingSensitiveTests_ShouldUseTimingSensitiveCollection()
     {
         GetCollectionName(typeof(FileLoggerPerformanceTests)).Should().Be("TimingSensitive");

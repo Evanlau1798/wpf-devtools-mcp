@@ -74,7 +74,8 @@ function Invoke-StandaloneVerificationCommand {
         [Parameter(Mandatory)] [string]$Command,
         [Parameter(Mandatory)] [string[]]$Arguments,
         [Parameter(Mandatory)] [string]$ExpectedToken,
-        [Parameter(Mandatory)] [bool]$ExpectPresent
+        [Parameter(Mandatory)] [bool]$ExpectPresent,
+        [string]$WorkingDirectory
     )
 
     $isElevated = Test-StandaloneInstallerRunningElevated
@@ -129,6 +130,7 @@ function Invoke-StandaloneVerificationCommand {
         $startInfo.RedirectStandardOutput = $true
         $startInfo.RedirectStandardError = $true
         $startInfo.CreateNoWindow = $true
+        if (-not [string]::IsNullOrWhiteSpace($WorkingDirectory)) { $startInfo.WorkingDirectory = $WorkingDirectory }
 
         $process = New-Object System.Diagnostics.Process
         $process.StartInfo = $startInfo
@@ -207,11 +209,11 @@ function Invoke-StandaloneUninstallVerification {
             break
         }
         'codex' {
-            (Invoke-StandaloneVerificationCommand -Command 'codex' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
+            (Invoke-StandaloneVerificationCommand -Command 'codex' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false -WorkingDirectory ([Environment]::SystemDirectory)).Succeeded
             break
         }
         'grok' {
-            (Invoke-StandaloneVerificationCommand -Command 'grok' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
+            (Invoke-StandaloneVerificationCommand -Command 'grok' -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false -WorkingDirectory ([Environment]::SystemDirectory)).Succeeded
             break
         }
         'cursor' {

@@ -351,7 +351,8 @@ function Invoke-VerificationCommand {
         [Parameter(Mandatory)] [string]$Command,
         [Parameter(Mandatory)] [string[]]$Arguments,
         [Parameter(Mandatory)] [string]$ExpectedToken,
-        [Parameter(Mandatory)] [bool]$ExpectPresent
+        [Parameter(Mandatory)] [bool]$ExpectPresent,
+        [string]$WorkingDirectory
     )
 
     $isElevated = Test-InstallerVerificationRunningElevated
@@ -393,6 +394,7 @@ function Invoke-VerificationCommand {
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
     $startInfo.CreateNoWindow = $true
+    if (-not [string]::IsNullOrWhiteSpace($WorkingDirectory)) { $startInfo.WorkingDirectory = $WorkingDirectory }
 
     $filePath = $selectedCommandPath
     $argumentText = $quotedArguments -join ' '

@@ -260,6 +260,46 @@ public sealed class InstallerUninstallBehaviorTests
     }
 
     [Fact]
+    public void CodexCliDiscoveryAndUninstallVerification_ShouldUseNeutralWorkingDirectory()
+    {
+        var command = string.Join(
+            Environment.NewLine,
+            [
+                ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Verification.ps1").Replace("'", "''") + "'",
+                ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Discovery.Detection.ps1").Replace("'", "''") + "'",
+                ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/OnlineInstaller.Runtime.06.ps1").Replace("'", "''") + "'",
+                "$script:workingDirectories = @()",
+                "$script:standaloneWorkingDirectories = @()",
+                "function Invoke-VerificationCommand { param([string]$Command, [string[]]$Arguments, [string]$ExpectedToken, [bool]$ExpectPresent, [string]$WorkingDirectory) $script:workingDirectories += $WorkingDirectory; return @{ Succeeded = ($WorkingDirectory -eq [Environment]::SystemDirectory); Output = 'wpf-devtools C:\\install\\wpf-devtools-x64.exe'; ExitCode = 0 } }",
+                "function Invoke-StandaloneVerificationCommand { param([string]$Command, [string[]]$Arguments, [string]$ExpectedToken, [bool]$ExpectPresent, [string]$WorkingDirectory) $script:standaloneWorkingDirectories += $WorkingDirectory; return @{ Succeeded = ($WorkingDirectory -eq [Environment]::SystemDirectory); Output = ''; ExitCode = 0 } }",
+                "function Resolve-ClientBaseId { param([string]$ClientId) return $ClientId }",
+                "function Get-WpfDevToolsExecutableFromText { param([string]$Text) return 'C:\\install\\wpf-devtools-x64.exe' }",
+                "function Resolve-InstallerOwnershipFromExecutable { param([string]$InstalledExecutable) return @{ InstallRoot='C:\\install'; Architecture='x64'; InstallerOwned=$true; ResolvedVersion='1.0.0' } }",
+                "function New-DetectedInstallerRegistration { param([string]$ClientId) return @{ ClientId=$ClientId } }",
+                "function Get-InstallerRecordStringValueCore { param($Record, [string[]]$PropertyNames) foreach ($name in $PropertyNames) { if ($Record.Contains($name)) { return [string]$Record[$name] } }; return $null }",
+                "function Get-TrustedRecordedRegistrationTarget { return $null }",
+                "$discovery = Get-CliRegistrationEvidence -ClientId codex -CommandName codex",
+                "$verification = Invoke-UninstallVerification -SelectedClient codex -RegistrationRecord ([ordered]@{ RegistrationMode='cli' })",
+                "$standaloneVerification = Invoke-StandaloneUninstallVerification -SelectedClient codex -RegistrationRecord ([ordered]@{ RegistrationMode='cli' }) -RegistrationChanges @()",
+                "@{ DiscoverySucceeded = ($null -ne $discovery); VerificationSucceeded = [bool]$verification.Succeeded; StandaloneVerificationSucceeded = [bool]$standaloneVerification.Succeeded; WorkingDirectories = @($script:workingDirectories); StandaloneWorkingDirectories = @($script:standaloneWorkingDirectories) } | ConvertTo-Json -Compress"
+            ]);
+
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+        result.ExitCode.Should().Be(0, result.Stderr);
+        using var json = JsonDocument.Parse(result.Stdout);
+        json.RootElement.GetProperty("DiscoverySucceeded").GetBoolean().Should().BeTrue();
+        json.RootElement.GetProperty("VerificationSucceeded").GetBoolean().Should().BeTrue();
+        json.RootElement.GetProperty("StandaloneVerificationSucceeded").GetBoolean().Should().BeTrue();
+        json.RootElement.GetProperty("WorkingDirectories").EnumerateArray()
+            .Select(static item => item.GetString())
+            .Should().Equal(Environment.SystemDirectory, Environment.SystemDirectory);
+        json.RootElement.GetProperty("StandaloneWorkingDirectories").EnumerateArray()
+            .Select(static item => item.GetString())
+            .Should().Equal(Environment.SystemDirectory);
+    }
+
+    [Fact]
     public void CliVerification_WhenInstallerIsElevated_ShouldNotResolveCommandFromPath()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

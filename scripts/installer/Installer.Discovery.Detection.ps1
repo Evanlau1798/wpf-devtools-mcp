@@ -109,7 +109,8 @@ function Get-CliRegistrationEvidence {
         [Parameter(Mandatory)] [string]$CommandName
     )
 
-    $verification = Invoke-VerificationCommand -Command $CommandName -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $true
+    $workingDirectory = if ($ClientId -in @('codex', 'grok')) { [Environment]::SystemDirectory } else { $null }
+    $verification = Invoke-VerificationCommand -Command $CommandName -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $true -WorkingDirectory $workingDirectory
     if (-not $verification.Succeeded) {
         return $null
     }

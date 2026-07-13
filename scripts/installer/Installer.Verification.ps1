@@ -390,7 +390,7 @@ function Invoke-UninstallVerification {
             break
         }
         { $_ -in @('codex', 'grok') } {
-            (Invoke-VerificationCommand -Command $clientBaseId -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false).Succeeded
+            (Invoke-VerificationCommand -Command $clientBaseId -Arguments @('mcp', 'list') -ExpectedToken 'wpf-devtools' -ExpectPresent $false -WorkingDirectory ([Environment]::SystemDirectory)).Succeeded
             break
         }
         'cursor' {

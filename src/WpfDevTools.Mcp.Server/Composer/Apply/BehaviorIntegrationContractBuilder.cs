@@ -22,7 +22,7 @@ internal static partial class BehaviorIntegrationContractBuilder
             interactions,
             interactions.Count == 0
                 ? "No command-bound interactions were detected in this blueprint."
-                : "Implement every commandPath on the generated view DataContext before treating the UI as functional.",
+                : "Implement every declared interaction before treating the UI as functional. Resolve commandPath from commandBinding when bindingStatus is path-unresolved.",
             interactions.Count == 0
                 ? "Validate the final application according to its intended interaction contract."
                 : "Build and launch the final app, invoke every listed interaction, and verify a state or visible content change for each one.");
@@ -47,18 +47,24 @@ internal static partial class BehaviorIntegrationContractBuilder
     {
         if (contracts.TryGetValue(node.Kind, out var contract))
         {
-            var commandPath = ExtractBindingPath(GetMappedString(node.Properties, contract.CommandProperty));
-            if (!string.IsNullOrWhiteSpace(commandPath))
+            var commandBinding = GetMappedString(node.Properties, contract.CommandProperty);
+            if (!string.IsNullOrWhiteSpace(commandBinding))
             {
+                var commandPath = ExtractBindingPath(commandBinding);
+                var bindingStatus = string.IsNullOrWhiteSpace(commandPath) ? "path-unresolved" : "resolved";
                 interactions.Add(new BehaviorInteractionPlan(
                     contract.Kind,
+                    bindingStatus,
+                    commandBinding,
                     commandPath,
                     GetMappedString(node.Properties, contract.CommandParameterProperty),
                     GetMappedString(node.Properties, contract.TargetProperty),
                     GetMappedString(node.Properties, contract.LabelProperty),
-                    contract.Kind == "navigation"
-                        ? "Map the command parameter to application navigation, selected state, and destination content."
-                        : "Implement the command with observable application behavior and an appropriate CanExecute policy."));
+                    bindingStatus == "path-unresolved"
+                        ? "Resolve the raw command binding in the final view and keep this declared interaction in the release verification gate."
+                        : contract.Kind == "navigation"
+                            ? "Map the command parameter to application navigation, selected state, and destination content."
+                            : "Implement the command with observable application behavior and an appropriate CanExecute policy."));
             }
         }
 

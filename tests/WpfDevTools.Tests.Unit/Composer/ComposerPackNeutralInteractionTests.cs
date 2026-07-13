@@ -50,6 +50,30 @@ public sealed class ComposerPackNeutralInteractionTests
         }
     }
 
+    [Fact]
+    public void ApplyBlueprint_ShouldPreserveComplexCommandBindingAsRequiredInteraction()
+    {
+        var projectRoot = CreateProjectWithInteractionPack("execute");
+        const string binding = "{Binding DataContext.OpenRegionCommand, RelativeSource={RelativeSource AncestorType=Window}}";
+        try
+        {
+            var result = new UiBlueprintApplyService(CreateRegistry(projectRoot)).Apply(
+                new ApplyBlueprintRequest(Blueprint(binding), projectRoot));
+
+            result.Success.Should().BeTrue();
+            result.BehaviorIntegrationContract.Status.Should().Be("required");
+            var interaction = result.BehaviorIntegrationContract.Interactions.Should().ContainSingle().Subject;
+            interaction.BindingStatus.Should().Be("path-unresolved");
+            interaction.CommandBinding.Should().Be(binding);
+            interaction.CommandPath.Should().BeNull();
+            interaction.ImplementationGuidance.Should().Contain("raw command binding");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
     private static PackRegistry CreateRegistry(string projectRoot)
         => new(
             ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),
@@ -109,8 +133,8 @@ public sealed class ComposerPackNeutralInteractionTests
         return projectRoot;
     }
 
-    private static string Blueprint()
-        => """
+    private static string Blueprint(string commandBinding = "{Binding OpenRegionCommand}")
+        => $$"""
             {
               "schemaVersion":"wpfdevtools.ui-blueprint.v1",
               "name":"Interaction",
@@ -119,7 +143,7 @@ public sealed class ComposerPackNeutralInteractionTests
               "layout":{
                 "kind":"sample.behaviors.trigger",
                 "properties":{
-                  "execute":"{Binding OpenRegionCommand}",
+                  "execute":"{{commandBinding}}",
                   "payload":"region-7",
                   "destination":"region-detail",
                   "caption":"Open region"

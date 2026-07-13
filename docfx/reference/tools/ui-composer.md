@@ -203,7 +203,7 @@ Non-dry-run writes require `confirmApply=true`, `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTI
 4. Apply each entry in `resourcePlan` to the application resource location required by that pack. Treat the returned pack data as authoritative; do not assume a specific library namespace or dictionary.
 5. If `filePlan` contains `role="code-behind-integration"`, use its action and the pack renderer's validated `codeBehindBaseType` so generated XAML `x:Class` and code-behind inherit the same type. Composer plans this change but does not write code-behind.
 
-6. Treat `behaviorIntegrationContract.status="required"` as a release gate. Implement every pack-defined `commandPath` on the view DataContext. Navigation commands receive `commandParameter` and must update selected application state and destination content; action commands must perform observable application behavior and expose an appropriate `CanExecute` policy. These are application contracts, not generated business logic.
+6. Treat `behaviorIntegrationContract.status="required"` as a release gate. Each interaction includes `bindingStatus`, raw `commandBinding`, and a nullable parsed `commandPath`. Complex valid WPF bindings remain required when their path is unresolved; resolve them in the final view. Navigation commands receive `commandParameter` and must update selected application state and destination content; action commands must perform observable application behavior and expose an appropriate `CanExecute` policy. These are application contracts, not generated business logic.
 7. Restore, build, and launch the actual application separately:
 
    ```powershell

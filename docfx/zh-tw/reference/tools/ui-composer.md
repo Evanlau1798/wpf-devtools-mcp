@@ -202,7 +202,7 @@ Request options:
 4. 依每個 pack 的需求，把 `resourcePlan` entries 加入 application resource location。請以回傳的 pack data 為準，不要假設特定 library namespace 或 dictionary。
 5. 若 `filePlan` 包含 `role="code-behind-integration"`，請依 action 與 pack renderer 驗證過的 `codeBehindBaseType`，讓 generated XAML `x:Class` 與 code-behind 繼承相同 type。Composer 只規劃此變更，不會寫入 code-behind。
 
-6. 將 `behaviorIntegrationContract.status="required"` 視為 release gate。必須在 view DataContext 實作每個 pack-defined `commandPath`。Navigation command 會收到 `commandParameter`，且必須更新 selected application state 與 destination content；action command 必須產生可觀察的應用程式行為，並提供合適的 `CanExecute` policy。這些是 application contracts，不是自動生成的 business logic。
+6. 將 `behaviorIntegrationContract.status="required"` 視為 release gate。每個 interaction 都包含 `bindingStatus`、raw `commandBinding` 與 nullable parsed `commandPath`。即使 complex valid WPF binding 的 path 無法解析，它仍是 required interaction，必須在 final view 完成解析。Navigation command 會收到 `commandParameter`，且必須更新 selected application state 與 destination content；action command 必須產生可觀察的應用程式行為，並提供合適的 `CanExecute` policy。這些是 application contracts，不是自動生成的 business logic。
 7. 分開執行 restore、build 與實際 application launch：
 
    ```powershell

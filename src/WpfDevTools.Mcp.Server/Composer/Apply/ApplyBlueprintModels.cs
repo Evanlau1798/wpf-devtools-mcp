@@ -71,7 +71,9 @@ internal sealed record BehaviorIntegrationContractPlan(
 
 internal sealed record BehaviorInteractionPlan(
     string Kind,
-    string CommandPath,
+    string BindingStatus,
+    string CommandBinding,
+    string? CommandPath,
     string? CommandParameter,
     string? TargetPageTag,
     string? Label,

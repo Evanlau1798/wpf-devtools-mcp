@@ -96,7 +96,7 @@ Request options:
 - `insertionIndex`: optional zero-based position；省略時 append。
 - `projectRoot` 與 `localAppDataRoot`: optional pack discovery roots。
 
-當 `composed=true`，response 會回傳新的 `blueprint`、compact `blueprintJson`、精確 `insertedPath` 與 validation result。若 path 模糊、block 無法組合，或 pack validation 拒絕 child，`composed=false` 會省略 candidate blueprint 並回傳可採取行動的 errors。
+當 `composed=true`，response 會回傳新的 `blueprint`、compact `blueprintJson`、精確 `insertedPath` 與 validation result。若 insertion 產生 invalid document，`composed=false` 仍會省略 authoritative `blueprint`，但回傳 `invalidCandidate`、`candidateBlueprintJson` 與 `candidateWritten=false` 供 repair；candidate 絕不會寫入檔案。Ambiguous path 與 non-composable block 只回傳可採取行動的 errors，不提供 candidate。
 
 ## `validate_ui_blueprint`
 

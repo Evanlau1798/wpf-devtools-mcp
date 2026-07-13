@@ -55,7 +55,11 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
         var validation = new BlueprintValidationService(registry).Validate(candidateJson);
         if (!validation.Success)
         {
-            return new BlueprintCompositionResult(false, null, null, null, validation, []);
+            return new BlueprintCompositionResult(false, null, null, null, validation, [])
+            {
+                InvalidCandidate = blueprint,
+                CandidateBlueprintJson = candidateJson
+            };
         }
 
         return new BlueprintCompositionResult(
@@ -163,7 +167,11 @@ internal sealed record BlueprintCompositionResult(
     string? BlueprintJson,
     string? InsertedPath,
     BlueprintValidationResult? Validation,
-    IReadOnlyList<BlueprintCompositionIssue> Errors);
+    IReadOnlyList<BlueprintCompositionIssue> Errors)
+{
+    public JsonObject? InvalidCandidate { get; init; }
+    public string? CandidateBlueprintJson { get; init; }
+}
 
 internal sealed record BlueprintCompositionIssue(
     string JsonPath,

@@ -100,9 +100,9 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this as a general JSON patch tool or filesystem writer. It only inserts exact compositionSkeleton content declared by installed packs and validates the candidate blueprint before returning it.
 
         RESPONSE SUMMARY:
-        - Returns success, composed, blueprint, blueprintJson, insertedPath, validation, and errors.
+        - Returns success, composed, blueprint, blueprintJson, insertedPath, invalidCandidate, candidateBlueprintJson, candidateWritten, validation, and errors.
         - composed=true returns a new validated blueprint object; the input text is never mutated and no file is written.
-        - composed=false omits the candidate blueprint and returns path or pack-validation errors with repair guidance.
+        - When insertion creates an invalid document, composed=false keeps blueprint omitted but returns invalidCandidate, candidateBlueprintJson, and candidateWritten=false for repair. Path and non-composable failures return no candidate.
 
         REQUEST OPTIONS:
         - blueprintJson is the current full blueprint JSON text.

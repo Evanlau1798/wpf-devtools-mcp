@@ -88,6 +88,9 @@ public static partial class UiComposerMcpTools
             {
                 success = true,
                 composed = false,
+                invalidCandidate = result.InvalidCandidate,
+                candidateBlueprintJson = result.CandidateBlueprintJson,
+                candidateWritten = false,
                 validation,
                 errors,
                 observability

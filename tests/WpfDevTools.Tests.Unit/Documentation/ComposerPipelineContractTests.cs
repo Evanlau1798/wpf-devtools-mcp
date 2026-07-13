@@ -138,8 +138,8 @@ public sealed class ComposerPipelineContractTests
         var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
         var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
 
-        english.Should().ContainAll("`compose_ui_blueprint`", "targetPath", "pack-defined", "never writes files");
-        zhTw.Should().ContainAll("`compose_ui_blueprint`", "targetPath", "pack-defined", "不會寫入檔案");
+        english.Should().ContainAll("`compose_ui_blueprint`", "targetPath", "pack-defined", "never writes files", "`invalidCandidate`", "`candidateBlueprintJson`");
+        zhTw.Should().ContainAll("`compose_ui_blueprint`", "targetPath", "pack-defined", "不會寫入檔案", "`invalidCandidate`", "`candidateBlueprintJson`");
     }
 
     [Fact]

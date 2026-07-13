@@ -97,7 +97,7 @@ Request options:
 - `insertionIndex`: optional zero-based position; omit it to append.
 - `projectRoot` and `localAppDataRoot`: optional pack discovery roots.
 
-When `composed=true`, the response returns a new `blueprint`, compact `blueprintJson`, exact `insertedPath`, and validation result. When the path is ambiguous, the block is not composable, or pack validation rejects the child, `composed=false` omits the candidate blueprint and returns actionable errors.
+When `composed=true`, the response returns a new `blueprint`, compact `blueprintJson`, exact `insertedPath`, and validation result. If insertion creates an invalid document, `composed=false` keeps the authoritative `blueprint` omitted but returns `invalidCandidate`, `candidateBlueprintJson`, and `candidateWritten=false` for repair; the candidate is never written. Ambiguous paths and non-composable blocks return actionable errors without a candidate.
 
 ## `validate_ui_blueprint`
 

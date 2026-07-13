@@ -91,6 +91,13 @@ public sealed class ComposerBlueprintCompositionTests
             payload.GetProperty("validation").GetProperty("errors")
                 .EnumerateArray().Select(error => error.GetProperty("code").GetString())
                 .Should().Contain("SlotChildKindNotAllowed");
+            payload.GetProperty("candidateWritten").GetBoolean().Should().BeFalse();
+            payload.GetProperty("invalidCandidate").GetProperty("layout")
+                .GetProperty("slots").GetProperty("content")[0]
+                .GetProperty("slots").GetProperty("items")[0]
+                .GetProperty("kind").GetString().Should().Be("nebula.frame");
+            JsonDocument.Parse(payload.GetProperty("candidateBlueprintJson").GetString()!).RootElement
+                .GetProperty("layout").GetProperty("kind").GetString().Should().Be("nebula.frame");
             payload.TryGetProperty("blueprint", out _).Should().BeFalse();
         }
         finally

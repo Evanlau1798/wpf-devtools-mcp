@@ -148,8 +148,8 @@ public sealed class ComposerPipelineContractTests
         var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
         var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
 
-        english.Should().ContainAll("`tabControl`", "`tabItem`", "inherited properties", "Foreground");
-        zhTw.Should().ContainAll("`tabControl`", "`tabItem`", "繼承屬性", "Foreground");
+        english.Should().ContainAll("`tabControl`", "`tabItem`", "members inherited", "Foreground");
+        zhTw.Should().ContainAll("`tabControl`", "`tabItem`", "已繼承的 member", "Foreground");
     }
 
     [Fact]
@@ -158,8 +158,8 @@ public sealed class ComposerPipelineContractTests
         var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
         var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
 
-        english.Should().ContainAll("`elementCorrelations`", "renderer root", "transient `x:Name`", "not stored in the blueprint");
-        zhTw.Should().ContainAll("`elementCorrelations`", "renderer root", "transient `x:Name`", "不會寫入或儲存在 blueprint");
+        english.Should().ContainAll("`elementCorrelations`", "renderer root", "`x:Name`", "never stored in the blueprint");
+        zhTw.Should().ContainAll("`elementCorrelations`", "renderer root", "`x:Name`", "不會寫入 blueprint");
     }
 
     [Fact]

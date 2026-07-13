@@ -26,9 +26,9 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string ListUiBlockPacks =
         """
-        CATEGORY: UI Composer
-
         USE WHEN: You need to discover installed WPF DevTools Composer UI block packs before building a block catalog, validating a blueprint, or rendering generated XAML.
+
+        CATEGORY: UI Composer
 
         DO NOT USE: Do not use this for live WPF runtime inspection. Use connect, get_ui_summary, and scene tools for a running target application.
 
@@ -48,9 +48,9 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string GetUiBlockCatalog =
         """
-        CATEGORY: UI Composer
-
         USE WHEN: You need available block kinds, per-block properties, slot composition rules, renderer availability, or source hints from installed Composer UI packs.
+
+        CATEGORY: UI Composer
 
         DO NOT USE: Do not use this for live WPF runtime inspection or to read third-party source code. Use scene tools for running target state.
 
@@ -75,9 +75,9 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string ValidateUiBlueprint =
         """
-        CATEGORY: UI Composer
-
         USE WHEN: You have blueprint JSON and need pack resolution, block kind, slot, property type, enum, required property, and repair guidance checks.
+
+        CATEGORY: UI Composer
 
         DO NOT USE: Do not use this for live WPF runtime inspection or mutation. Use connect and scene tools for a running target application.
 
@@ -97,9 +97,9 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string ComposeUiBlueprint =
         """
-        CATEGORY: UI Composer
-
         USE WHEN: You have a current blueprint and need to append or insert a catalog block into an existing slot.
+
+        CATEGORY: UI Composer
 
         DO NOT USE: Do not use this as a general JSON patch tool or filesystem writer. It only inserts exact compositionSkeleton content declared by installed packs and validates the candidate blueprint before returning it.
 
@@ -119,9 +119,9 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string ExpandUiRecipe =
         """
-        CATEGORY: UI Composer
-
         USE WHEN: You already chose an independent creative brief and want a pack-defined recipe as an optional accelerator or fragment instead of assembling every initial node manually.
+
+        CATEGORY: UI Composer
 
         DO NOT USE: Do not use this for rendering, writing files, or mutating a WPF project. Use render_ui_blueprint or apply_ui_blueprint in later guarded workflows.
 
@@ -142,9 +142,9 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string RenderUiBlueprint =
         """
-        CATEGORY: UI Composer
-
         USE WHEN: You have a validated blueprint or expanded recipe and need generated XAML plus a file plan before any guarded apply workflow.
+
+        CATEGORY: UI Composer
 
         DO NOT USE: Do not use this to write project files. This tool always returns a dry-run plan and does not modify the filesystem.
 
@@ -165,9 +165,9 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string RepairUiBlueprint =
         """
-        CATEGORY: UI Composer
-
         USE WHEN: validate_ui_blueprint, render_ui_blueprint, or preview_ui_blueprint reported issues and you need the next safe blueprint or pack-contract repair step.
+
+        CATEGORY: UI Composer
 
         DO NOT USE: Do not use this to patch generated XAML. This tool returns repair actions only and does not write files.
 
@@ -189,9 +189,9 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string ApplyUiBlueprint =
         """
-        CATEGORY: UI Composer
-
         USE WHEN: You need a project file plan for generated XAML and want writes blocked unless explicit destructive and project-write gates are configured.
+
+        CATEGORY: UI Composer
 
         DO NOT USE: Do not use this as a general filesystem writer. Non-dry-run writes require WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true, WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true, and an exact WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS match.
 
@@ -217,9 +217,9 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string PreviewUiBlueprint =
         """
-        CATEGORY: UI Composer
-
         USE WHEN: You need compile-smoke diagnostics, a temporary host load smoke, or scene/layout runtime diagnostics before applying generated XAML to a real project.
+
+        CATEGORY: UI Composer
 
         DO NOT USE: Do not use this to launch or control a real target application. This phase builds a temporary local preview host, optionally starts that temporary host, and reports diagnostics; it does not persist project files outside its temporary workspace.
 

@@ -51,6 +51,9 @@ internal sealed partial class UiBlueprintPreviewService
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        var windowsDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        process.StartInfo.Environment["WINDIR"] = windowsDirectory;
+        process.StartInfo.Environment["SystemRoot"] = windowsDirectory;
         process.StartInfo.ArgumentList.Add(hostDll);
 
         try

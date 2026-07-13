@@ -124,6 +124,24 @@ public sealed partial class ComposerPreviewCompileTests
     }
 
     [Fact]
+    [Trait("Category", "ComposerRuntime")]
+    public async Task PreviewBlueprintAsync_WhenWindowsEnvironmentIsMissing_ShouldLoadGeneratedView()
+    {
+        using var windowsDirectory = new EnvironmentVariableScope("WINDIR", null);
+        using var systemRoot = new EnvironmentVariableScope("SystemRoot", null);
+        var service = new UiBlueprintPreviewService(CreateRegistry());
+        using var timeout = CreateTimeout();
+
+        var result = await service.PreviewAsync(
+            new PreviewBlueprintRequest(ButtonBlueprint(), RestoreEnabled: true, StartHost: true),
+            timeout.Token);
+
+        result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+        result.PreviewHost.Status.Should().Be("loaded", result.BuildOutput);
+        result.PreviewHost.ViewLoaded.Should().BeTrue();
+    }
+
+    [Fact]
     [Trait("Category", "ComposerCompile")]
     public async Task PreviewBlueprintAsync_WhenRuntimeDiagnosticsNotRequested_ShouldNotGenerateInspectorSdkDependency()
     {

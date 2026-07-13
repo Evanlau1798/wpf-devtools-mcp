@@ -26,16 +26,16 @@ public sealed class InstallerProductionModeIsolationTests
             var command = string.Join(" ; ",
             [
                 "$env:APPDATA='" + Escape(appData) + "'",
+                OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude(
+                    "-Action install -Architecture x64 -Client other -InstallRoot '" +
+                    Escape(Path.Combine(tempRoot, "install-root")) + "' -NonInteractive",
+                    enableInternalTestMode: false),
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_RESPONSES='ambient-production-value'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_FAIL_SAVE_STANDALONE_STATE='1'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION='ambient-latest'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_PRERELEASE_VERSION='ambient-prerelease'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_VERSION='ambient-remote-latest'",
                 "$env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_PRERELEASE_VERSION='ambient-remote-prerelease'",
-                OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude(
-                    "-Action install -Architecture x64 -Client other -InstallRoot '" +
-                    Escape(Path.Combine(tempRoot, "install-root")) + "' -NonInteractive",
-                    enableInternalTestMode: false),
                 "function Read-Host { param([string]$Prompt) return 'interactive-production-value' }",
                 "function Get-CachedLatestInstallerVersion { param([string]$ReleaseChannel) return 'cached-production-version' }",
                 "$inputValue = Read-InstallerInput -Prompt 'Choice' -DefaultValue 'default'",
@@ -61,6 +61,27 @@ public sealed class InstallerProductionModeIsolationTests
         {
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
+    }
+
+    [Fact]
+    public void AmbientTuiTestControls_ShouldBeRejectedWithoutHarnessAuthority()
+    {
+        var command = string.Join(" ; ",
+        [
+            "$env:WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS='Enter||Enter'",
+            "$env:WPFDEVTOOLS_INSTALLER_TEST_CONSOLE_WIDTH='40'",
+            OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude(
+                "-Action install -Architecture x64 -Client other -NonInteractive",
+                enableInternalTestMode: false)
+        ]);
+
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(
+            command,
+            new Dictionary<string, string?> { ["WPFDEVTOOLS_INSTALLER_TEST_MODE"] = "0" });
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().Contain("WPFDEVTOOLS_INSTALLER_TEST_TUI_KEYS");
+        result.Stderr.Should().Contain("WPFDEVTOOLS_INSTALLER_TEST_MODE=1");
     }
 
     private static string Escape(string value)

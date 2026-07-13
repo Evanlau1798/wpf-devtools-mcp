@@ -73,6 +73,17 @@ if ($Help) {
 }
 
 if (-not [bool]$script:WpfDevToolsInstallerTestModeEnabled) {
+    $testOnlyOverrides = @(Get-ChildItem Env: | Where-Object {
+            $_.Name.StartsWith('WPFDEVTOOLS_INSTALLER_TEST_', [StringComparison]::OrdinalIgnoreCase) -and
+            -not [string]::Equals(
+                $_.Name,
+                'WPFDEVTOOLS_INSTALLER_TEST_MODE',
+                [StringComparison]::OrdinalIgnoreCase) -and
+            -not [string]::IsNullOrWhiteSpace([string]$_.Value)
+        } | Select-Object -ExpandProperty Name | Sort-Object -Unique)
+    if ($testOnlyOverrides.Count -gt 0) {
+        throw "$($testOnlyOverrides -join ', ') are supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1 with internal harness authority."
+    }
     if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY)) {
         throw 'WPFDEVTOOLS_INSTALLER_HELPER_DIRECTORY is supported only when WPFDEVTOOLS_INSTALLER_TEST_MODE=1.'
     }

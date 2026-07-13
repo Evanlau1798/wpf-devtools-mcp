@@ -71,6 +71,7 @@ internal static class ComposerPackLoader
         {
             ValidateRendererTemplatePath(root, block);
             ValidateCodeBehindBaseType(block);
+            ValidateInteractionContract(block);
         }
 
         var recipes = LoadDocuments<UiRecipeDefinition>(
@@ -210,6 +211,48 @@ internal static class ComposerPackLoader
         {
             throw new InvalidDataException(
                 $"Renderer codeBehindBaseType for block '{block.Kind}' must be a namespace-qualified CLR type name.");
+        }
+    }
+
+    private static void ValidateInteractionContract(UiBlockDefinition block)
+    {
+        var interaction = block.Interaction;
+        if (interaction is null)
+        {
+            return;
+        }
+
+        if (interaction.Kind is not "action" and not "navigation")
+        {
+            throw new InvalidDataException($"Interaction kind for block '{block.Kind}' must be action or navigation.");
+        }
+
+        ValidateInteractionProperty(block, "commandProperty", interaction.CommandProperty, required: true);
+        ValidateInteractionProperty(block, "commandParameterProperty", interaction.CommandParameterProperty, required: false);
+        ValidateInteractionProperty(block, "targetProperty", interaction.TargetProperty, required: false);
+        ValidateInteractionProperty(block, "labelProperty", interaction.LabelProperty, required: false);
+    }
+
+    private static void ValidateInteractionProperty(
+        UiBlockDefinition block,
+        string contractName,
+        string propertyName,
+        bool required)
+    {
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            if (required)
+            {
+                throw new InvalidDataException($"Interaction {contractName} for block '{block.Kind}' is required.");
+            }
+
+            return;
+        }
+
+        if (!block.Properties.ContainsKey(propertyName))
+        {
+            throw new InvalidDataException(
+                $"Interaction {contractName} '{propertyName}' for block '{block.Kind}' must reference a declared property.");
         }
     }
 

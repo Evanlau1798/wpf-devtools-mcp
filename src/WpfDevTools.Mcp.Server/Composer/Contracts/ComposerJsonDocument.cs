@@ -49,6 +49,7 @@ internal sealed class UiBlockDefinition : ComposerJsonDocument
     public string Category { get; set; } = string.Empty;
     public Dictionary<string, UiBlockProperty> Properties { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, UiBlockSlot> Slots { get; set; } = new(StringComparer.Ordinal);
+    public UiBlockInteraction? Interaction { get; set; }
     public UiBlockRenderer Renderer { get; set; } = new();
     public SourceHint[] SourceHints { get; set; } = [];
 }
@@ -95,6 +96,15 @@ internal sealed class UiBlockRenderer
 {
     public string XamlTemplate { get; set; } = string.Empty;
     public string CodeBehindBaseType { get; set; } = string.Empty;
+}
+
+internal sealed class UiBlockInteraction
+{
+    public string Kind { get; set; } = string.Empty;
+    public string CommandProperty { get; set; } = string.Empty;
+    public string CommandParameterProperty { get; set; } = string.Empty;
+    public string TargetProperty { get; set; } = string.Empty;
+    public string LabelProperty { get; set; } = string.Empty;
 }
 
 internal sealed class SourceHint

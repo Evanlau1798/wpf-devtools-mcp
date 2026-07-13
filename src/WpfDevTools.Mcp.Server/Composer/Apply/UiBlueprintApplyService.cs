@@ -31,7 +31,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                 render.Errors.Select(ApplyBlueprintIssue.FromValidationIssue).ToArray());
         }
 
-        var behaviorContract = BehaviorIntegrationContractBuilder.Build(request.BlueprintJson);
+        var behaviorContract = BehaviorIntegrationContractBuilder.Build(registry, request.BlueprintJson);
         var viewModelContract = CreateViewModelContract(projectRoot, targetPath, render.RequiredNuGetPackages, behaviorContract);
         var codeBehind = CodeBehindIntegrationResolver.Resolve(registry, request.BlueprintJson, targetPath);
         var appliedXaml = AddProjectMainWindowClass(projectRoot, targetPath, render.Xaml, codeBehind);

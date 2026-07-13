@@ -48,6 +48,12 @@
       ]
     }
   },
+  "interaction": {
+    "kind": "navigation",
+    "commandProperty": "command",
+    "commandParameterProperty": "commandParameter",
+    "targetProperty": "targetPageTag"
+  },
   "renderer": {
     "xamlTemplate": "renderers/xaml/navigationViewItem.xaml.sbn"
   },

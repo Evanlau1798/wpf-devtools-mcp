@@ -43,6 +43,11 @@
       ]
     }
   },
+  "interaction": {
+    "kind": "action",
+    "commandProperty": "command",
+    "labelProperty": "text"
+  },
   "renderer": {
     "xamlTemplate": "renderers/xaml/button.xaml.sbn"
   },

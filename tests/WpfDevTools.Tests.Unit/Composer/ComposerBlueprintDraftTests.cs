@@ -215,6 +215,29 @@ public sealed class ComposerBlueprintDraftTests
     }
 
     [Fact]
+    public async Task PatchDraft_WhenPathValueExceedsTheDraftLimit_ShouldIdentifyValue()
+    {
+        var created = await UiComposerMcpTools.CreateUiBlueprintDraft(
+            JsonSerializer.Serialize(new { padding = new string('x', 60_000) }),
+            CancellationToken.None);
+        var draftRef = created.StructuredContent!.Value.GetProperty("draftRef").GetString()!;
+        using var largeValue = JsonDocument.Parse(JsonSerializer.Serialize(new string('y', 8_000)));
+
+        var result = await UiComposerMcpTools.PatchUiBlueprintDraft(
+            draftRef,
+            patchJson: null,
+            jsonPath: "$.extra",
+            value: largeValue.RootElement,
+            remove: false,
+            cancellationToken: CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        var error = result.StructuredContent!.Value.GetProperty("errors")[0];
+        error.GetProperty("code").GetString().Should().Be("BlueprintDraftTooLarge");
+        error.GetProperty("jsonPath").GetString().Should().Be("$.value");
+    }
+
+    [Fact]
     public async Task DraftTools_ShouldPatchComposeAndReuseOpaqueReferencesAcrossComposerWorkflow()
     {
         var projectRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-draft-" + Guid.NewGuid().ToString("N"));

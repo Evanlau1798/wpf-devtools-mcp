@@ -98,7 +98,8 @@ public static partial class UiComposerMcpTools
             "BlueprintDraftNotFound" => "$.draftRef",
             "InvalidBlueprintDraftPath" or "BlueprintDraftPathNotFound" => "$.jsonPath",
             "BlueprintDraftValueRequired" or "BlueprintDraftRemoveValueConflict" => "$.value",
-            _ => "$.patchJson"
+            "BlueprintDraftTooLarge" when patchJson is null => "$.value",
+            _ => patchJson is not null ? "$.patchJson" : "$.jsonPath"
         };
         return BlueprintDraftError(result.Error, errorPath);
     }

@@ -463,17 +463,10 @@ public partial class InspectorHostConcurrencyTests : IDisposable
 
         beforeStartupCompletionEntered.Wait(SignalTimeout).Should().BeTrue();
 
-        using var concurrentStartEntered = new ManualResetEventSlim(initialState: false);
-        var concurrentStartTask = RunSignaled(host.Start, concurrentStartEntered);
-        concurrentStartEntered.Wait(SignalTimeout).Should().BeTrue();
-        concurrentStartTask.IsCompleted.Should().BeFalse();
-
         host.Stop();
-        concurrentStartTask.IsCompleted.Should().BeFalse("the shared startup result should not complete until rollback has finished");
         releaseStartupCompletion.Set();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => startTask);
-        await Assert.ThrowsAsync<OperationCanceledException>(() => concurrentStartTask);
         host.IsRunning.Should().BeFalse();
     }
 

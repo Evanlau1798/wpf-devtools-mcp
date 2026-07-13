@@ -400,15 +400,15 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         public static RenderContext Create(PackRegistry registry, IReadOnlyList<ComposerPackReference> declaredPacks)
         {
             var registryResult = registry.ListPacks();
-            var declaredById = declaredPacks.ToDictionary(pack => pack.Id, StringComparer.Ordinal);
+            var registryById = registryResult.Packs.ToDictionary(pack => pack.Id, StringComparer.Ordinal);
             var blocks = new Dictionary<string, UiBlockDefinition>(StringComparer.Ordinal);
             var packages = new List<RequiredNuGetPackage>();
             var resources = new List<string>();
             var xmlNamespaces = new Dictionary<string, string>(StringComparer.Ordinal);
 
-            foreach (var pack in registryResult.Packs)
+            foreach (var declared in declaredPacks)
             {
-                if (!declaredById.TryGetValue(pack.Id, out var declared)
+                if (!registryById.TryGetValue(declared.Id, out var pack)
                     || !string.Equals(pack.Version, declared.Version, StringComparison.Ordinal))
                 {
                     continue;

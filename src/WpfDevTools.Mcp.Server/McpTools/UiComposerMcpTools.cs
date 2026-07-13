@@ -15,7 +15,7 @@ using WpfDevTools.Shared.Validation;
 namespace WpfDevTools.Mcp.Server.McpTools;
 
 [McpServerToolType]
-public static class UiComposerMcpTools
+public static partial class UiComposerMcpTools
 {
     [McpServerTool(Name = "list_ui_block_packs", Title = "List UI Composer Block Packs", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.ListUiBlockPacks)]
@@ -267,29 +267,6 @@ public static class UiComposerMcpTools
             recipes,
             diagnostics = result.Diagnostics,
             observability = ComposerObservability.ForCatalog(result.Diagnostics)
-        };
-    }
-
-    private static object ValidateBlueprint(string blueprintJson, string? projectRoot, string? localAppDataRoot)
-    {
-        var validator = new BlueprintValidationService(CreateRegistry(projectRoot, localAppDataRoot));
-        var result = validator.Validate(blueprintJson);
-
-        return new
-        {
-            success = true,
-            valid = result.Success,
-            errorCount = result.Errors.Count,
-            warningCount = result.Warnings.Count,
-            errors = result.Errors,
-            warnings = result.Warnings,
-            blueprintSize = new {
-                currentCharacters = blueprintJson.Length,
-                maximumCharacters = BoundaryStringLimits.MaxStringifiedJsonArgumentLength,
-                remainingCharacters = BoundaryStringLimits.MaxStringifiedJsonArgumentLength - blueprintJson.Length,
-                utilizationPercent = blueprintJson.Length * 100d / BoundaryStringLimits.MaxStringifiedJsonArgumentLength },
-            diagnostics = result.Diagnostics,
-            observability = ComposerObservability.ForBlueprintValidation(result)
         };
     }
 

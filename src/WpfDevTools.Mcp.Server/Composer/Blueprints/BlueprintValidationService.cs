@@ -23,20 +23,21 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         catch (Exception ex) when (ex is InvalidDataException or JsonException)
         {
             errors.Add(Issue("$", "InvalidBlueprintJson", ex.Message, "Provide valid JSON with schemaVersion wpfdevtools.ui-blueprint.v1."));
-            return new BlueprintValidationResult(errors, warnings, []);
-        }
-
-        if (!ValidateNodeCount(blueprint.Layout, errors))
-        {
-            return new BlueprintValidationResult(errors, warnings, []);
+            return new BlueprintValidationResult(errors, warnings, [], BlueprintResolutionPlan.Empty);
         }
 
         var registryResult = registry.ListPacks();
+        var resolution = BlueprintResolutionPlanner.Build(blueprint, registryResult.Packs);
+        if (!ValidateNodeCount(blueprint.Layout, errors))
+        {
+            return new BlueprintValidationResult(errors, warnings, registryResult.Diagnostics, resolution);
+        }
+
         var declaredPacks = ValidatePacks(blueprint, registryResult.Packs, errors, warnings);
         ValidateRequiredFields(blueprint, errors);
         errors.AddRange(ComposerPackRoleValidator.Validate(blueprint));
         ValidatePrimaryPackRole(blueprint, errors);
-        warnings.AddRange(BlueprintPackConflictDiagnostics.FindResourceConflicts(declaredPacks));
+        BlueprintPackConflictDiagnostics.AddIssues(resolution, errors, warnings);
 
         if (!string.IsNullOrWhiteSpace(blueprint.PrimaryPack)
             && !declaredPacks.ContainsKey(blueprint.PrimaryPack))
@@ -64,7 +65,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
             WarnForUnusedDeclaredPacks(blueprint, declaredPacks.Keys.ToHashSet(StringComparer.Ordinal), usedPackIds, warnings);
         }
 
-        return new BlueprintValidationResult(errors, warnings, registryResult.Diagnostics);
+        return new BlueprintValidationResult(errors, warnings, registryResult.Diagnostics, resolution);
     }
 
     private static bool ValidateNodeCount(UiBlueprintNode root, List<BlueprintValidationIssue> errors)

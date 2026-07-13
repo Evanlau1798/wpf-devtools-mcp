@@ -266,5 +266,5 @@ internal sealed record RecipeExpansionResult(
         IReadOnlyList<BlueprintValidationIssue> errors,
         IReadOnlyList<BlueprintValidationIssue> warnings,
         IReadOnlyList<string> diagnostics)
-        => new(Success: false, RecipeId: recipeId, Blueprint: new UiBlueprint(), Validation: new BlueprintValidationResult([], [], []), Errors: errors, Warnings: warnings, Diagnostics: diagnostics);
+        => new(Success: false, RecipeId: recipeId, Blueprint: new UiBlueprint(), Validation: new BlueprintValidationResult([], [], [], BlueprintResolutionPlan.Empty), Errors: errors, Warnings: warnings, Diagnostics: diagnostics);
 }

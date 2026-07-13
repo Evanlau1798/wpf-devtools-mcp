@@ -1,8 +1,10 @@
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
+using WpfDevTools.Mcp.Server.Composer.Contracts;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
+using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Tests.Unit.TestSupport;
 using Xunit;
 
@@ -65,6 +67,86 @@ public sealed class ComposerMultiPackValidationTests
     }
 
     [Fact]
+    public void ValidateBlueprint_ShouldRejectMultipleVisualPacksWithStructuredConflict()
+    {
+        var projectRoot = CreateTempProjectWithPackKind("other.theme", "style-pack");
+        try
+        {
+            var result = CreateValidator(projectRoot).Validate("""
+                {
+                  "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+                  "name": "VisualConflict",
+                  "packs": [
+                    { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
+                    { "id": "other.theme", "version": "1.0.0", "required": false, "role": "extension" }
+                  ],
+                  "primaryPack": "wpfui",
+                  "layout": { "kind": "wpfui.button" }
+                }
+                """);
+
+            result.Errors.Should().ContainSingle(issue => issue.Code == "MultipleVisualPacks");
+            result.Resolution.Conflicts.Should().ContainSingle(conflict =>
+                conflict.Code == "MultipleVisualPacks"
+                && conflict.Severity == "error"
+                && conflict.PackIds.SequenceEqual(new[] { "other.theme", "wpfui" }));
+            result.Resolution.Packs.Should().Contain(pack =>
+                pack.Id == "other.theme"
+                && pack.Scope == "project-local"
+                && pack.Status == "resolved");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
+    public async Task ValidationAndRenderer_ShouldExposeTheSameDeclaredResourceOrder()
+    {
+        var projectRoot = CreateTempProjectWithResourcePacks(
+            ("z.resources", "control-pack", new[] { "Z" }),
+            ("a.resources", "control-pack", new[] { "A" }));
+        const string blueprint = """
+            {
+              "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+              "name": "ResourceOrder",
+              "packs": [
+                { "id": "wpfui", "version": "0.1.0", "required": true, "role": "primary" },
+                { "id": "z.resources", "version": "1.0.0", "required": false, "role": "control-pack" },
+                { "id": "a.resources", "version": "1.0.0", "required": false, "role": "control-pack" }
+              ],
+              "primaryPack": "wpfui",
+              "layout": { "kind": "wpfui.button" }
+            }
+            """;
+        try
+        {
+            var registry = new PackRegistry(
+                ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),
+                ComposerPackPaths.ProjectLocalRoot(projectRoot));
+            var validation = new BlueprintValidationService(registry).Validate(blueprint);
+            var render = new UiBlueprintRenderer(registry).Render(new RenderBlueprintRequest(blueprint));
+            var tool = await UiComposerMcpTools.ValidateUiBlueprint(
+                blueprint,
+                projectRoot,
+                localAppDataRoot: projectRoot,
+                cancellationToken: CancellationToken.None);
+
+            validation.Errors.Should().BeEmpty();
+            validation.Resolution.ResourceOrder.Where(resource => resource is "Z" or "A").Should().Equal("Z", "A");
+            render.RequiredResources.Where(resource => resource is "Z" or "A").Should().Equal("Z", "A");
+            tool.StructuredContent!.Value.GetProperty("resolution").GetProperty("resourceOrder")
+                .EnumerateArray().Select(item => item.GetString()).Where(resource => resource is "Z" or "A")
+                .Should().Equal("Z", "A");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
     public void RenderBlueprint_ShouldDeduplicateThirdPartyResourcesInDeclarationOrder()
     {
         var projectRoot = CreateTempProjectWithResourcePack("ordered.resources", "B", "A", "B");
@@ -113,14 +195,14 @@ public sealed class ComposerMultiPackValidationTests
             "",
             []);
 
-        var warnings = BlueprintPackConflictDiagnostics.FindResourceConflicts(
-            new Dictionary<string, PackRegistryItem>(StringComparer.Ordinal)
+        var plan = BlueprintResolutionPlanner.Build(
+            new UiBlueprint
             {
-                [missingPack.Id] = missingPack
-            });
+                Packs = [new ComposerPackReference { Id = missingPack.Id, Version = missingPack.Version }]
+            },
+            [missingPack]);
 
-        warnings.Should().ContainSingle(issue => issue.JsonPath == "$.packs"
-            && issue.Code == "PackResourceInspectionFailed"
+        plan.Conflicts.Should().ContainSingle(issue => issue.Code == "PackResourceInspectionFailed"
             && issue.Message.Contains("broken.resources", StringComparison.Ordinal));
     }
 
@@ -211,21 +293,34 @@ public sealed class ComposerMultiPackValidationTests
         return new(new PackRegistry(ComposerPackPaths.BuiltinRoot(repoRoot), projectPackRoot));
     }
 
-    private static string CreateTempProjectWithResourcePack(string id, params string[] resources)
+    private static string CreateTempProjectWithResourcePack(
+        string id,
+        params string[] resources)
+        => CreateTempProjectWithResourcePacks((id, "control-pack", resources));
+
+    private static string CreateTempProjectWithPackKind(string id, string kind)
+        => CreateTempProjectWithResourcePacks((id, kind, Array.Empty<string>()));
+
+    private static string CreateTempProjectWithResourcePacks(
+        params (string Id, string Kind, string[] Resources)[] packs)
     {
         var projectRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-pack-conflict-" + Guid.NewGuid().ToString("N"));
-        var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", id, "1.0.0");
-        Directory.CreateDirectory(packRoot);
-        File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"), $$"""
-            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"{{id}}","version":"1.0.0","scope":"project-local","path":"{{id}}/1.0.0","enabled":true}
-            """);
-        var resourcesJson = JsonSerializer.Serialize(resources);
-        File.WriteAllText(Path.Combine(packRoot, "pack.json"), $$"""
-            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"{{id}}","version":"1.0.0","displayName":"Test Resources","resourceSetup":{"applicationMergedDictionaries":{{resourcesJson}}},"blocks":[],"recipes":[]}
-            """);
-        File.WriteAllText(Path.Combine(packRoot, "source.lock.json"), """
-            {"schemaVersion":"wpfdevtools.source-lock.v1","sources":[]}
-            """);
+        foreach (var (id, kind, resources) in packs)
+        {
+            var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", id, "1.0.0");
+            Directory.CreateDirectory(packRoot);
+            File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"), $$"""
+                {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"{{id}}","version":"1.0.0","scope":"project-local","path":"{{id}}/1.0.0","enabled":true}
+                """);
+            var resourcesJson = JsonSerializer.Serialize(resources);
+            File.WriteAllText(Path.Combine(packRoot, "pack.json"), $$"""
+                {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"{{id}}","kind":"{{kind}}","version":"1.0.0","displayName":"Test Resources","resourceSetup":{"applicationMergedDictionaries":{{resourcesJson}}},"blocks":[],"recipes":[]}
+                """);
+            File.WriteAllText(Path.Combine(packRoot, "source.lock.json"), """
+                {"schemaVersion":"wpfdevtools.source-lock.v1","sources":[]}
+                """);
+        }
+
         return projectRoot;
     }
 

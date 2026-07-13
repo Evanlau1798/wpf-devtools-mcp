@@ -10,11 +10,6 @@ internal static class CodeBehindIntegrationResolver
         string blueprintJson,
         string targetPath)
     {
-        if (!Path.GetFileName(targetPath).Equals("MainWindow.xaml", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
         var blueprint = ComposerJsonLoader.Parse<UiBlueprint>(
             blueprintJson,
             "<inline-blueprint>",

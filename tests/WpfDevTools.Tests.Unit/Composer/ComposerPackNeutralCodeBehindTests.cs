@@ -55,6 +55,28 @@ public sealed class ComposerPackNeutralCodeBehindTests
         }
     }
 
+    [Fact]
+    public void ApplyBlueprint_ShouldPlanCustomWindowCodeBehindForReviewedTargetPath()
+    {
+        var projectRoot = CreateProjectWithWindowPack("Sample.Controls.ChromeWindow");
+        try
+        {
+            var result = new UiBlueprintApplyService(CreateRegistry(projectRoot)).Apply(
+                new ApplyBlueprintRequest(Blueprint(), projectRoot, "Views/SettingsWindow.xaml"));
+
+            result.Success.Should().BeTrue();
+            result.Xaml.Should().Contain("x:Class=\"PackNeutralApp.SettingsWindow\"");
+            result.FilePlan.Should().Contain(item =>
+                item.Role == "code-behind-integration"
+                && item.TargetPath == Path.Combine(projectRoot, "Views", "SettingsWindow.xaml.cs")
+                && item.Action.Contains("Sample.Controls.ChromeWindow", StringComparison.Ordinal));
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
     private static PackRegistry CreateRegistry(string projectRoot)
         => new(
             ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),

@@ -70,6 +70,9 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("layout and spacing");
         description.Should().Contain("propertyWarnings");
         description.Should().Contain("exact blueprint JSON path");
+        description.Should().Contain("elementCorrelations");
+        description.Should().Contain("transient x:Name");
+        description.Should().Contain("never written into the blueprint");
     }
 
     [Fact]

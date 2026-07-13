@@ -29,7 +29,9 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
         CancellationToken cancellationToken = default)
     {
         var render = new UiBlueprintRenderer(registry)
-            .Render(new RenderBlueprintRequest(request.BlueprintJson));
+            .Render(new RenderBlueprintRequest(
+                request.BlueprintJson,
+                IncludeTransientElementCorrelation: true));
         var rendererTemplatePath = ResolveRootRendererTemplatePath(request.BlueprintJson);
         if (!render.Valid)
         {
@@ -49,7 +51,11 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
         if (!previewContract.Success)
         {
             return PreviewBlueprintResult.Invalid(request.RestoreEnabled, render.Xaml, previewContract.Diagnostics)
-                with { PropertyWarnings = propertyWarnings };
+                with
+                {
+                    PropertyWarnings = propertyWarnings,
+                    ElementCorrelations = render.ElementCorrelations
+                };
         }
 
         var tempRoot = request.TemporaryRoot
@@ -96,7 +102,11 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
             if (cancelled)
             {
                 return CreateCancelledResult(request.RestoreEnabled, render.Xaml, output.ToString(), rendererTemplatePath)
-                    with { PropertyWarnings = propertyWarnings };
+                    with
+                    {
+                        PropertyWarnings = propertyWarnings,
+                        ElementCorrelations = render.ElementCorrelations
+                    };
             }
 
             var previewHost = new PreviewHostResult(buildSucceeded ? "compiled" : "not-started", Started: false);
@@ -124,14 +134,19 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 Diagnostics: diagnostics,
                 PreviewHost: previewHost)
             {
-                PropertyWarnings = propertyWarnings
+                PropertyWarnings = propertyWarnings,
+                ElementCorrelations = render.ElementCorrelations
             };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             output.AppendLine("preview compile cancelled.");
             return CreateCancelledResult(request.RestoreEnabled, render.Xaml, output.ToString(), rendererTemplatePath)
-                with { PropertyWarnings = propertyWarnings };
+                with
+                {
+                    PropertyWarnings = propertyWarnings,
+                    ElementCorrelations = render.ElementCorrelations
+                };
         }
         finally
         {

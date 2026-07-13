@@ -143,6 +143,16 @@ public sealed class ComposerPipelineContractTests
     }
 
     [Fact]
+    public void UiComposerDocs_ShouldDocumentTransientPreviewElementCorrelation()
+    {
+        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
+        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
+
+        english.Should().ContainAll("`elementCorrelations`", "renderer root", "transient `x:Name`", "not stored in the blueprint");
+        zhTw.Should().ContainAll("`elementCorrelations`", "renderer root", "transient `x:Name`", "不會寫入或儲存在 blueprint");
+    }
+
+    [Fact]
     public void UiComposerDocs_ShouldPublishCompleteApplyToRunningAppWorkflow()
     {
         var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");

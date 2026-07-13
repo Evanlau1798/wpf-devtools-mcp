@@ -430,6 +430,7 @@ public static partial class UiComposerMcpTools
             result.VisualValidationGuidance,
             result.VisualComparisonChecklist,
             result.PropertyWarnings,
+            result.ElementCorrelations,
             observability = ComposerObservability.ForPreview(result)
         };
     }

@@ -148,6 +148,8 @@ The tool writes only to an isolated temporary preview directory and deletes it a
 
 The `propertyWarnings` array contains only pack-defined warnings for properties explicitly present in the submitted blueprint. Each entry reports the exact `jsonPath`, `blockKind`, `propertyName`, and `message`, so an Agent can focus final-app validation on the affected layout or styling decision instead of treating every structural-preview limitation as equally relevant.
 
+The `elementCorrelations` array maps each renderer root's transient `x:Name` (`elementName`) to an exact blueprint `jsonPath` and `blockKind`. Match that name with `get_ui_summary` or focused runtime results to connect preview evidence to the authored node. Correlation names exist only in the temporary preview XAML; they are not stored in the blueprint and are never emitted by normal render or apply workflows.
+
 ## `repair_ui_blueprint`
 
 Turns validation, render, compile, or preview diagnostics into blueprint-first repair actions. Use it after `validate_ui_blueprint`, `render_ui_blueprint`, or `preview_ui_blueprint` returns issues.

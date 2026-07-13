@@ -38,7 +38,16 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         var context = RenderContext.Create(registry, blueprint.Packs);
         var errors = new List<BlueprintValidationIssue>();
         var sourceMap = new List<RenderSourceMapEntry>();
-        var rendererXaml = RenderNode(blueprint.Layout, "$.layout", blueprint.Packs, context, errors, sourceMap);
+        var elementCorrelations = new List<RenderElementCorrelation>();
+        var rendererXaml = RenderNode(
+            blueprint.Layout,
+            "$.layout",
+            blueprint.Packs,
+            context,
+            errors,
+            sourceMap,
+            request.IncludeTransientElementCorrelation,
+            elementCorrelations);
         var resolvedSourceMap = ResolveSourceMap(rendererXaml, sourceMap);
         errors.AddRange(XamlSafetyScanner.Scan(rendererXaml, resolvedSourceMap, context.RequiredResources));
         var xaml = AddRootXmlNamespaces(rendererXaml, context.XmlNamespaces);
@@ -55,7 +64,8 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             validation,
             errors,
             context.Diagnostics,
-            resolvedSourceMap);
+            resolvedSourceMap,
+            elementCorrelations);
     }
 
     private string RenderNode(
@@ -64,7 +74,9 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         IReadOnlyList<ComposerPackReference> packs,
         RenderContext context,
         List<BlueprintValidationIssue> errors,
-        List<RenderSourceMapEntry> sourceMap)
+        List<RenderSourceMapEntry> sourceMap,
+        bool includeTransientElementCorrelation,
+        List<RenderElementCorrelation> elementCorrelations)
     {
         if (!context.Blocks.TryGetValue(node.Kind, out var block))
         {
@@ -81,8 +93,14 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
 
         var template = OmitUnsetPropertyAttributes(templateResult.Template.Content, node, block);
         var rendered = TokenPattern.Replace(template, match =>
-            ResolveToken(match.Groups["name"].Value, node, block, path, packs, context, errors, sourceMap));
+            ResolveToken(match.Groups["name"].Value, node, block, path, packs, context, errors, sourceMap,
+                includeTransientElementCorrelation, elementCorrelations));
         rendered = EmptyPropertyElementPattern.Replace(rendered, string.Empty);
+        if (includeTransientElementCorrelation)
+        {
+            rendered = AddTransientElementCorrelation(rendered, path, node.Kind, elementCorrelations);
+        }
+
         sourceMap.Add(new RenderSourceMapEntry(path, node.Kind, templateResult.Template.TemplatePath, rendered));
         return rendered;
     }
@@ -95,7 +113,9 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         IReadOnlyList<ComposerPackReference> packs,
         RenderContext context,
         List<BlueprintValidationIssue> errors,
-        List<RenderSourceMapEntry> sourceMap)
+        List<RenderSourceMapEntry> sourceMap,
+        bool includeTransientElementCorrelation,
+        List<RenderElementCorrelation> elementCorrelations)
     {
         if (token.StartsWith("slot.", StringComparison.Ordinal))
         {
@@ -113,7 +133,8 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
 
             return string.Join(Environment.NewLine, children.Select((child, index) =>
             {
-                var childXaml = RenderNode(child, $"{path}.slots.{slotName}[{index}]", packs, context, errors, sourceMap);
+                var childXaml = RenderNode(child, $"{path}.slots.{slotName}[{index}]", packs, context, errors,
+                    sourceMap, includeTransientElementCorrelation, elementCorrelations);
                 return WrapSlotItem(block.Slots[slotName], childXaml, node, block, path, errors);
             }));
         }
@@ -438,60 +459,3 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         }
     }
 }
-
-internal sealed record RenderBlueprintRequest(string BlueprintJson, string? TargetPath = null, string? ProjectRoot = null);
-
-internal sealed record RenderBlueprintResult(
-    bool Success,
-    bool Valid,
-    bool DryRun,
-    string Xaml,
-    RenderFilePlan FilePlan,
-    IReadOnlyList<string> RequiredResources,
-    IReadOnlyList<RequiredNuGetPackage> RequiredNuGetPackages,
-    BlueprintValidationResult Validation,
-    IReadOnlyList<BlueprintValidationIssue> Errors,
-    IReadOnlyList<string> Diagnostics,
-    IReadOnlyList<RenderSourceMapEntry> SourceMap)
-{
-    public static RenderBlueprintResult Invalid(
-        RenderBlueprintRequest request,
-        BlueprintValidationResult validation,
-        IReadOnlyList<BlueprintValidationIssue> errors)
-        => new(
-            Success: false,
-            Valid: false,
-            DryRun: true,
-            Xaml: string.Empty,
-            FilePlan: new RenderFilePlan(RenderTargetPath.Resolve(request, request.TargetPath ?? Path.Combine("Views", "GeneratedView.xaml")), WouldWriteFiles: false),
-            RequiredResources: [],
-            RequiredNuGetPackages: [],
-            Validation: validation,
-            Errors: errors,
-            Diagnostics: validation.Diagnostics,
-            SourceMap: []);
-}
-
-internal sealed record RenderFilePlan(string TargetPath, bool WouldWriteFiles);
-
-internal static class RenderTargetPath
-{
-    public static string Resolve(RenderBlueprintRequest request, string targetPath)
-        => Path.GetFullPath(!Path.IsPathFullyQualified(targetPath) && !string.IsNullOrWhiteSpace(request.ProjectRoot)
-            ? Path.Combine(request.ProjectRoot, targetPath)
-            : targetPath);
-}
-
-internal sealed record RequiredNuGetPackage(string Id, string VersionRange);
-
-internal sealed record RenderSourceMapEntry(
-    string JsonPath,
-    string BlockKind,
-    string RendererTemplatePath,
-    string Xaml,
-    int StartIndex = -1,
-    int EndIndex = -1,
-    int StartLine = 0,
-    int StartColumn = 0,
-    int EndLine = 0,
-    int EndColumn = 0);

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Mcp.Server.Composer.Rendering;
 
 namespace WpfDevTools.Mcp.Server.Composer.Preview;
 
@@ -40,6 +41,8 @@ internal sealed record PreviewBlueprintResult(
     public IReadOnlyList<PreviewVisualComparison> VisualComparisonChecklist => VisualComparisonItems;
 
     public IReadOnlyList<PreviewPropertyWarning> PropertyWarnings { get; init; } = [];
+
+    public IReadOnlyList<RenderElementCorrelation> ElementCorrelations { get; init; } = [];
 
     public static PreviewBlueprintResult Invalid(
         bool restoreEnabled,

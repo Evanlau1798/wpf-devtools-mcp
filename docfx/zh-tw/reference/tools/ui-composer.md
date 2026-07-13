@@ -147,6 +147,8 @@ Request options:
 
 `propertyWarnings` array 只包含 submitted blueprint 明確使用之 properties 的 pack-defined warnings。每個 entry 都會回報精確的 `jsonPath`、`blockKind`、`propertyName` 與 `message`，讓 Agent 將 final-app validation 聚焦在受影響的 layout 或 styling decision，而不必把所有 structural-preview limitation 視為同等相關。
 
+`elementCorrelations` array 會將每個 renderer root 的 transient `x:Name`（`elementName`）對應到精確 blueprint `jsonPath` 與 `blockKind`。Agent 可把該 name 與 `get_ui_summary` 或 focused runtime result 配對，將 preview evidence 連回 authored node。Correlation name 只存在 temporary preview XAML，不會寫入或儲存在 blueprint，也不會由一般 render 或 apply workflow 輸出。
+
 ## `repair_ui_blueprint`
 
 將 validation、render、compile 或 preview diagnostics 轉成 blueprint-first repair actions。當 `validate_ui_blueprint`、`render_ui_blueprint` 或 `preview_ui_blueprint` 回傳 issues 後使用。

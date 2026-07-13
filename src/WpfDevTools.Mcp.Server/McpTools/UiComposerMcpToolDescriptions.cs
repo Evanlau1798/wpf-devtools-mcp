@@ -2,6 +2,10 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal static class UiComposerMcpToolDescriptions
 {
+    private const string CanonicalExamples = "\nSee list_ui_block_packs.";
+    private const string CanonicalExamplesIndex =
+        "\nCanonical examples: https://wpf-mcptools.evanlau1798.com/reference/tools/ui-composer.html";
+
     public const string ImportUiBlockPack =
         """
         Import a normalized Composer block-pack archive into one reviewed project.
@@ -18,7 +22,7 @@ internal static class UiComposerMcpToolDescriptions
         SAFETY: Defaults to dry-run. Writes require confirmation, project-write policy, and an allowlisted root; replacement is opt-in.
 
         EXAMPLES:
-        """;
+        """ + CanonicalExamples;
 
     public const string ListUiBlockPacks =
         """
@@ -40,7 +44,7 @@ internal static class UiComposerMcpToolDescriptions
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs. Omit it to use the current user's LocalApplicationData path when available.
 
         EXAMPLES:
-        """;
+        """ + CanonicalExamplesIndex;
 
     public const string GetUiBlockCatalog =
         """
@@ -67,7 +71,7 @@ internal static class UiComposerMcpToolDescriptions
         - includeRecipes defaults to false for brief-first discovery. Set true only after choosing an independent creative brief.
 
         EXAMPLES:
-        """;
+        """ + CanonicalExamples;
 
     public const string ValidateUiBlueprint =
         """
@@ -89,7 +93,7 @@ internal static class UiComposerMcpToolDescriptions
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
-        """;
+        """ + CanonicalExamples;
 
     public const string ComposeUiBlueprint =
         """
@@ -111,7 +115,7 @@ internal static class UiComposerMcpToolDescriptions
         - insertionIndex optionally inserts before an existing child; omit it to append.
 
         EXAMPLES:
-        """;
+        """ + CanonicalExamples;
 
     public const string ExpandUiRecipe =
         """
@@ -134,7 +138,7 @@ internal static class UiComposerMcpToolDescriptions
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
-        """;
+        """ + CanonicalExamples;
 
     public const string RenderUiBlueprint =
         """
@@ -157,7 +161,7 @@ internal static class UiComposerMcpToolDescriptions
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
-        """;
+        """ + CanonicalExamples;
 
     public const string RepairUiBlueprint =
         """
@@ -181,7 +185,7 @@ internal static class UiComposerMcpToolDescriptions
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
-        """;
+        """ + CanonicalExamples;
 
     public const string ApplyUiBlueprint =
         """
@@ -209,7 +213,7 @@ internal static class UiComposerMcpToolDescriptions
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
-        """;
+        """ + CanonicalExamples;
 
     public const string PreviewUiBlueprint =
         """
@@ -243,5 +247,5 @@ internal static class UiComposerMcpToolDescriptions
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
-        """;
+        """ + CanonicalExamples;
 }

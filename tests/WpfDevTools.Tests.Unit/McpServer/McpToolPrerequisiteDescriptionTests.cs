@@ -76,6 +76,23 @@ public sealed class McpToolPrerequisiteDescriptionTests
     }
 
     [Fact]
+    public void ComposerToolDescriptions_ShouldLinkCanonicalExamples()
+    {
+        var composerTools = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "list_ui_block_packs", "import_ui_block_pack", "get_ui_block_catalog", "compose_ui_blueprint",
+            "validate_ui_blueprint", "expand_ui_recipe", "render_ui_blueprint", "preview_ui_blueprint",
+            "repair_ui_blueprint", "apply_ui_blueprint"
+        };
+
+        var descriptions = GetMcpTools().Where(tool => composerTools.Contains(tool.Name)).ToArray();
+        descriptions.Single(tool => tool.Name == "list_ui_block_packs").Description.Should()
+            .Contain("https://wpf-mcptools.evanlau1798.com/reference/tools/ui-composer.html");
+        descriptions.Where(tool => tool.Name != "list_ui_block_packs").Should().OnlyContain(tool =>
+            tool.Description.Contains("See list_ui_block_packs.", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void PreviewUiBlueprintDescription_ShouldDiscloseStructuralOnlyVisualFidelity()
     {
         var description = GetMcpTools()

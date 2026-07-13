@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using FluentAssertions;
+using FluentAssertions.Execution;
 using WpfDevTools.Mcp.Server;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.McpTools;
@@ -86,8 +87,10 @@ public sealed class McpToolContractDescriptionTests
             (typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.ListUiBlockPacks), "required")
         };
 
+        using var aggregateScope = new AssertionScope();
         foreach (var (toolType, methodName, term) in expectations)
         {
+            using var scope = new AssertionScope($"{toolType.Name}.{methodName} [{term}]");
             GetDescription(toolType, methodName).Should().Contain(term);
         }
     }
@@ -229,8 +232,10 @@ public sealed class McpToolContractDescriptionTests
             (typeof(EventMcpTools), nameof(EventMcpTools.FireRoutedEvent))
         };
 
+        using var aggregateScope = new AssertionScope();
         foreach (var (toolType, methodName) in tools)
         {
+            using var scope = new AssertionScope($"{toolType.Name}.{methodName}");
             var description = GetDescription(toolType, methodName);
             description.Should().Contain("detail");
             description.Should().Contain("compact");
@@ -249,8 +254,10 @@ public sealed class McpToolContractDescriptionTests
             (typeof(BindingMcpTools), nameof(BindingMcpTools.GetAffectedElements))
         };
 
+        using var aggregateScope = new AssertionScope();
         foreach (var (toolType, methodName) in tools)
         {
+            using var scope = new AssertionScope($"{toolType.Name}.{methodName}");
             var description = GetDescription(toolType, methodName);
             description.Should().Contain("USE WHEN:");
             description.Should().Contain("DO NOT USE:");
@@ -294,8 +301,10 @@ public sealed class McpToolContractDescriptionTests
             (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetFormSummary))
         };
 
+        using var aggregateScope = new AssertionScope();
         foreach (var (toolType, methodName) in tools)
         {
+            using var scope = new AssertionScope($"{toolType.Name}.{methodName}");
             var description = GetDescription(toolType, methodName);
             description.Should().Contain("structuredContent");
             description.Should().Contain("content[0].text");

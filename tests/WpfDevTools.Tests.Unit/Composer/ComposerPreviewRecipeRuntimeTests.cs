@@ -54,6 +54,13 @@ public sealed class ComposerPreviewRecipeRuntimeTests
         }
         AssertPayloadContains(summary, "Overview");
         AssertPayloadContains(summary, "Open workspace");
+        var correlatedElements = GetDiagnosticPayload(diagnostics, "find_elements");
+        var correlatedNames = correlatedElements.GetProperty("results").EnumerateArray()
+            .Select(element => element.GetProperty("elementName").GetString())
+            .ToHashSet(StringComparer.Ordinal);
+        correlatedNames.Should().NotBeEmpty();
+        result.ElementCorrelations.Select(correlation => correlation.ElementName)
+            .Should().Contain(correlatedNames!);
         GetDiagnosticPayload(diagnostics, "get_layout_info").ValueKind.Should().Be(JsonValueKind.Object);
         var screenshot = GetDiagnosticPayload(diagnostics, "element_screenshot");
         screenshot.GetProperty("outputMode").GetString().Should().Be("file");

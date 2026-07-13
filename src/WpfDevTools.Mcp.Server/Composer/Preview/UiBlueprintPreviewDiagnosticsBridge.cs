@@ -46,6 +46,18 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
 
             diagnostics.Add(await RunGatedAsync(
                 policy,
+                "find_elements",
+                ct => new FindElementsTool(sessionManager).ExecuteAsync(
+                    ToolCallHelper.BuildJsonArgs(
+                        ("processId", processId),
+                        ("query", "WpfDevToolsBp_"),
+                        ("matchMode", "contains"),
+                        ("maxResults", 500)),
+                    ct),
+                cancellationToken).ConfigureAwait(false));
+
+            diagnostics.Add(await RunGatedAsync(
+                policy,
                 "get_layout_info",
                 ct => new GetLayoutInfoTool(sessionManager).ExecuteAsync(
                     ToolCallHelper.BuildJsonArgs(("processId", processId)),

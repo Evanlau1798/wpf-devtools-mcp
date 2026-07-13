@@ -21,12 +21,19 @@ internal static class PackageIntegrationPlanner
             "project" => (Confidence: "best-effort", Reason: "Inspected the target project and did not detect ManagePackageVersionsCentrally=true."),
             _ => (Confidence: "none", Reason: "No target project file was available for package-management inspection.")
         };
+        var inspectedFiles = new[] { projectFile, centralFile }
+            .Where(path => path is not null)
+            .Select(path => ToProjectRelativePath(projectRoot, path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
         return new PackageIntegrationPlan(
             mode,
             projectFile is not null,
             inspection.Confidence,
             inspection.Reason,
+            inspectedFiles,
+            "Static XML inspection does not evaluate MSBuild imports, conditions, inherited properties, or additional project files.",
             ToProjectRelativePath(projectRoot, projectFile),
             central ? ToProjectRelativePath(projectRoot, centralFile ?? Path.Combine(projectRoot!, "Directory.Packages.props")) : string.Empty,
             actions,
@@ -125,6 +132,8 @@ internal sealed record PackageIntegrationPlan(
     bool ProjectInspected,
     string InspectionConfidence,
     string InspectionReason,
+    IReadOnlyList<string> InspectedFiles,
+    string InspectionLimitations,
     string ProjectFile,
     string CentralPackageFile,
     IReadOnlyList<PackageIntegrationAction> Packages,

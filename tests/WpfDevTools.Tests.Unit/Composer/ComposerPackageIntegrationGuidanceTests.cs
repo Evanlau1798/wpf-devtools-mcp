@@ -23,6 +23,9 @@ public sealed class ComposerPackageIntegrationGuidanceTests
 
             result.Mode.Should().Be("central");
             result.ProjectInspected.Should().BeTrue();
+            result.InspectionConfidence.Should().Be("best-effort");
+            result.InspectedFiles.Should().Equal("Sample.csproj", "Directory.Packages.props");
+            result.InspectionLimitations.Should().ContainAll("Static XML", "MSBuild", "imports", "conditions");
             result.CentralPackageFile.Should().Be("Directory.Packages.props");
             result.Packages.Should().ContainSingle();
             result.Packages[0].ProjectPackageReference.Should().Be("<PackageReference Include=\"Nebula.Controls\" />");

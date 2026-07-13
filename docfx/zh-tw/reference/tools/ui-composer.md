@@ -198,7 +198,7 @@ Request options:
 
 1. 先執行 dry apply，檢查 `filePlan`、`requiredNuGetPackages`、`packageIntegrationGuidance`、`resourcePlan`、`viewModelBindingContract` 與 `behaviorIntegrationContract`。
 2. 只有在 project-root gates 已精確限制到目標專案後，才執行 confirmed apply。
-3. 依 `packageIntegrationGuidance` 處理每個 pack-declared package。每個結果都會回報 `inspectionConfidence` 與 `inspectionReason`。`mode="project"` 時，把各 `projectPackageReference` 加入回報的 project file。因 `ManagePackageVersionsCentrally=true` 而得到 `mode="central"` 時，把 versionless `projectPackageReference` 加入 project，並把對應 `centralPackageVersion` 加入 `Directory.Packages.props`。`mode="unknown"` 時 package snippets 為 null；請先檢查 project，不可自行推測 integration shape。Composer 不會編輯這兩種檔案。
+3. 依 `packageIntegrationGuidance` 處理每個 pack-declared package。偵測是 static XML best-effort；每個結果都會回報 `inspectionConfidence`、`inspectionReason`、`inspectedFiles` 與 `inspectionLimitations`，並明確說明未 evaluate MSBuild imports 與 conditions。`mode="project"` 時，把各 `projectPackageReference` 加入回報的 project file。因 `ManagePackageVersionsCentrally=true` 而得到 `mode="central"` 時，把 versionless `projectPackageReference` 加入 project，並把對應 `centralPackageVersion` 加入 `Directory.Packages.props`。`mode="unknown"` 時 package snippets 為 null；請先檢查 project，不可自行推測 integration shape。Composer 不會編輯這兩種檔案。
 4. 依每個 pack 的需求，把 `resourcePlan` entries 加入 application resource location。請以回傳的 pack data 為準，不要假設特定 library namespace 或 dictionary。
 5. 若 `filePlan` 包含 `role="code-behind-integration"`，請依 action 與 pack renderer 驗證過的 `codeBehindBaseType`，讓 generated XAML `x:Class` 與 code-behind 繼承相同 type。Composer 只規劃此變更，不會寫入 code-behind。
 

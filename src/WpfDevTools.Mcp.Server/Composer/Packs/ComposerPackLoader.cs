@@ -67,6 +67,7 @@ internal static class ComposerPackLoader
             Path.Combine(root, "blocks"),
             "*.block.json",
             UiComposerSchemaVersions.UiBlock);
+        ValidateBlockContracts(manifest, blocks);
         foreach (var block in blocks)
         {
             ValidateRendererTemplatePath(root, block);
@@ -90,6 +91,38 @@ internal static class ComposerPackLoader
             : [];
 
         return new ComposerPack(manifest, sourceLock, blocks, recipes, examples, rendererTemplates);
+    }
+
+    private static void ValidateBlockContracts(
+        UiPackManifest manifest,
+        IReadOnlyList<UiBlockDefinition> blocks)
+    {
+        var ownedPrefix = manifest.Id + ".";
+        var foreignKind = blocks.FirstOrDefault(block =>
+            !block.Kind.StartsWith(ownedPrefix, StringComparison.Ordinal));
+        if (foreignKind is not null)
+        {
+            throw new InvalidDataException(
+                $"BlockKindOwnershipMismatch: block '{foreignKind.Kind}' is not owned by pack '{manifest.Id}'.");
+        }
+
+        var duplicateKind = blocks.GroupBy(block => block.Kind, StringComparer.Ordinal)
+            .FirstOrDefault(group => group.Count() > 1)?.Key;
+        if (duplicateKind is not null)
+        {
+            throw new InvalidDataException(
+                $"DuplicateBlockKind: pack '{manifest.Id}' contains duplicate block kind '{duplicateKind}'.");
+        }
+
+        var loadedKinds = blocks.Select(block => block.Kind)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var declaredKinds = manifest.Blocks.Order(StringComparer.Ordinal).ToArray();
+        if (!loadedKinds.SequenceEqual(declaredKinds, StringComparer.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"BlockManifestMismatch: loaded=[{string.Join(", ", loadedKinds)}]; declared=[{string.Join(", ", declaredKinds)}].");
+        }
     }
 
     private static string CreateFingerprint(string root)

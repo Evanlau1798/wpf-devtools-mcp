@@ -171,9 +171,73 @@ public sealed class ComposerPackLoaderCacheTests
         }
     }
 
-    private static string CreateMinimalPack(string root)
+    [Fact]
+    public void Load_ShouldRejectBlockKindOwnedByAnotherPack()
     {
-        var packRoot = Path.Combine(root, "sample", "1.0.0");
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = CreateMinimalPack(tempRoot);
+            var blockPath = Path.Combine(packRoot, "blocks", "text.block.json");
+            File.WriteAllText(
+                blockPath,
+                File.ReadAllText(blockPath).Replace("sample.text", "foreign.text", StringComparison.Ordinal));
+
+            var act = () => ComposerPackLoader.LoadUncachedForValidation(packRoot);
+
+            act.Should().Throw<InvalidDataException>()
+                .WithMessage("*BlockKindOwnershipMismatch*foreign.text*sample*");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void Load_ShouldRejectManifestAndBlockFileSetMismatch()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = CreateMinimalPack(tempRoot);
+            var manifestPath = Path.Combine(packRoot, "pack.json");
+            File.WriteAllText(
+                manifestPath,
+                File.ReadAllText(manifestPath).Replace("sample.text", "sample.other", StringComparison.Ordinal));
+
+            var act = () => ComposerPackLoader.LoadUncachedForValidation(packRoot);
+
+            act.Should().Throw<InvalidDataException>()
+                .WithMessage("*BlockManifestMismatch*sample.text*sample.other*");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void Load_ShouldAcceptOwnedBlockForDottedPackId()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = CreateMinimalPack(tempRoot, "vendor.design");
+
+            var pack = ComposerPackLoader.LoadUncachedForValidation(packRoot);
+
+            pack.Blocks.Should().ContainSingle(block => block.Kind == "vendor.design.text");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    private static string CreateMinimalPack(string root, string packId = "sample")
+    {
+        var packRoot = Path.Combine(root, packId, "1.0.0");
         Directory.CreateDirectory(Path.Combine(packRoot, "blocks"));
         Directory.CreateDirectory(Path.Combine(packRoot, "recipes"));
         Directory.CreateDirectory(Path.Combine(packRoot, "examples"));
@@ -181,20 +245,20 @@ public sealed class ComposerPackLoaderCacheTests
 
         File.WriteAllText(
             Path.Combine(packRoot, "pack.json"),
-            """
-            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"sample","displayName":"Sample Pack","version":"1.0.0","blocks":["sample.text"],"recipes":[]}
+            $$"""
+            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"{{packId}}","displayName":"Sample Pack","version":"1.0.0","blocks":["{{packId}}.text"],"recipes":[]}
             """);
         File.WriteAllText(
             Path.Combine(packRoot, "source.lock.json"),
             """
             {"schemaVersion":"wpfdevtools.source-lock.v1","sources":[],"transformPolicy":{}}
             """);
-        WriteBlock(packRoot, "Text");
+        WriteBlock(packRoot, "Text", packId);
         File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "text.xaml.sbn"), "<TextBlock />");
         File.WriteAllText(
             Path.Combine(packRoot, "install.manifest.json"),
             $$"""
-            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"sample","version":"1.0.0","scope":"project-local","path":"{{packRoot.Replace("\\", "\\\\")}}","enabled":true}
+            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"{{packId}}","version":"1.0.0","scope":"project-local","path":"{{packRoot.Replace("\\", "\\\\")}}","enabled":true}
             """);
         return packRoot;
     }
@@ -202,11 +266,11 @@ public sealed class ComposerPackLoaderCacheTests
     private static ComposerPackReference[] DeclaredSamplePack()
         => [new() { Id = "sample", Version = "1.0.0", Required = true }];
 
-    private static void WriteBlock(string packRoot, string displayName)
+    private static void WriteBlock(string packRoot, string displayName, string packId = "sample")
         => File.WriteAllText(
             Path.Combine(packRoot, "blocks", "text.block.json"),
             $$"""
-            {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"sample.text","displayName":"{{displayName}}","category":"text","properties":{},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/text.xaml.sbn"},"sourceHints":[]}
+            {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"{{packId}}.text","displayName":"{{displayName}}","category":"text","properties":{},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/text.xaml.sbn"},"sourceHints":[]}
             """);
 
     private static string CreateTempDirectory()

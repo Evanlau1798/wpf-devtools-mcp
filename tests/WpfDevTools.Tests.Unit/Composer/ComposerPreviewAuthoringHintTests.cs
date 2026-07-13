@@ -77,7 +77,7 @@ public sealed partial class ComposerPreviewCompileTests
     }
 
     [Fact]
-    public async Task PreviewUiBlueprintTool_ShouldNotThrowWhenDeclaredPacksCollideOnBlockKind()
+    public async Task PreviewUiBlueprintTool_ShouldRejectForeignBlockOwnershipWithStructuredDiagnostic()
     {
         var projectRoot = CreateCollidingBlockPack();
         try
@@ -103,9 +103,10 @@ public sealed partial class ComposerPreviewCompileTests
                 projectRoot: projectRoot,
                 cancellationToken: CancellationToken.None);
 
-            result.IsError.Should().BeFalse(result.StructuredContent?.GetRawText());
-            result.StructuredContent!.Value.GetProperty("propertyWarnings")
-                .GetArrayLength().Should().Be(1);
+            result.IsError.Should().BeTrue();
+            var diagnostic = result.StructuredContent!.Value.GetProperty("diagnostics")[0];
+            diagnostic.GetProperty("code").GetString().Should().Be("PackNotFound");
+            diagnostic.GetProperty("jsonPath").GetString().Should().Be("$.packs[1]");
         }
         finally
         {

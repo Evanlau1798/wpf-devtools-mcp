@@ -19,11 +19,11 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string PatchUiBlueprintDraft =
         """
-        USE WHEN: Deriving a new immutable draft from draftRef with JSON Merge Patch.
+        USE WHEN: Deriving a draft with JSON Merge Patch or one JSON-path set/remove. Do not combine patchJson with jsonPath.
 
         CATEGORY: UI Composer
 
-        RETURNS: A new draftRef; the source stays unchanged. Use compose_ui_blueprint for slot-array insertion.
+        RETURNS: New immutable draftRef and bounded changeSummary; no blueprint echo. Use compose_ui_blueprint for slot insertion.
 
         EXAMPLES:
         """ + CanonicalExamples;

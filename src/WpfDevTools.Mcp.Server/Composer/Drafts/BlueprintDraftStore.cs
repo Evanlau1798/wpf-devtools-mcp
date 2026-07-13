@@ -141,13 +141,55 @@ internal sealed class BlueprintDraftStore
                     "Blueprint and merge patch roots must both be JSON objects."));
             }
 
+            var before = target.DeepClone();
             ApplyMergePatch(target, patch);
-            return Create(target.ToJsonString());
+            return CreateDerived(target, before);
         }
         catch (JsonException ex)
         {
             return BlueprintDraftMutationResult.Invalid(InvalidJsonIssue(ex.Message));
         }
+    }
+
+    public BlueprintDraftMutationResult ApplyPathUpdate(
+        string draftRef,
+        string jsonPath,
+        JsonElement? value,
+        bool remove)
+    {
+        var source = Resolve(draftRef);
+        if (!source.Success)
+        {
+            return BlueprintDraftMutationResult.Invalid(source.Error!);
+        }
+
+        try
+        {
+            var target = JsonNode.Parse(source.BlueprintJson) as JsonObject;
+            if (target is null)
+            {
+                return BlueprintDraftMutationResult.Invalid(InvalidJsonIssue(
+                    "Blueprint draft root must be a JSON object."));
+            }
+
+            var before = target.DeepClone();
+            var issue = BlueprintDraftPathMutation.Apply(target, jsonPath, value, remove);
+            return issue is null
+                ? CreateDerived(target, before)
+                : BlueprintDraftMutationResult.Invalid(issue);
+        }
+        catch (JsonException ex)
+        {
+            return BlueprintDraftMutationResult.Invalid(InvalidJsonIssue(ex.Message));
+        }
+    }
+
+    private BlueprintDraftMutationResult CreateDerived(JsonObject target, JsonNode before)
+    {
+        var derived = Create(target.ToJsonString());
+        return derived.Success
+            ? derived with { ChangeSummary = BlueprintDraftChangeSummaryBuilder.Build(before, target) }
+            : derived;
     }
 
     private static void ApplyMergePatch(JsonObject target, JsonObject patch)

@@ -91,7 +91,7 @@ kind and slot names.
 
 Use `create_ui_blueprint_draft` when a multi-step workflow should avoid retransmitting and double-serializing the same document. It accepts one blueprint JSON object and returns an opaque `draftRef` without echoing the document. The immutable, process-local store is bounded to 32 drafts, 65,536 characters per draft, and 30 minutes per entry. References are unguessable, are never persisted, and become invalid when their MCP server process exits, their lifetime expires, or capacity eviction occurs.
 
-Use `patch_ui_blueprint_draft` with a live reference and a JSON Merge Patch object to create a new immutable derived reference. Null removes an object property, nested objects merge recursively, and arrays or scalar values replace their target. The source reference never changes. A missing, expired, or evicted reference returns `BlueprintDraftNotFound` with recovery guidance.
+Use `patch_ui_blueprint_draft` with a live reference to create a new immutable derived reference. For broad object changes, pass a JSON Merge Patch object: null removes an object property, nested objects merge recursively, and arrays or scalar values replace their target. For one nested edit, pass an exact `jsonPath` plus a native JSON `value`, or set `remove=true` without a value. The source reference never changes. Every successful derivation returns a bounded `changeSummary` with changed paths and compact before/after values instead of echoing the full blueprint. A missing, expired, or evicted reference returns `BlueprintDraftNotFound` with recovery guidance.
 
 The seven downstream tools that take `blueprintJson` also accept an opaque `draftRef`: `compose_ui_blueprint`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint`, and `apply_ui_project_integration`. Direct `blueprintJson` remains the simplest option for one-shot workflows.
 
@@ -101,7 +101,12 @@ Creates one bounded ephemeral draft. The response includes `draftRef`, `characte
 
 ## `patch_ui_blueprint_draft`
 
-Derives a new draft with JSON Merge Patch. Pass `draftRef` and `patchJson`; use `compose_ui_blueprint` instead when inserting a catalog block into a slot array.
+Derives a new draft in one of two mutually exclusive modes:
+
+- Broad change: pass `draftRef` and `patchJson` for JSON Merge Patch.
+- Surgical change: pass `draftRef`, an exact path such as `$.layout.slots.children[0].properties.text`, and `value`; to delete that target, omit `value` and set `remove=true`.
+
+The response returns the new reference, `sourceDraftRef`, retention metadata, and a compact `changeSummary` containing `changeCount`, bounded `changes`, and truncation metadata. Each change identifies `jsonPath`, `changeType`, and compact `before`/`after` values. It never echoes the full blueprint. Use `compose_ui_blueprint` instead when inserting a catalog block into a slot array.
 
 ## `compose_ui_blueprint`
 

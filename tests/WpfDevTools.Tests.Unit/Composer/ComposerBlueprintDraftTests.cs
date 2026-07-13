@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer.Drafts;
 using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Tests.Unit.TestSupport;
@@ -53,6 +54,129 @@ public sealed class ComposerBlueprintDraftTests
     }
 
     [Fact]
+    public void DraftStore_PathUpdateShouldCreateAnImmutableDerivedDraftWithCompactChangeSummary()
+    {
+        var store = new BlueprintDraftStore(4, 4096, TimeSpan.FromMinutes(5));
+        var original = store.Create(Blueprint());
+        using var value = JsonDocument.Parse("\"Print slip\"");
+
+        var updated = store.ApplyPathUpdate(
+            original.DraftRef,
+            "$.layout.slots.children[0].properties.text",
+            value.RootElement,
+            remove: false);
+
+        updated.Success.Should().BeTrue(updated.Error?.Message);
+        updated.DraftRef.Should().NotBe(original.DraftRef);
+        store.Resolve(original.DraftRef).BlueprintJson.Should().Contain("Draft action");
+        store.Resolve(updated.DraftRef).BlueprintJson.Should().Contain("Print slip");
+        updated.ChangeSummary.Should().NotBeNull();
+        updated.ChangeSummary!.ChangeCount.Should().Be(1);
+        updated.ChangeSummary.Changes.Should().ContainSingle(change =>
+            change.JsonPath == "$.layout.slots.children[0].properties.text"
+            && change.ChangeType == "modified"
+            && change.Before == "\"Draft action\""
+            && change.After == "\"Print slip\"");
+    }
+
+    [Fact]
+    public void DraftStore_PathUpdateShouldRemovePropertiesAndRejectInvalidRequests()
+    {
+        var store = new BlueprintDraftStore(8, 4096, TimeSpan.FromMinutes(5));
+        var original = store.Create(Blueprint());
+
+        var removed = store.ApplyPathUpdate(
+            original.DraftRef,
+            "$.layout.slots.children[0].properties.text",
+            value: null,
+            remove: true);
+        var missingTarget = store.ApplyPathUpdate(
+            original.DraftRef,
+            "$.layout.slots.children[9].properties.text",
+            JsonDocument.Parse("\"unused\"").RootElement,
+            remove: false);
+        var missingValue = store.ApplyPathUpdate(
+            original.DraftRef,
+            "$.layout.properties.orientation",
+            value: null,
+            remove: false);
+
+        removed.Success.Should().BeTrue(removed.Error?.Message);
+        store.Resolve(removed.DraftRef).BlueprintJson.Should().NotContain("Draft action");
+        removed.ChangeSummary!.Changes.Should().ContainSingle(change =>
+            change.JsonPath == "$.layout.slots.children[0].properties.text"
+            && change.ChangeType == "removed");
+        missingTarget.Error!.Code.Should().Be("BlueprintDraftPathNotFound");
+        missingValue.Error!.Code.Should().Be("BlueprintDraftValueRequired");
+    }
+
+    [Fact]
+    public void DraftStore_PathUpdateShouldDistinguishAnAddedJsonNullFromAMissingProperty()
+    {
+        var store = new BlueprintDraftStore(4, 4096, TimeSpan.FromMinutes(5));
+        var original = store.Create(Blueprint());
+        using var value = JsonDocument.Parse("null");
+
+        var updated = store.ApplyPathUpdate(
+            original.DraftRef,
+            "$.layout.properties.optionalNote",
+            value.RootElement,
+            remove: false);
+
+        updated.Success.Should().BeTrue(updated.Error?.Message);
+        updated.ChangeSummary!.Changes.Should().ContainSingle(change =>
+            change.JsonPath == "$.layout.properties.optionalNote"
+            && change.ChangeType == "added"
+            && change.Before == null
+            && change.After == "null");
+    }
+
+    [Fact]
+    public void DraftStore_PathUpdateShouldSupportPackDefinedPropertyNamesThroughQuotedSegments()
+    {
+        var store = new BlueprintDraftStore(4, 4096, TimeSpan.FromMinutes(5));
+        var original = store.Create("""{"layout":{"properties":{"accent.color":"old"}}}""");
+        using var value = JsonDocument.Parse("\"new\"");
+
+        var updated = store.ApplyPathUpdate(
+            original.DraftRef,
+            "$.layout.properties[\"accent.color\"]",
+            value.RootElement,
+            remove: false);
+
+        updated.Success.Should().BeTrue(updated.Error?.Message);
+        store.Resolve(updated.DraftRef).BlueprintJson.Should().Contain("\"accent.color\":\"new\"");
+        updated.ChangeSummary!.Changes.Should().ContainSingle(change =>
+            change.JsonPath == "$.layout.properties[\"accent.color\"]");
+    }
+
+    [Fact]
+    public async Task PatchDraft_PathModeShouldReturnCompactChangeSummaryWithoutBlueprintEcho()
+    {
+        var created = await UiComposerMcpTools.CreateUiBlueprintDraft(
+            Blueprint(),
+            CancellationToken.None);
+        var originalRef = created.StructuredContent!.Value.GetProperty("draftRef").GetString()!;
+        using var value = JsonDocument.Parse("\"Horizontal\"");
+
+        var updated = await UiComposerMcpTools.PatchUiBlueprintDraft(
+            originalRef,
+            patchJson: null,
+            jsonPath: "$.layout.properties.orientation",
+            value: value.RootElement,
+            cancellationToken: CancellationToken.None);
+
+        updated.IsError.Should().BeFalse();
+        var payload = updated.StructuredContent!.Value;
+        payload.TryGetProperty("blueprintJson", out _).Should().BeFalse();
+        payload.GetProperty("sourceDraftRef").GetString().Should().Be(originalRef);
+        var summary = payload.GetProperty("changeSummary");
+        summary.GetProperty("changeCount").GetInt32().Should().Be(1);
+        summary.GetProperty("changes")[0].GetProperty("jsonPath").GetString()
+            .Should().Be("$.layout.properties.orientation");
+    }
+
+    [Fact]
     public async Task DraftTools_ShouldPatchComposeAndReuseOpaqueReferencesAcrossComposerWorkflow()
     {
         var projectRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-draft-" + Guid.NewGuid().ToString("N"));
@@ -70,7 +194,7 @@ public sealed class ComposerBlueprintDraftTests
             var patched = await UiComposerMcpTools.PatchUiBlueprintDraft(
                 originalRef,
                 """{"name":"Derived Draft","layout":{"properties":{"orientation":"Horizontal"}}}""",
-                CancellationToken.None);
+                cancellationToken: CancellationToken.None);
             patched.IsError.Should().BeFalse();
             var patchedRef = patched.StructuredContent!.Value.GetProperty("draftRef").GetString()!;
             patchedRef.Should().NotBe(originalRef);
@@ -147,7 +271,7 @@ public sealed class ComposerBlueprintDraftTests
         var missing = await UiComposerMcpTools.PatchUiBlueprintDraft(
             BlueprintDraftStore.ReferencePrefix + "missing",
             "{}",
-            CancellationToken.None);
+            cancellationToken: CancellationToken.None);
         missing.StructuredContent!.Value.GetProperty("errors")[0]
             .GetProperty("jsonPath").GetString().Should().Be("$.draftRef");
 
@@ -158,9 +282,19 @@ public sealed class ComposerBlueprintDraftTests
         var invalidPatch = await UiComposerMcpTools.PatchUiBlueprintDraft(
             draftRef,
             "[]",
-            CancellationToken.None);
+            cancellationToken: CancellationToken.None);
         invalidPatch.StructuredContent!.Value.GetProperty("errors")[0]
             .GetProperty("jsonPath").GetString().Should().Be("$.patchJson");
+
+        using var ambiguousValue = JsonDocument.Parse("\"ambiguous\"");
+        var ambiguous = await UiComposerMcpTools.PatchUiBlueprintDraft(
+            draftRef,
+            patchJson: "{}",
+            jsonPath: "$.name",
+            value: ambiguousValue.RootElement,
+            cancellationToken: CancellationToken.None);
+        ambiguous.StructuredContent!.Value.GetProperty("errors")[0]
+            .GetProperty("code").GetString().Should().Be("BlueprintDraftMutationModeConflict");
     }
 
     private static string Blueprint()

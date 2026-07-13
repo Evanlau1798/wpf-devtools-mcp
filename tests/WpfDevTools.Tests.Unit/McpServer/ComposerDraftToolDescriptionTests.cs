@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using System.Reflection;
+using System.Text.Json;
 using FluentAssertions;
 using ModelContextProtocol.Server;
+using WpfDevTools.Mcp.Server.McpResources;
 using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
@@ -42,5 +44,25 @@ public sealed class ComposerDraftToolDescriptionTests
         compose.Should().Contain("derived draftRef");
         compose.Should().Contain("candidateDraftRef");
         compose.Should().Contain("omits the full blueprint", "draft transport must remain compact");
+    }
+
+    [Fact]
+    public void PatchDraftContract_ShouldExposeMutuallyExclusiveMergeAndSurgicalModes()
+    {
+        var method = typeof(UiComposerMcpTools).GetMethod(nameof(UiComposerMcpTools.PatchUiBlueprintDraft))!;
+        var description = method.GetCustomAttribute<DescriptionAttribute>()!.Description;
+        description.Should().Contain("JSON Merge Patch");
+        description.Should().Contain("JSON-path set/remove");
+        description.Should().Contain("changeSummary");
+        description.Should().Contain("Do not combine patchJson with jsonPath");
+
+        using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
+        var tool = document.RootElement.GetProperty("tools").EnumerateArray()
+            .Single(entry => entry.GetProperty("name").GetString() == "patch_ui_blueprint_draft");
+        tool.GetProperty("requiredParameters").EnumerateArray()
+            .Select(entry => entry.GetString()).Should().Equal("draftRef");
+        tool.GetProperty("parameters").EnumerateArray()
+            .Select(entry => entry.GetProperty("name").GetString())
+            .Should().Contain(["patchJson", "jsonPath", "value", "remove"]);
     }
 }

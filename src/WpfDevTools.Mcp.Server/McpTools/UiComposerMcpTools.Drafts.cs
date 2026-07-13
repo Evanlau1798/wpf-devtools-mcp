@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.Composer.Drafts;
@@ -31,12 +32,21 @@ public static partial class UiComposerMcpTools
         [StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
         [Description("Opaque draftRef returned by create_ui_blueprint_draft or a prior derived draft operation.")] string draftRef,
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
-        [Description("JSON Merge Patch object. Null removes a property; objects merge recursively; arrays and scalars replace their target value.")] string patchJson,
+        [Description("Optional JSON Merge Patch object. Use this mode for object-wide changes; arrays and scalars replace their target value.")] string? patchJson = null,
+        [StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
+        [Description("Optional exact JSON path for one surgical set or remove, such as $.layout.slots.children[0].properties.text. Do not combine with patchJson.")] string? jsonPath = null,
+        [Description("JSON value for jsonPath set mode. Omit only when remove=true.")] JsonElement? value = null,
+        [Description("When true, removes the exact jsonPath target. Omit value and patchJson.")] bool remove = false,
         CancellationToken cancellationToken = default)
     {
-        var args = ToolCallHelper.BuildJsonArgs(("draftRef", draftRef), ("patchJson", patchJson));
+        var args = ToolCallHelper.BuildJsonArgs(
+            ("draftRef", draftRef),
+            ("patchJson", patchJson),
+            ("jsonPath", jsonPath),
+            ("value", value),
+            ("remove", remove));
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult(PatchDraft(draftRef, patchJson)),
+            (_, _) => Task.FromResult(PatchDraft(draftRef, patchJson, jsonPath, value, remove)),
             args,
             cancellationToken,
             timeoutSeconds: 10);
@@ -45,18 +55,52 @@ public static partial class UiComposerMcpTools
     private static object CreateDraft(string blueprintJson)
         => DraftMutationPayload(BlueprintInputResolver.Store.Create(blueprintJson), sourceDraftRef: null);
 
-    private static object PatchDraft(string draftRef, string patchJson)
+    private static object PatchDraft(
+        string draftRef,
+        string? patchJson,
+        string? jsonPath,
+        JsonElement? value,
+        bool remove)
     {
-        var result = BlueprintInputResolver.Store.ApplyMergePatch(draftRef, patchJson);
+        if ((patchJson is null) == (jsonPath is null))
+        {
+            var issue = new BlueprintDraftIssue(
+                patchJson is null
+                    ? "BlueprintDraftMutationModeRequired"
+                    : "BlueprintDraftMutationModeConflict",
+                patchJson is null
+                    ? "Pass either patchJson or jsonPath mutation arguments."
+                    : "patchJson and jsonPath mutation modes cannot be combined.",
+                "Use patchJson for JSON Merge Patch, or jsonPath with value/remove for one surgical change.");
+            return BlueprintDraftError(issue, "$.");
+        }
+
+        if (patchJson is not null && (value is not null || remove))
+        {
+            return BlueprintDraftError(
+                new BlueprintDraftIssue(
+                    "BlueprintDraftMutationModeConflict",
+                    "Merge Patch mode cannot include path mutation arguments.",
+                    "Pass only draftRef and patchJson for JSON Merge Patch mode."),
+                "$.patchJson");
+        }
+
+        var result = patchJson is not null
+            ? BlueprintInputResolver.Store.ApplyMergePatch(draftRef, patchJson)
+            : BlueprintInputResolver.Store.ApplyPathUpdate(draftRef, jsonPath!, value, remove);
         if (result.Success)
         {
             return DraftMutationPayload(result, draftRef);
         }
 
-        var jsonPath = result.Error!.Code == "BlueprintDraftNotFound"
-            ? "$.draftRef"
-            : "$.patchJson";
-        return BlueprintDraftError(result.Error, jsonPath);
+        var errorPath = result.Error!.Code switch
+        {
+            "BlueprintDraftNotFound" => "$.draftRef",
+            "InvalidBlueprintDraftPath" or "BlueprintDraftPathNotFound" => "$.jsonPath",
+            "BlueprintDraftValueRequired" or "BlueprintDraftRemoveValueConflict" => "$.value",
+            _ => "$.patchJson"
+        };
+        return BlueprintDraftError(result.Error, errorPath);
     }
 
     private static object DraftMutationPayload(
@@ -70,6 +114,7 @@ public static partial class UiComposerMcpTools
                 sourceDraftRef,
                 result.CharacterCount,
                 result.ExpiresAt,
+                changeSummary = result.ChangeSummary,
                 immutable = true,
                 retention = new
                 {

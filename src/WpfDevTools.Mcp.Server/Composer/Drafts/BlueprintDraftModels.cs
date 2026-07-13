@@ -10,11 +10,24 @@ internal sealed record BlueprintDraftMutationResult(
     string DraftRef,
     int CharacterCount,
     DateTimeOffset ExpiresAt,
-    BlueprintDraftIssue? Error)
+    BlueprintDraftIssue? Error,
+    BlueprintDraftChangeSummary? ChangeSummary = null)
 {
     public static BlueprintDraftMutationResult Invalid(BlueprintDraftIssue error)
         => new(false, string.Empty, 0, default, error);
 }
+
+internal sealed record BlueprintDraftChangeSummary(
+    int ChangeCount,
+    int ReportedChangeCount,
+    bool Truncated,
+    IReadOnlyList<BlueprintDraftChange> Changes);
+
+internal sealed record BlueprintDraftChange(
+    string JsonPath,
+    string ChangeType,
+    string? Before,
+    string? After);
 
 internal sealed record BlueprintDraftResolution(
     bool Success,

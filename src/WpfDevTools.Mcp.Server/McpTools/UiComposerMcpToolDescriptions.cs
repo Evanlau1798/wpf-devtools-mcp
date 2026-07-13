@@ -12,7 +12,7 @@ internal static class UiComposerMcpToolDescriptions
 
         CATEGORY: UI Composer
 
-        RETURNS: An opaque draftRef and retention metadata without echoing blueprintJson. Drafts are immutable, bounded, process-local, and temporary.
+        RETURNS: An immutable, bounded, process-local, temporary draftRef plus retention metadata; no blueprintJson echo.
 
         EXAMPLES:
         """ + CanonicalExamples;
@@ -23,7 +23,7 @@ internal static class UiComposerMcpToolDescriptions
 
         CATEGORY: UI Composer
 
-        RETURNS: A new draftRef while the source stays unchanged. Use compose_ui_blueprint for slot-array insertion.
+        RETURNS: A new draftRef; the source stays unchanged. Use compose_ui_blueprint for slot-array insertion.
 
         EXAMPLES:
         """ + CanonicalExamples;
@@ -57,7 +57,7 @@ internal static class UiComposerMcpToolDescriptions
         RESPONSE SUMMARY:
         - Returns success, packCount, packs, allowedPackRoles, and diagnostics.
         - Each pack entry includes id, version, scope, kind, themeTokens, resourceVariants, role, required, blockCount, recipeCount, exampleCount, rendererCount, readinessValid, sourceRepository, and blockKinds.
-        - resourceVariants declares the pack-owned default plus ordered ids and light/dark/neutral appearances. Select one through blueprint resourceVariants; never infer a library-specific theme dictionary.
+        - resourceVariants lists pack-owned variants and appearances; select one in the blueprint without library-specific inference.
         - role is the pack-kind-derived suggested blueprint role. required=true marks a default required declaration; every pack whose blocks are used must still be declared.
         - allowedPackRoles is the authoritative pack-neutral role list for blueprint packs[].role values.
         - The response omits absolute pack root paths; read structuredContent for the canonical payload and content[0].text only as a compact fallback.
@@ -122,9 +122,9 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this as a general JSON patch tool or filesystem writer. It only inserts exact compositionSkeleton content declared by installed packs and validates the candidate blueprint before returning it.
 
         RESPONSE SUMMARY:
-        - Raw JSON input returns success, composed, blueprint, blueprintJson, insertedPath, invalidCandidate, candidateBlueprintJson, candidateWritten, validation, and errors.
+        - Raw input returns the composed blueprint, insertion path, validation, and repair candidate fields.
         - Draft input returns a new derived draftRef and omits the full blueprint; the source draft remains unchanged.
-        - When a draft-derived insertion is invalid, candidateDraftRef retains the immutable candidate for repair. Raw input instead returns invalidCandidate, candidateBlueprintJson, and candidateWritten=false. Path and non-composable failures return no candidate.
+        - Invalid draft insertion returns candidateDraftRef for repair; raw input returns candidateBlueprintJson. Path and non-composable failures return no candidate.
 
         REQUEST OPTIONS:
         - blueprintJson accepts raw JSON or an opaque draftRef.

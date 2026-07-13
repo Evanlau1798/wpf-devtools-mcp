@@ -163,6 +163,10 @@ public class ElementScreenshotToolTests
             result.TryGetProperty("path", out _).Should().BeFalse();
             result.GetProperty("fileName").GetString().Should().Be("shot_0123456789abcdef0123456789abcdef.png");
             result.GetProperty("resourceUri").GetString().Should().Be("wpf://screenshots/shot_0123456789abcdef0123456789abcdef");
+            var chunking = result.GetProperty("resourceRead").GetProperty("chunking");
+            chunking.GetProperty("uriTemplate").GetString().Should().Be(
+                "wpf://screenshots/shot_0123456789abcdef0123456789abcdef/chunks/{offset}/{length}");
+            chunking.GetProperty("maxChunkBytes").GetInt32().Should().Be(16_384);
             result.GetProperty("expiresAtUtc").GetDateTimeOffset().Should().Be(
                 now.Add(SessionManager.ScreenshotResourceRetentionWindow));
             result.GetProperty("localPathRedacted").GetBoolean().Should().BeTrue();

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WpfDevTools.Mcp.Server.McpResources;
 using WpfDevTools.Shared.ErrorHandling;
 
 namespace WpfDevTools.Mcp.Server.Tools;
@@ -311,6 +312,16 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
                 writer.WriteString("uri", screenshot.ResourceUri);
                 writer.WriteEndObject();
                 writer.WriteBoolean("sameSessionRequired", true);
+                writer.WritePropertyName("chunking");
+                writer.WriteStartObject();
+                writer.WriteString(
+                    "uriTemplate",
+                    $"wpf://screenshots/{screenshot.ScreenshotId}/chunks/{{offset}}/{{length}}");
+                writer.WriteNumber("maxChunkBytes", ScreenshotResources.MaxChunkBytes);
+                writer.WriteString(
+                    "assembly",
+                    "Read decoded chunks in offset order until byteLength, concatenate them, then verify the screenshot sha256.");
+                writer.WriteEndObject();
                 writer.WriteEndObject();
                 writer.WriteString("expiresAtUtc", screenshot.ExpiresAtUtc);
             }

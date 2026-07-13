@@ -388,7 +388,9 @@ public static partial class CapabilityResources
                         {
                             when = "Use when the tool result includes resourceUri.",
                             call = "resources/read",
-                            resourceUriTemplate = "wpf://screenshots/{screenshotId}"
+                            resourceUriTemplate = "wpf://screenshots/{screenshotId}",
+                            chunkUriTemplate = "wpf://screenshots/{screenshotId}/chunks/{offset}/{length}",
+                            maxChunkBytes = ScreenshotResources.MaxChunkBytes
                         },
                         outputGuidance = new
                         {

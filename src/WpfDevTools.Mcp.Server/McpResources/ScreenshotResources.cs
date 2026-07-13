@@ -9,6 +9,8 @@ namespace WpfDevTools.Mcp.Server.McpResources;
 [McpServerResourceType]
 public static class ScreenshotResources
 {
+    internal const int MaxChunkBytes = 16 * 1024;
+
     [McpServerResource(
         Name = "wpf_screenshot_png",
         Title = "WPF Screenshot PNG",
@@ -23,6 +25,47 @@ public static class ScreenshotResources
             throw ScreenshotResourceNotFound();
         }
 
+        var imageBytes = ReadVerifiedScreenshotBytes(sessionManager, screenshot);
+
+        return BlobResourceContents.FromBytes(imageBytes, screenshot.ResourceUri, "image/png");
+    }
+
+    [McpServerResource(
+        Name = "wpf_screenshot_png_chunk",
+        Title = "WPF Screenshot PNG Chunk",
+        UriTemplate = "wpf://screenshots/{screenshotId}/chunks/{offset}/{length}",
+        MimeType = "application/octet-stream")]
+    [Description("Reads a verified byte range from a retained PNG when a client cannot receive the complete resource in one response.")]
+    public static ResourceContents GetScreenshotPngChunk(
+        SessionManager sessionManager,
+        string screenshotId,
+        int offset,
+        int length)
+    {
+        ArgumentNullException.ThrowIfNull(sessionManager);
+        if (!sessionManager.TryGetScreenshotResource(screenshotId, out var screenshot))
+        {
+            throw ScreenshotResourceNotFound();
+        }
+
+        var imageBytes = ReadVerifiedScreenshotBytes(sessionManager, screenshot);
+        if (offset < 0 || offset >= imageBytes.Length || length <= 0 || length > MaxChunkBytes)
+        {
+            throw new McpProtocolException(
+                $"Screenshot chunk requires offset within the {imageBytes.Length}-byte resource and length from 1 to {MaxChunkBytes} bytes.",
+                McpErrorCode.InvalidParams);
+        }
+
+        var chunkLength = Math.Min(length, imageBytes.Length - offset);
+        var chunk = imageBytes.AsSpan(offset, chunkLength).ToArray();
+        var resourceUri = $"wpf://screenshots/{screenshotId}/chunks/{offset}/{length}";
+        return BlobResourceContents.FromBytes(chunk, resourceUri, "application/octet-stream");
+    }
+
+    private static byte[] ReadVerifiedScreenshotBytes(
+        SessionManager sessionManager,
+        StoredScreenshotResource screenshot)
+    {
         var imageBytes = ReadScreenshotBytes(sessionManager, screenshot);
         if (!string.IsNullOrWhiteSpace(screenshot.Sha256))
         {
@@ -35,7 +78,7 @@ public static class ScreenshotResources
             }
         }
 
-        return BlobResourceContents.FromBytes(imageBytes, screenshot.ResourceUri, "image/png");
+        return imageBytes;
     }
 
     private static byte[] ReadScreenshotBytes(

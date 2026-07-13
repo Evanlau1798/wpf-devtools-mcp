@@ -218,7 +218,10 @@ public sealed class ToolInputExamplesResourceTests
 
     private static bool HasScreenshotResourceFollowUp(JsonElement example)
         => example.TryGetProperty("resourceFollowUp", out var followUp)
-           && followUp.GetProperty("resourceUriTemplate").GetString() == "wpf://screenshots/{screenshotId}";
+           && followUp.GetProperty("resourceUriTemplate").GetString() == "wpf://screenshots/{screenshotId}"
+           && followUp.GetProperty("chunkUriTemplate").GetString() ==
+           "wpf://screenshots/{screenshotId}/chunks/{offset}/{length}"
+           && followUp.GetProperty("maxChunkBytes").GetInt32() == 16_384;
 
     private static bool HasScreenshotMetadataModeGuidance(JsonElement example)
     {

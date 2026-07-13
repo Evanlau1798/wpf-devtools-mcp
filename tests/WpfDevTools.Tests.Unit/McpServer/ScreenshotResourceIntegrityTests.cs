@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using FluentAssertions;
 using ModelContextProtocol;
+using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpResources;
 
@@ -128,6 +129,48 @@ public sealed class ScreenshotResourceIntegrityTests
             .Throw<McpProtocolException>()
             .Where(ex => ex.ErrorCode == McpErrorCode.ResourceNotFound)
             .WithMessage("*no longer available*");
+    }
+
+    [Fact]
+    public void GetScreenshotPngChunk_ShouldReturnVerifiedByteRange()
+    {
+        using var sessionManager = new SessionManager();
+        var imageBytes = Enumerable.Range(0, 40_000).Select(index => (byte)(index % 251)).ToArray();
+        var filePath = WriteOwnedScreenshot(sessionManager, imageBytes);
+        sessionManager.RegisterScreenshotResource(
+            ProcessId,
+            ScreenshotId,
+            filePath,
+            ValidSha256For(imageBytes));
+
+        var result = ScreenshotResources.GetScreenshotPngChunk(
+            sessionManager,
+            ScreenshotId,
+            offset: 16_384,
+            length: 16_384);
+
+        var blob = result.Should().BeOfType<BlobResourceContents>().Subject;
+        blob.Uri.Should().Be($"wpf://screenshots/{ScreenshotId}/chunks/16384/16384");
+        blob.MimeType.Should().Be("application/octet-stream");
+        blob.DecodedData.ToArray().Should().Equal(imageBytes[16_384..32_768]);
+    }
+
+    [Theory]
+    [InlineData(-1, 1)]
+    [InlineData(0, 0)]
+    [InlineData(0, 16_385)]
+    [InlineData(40_000, 1)]
+    public void GetScreenshotPngChunk_WithInvalidRange_ShouldReject(int offset, int length)
+    {
+        using var sessionManager = new SessionManager();
+        var imageBytes = new byte[40_000];
+        var filePath = WriteOwnedScreenshot(sessionManager, imageBytes);
+        sessionManager.RegisterScreenshotResource(ProcessId, ScreenshotId, filePath, ValidSha256For(imageBytes));
+
+        var act = () => ScreenshotResources.GetScreenshotPngChunk(sessionManager, ScreenshotId, offset, length);
+
+        act.Should().Throw<McpProtocolException>()
+            .Where(exception => exception.ErrorCode == McpErrorCode.InvalidParams);
     }
 
     private static string WriteOwnedScreenshot(SessionManager sessionManager, byte[] imageBytes)

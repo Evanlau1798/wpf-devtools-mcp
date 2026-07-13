@@ -6,6 +6,28 @@ internal static class UiComposerMcpToolDescriptions
     private const string CanonicalExamplesIndex =
         "\nCanonical examples: https://wpf-mcptools.evanlau1798.com/reference/tools/ui-composer.html";
 
+    public const string CreateUiBlueprintDraft =
+        """
+        USE WHEN: Reusing one blueprint across several Composer calls without retransmitting it.
+
+        CATEGORY: UI Composer
+
+        RETURNS: An opaque draftRef and retention metadata without echoing blueprintJson. Drafts are immutable, bounded, process-local, and temporary.
+
+        EXAMPLES:
+        """ + CanonicalExamples;
+
+    public const string PatchUiBlueprintDraft =
+        """
+        USE WHEN: Deriving a new immutable draft from draftRef with JSON Merge Patch.
+
+        CATEGORY: UI Composer
+
+        RETURNS: A new draftRef while the source stays unchanged. Use compose_ui_blueprint for slot-array insertion.
+
+        EXAMPLES:
+        """ + CanonicalExamples;
+
     public const string ImportUiBlockPack =
         """
         Import a normalized Composer block-pack archive into one reviewed project.

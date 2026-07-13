@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.Composer.Apply;
+using WpfDevTools.Mcp.Server.Composer.Drafts;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Validation;
 
@@ -14,7 +15,7 @@ public static partial class UiComposerMcpTools
     [Description(UiComposerMcpToolDescriptions.ApplyUiProjectIntegration)]
     public static Task<CallToolResult> ApplyUiProjectIntegration(
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
-        [Description("UI blueprint JSON text used to regenerate the reviewed project integration plan.")] string blueprintJson,
+        [Description("UI blueprint JSON text or opaque draftRef used to regenerate the reviewed project integration plan.")] string blueprintJson,
         [Description("Exact allowlisted local WPF project root from the reviewed dry-run.")] string projectRoot,
         [Description("Exact projectIntegrationPlan.planHash returned by the latest apply_ui_blueprint dry-run.")] string reviewedPlanHash,
         [Description("Optional project-root-relative target XAML path used by the reviewed dry-run.")] string? targetPath = null,
@@ -51,9 +52,15 @@ public static partial class UiComposerMcpTools
         bool confirmIntegration,
         string? localAppDataRoot)
     {
+        var input = BlueprintInputResolver.Resolve(blueprintJson);
+        if (!input.Success)
+        {
+            return BlueprintDraftError(input.Error!);
+        }
+
         var result = new UiBlueprintProjectIntegrationService(CreateRegistry(projectRoot, localAppDataRoot))
             .Apply(new ProjectIntegrationRequest(
-                blueprintJson,
+                input.BlueprintJson,
                 projectRoot,
                 targetPath,
                 reviewedPlanHash,
@@ -62,6 +69,7 @@ public static partial class UiComposerMcpTools
         return new
         {
             result.Success,
+            blueprintDraftRef = input.IsDraft ? input.DraftRef : null,
             result.Applied,
             result.RolledBack,
             result.PlanHash,

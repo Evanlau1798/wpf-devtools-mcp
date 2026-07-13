@@ -10,7 +10,7 @@
 
 - Windows and WPF targets only.
 - STDIO MCP server transport.
-- 75 MCP tools; use the [DocFX tool reference](https://wpf-mcptools.evanlau1798.com/reference/tools/) for the current catalog.
+- 77 MCP tools; use the [DocFX tool reference](https://wpf-mcptools.evanlau1798.com/reference/tools/) for the current catalog.
 - Security defaults fail closed: targets, screenshots, sensitive reads, ViewModel inspection, raw injection, and destructive operations require explicit configuration.
 
 ## Install

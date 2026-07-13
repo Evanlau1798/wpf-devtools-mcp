@@ -33,6 +33,21 @@ public class McpToolAnnotationSemanticsTests
         attribute.Destructive.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(nameof(UiComposerMcpTools.CreateUiBlueprintDraft))]
+    [InlineData(nameof(UiComposerMcpTools.PatchUiBlueprintDraft))]
+    [InlineData(nameof(UiComposerMcpTools.ComposeUiBlueprint))]
+    public void BlueprintDraftTools_ShouldAdvertiseEphemeralNonDestructiveState(string methodName)
+    {
+        var method = typeof(UiComposerMcpTools).GetMethod(methodName);
+        method.Should().NotBeNull();
+
+        var attribute = method!.GetCustomAttribute<McpServerToolAttribute>();
+        attribute.Should().NotBeNull();
+        attribute!.ReadOnly.Should().BeFalse();
+        attribute.Destructive.Should().BeFalse();
+    }
+
     [Fact]
     public void WatchDpChanges_ShouldAdvertiseStatefulNonDestructiveRegistration()
     {

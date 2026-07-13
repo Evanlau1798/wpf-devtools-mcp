@@ -86,19 +86,35 @@ Response 也會包含 `authoringGuidance`。其中 `strategy="brief-first"` 與 
 declared slots 的空陣列。Agent 可直接將此 compact node 放入 blueprint，再加入
 children 或 optional properties，不必手動重打 pack-specific kind 與 slot names。
 
+## Optional blueprint draft transport
+
+多步驟 workflow 若要避免重複傳輸及 double-serialize 同一份文件，可使用 `create_ui_blueprint_draft`。它接受一個 blueprint JSON object，回傳 opaque `draftRef`，且不會 echo 原始文件。Immutable、process-local store 最多保留 32 drafts，每份最多 65,536 字元，每筆存活 30 minutes。Reference 無法猜測、永不持久化；MCP server process 結束、到期或容量淘汰後就會失效。
+
+使用 `patch_ui_blueprint_draft` 搭配 live reference 與 JSON Merge Patch object，可建立新的 immutable derived reference。Null 會移除 object property、nested object 會遞迴 merge、array 或 scalar 會取代 target；source reference 永遠不變。遺失、到期或遭淘汰的 reference 會回傳 `BlueprintDraftNotFound` 與 recovery guidance。
+
+七個接受 `blueprintJson` 的 downstream tools 也接受 opaque `draftRef`：`compose_ui_blueprint`、`validate_ui_blueprint`、`render_ui_blueprint`、`preview_ui_blueprint`、`repair_ui_blueprint`、`apply_ui_blueprint` 與 `apply_ui_project_integration`。One-shot workflow 仍可直接使用 `blueprintJson`。
+
+## `create_ui_blueprint_draft`
+
+建立一份 bounded ephemeral draft。Response 包含 `draftRef`、`characterCount`、`expiresAt`、`immutable=true` 與精確 retention metadata，並刻意省略 stored JSON。
+
+## `patch_ui_blueprint_draft`
+
+以 JSON Merge Patch 衍生新 draft。傳入 `draftRef` 與 `patchJson`；若目標是把 catalog block 插入 slot array，應改用 `compose_ui_blueprint`。
+
 ## `compose_ui_blueprint`
 
 將一個 pack-defined `compositionSkeleton` 插入既有 blueprint slot，並驗證結果文件。Agent 可用它逐步建立巢狀介面，不必手動重寫深層 JSON。此操作保持 pack-neutral，而且不會寫入檔案。
 
 Request options:
 
-- `blueprintJson`: 目前完整的 blueprint JSON 文字。
+- `blueprintJson`: 目前完整的 blueprint JSON 文字或 opaque `draftRef`。
 - `targetPath`: 精確 slot path。Root slot 使用 `$.layout.slots.<slot>`；每個 nested slot 前必須提供明確 child index，例如 `$.layout.slots.content[0].slots.actions`。
 - `kind`: 來自 `get_ui_block_catalog` 搭配 `composableOnly=true` 的 exact pack-qualified block kind。
 - `insertionIndex`: optional zero-based position；省略時 append。
 - `projectRoot` 與 `localAppDataRoot`: optional pack discovery roots。
 
-當 `composed=true`，response 會回傳新的 `blueprint`、compact `blueprintJson`、精確 `insertedPath` 與 validation result。若 insertion 產生 invalid document，`composed=false` 仍會省略 authoritative `blueprint`，但回傳 `invalidCandidate`、`candidateBlueprintJson` 與 `candidateWritten=false` 供 repair；candidate 絕不會寫入檔案。Ambiguous path 與 non-composable block 只回傳可採取行動的 errors，不提供 candidate。
+Raw JSON input 在 `composed=true` 時會回傳新的 `blueprint`、compact `blueprintJson`、精確 `insertedPath` 與 validation result。Draft input 則回傳新的 immutable `draftRef` 並省略完整文件，source draft 保持不變。Invalid draft-derived candidate 會保留在 `candidateDraftRef`；raw input 則維持既有 `invalidCandidate` 與 `candidateBlueprintJson` recovery shape。兩者都不會寫入 project files。Ambiguous path 與 non-composable block 只回傳可採取行動的 errors，不提供 candidate。
 
 ## `validate_ui_blueprint`
 
@@ -106,7 +122,7 @@ Request options:
 
 Request options:
 
-- `blueprintJson`: required UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`。
+- `blueprintJson`: required raw UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`；也可傳入 opaque `draftRef`。
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
@@ -127,7 +143,7 @@ Response 包含 `valid`、`recipeId`、展開後的 `blueprint` 與 nested valid
 
 Built-in catalog 會刻意排除 `Snackbar` 與 `ContentDialog` 這類需要 host 的控制項。這些控制項需要 presenter、host 或 runtime show behavior，不能安全地表示成獨立 layout node。請以 runtime catalog discovery 為準；第三方 pack 只有在 renderer 與 behavior contract 能涵蓋這些要求時才應提供同類控制項。
 
-下一個 Composer call 前，請將 `blueprint` object 序列化為 JSON 文字；該 object 來自 `structuredContent`。請以 `blueprintJson` 參數名稱傳入，不要改用名為 `blueprint` 的參數；validation、render、preview、repair 與 apply 刻意共用相同的 JSON-string document shape。
+One-shot raw workflow 在下一個 Composer call 前，請將 `structuredContent` 的 `blueprint` object 序列化為 JSON 文字，再以 `blueprintJson` 參數名稱傳入。重複呼叫時，可先建立一次 draft，再透過同一個 `blueprintJson` 參數傳入其 `draftRef`。不要改用名為 `blueprint` 的參數。
 
 每個 Composer `blueprintJson` 參數最多接受 65,536 字元。請使用 compact serializer，避免 formatting whitespace 消耗此上限。PowerShell 請以 `$blueprint | ConvertTo-Json -Depth 100 -Compress` 序列化 structured blueprint object；明確指定 depth 可保留 built-in recipes 的巢狀 properties。其他 client 在序列化展開後的 object 時應停用 indentation。
 
@@ -137,7 +153,7 @@ Built-in catalog 會刻意排除 `Snackbar` 與 `ContentDialog` 這類需要 hos
 
 Request options:
 
-- `blueprintJson`: required UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`。
+- `blueprintJson`: required raw UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`；也可傳入 opaque `draftRef`。
 - `targetPath`: optional target XAML path suggestion。Renderer 會在 file plan 回報此路徑，但不會寫入。
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
@@ -150,7 +166,7 @@ Request options:
 
 Request options:
 
-- `blueprintJson`: required UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`。
+- `blueprintJson`: required raw UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`；也可傳入 opaque `draftRef`。
 - `restoreEnabled`: optional boolean，預設為 true。false 時 temporary project 會用 `--no-restore` build，以便 deterministic 驗證 missing-restore diagnostics。
 - `startHost`: optional boolean，預設為 false。true 時 successful build 後會啟動 temporary preview host，並回報 generated-view load status。
 - `includeRuntimeDiagnostics`: optional boolean，預設為 false。搭配 `startHost=true` 時，會對 temporary host 重用 `connect`、`get_ui_summary(depthMode="semantic")`、涵蓋 generated 與 renderer-provided correlation names 的 bounded `find_elements` lookup plan，以及 `get_layout_info`。這需要 `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`。
@@ -171,7 +187,7 @@ Request options:
 
 Request options:
 
-- `blueprintJson`: required UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`。
+- `blueprintJson`: required raw UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`；也可傳入 opaque `draftRef`。
 - `diagnosticsJson`: optional diagnostics JSON object 或 array，可使用 render 或 preview result 中的 diagnostics。
 - `targetPath`: optional target XAML path suggestion，只用於 render diagnostics。此 tool 不會寫入。
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
@@ -185,7 +201,7 @@ Response 包含 `repairable`、`generatedXamlPatch=false`、`actionCount` 與 `a
 
 Request options:
 
-- `blueprintJson`: required UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`。
+- `blueprintJson`: required raw UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`；也可傳入 opaque `draftRef`。
 - `projectRoot`: required local WPF project root，用於 path planning 與 write allowlist checks。
 - `targetPath`: optional target XAML file path，必須位於 `projectRoot` 內。
 - `dryRun`: optional boolean，預設為 true。
@@ -198,7 +214,7 @@ Dry-run 的 `projectIntegrationPlan` 保持 pack-neutral。Operations 會列出 
 
 ## `apply_ui_project_integration`
 
-只套用最新 `apply_ui_blueprint` dry-run 回傳的 `projectIntegrationPlan`。呼叫時必須傳入相同的 `blueprintJson`、`projectRoot`、`targetPath` 與 pack discovery scope，再加上 `reviewedPlanHash` 及 `confirmIntegration=true`。
+只套用最新 `apply_ui_blueprint` dry-run 回傳的 `projectIntegrationPlan`。呼叫時必須傳入相同的 raw `blueprintJson` 或 opaque `draftRef`、`projectRoot`、`targetPath` 與 pack discovery scope，再加上 `reviewedPlanHash` 及 `confirmIntegration=true`。
 
 此 destructive tool 需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，且 `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` 必須 exact match。它會在寫入前立即重新產生 plan；pack、blueprint、target 或 project file 只要有任何變更，就會回傳 `IntegrationPlanChanged`，且不會寫入。
 

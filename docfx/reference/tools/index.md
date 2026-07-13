@@ -1,6 +1,6 @@
 # Tool Reference Overview
 
-The server currently exposes 75 tools across twelve categories.
+The server currently exposes 77 tools across twelve categories.
 
 ## Categories
 
@@ -45,7 +45,7 @@ Use the smallest workflow that answers the question. Prefer scene-level aggregat
 | Explain an unexpected visual value | `get_dp_value_source` | `get_applied_styles`, `get_resource_chain`, `get_triggers` | Use when precedence or styles are unclear. |
 | Validate a click or keyboard action | `get_interaction_readiness` | `click_element`, `drain_events`, `get_state_diff` | Use only after a concrete elementId is known. |
 | Make rollback-safe changes | `capture_state_snapshot` | `batch_mutate`, `get_state_diff`, `restore_state_snapshot` | Requires the relevant destructive and read gates. |
-| Install, compose, render, preview, repair, and apply Composer UIs | `list_ui_block_packs` | `import_ui_block_pack`, `get_ui_block_catalog`, `compose_ui_blueprint`, `expand_ui_recipe`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint`, `apply_ui_project_integration` | Dry-runs reviewed project-local pack imports, then discovers, composes, validates, renders, previews, repairs, and guarded-applies pack-defined UIs and their reviewed project integration. |
+| Install, compose, render, preview, repair, and apply Composer UIs | `list_ui_block_packs` | `import_ui_block_pack`, `get_ui_block_catalog`, `create_ui_blueprint_draft`, `patch_ui_blueprint_draft`, `compose_ui_blueprint`, `expand_ui_recipe`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint`, `apply_ui_project_integration` | Dry-runs reviewed project-local pack imports, then builds bounded drafts, discovers, composes, validates, renders, previews, repairs, and guarded-applies pack-defined UIs and their reviewed project integration. |
 | Follow a full recipe | See [Common Workflows](../../guides/common-workflows.md) | Follow `navigation.recommended` first | Workflow pages are baselines; tool responses remain authoritative. |
 
 ## Categories at a glance
@@ -63,7 +63,7 @@ Use the smallest workflow that answers the question. Prefer scene-level aggregat
 | MVVM | `get_viewmodel` | Inspect data and commands behind a view |
 | Performance | `get_render_stats` | Start performance triage |
 | State & Scene Diagnostics | `get_ui_summary` | Start with semantic context before using tree-heavy inspection |
-| UI Composer | `list_ui_block_packs`, `import_ui_block_pack`, `get_ui_block_catalog`, `compose_ui_blueprint`, `expand_ui_recipe`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint`, `apply_ui_project_integration` | Dry-run and import reviewed project-local packs, then discover, compose, validate, render, preview, repair, and guarded-apply blueprints plus reviewed project integration |
+| UI Composer | `list_ui_block_packs`, `import_ui_block_pack`, `get_ui_block_catalog`, `create_ui_blueprint_draft`, `patch_ui_blueprint_draft`, `compose_ui_blueprint`, `expand_ui_recipe`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint`, `apply_ui_project_integration` | Dry-run and import reviewed project-local packs, then build bounded drafts, discover, compose, validate, render, preview, repair, and guarded-apply blueprints plus reviewed project integration |
 
 ## Navigation model
 
@@ -97,8 +97,8 @@ If a tool signature, policy gate, or response schema changes, update the relevan
 
 These values are generated from the runtime MCP contract resources. If a tool is added or renamed, a method signature changes, policy gates move, or response fields change, the documentation tests require this snapshot to be regenerated.
 
-- `wpf://contracts/tools` SHA-256: `02b392d858138f0410caa4f8dd512545e828a9099c92adac74d854aa1b5c54cd`
-- `wpf://contracts/response` SHA-256: `22307bc3578bd22f5459d1090d6c72a2e2b77ad8a6d1cee96503f72bc25f2450`
+- `wpf://contracts/tools` SHA-256: `333f828d803ca21d1c0c22bbcb7cb8443ffac5fe013affaaccacf338ddb16756`
+- `wpf://contracts/response` SHA-256: `0c422a050c283d200e2b59ebe35f71de92531e828c0aef26dc8a6aa793e9c5fa`
 - Validation scope: `toolCount`, `name`, `title`, `parameters`, `requiredParameters`, `inputSchemaHash`, `outputSchemaHash`, `capabilityTags`, `policyCapabilityTags`, `annotations`, `parameterConstraints`, `parameterVocabularies`, and `highValueTools`.
 
 Use the category pages for the most important tools, semantics, and gotchas.

@@ -87,19 +87,35 @@ properties, and empty arrays for declared slots. Copy the compact node into a
 blueprint and add children or optional properties without retyping pack-specific
 kind and slot names.
 
+## Optional blueprint draft transport
+
+Use `create_ui_blueprint_draft` when a multi-step workflow should avoid retransmitting and double-serializing the same document. It accepts one blueprint JSON object and returns an opaque `draftRef` without echoing the document. The immutable, process-local store is bounded to 32 drafts, 65,536 characters per draft, and 30 minutes per entry. References are unguessable, are never persisted, and become invalid when their MCP server process exits, their lifetime expires, or capacity eviction occurs.
+
+Use `patch_ui_blueprint_draft` with a live reference and a JSON Merge Patch object to create a new immutable derived reference. Null removes an object property, nested objects merge recursively, and arrays or scalar values replace their target. The source reference never changes. A missing, expired, or evicted reference returns `BlueprintDraftNotFound` with recovery guidance.
+
+The seven downstream tools that take `blueprintJson` also accept an opaque `draftRef`: `compose_ui_blueprint`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint`, and `apply_ui_project_integration`. Direct `blueprintJson` remains the simplest option for one-shot workflows.
+
+## `create_ui_blueprint_draft`
+
+Creates one bounded ephemeral draft. The response includes `draftRef`, `characterCount`, `expiresAt`, `immutable=true`, and exact retention metadata; it intentionally omits the stored JSON.
+
+## `patch_ui_blueprint_draft`
+
+Derives a new draft with JSON Merge Patch. Pass `draftRef` and `patchJson`; use `compose_ui_blueprint` instead when inserting a catalog block into a slot array.
+
 ## `compose_ui_blueprint`
 
 Inserts one pack-defined `compositionSkeleton` into an existing blueprint slot and validates the resulting document. Use it to build nested interfaces incrementally without manually rewriting deep JSON. This operation is pack-neutral and never writes files.
 
 Request options:
 
-- `blueprintJson`: current full blueprint JSON text.
+- `blueprintJson`: current full blueprint JSON text or an opaque `draftRef`.
 - `targetPath`: exact slot path. Use `$.layout.slots.<slot>` for a root slot, or include an explicit child index before each nested slot, such as `$.layout.slots.content[0].slots.actions`.
 - `kind`: exact pack-qualified block kind from `get_ui_block_catalog` with `composableOnly=true`.
 - `insertionIndex`: optional zero-based position; omit it to append.
 - `projectRoot` and `localAppDataRoot`: optional pack discovery roots.
 
-When `composed=true`, the response returns a new `blueprint`, compact `blueprintJson`, exact `insertedPath`, and validation result. If insertion creates an invalid document, `composed=false` keeps the authoritative `blueprint` omitted but returns `invalidCandidate`, `candidateBlueprintJson`, and `candidateWritten=false` for repair; the candidate is never written. Ambiguous paths and non-composable blocks return actionable errors without a candidate.
+With raw JSON input, `composed=true` returns a new `blueprint`, compact `blueprintJson`, exact `insertedPath`, and validation result. With draft input, it returns a new immutable `draftRef` and omits the full document; the source draft remains unchanged. An invalid draft-derived candidate is retained under `candidateDraftRef`, while raw input retains the existing `invalidCandidate` and `candidateBlueprintJson` recovery shape. Neither path writes project files. Ambiguous paths and non-composable blocks return actionable errors without a candidate.
 
 ## `validate_ui_blueprint`
 
@@ -107,7 +123,7 @@ Validates UI blueprint JSON against the installed Composer pack contracts. Use i
 
 Request options:
 
-- `blueprintJson`: required UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`.
+- `blueprintJson`: required raw UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`, or an opaque `draftRef`.
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
@@ -128,7 +144,7 @@ The response includes `valid`, `recipeId`, the expanded `blueprint`, and the nes
 
 The built-in catalog intentionally excludes host-backed controls such as WPF UI `Snackbar` and `ContentDialog`. Those controls require presenter, host, or runtime show behavior that a standalone layout node cannot represent safely. Runtime catalog discovery is authoritative; third-party packs may expose comparable controls only when their renderer and behavior contracts cover those requirements.
 
-Serialize the `blueprint` object from `structuredContent` to JSON text before the next Composer call, then pass it under the `blueprintJson` parameter name. Do not pass the object under a parameter named `blueprint`; validation, render, preview, repair, and apply intentionally share the same JSON-string document shape.
+For a one-shot raw workflow, serialize the `blueprint` object from `structuredContent` to JSON text before the next Composer call, then pass it under the `blueprintJson` parameter name. For repeated calls, create a draft once and pass its `draftRef` through that same `blueprintJson` parameter. Do not pass the object under a parameter named `blueprint`.
 
 Every Composer `blueprintJson` parameter accepts at most 65,536 characters. Use a compact serializer so formatting whitespace does not consume that limit. In PowerShell, serialize the structured blueprint object with `$blueprint | ConvertTo-Json -Depth 100 -Compress`; the explicit depth preserves nested properties in built-in recipes. Other clients should disable indentation when serializing the expanded object.
 
@@ -138,7 +154,7 @@ Runs a dry-run XAML render for a valid UI blueprint. Use it after `validate_ui_b
 
 Request options:
 
-- `blueprintJson`: required UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`.
+- `blueprintJson`: required raw UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`, or an opaque `draftRef`.
 - `targetPath`: optional target XAML path suggestion. The renderer reports it in the file plan but does not write it.
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
@@ -151,7 +167,7 @@ Compiles generated UI Composer XAML in a temporary WPF preview project. Use it a
 
 Request options:
 
-- `blueprintJson`: required UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`.
+- `blueprintJson`: required raw UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`, or an opaque `draftRef`.
 - `restoreEnabled`: optional boolean that defaults to true. When false, the temporary project is built with `--no-restore` so missing-restore diagnostics can be validated deterministically.
 - `startHost`: optional boolean that defaults to false. When true, the temporary preview host starts after a successful build and reports generated-view load status.
 - `includeRuntimeDiagnostics`: optional boolean that defaults to false. When true with `startHost=true`, the tool reuses `connect`, `get_ui_summary(depthMode="semantic")`, a bounded `find_elements` lookup plan for generated and renderer-provided correlation names, and `get_layout_info` against the temporary host. This requires `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`.
@@ -172,7 +188,7 @@ Turns validation, render, compile, or preview diagnostics into blueprint-first r
 
 Request options:
 
-- `blueprintJson`: required UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`.
+- `blueprintJson`: required raw UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`, or an opaque `draftRef`.
 - `diagnosticsJson`: optional diagnostics JSON object or array from render or preview results.
 - `targetPath`: optional target XAML path suggestion for render diagnostics only. The tool does not write it.
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
@@ -186,7 +202,7 @@ Produces a guarded apply plan for a UI blueprint. The default is dry-run, so age
 
 Request options:
 
-- `blueprintJson`: required UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`.
+- `blueprintJson`: required raw UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`, or an opaque `draftRef`.
 - `projectRoot`: required local WPF project root used for path planning and write allowlist checks.
 - `targetPath`: optional target XAML file path. It must stay inside `projectRoot`.
 - `dryRun`: optional boolean that defaults to true.
@@ -199,7 +215,7 @@ The dry-run `projectIntegrationPlan` is pack-neutral. Its operations name exact 
 
 ## `apply_ui_project_integration`
 
-Applies only the `projectIntegrationPlan` returned by the latest `apply_ui_blueprint` dry-run. Pass the same `blueprintJson`, `projectRoot`, `targetPath`, and pack discovery scope together with `reviewedPlanHash` and `confirmIntegration=true`.
+Applies only the `projectIntegrationPlan` returned by the latest `apply_ui_blueprint` dry-run. Pass the same raw `blueprintJson` or opaque `draftRef`, `projectRoot`, `targetPath`, and pack discovery scope together with `reviewedPlanHash` and `confirmIntegration=true`.
 
 This destructive tool requires `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`, `WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`, and an exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match. It regenerates the plan immediately before writing. Any pack, blueprint, target, or project-file change produces `IntegrationPlanChanged` and no write occurs.
 

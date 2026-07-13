@@ -72,16 +72,21 @@ public sealed partial class ComposerPreviewCompileTests
     public async Task PreviewUiBlueprintTool_ShouldReturnStructuredCompileResult()
     {
         using var sessionManager = new SessionManager();
+        var draft = await UiComposerMcpTools.CreateUiBlueprintDraft(
+            ButtonBlueprint(),
+            CancellationToken.None);
+        var draftRef = draft.StructuredContent!.Value.GetProperty("draftRef").GetString()!;
 
         var result = await UiComposerMcpTools.PreviewUiBlueprint(
             sessionManager,
-            ButtonBlueprint(),
+            draftRef,
             restoreEnabled: true,
             cancellationToken: CancellationToken.None);
 
         result.IsError.Should().BeFalse();
         var payload = result.StructuredContent!.Value;
         payload.GetProperty("success").GetBoolean().Should().BeTrue();
+        payload.GetProperty("blueprintDraftRef").GetString().Should().Be(draftRef);
         payload.GetProperty("buildSucceeded").GetBoolean().Should().BeTrue();
         payload.GetProperty("visualFidelity").GetString().Should().Be("structural-stub");
         payload.GetProperty("visualValidationGuidance").GetString().Should().Contain("applied, built, and launched WPF application");

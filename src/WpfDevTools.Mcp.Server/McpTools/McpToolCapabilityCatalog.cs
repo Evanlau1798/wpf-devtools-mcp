@@ -203,7 +203,7 @@ internal static class McpToolCapabilityCatalog
             tags.Add("accepts-mutation-step");
         }
 
-        if (attribute.Name is not "get_processes" and not "list_ui_block_packs" and not "get_ui_block_catalog" and not "validate_ui_blueprint" and not "compose_ui_blueprint" and not "import_ui_block_pack" and not "expand_ui_recipe" and not "render_ui_blueprint" and not "repair_ui_blueprint" and not "apply_ui_blueprint" and not "apply_ui_project_integration" and not "preview_ui_blueprint")
+        if (attribute.Name is not "get_processes" and not "list_ui_block_packs" and not "get_ui_block_catalog" and not "create_ui_blueprint_draft" and not "patch_ui_blueprint_draft" and not "validate_ui_blueprint" and not "compose_ui_blueprint" and not "import_ui_block_pack" and not "expand_ui_recipe" and not "render_ui_blueprint" and not "repair_ui_blueprint" and not "apply_ui_blueprint" and not "apply_ui_project_integration" and not "preview_ui_blueprint")
         {
             tags.Add("requires-target");
         }

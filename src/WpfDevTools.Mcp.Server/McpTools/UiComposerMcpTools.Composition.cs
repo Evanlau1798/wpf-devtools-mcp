@@ -4,6 +4,7 @@ using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Diagnostics;
+using WpfDevTools.Mcp.Server.Composer.Drafts;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Validation;
 
@@ -11,11 +12,11 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 
 public static partial class UiComposerMcpTools
 {
-    [McpServerTool(Name = "compose_ui_blueprint", Title = "Compose UI Blueprint Block", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
+    [McpServerTool(Name = "compose_ui_blueprint", Title = "Compose UI Blueprint Block", OpenWorld = false, ReadOnly = false, Destructive = false, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.ComposeUiBlueprint)]
     public static Task<CallToolResult> ComposeUiBlueprint(
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
-        [Description("Current UI blueprint JSON text. The tool returns a new object and never writes files.")] string blueprintJson,
+        [Description("Current UI blueprint JSON text or opaque draftRef. Raw JSON returns a new object; draft input returns a new immutable derived draftRef.")] string blueprintJson,
         [StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
         [Description("Exact target slot path, such as $.layout.slots.content or $.layout.slots.content[0].slots.actions.")] string targetPath,
         [StringLength(BoundaryStringLimits.MaxLabelLength)]
@@ -54,8 +55,14 @@ public static partial class UiComposerMcpTools
         string? projectRoot,
         string? localAppDataRoot)
     {
+        var input = BlueprintInputResolver.Resolve(blueprintJson);
+        if (!input.Success)
+        {
+            return BlueprintDraftError(input.Error!);
+        }
+
         var result = new BlueprintCompositionService(CreateRegistry(projectRoot, localAppDataRoot))
-            .Compose(blueprintJson, targetPath, kind, insertionIndex);
+            .Compose(input.BlueprintJson, targetPath, kind, insertionIndex);
         var validation = result.Validation is null
             ? null
             : new
@@ -71,6 +78,47 @@ public static partial class UiComposerMcpTools
             ? result.Errors
             : result.Validation?.Errors ?? [];
         var observability = ComposerObservability.ForComposition(result);
+
+        if (result.Composed && input.IsDraft)
+        {
+            var derived = BlueprintInputResolver.Store.Create(result.BlueprintJson!);
+            return derived.Success
+                ? new
+                {
+                    success = true,
+                    composed = true,
+                    draftDerived = true,
+                    sourceDraftRef = input.DraftRef,
+                    derived.DraftRef,
+                    derived.CharacterCount,
+                    derived.ExpiresAt,
+                    insertedPath = result.InsertedPath,
+                    validation,
+                    errors = result.Errors,
+                    observability
+                }
+                : BlueprintDraftError(derived.Error!);
+        }
+
+        if (!result.Composed && input.IsDraft && result.CandidateBlueprintJson is not null)
+        {
+            var candidate = BlueprintInputResolver.Store.Create(result.CandidateBlueprintJson);
+            return candidate.Success
+                ? new
+                {
+                    success = true,
+                    composed = false,
+                    draftDerived = false,
+                    sourceDraftRef = input.DraftRef,
+                    candidateDraftRef = candidate.DraftRef,
+                    candidateDraftCreated = true,
+                    candidateWritten = false,
+                    validation,
+                    errors,
+                    observability
+                }
+                : BlueprintDraftError(candidate.Error!);
+        }
 
         return result.Composed
             ? new

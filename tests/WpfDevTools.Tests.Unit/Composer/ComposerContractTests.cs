@@ -14,7 +14,7 @@ public sealed class ComposerContractTests
         UiComposerSchemaVersions.SourceRepository.Should()
             .Be("https://github.com/Evanlau1798/wpf-devtools-extension-pack-creator");
         UiComposerSchemaVersions.SourceRef.Should().Be("master");
-        UiComposerSchemaVersions.SourceCommit.Should().Be("ccda147b8f96a0b4fdbe230ca41d5884bdd85507");
+        UiComposerSchemaVersions.SourceCommit.Should().Be("8f9bc29ec8c398314d5b716173abca8a6330ee08");
 
         UiComposerSchemaVersions.SchemaFiles.Keys.Should().BeEquivalentTo(
         [
@@ -154,6 +154,24 @@ public sealed class ComposerContractTests
         manifest.Id.Should().Be("wpfui");
         manifest.Enabled.Should().BeTrue();
         manifest.Metadata.Should().ContainKey("source");
+    }
+
+    [Fact]
+    public void PackInstallManifestSchema_ShouldRequireRuntimeDiscoveryFields()
+    {
+        using var schema = JsonDocument.Parse(File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Mcp.Server/Composer/Schemas/wpfdevtools.pack-install-manifest.v1.schema.json")));
+
+        schema.RootElement.GetProperty("required")
+            .EnumerateArray()
+            .Select(item => item.GetString())
+            .Should().Equal("schemaVersion", "id", "version", "scope", "path", "enabled");
+        schema.RootElement.GetProperty("properties")
+            .GetProperty("scope")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(item => item.GetString())
+            .Should().Equal("project-local", "user-global", "composer-builtin");
     }
 
     private static T Load<T>(string relativePath, string expectedSchemaVersion)

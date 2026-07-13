@@ -156,7 +156,7 @@ public sealed partial class ComposerPreviewCompileTests
         Directory.CreateDirectory(Path.Combine(packRoot, "blocks"));
         Directory.CreateDirectory(Path.Combine(packRoot, "renderers", "xaml"));
         File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"),
-            """{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"hint","version":"1.0.0","scope":"project","path":".","enabled":true}""");
+            """{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"hint","version":"1.0.0","scope":"project-local","path":".","enabled":true}""");
         File.WriteAllText(Path.Combine(packRoot, "pack.json"),
             """{"schemaVersion":"wpfdevtools.ui-pack.v1","id":"hint","displayName":"Hint","version":"1.0.0","blocks":["hint.container"],"recipes":[],"xmlNamespaces":{}}""");
         File.WriteAllText(Path.Combine(packRoot, "source.lock.json"),
@@ -175,7 +175,7 @@ public sealed partial class ComposerPreviewCompileTests
         Directory.CreateDirectory(Path.Combine(packRoot, "blocks"));
         Directory.CreateDirectory(Path.Combine(packRoot, "renderers", "xaml"));
         File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"),
-            """{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"shadow","version":"1.0.0","scope":"project","path":".","enabled":true}""");
+            """{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"shadow","version":"1.0.0","scope":"project-local","path":".","enabled":true}""");
         File.WriteAllText(Path.Combine(packRoot, "pack.json"),
             """{"schemaVersion":"wpfdevtools.ui-pack.v1","id":"shadow","displayName":"Shadow","version":"1.0.0","blocks":["core.stack"],"recipes":[],"xmlNamespaces":{}}""");
         File.WriteAllText(Path.Combine(packRoot, "source.lock.json"),
@@ -194,7 +194,7 @@ public sealed partial class ComposerPreviewCompileTests
         Directory.CreateDirectory(Path.Combine(packRoot, "blocks"));
         Directory.CreateDirectory(Path.Combine(packRoot, "renderers", "xaml"));
         File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"),
-            """{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"sample","version":"1.0.0","scope":"project","path":".","enabled":true}""");
+            """{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"sample","version":"1.0.0","scope":"project-local","path":".","enabled":true}""");
         File.WriteAllText(Path.Combine(packRoot, "pack.json"),
             """{"schemaVersion":"wpfdevtools.ui-pack.v1","id":"sample","displayName":"Sample","version":"1.0.0","blocks":["sample.panel"],"recipes":[],"xmlNamespaces":{"sample":"urn:sample-controls"}}""");
         File.WriteAllText(Path.Combine(packRoot, "source.lock.json"),

@@ -137,7 +137,7 @@ public sealed class ComposerBlueprintCompositionTests
         File.WriteAllText(Path.Combine(root, "renderers", "xaml", "action.xaml.sbn"), "<nebula:Action Label=\"{{label}}\" />");
         var escapedRoot = root.Replace("\\", "\\\\");
         File.WriteAllText(Path.Combine(root, "install.manifest.json"),
-            $$"""{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"nebula","version":"1.0.0","scope":"project","path":"{{escapedRoot}}","enabled":true}""");
+            $$"""{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"nebula","version":"1.0.0","scope":"project-local","path":"{{escapedRoot}}","enabled":true}""");
         return projectRoot;
     }
 

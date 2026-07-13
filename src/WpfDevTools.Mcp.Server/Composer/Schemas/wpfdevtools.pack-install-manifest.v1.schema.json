@@ -3,14 +3,51 @@
   "$id": "wpfdevtools.pack-install-manifest.v1.schema.json",
   "title": "WPF DevTools Pack Install Manifest v1",
   "type": "object",
-  "required": ["schemaVersion"],
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "version",
+    "scope",
+    "path",
+    "enabled"
+  ],
   "properties": {
-    "schemaVersion": { "const": "wpfdevtools.pack-install-manifest.v1" }
+    "schemaVersion": {
+      "const": "wpfdevtools.pack-install-manifest.v1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "version": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "string",
+      "enum": [
+        "project-local",
+        "user-global",
+        "composer-builtin"
+      ]
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "default": {}
+    }
   },
-  "additionalProperties": true,
   "x-source": {
     "repository": "https://github.com/Evanlau1798/wpf-devtools-extension-pack-creator",
     "ref": "master",
-    "commit": "ccda147b8f96a0b4fdbe230ca41d5884bdd85507"
+    "commit": "8f9bc29ec8c398314d5b716173abca8a6330ee08"
   }
 }

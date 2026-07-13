@@ -246,7 +246,7 @@ public sealed class ComposerPackRegistryTests
         File.WriteAllText(
             Path.Combine(destination, "install.manifest.json"),
             $$"""
-            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"wpfui","version":"0.1.0","scope":"project","path":"{{destination.Replace("\\", "\\\\")}}","enabled":{{enabled.ToString().ToLowerInvariant()}}}
+            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"wpfui","version":"0.1.0","scope":"project-local","path":"{{destination.Replace("\\", "\\\\")}}","enabled":{{enabled.ToString().ToLowerInvariant()}}}
             """);
     }
 
@@ -281,7 +281,7 @@ public sealed class ComposerPackRegistryTests
         File.WriteAllText(
             Path.Combine(destination, "install.manifest.json"),
             $$"""
-            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"{{packId}}","version":"{{version}}","scope":"project","path":"{{destination.Replace("\\", "\\\\")}}","enabled":true}
+            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"{{packId}}","version":"{{version}}","scope":"project-local","path":"{{destination.Replace("\\", "\\\\")}}","enabled":true}
             """);
     }
 

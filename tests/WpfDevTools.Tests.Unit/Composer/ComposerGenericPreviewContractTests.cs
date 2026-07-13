@@ -313,7 +313,7 @@ public sealed class ComposerGenericPreviewContractTests
         Directory.CreateDirectory(Path.Combine(packRoot, "blocks"));
         Directory.CreateDirectory(Path.Combine(packRoot, "renderers", "xaml"));
         File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"),
-            """{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"sample","version":"1.0.0","scope":"project","path":".","enabled":true}""");
+            """{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"sample","version":"1.0.0","scope":"project-local","path":".","enabled":true}""");
         var preview = includePreview
             ? """
               ,"preview":{

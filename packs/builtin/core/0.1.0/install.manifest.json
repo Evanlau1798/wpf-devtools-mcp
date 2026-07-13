@@ -2,7 +2,7 @@
   "schemaVersion": "wpfdevtools.pack-install-manifest.v1",
   "id": "core",
   "version": "0.1.0",
-  "scope": "builtin",
+  "scope": "composer-builtin",
   "path": ".",
   "enabled": true
 }

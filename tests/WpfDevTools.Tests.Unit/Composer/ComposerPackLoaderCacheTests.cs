@@ -194,7 +194,7 @@ public sealed class ComposerPackLoaderCacheTests
         File.WriteAllText(
             Path.Combine(packRoot, "install.manifest.json"),
             $$"""
-            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"sample","version":"1.0.0","scope":"project","path":"{{packRoot.Replace("\\", "\\\\")}}","enabled":true}
+            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"sample","version":"1.0.0","scope":"project-local","path":"{{packRoot.Replace("\\", "\\\\")}}","enabled":true}
             """);
         return packRoot;
     }

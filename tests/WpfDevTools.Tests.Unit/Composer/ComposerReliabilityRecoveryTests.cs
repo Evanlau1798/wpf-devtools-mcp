@@ -19,7 +19,7 @@ public sealed class ComposerReliabilityRecoveryTests
             File.WriteAllText(
                 Path.Combine(packRoot, "install.manifest.json"),
                 """
-                {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"broken","version":"1.0.0","scope":"project","path":".","enabled":true}
+                {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"broken","version":"1.0.0","scope":"project-local","path":".","enabled":true}
                 """);
             File.WriteAllText(Path.Combine(packRoot, "pack.json"), "{");
 

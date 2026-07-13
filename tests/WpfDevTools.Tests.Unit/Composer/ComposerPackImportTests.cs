@@ -172,7 +172,7 @@ public sealed class ComposerPackImportTests
             var archivePath = GetRepoFilePath("packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip");
             var destinationRoot = Path.Combine(tempRoot, "packs");
 
-            var plan = PackImportService.Import(archivePath, destinationRoot, "project");
+            var plan = PackImportService.Import(archivePath, destinationRoot, "project-local");
 
             plan.DryRun.Should().BeFalse();
             plan.ArchiveSha256.Should().HaveLength(64);
@@ -184,15 +184,15 @@ public sealed class ComposerPackImportTests
             manifest.RootElement.GetProperty("metadata").GetProperty("archiveSha256").GetString()
                 .Should().Be(plan.ArchiveSha256);
             manifest.RootElement.GetProperty("metadata").GetProperty("sourceScope").GetString()
-                .Should().Be("project");
+                .Should().Be("project-local");
             manifest.RootElement.GetProperty("metadata").GetProperty("installedAtUtc").GetString()
                 .Should().NotBeNullOrWhiteSpace();
 
-            var act = () => PackImportService.Import(archivePath, destinationRoot, "project");
+            var act = () => PackImportService.Import(archivePath, destinationRoot, "project-local");
             act.Should().Throw<IOException>()
                 .WithMessage("*already exists*");
 
-            var overwrite = PackImportService.Import(archivePath, destinationRoot, "project", allowOverwrite: true);
+            var overwrite = PackImportService.Import(archivePath, destinationRoot, "project-local", allowOverwrite: true);
             overwrite.ArchiveSha256.Should().Be(plan.ArchiveSha256);
         }
         finally
@@ -209,7 +209,7 @@ public sealed class ComposerPackImportTests
         {
             var archivePath = CreateCollisionArchive(tempRoot, "bad.zip");
             var destinationRoot = Path.Combine(tempRoot, "packs");
-            var act = () => PackImportService.Import(archivePath, destinationRoot, "project");
+            var act = () => PackImportService.Import(archivePath, destinationRoot, "project-local");
 
             act.Should().Throw<Exception>();
             Directory.Exists(Path.Combine(destinationRoot, ".staging")).Should().BeFalse();
@@ -236,7 +236,7 @@ public sealed class ComposerPackImportTests
             }
 
             var destinationRoot = Path.Combine(tempRoot, "packs");
-            var act = () => PackImportService.Import(archivePath, destinationRoot, "project");
+            var act = () => PackImportService.Import(archivePath, destinationRoot, "project-local");
 
             act.Should().Throw<Exception>();
             Directory.Exists(Path.Combine(destinationRoot, "wpfui", "0.1.0")).Should().BeFalse();
@@ -261,10 +261,10 @@ public sealed class ComposerPackImportTests
             }
 
             var destinationRoot = Path.Combine(tempRoot, "packs");
-            PackImportService.Import(goodArchive, destinationRoot, "project");
+            PackImportService.Import(goodArchive, destinationRoot, "project-local");
 
             var badArchive = CreateCollisionArchive(tempRoot, "bad.zip");
-            var act = () => PackImportService.Import(badArchive, destinationRoot, "project", allowOverwrite: true);
+            var act = () => PackImportService.Import(badArchive, destinationRoot, "project-local", allowOverwrite: true);
 
             act.Should().Throw<Exception>();
             var installedRoot = Path.Combine(destinationRoot, "wpfui", "0.1.0");
@@ -291,7 +291,7 @@ public sealed class ComposerPackImportTests
 
             ComposerPackLoader.ClearCacheForTests();
             var destinationRoot = Path.Combine(tempRoot, "packs");
-            PackImportService.Import(archivePath, destinationRoot, "project");
+            PackImportService.Import(archivePath, destinationRoot, "project-local");
 
             ComposerPackLoader.CachedPackRootsForTests().Should().NotContain(
                 root => root.Contains($"{Path.DirectorySeparatorChar}.staging{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase),

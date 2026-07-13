@@ -209,7 +209,7 @@ public sealed class ComposerBlockCatalogTests
             "<sample:Panel Title=\"{{title}}\">{{slot.content}}</sample:Panel>");
         var escapedRoot = root.Replace("\\", "\\\\");
         File.WriteAllText(Path.Combine(root, "install.manifest.json"),
-            $$"""{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"sample","version":"1.0.0","scope":"project","path":"{{escapedRoot}}","enabled":true}""");
+            $$"""{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"sample","version":"1.0.0","scope":"project-local","path":"{{escapedRoot}}","enabled":true}""");
     }
 
     private static void DeleteDirectory(string path)

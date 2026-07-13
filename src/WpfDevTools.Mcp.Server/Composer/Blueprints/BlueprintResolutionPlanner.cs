@@ -13,6 +13,8 @@ internal static class BlueprintResolutionPlanner
         var packs = new List<ResolvedPackPlan>();
         var resources = new List<string>();
         var resourceOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var packageOwners = new Dictionary<string, (string PackId, string PackageId, string VersionRange)>(StringComparer.OrdinalIgnoreCase);
+        var namespaceOwners = new Dictionary<string, (string PackId, string NamespaceUri)>(StringComparer.Ordinal);
         var conflicts = new List<BlueprintPackConflictPlan>();
         var visualPackIds = new HashSet<string>(StringComparer.Ordinal);
 
@@ -96,6 +98,50 @@ internal static class BlueprintResolutionPlanner
 
                 resourceOwners[resource] = available.Id;
                 resources.Add(resource);
+            }
+
+            foreach (var package in loaded.Manifest.NugetPackages.Where(package =>
+                         !string.IsNullOrWhiteSpace(package.Id)))
+            {
+                if (packageOwners.TryGetValue(package.Id, out var owner))
+                {
+                    if (!string.Equals(owner.VersionRange, package.VersionRange, StringComparison.Ordinal))
+                    {
+                        conflicts.Add(new(
+                            "PackNuGetPackageConflict",
+                            "error",
+                            [owner.PackId, available.Id],
+                            owner.PackageId,
+                            $"NuGet package '{owner.PackageId}' has conflicting version requirements '{owner.VersionRange}' and '{package.VersionRange}' from packs '{owner.PackId}' and '{available.Id}'.",
+                            "Keep one version requirement for each package id or split the conflicting packs into separate blueprints."));
+                    }
+
+                    continue;
+                }
+
+                packageOwners[package.Id] = (available.Id, package.Id, package.VersionRange);
+            }
+
+            foreach (var xmlNamespace in loaded.Manifest.XmlNamespaces.Where(item =>
+                         !string.IsNullOrWhiteSpace(item.Key)))
+            {
+                if (namespaceOwners.TryGetValue(xmlNamespace.Key, out var owner))
+                {
+                    if (!string.Equals(owner.NamespaceUri, xmlNamespace.Value, StringComparison.Ordinal))
+                    {
+                        conflicts.Add(new(
+                            "PackXmlNamespaceConflict",
+                            "error",
+                            [owner.PackId, available.Id],
+                            xmlNamespace.Key,
+                            $"XML namespace prefix '{xmlNamespace.Key}' maps to both '{owner.NamespaceUri}' and '{xmlNamespace.Value}' in packs '{owner.PackId}' and '{available.Id}'.",
+                            "Assign a distinct XML prefix to each namespace URI in the extension-pack manifests."));
+                    }
+
+                    continue;
+                }
+
+                namespaceOwners[xmlNamespace.Key] = (available.Id, xmlNamespace.Value);
             }
         }
 

@@ -102,6 +102,77 @@ public sealed class ComposerMultiPackValidationTests
     }
 
     [Fact]
+    public void ValidateBlueprint_ShouldRejectConflictingNuGetVersionsByPackageId()
+    {
+        var projectRoot = CreateTempProjectWithContractPacks(
+            ("alpha.controls", "Shared.Controls", "[1.0.0,2.0.0)", "alpha", "urn:alpha"),
+            ("beta.controls", "shared.controls", "[2.0.0,3.0.0)", "beta", "urn:beta"));
+        try
+        {
+            var result = CreateValidator(projectRoot).Validate(MultiPackBlueprint("alpha.controls", "beta.controls"));
+
+            result.Errors.Should().ContainSingle(issue => issue.Code == "PackNuGetPackageConflict");
+            result.Resolution.Conflicts.Should().ContainSingle(conflict =>
+                conflict.Code == "PackNuGetPackageConflict"
+                && conflict.Severity == "error"
+                && conflict.Resource == "Shared.Controls"
+                && conflict.PackIds.SequenceEqual(new[] { "alpha.controls", "beta.controls" }));
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
+    public void ValidateBlueprint_ShouldRejectXmlPrefixMappedToDifferentUris()
+    {
+        var projectRoot = CreateTempProjectWithContractPacks(
+            ("alpha.controls", "Alpha.Controls", "1.0.0", "shared", "urn:alpha"),
+            ("beta.controls", "Beta.Controls", "1.0.0", "shared", "urn:beta"));
+        try
+        {
+            var result = CreateValidator(projectRoot).Validate(MultiPackBlueprint("alpha.controls", "beta.controls"));
+
+            result.Errors.Should().ContainSingle(issue => issue.Code == "PackXmlNamespaceConflict");
+            result.Resolution.Conflicts.Should().ContainSingle(conflict =>
+                conflict.Code == "PackXmlNamespaceConflict"
+                && conflict.Resource == "shared");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
+    public void ValidationAndRenderer_ShouldDeduplicateIdenticalPackContracts()
+    {
+        var projectRoot = CreateTempProjectWithContractPacks(
+            ("alpha.controls", "Shared.Controls", "1.0.0", "shared", "urn:shared"),
+            ("beta.controls", "shared.controls", "1.0.0", "shared", "urn:shared"));
+        try
+        {
+            var blueprint = MultiPackBlueprint("alpha.controls", "beta.controls");
+            var registry = new PackRegistry(
+                ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),
+                ComposerPackPaths.ProjectLocalRoot(projectRoot));
+
+            var validation = new BlueprintValidationService(registry).Validate(blueprint);
+            var render = new UiBlueprintRenderer(registry).Render(new RenderBlueprintRequest(blueprint));
+
+            validation.Errors.Should().NotContain(issue =>
+                issue.Code == "PackNuGetPackageConflict" || issue.Code == "PackXmlNamespaceConflict");
+            render.RequiredNuGetPackages.Should().ContainSingle(package =>
+                string.Equals(package.Id, "Shared.Controls", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
     public async Task ValidationAndRenderer_ShouldExposeTheSameDeclaredResourceOrder()
     {
         var projectRoot = CreateTempProjectWithResourcePacks(
@@ -347,6 +418,42 @@ public sealed class ComposerMultiPackValidationTests
         File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", $"{blockId}.xaml.sbn"), "<TextBox />");
         return projectRoot;
     }
+
+    private static string CreateTempProjectWithContractPacks(
+        params (string Id, string PackageId, string VersionRange, string Prefix, string NamespaceUri)[] packs)
+    {
+        var projectRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-pack-contract-" + Guid.NewGuid().ToString("N"));
+        foreach (var pack in packs)
+        {
+            var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", pack.Id, "1.0.0");
+            Directory.CreateDirectory(packRoot);
+            File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"), $$"""
+                {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"{{pack.Id}}","version":"1.0.0","scope":"project-local","path":"{{pack.Id}}/1.0.0","enabled":true}
+                """);
+            File.WriteAllText(Path.Combine(packRoot, "pack.json"), $$"""
+                {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"{{pack.Id}}","kind":"control-pack","version":"1.0.0","displayName":"Contract Pack","nugetPackages":[{"id":"{{pack.PackageId}}","versionRange":"{{pack.VersionRange}}"}],"xmlNamespaces":{"{{pack.Prefix}}":"{{pack.NamespaceUri}}"},"blocks":[],"recipes":[]}
+                """);
+            File.WriteAllText(Path.Combine(packRoot, "source.lock.json"),
+                """{"schemaVersion":"wpfdevtools.source-lock.v1","sources":[]}""");
+        }
+
+        return projectRoot;
+    }
+
+    private static string MultiPackBlueprint(string firstPack, string secondPack)
+        => $$"""
+            {
+              "schemaVersion":"wpfdevtools.ui-blueprint.v1",
+              "name":"ContractConflict",
+              "packs":[
+                {"id":"wpfui","version":"0.1.0","required":true,"role":"primary"},
+                {"id":"{{firstPack}}","version":"1.0.0","required":true,"role":"control-pack"},
+                {"id":"{{secondPack}}","version":"1.0.0","required":true,"role":"control-pack"}
+              ],
+              "primaryPack":"wpfui",
+              "layout":{"kind":"wpfui.button"}
+            }
+            """;
 
     private static void DeleteDirectory(string path)
     {

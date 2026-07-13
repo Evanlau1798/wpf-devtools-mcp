@@ -454,7 +454,10 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
 
             return new RenderContext(
                 blocks,
-                packages.Distinct().OrderBy(package => package.Id, StringComparer.Ordinal).ToArray(),
+                packages.GroupBy(package => package.Id, StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.First())
+                    .OrderBy(package => package.Id, StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
                 resources.Distinct(StringComparer.Ordinal).ToArray(),
                 xmlNamespaces,
                 registryResult.Diagnostics);

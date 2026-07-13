@@ -191,21 +191,22 @@ public static partial class E2eTestHelpers
         McpStdioClient client,
         int processId,
         string elementName,
-        int attempts = 10,
-        int delayMs = 100)
+        TimeSpan? timeout = null,
+        TimeSpan? pollInterval = null)
     {
-        for (var attempt = 0; attempt < attempts; attempt++)
+        try
         {
-            var elementId = await FindElementByNameAsync(client, processId, elementName);
-            if (!string.IsNullOrWhiteSpace(elementId))
-            {
-                return elementId;
-            }
-
-            await Task.Delay(delayMs);
+            return await ConditionWaiter.WaitForAsync(
+                () => FindElementByNameAsync(client, processId, elementName),
+                elementId => !string.IsNullOrWhiteSpace(elementId),
+                timeout ?? TimeSpan.FromSeconds(1),
+                $"Element '{elementName}' was not found.",
+                pollInterval ?? TimeSpan.FromMilliseconds(100));
         }
-
-        return null;
+        catch (TimeoutException)
+        {
+            return null;
+        }
     }
 
     public static Task<JsonElement> WaitForDpValueAsync(

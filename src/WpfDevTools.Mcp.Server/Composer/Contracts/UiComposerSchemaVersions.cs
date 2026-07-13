@@ -4,7 +4,7 @@ internal static class UiComposerSchemaVersions
 {
     public const string SourceRepository = "https://github.com/Evanlau1798/wpf-devtools-extension-pack-creator";
     public const string SourceRef = "master";
-    public const string SourceCommit = "273a5a6c2745c21884be01bfa32d82404562ff0f";
+    public const string SourceCommit = "aa02862226dabf4aed01d0c8849a9f73f4597ee1";
 
     public const string UiPack = "wpfdevtools.ui-pack.v1";
     public const string UiBlock = "wpfdevtools.ui-block.v1";

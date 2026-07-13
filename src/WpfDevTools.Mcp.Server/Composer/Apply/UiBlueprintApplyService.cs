@@ -33,8 +33,8 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
 
         var behaviorContract = BehaviorIntegrationContractBuilder.Build(request.BlueprintJson);
         var viewModelContract = CreateViewModelContract(projectRoot, targetPath, render.RequiredNuGetPackages, behaviorContract);
-        var appliedXaml = AddProjectMainWindowClass(projectRoot, targetPath, render.Xaml);
-        var codeBehindPath = GetProjectMainWindowCodeBehindPath(targetPath, appliedXaml);
+        var codeBehind = CodeBehindIntegrationResolver.Resolve(registry, request.BlueprintJson, targetPath);
+        var appliedXaml = AddProjectMainWindowClass(projectRoot, targetPath, render.Xaml, codeBehind);
 
         if (request.DryRun)
         {
@@ -45,7 +45,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                 request.DryRun,
                 targetExisted: File.Exists(targetPath),
                 backupPath: null,
-                codeBehindPath);
+                codeBehind);
             return ApplyBlueprintResult.CreateValid(
                 dryRun: true,
                 requiresConfirmation: true,
@@ -108,7 +108,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
             requiresConfirmation: false,
             wouldWriteFiles: true,
             generatedXaml,
-            CreateFilePlan(targetPath, viewModelContract.TargetPath, false, write.TargetExisted, write.BackupPath, codeBehindPath),
+            CreateFilePlan(targetPath, viewModelContract.TargetPath, false, write.TargetExisted, write.BackupPath, codeBehind),
             render.RequiredResources,
             render.RequiredNuGetPackages,
             viewModelContract with { WouldWrite = false },
@@ -226,10 +226,13 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
             string.Empty);
     }
 
-    private static string AddProjectMainWindowClass(string projectRoot, string targetPath, string xaml)
+    private static string AddProjectMainWindowClass(
+        string projectRoot,
+        string targetPath,
+        string xaml,
+        CodeBehindIntegrationPlan? codeBehind)
     {
-        if (GetProjectMainWindowCodeBehindPath(targetPath, xaml) is null
-            || xaml.Contains("x:Class=", StringComparison.Ordinal))
+        if (codeBehind is null || xaml.Contains("x:Class=", StringComparison.Ordinal))
         {
             return xaml;
         }
@@ -246,12 +249,6 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
             : " xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"";
         return xaml.Insert(insertAt, $"{xmlns} x:Class=\"{ResolveProjectMainWindowClass(projectRoot, targetPath)}\"");
     }
-
-    private static string? GetProjectMainWindowCodeBehindPath(string targetPath, string xaml)
-        => Path.GetFileName(targetPath).Equals("MainWindow.xaml", StringComparison.OrdinalIgnoreCase)
-            && xaml.TrimStart().StartsWith("<ui:FluentWindow", StringComparison.Ordinal)
-            ? Path.ChangeExtension(targetPath, ".xaml.cs")
-            : null;
 
     private static string ResolveProjectMainWindowClass(string projectRoot, string targetPath)
         => $"{ResolveRootNamespace(projectRoot)}.{ToCSharpIdentifier(Path.GetFileNameWithoutExtension(targetPath), "MainWindow")}";
@@ -332,7 +329,7 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
         bool dryRun,
         bool targetExisted,
         string? backupPath,
-        string? codeBehindPath)
+        CodeBehindIntegrationPlan? codeBehind)
     {
         var items = new List<ApplyFilePlanItem>
         {
@@ -354,12 +351,12 @@ internal sealed class UiBlueprintApplyService(PackRegistry registry)
                 Reversible: true)
         };
 
-        if (codeBehindPath is not null)
+        if (codeBehind is not null)
         {
             items.Add(new(
                 Role: "code-behind-integration",
-                TargetPath: codeBehindPath,
-                Action: "plan update base class to Wpf.Ui.Controls.FluentWindow for the generated x:Class",
+                TargetPath: codeBehind.TargetPath,
+                Action: $"plan update base class to {codeBehind.BaseType} for the generated x:Class",
                 WouldWrite: false,
                 RiskLevel: "medium",
                 BackupPath: null,

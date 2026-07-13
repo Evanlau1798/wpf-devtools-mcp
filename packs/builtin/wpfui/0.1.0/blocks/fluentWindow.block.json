@@ -36,7 +36,8 @@
     }
   },
   "renderer": {
-    "xamlTemplate": "renderers/xaml/fluentWindow.xaml.sbn"
+    "xamlTemplate": "renderers/xaml/fluentWindow.xaml.sbn",
+    "codeBehindBaseType": "Wpf.Ui.Controls.FluentWindow"
   },
   "validation": {},
   "sourceHints": [

@@ -70,6 +70,7 @@ internal static class ComposerPackLoader
         foreach (var block in blocks)
         {
             ValidateRendererTemplatePath(root, block);
+            ValidateCodeBehindBaseType(block);
         }
 
         var recipes = LoadDocuments<UiRecipeDefinition>(
@@ -191,6 +192,24 @@ internal static class ComposerPackLoader
         {
             throw new InvalidDataException(
                 $"Renderer template for block '{block.Kind}' escapes pack root: {template}.");
+        }
+    }
+
+    private static void ValidateCodeBehindBaseType(UiBlockDefinition block)
+    {
+        var baseType = block.Renderer.CodeBehindBaseType;
+        if (string.IsNullOrWhiteSpace(baseType))
+        {
+            return;
+        }
+
+        var valid = baseType.Split('.').All(part => part.Length > 0
+            && (char.IsLetter(part[0]) || part[0] == '_')
+            && part.Skip(1).All(ch => char.IsLetterOrDigit(ch) || ch == '_'));
+        if (!valid)
+        {
+            throw new InvalidDataException(
+                $"Renderer codeBehindBaseType for block '{block.Kind}' must be a namespace-qualified CLR type name.");
         }
     }
 

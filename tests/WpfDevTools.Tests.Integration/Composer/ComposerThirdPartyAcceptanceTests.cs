@@ -2,8 +2,8 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
@@ -11,7 +11,7 @@ using WpfDevTools.Mcp.Server.Composer.Apply;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
-using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Tests.Integration.E2E;
 using WpfDevTools.Tests.Integration.TestSupport;
 
 namespace WpfDevTools.Tests.Integration.Composer;
@@ -53,15 +53,17 @@ public sealed class ComposerThirdPartyAcceptanceTests
                 inspectorEnabled: true);
             await AssertBuildAsync(materialRoot);
 
-            using var sensitiveReads = new EnvironmentVariableScope(
-                McpServerConfiguration.AllowSensitiveReadsEnvVar,
-                "true");
-            using var liveSession = SecureLiveSession.Create("WpfDevTools_ComposerAcceptance");
+            var authSecret = CreateAuthSecret();
+            var certificateDirectory = Path.Combine(materialRoot, ".mcp-certificates");
+            WriteInspectorOptions(materialRoot, authSecret, certificateDirectory);
             consumer = LaunchConsumer(materialRoot, "MaterialDesignConsumer");
             await WaitForWindowAsync(consumer);
-            await InitializeInspectorAsync(consumer, materialRoot, liveSession);
-            await AssertMaterialRuntimeAsync(consumer, liveSession.SessionManager);
-            liveSession.SessionManager.RemoveSession(consumer.Id);
+            await WaitForInspectorAsync(materialRoot);
+            await AssertMaterialRuntimeOverStdioAsync(
+                consumer,
+                materialRoot,
+                authSecret,
+                certificateDirectory);
             LiveTestProcessCleanup.StopAndDispose(consumer);
             consumer = null;
 
@@ -141,12 +143,7 @@ public sealed class ComposerThirdPartyAcceptanceTests
 
     private static Process LaunchConsumer(string projectRoot, string projectName)
     {
-        var executable = Path.Combine(
-            projectRoot,
-            "bin",
-            "Debug",
-            "net8.0-windows",
-            projectName + ".exe");
+        var executable = GetConsumerExecutable(projectRoot, projectName);
         File.Exists(executable).Should().BeTrue();
         return Process.Start(new ProcessStartInfo
         {
@@ -155,6 +152,9 @@ public sealed class ComposerThirdPartyAcceptanceTests
             UseShellExecute = false
         }) ?? throw new InvalidOperationException("consumer process did not start");
     }
+
+    private static string GetConsumerExecutable(string projectRoot, string projectName)
+        => Path.Combine(projectRoot, "bin", "Debug", "net8.0-windows", projectName + ".exe");
 
     private static Task WaitForWindowAsync(Process process)
         => ConditionWaiter.WaitForAsync(
@@ -169,72 +169,102 @@ public sealed class ComposerThirdPartyAcceptanceTests
         return !process.HasExited && process.MainWindowHandle != IntPtr.Zero;
     }
 
-    private static async Task InitializeInspectorAsync(
-        Process process,
+    private static string CreateAuthSecret()
+    {
+        var bytes = new byte[32];
+        RandomNumberGenerator.Fill(bytes);
+        return Convert.ToBase64String(bytes);
+    }
+
+    private static void WriteInspectorOptions(
         string projectRoot,
-        SecureLiveSession liveSession)
+        string authSecret,
+        string certificateDirectory)
     {
         var outputRoot = Path.Combine(projectRoot, "bin", "Debug", "net8.0-windows");
-        var secret = liveSession.SessionManager.GetAuthenticationSecretBase64(process.Id);
-        secret.Should().NotBeNullOrWhiteSpace();
-        await File.WriteAllLinesAsync(
+        Directory.CreateDirectory(certificateDirectory);
+        File.WriteAllLines(
             Path.Combine(outputRoot, "inspector-options.txt"),
-            [secret!, liveSession.CertificateDirectoryForTesting]);
+            [authSecret, certificateDirectory]);
+    }
+
+    private static Task WaitForInspectorAsync(string projectRoot)
+    {
+        var outputRoot = Path.Combine(projectRoot, "bin", "Debug", "net8.0-windows");
         var readyPath = Path.Combine(outputRoot, "inspector-ready.txt");
-        await ConditionWaiter.WaitForAsync(
+        return ConditionWaiter.WaitForAsync(
             () => Task.FromResult(File.Exists(readyPath)),
             ready => ready,
             TimeSpan.FromSeconds(30),
             "Material consumer Inspector SDK did not become ready.");
-        var failure = await liveSession.SessionManager.ConnectExistingHostSessionAsync(
-            process.Id,
-            TimeSpan.FromSeconds(30),
-            CancellationToken.None);
-        failure.Should().Be(NamedPipeConnectFailure.None);
     }
 
-    private static async Task AssertMaterialRuntimeAsync(Process process, SessionManager sessionManager)
+    private static async Task AssertMaterialRuntimeOverStdioAsync(
+        Process process,
+        string projectRoot,
+        string authSecret,
+        string certificateDirectory)
     {
+        var serverExecutable = IntegrationExecutableLocator.FindExecutable(
+            AppContext.BaseDirectory,
+            "src",
+            "WpfDevTools.Mcp.Server",
+            "net8.0",
+            "WpfDevTools.Mcp.Server.exe");
+        serverExecutable.Should().NotBeNull("the integration build must produce the actual MCP server executable");
+
+        using var client = new McpStdioClient();
+        var initialize = await client.StartAsync(
+            serverExecutable!,
+            McpE2eFixture.CreateServerEnvironment(
+                GetConsumerExecutable(projectRoot, "MaterialDesignConsumer"),
+                authSecret,
+                certificateDirectory));
+        initialize.TryGetProperty("result", out _).Should().BeTrue(initialize.GetRawText());
+
+        var toolsList = await client.ListToolsAsync();
+        var tools = toolsList.GetProperty("result").GetProperty("tools").EnumerateArray().ToArray();
+        var toolNames = tools.Select(tool => tool.GetProperty("name").GetString()).ToArray();
+        toolNames.Should().OnlyHaveUniqueItems().And.Contain(
+            ["connect", "get_ui_summary", "find_elements", "get_interaction_readiness", "click_element"]);
+
         var processId = process.Id;
-        var summary = await ReadSummaryAsync(sessionManager, processId);
+        var connect = await client.CallToolAsync("connect", new { processId }, timeoutMs: 90000);
+        connect.GetProperty("success").GetBoolean().Should().BeTrue(connect.GetRawText());
+
+        var summary = await ReadSummaryAsync(client, processId);
         summary.GetRawText().Should().Contain("Material workspace").And.Contain("Ready");
 
-        var find = JsonSerializer.SerializeToElement(await new FindElementsTool(sessionManager).ExecuteAsync(
-            JsonSerializer.SerializeToElement(new
-            {
-                processId,
-                query = "Open workspace",
-                matchMode = "contains",
-                maxResults = 20
-            }),
-            CancellationToken.None));
+        var find = await client.CallToolAsync("find_elements", new
+        {
+            processId,
+            query = "Open workspace",
+            matchMode = "contains",
+            maxResults = 20
+        });
         find.GetProperty("success").GetBoolean().Should().BeTrue(find.GetRawText());
         var button = find.GetProperty("results").EnumerateArray()
             .First(result => result.GetProperty("elementType").GetString() == "Button");
         var buttonId = button.GetProperty("elementId").GetString();
         buttonId.Should().NotBeNullOrWhiteSpace();
 
-        var readiness = JsonSerializer.SerializeToElement(await new GetInteractionReadinessTool(sessionManager).ExecuteAsync(
-            JsonSerializer.SerializeToElement(new { processId, elementId = buttonId }),
-            CancellationToken.None));
+        var readiness = await client.CallToolAsync(
+            "get_interaction_readiness",
+            new { processId, elementId = buttonId });
         readiness.GetProperty("success").GetBoolean().Should().BeTrue(readiness.GetRawText());
         readiness.GetProperty("isReady").GetBoolean().Should().BeTrue(readiness.GetRawText());
 
-        var click = JsonSerializer.SerializeToElement(await new ClickElementTool(sessionManager).ExecuteAsync(
-            JsonSerializer.SerializeToElement(new { processId, elementId = buttonId }),
-            CancellationToken.None));
+        var click = await client.CallToolAsync("click_element", new { processId, elementId = buttonId });
         click.GetProperty("success").GetBoolean().Should().BeTrue(click.GetRawText());
         await ConditionWaiter.WaitForAsync(
-            () => ReadSummaryAsync(sessionManager, processId),
+            () => ReadSummaryAsync(client, processId),
             current => current.GetRawText().Contains("Workspace opened: material-532", StringComparison.Ordinal),
             TimeSpan.FromSeconds(10),
             "Command-bound Material action did not update the visible status.");
     }
 
-    private static async Task<JsonElement> ReadSummaryAsync(SessionManager sessionManager, int processId)
-        => JsonSerializer.SerializeToElement(await new GetUiSummaryTool(sessionManager).ExecuteAsync(
-            JsonSerializer.SerializeToElement(new { processId, depthMode = "semantic" }),
-            CancellationToken.None));
+    private static Task<JsonElement> ReadSummaryAsync(McpStdioClient client, int processId)
+        => client.CallToolAsync("get_ui_summary", new { processId, depthMode = "semantic" });
 
     private static void DeleteProjectRoot(string? projectRoot)
     {

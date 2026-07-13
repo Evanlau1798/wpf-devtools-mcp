@@ -69,6 +69,20 @@ properties, and empty arrays for declared slots. Copy the compact node into a
 blueprint and add children or optional properties without retyping pack-specific
 kind and slot names.
 
+## `compose_ui_blueprint`
+
+Inserts one pack-defined `compositionSkeleton` into an existing blueprint slot and validates the resulting document. Use it to build nested interfaces incrementally without manually rewriting deep JSON. This operation is pack-neutral and never writes files.
+
+Request options:
+
+- `blueprintJson`: current full blueprint JSON text.
+- `targetPath`: exact slot path. Use `$.layout.slots.<slot>` for a root slot, or include an explicit child index before each nested slot, such as `$.layout.slots.content[0].slots.actions`.
+- `kind`: exact pack-qualified block kind from `get_ui_block_catalog` with `composableOnly=true`.
+- `insertionIndex`: optional zero-based position; omit it to append.
+- `projectRoot` and `localAppDataRoot`: optional pack discovery roots.
+
+When `composed=true`, the response returns a new `blueprint`, compact `blueprintJson`, exact `insertedPath`, and validation result. When the path is ambiguous, the block is not composable, or pack validation rejects the child, `composed=false` omits the candidate blueprint and returns actionable errors.
+
 ## `validate_ui_blueprint`
 
 Validates UI blueprint JSON against the installed Composer pack contracts. Use it after `list_ui_block_packs` and `get_ui_block_catalog`, before rendering XAML or applying generated UI.

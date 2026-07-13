@@ -1,6 +1,6 @@
 # Tool Reference Overview
 
-The server currently exposes 72 tools across twelve categories.
+The server currently exposes 73 tools across twelve categories.
 
 ## Categories
 
@@ -45,7 +45,7 @@ Use the smallest workflow that answers the question. Prefer scene-level aggregat
 | Explain an unexpected visual value | `get_dp_value_source` | `get_applied_styles`, `get_resource_chain`, `get_triggers` | Use when precedence or styles are unclear. |
 | Validate a click or keyboard action | `get_interaction_readiness` | `click_element`, `drain_events`, `get_state_diff` | Use only after a concrete elementId is known. |
 | Make rollback-safe changes | `capture_state_snapshot` | `batch_mutate`, `get_state_diff`, `restore_state_snapshot` | Requires the relevant destructive and read gates. |
-| Expand, render, preview, repair, and apply Composer recipes | `list_ui_block_packs` | `get_ui_block_catalog`, `expand_ui_recipe`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint` | Lists installed UI packs and recipes, expands a starter recipe, validates blueprint JSON, dry-runs XAML rendering, compile-smokes, host-smokes, runtime-diagnoses, or repairs generated UI guidance, then produces a guarded apply plan. |
+| Compose, render, preview, repair, and apply Composer UIs | `list_ui_block_packs` | `get_ui_block_catalog`, `compose_ui_blueprint`, `expand_ui_recipe`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint` | Lists installed UI packs, incrementally composes pack-defined blocks or expands a starter recipe, validates blueprint JSON, dry-runs XAML rendering, previews, repairs, and produces a guarded apply plan. |
 | Follow a full recipe | See [Common Workflows](../../guides/common-workflows.md) | Follow `navigation.recommended` first | Workflow pages are baselines; tool responses remain authoritative. |
 
 ## Categories at a glance
@@ -63,7 +63,7 @@ Use the smallest workflow that answers the question. Prefer scene-level aggregat
 | MVVM | `get_viewmodel` | Inspect data and commands behind a view |
 | Performance | `get_render_stats` | Start performance triage |
 | State & Scene Diagnostics | `get_ui_summary` | Start with semantic context before using tree-heavy inspection |
-| UI Composer | `list_ui_block_packs`, `get_ui_block_catalog`, `expand_ui_recipe`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint` | Discover UI block packs, inspect recipes and composition rules, then expand, validate, render, compile-smoke, host-smoke, runtime-diagnose, repair, and guarded-apply blueprints |
+| UI Composer | `list_ui_block_packs`, `get_ui_block_catalog`, `compose_ui_blueprint`, `expand_ui_recipe`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint` | Discover UI block packs, incrementally compose pack-defined blocks, then expand, validate, render, preview, repair, and guarded-apply blueprints |
 
 ## Navigation model
 
@@ -97,8 +97,8 @@ If a tool signature, policy gate, or response schema changes, update the relevan
 
 These values are generated from the runtime MCP contract resources. If a tool is added or renamed, a method signature changes, policy gates move, or response fields change, the documentation tests require this snapshot to be regenerated.
 
-- `wpf://contracts/tools` SHA-256: `c18fd96c00b88fb513a2bc0bf7aaab27516c996eba0292b27d0cb601191743a7`
-- `wpf://contracts/response` SHA-256: `09fe86a275b506c0a5f199291746b75fe06d35efd3d31d78ef26c9be93bc184d`
+- `wpf://contracts/tools` SHA-256: `0be59f7ead380ecc0c4f8a89f3575d55fad3c04be7425a9edc0337814fa6a31e`
+- `wpf://contracts/response` SHA-256: `85c74510ba75aed97737a5c04ba9400cde1fbce276624d7cff39fd2c9e9e1ec1`
 - Validation scope: `toolCount`, `name`, `title`, `parameters`, `requiredParameters`, `inputSchemaHash`, `outputSchemaHash`, `capabilityTags`, `policyCapabilityTags`, `annotations`, `parameterConstraints`, `parameterVocabularies`, and `highValueTools`.
 
 Use the category pages for the most important tools, semantics, and gotchas.

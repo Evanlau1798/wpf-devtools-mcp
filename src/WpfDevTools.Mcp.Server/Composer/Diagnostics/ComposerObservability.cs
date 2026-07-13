@@ -33,6 +33,28 @@ internal static partial class ComposerObservability
             DiagnosticCounts(result.Errors.Concat(result.Warnings).Select(issue => issue.Code)),
             blueprintValidationFailed: !result.Success);
 
+    public static ComposerObservabilityPayload ForComposition(BlueprintCompositionResult result)
+    {
+        var compositionIssue = result.Errors.FirstOrDefault();
+        var validationIssue = result.Validation?.Errors.FirstOrDefault()
+            ?? result.Validation?.Warnings.FirstOrDefault();
+        var log = compositionIssue is null
+            ? LogFromIssue("blueprint_composition_log", "compose_ui_blueprint", Outcome(result.Composed), validationIssue)
+            : new ComposerLogEntry(
+                "blueprint_composition_log",
+                "compose_ui_blueprint",
+                Outcome(result.Composed),
+                compositionIssue.Code,
+                Redact(compositionIssue.Message),
+                Redact(compositionIssue.RepairSuggestion),
+                BlueprintPath: compositionIssue.JsonPath);
+        var codes = result.Errors.Select(issue => issue.Code)
+            .Concat(result.Validation?.Errors.Select(issue => issue.Code) ?? [])
+            .Concat(result.Validation?.Warnings.Select(issue => issue.Code) ?? []);
+
+        return Create([log], DiagnosticCounts(codes), blueprintValidationFailed: !result.Composed);
+    }
+
     public static ComposerObservabilityPayload ForRecipeExpansion(RecipeExpansionResult result)
         => Create(
             [LogFromIssue("blueprint_validation_log", "expand_ui_recipe", Outcome(result.Success), FirstIssue(result))],

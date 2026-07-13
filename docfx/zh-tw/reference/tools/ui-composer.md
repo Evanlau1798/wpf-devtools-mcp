@@ -68,6 +68,20 @@ Pack author 可為 blocks、properties 與 slots 提供 inert `description` text
 declared slots 的空陣列。Agent 可直接將此 compact node 放入 blueprint，再加入
 children 或 optional properties，不必手動重打 pack-specific kind 與 slot names。
 
+## `compose_ui_blueprint`
+
+將一個 pack-defined `compositionSkeleton` 插入既有 blueprint slot，並驗證結果文件。Agent 可用它逐步建立巢狀介面，不必手動重寫深層 JSON。此操作保持 pack-neutral，而且不會寫入檔案。
+
+Request options:
+
+- `blueprintJson`: 目前完整的 blueprint JSON 文字。
+- `targetPath`: 精確 slot path。Root slot 使用 `$.layout.slots.<slot>`；每個 nested slot 前必須提供明確 child index，例如 `$.layout.slots.content[0].slots.actions`。
+- `kind`: 來自 `get_ui_block_catalog` 搭配 `composableOnly=true` 的 exact pack-qualified block kind。
+- `insertionIndex`: optional zero-based position；省略時 append。
+- `projectRoot` 與 `localAppDataRoot`: optional pack discovery roots。
+
+當 `composed=true`，response 會回傳新的 `blueprint`、compact `blueprintJson`、精確 `insertedPath` 與 validation result。若 path 模糊、block 無法組合，或 pack validation 拒絕 child，`composed=false` 會省略 candidate blueprint 並回傳可採取行動的 errors。
+
 ## `validate_ui_blueprint`
 
 依照已安裝 Composer pack contracts 驗證 UI blueprint JSON。請在 `list_ui_block_packs` 與 `get_ui_block_catalog` 之後、rendering XAML 或 apply generated UI 之前使用。

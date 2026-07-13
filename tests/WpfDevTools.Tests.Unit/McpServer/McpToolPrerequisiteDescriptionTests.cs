@@ -18,6 +18,7 @@ public sealed class McpToolPrerequisiteDescriptionTests
         "connect",
         "list_ui_block_packs",
         "get_ui_block_catalog",
+        "compose_ui_blueprint",
         "validate_ui_blueprint",
         "expand_ui_recipe",
         "render_ui_blueprint",

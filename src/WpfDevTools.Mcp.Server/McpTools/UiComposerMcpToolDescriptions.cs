@@ -83,6 +83,32 @@ internal static class UiComposerMcpToolDescriptions
         - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}"}
         """;
 
+    public const string ComposeUiBlueprint =
+        """
+        Use this tool to insert one pack-defined block skeleton into an existing UI blueprint without manually rewriting nested JSON.
+
+        CATEGORY: UI Composer
+
+        USE WHEN: You have a current blueprint and need to append or insert a catalog block into an existing slot.
+
+        DO NOT USE: Do not use this as a general JSON patch tool or filesystem writer. It only inserts exact compositionSkeleton content declared by installed packs and validates the candidate blueprint before returning it.
+
+        RESPONSE SUMMARY:
+        - Returns success, composed, blueprint, blueprintJson, insertedPath, validation, and errors.
+        - composed=true returns a new validated blueprint object; the input text is never mutated and no file is written.
+        - composed=false omits the candidate blueprint and returns path or pack-validation errors with repair guidance.
+
+        REQUEST OPTIONS:
+        - blueprintJson is the current full blueprint JSON text.
+        - targetPath identifies an existing slot. Use $.layout.slots.<slot> for a root slot or include an explicit child index before each nested slot.
+        - kind is an exact pack-qualified kind from get_ui_block_catalog(composableOnly=true).
+        - insertionIndex optionally inserts before an existing child; omit it to append.
+
+        EXAMPLES:
+        - {"blueprintJson":"{...}","targetPath":"$.layout.slots.content","kind":"sample.card"}
+        - {"blueprintJson":"{...}","targetPath":"$.layout.slots.content[0].slots.actions","kind":"sample.button","insertionIndex":0}
+        """;
+
     public const string ExpandUiRecipe =
         """
         Use this tool to expand a WPF DevTools Composer starter recipe into a blueprint and immediately validate the expanded result.

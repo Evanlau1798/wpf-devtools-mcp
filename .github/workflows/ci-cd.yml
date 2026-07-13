@@ -150,7 +150,12 @@ jobs:
     - name: Run integration tests
       if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
       timeout-minutes: 20
-      run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=integration-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/integration
+      run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --filter Category!=ComposerAcceptance --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=integration-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/integration
+
+    - name: Run Composer acceptance tests
+      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
+      timeout-minutes: 10
+      run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --filter Category=ComposerAcceptance --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=composer-acceptance-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/composer-acceptance
 
     - name: Upload test diagnostics
       if: failure() || cancelled()
@@ -197,18 +202,18 @@ jobs:
       run: |
         ./scripts/ci/Invoke-DotNetFormatVerify.ps1 `
           -SolutionPath WpfDevTools.sln `
-          -Include src/WpfDevTools.Mcp.Server/Composer,tests/WpfDevTools.Tests.Unit/Composer,tests/WpfDevTools.Tests.Unit/Documentation/CiWorkflowRegressionTests.cs,tests/WpfDevTools.Tests.Unit/Documentation/ComposerPipelineContractTests.cs
+          -Include src/WpfDevTools.Mcp.Server/Composer,tests/WpfDevTools.Tests.Unit/Composer,tests/WpfDevTools.Tests.Integration/Composer,tests/WpfDevTools.Tests.Unit/Documentation/CiWorkflowRegressionTests.cs,tests/WpfDevTools.Tests.Unit/Documentation/ComposerPipelineContractTests.cs
 
     - name: Build Composer unit test dependencies
       run: dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Release --no-restore -m:1 -nodeReuse:false -p:UseSharedCompilation=false
 
-    - name: Run Composer targeted unit and smoke tests
+    - name: Run Composer compile and runtime tests
       timeout-minutes: 10
       run: >
         dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj
         -c Release
         --no-build
-        --filter FullyQualifiedName~Composer
+        --filter "Category=ComposerCompile|Category=ComposerRuntime"
         --verbosity normal
         --blame-hang-timeout 10m
         --logger "trx;LogFileName=composer-ci.trx"
@@ -228,14 +233,14 @@ jobs:
         $total = [int]$counters.total
         $executed = [int]$counters.executed
         if ($total -le 0 -or $executed -le 0) {
-          throw 'Composer CI executed 0 tests for filter FullyQualifiedName~Composer'
+          throw 'Composer CI executed 0 compile or runtime tests'
         }
 
         $evidence = [ordered]@{
           schemaVersion = 'wpfdevtools.composer-ci-evidence.v1'
           workflow = 'ci-cd'
           job = 'composer-ci'
-          testFilter = 'FullyQualifiedName~Composer'
+          testFilter = 'Category=ComposerCompile|Category=ComposerRuntime'
           testResults = [ordered]@{
             total = $total
             executed = $executed
@@ -733,7 +738,7 @@ jobs:
         --blame-hang-timeout 10m
         --logger "trx;LogFileName=coverage-debug.trx"
         --results-directory ./TestResults/coverage
-        --filter "FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~ComposerPreviewCompileTests&FullyQualifiedName!~ComposerGenericPreviewContractTests&FullyQualifiedName!~ComposerPreviewRecipeRuntimeTests"
+        --filter "FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&Category!=ComposerCompile&Category!=ComposerRuntime&Category!=ComposerAcceptance"
         -nodeReuse:false
         -p:UseSharedCompilation=false
 

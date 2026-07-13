@@ -11,19 +11,23 @@ namespace WpfDevTools.Tests.Unit.Composer;
 [Collection("ProcessEnvironment")]
 public sealed partial class ComposerPreviewCompileTests
 {
-    [Theory]
-    [MemberData(nameof(CompilableBlueprints))]
-    public void PreviewBlueprint_ShouldCompileGoldenBlueprint(string blueprintJson, string expectedConclusion)
+    [Fact]
+    [Trait("Category", "ComposerCompile")]
+    public void PreviewBlueprint_ShouldCompileCompositeGoldenBlueprint()
     {
         var service = new UiBlueprintPreviewService(CreateRegistry());
 
-        var result = service.Preview(new PreviewBlueprintRequest(blueprintJson, RestoreEnabled: true));
+        var result = service.Preview(new PreviewBlueprintRequest(CompositeCompileBlueprint(), RestoreEnabled: true));
 
         result.Success.Should().BeTrue();
         result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
         result.BuildOutput.Should().Contain("Build succeeded.");
         result.RestoreEnabled.Should().BeTrue();
-        result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == expectedConclusion);
+        result.Diagnostics.Select(diagnostic => diagnostic.Code).Should().Contain([
+            "ButtonIconPropertyElementValid",
+            "DataGridColumnsPropertyElementValid",
+            "PreviewXamlCompiled"
+        ]);
         result.PreviewHost.Status.Should().Be("compiled");
     }
 
@@ -64,6 +68,7 @@ public sealed partial class ComposerPreviewCompileTests
     }
 
     [Fact]
+    [Trait("Category", "ComposerCompile")]
     public async Task PreviewUiBlueprintTool_ShouldReturnStructuredCompileResult()
     {
         using var sessionManager = new SessionManager();
@@ -96,63 +101,25 @@ public sealed partial class ComposerPreviewCompileTests
     }
 
     [Fact]
-    public async Task PreviewUiBlueprintTool_WhenRuntimeDiagnosticsRequestedForNavigationShell_ShouldLoadGeneratedView()
-    {
-        using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");
-        using var session = SecurePreviewSession.Create();
-        using var timeout = CreateTimeout();
-
-        var result = await UiComposerMcpTools.PreviewUiBlueprint(
-            session.SessionManager,
-            NavigationShellBlueprint(),
-            restoreEnabled: true,
-            startHost: true,
-            includeRuntimeDiagnostics: true,
-            cancellationToken: timeout.Token);
-
-        result.IsError.Should().BeFalse();
-        var payload = result.StructuredContent!.Value;
-        payload.GetProperty("buildSucceeded").GetBoolean().Should().BeTrue();
-        payload.GetProperty("previewHost").GetProperty("status").GetString().Should().Be("loaded");
-        payload.GetProperty("previewHost").GetProperty("runtimeDiagnostics").EnumerateArray()
-            .Should().Contain(diagnostic =>
-                diagnostic.GetProperty("tool").GetString() == "connect"
-                && diagnostic.GetProperty("success").GetBoolean());
-    }
-
-    [Fact]
-    public async Task PreviewBlueprintAsync_WhenStartHostIsTrue_ShouldLoadGeneratedView()
+    [Trait("Category", "ComposerRuntime")]
+    public async Task PreviewBlueprintAsync_WhenCompositeControlsStartHost_ShouldLoadGeneratedView()
     {
         var service = new UiBlueprintPreviewService(CreateRegistry());
         using var timeout = CreateTimeout();
 
         var result = await service.PreviewAsync(
-            new PreviewBlueprintRequest(ButtonBlueprint(), RestoreEnabled: true, StartHost: true),
+            new PreviewBlueprintRequest(CompositeRuntimeBlueprint(), RestoreEnabled: true, StartHost: true),
             timeout.Token);
 
         result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
-        result.PreviewHost.Status.Should().Be("loaded");
+        result.PreviewHost.Status.Should().Be("loaded", result.BuildOutput);
         result.PreviewHost.Started.Should().BeTrue();
         result.PreviewHost.ViewLoaded.Should().BeTrue();
         result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "PreviewHostViewLoaded");
     }
 
     [Fact]
-    public async Task PreviewBlueprintAsync_WhenTabStylesTargetNativeBases_ShouldLoadGeneratedView()
-    {
-        var service = new UiBlueprintPreviewService(CreateRegistry());
-        using var timeout = CreateTimeout();
-
-        var result = await service.PreviewAsync(
-            new PreviewBlueprintRequest(TabbedSettingsBlueprint(), RestoreEnabled: true, StartHost: true),
-            timeout.Token);
-
-        result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
-        result.PreviewHost.Status.Should().Be("loaded", result.BuildOutput);
-        result.PreviewHost.ViewLoaded.Should().BeTrue();
-    }
-
-    [Fact]
+    [Trait("Category", "ComposerCompile")]
     public async Task PreviewBlueprintAsync_WhenRuntimeDiagnosticsNotRequested_ShouldNotGenerateInspectorSdkDependency()
     {
         var tempRoot = Path.Combine(
@@ -194,39 +161,7 @@ public sealed partial class ComposerPreviewCompileTests
     }
 
     [Fact]
-    public async Task PreviewBlueprintAsync_WhenRuntimeAndScreenshotDiagnosticsRequested_ShouldCaptureRuntimeAndPolicyBlock()
-    {
-        using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");
-        using var screenshots = new EnvironmentVariableScope(McpServerConfiguration.AllowScreenshotsEnvVar, null);
-        using var session = SecurePreviewSession.Create();
-        var service = new UiBlueprintPreviewService(CreateRegistry(), session.SessionManager);
-        using var timeout = CreateTimeout();
-
-        var result = await service.PreviewAsync(
-            new PreviewBlueprintRequest(
-                ButtonBlueprint(),
-                RestoreEnabled: true,
-                StartHost: true,
-                IncludeRuntimeDiagnostics: true,
-                IncludeScreenshotDiagnostics: true),
-            timeout.Token);
-
-        result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
-        result.PreviewHost.RuntimeDiagnostics.Should().Contain(diagnostic => diagnostic.Tool == "connect" && diagnostic.Success);
-        var summary = result.PreviewHost.RuntimeDiagnostics.Should()
-            .ContainSingle(diagnostic => diagnostic.Tool == "get_ui_summary" && diagnostic.Success)
-            .Subject.Payload;
-        summary.GetProperty("depthMode").GetString().Should().Be("semantic");
-        result.PreviewHost.RuntimeDiagnostics.Should().Contain(diagnostic => diagnostic.Tool == "get_layout_info" && diagnostic.Success);
-        var screenshot = result.PreviewHost.RuntimeDiagnostics.Should()
-            .ContainSingle(diagnostic => diagnostic.Tool == "element_screenshot")
-            .Subject;
-        screenshot.Success.Should().BeFalse();
-        screenshot.Payload.GetProperty("errorCode").GetString().Should().Be("SecurityError");
-        screenshot.Payload.GetProperty("hint").GetString().Should().Contain(McpServerConfiguration.AllowScreenshotsEnvVar);
-    }
-
-    [Fact]
+    [Trait("Category", "ComposerRuntime")]
     public async Task PreviewBlueprintAsync_WhenRuntimeDiagnosticsKeepArtifacts_ShouldDeleteSdkOptionsFile()
     {
         using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");
@@ -269,14 +204,6 @@ public sealed partial class ComposerPreviewCompileTests
         }
     }
 
-    public static TheoryData<string, string> CompilableBlueprints()
-        => new()
-        {
-            { ButtonBlueprint(), "ButtonIconPropertyElementValid" },
-            { DataGridBlueprint(), "DataGridColumnsPropertyElementValid" },
-            { DashboardCardBlueprint(), "PreviewXamlCompiled" }
-        };
-
     private static PackRegistry CreateRegistry()
         => PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
 
@@ -289,73 +216,59 @@ public sealed partial class ComposerPreviewCompileTests
             }
             """);
 
-    private static string DataGridBlueprint()
+    private static string CompositeCompileBlueprint()
         => Blueprint("""
             {
-              "kind": "wpfui.dataGrid",
-              "properties": { "itemsSource": "{Binding Rows}" },
-              "slots": { "columns": [{ "kind": "core.template" }] }
-            }
-            """);
-
-    private static string NavigationShellBlueprint()
-        => Blueprint("""
-            {
-              "kind": "wpfui.fluentWindow",
-              "properties": { "title": "Composer" },
-              "slots": {
-                "titleBar": [{ "kind": "wpfui.titleBar", "properties": { "title": "Composer" } }],
-                "content": [{
-                  "kind": "wpfui.navigationView",
+              "kind": "core.stack",
+              "slots": { "children": [
+                {
+                  "kind": "wpfui.button",
+                  "properties": { "text": "Save" },
+                  "slots": { "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "Save24" } }] }
+                },
+                {
+                  "kind": "wpfui.dataGrid",
+                  "properties": { "itemsSource": "{Binding Rows}" },
+                  "slots": { "columns": [{ "kind": "core.template" }] }
+                },
+                {
+                  "kind": "wpfui.card",
                   "slots": {
-                    "items": [{
-                      "kind": "wpfui.navigationViewItem",
+                    "header": [{ "kind": "core.text", "properties": { "text": "Dashboard" } }],
+                    "content": [{ "kind": "core.text", "properties": { "text": "Compiled preview" } }],
+                    "actions": [{ "kind": "wpfui.button", "properties": { "text": "Refresh" } }]
+                  }
+                }
+              ] }
+            }
+            """);
+
+    private static string CompositeRuntimeBlueprint()
+        => Blueprint("""
+            {
+              "kind": "core.stack",
+              "slots": { "children": [
+                { "kind": "wpfui.button", "properties": { "text": "Save" } },
+                {
+                  "kind": "wpfui.tabView",
+                  "slots": { "items": [
+                    {
+                      "kind": "wpfui.tabViewItem",
                       "slots": {
-                        "content": [{ "kind": "core.text", "properties": { "text": "Home" } }],
-                        "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "Home24" } }]
+                        "header": [{ "kind": "core.text", "properties": { "text": "General" } }],
+                        "content": [{ "kind": "wpfui.card" }]
                       }
-                    }],
-                    "content": [{ "kind": "wpfui.card" }]
-                  }
-                }]
-              }
-            }
-            """);
-
-    private static string DashboardCardBlueprint()
-        => Blueprint("""
-            {
-              "kind": "wpfui.card",
-              "slots": {
-                "header": [{ "kind": "core.text", "properties": { "text": "Dashboard" } }],
-                "content": [{ "kind": "core.text", "properties": { "text": "Compiled preview" } }],
-                "actions": [{ "kind": "wpfui.button", "properties": { "text": "Refresh" } }]
-              }
-            }
-            """);
-
-    private static string TabbedSettingsBlueprint()
-        => Blueprint("""
-            {
-              "kind": "wpfui.tabView",
-              "slots": {
-                "items": [
-                  {
-                    "kind": "wpfui.tabViewItem",
-                    "slots": {
-                      "header": [{ "kind": "core.text", "properties": { "text": "General" } }],
-                      "content": [{ "kind": "wpfui.card" }]
+                    },
+                    {
+                      "kind": "wpfui.tabViewItem",
+                      "slots": {
+                        "header": [{ "kind": "core.text", "properties": { "text": "Security" } }],
+                        "content": [{ "kind": "wpfui.card" }]
+                      }
                     }
-                  },
-                  {
-                    "kind": "wpfui.tabViewItem",
-                    "slots": {
-                      "header": [{ "kind": "core.text", "properties": { "text": "Security" } }],
-                      "content": [{ "kind": "wpfui.card" }]
-                    }
-                  }
-                ]
-              }
+                  ] }
+                }
+              ] }
             }
             """);
 

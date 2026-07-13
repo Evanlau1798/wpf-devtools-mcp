@@ -79,10 +79,11 @@ public class BuildConfigurationTests
         coverageTestStep.Should().Contain("-c Debug");
         coverageTestStep.Should().Contain("--no-build");
         coverageTestStep.Should().Contain("--settings coverlet.runsettings");
-        coverageTestStep.Should().Contain("FullyQualifiedName!~ComposerPreviewCompileTests")
-            .And.Contain("FullyQualifiedName!~ComposerGenericPreviewContractTests")
-            .And.Contain("FullyQualifiedName!~ComposerPreviewRecipeRuntimeTests",
-                "external-build Composer tests belong to the dedicated Release Composer lane rather than the Debug coverage rerun");
+        coverageTestStep.Should().Contain("Category!=ComposerCompile")
+            .And.Contain("Category!=ComposerRuntime")
+            .And.Contain("Category!=ComposerAcceptance",
+                "capability traits should route expensive Composer tests without class-name denylists");
+        coverageTestStep.Should().NotContain("FullyQualifiedName!~ComposerPreview");
         coverageTestStep.Should().Contain("FullyQualifiedName!~WpfDevTools.Tests.Unit.Release");
     }
 
@@ -92,7 +93,8 @@ public class BuildConfigurationTests
         var lines = File.ReadAllLines(GetRepoFilePath(".github/workflows/ci-cd.yml"));
         var content = string.Join('\n', lines);
         var integrationTestStep = GetNamedStepBlock(lines, "Run integration tests");
-        var composerTestStep = GetNamedStepBlock(lines, "Run Composer targeted unit and smoke tests");
+        var composerTestStep = GetNamedStepBlock(lines, "Run Composer compile and runtime tests");
+        var composerAcceptanceStep = GetNamedStepBlock(lines, "Run Composer acceptance tests");
         var releaseUnitTestStep = GetNamedStepBlock(lines, "Run release unit tests");
 
         content.Should().NotContain("name: Run unit tests",
@@ -102,8 +104,10 @@ public class BuildConfigurationTests
             "CI should shard integration tests into an explicit no-build project invocation instead of a broad solution test run");
         content.Should().NotContain("dotnet test --configuration ${{ matrix.configuration }} --no-build --verbosity normal -p:Platform=${{ matrix.platform }}",
             "the broad solution-level test command should be replaced by project-specific lanes");
-        string.Join('\n', composerTestStep).Should().Contain("--filter FullyQualifiedName~Composer",
-            "the dedicated Release Composer lane should own all Composer tests");
+        string.Join('\n', composerTestStep).Should().Contain("Category=ComposerCompile|Category=ComposerRuntime",
+            "the dedicated Release Composer lane should own external-build and runtime tests");
+        string.Join('\n', composerAcceptanceStep).Should().Contain("--filter Category=ComposerAcceptance",
+            "real consumer acceptance should run once in the integration lane");
         string.Join('\n', releaseUnitTestStep).Should().Contain("-IncludeReleaseUnit",
             "release-specific tests should remain owned by the sharded release lane");
         integrationTestStep.Should().Contain("      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'",

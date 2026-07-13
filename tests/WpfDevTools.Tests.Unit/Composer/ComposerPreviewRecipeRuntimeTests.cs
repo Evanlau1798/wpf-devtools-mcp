@@ -18,6 +18,7 @@ public sealed class ComposerPreviewRecipeRuntimeTests
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [Fact]
+    [Trait("Category", "ComposerRuntime")]
     public async Task PreviewBlueprintAsync_WhenShellRecipeExpandedWithRuntimeDiagnostics_ShouldLoadGeneratedView()
     {
         using var sensitiveReads = new EnvironmentVariableScope(McpServerConfiguration.AllowSensitiveReadsEnvVar, "true");

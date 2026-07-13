@@ -9,6 +9,7 @@ namespace WpfDevTools.Tests.Unit.Composer;
 public sealed class ComposerGenericPreviewContractTests
 {
     [Fact]
+    [Trait("Category", "ComposerCompile")]
     public async Task PreviewBlueprint_ShouldCompileMetadataDefinedThirdPartyPack()
     {
         var projectRoot = CreateProjectPack(includePreview: true, baseKind: "contentControl");
@@ -55,6 +56,7 @@ public sealed class ComposerGenericPreviewContractTests
     }
 
     [Fact]
+    [Trait("Category", "ComposerCompile")]
     public async Task PreviewBlueprint_ShouldAllowNativeOnlyThirdPartyRendererWithoutPreviewContract()
     {
         var projectRoot = CreateProjectPack(includePreview: false, baseKind: "contentControl");
@@ -184,6 +186,7 @@ public sealed class ComposerGenericPreviewContractTests
     }
 
     [Fact]
+    [Trait("Category", "ComposerCompile")]
     public async Task PreviewBlueprint_ShouldCompileThirdPartyWindowPropertyElement()
     {
         var projectRoot = CreateProjectPack(includePreview: true, baseKind: "window", contentPropertyType: "object");
@@ -258,6 +261,7 @@ public sealed class ComposerGenericPreviewContractTests
     }
 
     [Fact]
+    [Trait("Category", "ComposerCompile")]
     public async Task PreviewBlueprint_ShouldCompileNewWpfUiControlsFromPackMetadata()
     {
         var blueprint = """

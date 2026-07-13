@@ -62,7 +62,10 @@ public sealed class ComposerPipelineContractTests
         uploadReleaseAssetsJob.Should().Contain("gh release create");
         uploadReleaseAssetsJob.Should().Contain("Upload staged assets to GitHub Release");
         releaseWorkflow.Should().Contain("Upload staged assets to GitHub Release");
-        ciWorkflow.Should().Contain("--filter FullyQualifiedName~Composer");
+        ciWorkflow.Should().Contain("Category=ComposerCompile|Category=ComposerRuntime");
+        ciWorkflow.Should().Contain("Category=ComposerAcceptance");
+        ciWorkflow.Should().NotContain("FullyQualifiedName!~ComposerPreview",
+            "Composer lanes should be selected by capabilities instead of test class names");
         ciWorkflow.Should().NotContain("FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation",
             "this Composer-owned contract must independently prevent Documentation tests from disappearing from coverage");
     }
@@ -109,6 +112,20 @@ public sealed class ComposerPipelineContractTests
             "dotnet build",
             "capture_state_snapshot");
         AssertPackNeutralExamples(documentation);
+    }
+
+    [Fact]
+    public void ComposerPipeline_ShouldClassifyExpensiveTestsByCapability()
+    {
+        ReadRepoFile("tests/WpfDevTools.Tests.Unit/Composer/ComposerPreviewCompileTests.cs")
+            .Should().Contain("[Trait(\"Category\", \"ComposerCompile\")]")
+            .And.Contain("[Trait(\"Category\", \"ComposerRuntime\")]");
+        ReadRepoFile("tests/WpfDevTools.Tests.Unit/Composer/ComposerGenericPreviewContractTests.cs")
+            .Should().Contain("[Trait(\"Category\", \"ComposerCompile\")]");
+        ReadRepoFile("tests/WpfDevTools.Tests.Unit/Composer/ComposerPreviewRecipeRuntimeTests.cs")
+            .Should().Contain("[Trait(\"Category\", \"ComposerRuntime\")]");
+        ReadRepoFile("tests/WpfDevTools.Tests.Integration/Composer/ComposerThirdPartyAcceptanceTests.cs")
+            .Should().Contain("[Trait(\"Category\", \"ComposerAcceptance\")]");
     }
 
     [Fact]

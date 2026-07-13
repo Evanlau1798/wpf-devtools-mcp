@@ -236,7 +236,7 @@ function Invoke-HostedCoverageVerification {
         '--blame-hang-timeout', '10m',
         '--logger', 'trx;LogFileName=coverage-debug.trx',
         '--results-directory', (Join-Path $ResultsRoot 'coverage'),
-        '--filter', 'FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation',
+        '--filter', 'FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation&Category!=ComposerCompile&Category!=ComposerRuntime&Category!=ComposerAcceptance',
         '-nodeReuse:false',
         '-p:UseSharedCompilation=false'
     ) -TimeoutSeconds 3600 -OutputRoot $OutputRoot -Timestamp $Timestamp

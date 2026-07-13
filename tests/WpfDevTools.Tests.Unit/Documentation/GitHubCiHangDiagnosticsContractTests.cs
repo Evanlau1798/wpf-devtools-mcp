@@ -8,6 +8,7 @@ public sealed class GitHubCiHangDiagnosticsContractTests
 
     [Theory]
     [InlineData("Run integration tests", "integration-${{ matrix.configuration }}-${{ matrix.platform }}.trx", "./TestResults/${{ matrix.configuration }}/integration", "20")]
+    [InlineData("Run Composer acceptance tests", "composer-acceptance-${{ matrix.configuration }}-${{ matrix.platform }}.trx", "./TestResults/${{ matrix.configuration }}/composer-acceptance", "10")]
     public void BuildAndTestWorkflow_TestSteps_ShouldFailFastAndPersistHangDiagnostics(
         string stepName,
         string trxFileName,
@@ -80,8 +81,9 @@ public sealed class GitHubCiHangDiagnosticsContractTests
         step.Should().Contain("--logger \"trx;LogFileName=coverage-debug.trx\"",
             "coverage failures should leave a structured TRX file for hosted CI and GitHub artifacts");
         step.Should().Contain("--results-directory ./TestResults/coverage");
-        step.Should().Contain("--filter \"FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~ComposerPreviewCompileTests&FullyQualifiedName!~ComposerGenericPreviewContractTests&FullyQualifiedName!~ComposerPreviewRecipeRuntimeTests\"",
-            "release contracts have a dedicated lane while documentation contracts now run in coverage instead of a duplicate Release unit lane");
+        step.Should().Contain("--filter \"FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&Category!=ComposerCompile&Category!=ComposerRuntime&Category!=ComposerAcceptance\"",
+            "expensive Composer capabilities have dedicated lanes while documentation contracts remain in coverage");
+        step.Should().NotContain("FullyQualifiedName!~ComposerPreview");
     }
 
     [Fact]

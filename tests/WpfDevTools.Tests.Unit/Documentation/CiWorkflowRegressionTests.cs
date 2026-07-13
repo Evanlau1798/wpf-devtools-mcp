@@ -241,19 +241,19 @@ public sealed partial class SandboxCiScriptContractTests
 
         var composerJob = GetWorkflowJob(workflow, "composer-ci");
 
-        composerJob.Should().Contain("Run Composer targeted unit and smoke tests");
+        composerJob.Should().Contain("Run Composer compile and runtime tests");
         composerJob.Should().Contain("Verify Composer formatting");
         composerJob.Should().Contain("Invoke-DotNetFormatVerify.ps1");
         composerJob.Should().Contain("-SolutionPath WpfDevTools.sln");
         composerJob.Should().Contain("tests/WpfDevTools.Tests.Unit/Documentation/ComposerPipelineContractTests.cs");
         composerJob.Should().Contain("dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Release --no-restore");
         composerJob.Should().Contain("dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj");
-        composerJob.Should().Contain("--filter FullyQualifiedName~Composer");
+        composerJob.Should().Contain("Category=ComposerCompile|Category=ComposerRuntime");
         composerJob.Should().Contain("--blame-hang-timeout 10m");
         composerJob.Should().Contain("timeout-minutes: 10");
         composerJob.Should().Contain("Write Composer CI evidence");
         composerJob.Should().Contain("TestResults/composer/composer-ci.trx");
-        composerJob.Should().Contain("Composer CI executed 0 tests");
+        composerJob.Should().Contain("Composer CI executed 0 compile or runtime tests");
         composerJob.Should().Contain("executed = $executed");
         composerJob.Should().Contain("artifacts/composer/composer-ci-evidence.json");
         composerJob.Should().Contain("Upload Composer CI evidence");

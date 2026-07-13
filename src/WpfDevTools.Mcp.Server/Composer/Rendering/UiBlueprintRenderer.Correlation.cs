@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 
 namespace WpfDevTools.Mcp.Server.Composer.Rendering;
@@ -9,6 +10,92 @@ internal sealed partial class UiBlueprintRenderer
     private static readonly Regex RootNamePattern = new(
         "(?:^|\\s)(?:x:Name|Name)\\s*=\\s*(?:\"(?<double>[^\"]+)\"|'(?<single>[^']+)')",
         RegexOptions.CultureInvariant);
+    private static readonly Regex RootAutomationIdPattern = new(
+        "(?:^|\\s)AutomationProperties\\.AutomationId\\s*=\\s*(?:\"(?<double>[^\"]+)\"|'(?<single>[^']+)')",
+        RegexOptions.CultureInvariant);
+
+    private static string AddAuthoredIdentity(
+        string xaml,
+        UiBlueprintNode node,
+        string jsonPath,
+        List<BlueprintValidationIssue> errors)
+    {
+        if (node.ElementName is null && node.AutomationId is null)
+        {
+            return xaml;
+        }
+
+        var rootStart = XamlDocumentRootLocator.FindStart(xaml);
+        var rootEnd = rootStart < 0 ? -1 : FindTagEnd(xaml, rootStart + 1);
+        if (rootEnd < 0)
+        {
+            errors.Add(Issue(jsonPath, "AuthoredIdentityRootMissing", "Renderer output has no XAML root for authored identity.", "Repair the pack renderer template before applying this blueprint."));
+            return xaml;
+        }
+
+        var rootTag = xaml[rootStart..rootEnd];
+        var attributes = new List<string>();
+        AddAuthoredAttribute(
+            node.ElementName,
+            "elementName",
+            "x:Name",
+            RootNamePattern,
+            rootTag,
+            jsonPath,
+            attributes,
+            errors);
+        AddAuthoredAttribute(
+            node.AutomationId,
+            "automationId",
+            "AutomationProperties.AutomationId",
+            RootAutomationIdPattern,
+            rootTag,
+            jsonPath,
+            attributes,
+            errors);
+        if (attributes.Count == 0)
+        {
+            return xaml;
+        }
+
+        var insertAt = rootEnd > rootStart && xaml[rootEnd - 1] == '/' ? rootEnd - 1 : rootEnd;
+        return xaml[..insertAt] + " " + string.Join(" ", attributes) + xaml[insertAt..];
+    }
+
+    private static void AddAuthoredAttribute(
+        string? authoredValue,
+        string field,
+        string attribute,
+        Regex pattern,
+        string rootTag,
+        string jsonPath,
+        List<string> attributes,
+        List<BlueprintValidationIssue> errors)
+    {
+        if (authoredValue is null)
+        {
+            return;
+        }
+
+        var existing = pattern.Match(rootTag);
+        if (!existing.Success)
+        {
+            attributes.Add($"{attribute}=\"{EscapeAttribute(authoredValue)}\"");
+            return;
+        }
+
+        var existingValue = WebUtility.HtmlDecode(existing.Groups["double"].Success
+            ? existing.Groups["double"].Value
+            : existing.Groups["single"].Value);
+        if (!string.Equals(existingValue, authoredValue, StringComparison.Ordinal))
+        {
+            errors.Add(Issue(
+                $"{jsonPath}.{field}",
+                "AuthoredIdentityRendererConflict",
+                $"Authored {field} '{authoredValue}' conflicts with renderer root value '{existingValue}'.",
+                $"Use '{existingValue}', omit {field}, or update the pack renderer contract."));
+        }
+    }
 
     private static string AddTransientElementCorrelation(
         string xaml,
@@ -51,6 +138,11 @@ internal sealed partial class UiBlueprintRenderer
         while (pending.Count > 0)
         {
             var node = pending.Pop();
+            if (node.ElementName is not null)
+            {
+                reservedNames.Add(node.ElementName);
+            }
+
             var template = _templateLoader.Load(node.Kind, packs).Template?.Content;
             if (template is not null && GetRootElementName(template) is { } name)
             {

@@ -138,6 +138,18 @@ public sealed class McpToolDescriptionContractTests
     }
 
     [Fact]
+    public void FindElements_Description_ShouldExplainTruncatedZeroResultRecovery()
+    {
+        var description = GetDescriptionText("find_elements");
+
+        description.Should().ContainAll(
+            "searchComplete",
+            "recovery",
+            "maxTraversalNodes",
+            "elementId");
+    }
+
+    [Fact]
     public void CaptureStateSnapshot_Description_ShouldExplainBoundDpSourceRollback()
     {
         var description = GetDescriptionText("capture_state_snapshot");

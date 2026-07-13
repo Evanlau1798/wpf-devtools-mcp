@@ -85,6 +85,7 @@ internal static class UiComposerMcpToolDescriptions
         RESPONSE SUMMARY:
         - Returns success, valid, errorCount, warningCount, errors, warnings, blueprintSize, and diagnostics.
         - Errors and warnings include jsonPath, code, message, repairSuggestion, and relevant allowedKinds or allowedValues. SurfaceThemeContrastRisk identifies explicit surfaces that conflict with a selected pack-owned resource variant.
+        - Optional node elementName and automationId values are validated for safe syntax and tree-wide uniqueness before they render to stable WPF identities.
         - blueprintSize reports currentCharacters, maximumCharacters, remainingCharacters, and utilizationPercent for the public blueprintJson limit.
         - valid=false is a validation result, not an MCP transport failure.
 

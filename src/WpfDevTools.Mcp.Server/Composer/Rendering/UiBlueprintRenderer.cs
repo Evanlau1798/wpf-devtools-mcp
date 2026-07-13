@@ -99,6 +99,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             ResolveToken(match.Groups["name"].Value, node, block, path, packs, context, errors, sourceMap,
                 includeTransientElementCorrelation, elementCorrelations));
         rendered = EmptyPropertyElementPattern.Replace(rendered, string.Empty);
+        rendered = AddAuthoredIdentity(rendered, node, path, errors);
         if (includeTransientElementCorrelation)
         {
             rendered = AddTransientElementCorrelation(

@@ -227,6 +227,27 @@ public sealed partial class ElementSearchAnalyzer : DispatcherAnalyzerBase
                 truncationReason = "maxTraversalNodes";
             }
 
+            var recovery = traversalTruncated && results.Count == 0
+                ? new
+                {
+                    code = "TraversalBudgetExceededBeforeMatch",
+                    message = "No match was found before the bounded traversal ended; the zero-result response is inconclusive.",
+                    retry = new
+                    {
+                        parameter = "maxTraversalNodes",
+                        canIncrease = traversalLimit < TreeTraversalDefaults.MaxNodesLimit,
+                        suggestedValue = traversalLimit < TreeTraversalDefaults.MaxNodesLimit
+                            ? Math.Min(traversalLimit * 2, TreeTraversalDefaults.MaxNodesLimit)
+                            : (int?)null
+                    },
+                    alternative = new
+                    {
+                        parameter = "elementId",
+                        guidance = "Use get_ui_summary or a bounded tree read to choose a narrower ancestor, then retry within that element."
+                    }
+                }
+                : null;
+
             return new
             {
                 success = true,
@@ -236,6 +257,8 @@ public sealed partial class ElementSearchAnalyzer : DispatcherAnalyzerBase
                 maxTraversalNodes = traversalLimit,
                 traversalTruncated,
                 truncationReason,
+                searchComplete = !truncated,
+                recovery,
                 results
             };
         });

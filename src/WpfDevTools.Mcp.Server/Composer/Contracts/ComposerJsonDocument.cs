@@ -159,6 +159,8 @@ internal sealed class UiBlueprint : ComposerJsonDocument
 internal sealed class UiBlueprintNode
 {
     public string Kind { get; set; } = string.Empty;
+    public string? ElementName { get; set; }
+    public string? AutomationId { get; set; }
     public Dictionary<string, JsonElement> Properties { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, JsonElement> Bindings { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, UiBlueprintNode[]> Slots { get; set; } = new(StringComparer.Ordinal);

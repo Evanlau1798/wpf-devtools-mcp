@@ -175,6 +175,13 @@ public sealed class ElementSearchAnalyzerTests
             result.GetProperty("traversalNodeCount").GetInt32().Should().Be(3);
             result.GetProperty("maxTraversalNodes").GetInt32().Should().Be(3);
             result.GetProperty("truncationReason").GetString().Should().Be("maxTraversalNodes");
+            result.GetProperty("searchComplete").GetBoolean().Should().BeFalse();
+            var recovery = result.GetProperty("recovery");
+            recovery.GetProperty("code").GetString().Should().Be("TraversalBudgetExceededBeforeMatch");
+            recovery.GetProperty("retry").GetProperty("parameter").GetString().Should().Be("maxTraversalNodes");
+            recovery.GetProperty("retry").GetProperty("canIncrease").GetBoolean().Should().BeTrue();
+            recovery.GetProperty("retry").GetProperty("suggestedValue").GetInt32().Should().Be(6);
+            recovery.GetProperty("alternative").GetProperty("parameter").GetString().Should().Be("elementId");
         }
         finally
         {

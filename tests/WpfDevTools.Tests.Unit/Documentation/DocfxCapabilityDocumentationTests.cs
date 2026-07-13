@@ -284,6 +284,8 @@ public sealed class DocfxCapabilityDocumentationTests
         content.Should().Contain("maxTraversalNodes");
         content.Should().Contain("traversalNodeCount");
         content.Should().Contain("traversalTruncated");
+        content.Should().Contain("searchComplete");
+        content.Should().Contain("TraversalBudgetExceededBeforeMatch");
     }
 
     [Theory]

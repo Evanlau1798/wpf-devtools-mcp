@@ -166,8 +166,10 @@ internal static class TreeMcpToolDescriptions
         "  - truncated: boolean,\n" +
         "  - traversalNodeCount: integer,\n" +
         "  - maxTraversalNodes: integer,\n" +
-        "  - traversalTruncated: boolean,\n" +
-        "  - truncationReason (optional): 'maxResults'|'maxTraversalNodes',\n" +
+          "  - traversalTruncated: boolean,\n" +
+          "  - truncationReason (optional): 'maxResults'|'maxTraversalNodes',\n" +
+          "  - searchComplete: boolean; false means maxResults or traversal bounds left the result set incomplete,\n" +
+          "  - recovery (optional): structured retry budget and narrower-root guidance for a traversal-truncated zero-result search,\n" +
         "  - results: [{ elementId, elementType, elementName, automationId, matchedProperty, matchedValue }]\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +

@@ -27,6 +27,7 @@ Composer 目前支援下列 v1 contracts；`schemaVersion` 缺失或不同時會
 - Pack 可提供具 default 與 pack-owned `appearance`（`light`、`dark` 或 `neutral`）的 named `resourceVariants`。Blueprint 依 pack id 選擇 variant，因此 Composer 不需要任何 library-specific theme logic。Block property 可將 `visualRole` 宣告為 `surface`；當 explicit surface 與 selected theme-styled subtree 衝突時，validation 會在精確 property path 回傳 `SurfaceThemeContrastRisk`。
 - 會輸出 pack XML namespace 的第三方 renderer 必須在 `pack.json` 宣告安全 structural preview metadata。Composer 依 metadata 產生 preview types；使用 custom namespace 卻缺少 contract 時回傳 `PreviewContractMissing`。只輸出 native controls 的第三方 renderer 不需要 stub contract。Pack 不可提供 arbitrary preview C#。
 - Preview metadata 保持 pack-neutral：語意子類別若套用以原生基底為 TargetType 的樣式，應使用 `tabControl` 或 `tabItem`。任何 selected `baseKind` 已繼承的 member 都不可重複宣告；`Window.Content`、sizing、command、items 與 tab state 等 native properties 應直接用於 renderer XAML。Composer 會拒絕可能讓 authored value 與 native visual tree、command、style 或 template 脫節的 shadow declaration。只有整個值為 unset property token 的 renderer attribute 會被省略；明確空字串與 literal empty attribute 仍會保留。除非 blueprint 明確覆寫目前 theme，否則不要設定 `Foreground` 等可繼承 visual property。
+- 任何 blueprint node 都可宣告穩定的 `elementName` 與 `automationId`。Composer 會驗證安全語法及整棵樹的唯一性，再將它們保留為 renderer root 上的 WPF `x:Name` 與 `AutomationProperties.AutomationId`。重複值會以 `DuplicateElementName` 或 `DuplicateAutomationId` 失敗；若與 pack-owned root identity 衝突，也會明確失敗而不會暗中改寫 renderer contract。
 
 建立原創 app 時，先以 `includeRecipes=false` 呼叫 `get_ui_block_catalog`，依 available capabilities 決定 creative brief。稍後再把 recipes 當作 optional accelerator；不要讓第一個 recipe 決定 app concept。
 
@@ -109,7 +110,7 @@ Request options:
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
-完成 validation 呼叫時 response 會維持 `success=true`，並用 `valid` 表示 blueprint 是否有效。Validation issues 會包含 `jsonPath`、`code`、`message`、`repairSuggestion`，以及相關的 `allowedKinds` 或 `allowedValues`。未知的 pack-owned resource selection 會以 `UnknownResourceVariant` 失敗；explicit surface/theme 衝突則會在 preview 或 apply 前回傳 bounded `SurfaceThemeContrastRisk` warning。`blueprintSize` 會回傳 `currentCharacters`、`maximumCharacters`、`remainingCharacters` 與 `utilizationPercent`，讓 Agent 能在碰到 public input limit 前先精簡文件。
+完成 validation 呼叫時 response 會維持 `success=true`，並用 `valid` 表示 blueprint 是否有效。Validation issues 會包含 `jsonPath`、`code`、`message`、`repairSuggestion`，以及相關的 `allowedKinds` 或 `allowedValues`。未知的 pack-owned resource selection 會以 `UnknownResourceVariant` 失敗；explicit surface/theme 衝突則會在 preview 或 apply 前回傳 bounded `SurfaceThemeContrastRisk` warning。Node-level `elementName` 與 `automationId` 會在 render 前驗證安全語法與唯一性。`blueprintSize` 會回傳 `currentCharacters`、`maximumCharacters`、`remainingCharacters` 與 `utilizationPercent`，讓 Agent 能在碰到 public input limit 前先精簡文件。
 
 ## `expand_ui_recipe`
 

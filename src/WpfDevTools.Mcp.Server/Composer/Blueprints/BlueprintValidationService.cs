@@ -35,6 +35,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
 
         var declaredPacks = ValidatePacks(blueprint, registryResult.Packs, errors, warnings);
         ValidateRequiredFields(blueprint, errors);
+        BlueprintSemanticIdentityDiagnostics.AddIssues(blueprint.Layout, errors);
         errors.AddRange(ComposerPackRoleValidator.Validate(blueprint));
         ValidatePrimaryPackRole(blueprint, errors);
         BlueprintPackConflictDiagnostics.AddIssues(resolution, errors, warnings);

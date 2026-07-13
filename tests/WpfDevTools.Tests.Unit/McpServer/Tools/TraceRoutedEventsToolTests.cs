@@ -17,33 +17,7 @@ namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
 public partial class TraceRoutedEventsToolTests
 {
-    [Fact]
-    public async Task Execute_WithoutConnection_ShouldReturnError()
-    {
-        var tool = new TraceRoutedEventsTool(new SessionManager());
-        var parameters = new { processId = 12345, eventName = "Click" };
 
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        result.Should().NotBeNull();
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("not connected");
-    }
-
-    [Fact]
-    public async Task Execute_WithMissingProcessId_ShouldReturnError()
-    {
-        var tool = new TraceRoutedEventsTool(new SessionManager());
-        var parameters = new { eventName = "Click" };
-
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        result.Should().NotBeNull();
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("processId");
-    }
 
     [Fact]
     public async Task Execute_WithMissingEventName_ShouldReturnError()

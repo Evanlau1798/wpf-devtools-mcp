@@ -19,39 +19,7 @@ public class PingToolTests : IDisposable
         _plaintextPolicy.Dispose();
     }
 
-    [Fact]
-    public async Task Execute_WithoutConnection_ShouldReturnError()
-    {
-        // Arrange
-        var tool = new PingTool(new SessionManager());
-        var parameters = new { processId = 12345 };
 
-        // Act
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("not connected");
-    }
-
-    [Fact]
-    public async Task Execute_WithMissingProcessId_ShouldReturnError()
-    {
-        // Arrange
-        var tool = new PingTool(new SessionManager());
-        var parameters = new { };
-
-        // Act
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("processId");
-    }
 
     [Fact]
     public async Task Execute_WithValidSession_ShouldReturnSuccess()

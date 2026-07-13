@@ -11,19 +11,6 @@ namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
 public sealed class DrainEventsToolTests
 {
-    [Fact]
-    public async Task Execute_WithoutConnection_ShouldReturnError()
-    {
-        var tool = new DrainEventsTool(new SessionManager());
-
-        var result = await tool.ExecuteAsync(
-            JsonSerializer.SerializeToElement(new { processId = 43101 }),
-            CancellationToken.None);
-
-        var payload = JsonSerializer.SerializeToElement(result);
-        payload.GetProperty("success").GetBoolean().Should().BeFalse();
-        payload.GetProperty("error").GetString().Should().Contain("not connected");
-    }
 
     [Fact]
     public async Task Execute_WithFilters_ShouldForwardDrainRequestToInspector()

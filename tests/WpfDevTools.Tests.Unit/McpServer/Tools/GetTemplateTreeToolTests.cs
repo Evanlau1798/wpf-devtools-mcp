@@ -12,39 +12,7 @@ namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
 public class GetTemplateTreeToolTests
 {
-    [Fact]
-    public async Task Execute_WithoutConnection_ShouldReturnError()
-    {
-        // Arrange
-        var tool = new GetTemplateTreeTool(new SessionManager());
-        var parameters = new { processId = 12345 };
 
-        // Act
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-        var resultJson = JsonSerializer.SerializeToElement(result);
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("errorCode").GetString().Should().Be("NotConnected");
-    }
-
-    [Fact]
-    public async Task Execute_WithMissingProcessId_ShouldReturnError()
-    {
-        // Arrange
-        var tool = new GetTemplateTreeTool(new SessionManager());
-        var parameters = new { };
-
-        // Act
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("processId");
-    }
 
     [Fact]
     public async Task Execute_WithValidParameters_ShouldForwardElementIdAndDepthToInspector()

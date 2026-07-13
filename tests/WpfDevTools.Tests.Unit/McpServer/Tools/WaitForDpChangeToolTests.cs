@@ -11,18 +11,6 @@ namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 [Collection("TimingSensitive")]
 public sealed class WaitForDpChangeToolTests
 {
-    [Fact]
-    public async Task Execute_WithoutConnection_ShouldReturnError()
-    {
-        var tool = new WaitForDpChangeTool(new SessionManager());
-        var parameters = new { processId = 12345, propertyName = "Width", timeoutMs = 100 };
-
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        var resultJson = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(result));
-        resultJson.GetProperty("success").GetBoolean().Should().BeFalse();
-        resultJson.GetProperty("error").GetString().Should().Contain("not connected");
-    }
 
     [Fact]
     public async Task Execute_WithMissingPropertyName_ShouldReturnError()

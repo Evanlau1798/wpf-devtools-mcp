@@ -49,27 +49,21 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string GetUiBlockCatalog =
         """
-        USE WHEN: You need available block kinds, per-block properties, slot composition rules, renderer availability, or source hints from installed Composer UI packs.
+        USE WHEN: You need pack-defined block kinds, properties, slots, renderers, or source hints before authoring a blueprint.
 
         CATEGORY: UI Composer
 
-        DO NOT USE: Do not use this for live WPF runtime inspection or to read third-party source code. Use scene tools for running target state.
+        DO NOT USE: Do not use this for live target inspection or third-party source retrieval.
 
         RESPONSE SUMMARY:
-        - Returns success, itemCount, items, authoringGuidance, and diagnostics.
-        - Each item includes packId, packVersion, kind, displayName, pack-defined description, category, properties, slots, allowedKinds, rendererAvailable, compositionSkeleton, and sourceHintSummary.
-        - Property and slot description fields explain renderer semantics. A property previewWarning identifies pack-defined final-app checks without executing pack code.
-        - compositionSkeleton is a compact pack-neutral node fragment generated from that block's own required properties and declared slots. Copy it into a blueprint instead of retyping kind and slot names.
-        - authoringGuidance keeps creative-brief selection independent from recipes. Recipes remain optional accelerators or fragments.
-        - Catalog source hints are path summaries only and do not include copied third-party source text.
+        - Returns items with kind, pack-defined description, properties, slots, allowedKinds, renderer availability, compositionSkeleton, previewWarning, and source-hint paths.
+        - compositionSkeleton is a compact pack-neutral node derived from required properties and declared slots.
+        - authoringGuidance keeps brief-first creative decisions independent; recipes remain optional accelerators.
+        - Source hints never copy third-party source text.
 
         REQUEST OPTIONS:
-        - packIds optionally filters by pack id.
-        - category optionally filters by block category.
-        - kindPrefix optionally filters by block kind prefix.
-        - composableOnly=true returns only blocks with available renderer templates.
-        - kind optionally returns single-block detail for an exact pack-qualified block kind.
-        - includeRecipes defaults to false for brief-first discovery. Set true only after choosing an independent creative brief.
+        - Filter with packIds, category, kindPrefix, composableOnly, or exact kind.
+        - includeRecipes defaults to false; enable it only after choosing an independent brief.
 
         EXAMPLES:
         """ + CanonicalExamples;
@@ -191,28 +185,40 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string ApplyUiBlueprint =
         """
-        USE WHEN: You need a project file plan for generated XAML and want writes blocked unless explicit destructive and project-write gates are configured.
+        USE WHEN: You need a dry-run plan or guarded write for generated view XAML.
 
         CATEGORY: UI Composer
 
         DO NOT USE: Do not use this as a general filesystem writer. Non-dry-run writes require WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true, WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true, and an exact WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS match.
 
         RESPONSE SUMMARY:
-        - Dry-run is the default and returns filePlan entries with targetPath, action, riskLevel, resourcePlan, requiredNuGetPackages, packageIntegrationGuidance, viewModelBindingContract, and behaviorIntegrationContract without writing files.
-        - packageIntegrationGuidance uses static XML best-effort ManagePackageVersionsCentrally detection and reports inspectionConfidence, inspectionReason, inspectedFiles, and inspectionLimitations. It returns snippets only for detected project or central modes; mode=unknown omits package snippets and requires project inspection. Composer does not edit project or central package files.
-        - behaviorIntegrationContract preserves every declared command interaction with bindingStatus, raw commandBinding, nullable commandPath, parameter, and verification guidance. Resolve complex bindings before treating controls as functional.
-        - Non-dry-run writes require confirmApply=true, persist generated XAML atomically, are restricted to project-root-relative targetPath under projectRoot, and create a backup when updating an existing view file.
-        - A successful non-dry-run response returns the executed file plan using the pre-write target state: create remains create and update includes its backup path.
-        - Root blocks whose pack renderer declares codeBehindBaseType add x:Class and return a code-behind-integration filePlan entry for that validated pack-defined base type.
-        - Generated files include WPFDEVTOOLS_BLUEPRINT_SOURCE and WPFDEVTOOLS_SAFE_SLOT markers for reversible repair-first workflows.
+        - Dry-run returns filePlan, resourcePlan, requiredNuGetPackages, viewModelBindingContract, behaviorIntegrationContract, and deterministic pack-neutral projectIntegrationPlan.
+        - packageIntegrationGuidance uses static XML best-effort ManagePackageVersionsCentrally detection. It reports inspectionConfidence, inspectedFiles, and inspectionLimitations; mode=unknown omits package snippets. This tool does not edit project or central package files.
+        - Non-dry-run writes require confirmApply=true, stay under projectRoot, write atomically, and return the executed file plan using the pre-write state plus backup paths.
+        - Pack-declared codeBehindBaseType adds x:Class planning. Generated views retain reversible blueprint and safe-slot markers.
 
         REQUEST OPTIONS:
-        - blueprintJson is required and must contain schemaVersion wpfdevtools.ui-blueprint.v1.
-        - projectRoot is required and must be the reviewed local WPF project root.
-        - targetPath optionally supplies a project-root-relative generated view XAML path; absolute paths, .git, App.xaml, project files, ResourceDictionary folders, and ViewModel paths are blocked by default.
-        - dryRun defaults to true. Set false only after reviewing the returned plan and configuring destructive plus project-write gates.
-        - confirmApply defaults to false and must be true for non-dry-run writes after reviewing the dry-run file plan.
-        - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
+        - Pass blueprintJson, the exact reviewed projectRoot, and an optional project-relative targetPath.
+        - dryRun defaults true; set confirmApply=true only after review. localAppDataRoot selects the pack scope.
+
+        EXAMPLES:
+        """ + CanonicalExamples;
+
+    public const string ApplyUiProjectIntegration =
+        """
+        USE WHEN: You reviewed apply_ui_blueprint projectIntegrationPlan and want to apply that exact pack-neutral plan.
+
+        CATEGORY: UI Composer
+
+        DO NOT USE: Do not pass a guessed or stale plan hash. This destructive tool requires WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true, WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true, and an exact WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS match.
+
+        RESPONSE SUMMARY:
+        - Regenerates current pack/project operations and rejects stale reviewedPlanHash with IntegrationPlanChanged before writing.
+        - Applies only plan-generated package, App.xaml, startup, and code-behind operations inside the exact root.
+        - Atomic changes record backupPath and rollbackAction; later failure rolls earlier operations back.
+
+        REQUEST OPTIONS:
+        - blueprintJson, projectRoot, targetPath, reviewedPlanHash, confirmIntegration=true, and pack scope must match the reviewed dry-run.
 
         EXAMPLES:
         """ + CanonicalExamples;

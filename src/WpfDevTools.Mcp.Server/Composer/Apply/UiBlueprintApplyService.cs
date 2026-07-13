@@ -35,6 +35,15 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
         var viewModelContract = CreateViewModelContract(projectRoot, targetPath, render.RequiredNuGetPackages, behaviorContract);
         var codeBehind = CodeBehindIntegrationResolver.Resolve(registry, request.BlueprintJson, targetPath);
         var appliedXaml = AddProjectMainWindowClass(projectRoot, targetPath, render.Xaml, codeBehind);
+        var projectIntegrationPlan = ProjectIntegrationPlanBuilder.Build(
+            registry,
+            request.BlueprintJson,
+            projectRoot,
+            targetPath,
+            appliedXaml,
+            render.RequiredNuGetPackages,
+            render.RequiredResources,
+            codeBehind);
 
         if (request.DryRun)
         {
@@ -56,6 +65,7 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
                 render.RequiredNuGetPackages,
                 viewModelContract with { WouldWrite = false },
                 behaviorContract,
+                projectIntegrationPlan,
                 []);
         }
 
@@ -113,6 +123,7 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
             render.RequiredNuGetPackages,
             viewModelContract with { WouldWrite = false },
             behaviorContract,
+            projectIntegrationPlan,
             []);
     }
 

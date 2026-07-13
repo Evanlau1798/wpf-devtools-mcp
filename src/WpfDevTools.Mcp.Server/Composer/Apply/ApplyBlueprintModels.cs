@@ -21,6 +21,7 @@ internal sealed record ApplyBlueprintResult(
     IReadOnlyList<RequiredNuGetPackage> RequiredNuGetPackages,
     ViewModelBindingContractPlan ViewModelBindingContract,
     BehaviorIntegrationContractPlan BehaviorIntegrationContract,
+    ProjectIntegrationPlan ProjectIntegrationPlan,
     IReadOnlyList<ApplyBlueprintIssue> Errors)
 {
     public static ApplyBlueprintResult CreateValid(
@@ -33,14 +34,15 @@ internal sealed record ApplyBlueprintResult(
         IReadOnlyList<RequiredNuGetPackage> packages,
         ViewModelBindingContractPlan viewModelBindingContract,
         BehaviorIntegrationContractPlan behaviorIntegrationContract,
+        ProjectIntegrationPlan projectIntegrationPlan,
         IReadOnlyList<ApplyBlueprintIssue> errors)
-        => new(true, true, dryRun, requiresConfirmation, wouldWriteFiles, xaml, filePlan, resourcePlan, packages, viewModelBindingContract, behaviorIntegrationContract, errors);
+        => new(true, true, dryRun, requiresConfirmation, wouldWriteFiles, xaml, filePlan, resourcePlan, packages, viewModelBindingContract, behaviorIntegrationContract, projectIntegrationPlan, errors);
 
     public static ApplyBlueprintResult Invalid(
         bool dryRun,
         IReadOnlyList<ApplyBlueprintIssue> errors,
         bool requiresConfirmation = false)
-        => new(false, false, dryRun, requiresConfirmation, false, string.Empty, [], [], [], new ViewModelBindingContractPlan(string.Empty, string.Empty, false), BehaviorIntegrationContractPlan.Empty, errors);
+        => new(false, false, dryRun, requiresConfirmation, false, string.Empty, [], [], [], new ViewModelBindingContractPlan(string.Empty, string.Empty, false), BehaviorIntegrationContractPlan.Empty, ProjectIntegrationPlan.Empty, errors);
 }
 
 internal sealed record ApplyFilePlanItem(

@@ -181,7 +181,7 @@ Response 包含 `repairable`、`generatedXamlPatch=false`、`actionCount` 與 `a
 
 ## `apply_ui_blueprint`
 
-為 UI blueprint 產生 guarded apply plan。預設為 dry-run，讓 Agent 能在任何寫檔前檢查 generated view file path、required resources、package plan 與 binding contract stub。
+為 UI blueprint 產生 guarded apply plan。預設為 dry-run，讓 Agent 能在任何寫檔前檢查 generated view file path、required resources、package plan、binding contract stub 與 deterministic `projectIntegrationPlan`。
 
 Request options:
 
@@ -194,18 +194,29 @@ Request options:
 
 非 dry-run 寫入需要 `confirmApply=true`、`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，且 `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` 必須 exact match。成功的 confirmed response 會保留依照寫入前 target 狀態執行的 file plan：新寫入檔案仍為 `action="create"`，既有檔案仍為 `action="update"` 並回報 backup path。此 tool 會拒絕 `projectRoot` 外的路徑、更新既有 view 前建立 backup、加入 `WPFDEVTOOLS_BLUEPRINT_SOURCE` header、保留 `WPFDEVTOOLS_SAFE_SLOT` manual-edit markers，且不會執行 NuGet restore。
 
+Dry-run 的 `projectIntegrationPlan` 保持 pack-neutral。Operations 會列出 package references、application resources、startup selection 與 pack-declared code-behind base types 的 exact target paths、semantic purposes、current-file preconditions 與 proposed SHA-256。為避免 ungated dry-run 洩漏既有 project-file 內容，response 不會回傳完整 proposed content；plan hash 會把 reviewed semantic operations 綁定到 exact proposed content 與目前 file state。
+
+## `apply_ui_project_integration`
+
+只套用最新 `apply_ui_blueprint` dry-run 回傳的 `projectIntegrationPlan`。呼叫時必須傳入相同的 `blueprintJson`、`projectRoot`、`targetPath` 與 pack discovery scope，再加上 `reviewedPlanHash` 及 `confirmIntegration=true`。
+
+此 destructive tool 需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，且 `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` 必須 exact match。它會在寫入前立即重新產生 plan；pack、blueprint、target 或 project file 只要有任何變更，就會回傳 `IntegrationPlanChanged`，且不會寫入。
+
+只允許 plan-generated package-reference、central-package-version、application-XAML 與 code-behind-base-type operations。Package IDs、XAML namespaces、resources 與 base types 全部來自 selected packs，engine 不包含 control-library branch。既有檔案會使用 atomic replacement，每個 returned change 都會記錄 `backupPath` 與 `rollbackAction`。後續 operation 失敗時會 rollback 先前變更，response 也會回報 rollback 是否完成。
+
 ## 從 apply 到可執行應用程式
 
 `apply_ui_blueprint` 只會寫入經審查的 view XAML；它不會暗中修改 project file、application resources、code-behind、ViewModel 或 startup flow。請把 response 內的 plans 當成 authoritative integration checklist：
 
-1. 先執行 dry apply，檢查 `filePlan`、`requiredNuGetPackages`、`packageIntegrationGuidance`、`resourcePlan`、`viewModelBindingContract` 與 `behaviorIntegrationContract`。
+1. 先執行 dry apply，檢查 `filePlan`、`requiredNuGetPackages`、`packageIntegrationGuidance`、`resourcePlan`、`viewModelBindingContract`、`behaviorIntegrationContract` 與 `projectIntegrationPlan`。
 2. 只有在 project-root gates 已精確限制到目標專案後，才執行 confirmed apply。
-3. 依 `packageIntegrationGuidance` 處理每個 pack-declared package。偵測是 static XML best-effort；每個結果都會回報 `inspectionConfidence`、`inspectionReason`、`inspectedFiles` 與 `inspectionLimitations`，並明確說明未 evaluate MSBuild imports 與 conditions。`mode="project"` 時，把各 `projectPackageReference` 加入回報的 project file。因 `ManagePackageVersionsCentrally=true` 而得到 `mode="central"` 時，把 versionless `projectPackageReference` 加入 project，並把對應 `centralPackageVersion` 加入 `Directory.Packages.props`。`mode="unknown"` 時 package snippets 為 null；請先檢查 project，不可自行推測 integration shape。Composer 不會編輯這兩種檔案。
-4. 依每個 pack 的需求，把 `resourcePlan` entries 加入 application resource location。該 plan 已反映 blueprint 的 `resourceVariants` selections 或各 pack default。請以回傳的 pack data 為準，不要假設特定 library namespace 或 dictionary。
-5. 若 `filePlan` 包含 `role="code-behind-integration"`，請依 action 與 pack renderer 驗證過的 `codeBehindBaseType`，讓 generated XAML `x:Class` 與 code-behind 繼承相同 type。Composer 只規劃此變更，不會寫入 code-behind。
+3. `projectIntegrationPlan.ready=true` 時，只有在檢查所有 operations 後，才以其 exact `reviewedPlanHash` 呼叫 `apply_ui_project_integration`。Stale hash 會以 `IntegrationPlanChanged` 失敗；成功的 changes 會包含 `backupPath` 與 rollback evidence。
+4. Machine-applicable plan 尚未 ready 時，才依 `packageIntegrationGuidance` 手動處理每個 pack-declared package。偵測是 static XML best-effort；每個結果都會回報 `inspectionConfidence`、`inspectionReason`、`inspectedFiles` 與 `inspectionLimitations`，並明確說明未 evaluate MSBuild imports 與 conditions。`mode="project"` 時，把各 `projectPackageReference` 加入回報的 project file。因 `ManagePackageVersionsCentrally=true` 而得到 `mode="central"` 時，把 versionless `projectPackageReference` 加入 project，並把對應 `centralPackageVersion` 加入 `Directory.Packages.props`。`mode="unknown"` 時 package snippets 為 null；請先檢查 project，不可自行推測 integration shape。
+5. 只有在 ready reviewed integration plan 未涵蓋時，才依每個 pack 的需求手動把 `resourcePlan` entries 加入 application resource location。該 plan 已反映 blueprint 的 `resourceVariants` selections 或各 pack default。請以回傳的 pack data 為準，不要假設特定 library namespace 或 dictionary。
+6. 若 `filePlan` 包含 `role="code-behind-integration"` 且 reviewed integration plan 尚未 ready，請依 action 與 pack renderer 驗證過的 `codeBehindBaseType`，讓 generated XAML `x:Class` 與 code-behind 繼承相同 type。
 
-6. 將 `behaviorIntegrationContract.status="required"` 視為 release gate。每個 interaction 都包含 `bindingStatus`、raw `commandBinding` 與 nullable parsed `commandPath`。即使 complex valid WPF binding 的 path 無法解析，它仍是 required interaction，必須在 final view 完成解析。Navigation command 會收到 `commandParameter`，且必須更新 selected application state 與 destination content；action command 必須產生可觀察的應用程式行為，並提供合適的 `CanExecute` policy。這些是 application contracts，不是自動生成的 business logic。
-7. 分開執行 restore、build 與實際 application launch：
+7. 將 `behaviorIntegrationContract.status="required"` 視為 release gate。每個 interaction 都包含 `bindingStatus`、raw `commandBinding` 與 nullable parsed `commandPath`。即使 complex valid WPF binding 的 path 無法解析，它仍是 required interaction，必須在 final view 完成解析。Navigation command 會收到 `commandParameter`，且必須更新 selected application state 與 destination content；action command 必須產生可觀察的應用程式行為，並提供合適的 `CanExecute` policy。這些是 application contracts，不是自動生成的 business logic。
+8. 分開執行 restore、build 與實際 application launch：
 
    ```powershell
    dotnet restore .\YourApp.csproj
@@ -213,6 +224,6 @@ Request options:
    dotnet run --project .\YourApp.csproj --no-build
    ```
 
-8. 驗證實際執行中的 app，而不只檢查 structural preview。使用 `connect`、`get_ui_summary`、focused element reads 與 `element_screenshot(outputMode="file")`。逐一觸發 `behaviorIntegrationContract` 中的 interaction，確認 state 或 visible content 發生變化。任何 diagnostic mutation 都應搭配 `capture_state_snapshot`、`get_state_diff` 與 `restore_state_snapshot`。
+9. 驗證實際執行中的 app，而不只檢查 structural preview。使用 `connect`、`get_ui_summary`、focused element reads 與 `element_screenshot(outputMode="file")`。逐一觸發 `behaviorIntegrationContract` 中的 interaction，確認 state 或 visible content 發生變化。任何 diagnostic mutation 都應搭配 `capture_state_snapshot`、`get_state_diff` 與 `restore_state_snapshot`。
 
 不要因為 generated application 可以 compile，或 button 顯示為 click-ready 就核准結果。Command-bound control 必須完成 DataContext command，且在 launched application 中驗證可觀察結果後，才算完整。

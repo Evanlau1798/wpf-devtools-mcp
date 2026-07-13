@@ -182,7 +182,7 @@ The response includes `repairable`, `generatedXamlPatch=false`, `actionCount`, a
 
 ## `apply_ui_blueprint`
 
-Produces a guarded apply plan for a UI blueprint. The default is dry-run, so agents can inspect the generated view file path, required resources, package plan, and binding contract stub before any write is allowed.
+Produces a guarded apply plan for a UI blueprint. The default is dry-run, so agents can inspect the generated view file path, required resources, package plan, binding contract stub, and deterministic `projectIntegrationPlan` before any write is allowed.
 
 Request options:
 
@@ -195,18 +195,29 @@ Request options:
 
 Non-dry-run writes require `confirmApply=true`, `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`, `WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`, and an exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match. A successful confirmed response preserves the executed file plan from the pre-write target state: a newly written file remains `action="create"`, while an existing file remains `action="update"` and reports its backup path. The tool rejects paths outside `projectRoot`, creates a backup when updating an existing view, includes a `WPFDEVTOOLS_BLUEPRINT_SOURCE` header, preserves `WPFDEVTOOLS_SAFE_SLOT` manual-edit markers, and does not run NuGet restore.
 
+The dry-run `projectIntegrationPlan` is pack-neutral. Its operations name exact target paths, semantic purposes, current-file preconditions, and proposed SHA-256 values for package references, application resources, startup selection, and pack-declared code-behind base types. It does not expose full existing project-file content through an ungated dry-run. The plan hash binds the reviewed semantic operations to the exact proposed content and current file state.
+
+## `apply_ui_project_integration`
+
+Applies only the `projectIntegrationPlan` returned by the latest `apply_ui_blueprint` dry-run. Pass the same `blueprintJson`, `projectRoot`, `targetPath`, and pack discovery scope together with `reviewedPlanHash` and `confirmIntegration=true`.
+
+This destructive tool requires `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`, `WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`, and an exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match. It regenerates the plan immediately before writing. Any pack, blueprint, target, or project-file change produces `IntegrationPlanChanged` and no write occurs.
+
+Only plan-generated package-reference, central-package-version, application-XAML, and code-behind-base-type operations are permitted. Package IDs, XAML namespaces, resources, and base types come from the selected packs; the engine contains no control-library branch. Existing files use atomic replacement and each returned change records `backupPath` plus `rollbackAction`. If a later operation fails, earlier changes are rolled back and the response reports whether rollback completed.
+
 ## Apply-to-build workflow
 
 `apply_ui_blueprint` writes reviewed view XAML; it does not silently edit the project file, application resources, code-behind, ViewModel, or startup flow. Use the returned plans as the authoritative integration checklist:
 
-1. Run dry apply and review `filePlan`, `requiredNuGetPackages`, `packageIntegrationGuidance`, `resourcePlan`, `viewModelBindingContract`, and `behaviorIntegrationContract`.
+1. Run dry apply and review `filePlan`, `requiredNuGetPackages`, `packageIntegrationGuidance`, `resourcePlan`, `viewModelBindingContract`, `behaviorIntegrationContract`, and `projectIntegrationPlan`.
 2. Run confirmed apply only after the project-root gates are scoped to the intended project.
-3. Follow `packageIntegrationGuidance` for every pack-declared package. Detection is static XML best-effort; every result reports `inspectionConfidence`, `inspectionReason`, `inspectedFiles`, and `inspectionLimitations`, including the lack of evaluated MSBuild imports and conditions. When `mode="project"`, add each returned `projectPackageReference` to the reported project file. When `mode="central"` because `ManagePackageVersionsCentrally=true`, add the versionless `projectPackageReference` to the project and the matching `centralPackageVersion` to `Directory.Packages.props`. When `mode="unknown"`, package snippets are null: inspect the project first and do not infer either integration shape. Composer does not edit either file.
-4. Apply each entry in `resourcePlan` to the application resource location required by that pack. The plan already reflects the blueprint's `resourceVariants` selections or each pack's default. Treat the returned pack data as authoritative; do not assume a specific library namespace or dictionary.
-5. If `filePlan` contains `role="code-behind-integration"`, use its action and the pack renderer's validated `codeBehindBaseType` so generated XAML `x:Class` and code-behind inherit the same type. Composer plans this change but does not write code-behind.
+3. When `projectIntegrationPlan.ready=true`, call `apply_ui_project_integration` with its exact `reviewedPlanHash` only after reviewing every operation. A stale hash fails with `IntegrationPlanChanged`; successful changes include `backupPath` and rollback evidence.
+4. When the machine-applicable plan is not ready, follow `packageIntegrationGuidance` manually for every pack-declared package. Detection is static XML best-effort; every result reports `inspectionConfidence`, `inspectionReason`, `inspectedFiles`, and `inspectionLimitations`, including the lack of evaluated MSBuild imports and conditions. When `mode="project"`, add each returned `projectPackageReference` to the reported project file. When `mode="central"` because `ManagePackageVersionsCentrally=true`, add the versionless `projectPackageReference` to the project and the matching `centralPackageVersion` to `Directory.Packages.props`. When `mode="unknown"`, package snippets are null: inspect the project first and do not infer either integration shape.
+5. Apply each entry in `resourcePlan` manually only when it is not covered by a ready reviewed integration plan. The plan already reflects the blueprint's `resourceVariants` selections or each pack's default. Treat the returned pack data as authoritative; do not assume a specific library namespace or dictionary.
+6. If `filePlan` contains `role="code-behind-integration"` and the reviewed integration plan is not ready, use its action and the pack renderer's validated `codeBehindBaseType` so generated XAML `x:Class` and code-behind inherit the same type.
 
-6. Treat `behaviorIntegrationContract.status="required"` as a release gate. Each interaction includes `bindingStatus`, raw `commandBinding`, and a nullable parsed `commandPath`. Complex valid WPF bindings remain required when their path is unresolved; resolve them in the final view. Navigation commands receive `commandParameter` and must update selected application state and destination content; action commands must perform observable application behavior and expose an appropriate `CanExecute` policy. These are application contracts, not generated business logic.
-7. Restore, build, and launch the actual application separately:
+7. Treat `behaviorIntegrationContract.status="required"` as a release gate. Each interaction includes `bindingStatus`, raw `commandBinding`, and a nullable parsed `commandPath`. Complex valid WPF bindings remain required when their path is unresolved; resolve them in the final view. Navigation commands receive `commandParameter` and must update selected application state and destination content; action commands must perform observable application behavior and expose an appropriate `CanExecute` policy. These are application contracts, not generated business logic.
+8. Restore, build, and launch the actual application separately:
 
    ```powershell
    dotnet restore .\YourApp.csproj
@@ -214,6 +225,6 @@ Non-dry-run writes require `confirmApply=true`, `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTI
    dotnet run --project .\YourApp.csproj --no-build
    ```
 
-8. Validate the running app, not only the structural preview. Use `connect`, `get_ui_summary`, focused element reads, and `element_screenshot(outputMode="file")`. Invoke every interaction from `behaviorIntegrationContract` and verify a state or visible content change. For any diagnostic mutation, use `capture_state_snapshot`, `get_state_diff`, and `restore_state_snapshot`.
+9. Validate the running app, not only the structural preview. Use `connect`, `get_ui_summary`, focused element reads, and `element_screenshot(outputMode="file")`. Invoke every interaction from `behaviorIntegrationContract` and verify a state or visible content change. For any diagnostic mutation, use `capture_state_snapshot`, `get_state_diff`, and `restore_state_snapshot`.
 
 Do not approve a generated application merely because it compiles or because a button reports click-ready. A command-bound control remains incomplete until its DataContext command and observable result have been implemented and verified in the launched application.

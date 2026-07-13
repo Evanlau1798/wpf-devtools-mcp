@@ -25,6 +25,7 @@ public sealed class McpToolPrerequisiteDescriptionTests
         "render_ui_blueprint",
         "repair_ui_blueprint",
         "apply_ui_blueprint",
+        "apply_ui_project_integration",
         "preview_ui_blueprint"
     };
 
@@ -63,6 +64,24 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("mode=unknown");
         description.Should().Contain("omits package snippets");
         description.Should().Contain("does not edit project or central package files");
+    }
+
+    [Fact]
+    public void ApplyUiProjectIntegrationDescription_ShouldNameReviewAndRollbackContract()
+    {
+        var description = GetMcpTools()
+            .Single(tool => string.Equals(tool.Name, "apply_ui_project_integration", StringComparison.Ordinal))
+            .Description;
+
+        description.Should().ContainAll(
+            McpServerConfiguration.AllowDestructiveToolsEnvVar,
+            McpServerConfiguration.AllowProjectWritesEnvVar,
+            McpServerConfiguration.AllowedProjectRootsEnvVar,
+            "reviewedPlanHash",
+            "IntegrationPlanChanged",
+            "backupPath",
+            "rollbackAction",
+            "pack-neutral");
     }
 
     [Fact]

@@ -378,6 +378,7 @@ public static partial class UiComposerMcpTools
             packageIntegrationGuidance = PackageIntegrationPlanner.Create(projectRoot, result.RequiredNuGetPackages),
             result.ViewModelBindingContract,
             result.BehaviorIntegrationContract,
+            result.ProjectIntegrationPlan,
             result.Errors,
             observability = ComposerObservability.ForApply(result)
         };

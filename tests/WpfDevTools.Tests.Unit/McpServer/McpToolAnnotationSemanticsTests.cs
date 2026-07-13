@@ -22,6 +22,18 @@ public class McpToolAnnotationSemanticsTests
     }
 
     [Fact]
+    public void ApplyUiProjectIntegration_ShouldAdvertiseDestructiveProjectWrites()
+    {
+        var method = typeof(UiComposerMcpTools).GetMethod(nameof(UiComposerMcpTools.ApplyUiProjectIntegration));
+        method.Should().NotBeNull();
+
+        var attribute = method!.GetCustomAttribute<McpServerToolAttribute>();
+        attribute.Should().NotBeNull();
+        attribute!.ReadOnly.Should().BeFalse();
+        attribute.Destructive.Should().BeTrue();
+    }
+
+    [Fact]
     public void WatchDpChanges_ShouldAdvertiseStatefulNonDestructiveRegistration()
     {
         var method = typeof(DependencyPropertyMcpTools).GetMethod(nameof(DependencyPropertyMcpTools.WatchDpChanges));

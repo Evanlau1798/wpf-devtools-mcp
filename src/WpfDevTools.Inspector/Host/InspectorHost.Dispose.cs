@@ -92,10 +92,10 @@ public sealed partial class InspectorHost
 
         try
         {
-            bool completed = stopCompletionTask.Wait(InspectorConfig.ShutdownTimeout);
+            bool completed = stopCompletionTask.Wait(_shutdownTimeout);
             if (!completed)
             {
-                LogError($"Stop finalization did not complete within {InspectorConfig.ShutdownTimeout.TotalMilliseconds}ms timeout");
+                LogError($"Stop finalization did not complete within {_shutdownTimeout.TotalMilliseconds}ms timeout");
             }
         }
         catch (AggregateException ex) when (

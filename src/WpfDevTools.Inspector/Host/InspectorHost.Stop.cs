@@ -117,10 +117,10 @@ public sealed partial class InspectorHost
         {
             var completedTask = await Task.WhenAny(
                 serverTask,
-                Task.Delay(InspectorConfig.ShutdownTimeout)).ConfigureAwait(false);
+                Task.Delay(_shutdownTimeout)).ConfigureAwait(false);
             if (!ReferenceEquals(completedTask, serverTask))
             {
-                LogError($"Server task did not complete within {InspectorConfig.ShutdownTimeout.TotalMilliseconds}ms timeout");
+                LogError($"Server task did not complete within {_shutdownTimeout.TotalMilliseconds}ms timeout");
                 return false;
             }
 
@@ -161,11 +161,11 @@ public sealed partial class InspectorHost
     {
         try
         {
-            bool completed = stopTask.Wait(InspectorConfig.ShutdownTimeout);
+            bool completed = stopTask.Wait(_shutdownTimeout);
             if (!completed)
             {
                 throw new TimeoutException(
-                    $"Timed out after {InspectorConfig.ShutdownTimeout.TotalMilliseconds}ms while waiting for InspectorHost startup cleanup.");
+                    $"Timed out after {_shutdownTimeout.TotalMilliseconds}ms while waiting for InspectorHost startup cleanup.");
             }
         }
         catch (AggregateException ex) when (

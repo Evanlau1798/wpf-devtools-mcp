@@ -191,10 +191,10 @@ public sealed partial class InspectorHost
 
         try
         {
-            bool completed = serverTask.Wait(InspectorConfig.ShutdownTimeout);
+            bool completed = serverTask.Wait(_shutdownTimeout);
             if (!completed)
             {
-                LogError($"Server task did not complete within {InspectorConfig.ShutdownTimeout.TotalMilliseconds}ms timeout during startup cleanup");
+                LogError($"Server task did not complete within {_shutdownTimeout.TotalMilliseconds}ms timeout during startup cleanup");
             }
         }
         catch (AggregateException ex) when (

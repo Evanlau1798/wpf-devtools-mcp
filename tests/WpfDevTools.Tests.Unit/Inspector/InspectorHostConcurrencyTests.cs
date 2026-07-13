@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Diagnostics;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
@@ -130,7 +131,13 @@ public partial class InspectorHostConcurrencyTests : IDisposable
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var serverTaskSource = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        using var host = new InspectorHost(pid);
+        using var host = new InspectorHost(
+            pid,
+            $"WpfDevTools_{pid}",
+            authManager: null,
+            certManager: null,
+            FileLogLevel.Warning,
+            shutdownTimeout: TimeSpan.FromMilliseconds(100));
         SetPrivateField(host, "_serverTask", serverTaskSource.Task);
         SetPrivateField(host, "_cancellationTokenSource", new CancellationTokenSource());
         SetPrivateField(host, "_lifecycleState", 2);
@@ -138,9 +145,12 @@ public partial class InspectorHostConcurrencyTests : IDisposable
 
         await Task.Run(() => host.Stop());
 
+        var timeoutDuration = Stopwatch.StartNew();
         var timedOutRestart = Task.Run(() => host.Start());
         var timeoutException = await Assert.ThrowsAsync<TimeoutException>(() => timedOutRestart);
+        timeoutDuration.Stop();
         timeoutException.Message.Should().Contain("Timed out after");
+        timeoutDuration.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(2));
         host.IsRunning.Should().BeFalse();
 
         using var blockedRestartEntered = new ManualResetEventSlim(initialState: false);

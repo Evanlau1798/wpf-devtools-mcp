@@ -39,6 +39,7 @@ public sealed partial class InspectorHost : IDisposable
     private readonly Func<NamedPipeServerStream>? _pipeServerFactory;
     private readonly Action? _beforeStartupCompletion;
     private readonly TimeSpan _startupTimeout;
+    private readonly TimeSpan _shutdownTimeout;
     private readonly TimeSpan _requestTimeout;
     private readonly TimeSpan _sessionReadTimeout;
     private NamedPipeServerStream? _pipeServer;
@@ -152,7 +153,8 @@ public sealed partial class InspectorHost : IDisposable
         Action? beforeStartupCompletion = null,
         TimeSpan? requestTimeout = null,
         Action<RequestDispatcher>? configureDispatcherForTesting = null,
-        TimeSpan? sessionReadTimeout = null)
+        TimeSpan? sessionReadTimeout = null,
+        TimeSpan? shutdownTimeout = null)
     {
         _processId = processId;
         _pipeName = string.IsNullOrWhiteSpace(pipeName)
@@ -170,6 +172,7 @@ public sealed partial class InspectorHost : IDisposable
         _challengeGenerator = new ChallengeGenerator();
         _pipeServerFactory = pipeServerFactory;
         _startupTimeout = startupTimeout ?? InspectorConfig.PipeConnectTimeout;
+        _shutdownTimeout = shutdownTimeout ?? InspectorConfig.ShutdownTimeout;
         _requestTimeout = requestTimeout ?? InspectorConfig.RequestTimeout;
         _beforeStartupCompletion = beforeStartupCompletion;
         _sessionReadTimeout = sessionReadTimeout ?? InspectorConfig.IdleConnectionTimeout;

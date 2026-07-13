@@ -36,6 +36,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             "<inline-blueprint>",
             UiComposerSchemaVersions.UiBlueprint);
         var context = RenderContext.Create(registry, blueprint.Packs);
+        ReserveExistingElementNames(blueprint.Layout, blueprint.Packs, context.ReservedElementNames);
         var errors = new List<BlueprintValidationIssue>();
         var sourceMap = new List<RenderSourceMapEntry>();
         var elementCorrelations = new List<RenderElementCorrelation>();
@@ -100,7 +101,12 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         rendered = EmptyPropertyElementPattern.Replace(rendered, string.Empty);
         if (includeTransientElementCorrelation)
         {
-            rendered = AddTransientElementCorrelation(rendered, path, node.Kind, elementCorrelations);
+            rendered = AddTransientElementCorrelation(
+                rendered,
+                path,
+                node.Kind,
+                context.ReservedElementNames,
+                elementCorrelations);
         }
 
         sourceMap.Add(new RenderSourceMapEntry(path, node.Kind, templateResult.Template.TemplatePath, rendered));
@@ -412,6 +418,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             RequiredResources = resources;
             XmlNamespaces = xmlNamespaces;
             Diagnostics = diagnostics;
+            ReservedElementNames = new HashSet<string>(StringComparer.Ordinal);
         }
 
         public IReadOnlyDictionary<string, UiBlockDefinition> Blocks { get; }
@@ -419,6 +426,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         public IReadOnlyList<string> RequiredResources { get; }
         public IReadOnlyDictionary<string, string> XmlNamespaces { get; }
         public IReadOnlyList<string> Diagnostics { get; }
+        public HashSet<string> ReservedElementNames { get; }
 
         public static RenderContext Create(PackRegistry registry, IReadOnlyList<ComposerPackReference> declaredPacks)
         {

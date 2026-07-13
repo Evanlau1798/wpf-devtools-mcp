@@ -11,7 +11,10 @@ internal sealed record PreviewBlueprintRequest(
     bool StartHost = false,
     bool IncludeRuntimeDiagnostics = false,
     bool IncludeScreenshotDiagnostics = false,
-    string ScreenshotOutputMode = "metadata");
+    string ScreenshotOutputMode = "metadata")
+{
+    public IReadOnlyList<RenderElementCorrelation> RuntimeElementCorrelations { get; init; } = [];
+}
 
 internal sealed record DotnetCommandResult(bool Succeeded, bool Cancelled);
 
@@ -80,3 +83,5 @@ internal sealed record PreviewRuntimeDiagnostic(
     string Tool,
     bool Success,
     JsonElement Payload);
+
+internal sealed record PreviewCorrelationLookup(string Query, string MatchMode);

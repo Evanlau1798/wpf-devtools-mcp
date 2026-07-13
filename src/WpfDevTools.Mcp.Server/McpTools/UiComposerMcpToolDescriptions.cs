@@ -226,7 +226,7 @@ internal static class UiComposerMcpToolDescriptions
         - elementCorrelations maps each renderer root's transient x:Name to its blueprint jsonPath and blockKind. These names are never written into the blueprint or emitted by render/apply.
         - restoreEnabled=false runs dotnet build --no-restore and returns missing-assets diagnostics when the temporary project has not been restored.
         - startHost=true starts the temporary host after build, waits for an explicit generated-view load sentinel, then terminates the process tree.
-        - includeRuntimeDiagnostics=true with startHost=true reuses connect(), get_ui_summary(depthMode="semantic"), one focused find_elements correlation lookup, and get_layout_info against the temporary preview host.
+        - includeRuntimeDiagnostics=true with startHost=true reuses connect(), semantic summary, a bounded correlation lookup plan covering generated and renderer-provided names, and layout diagnostics.
         - includeScreenshotDiagnostics=true with startHost=true enables runtime diagnostics and adds element_screenshot using screenshotOutputMode only when the screenshot policy gate allows it.
         - screenshotOutputMode="file" returns a resource-backed PNG that remains readable after the temporary preview host exits.
         - Compile failures map back to the compiler line/column source-map entry and renderer template path when available; restore/build infrastructure failures stay at $.layout.

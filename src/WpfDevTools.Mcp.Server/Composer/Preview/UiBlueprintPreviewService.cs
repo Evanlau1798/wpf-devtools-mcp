@@ -32,6 +32,7 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
             .Render(new RenderBlueprintRequest(
                 request.BlueprintJson,
                 IncludeTransientElementCorrelation: true));
+        request = request with { RuntimeElementCorrelations = render.ElementCorrelations };
         var rendererTemplatePath = ResolveRootRendererTemplatePath(request.BlueprintJson);
         if (!render.Valid)
         {

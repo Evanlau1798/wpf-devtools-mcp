@@ -151,7 +151,7 @@ Request options:
 - `blueprintJson`: required UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`。
 - `restoreEnabled`: optional boolean，預設為 true。false 時 temporary project 會用 `--no-restore` build，以便 deterministic 驗證 missing-restore diagnostics。
 - `startHost`: optional boolean，預設為 false。true 時 successful build 後會啟動 temporary preview host，並回報 generated-view load status。
-- `includeRuntimeDiagnostics`: optional boolean，預設為 false。搭配 `startHost=true` 時，會對 temporary host 重用 `connect`、`get_ui_summary(depthMode="semantic")`、一次 focused `find_elements` correlation lookup 與 `get_layout_info`。這需要 `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`。
+- `includeRuntimeDiagnostics`: optional boolean，預設為 false。搭配 `startHost=true` 時，會對 temporary host 重用 `connect`、`get_ui_summary(depthMode="semantic")`、涵蓋 generated 與 renderer-provided correlation names 的 bounded `find_elements` lookup plan，以及 `get_layout_info`。這需要 `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`。
 - `includeScreenshotDiagnostics`: optional boolean，預設為 false。搭配 `startHost=true` 時會啟用 runtime diagnostics，且只有在 `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` 與 `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` 同時允許時才會要求 screenshot。
 - `screenshotOutputMode`: optional closed value，預設為 `metadata`；需要保留 server-owned PNG 時使用 `file`，response 會回傳 `resourceUri` 與精確的 `resourceRead` request。Temporary preview host 結束後、server session 結束前，必須在相同 MCP server session 以 `resourceRead.method`（`resources/read`）和 `resourceRead.params` 讀取。其他值（包含 `base64`）會在 preview work 開始前回傳 `InvalidArgument`。
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
@@ -161,7 +161,7 @@ Request options:
 
 `propertyWarnings` array 只包含 submitted blueprint 明確使用之 properties 的 pack-defined warnings。每個 entry 都會回報精確的 `jsonPath`、`blockKind`、`propertyName` 與 `message`，讓 Agent 將 final-app validation 聚焦在受影響的 layout 或 styling decision，而不必把所有 structural-preview limitation 視為同等相關。
 
-`elementCorrelations` array 會將每個 renderer root 的 transient `x:Name`（`elementName`）對應到精確 blueprint `jsonPath` 與 `blockKind`。Agent 可把該 name 與 `get_ui_summary` 或 focused runtime result 配對，將 preview evidence 連回 authored node。Correlation name 只存在 temporary preview XAML，不會寫入或儲存在 blueprint，也不會由一般 render 或 apply workflow 輸出。
+`elementCorrelations` array 會將每個 renderer root 的 transient 或 safely preserved `x:Name`（`elementName`）對應到精確 blueprint `jsonPath` 與 `blockKind`。Generated names 會避開 active renderer templates 保留的所有 names；runtime diagnostics 只查詢一次 generated prefix，並以 fixed upper bound 對 distinct renderer-provided names 做 exact query。Agent 可把結果與 `get_ui_summary` 配對，將 preview evidence 連回 authored node。Correlation metadata 不會寫入 blueprint 或由一般 render/apply 輸出；既有 renderer name 不會被改寫，因此 `ElementName` binding 仍可運作。
 
 ## `repair_ui_blueprint`
 

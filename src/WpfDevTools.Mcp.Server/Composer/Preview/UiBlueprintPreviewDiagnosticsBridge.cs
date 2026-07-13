@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using WpfDevTools.Mcp.Server.Composer.Rendering;
 using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
 
@@ -8,12 +9,14 @@ namespace WpfDevTools.Mcp.Server.Composer.Preview;
 internal static class UiBlueprintPreviewDiagnosticsBridge
 {
     private const int ToolTimeoutSeconds = 60;
+    private const int ExistingNameLookupLimit = 32;
 
     internal static async Task<IReadOnlyList<PreviewRuntimeDiagnostic>> CaptureAsync(
         SessionManager sessionManager,
         Process previewProcess,
         bool includeScreenshotDiagnostics,
         string screenshotOutputMode,
+        IReadOnlyList<RenderElementCorrelation> elementCorrelations,
         CancellationToken cancellationToken)
     {
         var processId = previewProcess.Id;
@@ -44,17 +47,20 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                     ct),
                 cancellationToken).ConfigureAwait(false));
 
-            diagnostics.Add(await RunGatedAsync(
-                policy,
-                "find_elements",
-                ct => new FindElementsTool(sessionManager).ExecuteAsync(
-                    ToolCallHelper.BuildJsonArgs(
-                        ("processId", processId),
-                        ("query", "WpfDevToolsBp_"),
-                        ("matchMode", "contains"),
-                        ("maxResults", 500)),
-                    ct),
-                cancellationToken).ConfigureAwait(false));
+            foreach (var lookup in BuildCorrelationLookupPlan(elementCorrelations))
+            {
+                diagnostics.Add(await RunGatedAsync(
+                    policy,
+                    "find_elements",
+                    ct => new FindElementsTool(sessionManager).ExecuteAsync(
+                        ToolCallHelper.BuildJsonArgs(
+                            ("processId", processId),
+                            ("query", lookup.Query),
+                            ("matchMode", lookup.MatchMode),
+                            ("maxResults", 500)),
+                        ct),
+                    cancellationToken).ConfigureAwait(false));
+            }
 
             diagnostics.Add(await RunGatedAsync(
                 policy,
@@ -90,6 +96,25 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
 
             sessionManager.RemoveSession(processId);
         }
+    }
+
+    internal static IReadOnlyList<PreviewCorrelationLookup> BuildCorrelationLookupPlan(
+        IReadOnlyList<RenderElementCorrelation> correlations)
+    {
+        var plan = new List<PreviewCorrelationLookup>();
+        if (correlations.Any(item => item.ElementName.StartsWith("WpfDevToolsBp_", StringComparison.Ordinal)))
+        {
+            plan.Add(new PreviewCorrelationLookup("WpfDevToolsBp_", "contains"));
+        }
+
+        plan.AddRange(correlations
+            .Select(item => item.ElementName)
+            .Where(name => !name.StartsWith("WpfDevToolsBp_", StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .Take(ExistingNameLookupLimit)
+            .Select(name => new PreviewCorrelationLookup(name, "exact")));
+        return plan;
     }
 
     private static string? GetRegisteredFileScreenshotId(

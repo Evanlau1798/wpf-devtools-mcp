@@ -44,8 +44,79 @@ public sealed class ComposerPreviewCorrelationTests
         Blueprint().Should().NotContain("WpfDevToolsBp_");
     }
 
+    [Fact]
+    public void Renderer_ShouldAvoidNamesReservedByPackTemplates()
+    {
+        var projectRoot = CreateNamedPack("WpfDevToolsBp_0000");
+        try
+        {
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot)).Render(
+                new RenderBlueprintRequest(NamedBlueprint(), IncludeTransientElementCorrelation: true));
+
+            result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+            result.ElementCorrelations.Select(item => item.ElementName).Should().OnlyHaveUniqueItems();
+            result.ElementCorrelations.Should().Contain(item => item.ElementName == "WpfDevToolsBp_0000");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
+    [Fact]
+    public void CorrelationLookupPlan_ShouldCoverGeneratedAndRendererProvidedNames()
+    {
+        var projectRoot = CreateNamedPack("RendererRoot");
+        try
+        {
+            var render = new UiBlueprintRenderer(CreateRegistry(projectRoot)).Render(
+                new RenderBlueprintRequest(NamedBlueprint(), IncludeTransientElementCorrelation: true));
+
+            var plan = UiBlueprintPreviewDiagnosticsBridge.BuildCorrelationLookupPlan(render.ElementCorrelations);
+
+            plan.Should().Contain(item => item.Query == "WpfDevToolsBp_" && item.MatchMode == "contains");
+            plan.Should().Contain(item => item.Query == "RendererRoot" && item.MatchMode == "exact");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
     private static PackRegistry CreateRegistry()
         => PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
+
+    private static PackRegistry CreateRegistry(string projectRoot)
+        => new(
+            ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),
+            ComposerPackPaths.ProjectLocalRoot(projectRoot));
+
+    private static string CreateNamedPack(string rootName)
+    {
+        var projectRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-correlation-" + Guid.NewGuid().ToString("N"));
+        var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", "named", "1.0.0");
+        Directory.CreateDirectory(Path.Combine(packRoot, "blocks"));
+        Directory.CreateDirectory(Path.Combine(packRoot, "renderers", "xaml"));
+        File.WriteAllText(Path.Combine(packRoot, "pack.json"),
+            """{"schemaVersion":"wpfdevtools.ui-pack.v1","id":"named","kind":"control-pack","displayName":"Named","version":"1.0.0","blocks":["named.root","named.child"],"recipes":[]}""");
+        File.WriteAllText(Path.Combine(packRoot, "source.lock.json"),
+            """{"schemaVersion":"wpfdevtools.source-lock.v1","sources":[]}""");
+        File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"),
+            """{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"named","version":"1.0.0","scope":"project-local","path":".","enabled":true}""");
+        File.WriteAllText(Path.Combine(packRoot, "blocks", "root.block.json"),
+            """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"named.root","displayName":"Root","category":"container","properties":{},"slots":{"content":{"allowedKinds":["named.child"]}},"renderer":{"xamlTemplate":"renderers/xaml/root.xaml.sbn"},"sourceHints":[]}""");
+        File.WriteAllText(Path.Combine(packRoot, "blocks", "child.block.json"),
+            """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"named.child","displayName":"Child","category":"display","properties":{},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/child.xaml.sbn"},"sourceHints":[]}""");
+        File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "root.xaml.sbn"),
+            $"<Grid x:Name=\"{rootName}\">{{{{slot.content}}}}</Grid>");
+        File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "child.xaml.sbn"), "<TextBlock />");
+        return projectRoot;
+    }
+
+    private static string NamedBlueprint()
+        => """
+           {"schemaVersion":"wpfdevtools.ui-blueprint.v1","name":"Named","packs":[{"id":"named","version":"1.0.0","required":true,"role":"primary"}],"primaryPack":"named","layout":{"kind":"named.root","slots":{"content":[{"kind":"named.child"}]}}}
+           """;
 
     private static string Blueprint()
         => """

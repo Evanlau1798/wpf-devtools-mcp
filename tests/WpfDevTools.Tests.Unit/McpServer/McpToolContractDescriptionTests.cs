@@ -31,63 +31,65 @@ public sealed class McpToolContractDescriptionTests
         (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetStateDiff))
     ];
 
-    [Theory]
-    [InlineData(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.SetDpValue), "requestedValue")]
-    [InlineData(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.ClearDpValue), "hadLocalValue")]
-    [InlineData(typeof(StyleMcpTools), nameof(StyleMcpTools.OverrideStyleSetter), "oldValue")]
-    [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.ExecuteCommand), "commandName")]
-    [InlineData(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.GetDpValueSource), "rawBaseValueSource")]
-    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingValueChain), "LocalDataContext")]
-    [InlineData(typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.GetRenderStats), "isWarmedUp")]
-    [InlineData(typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.GetRenderStats), "confidence")]
-    [InlineData(typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.GetRenderStats), "warmUp")]
-    [InlineData(typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.FindBindingLeaks), "potentialLeaks")]
-    [InlineData(typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.FindBindingLeaks), "samplingDurationMs")]
-    [InlineData(typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.FindBindingLeaks), "warmUp")]
-    [InlineData(typeof(TreeMcpTools), nameof(TreeMcpTools.GetWindows), "isMainWindow")]
-    [InlineData(typeof(TreeMcpTools), nameof(TreeMcpTools.GetWindows), "index, title, type, isActive, isVisible, isMainWindow, elementId")]
-    [InlineData(typeof(TreeMcpTools), nameof(TreeMcpTools.GetNamescope), "inactive tabs")]
-    [InlineData(typeof(EventMcpTools), nameof(EventMcpTools.GetEventHandlers), "mayBeIncomplete")]
-    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetInteractionReadiness), "commandReadiness")]
-    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetInteractionReadiness), "CommandParameterValueRedacted")]
-    [InlineData(typeof(InteractionMcpTools), nameof(InteractionMcpTools.SimulateKeyboard), "focusChanged")]
-    [InlineData(typeof(StateMcpTools), nameof(StateMcpTools.RestoreStateSnapshot), "skippedViewModelPropertyCount")]
-    [InlineData(typeof(StateMcpTools), nameof(StateMcpTools.RestoreStateSnapshot), "skippedViewModelProperties")]
-    [InlineData(typeof(StateMcpTools), nameof(StateMcpTools.RestoreStateSnapshot), "restoredDependencyProperties")]
-    [InlineData(typeof(StateMcpTools), nameof(StateMcpTools.RestoreStateSnapshot), "restoredViewModelProperties")]
-    [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.GetViewModel), "canWrite")]
-    [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.ModifyViewModel), "requestedValueType")]
-    [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.GetValidationErrors), "logical and visual descendants")]
-    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingErrors), "validation rule errors")]
-    [InlineData(typeof(StyleMcpTools), nameof(StyleMcpTools.GetAppliedStyles), "localResourceReferences")]
-    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetUiSummary), "summaryOnly")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "canConnectFromCurrentServer")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "connectionWarning")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "WPFDEVTOOLS_MCP_ALLOWED_TARGETS")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "allowlisted targets")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "redactedTargetCount")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "policyEnvVar")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "counted before nameFilter")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "filtering side channel")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "suggestedAction")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "requiresElevationToConnect")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "autoDiscovered")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "redactedCandidateCount")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "selectionStrategy")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "largest_working_set")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "windowFilter")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "windowFilter")]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "foreground")]
-    [InlineData(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.ListUiBlockPacks), "role")]
-    [InlineData(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.ListUiBlockPacks), "required")]
-    public void ToolDescriptions_ShouldMentionUpdatedContractTerms(Type toolType, string methodName, string expectedTerm)
+    [Fact]
+    public void ToolDescriptions_ShouldMentionUpdatedContractTerms()
     {
-        var method = toolType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
-        method.Should().NotBeNull();
+        var expectations = new (Type ToolType, string MethodName, string Term)[]
+        {
+            (typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.SetDpValue), "requestedValue"),
+            (typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.ClearDpValue), "hadLocalValue"),
+            (typeof(StyleMcpTools), nameof(StyleMcpTools.OverrideStyleSetter), "oldValue"),
+            (typeof(MvvmMcpTools), nameof(MvvmMcpTools.ExecuteCommand), "commandName"),
+            (typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.GetDpValueSource), "rawBaseValueSource"),
+            (typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingValueChain), "LocalDataContext"),
+            (typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.GetRenderStats), "isWarmedUp"),
+            (typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.GetRenderStats), "confidence"),
+            (typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.GetRenderStats), "warmUp"),
+            (typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.FindBindingLeaks), "potentialLeaks"),
+            (typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.FindBindingLeaks), "samplingDurationMs"),
+            (typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.FindBindingLeaks), "warmUp"),
+            (typeof(TreeMcpTools), nameof(TreeMcpTools.GetWindows), "isMainWindow"),
+            (typeof(TreeMcpTools), nameof(TreeMcpTools.GetWindows), "index, title, type, isActive, isVisible, isMainWindow, elementId"),
+            (typeof(TreeMcpTools), nameof(TreeMcpTools.GetNamescope), "inactive tabs"),
+            (typeof(EventMcpTools), nameof(EventMcpTools.GetEventHandlers), "mayBeIncomplete"),
+            (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetInteractionReadiness), "commandReadiness"),
+            (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetInteractionReadiness), "CommandParameterValueRedacted"),
+            (typeof(InteractionMcpTools), nameof(InteractionMcpTools.SimulateKeyboard), "focusChanged"),
+            (typeof(StateMcpTools), nameof(StateMcpTools.RestoreStateSnapshot), "skippedViewModelPropertyCount"),
+            (typeof(StateMcpTools), nameof(StateMcpTools.RestoreStateSnapshot), "skippedViewModelProperties"),
+            (typeof(StateMcpTools), nameof(StateMcpTools.RestoreStateSnapshot), "restoredDependencyProperties"),
+            (typeof(StateMcpTools), nameof(StateMcpTools.RestoreStateSnapshot), "restoredViewModelProperties"),
+            (typeof(MvvmMcpTools), nameof(MvvmMcpTools.GetViewModel), "canWrite"),
+            (typeof(MvvmMcpTools), nameof(MvvmMcpTools.ModifyViewModel), "requestedValueType"),
+            (typeof(MvvmMcpTools), nameof(MvvmMcpTools.GetValidationErrors), "logical and visual descendants"),
+            (typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingErrors), "validation rule errors"),
+            (typeof(StyleMcpTools), nameof(StyleMcpTools.GetAppliedStyles), "localResourceReferences"),
+            (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetUiSummary), "summaryOnly"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "canConnectFromCurrentServer"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "connectionWarning"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "WPFDEVTOOLS_MCP_ALLOWED_TARGETS"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "allowlisted targets"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "redactedTargetCount"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "policyEnvVar"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "counted before nameFilter"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "filtering side channel"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "suggestedAction"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "requiresElevationToConnect"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "autoDiscovered"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "redactedCandidateCount"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "selectionStrategy"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "largest_working_set"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect), "windowFilter"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "windowFilter"),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses), "foreground"),
+            (typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.ListUiBlockPacks), "role"),
+            (typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.ListUiBlockPacks), "required")
+        };
 
-        var description = method!.GetCustomAttribute<DescriptionAttribute>();
-        description.Should().NotBeNull();
-        description!.Description.Should().Contain(expectedTerm);
+        foreach (var (toolType, methodName, term) in expectations)
+        {
+            GetDescription(toolType, methodName).Should().Contain(term);
+        }
     }
 
     [Fact]
@@ -213,37 +215,46 @@ public sealed class McpToolContractDescriptionTests
             "REQUEST FORMAT blocks are copied as tool-call arguments, so they must be strict JSON or be renamed to a non-copyable schema sketch");
     }
 
-    [Theory]
-    [InlineData(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.SetDpValue))]
-    [InlineData(typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.ClearDpValue))]
-    [InlineData(typeof(StyleMcpTools), nameof(StyleMcpTools.OverrideStyleSetter))]
-    [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.ExecuteCommand))]
-    [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.ModifyViewModel))]
-    [InlineData(typeof(InteractionMcpTools), nameof(InteractionMcpTools.ClickElement))]
-    [InlineData(typeof(EventMcpTools), nameof(EventMcpTools.FireRoutedEvent))]
-    public void MutationAndInteractionToolDescriptions_ShouldPreferVerboseAndCompactWording(Type toolType, string methodName)
+    [Fact]
+    public void MutationAndInteractionToolDescriptions_ShouldPreferVerboseAndCompactWording()
     {
-        var description = GetDescription(toolType, methodName);
+        var tools = new[]
+        {
+            (typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.SetDpValue)),
+            (typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.ClearDpValue)),
+            (typeof(StyleMcpTools), nameof(StyleMcpTools.OverrideStyleSetter)),
+            (typeof(MvvmMcpTools), nameof(MvvmMcpTools.ExecuteCommand)),
+            (typeof(MvvmMcpTools), nameof(MvvmMcpTools.ModifyViewModel)),
+            (typeof(InteractionMcpTools), nameof(InteractionMcpTools.ClickElement)),
+            (typeof(EventMcpTools), nameof(EventMcpTools.FireRoutedEvent))
+        };
 
-        description.Should().Contain("detail");
-        description.Should().Contain("compact");
-        description.Should().Contain("verbose");
-        description.Should().Contain("standard",
-            "the legacy detail keyword should remain documented as a compatibility alias during the transition");
+        foreach (var (toolType, methodName) in tools)
+        {
+            var description = GetDescription(toolType, methodName);
+            description.Should().Contain("detail");
+            description.Should().Contain("compact");
+            description.Should().Contain("verbose");
+            description.Should().Contain("standard");
+        }
     }
 
-    [Theory]
-    [InlineData(typeof(MutationBatchMcpTools), nameof(MutationBatchMcpTools.BatchMutate))]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetActiveProcess))]
-    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetAffectedElements))]
-    public void AiFacingToolDescriptions_ShouldIncludeUseWhenAndDoNotUseGuidance(Type toolType, string methodName)
+    [Fact]
+    public void AiFacingToolDescriptions_ShouldIncludeUseWhenAndDoNotUseGuidance()
     {
-        var description = GetDescription(toolType, methodName);
+        var tools = new[]
+        {
+            (typeof(MutationBatchMcpTools), nameof(MutationBatchMcpTools.BatchMutate)),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetActiveProcess)),
+            (typeof(BindingMcpTools), nameof(BindingMcpTools.GetAffectedElements))
+        };
 
-        description.Should().Contain("USE WHEN:",
-            $"{toolType.Name}.{methodName} should include positive selection guidance for AI clients");
-        description.Should().Contain("DO NOT USE:",
-            $"{toolType.Name}.{methodName} should include negative selection guidance for AI clients");
+        foreach (var (toolType, methodName) in tools)
+        {
+            var description = GetDescription(toolType, methodName);
+            description.Should().Contain("USE WHEN:");
+            description.Should().Contain("DO NOT USE:");
+        }
     }
 
     [Fact]
@@ -269,39 +280,31 @@ public sealed class McpToolContractDescriptionTests
         }
     }
 
-    [Theory]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses))]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect))]
-    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindings))]
-    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingErrors))]
-    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetUiSummary))]
-    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetElementSnapshot))]
-    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetFormSummary))]
-    public void HighValueToolDescriptions_ShouldReferenceMachineReadableContract_AndAvoidInlineSchemaBlocks(Type toolType, string methodName)
+    [Fact]
+    public void HighValueToolDescriptions_ShouldSeparateMachineReadableContractsFromRequestOptions()
     {
-        var description = GetDescription(toolType, methodName);
+        var tools = new[]
+        {
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses)),
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect)),
+            (typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindings)),
+            (typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingErrors)),
+            (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetUiSummary)),
+            (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetElementSnapshot)),
+            (typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetFormSummary))
+        };
 
-        description.Should().Contain("structuredContent");
-        description.Should().Contain("content[0].text");
-        description.Should().Contain("wpf://contracts/response");
-        description.Should().NotContain("RESPONSE FORMAT:");
-        description.Should().NotContain("ERRORS:");
-    }
-
-    [Theory]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses))]
-    [InlineData(typeof(ProcessMcpTools), nameof(ProcessMcpTools.Connect))]
-    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindings))]
-    [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingErrors))]
-    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetUiSummary))]
-    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetElementSnapshot))]
-    [InlineData(typeof(SceneDiagnosticsMcpTools), nameof(SceneDiagnosticsMcpTools.GetFormSummary))]
-    public void HighValueToolDescriptions_ShouldSeparateResponseFieldsFromRequestOptions(Type toolType, string methodName)
-    {
-        var description = GetDescription(toolType, methodName);
-
-        description.Should().Contain("RESPONSE FIELDS:");
-        description.Should().Contain("REQUEST OPTIONS:");
+        foreach (var (toolType, methodName) in tools)
+        {
+            var description = GetDescription(toolType, methodName);
+            description.Should().Contain("structuredContent");
+            description.Should().Contain("content[0].text");
+            description.Should().Contain("wpf://contracts/response");
+            description.Should().NotContain("RESPONSE FORMAT:");
+            description.Should().NotContain("ERRORS:");
+            description.Should().Contain("RESPONSE FIELDS:");
+            description.Should().Contain("REQUEST OPTIONS:");
+        }
     }
 
     [Fact]

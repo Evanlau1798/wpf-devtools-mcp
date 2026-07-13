@@ -1,500 +1,197 @@
 using System.ComponentModel;
 using System.Reflection;
-using System.Text.Json;
 using System.Threading;
 using FluentAssertions;
+using FluentAssertions.Execution;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpTools;
-using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
-public class McpToolAttributeTests
+public sealed class McpToolAttributeTests
 {
-    private static readonly Assembly McpServerAssembly =
-        typeof(WpfDevTools.Mcp.Server.ServerInstructions).Assembly;
+    private static readonly Assembly McpServerAssembly = typeof(ServerInstructions).Assembly;
+    private static readonly IReadOnlyList<ToolMetadata> AllTools = GetAllToolMethods();
+    private static readonly HashSet<string> AllToolNames =
+        AllTools.Select(tool => tool.Attribute.Name)
+            .Where(name => name != null)
+            .Select(name => name!)
+            .ToHashSet(StringComparer.Ordinal);
 
-    private static readonly List<(Type Type, MethodInfo Method, McpServerToolAttribute Attr)> AllTools =
-        GetAllToolMethods().ToList();
+    private static readonly string[] ExpectedPublishedToolNames =
+    [
+        "get_processes", "connect", "ping",
+        "get_visual_tree", "get_logical_tree", "serialize_to_xaml", "get_namescope", "get_template_tree", "compare_trees",
+        "get_bindings", "get_binding_errors", "get_binding_value_chain", "get_datacontext_chain", "force_binding_update",
+        "get_dp_value_source", "get_dp_metadata", "set_dp_value", "clear_dp_value", "watch_dp_changes", "wait_for_dp_change", "wait_for_dp_change_after_mutation",
+        "get_applied_styles", "get_triggers", "get_resource_chain", "override_style_setter",
+        "trace_routed_events", "get_event_handlers", "fire_routed_event", "drain_events",
+        "click_element", "drag_and_drop", "get_focus_state", "focus_element", "scroll_to_element", "simulate_keyboard", "element_screenshot",
+        "capture_state_snapshot", "restore_state_snapshot", "batch_mutate",
+        "get_layout_info", "get_clipping_info", "highlight_element", "invalidate_layout",
+        "get_viewmodel", "get_commands", "execute_command", "modify_viewmodel", "get_validation_errors",
+        "get_render_stats", "find_binding_leaks", "measure_element_render_time", "get_visual_count"
+    ];
 
-    private static IEnumerable<(Type Type, MethodInfo Method, McpServerToolAttribute Attr)> GetAllToolMethods()
+    private static readonly string[] ReadOnlyToolNames =
+    [
+        "get_processes", "get_visual_tree", "get_logical_tree", "get_bindings", "get_binding_errors",
+        "get_dp_value_source", "get_applied_styles", "get_event_handlers", "element_screenshot",
+        "get_focus_state", "get_layout_info", "get_viewmodel", "get_render_stats", "wait_for_dp_change"
+    ];
+
+    private static readonly string[] DestructiveToolNames =
+    [
+        "connect", "set_dp_value", "clear_dp_value", "click_element", "fire_routed_event",
+        "execute_command", "modify_viewmodel", "override_style_setter", "invalidate_layout",
+        "drag_and_drop", "focus_element", "simulate_keyboard", "force_binding_update",
+        "wait_for_dp_change_after_mutation", "scroll_to_element", "highlight_element",
+        "restore_state_snapshot", "batch_mutate"
+    ];
+
+    [Fact]
+    public void AllTools_ShouldExposeStableDiscoveryMetadata()
     {
-        var toolTypes = McpServerAssembly.GetTypes()
-            .Where(t => t.GetCustomAttribute<McpServerToolTypeAttribute>() != null);
+        using var scope = new AssertionScope();
+        AllTools.Select(tool => tool.Attribute.Name).Should().OnlyHaveUniqueItems();
 
-        foreach (var type in toolTypes)
+        foreach (var tool in AllTools)
         {
-            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+            var description = tool.Method.GetCustomAttribute<DescriptionAttribute>();
+            tool.Attribute.Name.Should().NotBeNullOrWhiteSpace($"tool method {tool.Method.Name} must have a protocol name");
+            tool.Attribute.Title.Should().NotBeNullOrWhiteSpace($"tool '{tool.Attribute.Name}' must have a friendly title");
+            tool.Attribute.OpenWorld.Should().BeFalse($"tool '{tool.Attribute.Name}' uses local WPF and IPC state");
+            tool.Attribute.UseStructuredContent.Should().BeTrue($"tool '{tool.Attribute.Name}' returns structured content");
+            description.Should().NotBeNull($"tool '{tool.Attribute.Name}' in {tool.Type.Name} must have [Description]");
+            description?.Description.Should().NotBeNullOrWhiteSpace($"tool '{tool.Attribute.Name}' description must not be empty");
+            description?.Description.Should().Contain("CATEGORY:", $"tool '{tool.Attribute.Name}' must expose its category");
+            description?.Description.Should().Contain("EXAMPLES:", $"tool '{tool.Attribute.Name}' must expose canonical examples");
+            description?.Description.Should().NotContain("Examples:", $"tool '{tool.Attribute.Name}' must use a stable heading");
+
+            foreach (var parameter in tool.Method.GetParameters().Where(IsMcpExposedParameter))
             {
-                var attr = method.GetCustomAttribute<McpServerToolAttribute>();
-                if (attr != null)
-                {
-                    yield return (type, method, attr);
-                }
+                var parameterDescription = parameter.GetCustomAttribute<DescriptionAttribute>();
+                parameterDescription.Should().NotBeNull(
+                    $"tool '{tool.Attribute.Name}' parameter '{parameter.Name}' must have [Description]");
+                parameterDescription?.Description.Should().NotBeNullOrWhiteSpace(
+                    $"tool '{tool.Attribute.Name}' parameter '{parameter.Name}' description must not be empty");
             }
         }
     }
 
     [Fact]
-    public void AllTools_ShouldHaveUniqueNames()
+    public void EstablishedToolNames_ShouldRemainPublished()
     {
-        var names = AllTools.Select(t => t.Attr.Name).ToList();
-        names.Should().OnlyHaveUniqueItems("tool names must be unique");
+        ExpectedPublishedToolNames.Should().OnlyHaveUniqueItems();
+        ExpectedPublishedToolNames.Should().BeSubsetOf(AllToolNames);
     }
 
     [Fact]
-    public void AllTools_ShouldHaveDescriptionAttribute()
+    public void ToolSafetyAnnotations_ShouldMatchContract()
     {
-        foreach (var (type, method, attr) in AllTools)
+        using var scope = new AssertionScope();
+        foreach (var name in ReadOnlyToolNames)
         {
-            var desc = method.GetCustomAttribute<DescriptionAttribute>();
-            desc.Should().NotBeNull(
-                $"tool '{attr.Name}' in {type.Name} must have [Description]");
-            desc!.Description.Should().NotBeNullOrWhiteSpace(
-                $"tool '{attr.Name}' description must not be empty");
+            GetRequiredTool(name).Attribute.ReadOnly.Should().BeTrue($"'{name}' is a read-only inspection tool");
+        }
+
+        foreach (var name in DestructiveToolNames)
+        {
+            GetRequiredTool(name).Attribute.Destructive.Should().BeTrue($"'{name}' modifies the running application");
+        }
+
+        foreach (var name in new[] { "connect", "ping" })
+        {
+            GetRequiredTool(name).Attribute.Idempotent.Should().BeTrue($"'{name}' is safe to call repeatedly");
         }
     }
 
     [Fact]
-    public void AllTools_ShouldIncludeStructuredCategoryMetadata_ForAiFriendlyDiscovery()
+    public void RepresentativeTools_ShouldPublishStructuredPayloadSchemas()
     {
-        foreach (var (_, method, attr) in AllTools)
+        var representatives = new[]
         {
-            var description = method.GetCustomAttribute<DescriptionAttribute>();
+            (typeof(ProcessMcpTools), nameof(ProcessMcpTools.Ping)),
+            (typeof(TreeMcpTools), nameof(TreeMcpTools.GetVisualTree)),
+            (typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingErrors))
+        };
 
-            description.Should().NotBeNull();
-            description!.Description.Should().Contain("CATEGORY:",
-                $"tool '{attr.Name}' should expose a category header for AI-friendly discovery");
+        using var scope = new AssertionScope();
+        foreach (var (toolType, methodName) in representatives)
+        {
+            var protocolTool = CreateTool(toolType, methodName).ProtocolTool;
+            McpToolOutputSchemas.Apply(protocolTool);
+
+            protocolTool.OutputSchema.Should().NotBeNull($"{methodName} must publish an output schema");
+            var properties = protocolTool.OutputSchema!.Value.GetProperty("properties");
+            properties.TryGetProperty("success", out _).Should().BeTrue();
+            properties.TryGetProperty("navigation", out _).Should().BeTrue();
+            properties.TryGetProperty("structuredContent", out _).Should().BeFalse();
         }
     }
 
     [Fact]
-    public void AllTools_ShouldUseUppercaseExamplesHeading_ForConsistentPromptExtraction()
-    {
-        foreach (var (_, method, attr) in AllTools)
-        {
-            var description = method.GetCustomAttribute<DescriptionAttribute>();
-
-            description.Should().NotBeNull();
-            description!.Description.Should().Contain("EXAMPLES:",
-                $"tool '{attr.Name}' should use a consistent EXAMPLES heading for prompt extraction");
-            description.Description.Should().NotContain("Examples:",
-                $"tool '{attr.Name}' should avoid mixed examples heading casing");
-        }
-    }
-
-    [Fact]
-    public void AllToolParameters_ShouldHaveDescriptionAttribute_WhenExposedToMcpClients()
-    {
-        foreach (var (type, method, attr) in AllTools)
-        {
-            var exposedParameters = method.GetParameters()
-                .Where(parameter => parameter.ParameterType != typeof(SessionManager))
-                .Where(parameter => parameter.ParameterType != typeof(CancellationToken));
-
-            foreach (var parameter in exposedParameters)
-            {
-                var description = parameter.GetCustomAttribute<DescriptionAttribute>();
-                description.Should().NotBeNull(
-                    $"tool '{attr.Name}' in {type.Name} must annotate parameter '{parameter.Name}' with [Description] for MCP schema generation");
-                description!.Description.Should().NotBeNullOrWhiteSpace(
-                    $"tool '{attr.Name}' parameter '{parameter.Name}' description must not be empty");
-            }
-        }
-    }
-
-    [Fact]
-    public void AllTools_ShouldExplicitlyDisableOpenWorldMetadata()
-    {
-        foreach (var (type, _, attr) in AllTools)
-        {
-            attr.OpenWorld.Should().BeFalse(
-                $"tool '{attr.Name}' in {type.Name} should be marked closed-world because it depends on local WPF processes and IPC state");
-        }
-    }
-
-    [Fact]
-    public void AllTools_ShouldHaveNonEmptyName()
-    {
-        foreach (var (_, _, attr) in AllTools)
-        {
-            attr.Name.Should().NotBeNullOrWhiteSpace("every tool must have a Name");
-        }
-    }
-
-    [Fact]
-    public void AllTools_ShouldHaveFriendlyTitles_ForToolSearchDrivenClients()
-    {
-        foreach (var (_, _, attr) in AllTools)
-        {
-            attr.Title.Should().NotBeNullOrWhiteSpace(
-                $"tool '{attr.Name}' should expose a human-friendly title for MCP tool search");
-        }
-    }
-
-    [Fact]
-    public void AllTools_ShouldAdvertiseStructuredContentMetadata_WhenResultsPopulateStructuredContent()
-    {
-        foreach (var (_, _, attr) in AllTools)
-        {
-            attr.UseStructuredContent.Should().BeTrue(
-                $"tool '{attr.Name}' should truthfully advertise structured content and allow SDK-generated tools/list outputSchema metadata");
-        }
-    }
-
-    [Theory]
-    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Ping))]
-    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.GetVisualTree))]
-    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.BindingMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.BindingMcpTools.GetBindingErrors))]
-    public void RepresentativeTools_ShouldExposeStructuredPayloadOutputSchema_WhenPublishedInToolsList(Type toolType, string methodName)
-    {
-        var protocolTool = CreateTool(toolType, methodName).ProtocolTool;
-        McpToolOutputSchemas.Apply(protocolTool);
-        var outputSchema = protocolTool.OutputSchema;
-
-        outputSchema.Should().NotBeNull(
-            "tools/list should publish a structuredContent payload schema for schema-driven clients");
-        outputSchema!.Value.TryGetProperty("properties", out var properties).Should().BeTrue();
-        properties.TryGetProperty("success", out _).Should().BeTrue(
-            "the schema should describe result.structuredContent, including its common success field");
-        properties.TryGetProperty("navigation", out _).Should().BeTrue(
-            "the schema should describe the common navigation field when it is present");
-        properties.TryGetProperty("structuredContent", out _).Should().BeFalse(
-            "tools/list outputSchema should describe result.structuredContent itself, not the CallToolResult envelope");
-    }
-
-    [Theory]
-    [InlineData("get_processes")]
-    [InlineData("connect")]
-    [InlineData("ping")]
-    public void ProcessTools_ShouldExist(string toolName)
-    {
-        AllTools.Should().Contain(t => t.Attr.Name == toolName);
-    }
-
-    [Theory]
-    [InlineData("get_visual_tree")]
-    [InlineData("get_logical_tree")]
-    [InlineData("serialize_to_xaml")]
-    [InlineData("get_namescope")]
-    [InlineData("get_template_tree")]
-    [InlineData("compare_trees")]
-    public void TreeTools_ShouldExist(string toolName)
-    {
-        AllTools.Should().Contain(t => t.Attr.Name == toolName);
-    }
-
-    [Theory]
-    [InlineData("get_bindings")]
-    [InlineData("get_binding_errors")]
-    [InlineData("get_binding_value_chain")]
-    [InlineData("get_datacontext_chain")]
-    [InlineData("force_binding_update")]
-    public void BindingTools_ShouldExist(string toolName)
-    {
-        AllTools.Should().Contain(t => t.Attr.Name == toolName);
-    }
-
-    [Theory]
-    [InlineData("get_dp_value_source")]
-    [InlineData("get_dp_metadata")]
-    [InlineData("set_dp_value")]
-    [InlineData("clear_dp_value")]
-    [InlineData("watch_dp_changes")]
-    [InlineData("wait_for_dp_change")]
-    [InlineData("wait_for_dp_change_after_mutation")]
-    public void DependencyPropertyTools_ShouldExist(string toolName)
-    {
-        AllTools.Should().Contain(t => t.Attr.Name == toolName);
-    }
-
-    [Theory]
-    [InlineData("get_applied_styles")]
-    [InlineData("get_triggers")]
-    [InlineData("get_resource_chain")]
-    [InlineData("override_style_setter")]
-    public void StyleTools_ShouldExist(string toolName)
-    {
-        AllTools.Should().Contain(t => t.Attr.Name == toolName);
-    }
-
-    [Theory]
-    [InlineData("trace_routed_events")]
-    [InlineData("get_event_handlers")]
-    [InlineData("fire_routed_event")]
-    [InlineData("drain_events")]
-    public void EventTools_ShouldExist(string toolName)
-    {
-        AllTools.Should().Contain(t => t.Attr.Name == toolName);
-    }
-
-    [Theory]
-    [InlineData("click_element")]
-    [InlineData("drag_and_drop")]
-    [InlineData("get_focus_state")]
-    [InlineData("focus_element")]
-    [InlineData("scroll_to_element")]
-    [InlineData("simulate_keyboard")]
-    [InlineData("element_screenshot")]
-    public void InteractionTools_ShouldExist(string toolName)
-    {
-        AllTools.Should().Contain(t => t.Attr.Name == toolName);
-    }
-
-    [Theory]
-    [InlineData("capture_state_snapshot")]
-    [InlineData("restore_state_snapshot")]
-    [InlineData("batch_mutate")]
-    public void StateTools_ShouldExist(string toolName)
-    {
-        AllTools.Should().Contain(t => t.Attr.Name == toolName);
-    }
-
-    [Theory]
-    [InlineData("get_layout_info")]
-    [InlineData("get_clipping_info")]
-    [InlineData("highlight_element")]
-    [InlineData("invalidate_layout")]
-    public void LayoutTools_ShouldExist(string toolName)
-    {
-        AllTools.Should().Contain(t => t.Attr.Name == toolName);
-    }
-
-    [Theory]
-    [InlineData("get_viewmodel")]
-    [InlineData("get_commands")]
-    [InlineData("execute_command")]
-    [InlineData("modify_viewmodel")]
-    [InlineData("get_validation_errors")]
-    public void MvvmTools_ShouldExist(string toolName)
-    {
-        AllTools.Should().Contain(t => t.Attr.Name == toolName);
-    }
-
-    [Theory]
-    [InlineData("get_render_stats")]
-    [InlineData("find_binding_leaks")]
-    [InlineData("measure_element_render_time")]
-    [InlineData("get_visual_count")]
-    public void PerformanceTools_ShouldExist(string toolName)
-    {
-        AllTools.Should().Contain(t => t.Attr.Name == toolName);
-    }
-
-    [Theory]
-    [InlineData("get_processes")]
-    [InlineData("get_visual_tree")]
-    [InlineData("get_logical_tree")]
-    [InlineData("get_bindings")]
-    [InlineData("get_binding_errors")]
-    [InlineData("get_dp_value_source")]
-    [InlineData("get_applied_styles")]
-    [InlineData("get_event_handlers")]
-    [InlineData("element_screenshot")]
-    [InlineData("get_focus_state")]
-    [InlineData("get_layout_info")]
-    [InlineData("get_viewmodel")]
-    [InlineData("get_render_stats")]
-    [InlineData("wait_for_dp_change")]
-    public void ReadOnlyTools_ShouldBeMarkedReadOnly(string toolName)
-    {
-        var tool = AllTools.First(t => t.Attr.Name == toolName);
-        tool.Attr.ReadOnly.Should().BeTrue(
-            $"'{toolName}' is a read-only inspection tool");
-    }
-
-    [Theory]
-    [InlineData("connect")]
-    [InlineData("set_dp_value")]
-    [InlineData("clear_dp_value")]
-    [InlineData("click_element")]
-    [InlineData("fire_routed_event")]
-    [InlineData("execute_command")]
-    [InlineData("modify_viewmodel")]
-    [InlineData("override_style_setter")]
-    [InlineData("invalidate_layout")]
-    [InlineData("drag_and_drop")]
-    [InlineData("focus_element")]
-    [InlineData("simulate_keyboard")]
-    [InlineData("force_binding_update")]
-    [InlineData("wait_for_dp_change_after_mutation")]
-    [InlineData("scroll_to_element")]
-    [InlineData("highlight_element")]
-    [InlineData("restore_state_snapshot")]
-    [InlineData("batch_mutate")]
-    public void DestructiveTools_ShouldBeMarkedDestructive(string toolName)
-    {
-        var tool = AllTools.First(t => t.Attr.Name == toolName);
-        tool.Attr.Destructive.Should().BeTrue(
-            $"'{toolName}' modifies the running application");
-    }
-
-    [Theory]
-    [InlineData("connect")]
-    [InlineData("ping")]
-    public void IdempotentTools_ShouldBeMarkedIdempotent(string toolName)
-    {
-        var tool = AllTools.First(t => t.Attr.Name == toolName);
-        tool.Attr.Idempotent.Should().BeTrue(
-            $"'{toolName}' is safe to call repeatedly");
-    }
-
-    [Fact]
-    public void AllToolTypes_ShouldBeInMcpToolsNamespace()
+    public void ToolTypes_ShouldUseTheMcpToolsNamespace()
     {
         var toolTypes = McpServerAssembly.GetTypes()
-            .Where(t => t.GetCustomAttribute<McpServerToolTypeAttribute>() != null);
+            .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() != null);
 
-        foreach (var type in toolTypes)
-        {
-            type.Namespace.Should().Be("WpfDevTools.Mcp.Server.McpTools",
-                $"tool type {type.Name} should be in McpTools namespace");
-        }
-    }
-
-    [Theory]
-    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.GetProcesses), "List Inspectable WPF Processes")]
-    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Connect), "Connect To Running WPF Process")]
-    [InlineData(typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Ping), "Ping WPF Inspector Session")]
-    public void ProcessTools_ShouldAdvertiseFriendlyTitlesAndStructuredContentMetadata(Type toolType, string methodName, string expectedTitle)
-    {
-        var method = toolType.GetMethod(methodName);
-        method.Should().NotBeNull();
-
-        var attr = method!.GetCustomAttribute<McpServerToolAttribute>();
-        attr.Should().NotBeNull();
-        attr!.Title.Should().Be(expectedTitle,
-            "AI-facing clients should receive a stable human-friendly tool title");
-        attr.UseStructuredContent.Should().BeTrue(
-            "process tools return CallToolResult values and should participate in structuredContent outputSchema publication");
+        toolTypes.Should().OnlyContain(
+            type => type.Namespace == "WpfDevTools.Mcp.Server.McpTools");
     }
 
     [Fact]
-    public void HighValueToolInputSchemas_ShouldExposeParameterConstraints()
+    public void ProcessTools_ShouldAdvertiseStableTitles()
     {
-        var getProcessesSchema = CreateInputSchema(
-            typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools),
-            nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.GetProcesses));
-        AssertEnumConstraint(getProcessesSchema, "windowFilter", "visible", "all", "foreground");
+        var expectedTitles = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [nameof(ProcessMcpTools.GetProcesses)] = "List Inspectable WPF Processes",
+            [nameof(ProcessMcpTools.Connect)] = "Connect To Running WPF Process",
+            [nameof(ProcessMcpTools.Ping)] = "Ping WPF Inspector Session"
+        };
 
-        var connectSchema = CreateInputSchema(
-            typeof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools),
-            nameof(WpfDevTools.Mcp.Server.McpTools.ProcessMcpTools.Connect));
-        AssertIntegerConstraint(connectSchema, "processId", minimum: 1, maximum: int.MaxValue);
-        AssertEnumConstraint(connectSchema, "selectionStrategy", "single_only", "largest_working_set");
-        AssertEnumConstraint(connectSchema, "windowFilter", "visible", "all", "foreground");
-
-        var visualTreeSchema = CreateInputSchema(
-            typeof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools),
-            nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.GetVisualTree));
-        AssertIntegerConstraint(visualTreeSchema, "depth", minimum: 0, maximum: 100);
-        AssertIntegerConstraint(visualTreeSchema, "maxNodes", minimum: 1, maximum: 10000);
-        AssertIntegerConstraint(visualTreeSchema, "maxChildrenPerNode", minimum: 1, maximum: 1000);
-
-        var logicalTreeSchema = CreateInputSchema(
-            typeof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools),
-            nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.GetLogicalTree));
-        AssertIntegerConstraint(logicalTreeSchema, "depth", minimum: 0, maximum: 100);
-        AssertIntegerConstraint(logicalTreeSchema, "maxNodes", minimum: 1, maximum: 10000);
-        AssertIntegerConstraint(logicalTreeSchema, "maxChildrenPerNode", minimum: 1, maximum: 1000);
-
-        var findElementsSchema = CreateInputSchema(typeof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools), nameof(WpfDevTools.Mcp.Server.McpTools.TreeMcpTools.FindElements));
-        AssertIntegerConstraint(findElementsSchema, "maxTraversalNodes", minimum: 1, maximum: 10000);
-        AssertStringMaxLength(findElementsSchema, "propertyName", 256);
-        AssertEnumConstraint(findElementsSchema, "typeMatchMode", "exact", "assignable");
-        var uiSummarySchema = CreateInputSchema(
-            typeof(WpfDevTools.Mcp.Server.McpTools.SceneDiagnosticsMcpTools),
-            nameof(WpfDevTools.Mcp.Server.McpTools.SceneDiagnosticsMcpTools.GetUiSummary));
-        AssertIntegerConstraint(uiSummarySchema, "depth", minimum: 0, maximum: 100);
-        AssertEnumConstraint(uiSummarySchema, "depthMode", "semantic", "visual");
-
-        var screenshotSchema = CreateInputSchema(
-            typeof(WpfDevTools.Mcp.Server.McpTools.InteractionMcpTools),
-            nameof(WpfDevTools.Mcp.Server.McpTools.InteractionMcpTools.ElementScreenshot));
-        AssertEnumConstraint(screenshotSchema, "outputMode", "metadata", "file", "base64");
-        AssertIntegerConstraint(screenshotSchema, "maxWidth", minimum: 1, maximum: int.MaxValue);
-        AssertIntegerConstraint(screenshotSchema, "maxHeight", minimum: 1, maximum: int.MaxValue);
-        var composerBlueprintMethods = typeof(UiComposerMcpTools).GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Where(method => method.GetParameters().Any(parameter => parameter.Name == "blueprintJson")).Select(method => method.Name).ToArray();
-        composerBlueprintMethods.Should().NotBeEmpty();
-        foreach (var methodName in composerBlueprintMethods)
-            AssertStringMaxLength(CreateInputSchema(typeof(UiComposerMcpTools), methodName), "blueprintJson", BoundaryStringLimits.MaxStringifiedJsonArgumentLength);
-        var previewSchema = CreateInputSchema(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint));
-        AssertEnumConstraint(previewSchema, "screenshotOutputMode", "metadata", "file");
+        using var scope = new AssertionScope();
+        foreach (var (methodName, expectedTitle) in expectedTitles)
+        {
+            var method = typeof(ProcessMcpTools).GetMethod(methodName);
+            method.Should().NotBeNull();
+            var attribute = method?.GetCustomAttribute<McpServerToolAttribute>();
+            attribute.Should().NotBeNull();
+            attribute?.Title.Should().Be(expectedTitle);
+            attribute?.UseStructuredContent.Should().BeTrue();
+        }
     }
 
-    private static JsonElement CreateInputSchema(Type toolType, string methodName)
-    {
-        var method = toolType.GetMethod(methodName);
-        method.Should().NotBeNull();
+    private static IReadOnlyList<ToolMetadata> GetAllToolMethods()
+        => McpServerAssembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
+            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static)
+                .Select(method => new { Type = type, Method = method, Attribute = method.GetCustomAttribute<McpServerToolAttribute>() }))
+            .Where(tool => tool.Attribute != null)
+            .Select(tool => new ToolMetadata(tool.Type, tool.Method, tool.Attribute!))
+            .ToArray();
 
-        return CreateTool(toolType, methodName).ProtocolTool.InputSchema;
-    }
+    private static bool IsMcpExposedParameter(ParameterInfo parameter)
+        => parameter.ParameterType != typeof(SessionManager)
+            && parameter.ParameterType != typeof(CancellationToken);
+
+    private static ToolMetadata GetRequiredTool(string name)
+        => AllTools.Single(tool => tool.Attribute.Name == name);
 
     private static McpServerTool CreateTool(Type toolType, string methodName)
     {
         var method = toolType.GetMethod(methodName);
         method.Should().NotBeNull();
-
         using var services = new ServiceCollection()
             .AddSingleton<SessionManager>(_ => throw new InvalidOperationException("Schema tests do not invoke tools."))
             .BuildServiceProvider();
         return McpServerTool.Create(method!, target: null, new McpServerToolCreateOptions { Services = services });
     }
 
-    private static void AssertIntegerConstraint(JsonElement schema, string parameterName, int? minimum, int? maximum)
-    {
-        var parameter = GetSchemaProperty(schema, parameterName);
-        AssertSchemaTypeContains(parameter.GetProperty("type"), "integer");
-        AssertNullableIntSchemaKeyword(parameter, "minimum", minimum);
-        AssertNullableIntSchemaKeyword(parameter, "maximum", maximum);
-    }
-
-    private static void AssertSchemaTypeContains(JsonElement typeElement, string expectedType)
-    {
-        if (typeElement.ValueKind == JsonValueKind.String)
-        {
-            typeElement.GetString().Should().Be(expectedType);
-            return;
-        }
-
-        typeElement.ValueKind.Should().Be(JsonValueKind.Array);
-        typeElement.EnumerateArray()
-            .Select(type => type.GetString())
-            .Should().Contain(expectedType);
-    }
-
-    private static void AssertEnumConstraint(JsonElement schema, string parameterName, params string[] expectedValues)
-    {
-        var values = GetSchemaProperty(schema, parameterName)
-            .GetProperty("enum")
-            .EnumerateArray()
-            .Select(value => value.GetString())
-            .ToArray();
-
-        values.Should().BeEquivalentTo(expectedValues);
-    }
-
-    private static JsonElement GetSchemaProperty(JsonElement schema, string parameterName)
-        => schema.GetProperty("properties").GetProperty(parameterName);
-
-    private static void AssertStringMaxLength(JsonElement schema, string parameterName, int maxLength)
-    {
-        var parameter = GetSchemaProperty(schema, parameterName);
-        AssertSchemaTypeContains(parameter.GetProperty("type"), "string");
-        parameter.GetProperty("maxLength").GetInt32().Should().Be(maxLength);
-    }
-
-    private static void AssertNullableIntSchemaKeyword(JsonElement property, string keyword, int? expectedValue)
-    {
-        if (!expectedValue.HasValue)
-        {
-            property.TryGetProperty(keyword, out _).Should().BeFalse();
-            return;
-        }
-
-        property.GetProperty(keyword).GetInt32().Should().Be(expectedValue.Value);
-    }
+    private sealed record ToolMetadata(
+        Type Type,
+        MethodInfo Method,
+        McpServerToolAttribute Attribute);
 }

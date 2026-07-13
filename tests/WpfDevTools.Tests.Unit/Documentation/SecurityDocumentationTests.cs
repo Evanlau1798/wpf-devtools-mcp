@@ -1,500 +1,265 @@
-using FluentAssertions;
 using System.Text.RegularExpressions;
+using FluentAssertions;
+using FluentAssertions.Execution;
 using WpfDevTools.Tests.Unit.TestSupport;
-using Xunit;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
 
-public class SecurityDocumentationTests
+public sealed class SecurityDocumentationTests
 {
-    [Theory]
-    [InlineData("WPFDEVTOOLS_AUTH_SECRET")]
-    [InlineData("WPFDEVTOOLS_CERT_DIR")]
-    [InlineData("WPFDEVTOOLS_CERT_THUMBPRINT")]
-    [InlineData("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS")]
-    [InlineData("WPFDEVTOOLS_MCP_ALLOWED_TARGETS")]
-    [InlineData("WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS")]
-    [InlineData("WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS")]
-    [InlineData("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS")]
-    [InlineData("WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION")]
-    public void Documentation_ShouldMentionSupportedEnvironmentVariables(string variableName)
+    private static readonly string[] SecurityOverviewPaths =
+    [
+        "README.md", "SECURITY.md", "docfx/production/security.md",
+        "docfx/zh-tw/production/security.md", "docfx/index.md", "docfx/zh-tw/index.md",
+        "docfx/architecture/overview.md", "docfx/zh-tw/architecture/overview.md",
+        "src/WpfDevTools.Inspector.Sdk/README.md"
+    ];
+
+    private static readonly string[] PolicyPaths =
+    [
+        "README.md", "SECURITY.md", "docfx/production/security.md",
+        "docfx/zh-tw/production/security.md", "docfx/reference/configuration.md",
+        "docfx/zh-tw/reference/configuration.md", "src/WpfDevTools.Mcp.Server/ServerInstructions.cs"
+    ];
+
+    private static readonly IReadOnlyDictionary<string, string> Documents = LoadDocuments();
+
+    [Fact]
+    public void EnvironmentVariableDocumentation_ShouldMatchTheSupportedSecuritySurface()
     {
-        var content = ReadDocumentation();
+        var overview = JoinDocuments(SecurityOverviewPaths);
+        var supportedVariables = new[]
+        {
+            "WPFDEVTOOLS_AUTH_SECRET", "WPFDEVTOOLS_CERT_DIR", "WPFDEVTOOLS_CERT_THUMBPRINT",
+            "WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS", "WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
+            "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", "WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS",
+            "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS", "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION"
+        };
+        var unsupportedVariables = new[]
+        {
+            "WPFDEVTOOLS_REQUIRE_SIGNATURE", "WPFDEVTOOLS_SKIP_SIGNATURE_CHECK",
+            "WPFDEVTOOLS_ENCRYPTION_MODE", "WPFDEVTOOLS_MAX_SESSIONS",
+            "WPFDEVTOOLS_RATE_LIMIT", "WPFDEVTOOLS_AUDIT_LOG_PATH"
+        };
+        var outdatedClaims = new[]
+        {
+            "By default the server runs without authentication or encryption.",
+            "If the variable is not set, authentication is disabled.",
+            "Authentication and TLS are opt-in, not automatic.",
+            "If the variable is absent, authentication is disabled.",
+            "Authentication and TLS are opt-in.",
+            "驗證與 TLS 都是 opt-in。"
+        };
 
-        content.Should().Contain(variableName);
-    }
+        using var scope = new AssertionScope();
+        foreach (var variable in supportedVariables)
+        {
+            overview.Should().Contain(variable);
+        }
 
-    [Theory]
-    [InlineData("WPFDEVTOOLS_REQUIRE_SIGNATURE")]
-    [InlineData("WPFDEVTOOLS_SKIP_SIGNATURE_CHECK")]
-    [InlineData("WPFDEVTOOLS_ENCRYPTION_MODE")]
-    [InlineData("WPFDEVTOOLS_MAX_SESSIONS")]
-    [InlineData("WPFDEVTOOLS_RATE_LIMIT")]
-    [InlineData("WPFDEVTOOLS_AUDIT_LOG_PATH")]
-    public void Documentation_ShouldNotClaimUnsupportedEnvironmentVariables(string variableName)
-    {
-        var content = ReadDocumentation();
+        foreach (var variable in unsupportedVariables)
+        {
+            Regex.IsMatch(overview, $@"(?<![A-Z0-9_]){Regex.Escape(variable)}(?![A-Z0-9_])")
+                .Should().BeFalse($"documentation must not claim unsupported variable {variable}");
+        }
 
-        var unsupportedVariablePattern = $@"(?<![A-Z0-9_]){Regex.Escape(variableName)}(?![A-Z0-9_])";
+        foreach (var claim in outdatedClaims)
+        {
+            overview.Should().NotContain(claim);
+        }
 
-        Regex.IsMatch(content, unsupportedVariablePattern).Should().BeFalse(
-            $"documentation should not mention unsupported environment variable {variableName} as a complete token");
+        Read("SECURITY.md").Should().Contain("security-relevant");
+        Read("SECURITY.md").Should().NotContain(
+            "No other `WPFDEVTOOLS_*` environment variable is currently implemented by the shipping server.");
     }
 
     [Fact]
-    public void SecurityDocumentation_ShouldDescribeItsEnvironmentVariableTableAsSecurityScoped()
+    public void PolicyDocumentation_ShouldDefineTrustGatesAndStructuredFailures()
     {
-        var content = File.ReadAllText(GetRepoFilePath("SECURITY.md"));
+        using var scope = new AssertionScope();
+        AssertContainsAll(
+            ["README.md", "SECURITY.md", "docfx/production/security.md", "docfx/zh-tw/production/security.md"],
+            "MCP client", "untrusted by default", "server-side policy gates", "redacted");
 
-        content.Should().Contain("security-relevant",
-            "SECURITY.md should describe its environment-variable table as security-scoped instead of claiming it is the complete server configuration surface");
-        content.Should().NotContain("No other `WPFDEVTOOLS_*` environment variable is currently implemented by the shipping server.",
-            "SECURITY.md should not contradict non-security configuration knobs such as WPFDEVTOOLS_RATE_LIMIT_RPM");
-    }
+        AssertMappedPhrase(
+            ("README.md", "injection-based"),
+            ("SECURITY.md", "injection-based"),
+            ("docfx/production/security.md", "Injection-based"),
+            ("docfx/zh-tw/production/security.md", "injection"),
+            ("docfx/index.md", "persisted local HMAC secret"),
+            ("docfx/zh-tw/index.md", "持久化的本機 HMAC secret 與 named-pipe TLS"),
+            ("docfx/architecture/overview.md", "shipping injection path hardened by default"),
+            ("docfx/zh-tw/architecture/overview.md", "正式發佈的 injection path 預設即為 hardened"));
 
-    [Theory]
-    [InlineData("README.md")]
-    [InlineData("SECURITY.md")]
-    [InlineData("docfx/production/security.md")]
-    [InlineData("docfx/zh-tw/production/security.md")]
-    public void Documentation_ShouldDefineMcpClientAsUntrustedByDefault(string relativePath)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        AssertContainsAll(
+            ["README.md", "SECURITY.md", "docfx/production/security.md", "docfx/zh-tw/production/security.md", "src/WpfDevTools.Mcp.Server/ServerInstructions.cs"],
+            "WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS", "SecurityError", "requiresExplicitTargetOptIn");
 
-        content.Should().Contain("MCP client");
-        content.Should().Contain("untrusted by default",
-            $"{relativePath} should state that the local MCP caller is not trusted by default");
-        content.Should().Contain("server-side policy gates",
-            $"{relativePath} should make policy enforcement server-side rather than advisory");
-        content.Should().Contain("redacted",
-            $"{relativePath} should describe redaction before process metadata disclosure");
-    }
+        foreach (var path in PolicyPaths)
+        {
+            DocumentationMarkdown.ExtractVariableContext(Read(path), "WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS")
+                .Should().Contain("InvalidPolicyConfiguration", $"{path} must describe malformed raw-injection policy");
+            Read(path).Should().NotContain("implicitly trusts only project-scoped targets");
+            Read(path).Should().NotContain("outside the default trusted project scope");
+            Read(path).Should().NotContain("external raw-injection");
+            Read(path).Should().NotContain("外部 raw-injection");
+        }
 
-    [Theory]
-    [InlineData("By default the server runs without authentication or encryption.")]
-    [InlineData("If the variable is not set, authentication is disabled.")]
-    [InlineData("Authentication and TLS are opt-in, not automatic.")]
-    [InlineData("If the variable is absent, authentication is disabled.")]
-    [InlineData("Authentication and TLS are opt-in.")]
-    [InlineData("驗證與 TLS 都是 opt-in。")] 
-    public void Documentation_ShouldNotDescribeInjectionTransportSecurityAsOptIn(string outdatedPhrase)
-    {
-        var content = ReadDocumentation();
+        AssertContainsAll(
+            PolicyPaths,
+            "WPFDEVTOOLS_MCP_ALLOWED_TARGETS", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS",
+            "WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS", "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS",
+            "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION");
 
-        content.Should().NotContain(outdatedPhrase);
-    }
+        AssertContainsAll(
+            [.. PolicyPaths, "docfx/reference/tools/process-and-connection.md", "docfx/zh-tw/reference/tools/process-and-connection.md", "src/WpfDevTools.Mcp.Server/McpTools/ProcessMcpToolDescriptions.cs"],
+            "WPFDEVTOOLS_MCP_ALLOWED_TARGETS", "InvalidPolicyConfiguration");
+        AssertContainsAll(PolicyPaths, "session state-consuming tools", "capture_state_snapshot", "drain_events");
 
-    [Theory]
-    [InlineData("README.md", "injection-based")]
-    [InlineData("SECURITY.md", "injection-based")]
-    [InlineData("docfx/production/security.md", "Injection-based")]
-    [InlineData("docfx/zh-tw/production/security.md", "injection")]
-    [InlineData("docfx/index.md", "persisted local HMAC secret")]
-    [InlineData("docfx/zh-tw/index.md", "持久化的本機 HMAC secret 與 named-pipe TLS")]
-    [InlineData("docfx/architecture/overview.md", "shipping injection path hardened by default")]
-    [InlineData("docfx/zh-tw/architecture/overview.md", "正式發佈的 injection path 預設即為 hardened")]
-    public void Documentation_ShouldDescribeDefaultInjectionTransportHardening(string relativePath, string expectedPhrase)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain(expectedPhrase,
-            $"{relativePath} should explain that default hardening applies to the injection-based connect path");
-    }
-
-    [Theory]
-    [InlineData("README.md")]
-    [InlineData("SECURITY.md")]
-    [InlineData("docfx/production/security.md")]
-    [InlineData("docfx/zh-tw/production/security.md")]
-    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
-    public void Documentation_ShouldDescribeRawInjectionOptInErrorContract(string relativePath)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS",
-            $"{relativePath} should document the explicit raw injection allowlist");
-        content.Should().Contain("SecurityError",
-            $"{relativePath} should mention the security error surface for blocked raw injection");
-        content.Should().Contain("requiresExplicitTargetOptIn",
-            $"{relativePath} should document the machine-readable opt-in signal for blocked raw injection");
-    }
-
-    [Theory]
-    [InlineData("README.md")]
-    [InlineData("SECURITY.md")]
-    [InlineData("docfx/production/security.md")]
-    [InlineData("docfx/zh-tw/production/security.md")]
-    [InlineData("docfx/reference/configuration.md")]
-    [InlineData("docfx/zh-tw/reference/configuration.md")]
-    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
-    public void Documentation_ShouldDescribeMalformedRawInjectionAllowlistErrorContract(string relativePath)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-        var policyText = DocumentationMarkdown.ExtractVariableContext(
-            content,
-            "WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS");
-
-        policyText.Should().Contain("InvalidPolicyConfiguration",
-            $"{relativePath} should document malformed raw injection allowlist entries as policy configuration errors");
-    }
-
-    [Theory]
-    [InlineData("README.md")]
-    [InlineData("SECURITY.md")]
-    [InlineData("docfx/production/security.md")]
-    [InlineData("docfx/zh-tw/production/security.md")]
-    [InlineData("docfx/reference/configuration.md")]
-    [InlineData("docfx/zh-tw/reference/configuration.md")]
-    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
-    public void Documentation_ShouldNotDescribeRepositoryTargetsAsImplicitRawInjectionTrust(string relativePath)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().NotContain("implicitly trusts only project-scoped targets",
-            $"{relativePath} should not document repository-root raw injection trust as a default");
-        content.Should().NotContain("outside the default trusted project scope",
-            $"{relativePath} should describe exact allowlist behavior instead of default project trust");
-        content.Should().NotContain("external raw-injection",
-            $"{relativePath} should not imply the raw-injection allowlist only applies to external targets");
-        content.Should().NotContain("外部 raw-injection",
-            $"{relativePath} should not imply the raw-injection allowlist only applies to external targets");
-    }
-
-    [Theory]
-    [InlineData("README.md")]
-    [InlineData("SECURITY.md")]
-    [InlineData("docfx/production/security.md")]
-    [InlineData("docfx/zh-tw/production/security.md")]
-    [InlineData("docfx/reference/configuration.md")]
-    [InlineData("docfx/zh-tw/reference/configuration.md")]
-    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
-    public void Documentation_ShouldDescribeMcpPolicyGates(string relativePath)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
-            $"{relativePath} should document the connect target allowlist gate");
-        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS",
-            $"{relativePath} should document the destructive tool gate");
-        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS",
-            $"{relativePath} should document the screenshot gate");
-        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS",
-            $"{relativePath} should document the sensitive read gate");
-        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION",
-            $"{relativePath} should document the ViewModel inspection gate");
-    }
-
-    [Theory]
-    [InlineData("README.md")]
-    [InlineData("SECURITY.md")]
-    [InlineData("docfx/production/security.md")]
-    [InlineData("docfx/zh-tw/production/security.md")]
-    [InlineData("docfx/reference/configuration.md")]
-    [InlineData("docfx/zh-tw/reference/configuration.md")]
-    [InlineData("docfx/reference/tools/process-and-connection.md")]
-    [InlineData("docfx/zh-tw/reference/tools/process-and-connection.md")]
-    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
-    [InlineData("src/WpfDevTools.Mcp.Server/McpTools/ProcessMcpToolDescriptions.cs")]
-    public void Documentation_ShouldDescribeMalformedMcpTargetAllowlistErrorContract(string relativePath)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
-            $"{relativePath} should identify the MCP target allowlist being validated");
-        content.Should().Contain("InvalidPolicyConfiguration",
-            $"{relativePath} should document the malformed target allowlist error code");
-    }
-
-    [Theory]
-    [InlineData("README.md", "session state-consuming tools")]
-    [InlineData("SECURITY.md", "session state-consuming tools")]
-    [InlineData("docfx/production/security.md", "session state-consuming tools")]
-    [InlineData("docfx/reference/configuration.md", "session state-consuming tools")]
-    [InlineData("docfx/zh-tw/production/security.md", "session state-consuming tools")]
-    [InlineData("docfx/zh-tw/reference/configuration.md", "session state-consuming tools")]
-    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs", "session state-consuming tools")]
-    public void Documentation_ShouldDescribeDestructiveGateForSessionStateConsumingTools(
-        string relativePath,
-        string expectedCategory)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain(expectedCategory,
-            $"{relativePath} should explain that the destructive policy gate also covers tools that consume or mutate MCP session state");
-        content.Should().Contain("capture_state_snapshot",
-            $"{relativePath} should name the destructive snapshot capture gate coverage");
-        content.Should().Contain("drain_events",
-            $"{relativePath} should name the destructive buffered-event drain gate coverage");
-    }
-
-    [Theory]
-    [InlineData("README.md")]
-    [InlineData("SECURITY.md")]
-    [InlineData("docfx/production/security.md")]
-    [InlineData("docfx/zh-tw/production/security.md")]
-    [InlineData("src/WpfDevTools.Inspector.Sdk/README.md")]
-    [InlineData("docfx/guides/troubleshooting.md")]
-    [InlineData("docfx/zh-tw/guides/troubleshooting.md")]
-    [InlineData("src/WpfDevTools.Mcp.Server/McpResources/CapabilityResources.cs")]
-    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs")]
-    public void Documentation_ShouldDescribeSdkWorkflowCompatibilityExplicitly(string relativePath)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain("connect()",
-            $"{relativePath} should mention the current MCP connect workflow when discussing SDK mode");
-        content.Should().Contain("SDK",
-            $"{relativePath} should mention SDK-hosted compatibility when discussing connect()");
+        foreach (var path in new[] { "SECURITY.md", "docfx/production/security.md", "docfx/zh-tw/production/security.md" })
+        {
+            var checklistLines = Read(path).Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line.TrimStart())
+                .Where(line => line.Length > 2 && char.IsDigit(line[0])
+                    && (line.Contains("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS", StringComparison.Ordinal)
+                        || line.Contains("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal)))
+                .ToArray();
+            checklistLines.Should().HaveCount(2);
+            checklistLines.Should().OnlyContain(line => line.Contains("exact local absolute executable path", StringComparison.OrdinalIgnoreCase));
+            checklistLines.Should().OnlyContain(line => line.Contains("review", StringComparison.OrdinalIgnoreCase) || line.Contains("審查", StringComparison.Ordinal));
+        }
     }
 
     [Fact]
-    public void InspectorSdkReadme_ShouldDescribeMatchingTransportRequirement()
+    public void SdkDocumentation_ShouldDescribeCompatibleHardenedTransport()
     {
-        var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Inspector.Sdk/README.md"));
+        var compatibilityPaths = new[]
+        {
+            "README.md", "SECURITY.md", "docfx/production/security.md", "docfx/zh-tw/production/security.md",
+            "src/WpfDevTools.Inspector.Sdk/README.md", "docfx/guides/troubleshooting.md",
+            "docfx/zh-tw/guides/troubleshooting.md", "src/WpfDevTools.Mcp.Server/McpResources/CapabilityResources.cs",
+            "src/WpfDevTools.Mcp.Server/ServerInstructions.cs"
+        };
 
-        content.Should().Contain("can reuse",
-            "the SDK README should describe the compatible SDK-hosted reuse path");
-        content.Should().Contain("matching transport settings",
-            "the SDK README should make the transport-matching requirement explicit");
-        content.Should().Contain("can still time out",
-            "the SDK README should describe that plaintext or unresponsive existing hosts may still time out before a transport mismatch can be proven");
-        content.Should().Contain("must set both",
-            "the SDK README should explain that partial SDK transport configuration is rejected");
-        content.Should().Contain("InspectorSdk.Initialize()",
-            "the SDK README should explain the exact SDK entrypoint affected by explicit transport hardening");
-        content.Should().Contain("will not reuse",
-            "the SDK README should explain that the default-hardened MCP server does not reuse plaintext SDK hosts");
-    }
+        using var scope = new AssertionScope();
+        AssertContainsAll(compatibilityPaths, "connect()", "SDK");
+        AssertContainsAll(
+            ["src/WpfDevTools.Inspector.Sdk/README.md"],
+            "can reuse", "matching transport settings", "can still time out", "must set both",
+            "InspectorSdk.Initialize()", "will not reuse");
 
-    [Theory]
-    [InlineData("README.md", "both", "will not reuse")]
-    [InlineData("SECURITY.md", "both", "will not reuse")]
-    [InlineData("docfx/production/security.md", "both", "will not reuse")]
-    [InlineData("docfx/zh-tw/production/security.md", "一起設定", "不會重用")]
-    [InlineData("src/WpfDevTools.Inspector.Sdk/README.md", "both", "will not reuse")]
-    [InlineData("src/WpfDevTools.Mcp.Server/ServerInstructions.cs", "both", "will not reuse")]
-    [InlineData("src/WpfDevTools.Mcp.Server/McpResources/CapabilityResources.cs", "both", "will not reuse")]
-    public void Documentation_ShouldDescribeSdkTransportVariablesAsAllOrNothing(string relativePath, string expectedPhrase, string plaintextExpectation)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+        var allOrNothing = new[]
+        {
+            ("README.md", "both", "will not reuse"),
+            ("SECURITY.md", "both", "will not reuse"),
+            ("docfx/production/security.md", "both", "will not reuse"),
+            ("docfx/zh-tw/production/security.md", "一起設定", "不會重用"),
+            ("src/WpfDevTools.Inspector.Sdk/README.md", "both", "will not reuse"),
+            ("src/WpfDevTools.Mcp.Server/ServerInstructions.cs", "both", "will not reuse"),
+            ("src/WpfDevTools.Mcp.Server/McpResources/CapabilityResources.cs", "both", "will not reuse")
+        };
+        foreach (var (path, coordinatedPhrase, plaintextExpectation) in allOrNothing)
+        {
+            Read(path).Should().Contain(coordinatedPhrase);
+            Read(path).Should().Contain("WPFDEVTOOLS_AUTH_SECRET");
+            Read(path).Should().Contain("WPFDEVTOOLS_CERT_DIR");
+            Read(path).Should().Contain(plaintextExpectation);
+        }
 
-        content.Should().Contain(expectedPhrase,
-            $"{relativePath} should explain that hardened SDK mode requires both transport settings together");
-        content.Should().Contain("WPFDEVTOOLS_AUTH_SECRET",
-            $"{relativePath} should mention the authentication setting when describing SDK transport coordination");
-        content.Should().Contain("WPFDEVTOOLS_CERT_DIR",
-            $"{relativePath} should mention the certificate directory setting when describing SDK transport coordination");
-        content.Should().Contain(plaintextExpectation,
-            $"{relativePath} should explain that the default-hardened MCP server does not reuse plaintext SDK hosts");
-    }
-
-    [Theory]
-    [InlineData("SECURITY.md")]
-    [InlineData("docfx/production/security.md")]
-    [InlineData("docfx/zh-tw/production/security.md")]
-    public void Documentation_ShouldDescribeDefaultPipeHostCompatibilityValidation(string relativePath)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain("default-pipe",
-            $"{relativePath} should describe the general default-pipe host validation guard, not only SDK-host reuse");
-    }
-
-    [Theory]
-    [InlineData("SECURITY.md", "DPAPI-protected", "same Windows user")]
-    [InlineData("docfx/production/security.md", "DPAPI-protected", "same Windows user")]
-    [InlineData("docfx/zh-tw/production/security.md", "DPAPI-protected", "同一 Windows 使用者")]
-    public void Documentation_ShouldDescribeBootstrapSecretHandoffBoundary(
-        string relativePath,
-        string protectionPhrase,
-        string boundaryPhrase)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain(protectionPhrase,
-            $"{relativePath} should describe that injection bootstrap auth-secret handoff files are locally protected");
-        content.Should().Contain(boundaryPhrase,
-            $"{relativePath} should state that same-user local code is still inside the trust boundary");
-    }
-
-    [Theory]
-    [InlineData("SECURITY.md", "CompatibilityError", "before the raw-injection policy denial")]
-    [InlineData("docfx/production/security.md", "CompatibilityError", "before the raw-injection policy denial")]
-    [InlineData("docfx/zh-tw/production/security.md", "CompatibilityError", "先回傳")]
-    public void Documentation_ShouldDescribeCompatibilityErrorPrecedenceForBlockedExternalTargets(string relativePath, string errorCode, string precedencePhrase)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain(errorCode,
-            $"{relativePath} should document the stale-host compatibility error surface for blocked external targets");
-        content.Should().Contain(precedencePhrase,
-            $"{relativePath} should explain that compatibility rejection can surface before the raw injection policy denial");
-    }
-
-    [Theory]
-    [InlineData("README.md")]
-    [InlineData("SECURITY.md")]
-    [InlineData("docfx/production/security.md")]
-    [InlineData("docfx/zh-tw/production/security.md")]
-    [InlineData("src/WpfDevTools.Inspector.Sdk/README.md")]
-    public void Documentation_ShouldDescribeAbsoluteCertificateDirectoryRequirement(string relativePath)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain("absolute",
-            $"{relativePath} should explain that WPFDEVTOOLS_CERT_DIR must resolve to a shared absolute certificate directory");
-        content.Should().Contain("WPFDEVTOOLS_CERT_DIR",
-            $"{relativePath} should tie the absolute-path requirement to the supported TLS certificate directory setting");
-    }
-
-    [Theory]
-    [InlineData("SECURITY.md", "local absolute", "Network paths are not allowed")]
-    [InlineData("docfx/production/security.md", "local absolute", "Network paths are not allowed")]
-    [InlineData("docfx/zh-tw/production/security.md", "local absolute", "Network paths are not allowed")]
-    [InlineData("docfx/guides/troubleshooting.md", "local absolute", "Network paths are not allowed")]
-    [InlineData("docfx/zh-tw/guides/troubleshooting.md", "local absolute", "Network paths are not allowed")]
-    [InlineData("src/WpfDevTools.Inspector.Sdk/InspectorSdkOptions.cs", "local absolute", "Network paths are not allowed")]
-    [InlineData("src/WpfDevTools.Mcp.Server/McpResources/CapabilityResources.cs", "local absolute", "Network paths are not allowed")]
-    public void Documentation_ShouldDescribeLocalCertificateDirectoryRequirement(
-        string relativePath,
-        string localRequirement,
-        string networkPathWarning)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain(localRequirement,
-            $"{relativePath} should explain that WPFDEVTOOLS_CERT_DIR must be a local absolute directory");
-        content.Should().Contain(networkPathWarning,
-            $"{relativePath} should explain that network or UNC certificate directories are rejected");
-    }
-
-    [Theory]
-    [InlineData("SECURITY.md")]
-    [InlineData("docfx/production/security.md")]
-    [InlineData("docfx/zh-tw/production/security.md")]
-    public void Documentation_ShouldDescribeTlsThumbprintPinAsRequiredWhenSubjectIsValidated(string relativePath)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain("pins the expected thumbprint",
-            $"{relativePath} should describe thumbprint pinning as part of TLS certificate validation");
-        content.Should().NotContain("can pin",
-            $"{relativePath} should not imply subject-only TLS certificate validation is acceptable");
-    }
-
-    [Theory]
-    [InlineData("SECURITY.md")]
-    [InlineData("docfx/production/security.md")]
-    [InlineData("docfx/zh-tw/production/security.md")]
-    public void Documentation_ShouldDescribeNonExportableTlsPrivateKeyImports(string relativePath)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain("non-exportable private key",
-            $"{relativePath} should describe the runtime TLS private-key storage model");
-        content.Should().Contain("Exportable",
-            $"{relativePath} should state that TLS certificate loading does not fall back to exportable key imports");
-    }
-
-    [Theory]
-    [InlineData("SECURITY.md")]
-    [InlineData("docfx/production/security.md")]
-    [InlineData("docfx/zh-tw/production/security.md")]
-    public void Documentation_ShouldDescribePersistedTransportStateAndCleanupCommand(string relativePath)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain("%APPDATA%\\WpfDevTools\\auth\\shared-secret.bin",
-            $"{relativePath} should document the default persisted auth-secret file");
-        content.Should().Contain("%APPDATA%\\WpfDevTools\\certs",
-            $"{relativePath} should document the default persisted TLS certificate directory");
-        content.Should().Contain("full-uninstall",
-            $"{relativePath} should distinguish package cleanup from persisted transport state cleanup");
-        content.Should().Contain("Remove-Item -LiteralPath \"$env:APPDATA\\WpfDevTools\\auth\\shared-secret.bin\"",
-            $"{relativePath} should provide a copy-paste cleanup command for the default auth secret");
-        content.Should().Contain("Remove-Item -LiteralPath \"$env:APPDATA\\WpfDevTools\\certs\" -Recurse",
-            $"{relativePath} should provide a copy-paste cleanup command for the default certificate store");
-    }
-
-    [Theory]
-    [InlineData("SECURITY.md", "net8-net8", "TLS 1.3")]
-    [InlineData("docfx/production/security.md", "net8-net48", "TLS 1.3")]
-    [InlineData("docfx/zh-tw/production/security.md", "net48-net8", "TLS 1.3")]
-    public void Documentation_ShouldDescribeTls12PinVerificationAndTls13Reevaluation(
-        string relativePath,
-        string runtimePair,
-        string tls13Phrase)
-    {
-        var content = File.ReadAllText(GetRepoFilePath(relativePath));
-
-        content.Should().Contain("scripts/tests/Test-TlsNegotiation.ps1",
-            $"{relativePath} should point maintainers to the named-pipe TLS negotiation harness");
-        content.Should().Contain(runtimePair,
-            $"{relativePath} should document the cross-runtime pair covered before changing the TLS policy");
-        content.Should().Contain(tls13Phrase,
-            $"{relativePath} should state the TLS 1.3 reevaluation condition instead of silently pinning TLS 1.2");
+        AssertContainsAll(
+            ["SECURITY.md", "docfx/production/security.md", "docfx/zh-tw/production/security.md"],
+            "default-pipe");
+        AssertMappedTerms(
+            ("SECURITY.md", new[] { "DPAPI-protected", "same Windows user" }),
+            ("docfx/production/security.md", new[] { "DPAPI-protected", "same Windows user" }),
+            ("docfx/zh-tw/production/security.md", new[] { "DPAPI-protected", "同一 Windows 使用者" }));
+        AssertMappedTerms(
+            ("SECURITY.md", new[] { "CompatibilityError", "before the raw-injection policy denial" }),
+            ("docfx/production/security.md", new[] { "CompatibilityError", "before the raw-injection policy denial" }),
+            ("docfx/zh-tw/production/security.md", new[] { "CompatibilityError", "先回傳" }));
     }
 
     [Fact]
-    public void CertificateManagerSource_ShouldNotDescribeTlsPrivateKeyImportAsPersistable()
+    public void CertificateDocumentation_ShouldDescribeStoragePinsAndNegotiationBoundaries()
     {
-        var content = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Shared/Security/CertificateManager.cs"));
+        using var scope = new AssertionScope();
+        AssertContainsAll(
+            ["README.md", "SECURITY.md", "docfx/production/security.md", "docfx/zh-tw/production/security.md", "src/WpfDevTools.Inspector.Sdk/README.md"],
+            "absolute", "WPFDEVTOOLS_CERT_DIR");
+        AssertContainsAll(
+            ["SECURITY.md", "docfx/production/security.md", "docfx/zh-tw/production/security.md", "docfx/guides/troubleshooting.md", "docfx/zh-tw/guides/troubleshooting.md", "src/WpfDevTools.Inspector.Sdk/InspectorSdkOptions.cs", "src/WpfDevTools.Mcp.Server/McpResources/CapabilityResources.cs"],
+            "local absolute", "Network paths are not allowed");
 
-        content.Should().NotContain("private key persistable",
-            "TLS certificate loading should not document Windows key-store persistence as the intended behavior");
-        content.Should().Contain("non-exportable",
-            "the source comment should describe the runtime import security boundary");
+        var productionSecurityPaths = new[] { "SECURITY.md", "docfx/production/security.md", "docfx/zh-tw/production/security.md" };
+        AssertContainsAll(productionSecurityPaths, "pins the expected thumbprint", "non-exportable private key", "Exportable");
+        foreach (var path in productionSecurityPaths)
+        {
+            Read(path).Should().NotContain("can pin");
+        }
+
+        AssertContainsAll(
+            productionSecurityPaths,
+            "%APPDATA%\\WpfDevTools\\auth\\shared-secret.bin", "%APPDATA%\\WpfDevTools\\certs", "full-uninstall",
+            "Remove-Item -LiteralPath \"$env:APPDATA\\WpfDevTools\\auth\\shared-secret.bin\"",
+            "Remove-Item -LiteralPath \"$env:APPDATA\\WpfDevTools\\certs\" -Recurse");
+        AssertMappedTerms(
+            ("SECURITY.md", new[] { "scripts/tests/Test-TlsNegotiation.ps1", "net8-net8", "TLS 1.3" }),
+            ("docfx/production/security.md", new[] { "scripts/tests/Test-TlsNegotiation.ps1", "net8-net48", "TLS 1.3" }),
+            ("docfx/zh-tw/production/security.md", new[] { "scripts/tests/Test-TlsNegotiation.ps1", "net48-net8", "TLS 1.3" }));
+
+        Read("src/WpfDevTools.Shared/Security/CertificateManager.cs").Should().NotContain("private key persistable");
+        Read("src/WpfDevTools.Shared/Security/CertificateManager.cs").Should().Contain("non-exportable");
     }
 
-    [Theory]
-    [InlineData("SECURITY.md")]
-    [InlineData("docfx/production/security.md")]
-    [InlineData("docfx/zh-tw/production/security.md")]
-    public void ProductionChecklists_ShouldRequireExactLocalAbsoluteExecutablePaths(string relativePath)
+    private static void AssertContainsAll(IEnumerable<string> paths, params string[] terms)
     {
-        var checklistLines = File.ReadLines(GetRepoFilePath(relativePath))
-            .Select(line => line.TrimStart())
-            .Where(line => line.Length > 2
-                && char.IsDigit(line[0])
-                && (line.Contains("WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS", StringComparison.Ordinal)
-                    || line.Contains("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal)))
-            .ToArray();
-
-        checklistLines.Should().HaveCount(2,
-            $"{relativePath} should have production checklist entries for both executable allowlists");
-        checklistLines.Should().OnlyContain(
-            line => line.Contains("exact local absolute executable path", StringComparison.OrdinalIgnoreCase),
-            $"{relativePath} production checklist entries should not weaken allowlists to reviewed executable paths");
-        checklistLines.Should().OnlyContain(
-            line => line.Contains("review", StringComparison.OrdinalIgnoreCase)
-                || line.Contains("審查", StringComparison.Ordinal),
-            $"{relativePath} production checklist entries should preserve the reviewed-target requirement");
+        foreach (var path in paths)
+        {
+            foreach (var term in terms)
+            {
+                Read(path).Should().Contain(term, $"{path} must contain '{term}'");
+            }
+        }
     }
 
-    private static string ReadDocumentation()
+    private static void AssertMappedPhrase(params (string Path, string Phrase)[] expectations)
     {
-        var readme = File.ReadAllText(GetRepoFilePath("README.md"));
-        var security = File.ReadAllText(GetRepoFilePath("SECURITY.md"));
-        var productionSecurity = File.ReadAllText(GetRepoFilePath("docfx/production/security.md"));
-        var zhTwProductionSecurity = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/production/security.md"));
-        var docfxIndex = File.ReadAllText(GetRepoFilePath("docfx/index.md"));
-        var zhTwDocfxIndex = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/index.md"));
-        var architectureOverview = File.ReadAllText(GetRepoFilePath("docfx/architecture/overview.md"));
-        var zhTwArchitectureOverview = File.ReadAllText(GetRepoFilePath("docfx/zh-tw/architecture/overview.md"));
-        var sdkReadme = File.ReadAllText(GetRepoFilePath("src/WpfDevTools.Inspector.Sdk/README.md"));
-        return string.Join(
-            Environment.NewLine,
-            readme,
-            security,
-            productionSecurity,
-            zhTwProductionSecurity,
-            docfxIndex,
-            zhTwDocfxIndex,
-            architectureOverview,
-            zhTwArchitectureOverview,
-            sdkReadme);
+        foreach (var (path, phrase) in expectations)
+        {
+            Read(path).Should().Contain(phrase);
+        }
     }
 
-    private static string GetRepoFilePath(string relativePath)
-        => TestRepositoryPaths.GetRepoFilePath(relativePath);
+    private static void AssertMappedTerms(params (string Path, string[] Terms)[] expectations)
+    {
+        foreach (var (path, terms) in expectations)
+        {
+            AssertContainsAll([path], terms);
+        }
+    }
+
+    private static string Read(string relativePath) => Documents[relativePath];
+
+    private static string JoinDocuments(IEnumerable<string> paths)
+        => string.Join(Environment.NewLine, paths.Select(Read));
+
+    private static IReadOnlyDictionary<string, string> LoadDocuments()
+    {
+        var paths = SecurityOverviewPaths
+            .Concat(PolicyPaths)
+            .Concat(
+            [
+                "docfx/reference/tools/process-and-connection.md", "docfx/zh-tw/reference/tools/process-and-connection.md",
+                "src/WpfDevTools.Mcp.Server/McpTools/ProcessMcpToolDescriptions.cs",
+                "docfx/guides/troubleshooting.md", "docfx/zh-tw/guides/troubleshooting.md",
+                "src/WpfDevTools.Mcp.Server/McpResources/CapabilityResources.cs",
+                "src/WpfDevTools.Inspector.Sdk/InspectorSdkOptions.cs",
+                "src/WpfDevTools.Shared/Security/CertificateManager.cs"
+            ])
+            .Distinct(StringComparer.Ordinal);
+        return paths.ToDictionary(
+            path => path,
+            path => File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(path)),
+            StringComparer.Ordinal);
+    }
 }

@@ -20,14 +20,21 @@ public sealed class OnlineInstallerModularizationTests
         File.Exists(modulePath).Should().BeTrue(
             "release discovery, checksum lookup, and local archive trust logic should be split out of the installer entrypoint");
 
-        var installer = File.ReadAllText(installerPath);
+        var installerSources = Directory
+            .EnumerateFiles(
+                Path.Combine(root, "scripts", "installer"),
+                "OnlineInstaller.Runtime.*.ps1",
+                SearchOption.TopDirectoryOnly)
+            .Prepend(installerPath)
+            .Select(File.ReadAllText);
+        var installer = string.Join(Environment.NewLine, installerSources);
         installer.Should().Contain("online-installer.release-assets.ps1");
         installer.Should().NotContain("function Get-ReleaseAssetName");
         installer.Should().NotContain("function Assert-LocalPackageArchiveTrustedForHelperBootstrap");
 
         File.ReadLines(modulePath).Count().Should().BeLessThanOrEqualTo(500);
         var exceptions = File.ReadAllText(exceptionPath);
-        exceptions.Should().Contain("scripts/online-installer.ps1");
+        exceptions.Should().NotContain("scripts/online-installer.ps1");
         exceptions.Should().NotContain("do not split in this remediation loop");
     }
 

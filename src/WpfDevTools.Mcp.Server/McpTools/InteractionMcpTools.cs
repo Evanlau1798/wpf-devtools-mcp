@@ -160,7 +160,7 @@ public static class InteractionMcpTools
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
         [Description("Optional element ID to capture. Omit for the root window.")] string? elementId = null,
         [AllowedValues("metadata", "file", "base64")]
-        [Description("Optional screenshot output mode: 'metadata' (default), 'file', or explicit 'base64'.")] string? outputMode = null,
+        [Description("Optional output mode. 'metadata' (default) does not render or return pixel bytes and may report rendered=false; use 'file' plus resources/read for normal pixel evidence, or explicit 'base64' for small inline captures.")] string? outputMode = null,
         [Range(1, int.MaxValue)]
         [Description("Optional maximum screenshot width. When provided, the image is downscaled proportionally and never upscaled.")] int? maxWidth = null,
         [Range(1, int.MaxValue)]

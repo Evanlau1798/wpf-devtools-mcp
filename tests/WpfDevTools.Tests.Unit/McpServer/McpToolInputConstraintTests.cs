@@ -38,6 +38,14 @@ public sealed class McpToolInputConstraintTests
 
         var screenshotSchema = CreateInputSchema(typeof(InteractionMcpTools), nameof(InteractionMcpTools.ElementScreenshot));
         AssertEnumConstraint(screenshotSchema, "outputMode", "metadata", "file", "base64");
+        var screenshotOutputModeDescription = GetSchemaProperty(screenshotSchema, "outputMode")
+            .GetProperty("description")
+            .GetString();
+        screenshotOutputModeDescription.Should().Contain("does not render or return pixel bytes");
+        screenshotOutputModeDescription.Should().Contain("rendered=false");
+        screenshotOutputModeDescription.Should().Contain("file");
+        screenshotOutputModeDescription.Should().Contain("resources/read");
+        screenshotOutputModeDescription.Should().Contain("pixel evidence");
         AssertIntegerConstraint(screenshotSchema, "maxWidth", minimum: 1, maximum: int.MaxValue);
         AssertIntegerConstraint(screenshotSchema, "maxHeight", minimum: 1, maximum: int.MaxValue);
 

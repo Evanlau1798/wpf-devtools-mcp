@@ -37,6 +37,10 @@ public sealed class InspectorSdkTransportSecurityConfigurationTests
         finally
         {
             configuration.AuthenticationManager?.Dispose();
+            if (Directory.Exists(certDirectory))
+            {
+                Directory.Delete(certDirectory, recursive: true);
+            }
         }
     }
 
@@ -67,9 +71,25 @@ public sealed class InspectorSdkTransportSecurityConfigurationTests
     [Fact]
     public void Create_WithInvalidAuthenticationSecret_ShouldThrowFormatException()
     {
-        var act = () => InspectorSdkTransportSecurityConfiguration.Create("not-base64", Path.GetTempPath());
+        var certDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"wpf-devtools-sdk-invalid-auth-{Guid.NewGuid():N}");
 
-        act.Should().Throw<FormatException>();
+        try
+        {
+            var act = () => InspectorSdkTransportSecurityConfiguration.Create("not-base64", certDirectory);
+
+            act.Should().Throw<FormatException>();
+            Directory.Exists(certDirectory).Should().BeFalse(
+                "authentication must be validated before certificate storage is touched");
+        }
+        finally
+        {
+            if (Directory.Exists(certDirectory))
+            {
+                Directory.Delete(certDirectory, recursive: true);
+            }
+        }
     }
 
     [Fact]

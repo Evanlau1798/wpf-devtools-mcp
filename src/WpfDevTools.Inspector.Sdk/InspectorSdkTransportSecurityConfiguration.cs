@@ -34,22 +34,32 @@ internal sealed class InspectorSdkTransportSecurityConfiguration
     {
         ValidateExplicitTransportConfiguration(authenticationSecretBase64, certificateDirectory);
 
-        var certificateManager = string.IsNullOrWhiteSpace(certificateDirectory)
-            ? null
-            : new CertificateManager(ResolveExplicitCertificateDirectory(
-                certificateDirectory,
-                certificateDirectorySourceName));
-
-        if (certificateManager != null)
+        AuthenticationManager? authenticationManager = null;
+        try
         {
-            using var _ = certificateManager.GetOrCreateCertificate();
+            authenticationManager = string.IsNullOrWhiteSpace(authenticationSecretBase64)
+                ? null
+                : new AuthenticationManager(() => authenticationSecretBase64);
+
+            var certificateManager = string.IsNullOrWhiteSpace(certificateDirectory)
+                ? null
+                : new CertificateManager(ResolveExplicitCertificateDirectory(
+                    certificateDirectory,
+                    certificateDirectorySourceName));
+
+            if (certificateManager != null)
+            {
+                using var _ = certificateManager.GetOrCreateCertificate();
+            }
+
+            return new InspectorSdkTransportSecurityConfiguration(authenticationManager, certificateManager);
+        }
+        catch
+        {
+            authenticationManager?.Dispose();
+            throw;
         }
 
-        var authenticationManager = string.IsNullOrWhiteSpace(authenticationSecretBase64)
-            ? null
-            : new AuthenticationManager(() => authenticationSecretBase64);
-
-        return new InspectorSdkTransportSecurityConfiguration(authenticationManager, certificateManager);
     }
 
     private static void ValidateExplicitTransportConfiguration(

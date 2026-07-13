@@ -4,6 +4,7 @@ namespace WpfDevTools.Mcp.Server;
 
 internal sealed class ScreenshotResourceReader : IDisposable
 {
+    private static readonly AsyncLocal<Action?> OpenedForTestingState = new();
     private readonly FileStream _stream;
     private readonly object _lock = new();
     private bool _disposed;
@@ -19,6 +20,12 @@ internal sealed class ScreenshotResourceReader : IDisposable
 
     internal string Sha256 { get; }
 
+    internal static Action? OpenedForTesting
+    {
+        get => OpenedForTestingState.Value;
+        set => OpenedForTestingState.Value = value;
+    }
+
     internal static ScreenshotResourceReader OpenVerified(string filePath, string expectedSha256)
     {
         FileStream? stream = null;
@@ -31,6 +38,7 @@ internal sealed class ScreenshotResourceReader : IDisposable
                 FileShare.Read,
                 bufferSize: 4096,
                 FileOptions.RandomAccess);
+            OpenedForTesting?.Invoke();
             if (stream.Length > int.MaxValue)
             {
                 throw new InvalidOperationException("Screenshot file is too large to retain.");

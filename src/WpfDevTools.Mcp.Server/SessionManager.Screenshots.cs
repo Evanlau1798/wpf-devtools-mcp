@@ -108,7 +108,7 @@ public sealed partial class SessionManager
         }
         catch
         {
-            TryDeleteUnregisteredScreenshotFile(processId, fullPath, storageRoot);
+            TryDeleteUnregisteredScreenshotFileCore(fullPath, storageRoot);
             throw;
         }
 
@@ -137,6 +137,8 @@ public sealed partial class SessionManager
                     throw new InvalidOperationException("Screenshot resource registration requires the original active session.");
                 }
 
+                ThrowIfDisposed();
+
                 TrimExpiredScreenshotResources(registeredAtUtc, retainedScreenshotId: screenshotId);
                 if (!_screenshotResources.ContainsKey(screenshotId))
                 {
@@ -154,7 +156,7 @@ public sealed partial class SessionManager
         catch
         {
             reader.Dispose();
-            TryDeleteUnregisteredScreenshotFile(processId, fullPath, storageRoot);
+            TryDeleteUnregisteredScreenshotFileCore(fullPath, storageRoot);
             throw;
         }
 
@@ -201,47 +203,7 @@ public sealed partial class SessionManager
         }
 
         storageRoot ??= storageRootOverride;
-        if (string.IsNullOrWhiteSpace(storageRoot))
-        {
-            return false;
-        }
-
-        try
-        {
-            storageRoot = ResolveAndValidateScreenshotPath(storageRoot, "Screenshot storage directory");
-            var fullPath = ResolveAndValidateScreenshotPath(filePath, "Screenshot file");
-            if (!IsPathWithinRoot(fullPath, storageRoot))
-            {
-                return false;
-            }
-
-            var fileName = Path.GetFileName(fullPath);
-            if (!IsValidScreenshotFileName(fileName))
-            {
-                return false;
-            }
-
-            if (File.Exists(fullPath))
-            {
-                File.Delete(fullPath);
-                TryDeleteScreenshotDirectory(storageRoot);
-                return true;
-            }
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
-        catch (ArgumentException)
-        {
-        }
-        catch (InvalidOperationException)
-        {
-        }
-
-        return false;
+        return TryDeleteUnregisteredScreenshotFileCore(filePath, storageRoot ?? string.Empty);
     }
 
     private void RemoveScreenshotResources(int processId)

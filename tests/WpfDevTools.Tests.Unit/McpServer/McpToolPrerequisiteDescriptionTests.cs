@@ -56,6 +56,9 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("pre-write");
         description.Should().Contain("packageIntegrationGuidance");
         description.Should().Contain("ManagePackageVersionsCentrally");
+        description.Should().Contain("inspectionConfidence");
+        description.Should().Contain("mode=unknown");
+        description.Should().Contain("omits package snippets");
         description.Should().Contain("does not edit project or central package files");
     }
 

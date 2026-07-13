@@ -162,6 +162,7 @@ public sealed class ComposerPipelineContractTests
         english.Should().ContainAll(
             "behaviorIntegrationContract",
             "packageIntegrationGuidance",
+            "inspectionConfidence",
             "Directory.Packages.props",
             "projectPackageReference",
             "centralPackageVersion",
@@ -175,6 +176,7 @@ public sealed class ComposerPipelineContractTests
         zhTw.Should().ContainAll(
             "behaviorIntegrationContract",
             "packageIntegrationGuidance",
+            "inspectionConfidence",
             "Directory.Packages.props",
             "projectPackageReference",
             "centralPackageVersion",

@@ -55,6 +55,19 @@ public sealed class ComposerPackageIntegrationGuidanceTests
     }
 
     [Fact]
+    public void Create_ShouldAvoidAuthoritativeSnippetWhenProjectModeIsUnknown()
+    {
+        var result = PackageIntegrationPlanner.Create(projectRoot: null, Packages);
+
+        result.Mode.Should().Be("unknown");
+        result.ProjectInspected.Should().BeFalse();
+        result.InspectionConfidence.Should().Be("none");
+        result.InspectionReason.Should().Contain("No target project file");
+        result.Packages[0].ProjectPackageReference.Should().BeNull();
+        result.Packages[0].CentralPackageVersion.Should().BeNull();
+    }
+
+    [Fact]
     public async Task RenderTool_ShouldExposeGuidanceDerivedFromTargetProject()
     {
         var projectRoot = CreateProject(

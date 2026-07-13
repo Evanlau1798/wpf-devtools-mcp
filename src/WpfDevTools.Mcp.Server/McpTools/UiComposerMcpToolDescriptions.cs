@@ -192,7 +192,7 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - Dry-run is the default and returns filePlan entries with targetPath, action, riskLevel, resourcePlan, requiredNuGetPackages, packageIntegrationGuidance, viewModelBindingContract, and behaviorIntegrationContract without writing files.
-        - packageIntegrationGuidance detects ManagePackageVersionsCentrally, returns projectPackageReference and centralPackageVersion snippets for pack-declared packages, and does not edit project or central package files.
+        - packageIntegrationGuidance reports ManagePackageVersionsCentrally detection, inspectionConfidence, and inspectionReason. It returns snippets only for detected project or central modes; mode=unknown omits package snippets and requires project inspection. Composer does not edit project or central package files.
         - behaviorIntegrationContract preserves every declared command interaction with bindingStatus, raw commandBinding, nullable commandPath, parameter, and verification guidance. Resolve complex bindings before treating controls as functional.
         - Non-dry-run writes require confirmApply=true, persist generated XAML atomically, are restricted to project-root-relative targetPath under projectRoot, and create a backup when updating an existing view file.
         - A successful non-dry-run response returns the executed file plan using the pre-write target state: create remains create and update includes its backup path.

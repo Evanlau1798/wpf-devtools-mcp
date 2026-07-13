@@ -14,28 +14,39 @@ internal static class PackageIntegrationPlanner
         var centralFile = FindCentralPackageFile(projectRoot);
         var central = HasEnabledProperty(projectFile) || HasEnabledProperty(centralFile);
         var mode = central ? "central" : projectFile is null ? "unknown" : "project";
-        var actions = packages.Select(package => CreateAction(package, central)).ToArray();
+        var actions = packages.Select(package => CreateAction(package, mode)).ToArray();
+        var inspection = mode switch
+        {
+            "central" => (Confidence: "best-effort", Reason: "Detected ManagePackageVersionsCentrally=true in an inspected project or central package file."),
+            "project" => (Confidence: "best-effort", Reason: "Inspected the target project and did not detect ManagePackageVersionsCentrally=true."),
+            _ => (Confidence: "none", Reason: "No target project file was available for package-management inspection.")
+        };
 
         return new PackageIntegrationPlan(
             mode,
             projectFile is not null,
+            inspection.Confidence,
+            inspection.Reason,
             ToProjectRelativePath(projectRoot, projectFile),
             central ? ToProjectRelativePath(projectRoot, centralFile ?? Path.Combine(projectRoot!, "Directory.Packages.props")) : string.Empty,
             actions,
             CreateGuidance(mode));
     }
 
-    private static PackageIntegrationAction CreateAction(RequiredNuGetPackage package, bool central)
+    private static PackageIntegrationAction CreateAction(RequiredNuGetPackage package, string mode)
     {
         var id = SecurityElement.Escape(package.Id) ?? string.Empty;
         var version = SecurityElement.Escape(package.VersionRange) ?? string.Empty;
         return new PackageIntegrationAction(
             package.Id,
             package.VersionRange,
-            central
-                ? $"<PackageReference Include=\"{id}\" />"
-                : $"<PackageReference Include=\"{id}\" Version=\"{version}\" />",
-            central ? $"<PackageVersion Include=\"{id}\" Version=\"{version}\" />" : null);
+            mode switch
+            {
+                "central" => $"<PackageReference Include=\"{id}\" />",
+                "project" => $"<PackageReference Include=\"{id}\" Version=\"{version}\" />",
+                _ => null
+            },
+            mode == "central" ? $"<PackageVersion Include=\"{id}\" Version=\"{version}\" />" : null);
     }
 
     private static string CreateGuidance(string mode)
@@ -112,6 +123,8 @@ internal static class PackageIntegrationPlanner
 internal sealed record PackageIntegrationPlan(
     string Mode,
     bool ProjectInspected,
+    string InspectionConfidence,
+    string InspectionReason,
     string ProjectFile,
     string CentralPackageFile,
     IReadOnlyList<PackageIntegrationAction> Packages,
@@ -120,5 +133,5 @@ internal sealed record PackageIntegrationPlan(
 internal sealed record PackageIntegrationAction(
     string Id,
     string VersionRange,
-    string ProjectPackageReference,
+    string? ProjectPackageReference,
     string? CentralPackageVersion);

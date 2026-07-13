@@ -231,7 +231,7 @@ function Assert-PublicReleaseStrictEvidence {
     $security = $Evidence['security']
     $packageSmoke = $Evidence['packageSmoke']
     $liveSmoke = $Evidence['liveSmoke']
-    if ([int]$Evidence['toolsList']['count'] -ne 72) {
+    if ([int]$Evidence['toolsList']['count'] -ne 74) {
         $failures += 'toolsList.count'
     }
     if ($docfx['englishParity'] -ne $true) {

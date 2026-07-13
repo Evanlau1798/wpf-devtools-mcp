@@ -19,16 +19,16 @@ public sealed class PackagedServerToolListContractScriptTests
     }
 
     [Fact]
-    public void ToolListContract_WhenExpectedNamesAreNotSeventyTwo_ShouldFail()
+    public void ToolListContract_WhenExpectedNamesAreNotSeventyFour_ShouldFail()
     {
         var result = RunHelperScript("""
-            $expected = 1..71 | ForEach-Object { "tool$_" }
+            $expected = 1..73 | ForEach-Object { "tool$_" }
             $response = New-ToolsResponse -ToolNames $expected
             Test-McpToolListContract -ToolsResponse $response -ExpectedToolNames $expected
             """);
 
         result.ExitCode.Should().NotBe(0);
-        result.Output.Should().Contain("expected 72");
+        result.Output.Should().Contain("expected 74");
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public sealed class PackagedServerToolListContractScriptTests
                 'get_state_diff',
                 'restore_state_snapshot'
             )
-            return @($representative + (1..64 | ForEach-Object { "tool$_" }))
+            return @($representative + (1..66 | ForEach-Object { "tool$_" }))
         }
 
         function New-ToolsResponse {

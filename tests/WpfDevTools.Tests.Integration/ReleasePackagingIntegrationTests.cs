@@ -248,7 +248,7 @@ public sealed class ReleasePackagingIntegrationTests
         initializeResponse.TryGetProperty("error", out _).Should().BeFalse(initializeResponse.GetRawText());
         initializeResponse.TryGetProperty("result", out _).Should().BeTrue(initializeResponse.GetRawText());
         var tools = (await client.ListToolsAsync()).GetProperty("result").GetProperty("tools").EnumerateArray().ToArray();
-        tools.Should().HaveCount(72);
+        tools.Should().HaveCount(74);
         tools.Select(tool => tool.GetProperty("name").GetString()).Should()
             .Contain(["get_processes", "connect", "ping", "get_ui_summary", "get_binding_errors"]);
     }

@@ -166,7 +166,7 @@ public sealed class ReleaseEvidenceRuntimeModeStrictTests
             {
               "installMode": "{{installMode}}",
               "toolsList": {
-                "count": 72,
+                "count": 74,
                 "nameSetHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "schemaSnapshotHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
               },

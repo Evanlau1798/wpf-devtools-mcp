@@ -20,7 +20,7 @@ public sealed class ReleaseEvidenceScriptTests
                 """
                 {
                   "toolsList": {
-                    "count": 72,
+                    "count": 74,
                     "nameSetHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                     "schemaSnapshotHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
                   },
@@ -95,7 +95,7 @@ public sealed class ReleaseEvidenceScriptTests
             root.GetProperty("branch").GetString().Should().Be("codex/v5-near10-production-fixes");
             root.GetProperty("commitSha").GetString().Should().Be("0123456789abcdef0123456789abcdef01234567");
             root.GetProperty("workflowRunIds")[0].GetInt64().Should().Be(123456789);
-            root.GetProperty("toolsList").GetProperty("count").GetInt32().Should().Be(72);
+            root.GetProperty("toolsList").GetProperty("count").GetInt32().Should().Be(74);
             root.GetProperty("docfx").GetProperty("englishParity").GetBoolean().Should().BeTrue();
             root.GetProperty("docfx").GetProperty("zhTwParity").GetBoolean().Should().BeTrue();
             root.GetProperty("docfx").GetProperty("brokenLinks").GetInt32().Should().Be(0);

@@ -131,7 +131,7 @@ public sealed class ReleaseEvidenceStrictModeTests
         string installMode = "package-local",
         string packageLocalStatus = "passed",
         string onlineInstallerStatus = "passed-or-not-public",
-        int toolCount = 72)
+        int toolCount = 74)
     {
         var path = Path.Combine(tempRoot, fileName);
         File.WriteAllText(path, $$"""

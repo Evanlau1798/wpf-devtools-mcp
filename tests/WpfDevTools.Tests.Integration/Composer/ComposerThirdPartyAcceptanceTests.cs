@@ -51,6 +51,8 @@ public sealed class ComposerThirdPartyAcceptanceTests
                 "MainWindow",
                 materialApply.ResourcePlan,
                 inspectorEnabled: true);
+            File.ReadAllText(Path.Combine(materialRoot, "App.xaml"))
+                .Should().Contain("x:Key=\"ExistingBrush\"");
             await AssertBuildAsync(materialRoot);
 
             var authSecret = CreateAuthSecret();

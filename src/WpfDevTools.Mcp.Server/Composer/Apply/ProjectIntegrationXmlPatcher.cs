@@ -97,6 +97,9 @@ internal static class ProjectIntegrationXmlPatcher
             if (dictionary is null)
             {
                 dictionary = new XElement(presentation + "ResourceDictionary");
+                var existingNodes = appResources.Nodes().ToArray();
+                appResources.RemoveNodes();
+                dictionary.Add(existingNodes);
                 appResources.Add(dictionary);
             }
 

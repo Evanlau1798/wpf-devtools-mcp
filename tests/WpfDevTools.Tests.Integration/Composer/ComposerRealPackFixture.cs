@@ -97,23 +97,33 @@ internal static class ComposerRealPackFixture
         IReadOnlyList<string> resources,
         bool inspectorEnabled)
     {
-        var namespaceAttribute = inspectorEnabled
-            ? " xmlns:materialDesign=\"http://materialdesigninxaml.net/winfx/xaml/themes\""
-            : " xmlns:mah=\"http://metro.mahapps.com/winfx/xaml/controls\"";
+        var appPath = Path.Combine(projectRoot, "App.xaml");
         File.WriteAllText(
-            Path.Combine(projectRoot, "App.xaml"),
+            appPath,
             $$"""
-            <Application x:Class="{{projectName}}.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"{{namespaceAttribute}} StartupUri="{{windowName}}.xaml">
+            <Application x:Class="{{projectName}}.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
               <Application.Resources>
-                <ResourceDictionary>
-                  <ResourceDictionary.MergedDictionaries>
-            {{string.Join(Environment.NewLine, resources.Select(resource => "        " + resource))}}
-                  </ResourceDictionary.MergedDictionaries>
-                </ResourceDictionary>
+                <SolidColorBrush x:Key="ExistingBrush" Color="#FF102030" />
               </Application.Resources>
             </Application>
             """,
             Encoding.UTF8);
+        var namespaces = inspectorEnabled
+            ? new Dictionary<string, string> { ["materialDesign"] = "http://materialdesigninxaml.net/winfx/xaml/themes" }
+            : new Dictionary<string, string> { ["mah"] = "http://metro.mahapps.com/winfx/xaml/controls" };
+        var patch = ProjectIntegrationXmlPatcher.PatchApplication(
+            appPath,
+            projectRoot,
+            Path.Combine(projectRoot, windowName + ".xaml"),
+            resources,
+            namespaces,
+            setStartup: true);
+        if (!patch.Success)
+        {
+            throw new InvalidOperationException(patch.Error?.Message ?? "Application integration failed.");
+        }
+
+        File.WriteAllText(appPath, patch.Content, Encoding.UTF8);
         File.WriteAllText(
             Path.Combine(projectRoot, "App.xaml.cs"),
             $"using System.Windows; namespace {projectName}; public partial class App : Application {{ }}",

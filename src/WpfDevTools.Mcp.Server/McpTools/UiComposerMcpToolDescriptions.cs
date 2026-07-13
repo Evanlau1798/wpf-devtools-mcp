@@ -22,9 +22,6 @@ internal static class UiComposerMcpToolDescriptions
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs. Omit it to use the current user's LocalApplicationData path when available.
 
-        EXAMPLES:
-        - {"projectRoot":"C:\\repo\\MyWpfApp"}
-        - {"localAppDataRoot":"C:\\Users\\me\\AppData\\Local"}
         """;
 
     public const string GetUiBlockCatalog =
@@ -53,10 +50,6 @@ internal static class UiComposerMcpToolDescriptions
         - kind optionally returns single-block detail for an exact pack-qualified block kind.
         - includeRecipes defaults to false for brief-first discovery. Set true only after choosing an independent creative brief.
 
-        EXAMPLES:
-        - {"packIds":["sample"],"category":"navigation"}
-        - {"kind":"sample.button"}
-        - {"kindPrefix":"sample.navigation","composableOnly":true}
         """;
 
     public const string ValidateUiBlueprint =
@@ -80,8 +73,6 @@ internal static class UiComposerMcpToolDescriptions
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
-        EXAMPLES:
-        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"sample\",\"version\":\"1.0.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"sample\",\"layout\":{\"kind\":\"sample.button\"}}"}
         """;
 
     public const string ComposeUiBlueprint =
@@ -105,9 +96,6 @@ internal static class UiComposerMcpToolDescriptions
         - kind is an exact pack-qualified kind from get_ui_block_catalog(composableOnly=true).
         - insertionIndex optionally inserts before an existing child; omit it to append.
 
-        EXAMPLES:
-        - {"blueprintJson":"{...}","targetPath":"$.layout.slots.content","kind":"sample.card"}
-        - {"blueprintJson":"{...}","targetPath":"$.layout.slots.content[0].slots.actions","kind":"sample.button","insertionIndex":0}
         """;
 
     public const string ExpandUiRecipe =
@@ -132,9 +120,6 @@ internal static class UiComposerMcpToolDescriptions
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
-        EXAMPLES:
-        - {"recipeId":"sample.workspaceStarter"}
-        - {"recipeId":"sample.collectionView","inputs":{"itemsSource":"{Binding Items}","emptyText":"No items"}}
         """;
 
     public const string RenderUiBlueprint =
@@ -159,8 +144,6 @@ internal static class UiComposerMcpToolDescriptions
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
-        EXAMPLES:
-        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"sample\",\"version\":\"1.0.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"sample\",\"layout\":{\"kind\":\"sample.button\"}}"}
         """;
 
     public const string RepairUiBlueprint =
@@ -186,8 +169,6 @@ internal static class UiComposerMcpToolDescriptions
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
-        EXAMPLES:
-        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"sample\",\"version\":\"1.0.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"sample\",\"layout\":{\"kind\":\"sample.missing\"}}"}
         """;
 
     public const string ApplyUiBlueprint =
@@ -217,8 +198,6 @@ internal static class UiComposerMcpToolDescriptions
         - confirmApply defaults to false and must be true for non-dry-run writes after reviewing the dry-run file plan.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
-        EXAMPLES:
-        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"sample\",\"version\":\"1.0.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"sample\",\"layout\":{\"kind\":\"sample.button\"}}","projectRoot":"C:\\Work\\SampleApp"}
         """;
 
     public const string PreviewUiBlueprint =
@@ -254,8 +233,5 @@ internal static class UiComposerMcpToolDescriptions
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
-        EXAMPLES:
-        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"sample\",\"version\":\"1.0.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"sample\",\"layout\":{\"kind\":\"sample.button\"}}","restoreEnabled":true,"startHost":true,"includeRuntimeDiagnostics":true}
-        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"sample\",\"version\":\"1.0.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"sample\",\"layout\":{\"kind\":\"sample.button\"}}","restoreEnabled":true,"startHost":true,"includeScreenshotDiagnostics":true,"screenshotOutputMode":"file"}
         """;
 }

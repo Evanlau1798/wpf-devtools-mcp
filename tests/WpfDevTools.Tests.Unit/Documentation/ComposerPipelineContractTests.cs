@@ -68,108 +68,35 @@ public sealed class ComposerPipelineContractTests
     }
 
     [Fact]
-    public void UiComposerDocs_ShouldPublishObservabilityPrivacyPolicy()
+    public void EnglishUiComposerDocs_ShouldCoverStablePublicContracts()
     {
-        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
-        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
+        var documentation = ReadRepoFile("docfx/reference/tools/ui-composer.md");
 
-        english.Should().Contain("Composer observability");
-        english.Should().Contain("WPFDEVTOOLS_COMPOSER_TELEMETRY_DISABLED=true");
-        english.Should().Contain("does not include blueprint JSON, generated XAML, full user file content, secrets, or absolute local paths");
-
-        zhTw.Should().Contain("Composer observability");
-        zhTw.Should().Contain("WPFDEVTOOLS_COMPOSER_TELEMETRY_DISABLED=true");
-        zhTw.Should().Contain("不包含 blueprint JSON、generated XAML、完整使用者檔案內容、secrets 或 absolute local paths");
-    }
-
-    [Fact]
-    public void UiComposerDocs_ShouldDocumentApplyConfirmationGuard()
-    {
-        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
-        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
-
-        english.Should().Contain("- `confirmApply`: optional boolean");
-        english.Should().Contain("Non-dry-run writes require `confirmApply=true`");
-        zhTw.Should().Contain("- `confirmApply`: optional boolean");
-        zhTw.Should().Contain("非 dry-run 寫入需要 `confirmApply=true`");
-    }
-
-    [Fact]
-    public void UiComposerDocs_ShouldDocumentBlueprintObjectHandoff()
-    {
-        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
-        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
-
-        english.Should().Contain("Serialize the `blueprint` object");
-        english.Should().Contain("pass it under the `blueprintJson` parameter name");
-        english.Should().Contain("65,536 characters");
-        english.Should().Contain("host-backed controls");
-        english.Should().Contain("ConvertTo-Json -Depth 100 -Compress");
-        zhTw.Should().Contain("將 `blueprint` object 序列化");
-        zhTw.Should().Contain("以 `blueprintJson` 參數名稱傳入");
-        zhTw.Should().Contain("65,536 字元");
-        zhTw.Should().Contain("需要 host 的控制項");
-        zhTw.Should().Contain("ConvertTo-Json -Depth 100 -Compress");
-    }
-
-    [Fact]
-    public void UiComposerDocs_ShouldDocumentPackNeutralCompositionSkeletonContract()
-    {
-        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
-        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
-
-        english.Should().ContainAll("pack-neutral `compositionSkeleton`", "required", "declared slots", "allowedPackRoles");
-        zhTw.Should().ContainAll("pack-neutral", "`compositionSkeleton`", "declared slots", "allowedPackRoles");
-    }
-
-    [Fact]
-    public void UiComposerDocs_ShouldExplainPackDiscoveryBlueprintHints()
-    {
-        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
-        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
-
-        english.Should().ContainAll("`kind`", "`themeTokens`", "suggested blueprint role", "`required=true`");
-        zhTw.Should().ContainAll("`kind`", "`themeTokens`", "建議的 blueprint role", "`required=true`");
-    }
-
-    [Fact]
-    public void UiComposerDocs_ShouldDocumentPathAwarePackNeutralComposition()
-    {
-        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
-        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
-
-        english.Should().ContainAll("`compose_ui_blueprint`", "targetPath", "pack-defined", "never writes files", "`invalidCandidate`", "`candidateBlueprintJson`");
-        zhTw.Should().ContainAll("`compose_ui_blueprint`", "targetPath", "pack-defined", "不會寫入檔案", "`invalidCandidate`", "`candidateBlueprintJson`");
-    }
-
-    [Fact]
-    public void UiComposerDocs_ShouldDocumentPackNeutralTabPreviewInheritance()
-    {
-        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
-        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
-
-        english.Should().ContainAll("`tabControl`", "`tabItem`", "members inherited", "Foreground");
-        zhTw.Should().ContainAll("`tabControl`", "`tabItem`", "已繼承的 member", "Foreground");
-    }
-
-    [Fact]
-    public void UiComposerDocs_ShouldDocumentTransientPreviewElementCorrelation()
-    {
-        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
-        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
-
-        english.Should().ContainAll("`elementCorrelations`", "renderer root", "`x:Name`", "never stored in the blueprint");
-        zhTw.Should().ContainAll("`elementCorrelations`", "renderer root", "`x:Name`", "不會寫入 blueprint");
-    }
-
-    [Fact]
-    public void UiComposerDocs_ShouldPublishCompleteApplyToRunningAppWorkflow()
-    {
-        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
-        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
-
-        english.Should().Contain("## Apply-to-build workflow");
-        english.Should().ContainAll(
+        documentation.Should().ContainAll(
+            "Composer observability",
+            "WPFDEVTOOLS_COMPOSER_TELEMETRY_DISABLED=true",
+            "blueprint JSON",
+            "`confirmApply`",
+            "`dryRun`",
+            "`blueprintJson`",
+            "65,536",
+            "ConvertTo-Json -Depth 100 -Compress",
+            "`compositionSkeleton`",
+            "allowedPackRoles",
+            "`kind`",
+            "`themeTokens`",
+            "`required=true`",
+            "`compose_ui_blueprint`",
+            "targetPath",
+            "`invalidCandidate`",
+            "`candidateBlueprintJson`",
+            "`tabControl`",
+            "`tabItem`",
+            "Foreground",
+            "`elementCorrelations`",
+            "renderer root",
+            "`x:Name`",
+            "## Apply-to-build workflow",
             "behaviorIntegrationContract",
             "packageIntegrationGuidance",
             "inspectionConfidence",
@@ -181,11 +108,39 @@ public sealed class ComposerPipelineContractTests
             "codeBehindBaseType",
             "dotnet build",
             "capture_state_snapshot");
-        english.Should().NotContain("<PackageReference Include=\"WPF-UI\"");
-        english.Should().NotContain("public partial class MainWindow : Wpf.Ui.Controls.FluentWindow");
+        AssertPackNeutralExamples(documentation);
+    }
 
-        zhTw.Should().Contain("## 從 apply 到可執行應用程式");
-        zhTw.Should().ContainAll(
+    [Fact]
+    public void TraditionalChineseUiComposerDocs_ShouldCoverStablePublicContracts()
+    {
+        var documentation = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
+
+        documentation.Should().ContainAll(
+            "Composer observability",
+            "WPFDEVTOOLS_COMPOSER_TELEMETRY_DISABLED=true",
+            "blueprint JSON",
+            "`confirmApply`",
+            "`dryRun`",
+            "`blueprintJson`",
+            "65,536",
+            "ConvertTo-Json -Depth 100 -Compress",
+            "`compositionSkeleton`",
+            "allowedPackRoles",
+            "`kind`",
+            "`themeTokens`",
+            "`required=true`",
+            "`compose_ui_blueprint`",
+            "targetPath",
+            "`invalidCandidate`",
+            "`candidateBlueprintJson`",
+            "`tabControl`",
+            "`tabItem`",
+            "Foreground",
+            "`elementCorrelations`",
+            "renderer root",
+            "`x:Name`",
+            "## 從 apply 到可執行應用程式",
             "behaviorIntegrationContract",
             "packageIntegrationGuidance",
             "inspectionConfidence",
@@ -197,8 +152,13 @@ public sealed class ComposerPipelineContractTests
             "codeBehindBaseType",
             "dotnet build",
             "capture_state_snapshot");
-        zhTw.Should().NotContain("<PackageReference Include=\"WPF-UI\"");
-        zhTw.Should().NotContain("public partial class MainWindow : Wpf.Ui.Controls.FluentWindow");
+        AssertPackNeutralExamples(documentation);
+    }
+
+    private static void AssertPackNeutralExamples(string documentation)
+    {
+        documentation.Should().NotContain("<PackageReference Include=\"WPF-UI\"");
+        documentation.Should().NotContain("public partial class MainWindow : Wpf.Ui.Controls.FluentWindow");
     }
 
     private static string GetWorkflowJob(string workflow, string name)

@@ -163,4 +163,45 @@ $assetNameResult = [ordered]@{
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+
+    [Fact]
+    public void OnlineInstaller_WithRegisteredClient_ShouldIncludeServerCommandContract()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot, "x64");
+            var installRoot = Path.Combine(tempRoot, "install-root");
+
+            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+                ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "vscode",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                new Dictionary<string, string?>
+                {
+                    ["APPDATA"] = Path.Combine(tempRoot, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(tempRoot, "AppData", "Local"),
+                    ["USERPROFILE"] = Path.Combine(tempRoot, "UserProfile"),
+                    ["PATH"] = string.Empty
+                });
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            using var json = JsonDocument.Parse(result.Stdout);
+            var serverCommand = json.RootElement.GetProperty("serverCommand");
+            serverCommand.GetProperty("client").GetString().Should().Be("vscode");
+            serverCommand.GetProperty("executable").GetString().Should().Be(
+                Path.Combine(installRoot, "x64", "current", "bin", "wpf-devtools-x64.exe"));
+            serverCommand.GetProperty("transport").GetString().Should().Be("stdio");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
 }

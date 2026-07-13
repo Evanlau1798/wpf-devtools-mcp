@@ -183,6 +183,14 @@ public sealed partial class McpStdioClient : IDisposable
     }
 
     /// <summary>
+    /// List all available MCP resource templates.
+    /// </summary>
+    public async Task<JsonElement> ListResourceTemplatesAsync(CancellationToken ct = default)
+    {
+        return await SendRequestAsync("resources/templates/list", new { }, 30000, ct);
+    }
+
+    /// <summary>
     /// Read an MCP resource by URI.
     /// </summary>
     public async Task<JsonElement> ReadResourceAsync(string uri, CancellationToken ct = default)

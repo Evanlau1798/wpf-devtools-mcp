@@ -170,6 +170,7 @@ public static class ServerInstructions
         === RESPONSE CONTRACT VERSION ===
         - Current response contract version: {{ResponseContractVersion.Current}}
         - Machine-readable response contract resource: `wpf://contracts/response` (descriptive JSON contract for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, canonical `recovery` error guidance, `parameterVocabularies`, compatibility aliases, detail=compact, detail=minimal, detail=verbose, standard response notes, and the `get_binding_errors` `navigation=false` explicit opt-out)
+        - Bounded-client contract recovery: read `wpf://contracts/index`, then concatenate its advertised UTF-8 chunks (at most 16 KiB each) and verify byteLength plus SHA-256 before parsing the reconstructed JSON.
         - Machine-readable canonical tool manifest resource: `wpf://contracts/tools` (generated from source `[McpServerTool]` registration metadata, method signatures, capability tags, and policy annotations)
         - By default, tool responses include the additive `navigation` envelope; prefer `navigation.recommended` as the preferred follow-up surface when present instead of ad hoc tool guessing.
         - By default, tool responses also include compatibility `nextSteps`; expect `nextSteps: []` when no deterministic guidance exists.

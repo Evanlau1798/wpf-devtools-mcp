@@ -78,6 +78,7 @@
 - `tools/list` 會針對 `connect`、`get_processes`、`get_ui_summary`、`get_element_snapshot(elementId)`、state snapshot/restore、batch mutation 與 screenshots 等 high-value tools 公告精確的 `outputSchema`。其他工具仍繼承共用 structured payload schema，包含 `success`、`navigation` 與常見識別欄位。Claude-compatible clients 應針對這些 structured-output metadata shapes 驗證 discovery。
 - 使用 MCP resource `wpf://contracts/response` 取得穩定詳細的 WPF payload contract。
 - 使用 MCP resource `wpf://contracts/tools` 取得 canonical tool names、categories、safety flags、capability tags 與 parameter metadata。
+- 若 client bridge 截斷 contract resource，先讀 compact `wpf://contracts/index`，再依序要求它公告的 `wpf://contracts/{contractId}/chunks/{offset}/{length}` ranges（每段最多 16 KiB），不轉換地串接 decoded UTF-8 bytes，並在 parse JSON 前驗證 `byteLength` 與 SHA-256。
 - `result.content[0].text` 是 compact JSON fallback，會保留高訊號 top-level scalar fields 與集合計數，而不是完整 JSON 的重複傳輸。只有 legacy client 需要時才設定 `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full`。
 - Error result 會包含 `result.content[0].annotations`，並保留 `result.structuredContent` 供 machine-readable handling 使用。
 - Diagnostic tools 可能包含 `pendingEvents`；需要 deterministic event read 時請使用 `drain_events`。

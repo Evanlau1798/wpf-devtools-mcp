@@ -140,6 +140,16 @@ Installer validation must cover both the registration metadata and the runnable 
 
 This prevents regressions where an installer writes plausible configuration but the installed package cannot actually be started by an MCP client.
 
+## For public pre-release Agent E2E
+
+Treat the public install as a release contract, not a source-build smoke test. Install the exact GitHub pre-release through the public installer, start only the installed executable over STDIO, and save the release tag together with the release-specific expected count. Runtime `tools/list` discovery remains authoritative, but a mismatch against that one recorded expectation is a finding. The current development surface contains 77 tools.
+
+For Composer, verify `create_ui_blueprint_draft` as the initial transport entry and enumerate all seven downstream tools whose schema accepts `blueprintJson`: `compose_ui_blueprint`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint`, and `apply_ui_project_integration`. Derive this set from `tools/list`; do not preserve an older hand-maintained subset in the E2E task.
+
+Keep the creative target pack-neutral and Agent-selected: the app concept, extension pack, layout topology, and control families must come from runtime discovery and the Agent's own brief. Build and launch the generated WPF app, inspect it through MCP, and capture pixel evidence with `element_screenshot(outputMode="file")` plus `resources/read`. Do not use Computer Use, browser control, OS-level screenshots, or synthetic keyboard and mouse input.
+
+A structured visibility pass is not sufficient visual evidence. After each report-facing screenshot, explicitly critique contrast and readability, clipping, overlap, completeness, control states, and whether the chosen pack's styling is visibly applied. The report must also answer whether the puzzle-like block and slot workflow was convenient, how it should improve, and every product, harness, and external-environment friction encountered, including recovered retries and non-blocking observations.
+
 ## What a good regression test looks like
 
 - fails before the fix

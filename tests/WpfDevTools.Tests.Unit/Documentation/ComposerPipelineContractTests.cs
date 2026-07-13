@@ -214,6 +214,29 @@ public sealed class ComposerPipelineContractTests
         AssertPackNeutralExamples(documentation);
     }
 
+    [Fact]
+    public void PublicPrereleaseE2eGuidance_ShouldKeepComposerDiscoveryAndVisualReviewAuthoritative()
+    {
+        var documentation = ReadRepoFile("docfx/contributors/testing-and-tdd.md");
+
+        documentation.Should().ContainAll(
+            "release-specific expected count",
+            "77 tools",
+            "`create_ui_blueprint_draft`",
+            "`compose_ui_blueprint`",
+            "`validate_ui_blueprint`",
+            "`render_ui_blueprint`",
+            "`preview_ui_blueprint`",
+            "`repair_ui_blueprint`",
+            "`apply_ui_blueprint`",
+            "`apply_ui_project_integration`",
+            "Do not use Computer Use",
+            "Agent-selected",
+            "contrast and readability",
+            "puzzle-like block and slot workflow",
+            "product, harness, and external-environment friction");
+    }
+
     private static void AssertPackNeutralExamples(string documentation)
     {
         documentation.Should().NotContain("<PackageReference Include=\"WPF-UI\"");

@@ -221,7 +221,7 @@ internal static partial class McpToolOutputSchemas
                     type = "object",
                     description = "Exact same-session MCP resource read request for file-mode screenshot retrieval.",
                     additionalProperties = false,
-                    required = new[] { "method", "params", "sameSessionRequired" },
+                    required = new[] { "method", "params", "sameSessionRequired", "chunking" },
                     properties = new Dictionary<string, object>
                     {
                         ["method"] = String("MCP resource method; always resources/read."),
@@ -235,7 +235,20 @@ internal static partial class McpToolOutputSchemas
                                 ["uri"] = String("Exact screenshot resource URI to read.")
                             }
                         },
-                        ["sameSessionRequired"] = Boolean("Whether retrieval must use the same MCP server session.")
+                        ["sameSessionRequired"] = Boolean("Whether retrieval must use the same MCP server session."),
+                        ["chunking"] = new
+                        {
+                            type = "object",
+                            description = "Bounded resource reads for clients that truncate the complete screenshot blob.",
+                            additionalProperties = false,
+                            required = new[] { "uriTemplate", "maxChunkBytes", "assembly" },
+                            properties = new Dictionary<string, object>
+                            {
+                                ["uriTemplate"] = String("Resource URI template with offset and length placeholders."),
+                                ["maxChunkBytes"] = Integer("Maximum decoded byte count per chunk read."),
+                                ["assembly"] = String("Instructions for reconstructing and verifying the original PNG bytes.")
+                            }
+                        }
                     }
                 },
                 ["expiresAtUtc"] = String("UTC expiration timestamp for the retained screenshot resource."),

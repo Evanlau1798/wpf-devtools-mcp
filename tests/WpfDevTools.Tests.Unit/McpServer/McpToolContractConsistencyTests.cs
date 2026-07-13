@@ -38,6 +38,7 @@ public class McpToolContractConsistencyTests
 
         method.Should().NotBeNull();
         method!.GetParameters().Select(parameter => parameter.Name).Should().NotContain("outputPath");
+        method.GetCustomAttribute<DescriptionAttribute>()!.Description.Should().Contain("resourceRead.chunking");
     }
 
     [Fact]

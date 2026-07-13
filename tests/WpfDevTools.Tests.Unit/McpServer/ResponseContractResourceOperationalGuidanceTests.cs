@@ -96,6 +96,7 @@ public sealed class ResponseContractResourceOperationalGuidanceTests
         guidance.GetProperty("metadata").GetProperty("fileModeNextStep").GetBoolean().Should().BeTrue();
         guidance.GetProperty("file").GetProperty("preferredForPixelEvidence").GetBoolean().Should().BeTrue();
         guidance.GetProperty("file").GetProperty("useWhen").GetString().Should().Contain("resourceUri");
+        guidance.GetProperty("file").GetProperty("useWhen").GetString().Should().Contain("resourceRead.chunking");
         guidance.GetProperty("base64").GetProperty("inlineOnlyForSmallImages").GetBoolean().Should().BeTrue();
 
         var unsupported = screenshotTool.GetProperty("unsupportedRequestParameters");

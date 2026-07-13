@@ -364,7 +364,15 @@ internal static class ResponseContractToolEntries
                     "maxInlineByteLength",
                     "nextSteps"
                 },
-                nestedResponsePaths = new[] { "resourceRead.method", "resourceRead.params.uri", "resourceRead.sameSessionRequired" },
+                nestedResponsePaths = new[]
+                {
+                    "resourceRead.method",
+                    "resourceRead.params.uri",
+                    "resourceRead.sameSessionRequired",
+                    "resourceRead.chunking.uriTemplate",
+                    "resourceRead.chunking.maxChunkBytes",
+                    "resourceRead.chunking.assembly"
+                },
                 requestParameters = new[]
                 {
                     "elementId",
@@ -450,7 +458,7 @@ internal static class ResponseContractToolEntries
                         noImageBytes = false,
                         preferredForPixelEvidence = true,
                         resourceRead = "resources/read",
-                        useWhen = "Use for normal pixel evidence; the result returns resourceUri and redacts local paths."
+                        useWhen = "Use for normal pixel evidence; the result returns resourceUri, redacts local paths, and provides resourceRead.chunking when a client truncates the complete blob."
                     },
                     base64 = new
                     {

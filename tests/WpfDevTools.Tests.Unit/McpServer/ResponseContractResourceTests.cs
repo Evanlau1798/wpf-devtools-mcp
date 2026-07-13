@@ -370,7 +370,7 @@ public sealed partial class ResponseContractResourceTests
             nestedResponsePaths: [
                 "resourceRead.method",
                 "resourceRead.params.uri",
-                "resourceRead.sameSessionRequired"
+                "resourceRead.sameSessionRequired", "resourceRead.chunking.uriTemplate", "resourceRead.chunking.maxChunkBytes", "resourceRead.chunking.assembly"
             ]);
 
         var screenshotContract = highValueTools

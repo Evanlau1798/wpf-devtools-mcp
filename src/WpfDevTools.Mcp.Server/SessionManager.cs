@@ -404,6 +404,7 @@ public sealed partial class SessionManager : IDisposable
 
                 foreach (var screenshot in _screenshotResources.Values)
                 {
+                    screenshot.Reader.Dispose();
                     TryDeleteScreenshotFile(screenshot);
                 }
 

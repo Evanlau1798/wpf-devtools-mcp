@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Security.Cryptography;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -25,7 +24,7 @@ public static class ScreenshotResources
             throw ScreenshotResourceNotFound();
         }
 
-        var imageBytes = ReadVerifiedScreenshotBytes(sessionManager, screenshot);
+        var imageBytes = ReadScreenshotBytes(sessionManager, screenshot);
 
         return BlobResourceContents.FromBytes(imageBytes, screenshot.ResourceUri, "image/png");
     }
@@ -48,53 +47,40 @@ public static class ScreenshotResources
             throw ScreenshotResourceNotFound();
         }
 
-        var imageBytes = ReadVerifiedScreenshotBytes(sessionManager, screenshot);
-        if (offset < 0 || offset >= imageBytes.Length || length <= 0 || length > MaxChunkBytes)
+        if (offset < 0 || offset >= screenshot.Reader.Length || length <= 0 || length > MaxChunkBytes)
         {
             throw new McpProtocolException(
-                $"Screenshot chunk requires offset within the {imageBytes.Length}-byte resource and length from 1 to {MaxChunkBytes} bytes.",
+                $"Screenshot chunk requires offset within the {screenshot.Reader.Length}-byte resource and length from 1 to {MaxChunkBytes} bytes.",
                 McpErrorCode.InvalidParams);
         }
 
-        var chunkLength = Math.Min(length, imageBytes.Length - offset);
-        var chunk = imageBytes.AsSpan(offset, chunkLength).ToArray();
+        var chunk = ReadScreenshotBytes(sessionManager, screenshot, offset, length);
         var resourceUri = $"wpf://screenshots/{screenshotId}/chunks/{offset}/{length}";
         return BlobResourceContents.FromBytes(chunk, resourceUri, "application/octet-stream");
     }
 
-    private static byte[] ReadVerifiedScreenshotBytes(
-        SessionManager sessionManager,
-        StoredScreenshotResource screenshot)
-    {
-        var imageBytes = ReadScreenshotBytes(sessionManager, screenshot);
-        if (!string.IsNullOrWhiteSpace(screenshot.Sha256))
-        {
-            var actualSha256 = Convert.ToHexString(SHA256.HashData(imageBytes)).ToLowerInvariant();
-            if (!string.Equals(actualSha256, screenshot.Sha256, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new McpProtocolException(
-                    "Screenshot resource failed integrity verification.",
-                    McpErrorCode.InternalError);
-            }
-        }
-
-        return imageBytes;
-    }
-
     private static byte[] ReadScreenshotBytes(
         SessionManager sessionManager,
-        StoredScreenshotResource screenshot)
+        StoredScreenshotResource screenshot,
+        int? offset = null,
+        int? length = null)
     {
         try
         {
-            var filePath = sessionManager.ResolveScreenshotResourcePathForRead(screenshot);
-            return File.ReadAllBytes(filePath);
+            sessionManager.ResolveScreenshotResourcePathForRead(screenshot);
+            return offset.HasValue
+                ? screenshot.Reader.ReadRange(offset.Value, length!.Value)
+                : screenshot.Reader.ReadAll();
         }
         catch (FileNotFoundException ex)
         {
             throw ScreenshotResourceNoLongerAvailable(ex);
         }
         catch (DirectoryNotFoundException ex)
+        {
+            throw ScreenshotResourceNoLongerAvailable(ex);
+        }
+        catch (ObjectDisposedException ex)
         {
             throw ScreenshotResourceNoLongerAvailable(ex);
         }

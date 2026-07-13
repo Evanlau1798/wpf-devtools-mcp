@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-
 namespace WpfDevTools.Mcp.Server;
 
 public sealed partial class SessionManager
@@ -30,7 +28,7 @@ public sealed partial class SessionManager
         fileName.EndsWith(ScreenshotFileExtension, StringComparison.OrdinalIgnoreCase)
         && IsValidScreenshotId(Path.GetFileNameWithoutExtension(fileName));
 
-    private static string ValidateScreenshotFileAndSha256(string fullPath, string? sha256)
+    private static ScreenshotResourceReader OpenVerifiedScreenshotFile(string fullPath, string? sha256)
     {
         if (!File.Exists(fullPath))
         {
@@ -50,13 +48,7 @@ public sealed partial class SessionManager
                 nameof(sha256));
         }
 
-        var actualSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(fullPath))).ToLowerInvariant();
-        if (!string.Equals(actualSha256, normalizedSha256, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("Screenshot file failed SHA-256 verification during registration.");
-        }
-
-        return normalizedSha256.ToLowerInvariant();
+        return ScreenshotResourceReader.OpenVerified(fullPath, normalizedSha256);
     }
 
     private static bool IsLowerOrUpperHexDigest(string value)

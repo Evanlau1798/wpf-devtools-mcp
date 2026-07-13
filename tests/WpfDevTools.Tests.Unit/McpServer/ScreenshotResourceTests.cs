@@ -32,33 +32,6 @@ public sealed partial class ScreenshotResourceTests
         blob.DecodedData.ToArray().Should().Equal(imageBytes);
     }
 
-    [Fact]
-    public void GetScreenshotPng_WithMismatchedSha_ShouldThrowVerificationError()
-    {
-        using var tempDirectory = new TemporaryDirectory();
-        using var sessionManager = new SessionManager();
-        const int processId = 12345;
-        var screenshotId = "shot_0123456789abcdef0123456789abcdef";
-        var imageBytes = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 };
-        var storageRoot = sessionManager.GetOrCreateScreenshotStorageRoot(processId);
-        var filePath = Path.Combine(storageRoot, screenshotId + ".png");
-        File.WriteAllBytes(filePath, imageBytes);
-        var sha256 = Convert.ToHexString(SHA256.HashData(imageBytes)).ToLowerInvariant();
-        sessionManager.RegisterScreenshotResource(
-            processId,
-            screenshotId,
-            filePath,
-            sha256);
-        File.WriteAllBytes(filePath, new byte[] { 1, 2, 3, 4 });
-
-        var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, screenshotId);
-
-        act.Should()
-            .Throw<McpProtocolException>()
-            .Where(ex => ex.ErrorCode == McpErrorCode.InternalError)
-            .WithMessage("*failed integrity verification*");
-    }
-
     [Theory]
     [InlineData("../shot_0123456789abcdef0123456789abcdef")]
     [InlineData("shot_0123456789abcdef0123456789abcdef/x")]

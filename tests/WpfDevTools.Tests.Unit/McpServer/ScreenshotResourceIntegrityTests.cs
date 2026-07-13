@@ -90,7 +90,7 @@ public sealed class ScreenshotResourceIntegrityTests
     }
 
     [Fact]
-    public void GetScreenshotPng_WithFileChangedAfterRegistration_ShouldReject()
+    public void RegisteredScreenshot_ShouldRemainImmutableAndReadable()
     {
         using var sessionManager = new SessionManager();
         var originalBytes = new byte[] { 137, 80, 78, 71 };
@@ -100,35 +100,15 @@ public sealed class ScreenshotResourceIntegrityTests
             ScreenshotId,
             filePath,
             ValidSha256For(originalBytes));
-        File.WriteAllBytes(filePath, [1, 2, 3, 4]);
+        var mutate = () => File.WriteAllBytes(filePath, [1, 2, 3, 4]);
+        var delete = () => File.Delete(filePath);
 
-        var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, ScreenshotId);
+        mutate.Should().Throw<IOException>();
+        delete.Should().Throw<IOException>();
 
-        act.Should()
-            .Throw<McpProtocolException>()
-            .Where(ex => ex.ErrorCode == McpErrorCode.InternalError)
-            .WithMessage("*failed integrity verification*");
-    }
-
-    [Fact]
-    public void GetScreenshotPng_WithFileDeletedAfterRegistration_ShouldReturnResourceNotFound()
-    {
-        using var sessionManager = new SessionManager();
-        var originalBytes = new byte[] { 137, 80, 78, 71 };
-        var filePath = WriteOwnedScreenshot(sessionManager, originalBytes);
-        sessionManager.RegisterScreenshotResource(
-            ProcessId,
-            ScreenshotId,
-            filePath,
-            ValidSha256For(originalBytes));
-        File.Delete(filePath);
-
-        var act = () => ScreenshotResources.GetScreenshotPng(sessionManager, ScreenshotId);
-
-        act.Should()
-            .Throw<McpProtocolException>()
-            .Where(ex => ex.ErrorCode == McpErrorCode.ResourceNotFound)
-            .WithMessage("*no longer available*");
+        var blob = ScreenshotResources.GetScreenshotPng(sessionManager, ScreenshotId)
+            .Should().BeOfType<BlobResourceContents>().Subject;
+        blob.DecodedData.ToArray().Should().Equal(originalBytes);
     }
 
     [Fact]
@@ -153,6 +133,13 @@ public sealed class ScreenshotResourceIntegrityTests
         blob.Uri.Should().Be($"wpf://screenshots/{ScreenshotId}/chunks/16384/16384");
         blob.MimeType.Should().Be("application/octet-stream");
         blob.DecodedData.ToArray().Should().Equal(imageBytes[16_384..32_768]);
+
+        var tail = ScreenshotResources.GetScreenshotPngChunk(
+            sessionManager,
+            ScreenshotId,
+            offset: 32_768,
+            length: 16_384).Should().BeOfType<BlobResourceContents>().Subject;
+        tail.DecodedData.ToArray().Should().Equal(imageBytes[32_768..]);
     }
 
     [Theory]

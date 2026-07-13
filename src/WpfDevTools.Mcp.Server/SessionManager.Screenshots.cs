@@ -101,10 +101,10 @@ public sealed partial class SessionManager
             throw new ArgumentException("Screenshot file name must match screenshotId plus .png.", nameof(filePath));
         }
 
-        string verifiedSha256;
+        ScreenshotResourceReader reader;
         try
         {
-            verifiedSha256 = ValidateScreenshotFileAndSha256(fullPath, sha256);
+            reader = OpenVerifiedScreenshotFile(fullPath, sha256);
         }
         catch
         {
@@ -120,32 +120,42 @@ public sealed partial class SessionManager
             fullPath,
             fileName,
             storageRoot,
-            verifiedSha256,
+            reader.Sha256,
             registeredAtUtc,
-            registeredAtUtc.Add(ScreenshotResourceRetentionWindow));
+            registeredAtUtc.Add(ScreenshotResourceRetentionWindow),
+            reader);
 
-        lock (_lock)
+        try
         {
-            if (expectedSessionGeneration.HasValue &&
-                (!IsCurrentSessionGenerationLocked(processId, expectedSessionGeneration.Value) ||
-                 !_screenshotStorageRoots.TryGetValue(processId, out var currentRoot) ||
-                 !string.Equals(Path.GetFullPath(currentRoot), Path.GetFullPath(storageRoot), StringComparison.OrdinalIgnoreCase)))
+            lock (_lock)
             {
-                throw new InvalidOperationException("Screenshot resource registration requires the original active session.");
-            }
+                if (expectedSessionGeneration.HasValue &&
+                    (!IsCurrentSessionGenerationLocked(processId, expectedSessionGeneration.Value) ||
+                     !_screenshotStorageRoots.TryGetValue(processId, out var currentRoot) ||
+                     !string.Equals(Path.GetFullPath(currentRoot), Path.GetFullPath(storageRoot), StringComparison.OrdinalIgnoreCase)))
+                {
+                    throw new InvalidOperationException("Screenshot resource registration requires the original active session.");
+                }
 
-            TrimExpiredScreenshotResources(registeredAtUtc, retainedScreenshotId: screenshotId);
-            if (!_screenshotResources.ContainsKey(screenshotId))
-            {
-                _screenshotResourceOrder.Enqueue(screenshotId);
-            }
-            else
-            {
-                RemoveScreenshotResource(screenshotId, protectedFilePath: fullPath);
-            }
+                TrimExpiredScreenshotResources(registeredAtUtc, retainedScreenshotId: screenshotId);
+                if (!_screenshotResources.ContainsKey(screenshotId))
+                {
+                    _screenshotResourceOrder.Enqueue(screenshotId);
+                }
+                else
+                {
+                    RemoveScreenshotResource(screenshotId, protectedFilePath: fullPath);
+                }
 
-            _screenshotResources[screenshotId] = resource;
-            TrimScreenshotResources(retainedScreenshotId: screenshotId);
+                _screenshotResources[screenshotId] = resource;
+                TrimScreenshotResources(retainedScreenshotId: screenshotId);
+            }
+        }
+        catch
+        {
+            reader.Dispose();
+            TryDeleteUnregisteredScreenshotFile(processId, fullPath, storageRoot);
+            throw;
         }
 
         return resource;
@@ -302,6 +312,7 @@ public sealed partial class SessionManager
             return false;
         }
 
+        resource.Reader.Dispose();
         if (!string.Equals(
             Path.GetFullPath(resource.FilePath),
             protectedFilePath is null ? null : Path.GetFullPath(protectedFilePath),
@@ -478,4 +489,5 @@ internal sealed record StoredScreenshotResource(
     string StorageRoot,
     string? Sha256,
     DateTimeOffset RegisteredAtUtc,
-    DateTimeOffset ExpiresAtUtc);
+    DateTimeOffset ExpiresAtUtc,
+    ScreenshotResourceReader Reader);

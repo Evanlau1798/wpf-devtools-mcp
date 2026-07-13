@@ -177,6 +177,44 @@ public sealed class ComposerBlueprintDraftTests
     }
 
     [Fact]
+    public async Task PatchDraft_ExplicitJsonNullDefaultsShouldFollowTheSelectedMode()
+    {
+        var created = await UiComposerMcpTools.CreateUiBlueprintDraft(
+            """{"name":"old","removeMe":true}""",
+            CancellationToken.None);
+        var draftRef = created.StructuredContent!.Value.GetProperty("draftRef").GetString()!;
+        using var jsonNull = JsonDocument.Parse("null");
+
+        var merged = await UiComposerMcpTools.PatchUiBlueprintDraft(
+            draftRef,
+            patchJson: """{"name":"new"}""",
+            jsonPath: null,
+            value: jsonNull.RootElement,
+            remove: false,
+            cancellationToken: CancellationToken.None);
+        var removed = await UiComposerMcpTools.PatchUiBlueprintDraft(
+            draftRef,
+            patchJson: null,
+            jsonPath: "$.removeMe",
+            value: jsonNull.RootElement,
+            remove: true,
+            cancellationToken: CancellationToken.None);
+        var setToNull = await UiComposerMcpTools.PatchUiBlueprintDraft(
+            draftRef,
+            patchJson: null,
+            jsonPath: "$.optional",
+            value: jsonNull.RootElement,
+            remove: false,
+            cancellationToken: CancellationToken.None);
+
+        merged.IsError.Should().BeFalse(merged.StructuredContent?.GetRawText());
+        removed.IsError.Should().BeFalse(removed.StructuredContent?.GetRawText());
+        setToNull.IsError.Should().BeFalse(setToNull.StructuredContent?.GetRawText());
+        setToNull.StructuredContent!.Value.GetProperty("changeSummary")
+            .GetProperty("changes")[0].GetProperty("after").GetString().Should().Be("null");
+    }
+
+    [Fact]
     public async Task DraftTools_ShouldPatchComposeAndReuseOpaqueReferencesAcrossComposerWorkflow()
     {
         var projectRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-draft-" + Guid.NewGuid().ToString("N"));

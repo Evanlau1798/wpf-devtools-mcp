@@ -28,7 +28,7 @@ internal static class BlueprintDraftPathMutation
                 "Pass value, or set remove=true and omit value.");
         }
 
-        if (remove && value is not null)
+        if (remove && HasNonNullJsonValue(value))
         {
             return Issue(
                 "BlueprintDraftRemoveValueConflict",
@@ -83,6 +83,9 @@ internal static class BlueprintDraftPathMutation
 
     private static JsonNode? ParseValue(JsonElement value)
         => JsonNode.Parse(value.GetRawText());
+
+    private static bool HasNonNullJsonValue(JsonElement? value)
+        => value is { } element && element.ValueKind != JsonValueKind.Null;
 
     private static bool TryGetChild(JsonNode current, PathSegment segment, out JsonNode? child)
     {

@@ -75,7 +75,7 @@ public static partial class UiComposerMcpTools
             return BlueprintDraftError(issue, "$.");
         }
 
-        if (patchJson is not null && (value is not null || remove))
+        if (patchJson is not null && (HasNonNullJsonValue(value) || remove))
         {
             return BlueprintDraftError(
                 new BlueprintDraftIssue(
@@ -102,6 +102,9 @@ public static partial class UiComposerMcpTools
         };
         return BlueprintDraftError(result.Error, errorPath);
     }
+
+    private static bool HasNonNullJsonValue(JsonElement? value)
+        => value is { } element && element.ValueKind != JsonValueKind.Null;
 
     private static object DraftMutationPayload(
         BlueprintDraftMutationResult result,

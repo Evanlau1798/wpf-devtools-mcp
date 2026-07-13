@@ -29,6 +29,18 @@ function Invoke-InstallerWebRequest {
     return Invoke-WebRequest @parameters
 }
 
+function Get-InstallerTestEnvironmentValue {
+    param([Parameter(Mandatory)] [string]$Name)
+
+    if (-not [bool]$script:WpfDevToolsInstallerTestModeEnabled) {
+        return $null
+    }
+
+    return [Environment]::GetEnvironmentVariable(
+        $Name,
+        [EnvironmentVariableTarget]::Process)
+}
+
 if ($Action -ne 'plan' -and $script:TrustedReleaseMetadataDirectoryWasSpecified) {
     if ([string]::IsNullOrWhiteSpace($TrustedReleaseMetadataDirectory)) {
         throw 'TrustedReleaseMetadataDirectory must not be empty when specified.'
@@ -40,8 +52,9 @@ elseif ($Action -ne 'plan') {
     Remove-Item Env:WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY -ErrorAction SilentlyContinue
 }
 
-if (-not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_RESPONSES)) {
-    foreach ($entry in ($env:WPFDEVTOOLS_INSTALLER_TEST_RESPONSES -split '\|\|')) {
+$testResponses = Get-InstallerTestEnvironmentValue -Name 'WPFDEVTOOLS_INSTALLER_TEST_RESPONSES'
+if (-not [string]::IsNullOrWhiteSpace($testResponses)) {
+    foreach ($entry in ($testResponses -split '\|\|')) {
         $script:InstallerTestResponses.Enqueue($entry)
     }
 }

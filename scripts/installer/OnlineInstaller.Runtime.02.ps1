@@ -357,7 +357,7 @@ function Save-StandaloneInstallerState {
     try {
         Assert-InstallerLocalPathTrusted -Path $tempStatePath | Out-Null
         $State | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $tempStatePath -Encoding UTF8
-        if ($env:WPFDEVTOOLS_INSTALLER_TEST_FAIL_SAVE_STANDALONE_STATE -eq '1') {
+        if ((Get-InstallerTestEnvironmentValue -Name 'WPFDEVTOOLS_INSTALLER_TEST_FAIL_SAVE_STANDALONE_STATE') -eq '1') {
             throw 'Simulated standalone state save failure.'
         }
         Move-StandalonePathWithRetry -SourcePath $tempStatePath -DestinationPath $statePath

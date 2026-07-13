@@ -56,12 +56,14 @@ function Get-LatestInstallerVersion {
     param([switch]$UseCacheOnly)
 
     $releaseChannel = Get-InstallerReleaseChannel
-    if ($releaseChannel -eq 'prerelease' -and -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_PRERELEASE_VERSION)) {
-        return $env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_PRERELEASE_VERSION
+    $testPrereleaseVersion = Get-InstallerTestEnvironmentValue -Name 'WPFDEVTOOLS_INSTALLER_TEST_LATEST_PRERELEASE_VERSION'
+    if ($releaseChannel -eq 'prerelease' -and -not [string]::IsNullOrWhiteSpace($testPrereleaseVersion)) {
+        return $testPrereleaseVersion
     }
 
-    if ($releaseChannel -eq 'stable' -and -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION)) {
-        return $env:WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION
+    $testStableVersion = Get-InstallerTestEnvironmentValue -Name 'WPFDEVTOOLS_INSTALLER_TEST_LATEST_VERSION'
+    if ($releaseChannel -eq 'stable' -and -not [string]::IsNullOrWhiteSpace($testStableVersion)) {
+        return $testStableVersion
     }
 
     $cachedVersion = Get-CachedLatestInstallerVersion -ReleaseChannel $releaseChannel
@@ -89,17 +91,19 @@ function Get-LatestInstallerVersion {
 }
 function Start-LatestInstallerVersionRefresh {
     $releaseChannel = Get-InstallerReleaseChannel
-    if ($releaseChannel -eq 'prerelease' -and -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_PRERELEASE_VERSION)) {
+    $testRemotePrereleaseVersion = Get-InstallerTestEnvironmentValue -Name 'WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_PRERELEASE_VERSION'
+    if ($releaseChannel -eq 'prerelease' -and -not [string]::IsNullOrWhiteSpace($testRemotePrereleaseVersion)) {
         return [ordered]@{
             Mode = 'test'
-            Version = $env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_PRERELEASE_VERSION
+            Version = $testRemotePrereleaseVersion
         }
     }
 
-    if ($releaseChannel -eq 'stable' -and -not [string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_VERSION)) {
+    $testRemoteStableVersion = Get-InstallerTestEnvironmentValue -Name 'WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_VERSION'
+    if ($releaseChannel -eq 'stable' -and -not [string]::IsNullOrWhiteSpace($testRemoteStableVersion)) {
         return [ordered]@{
             Mode = 'test'
-            Version = $env:WPFDEVTOOLS_INSTALLER_TEST_REMOTE_LATEST_VERSION
+            Version = $testRemoteStableVersion
         }
     }
 

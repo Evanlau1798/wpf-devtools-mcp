@@ -107,8 +107,10 @@ public sealed partial class ComposerPreviewCompileTests
 
     [Fact]
     [Trait("Category", "ComposerRuntime")]
-    public async Task PreviewBlueprintAsync_WhenCompositeControlsStartHost_ShouldLoadGeneratedView()
+    public async Task PreviewBlueprintAsync_WhenCompositeControlsStartHostWithoutWindowsEnvironment_ShouldLoadGeneratedView()
     {
+        using var windowsDirectory = new EnvironmentVariableScope("WINDIR", null);
+        using var systemRoot = new EnvironmentVariableScope("SystemRoot", null);
         var service = new UiBlueprintPreviewService(CreateRegistry());
         using var timeout = CreateTimeout();
 
@@ -121,24 +123,6 @@ public sealed partial class ComposerPreviewCompileTests
         result.PreviewHost.Started.Should().BeTrue();
         result.PreviewHost.ViewLoaded.Should().BeTrue();
         result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "PreviewHostViewLoaded");
-    }
-
-    [Fact]
-    [Trait("Category", "ComposerRuntime")]
-    public async Task PreviewBlueprintAsync_WhenWindowsEnvironmentIsMissing_ShouldLoadGeneratedView()
-    {
-        using var windowsDirectory = new EnvironmentVariableScope("WINDIR", null);
-        using var systemRoot = new EnvironmentVariableScope("SystemRoot", null);
-        var service = new UiBlueprintPreviewService(CreateRegistry());
-        using var timeout = CreateTimeout();
-
-        var result = await service.PreviewAsync(
-            new PreviewBlueprintRequest(ButtonBlueprint(), RestoreEnabled: true, StartHost: true),
-            timeout.Token);
-
-        result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
-        result.PreviewHost.Status.Should().Be("loaded", result.BuildOutput);
-        result.PreviewHost.ViewLoaded.Should().BeTrue();
     }
 
     [Fact]

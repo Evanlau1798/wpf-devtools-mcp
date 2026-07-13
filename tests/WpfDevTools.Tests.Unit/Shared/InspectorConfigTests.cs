@@ -43,6 +43,12 @@ public class InspectorConfigTests
     }
 
     [Fact]
+    public void IdleConnectionTimeout_DefaultValue_ShouldAllowAgentThinkTime()
+    {
+        InspectorConfig.IdleConnectionTimeout.Should().Be(TimeSpan.FromMinutes(5));
+    }
+
+    [Fact]
     public void ShutdownTimeout_DefaultValue_ShouldBeFiveSeconds()
     {
         InspectorConfig.ShutdownTimeout.Should().Be(TimeSpan.FromSeconds(5));

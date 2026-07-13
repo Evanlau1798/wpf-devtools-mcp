@@ -307,11 +307,12 @@ function New-UnitDebugShardCommands {
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
         [Parameter(Mandatory = $true)] [string]$ResultsRoot,
         [ValidateSet('Debug', 'Release')] [string]$Configuration = 'Debug',
-        [Parameter(Mandatory = $true)] [int]$UnitDebugShardCount
+        [Parameter(Mandatory = $true)] [int]$UnitDebugShardCount,
+        [string]$Filter = ''
     )
 
     if ($UnitDebugShardCount -eq 1) {
-        return @(New-UnitDebugTestCommand -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $Configuration)
+        return @(New-UnitDebugTestCommand -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $Configuration -Filter $Filter)
     }
 
     if ($UnitDebugShardCount -ne 4) {
@@ -323,6 +324,10 @@ function New-UnitDebugShardCommands {
     $configurationSlug = $Configuration.ToLowerInvariant()
     for ($index = 0; $index -lt $filters.Count; $index++) {
         $shardNumber = $index + 1
+        $shardFilter = $filters[$index]
+        if (-not [string]::IsNullOrWhiteSpace($Filter)) {
+            $shardFilter = "($shardFilter)&($Filter)"
+        }
         $commands += New-UnitDebugTestCommand `
             -DotNetPath $DotNetPath `
             -ResultsRoot $ResultsRoot `
@@ -331,7 +336,7 @@ function New-UnitDebugShardCommands {
             -LogFileName "unit-$configurationSlug-shard-$shardNumber.trx" `
             -ResultsSubdirectory "$Configuration\unit\shard-$shardNumber" `
             -Verbosity 'minimal' `
-            -Filter $filters[$index]
+            -Filter $shardFilter
     }
 
     return $commands
@@ -350,10 +355,11 @@ function Invoke-UnitDebugTests {
 
             throw 'UnitDebugShardCount currently supports 1 or 4.'
         })]
-        [int]$UnitDebugShardCount = 1
+        [int]$UnitDebugShardCount = 1,
+        [string]$Filter = ''
     )
 
-    $commands = @(New-UnitDebugShardCommands -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $Configuration -UnitDebugShardCount $UnitDebugShardCount)
+    $commands = @(New-UnitDebugShardCommands -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration $Configuration -UnitDebugShardCount $UnitDebugShardCount -Filter $Filter)
     if (($MaxParallelLanes -le 1) -or ($commands.Count -eq 1)) {
         foreach ($command in $commands) {
             Invoke-ExternalWithTimeout $command.Name $command.FilePath $command.Arguments -TimeoutSeconds $command.TimeoutSeconds -OutputRoot $MappedOutputRoot -Timestamp $timestamp

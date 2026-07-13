@@ -207,41 +207,6 @@ function Invoke-HostedServerRuntimeBuild {
     )
 }
 
-function Invoke-HostedCoverageVerification {
-    param(
-        [Parameter(Mandatory = $true)] [string]$DotNetPath,
-        [Parameter(Mandatory = $true)] [string]$ResultsRoot,
-        [Parameter(Mandatory = $true)] [string]$OutputRoot,
-        [Parameter(Mandatory = $true)] [string]$Timestamp
-    )
-
-    Invoke-External 'Build unit tests for coverage' $DotNetPath @(
-        'build',
-        'tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj',
-        '-c',
-        'Debug',
-        '--no-restore',
-        '-m:1',
-        '-nodeReuse:false',
-        '-p:UseSharedCompilation=false'
-    )
-
-    Invoke-ExternalWithTimeout 'Run tests with coverage' $DotNetPath @(
-        'test',
-        'tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj',
-        '-c', 'Debug',
-        '--no-build',
-        '--settings', 'coverlet.runsettings',
-        '--collect', 'XPlat Code Coverage',
-        '--blame-hang-timeout', '10m',
-        '--logger', 'trx;LogFileName=coverage-debug.trx',
-        '--results-directory', (Join-Path $ResultsRoot 'coverage'),
-        '--filter', 'FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation&Category!=ComposerCompile&Category!=ComposerRuntime&Category!=ComposerAcceptance',
-        '-nodeReuse:false',
-        '-p:UseSharedCompilation=false'
-    ) -TimeoutSeconds 3600 -OutputRoot $OutputRoot -Timestamp $Timestamp
-}
-
 function Invoke-HostedReleasePackagingSmoke {
     param(
         [Parameter(Mandatory = $true)] [string]$OutputRoot,
@@ -411,6 +376,7 @@ function Invoke-HostedWindowsX64Verification {
 
     $previousTimeoutScale = $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE
     $hostedManagedMaxParallelLanes = [Math]::Min($MaxParallelLanes, 4)
+    $composerCapabilityExclusionFilter = 'Category!=ComposerCompile&Category!=ComposerRuntime&Category!=ComposerAcceptance'
     $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'
     try {
         Invoke-External 'dotnet restore --locked-mode' $DotNetPath @('restore', '--locked-mode', '-p:NuGetAudit=true')
@@ -449,7 +415,12 @@ function Invoke-HostedWindowsX64Verification {
                         -ResultsRoot $ResultsRoot `
                         -Configuration $configuration `
                         -MaxParallelLanes $hostedManagedMaxParallelLanes `
-                        -UnitDebugShardCount $UnitDebugShardCount
+                        -UnitDebugShardCount $UnitDebugShardCount `
+                        -Filter $composerCapabilityExclusionFilter
+
+                    if ($configuration -eq 'Release') {
+                        Invoke-HostedComposerCapabilityTests -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -OutputRoot $OutputRoot -Timestamp $Timestamp -Configuration $configuration
+                    }
 
                     Invoke-ManagedTestLanes `
                         -DotNetPath $DotNetPath `

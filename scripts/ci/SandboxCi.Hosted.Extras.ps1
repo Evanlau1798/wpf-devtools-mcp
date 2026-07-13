@@ -12,6 +12,62 @@ function Invoke-HostedArm64Build {
     )
 }
 
+function Invoke-HostedComposerCapabilityTests {
+    param(
+        [Parameter(Mandatory = $true)] [string]$DotNetPath,
+        [Parameter(Mandatory = $true)] [string]$ResultsRoot,
+        [Parameter(Mandatory = $true)] [string]$OutputRoot,
+        [Parameter(Mandatory = $true)] [string]$Timestamp,
+        [Parameter(Mandatory = $true)] [ValidateSet('Debug', 'Release')] [string]$Configuration
+    )
+
+    Invoke-ExternalWithTimeout 'Run Composer compile and runtime tests' $DotNetPath @(
+        'test',
+        'tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj',
+        '--configuration', $Configuration,
+        '--no-build',
+        '--filter', 'Category=ComposerCompile|Category=ComposerRuntime',
+        '--verbosity', 'normal',
+        '--blame-hang-timeout', '10m',
+        '--logger', "trx;LogFileName=composer-$($Configuration.ToLowerInvariant()).trx",
+        '--results-directory', (Join-Path $ResultsRoot "$Configuration\composer")
+    ) -TimeoutSeconds 600 -OutputRoot $OutputRoot -Timestamp $Timestamp
+}
+
+function Invoke-HostedCoverageVerification {
+    param(
+        [Parameter(Mandatory = $true)] [string]$DotNetPath,
+        [Parameter(Mandatory = $true)] [string]$ResultsRoot,
+        [Parameter(Mandatory = $true)] [string]$OutputRoot,
+        [Parameter(Mandatory = $true)] [string]$Timestamp
+    )
+
+    Invoke-External 'Build unit tests for coverage' $DotNetPath @(
+        'build',
+        'tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj',
+        '-c', 'Debug',
+        '--no-restore',
+        '-m:1',
+        '-nodeReuse:false',
+        '-p:UseSharedCompilation=false'
+    )
+
+    Invoke-ExternalWithTimeout 'Run tests with coverage' $DotNetPath @(
+        'test',
+        'tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj',
+        '-c', 'Debug',
+        '--no-build',
+        '--settings', 'coverlet.runsettings',
+        '--collect', 'XPlat Code Coverage',
+        '--blame-hang-timeout', '10m',
+        '--logger', 'trx;LogFileName=coverage-debug.trx',
+        '--results-directory', (Join-Path $ResultsRoot 'coverage'),
+        '--filter', 'FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation&Category!=ComposerCompile&Category!=ComposerRuntime&Category!=ComposerAcceptance',
+        '-nodeReuse:false',
+        '-p:UseSharedCompilation=false'
+    ) -TimeoutSeconds 3600 -OutputRoot $OutputRoot -Timestamp $Timestamp
+}
+
 function Invoke-HostedWindowsX64FastVerification {
     param(
         [Parameter(Mandatory = $true)] [string]$DotNetPath,
@@ -39,6 +95,7 @@ function Invoke-HostedWindowsX64FastVerification {
 
     $previousTimeoutScale = $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE
     $hostedManagedMaxParallelLanes = [Math]::Min($MaxParallelLanes, 4)
+    $composerCapabilityExclusionFilter = 'Category!=ComposerCompile&Category!=ComposerRuntime&Category!=ComposerAcceptance'
     $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'
     try {
         Invoke-External 'dotnet restore --locked-mode' $DotNetPath @('restore', '--locked-mode', '-p:NuGetAudit=true')
@@ -61,7 +118,8 @@ function Invoke-HostedWindowsX64FastVerification {
             '-nodeReuse:false',
             '-p:UseSharedCompilation=false'
         )
-        Invoke-UnitDebugTests -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration 'Debug' -MaxParallelLanes $hostedManagedMaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount
+        Invoke-UnitDebugTests -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration 'Debug' -MaxParallelLanes $hostedManagedMaxParallelLanes -UnitDebugShardCount $UnitDebugShardCount -Filter $composerCapabilityExclusionFilter
+        Invoke-HostedComposerCapabilityTests -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -OutputRoot $OutputRoot -Timestamp $Timestamp -Configuration 'Debug'
         Invoke-ManagedTestLanes -DotNetPath $DotNetPath -ResultsRoot $ResultsRoot -Configuration 'Debug' -MaxParallelLanes $hostedManagedMaxParallelLanes -ReleaseUnitShardCount $ReleaseUnitShardCount -IncludeReleaseUnit
         Invoke-HostedServerRuntimeBuild -DotNetPath $DotNetPath -Configuration 'Debug'
         Invoke-External 'Run integration tests Debug' $DotNetPath @(

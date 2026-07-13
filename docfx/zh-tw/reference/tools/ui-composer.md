@@ -46,6 +46,20 @@ Request options:
 
 此 tool 的公開 payload 不會回傳 absolute pack root paths。請以 `structuredContent` 作為 canonical result，`content[0].text` 只作為 compact fallback。
 
+## `import_ui_block_pack`
+
+驗證 normalized extension-pack ZIP，並只在明確核准後安裝至 `<projectRoot>/.wpfdevtools/packs`。預設 dry-run 會回傳 pack identity、archive SHA256、destination root 與 relative file plan，而且不寫入檔案。
+
+Request options:
+
+- `archivePath`: 必填，經審查 normalized pack ZIP 的 absolute local path。
+- `projectRoot`: 必填，absolute local WPF project root；這是唯一 write boundary。
+- `dryRun`: 預設為 `true`；先審查 archive hash 與完整 file plan。
+- `confirmImport`: `dryRun=false` 時必須為 `true`。
+- `allowOverwrite`: 預設為 `false`；只有在審查相同 pack id/version 的 replacement 後才啟用。
+
+Non-dry-run import 還需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，以及 exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match。Importer 會拒絕 unsafe archive entries、invalid pack contracts、destination reparse points，以及 project-local registry 以外的 writes；它不會修改 project files、package references、resources、XAML、code-behind 或 ViewModels。
+
 ## `get_ui_block_catalog`
 
 從 enabled Composer packs 回傳 block catalog entries。Agent 需要在建立 blueprint 前理解具體 block kinds、properties、slot names、`allowedKinds`、renderer availability 或 source hint summaries 時，先呼叫 `list_ui_block_packs`，再使用此 tool。

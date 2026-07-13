@@ -2,10 +2,26 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 
 internal static class UiComposerMcpToolDescriptions
 {
+    public const string ImportUiBlockPack =
+        """
+        Import a normalized Composer block-pack archive into one reviewed project.
+
+        CATEGORY: UI Composer
+
+        USE WHEN: Installing a creator-produced project-local pack.
+
+        DO NOT USE: This does not edit app project, resource, XAML, or code files.
+
+        RESPONSE SUMMARY:
+        - Returns the pack identity, hash, confined file plan, and import state.
+
+        SAFETY: Defaults to dry-run. Writes require confirmation, project-write policy, and an allowlisted root; replacement is opt-in.
+
+        EXAMPLES:
+        """;
+
     public const string ListUiBlockPacks =
         """
-        Use this tool to discover installed WPF DevTools Composer UI block packs before catalog, blueprint validation, rendering, or apply workflows.
-
         CATEGORY: UI Composer
 
         USE WHEN: You need to discover installed WPF DevTools Composer UI block packs before building a block catalog, validating a blueprint, or rendering generated XAML.
@@ -22,12 +38,11 @@ internal static class UiComposerMcpToolDescriptions
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs. Omit it to use the current user's LocalApplicationData path when available.
 
+        EXAMPLES:
         """;
 
     public const string GetUiBlockCatalog =
         """
-        Use this tool for brief-first discovery of Composer block definitions, properties, slots, allowedKinds, renderer availability, and source provenance before composing an original blueprint.
-
         CATEGORY: UI Composer
 
         USE WHEN: You need available block kinds, per-block properties, slot composition rules, renderer availability, or source hints from installed Composer UI packs.
@@ -50,12 +65,11 @@ internal static class UiComposerMcpToolDescriptions
         - kind optionally returns single-block detail for an exact pack-qualified block kind.
         - includeRecipes defaults to false for brief-first discovery. Set true only after choosing an independent creative brief.
 
+        EXAMPLES:
         """;
 
     public const string ValidateUiBlueprint =
         """
-        Use this tool to validate a WPF DevTools Composer UI blueprint against installed pack contracts before rendering or applying generated XAML.
-
         CATEGORY: UI Composer
 
         USE WHEN: You have blueprint JSON and need pack resolution, block kind, slot, property type, enum, required property, and repair guidance checks.
@@ -73,12 +87,11 @@ internal static class UiComposerMcpToolDescriptions
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
+        EXAMPLES:
         """;
 
     public const string ComposeUiBlueprint =
         """
-        Use this tool to insert one pack-defined block skeleton into an existing UI blueprint without manually rewriting nested JSON.
-
         CATEGORY: UI Composer
 
         USE WHEN: You have a current blueprint and need to append or insert a catalog block into an existing slot.
@@ -96,12 +109,11 @@ internal static class UiComposerMcpToolDescriptions
         - kind is an exact pack-qualified kind from get_ui_block_catalog(composableOnly=true).
         - insertionIndex optionally inserts before an existing child; omit it to append.
 
+        EXAMPLES:
         """;
 
     public const string ExpandUiRecipe =
         """
-        Use this tool to expand a WPF DevTools Composer starter recipe into a blueprint and immediately validate the expanded result.
-
         CATEGORY: UI Composer
 
         USE WHEN: You already chose an independent creative brief and want a pack-defined recipe as an optional accelerator or fragment instead of assembling every initial node manually.
@@ -120,12 +132,11 @@ internal static class UiComposerMcpToolDescriptions
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
+        EXAMPLES:
         """;
 
     public const string RenderUiBlueprint =
         """
-        Use this tool to render a WPF DevTools Composer UI blueprint to XAML in dry-run mode.
-
         CATEGORY: UI Composer
 
         USE WHEN: You have a validated blueprint or expanded recipe and need generated XAML plus a file plan before any guarded apply workflow.
@@ -144,12 +155,11 @@ internal static class UiComposerMcpToolDescriptions
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
+        EXAMPLES:
         """;
 
     public const string RepairUiBlueprint =
         """
-        Use this tool to turn WPF DevTools Composer validation, renderer, compile, or preview diagnostics into blueprint-first repair guidance.
-
         CATEGORY: UI Composer
 
         USE WHEN: validate_ui_blueprint, render_ui_blueprint, or preview_ui_blueprint reported issues and you need the next safe blueprint or pack-contract repair step.
@@ -169,12 +179,11 @@ internal static class UiComposerMcpToolDescriptions
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
+        EXAMPLES:
         """;
 
     public const string ApplyUiBlueprint =
         """
-        Use this tool to produce a guarded apply plan for a WPF DevTools Composer UI blueprint.
-
         CATEGORY: UI Composer
 
         USE WHEN: You need a project file plan for generated XAML and want writes blocked unless explicit destructive and project-write gates are configured.
@@ -198,12 +207,11 @@ internal static class UiComposerMcpToolDescriptions
         - confirmApply defaults to false and must be true for non-dry-run writes after reviewing the dry-run file plan.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
+        EXAMPLES:
         """;
 
     public const string PreviewUiBlueprint =
         """
-        Use this tool to compile generated UI Composer XAML in a temporary WPF preview project, optionally start the preview host, and optionally collect runtime diagnostics from that host.
-
         CATEGORY: UI Composer
 
         USE WHEN: You need compile-smoke diagnostics, a temporary host load smoke, or scene/layout runtime diagnostics before applying generated XAML to a real project.
@@ -233,5 +241,6 @@ internal static class UiComposerMcpToolDescriptions
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
+        EXAMPLES:
         """;
 }

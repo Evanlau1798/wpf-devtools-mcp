@@ -46,6 +46,20 @@ Request options:
 
 The tool omits absolute pack root paths from its public payload. Use `structuredContent` as the canonical result and treat `content[0].text` as a compact fallback.
 
+## `import_ui_block_pack`
+
+Validates a normalized extension-pack ZIP and, after explicit approval, installs it only under `<projectRoot>/.wpfdevtools/packs`. The default dry-run returns the pack identity, archive SHA256, destination root, and relative file plan without writing.
+
+Request options:
+
+- `archivePath`: required absolute local path to the reviewed normalized pack ZIP.
+- `projectRoot`: required absolute local WPF project root; this is the only write boundary.
+- `dryRun`: defaults to `true`. Review the archive hash and complete file plan first.
+- `confirmImport`: must be `true` when `dryRun=false`.
+- `allowOverwrite`: defaults to `false`; enable only for a reviewed replacement of the same pack id and version.
+
+Non-dry-run imports also require `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`, `WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`, and an exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match. The importer rejects unsafe archive entries, invalid pack contracts, destination reparse points, and writes outside the project-local registry. It never edits project files, package references, resources, XAML, code-behind, or ViewModels.
+
 ## `get_ui_block_catalog`
 
 Returns block catalog entries from enabled Composer packs. Use it after `list_ui_block_packs` when an agent needs concrete block kinds, properties, slot names, `allowedKinds`, renderer availability, or source hint summaries before creating a blueprint.

@@ -19,7 +19,8 @@ public sealed class McpToolExecutionPolicyTests
 
     private static readonly HashSet<string> ArgumentSensitiveDestructiveTools = new(StringComparer.Ordinal)
     {
-        "apply_ui_blueprint"
+        "apply_ui_blueprint",
+        "import_ui_block_pack"
     };
 
     [Theory]
@@ -333,8 +334,10 @@ public sealed class McpToolExecutionPolicyTests
         decision.PolicyCategory.Should().Be("destructive-tools");
     }
 
-    [Fact]
-    public void EvaluateToolCall_WhenApplyBlueprintWritesAndDestructiveToolsAreDisabled_ShouldDeny()
+    [Theory]
+    [InlineData("apply_ui_blueprint")]
+    [InlineData("import_ui_block_pack")]
+    public void EvaluateToolCall_WhenComposerWriteAndDestructiveToolsAreDisabled_ShouldDeny(string toolName)
     {
         var policy = McpToolExecutionPolicy.FromConfiguredValues(
             allowDestructiveTools: "false",
@@ -344,7 +347,7 @@ public sealed class McpToolExecutionPolicyTests
         var arguments = document.RootElement.EnumerateObject()
             .ToDictionary(property => property.Name, property => property.Value.Clone());
 
-        var decision = policy.EvaluateToolCall("apply_ui_blueprint", arguments);
+        var decision = policy.EvaluateToolCall(toolName, arguments);
 
         decision.IsAllowed.Should().BeFalse();
         decision.ErrorCode.Should().Be("SecurityError");
@@ -352,9 +355,13 @@ public sealed class McpToolExecutionPolicyTests
     }
 
     [Theory]
-    [InlineData("{}")]
-    [InlineData("{\"dryRun\":true}")]
-    public void EvaluateToolCall_WhenApplyBlueprintDryRunAndDestructiveToolsAreDisabled_ShouldAllow(string argumentsJson)
+    [InlineData("apply_ui_blueprint", "{}")]
+    [InlineData("apply_ui_blueprint", "{\"dryRun\":true}")]
+    [InlineData("import_ui_block_pack", "{}")]
+    [InlineData("import_ui_block_pack", "{\"dryRun\":true}")]
+    public void EvaluateToolCall_WhenComposerDryRunAndDestructiveToolsAreDisabled_ShouldAllow(
+        string toolName,
+        string argumentsJson)
     {
         var policy = McpToolExecutionPolicy.FromConfiguredValues(
             allowDestructiveTools: "false",
@@ -364,7 +371,7 @@ public sealed class McpToolExecutionPolicyTests
         var arguments = document.RootElement.EnumerateObject()
             .ToDictionary(property => property.Name, property => property.Value.Clone());
 
-        var decision = policy.EvaluateToolCall("apply_ui_blueprint", arguments);
+        var decision = policy.EvaluateToolCall(toolName, arguments);
 
         decision.IsAllowed.Should().BeTrue();
     }

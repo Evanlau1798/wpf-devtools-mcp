@@ -153,11 +153,11 @@ internal sealed class McpToolExecutionPolicy
             return false;
         }
 
-        return !string.Equals(toolName, "apply_ui_blueprint", StringComparison.Ordinal)
-               || IsApplyUiBlueprintWrite(arguments);
+        return toolName is not "apply_ui_blueprint" and not "import_ui_block_pack"
+               || IsComposerWrite(arguments);
     }
 
-    private static bool IsApplyUiBlueprintWrite(IDictionary<string, JsonElement>? arguments)
+    private static bool IsComposerWrite(IDictionary<string, JsonElement>? arguments)
     {
         if (arguments?.TryGetValue("dryRun", out var dryRun) != true)
         {

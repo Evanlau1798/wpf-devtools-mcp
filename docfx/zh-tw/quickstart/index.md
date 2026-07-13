@@ -51,6 +51,16 @@ $version = 'v1.0.0-beta.52'
 
 請將範例值替換為實際選定的 public pre-release tag。
 
+## 解除安裝或復原自訂安裝
+
+先停止正在使用 server 的 client，再沿用安裝時相同的 exact custom install root。`uninstall` 會移除單一 client registration；`full-uninstall` 會移除所有偵測到的 registrations 與 installer-owned server locations：
+
+```powershell
+$installRoot = '<exact-install-root>'
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Action uninstall -Client '<client-id>' -InstallRoot $installRoot -NonInteractive -Force -OutputJson
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Action full-uninstall -InstallRoot $installRoot -NonInteractive -Force -OutputJson
+```
+
 ## 註冊 client
 
 請以產生的 `client-registration` artifact 作為最終 command 或 JSON path 的真源。當 artifact 已含 installed executable path 時，不要手動重打路徑。

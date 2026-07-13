@@ -34,6 +34,16 @@ Beta pre-release assets may use SHA256 release metadata until paid Authenticode 
 
 Manual package fallback: download the matching `release_<version>_win-<arch>.zip`, verify it with trusted release metadata, then extract the package before using package-local `run.bat`. Use the [Quickstart](https://wpf-mcptools.evanlau1798.com/quickstart/), [Deployment Guide](https://wpf-mcptools.evanlau1798.com/production/deployment.html), and [Release Layout](https://wpf-mcptools.evanlau1798.com/production/release-layout.html) for verification details.
 
+## Uninstall
+
+Use the same exact custom install root that was used for installation. Remove one client registration with `uninstall`, or remove every detected registration and installer-owned server location with `full-uninstall`:
+
+```powershell
+$installRoot = '<exact-install-root>'
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Action uninstall -Client '<client-id>' -InstallRoot $installRoot -NonInteractive -Force -OutputJson
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Action full-uninstall -InstallRoot $installRoot -NonInteractive -Force -OutputJson
+```
+
 ## Security essentials
 
 - Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact local absolute executable path before `connect()`.

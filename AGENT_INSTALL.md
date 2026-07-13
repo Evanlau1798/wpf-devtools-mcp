@@ -99,6 +99,16 @@ Package-local fallback after sidecar verification:
 
 Use `run.bat` from the extracted package root when the user wants the package entrypoint instead of direct PowerShell invocation.
 
+## Approved uninstall command shapes
+
+After the user approves cleanup, reuse the exact custom install root from the install result. Use `uninstall` for one client registration or `full-uninstall` for all detected registrations and installer-owned server locations:
+
+```powershell
+$installRoot = '<exact-install-root>'
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Action uninstall -Client '<client-id>' -InstallRoot $installRoot -NonInteractive -Force -OutputJson
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Action full-uninstall -InstallRoot $installRoot -NonInteractive -Force -OutputJson
+```
+
 ## Agent output
 
 Report:

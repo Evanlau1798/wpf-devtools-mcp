@@ -51,6 +51,16 @@ $version = 'v1.0.0-beta.52'
 
 Replace the example with the selected public pre-release tag from GitHub Releases.
 
+## Uninstall or recover a custom install
+
+Stop clients using the server, then reuse the exact custom install root from installation. `uninstall` removes one client registration; `full-uninstall` removes all detected registrations and installer-owned server locations:
+
+```powershell
+$installRoot = '<exact-install-root>'
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Action uninstall -Client '<client-id>' -InstallRoot $installRoot -NonInteractive -Force -OutputJson
+& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Action full-uninstall -InstallRoot $installRoot -NonInteractive -Force -OutputJson
+```
+
 ## Register a client
 
 Use the generated `client-registration` artifact as the source of truth for the final command or JSON path. Do not retype the installed executable path when an artifact already contains it.

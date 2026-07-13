@@ -81,6 +81,21 @@ public sealed class PreReleaseInstallerDocumentationTests
     }
 
     [Theory]
+    [InlineData("README.md")]
+    [InlineData("AGENT_INSTALL.md")]
+    [InlineData("docfx/quickstart/index.md")]
+    [InlineData("docfx/zh-tw/quickstart/index.md")]
+    public void PublicEntryDocs_ShouldProvideCopyableUninstallRecovery(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("$installRoot = '<exact-install-root>'");
+        content.Should().Contain("-Action uninstall -Client '<client-id>' -InstallRoot $installRoot");
+        content.Should().Contain("-Action full-uninstall -InstallRoot $installRoot");
+        content.Should().Contain("-NonInteractive -Force -OutputJson");
+    }
+
+    [Theory]
     [InlineData("docfx/index.md", EnglishArm64PreviewWarning)]
     [InlineData("docfx/quickstart/index.md", EnglishArm64PreviewWarning)]
     [InlineData("docfx/guides/agent-assisted-install.md", EnglishArm64PreviewWarning)]

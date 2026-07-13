@@ -31,7 +31,7 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
         EnsureDummyBootstrapperExists();
         var processId = Environment.ProcessId;
         using var sessionManager = new SessionManager();
-        NamedPipeServerStream? server = null;
+        AutoDiscoveryServer? server = null;
         try
         {
             var tool = CreateTool(
@@ -50,7 +50,10 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
         }
         finally
         {
-            server?.Dispose();
+            if (server is not null)
+            {
+                await server.DisposeAsync();
+            }
         }
     }
 
@@ -85,7 +88,7 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
         var smallProcessId = NextSyntheticProcessId();
         var largeProcessId = Environment.ProcessId;
         using var sessionManager = new SessionManager();
-        NamedPipeServerStream? server = null;
+        AutoDiscoveryServer? server = null;
         try
         {
             var tool = CreateTool(
@@ -109,7 +112,10 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
         }
         finally
         {
-            server?.Dispose();
+            if (server is not null)
+            {
+                await server.DisposeAsync();
+            }
         }
     }
 
@@ -172,7 +178,7 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
         }
     }
 
-    private static NamedPipeServerStream CreateServer(string pipeName, int processId)
+    private static AutoDiscoveryServer CreateServer(string pipeName, int processId)
     {
         var server = new NamedPipeServerStream(
             pipeName,
@@ -181,7 +187,7 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
             PipeTransmissionMode.Byte,
             PipeOptions.Asynchronous);
 
-        _ = Task.Run(async () =>
+        var serverTask = Task.Run(async () =>
         {
             try
             {
@@ -213,7 +219,6 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
                     JsonSerializer.Serialize(response),
                     CancellationToken.None);
 
-                await Task.Delay(TimeSpan.FromSeconds(5));
             }
             catch (IOException)
             {
@@ -223,7 +228,16 @@ public sealed class ConnectAutoDiscoverySelectionTests : IDisposable
             }
         });
 
-        return server;
+        return new AutoDiscoveryServer(server, serverTask);
+    }
+
+    private sealed class AutoDiscoveryServer(NamedPipeServerStream server, Task serverTask) : IAsyncDisposable
+    {
+        public async ValueTask DisposeAsync()
+        {
+            server.Dispose();
+            await serverTask;
+        }
     }
 
     private static WpfProcessInfo CreateProcessInfo(int processId, string processName)

@@ -63,8 +63,7 @@ public partial class InspectorHostConcurrencyTests : IDisposable
 
         var stopTask = Task.Run(() => host.Stop());
 
-        var completed = await Task.WhenAny(stopTask, Task.Delay(10_000)) == stopTask;
-        completed.Should().BeTrue("Stop() should complete within reasonable time");
+        await stopTask.WaitAsync(SignalTimeout);
 
         host.IsRunning.Should().BeFalse();
     }
@@ -120,11 +119,9 @@ public partial class InspectorHostConcurrencyTests : IDisposable
 
         var stopTask = Task.Run(() => host.Stop());
 
-        await Task.Delay(100);
-        stopTask.IsCompleted.Should().BeTrue("shutdown should not block on a lingering server task after cancellation has been requested");
+        await stopTask.WaitAsync(SignalTimeout);
 
         serverTaskSource.TrySetResult(null);
-        await stopTask;
     }
 
     [Fact]
@@ -146,8 +143,9 @@ public partial class InspectorHostConcurrencyTests : IDisposable
         timeoutException.Message.Should().Contain("Timed out after");
         host.IsRunning.Should().BeFalse();
 
-        var blockedRestart = Task.Run(() => host.Start());
-        await Task.Delay(100);
+        using var blockedRestartEntered = new ManualResetEventSlim(initialState: false);
+        var blockedRestart = RunSignaled(host.Start, blockedRestartEntered);
+        blockedRestartEntered.Wait(SignalTimeout).Should().BeTrue();
         blockedRestart.IsCompleted.Should().BeFalse("restart should stay blocked until the lingering pre-stop server task actually exits");
 
         serverTaskSource.TrySetResult(null);
@@ -178,6 +176,7 @@ public partial class InspectorHostConcurrencyTests : IDisposable
     {
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var gate = new ManualResetEventSlim(initialState: false);
+        var firstFactoryEntered = new ManualResetEventSlim(initialState: false);
         var pipeFactoryCalls = 0;
 
         using var host = new InspectorHost(
@@ -189,6 +188,7 @@ public partial class InspectorHostConcurrencyTests : IDisposable
             pipeServerFactory: () =>
             {
                 Interlocked.Increment(ref pipeFactoryCalls);
+                firstFactoryEntered.Set();
                 gate.Wait(TimeSpan.FromSeconds(5));
                 return new NamedPipeServerStream(
                     $"WpfDevTools_{pid}",
@@ -201,11 +201,12 @@ public partial class InspectorHostConcurrencyTests : IDisposable
 
         var firstStart = Task.Run(() => host.Start());
 
-        SpinWait.SpinUntil(() => Volatile.Read(ref pipeFactoryCalls) == 1, 1_000)
+        firstFactoryEntered.Wait(SignalTimeout)
             .Should().BeTrue("the first startup should enter pipe creation before the second caller runs");
 
-        var secondStart = Task.Run(() => host.Start());
-        await Task.Delay(100);
+        using var secondStartEntered = new ManualResetEventSlim(initialState: false);
+        var secondStart = RunSignaled(host.Start, secondStartEntered);
+        secondStartEntered.Wait(SignalTimeout).Should().BeTrue();
 
         secondStart.IsCompleted.Should().BeFalse("a concurrent Start() call should wait on the same startup readiness result");
         Volatile.Read(ref pipeFactoryCalls).Should().Be(1);
@@ -222,6 +223,7 @@ public partial class InspectorHostConcurrencyTests : IDisposable
     {
         var pid = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var gate = new ManualResetEventSlim(initialState: false);
+        var firstFactoryEntered = new ManualResetEventSlim(initialState: false);
         var pipeFactoryCalls = 0;
 
         using var host = new InspectorHost(
@@ -233,6 +235,7 @@ public partial class InspectorHostConcurrencyTests : IDisposable
             pipeServerFactory: () =>
             {
                 Interlocked.Increment(ref pipeFactoryCalls);
+                firstFactoryEntered.Set();
                 gate.Wait(TimeSpan.FromSeconds(5));
                 throw new IOException("pipe create failed");
             },
@@ -240,11 +243,11 @@ public partial class InspectorHostConcurrencyTests : IDisposable
 
         var firstStart = Task.Run(() => host.Start());
 
-        SpinWait.SpinUntil(() => Volatile.Read(ref pipeFactoryCalls) == 1, 1_000)
-            .Should().BeTrue();
+        firstFactoryEntered.Wait(SignalTimeout).Should().BeTrue();
 
-        var secondStart = Task.Run(() => host.Start());
-        await Task.Delay(100);
+        using var secondStartEntered = new ManualResetEventSlim(initialState: false);
+        var secondStart = RunSignaled(host.Start, secondStartEntered);
+        secondStartEntered.Wait(SignalTimeout).Should().BeTrue();
         secondStart.IsCompleted.Should().BeFalse();
 
         gate.Set();
@@ -307,7 +310,6 @@ public partial class InspectorHostConcurrencyTests : IDisposable
         host.IsRunning.Should().BeFalse();
 
         releaseSecondFactory.Set();
-        await Task.Delay(250);
 
         using var retryClient = new NamedPipeClientStream(
             ".",
@@ -357,11 +359,13 @@ public partial class InspectorHostConcurrencyTests : IDisposable
 
         firstFactoryEntered.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
 
-        var secondStart = Task.Run(() => host.Start());
-        await Task.Delay(100);
+        using var secondStartEntered = new ManualResetEventSlim(initialState: false);
+        var secondStart = RunSignaled(host.Start, secondStartEntered);
+        secondStartEntered.Wait(SignalTimeout).Should().BeTrue();
         secondStart.IsCompleted.Should().BeFalse();
-
-        await Task.Delay(startupTimeout + TimeSpan.FromMilliseconds(200));
+        GetPrivateField<CancellationTokenSource>(host, "_cancellationTokenSource")
+            .Token.WaitHandle.WaitOne(SignalTimeout).Should().BeTrue(
+                "the startup timeout should cancel its generation before stop finalization is tested");
         firstStart.IsCompleted.Should().BeFalse("startup failure cleanup should still be waiting for the blocked pipe factory");
         secondStart.IsCompleted.Should().BeFalse("the concurrent starter should still be waiting for startup failure cleanup");
 
@@ -369,8 +373,9 @@ public partial class InspectorHostConcurrencyTests : IDisposable
         await stopTask;
         host.IsRunning.Should().BeFalse();
 
-        var restartTask = Task.Run(() => host.Start());
-        await Task.Delay(100);
+        using var restartEntered = new ManualResetEventSlim(initialState: false);
+        var restartTask = RunSignaled(host.Start, restartEntered);
+        restartEntered.Wait(SignalTimeout).Should().BeTrue();
         restartTask.IsCompleted.Should().BeFalse("restart should wait for the prior stop finalization while startup-failure cleanup is still pending");
 
         releaseFirstFactory.Set();
@@ -416,7 +421,8 @@ public partial class InspectorHostConcurrencyTests : IDisposable
         var startTask = Task.Run(() => host.Start());
 
         pipeFactoryEntered.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
-        await Task.Delay(300);
+        GetPrivateField<CancellationTokenSource>(host, "_cancellationTokenSource")
+            .Token.WaitHandle.WaitOne(SignalTimeout).Should().BeTrue();
 
         releasePipeFactory.Set();
 
@@ -457,8 +463,9 @@ public partial class InspectorHostConcurrencyTests : IDisposable
 
         beforeStartupCompletionEntered.Wait(SignalTimeout).Should().BeTrue();
 
-        var concurrentStartTask = Task.Run(() => host.Start());
-        await Task.Delay(100);
+        using var concurrentStartEntered = new ManualResetEventSlim(initialState: false);
+        var concurrentStartTask = RunSignaled(host.Start, concurrentStartEntered);
+        concurrentStartEntered.Wait(SignalTimeout).Should().BeTrue();
         concurrentStartTask.IsCompleted.Should().BeFalse();
 
         host.Stop();

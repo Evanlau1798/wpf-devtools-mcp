@@ -9,7 +9,7 @@ using static WpfDevTools.Tests.Unit.McpServer.Tools.WaitForDpChangeToolTestHarne
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
 [Collection("TimingSensitive")]
-public sealed class WaitForDpChangeToolConcurrencyTests
+public sealed partial class WaitForDpChangeToolConcurrencyTests
 {
     [Fact]
     public async Task Execute_ShouldPollViaShortRequestsSoConcurrentMutationCanComplete()
@@ -368,51 +368,6 @@ public sealed class WaitForDpChangeToolConcurrencyTests
             "a trigger timeout must not consume the delayed mutation success response");
         connected.SessionManager.GetPipeClient(processId)!.IsConnected.Should().BeFalse(
             "timing out an in-flight trigger mutation should reset the pipe connection instead of leaving a stale response queued");
-    }
-
-    [Fact]
-    public async Task Execute_WithInjectedTriggerMutationTimeout_ShouldNotForceReconnectWhenExecutorDoesNotUsePipe()
-    {
-        const int processId = 4769;
-        using var connected = await CreateConnectedSessionAsync(processId);
-        var waitTool = new WaitForDpChangeTool(
-            connected.SessionManager,
-            async (_, cancellationToken) =>
-            {
-                await Task.Delay(2000, CancellationToken.None);
-                return new { success = true };
-            },
-            triggerMutationTimeoutRequiresReconnect: false);
-
-        var waitResult = await waitTool.ExecuteAsync(
-            ToJsonElement(new
-            {
-                processId,
-                propertyName = "Text",
-                expectedValue = JsonSerializer.SerializeToElement("after"),
-                timeoutMs = 500,
-                pollIntervalMs = 50,
-                triggerMutation = new
-                {
-                    tool = "modify_viewmodel",
-                    args = new
-                    {
-                        propertyName = "Name",
-                        value = "after"
-                    }
-                }
-            }),
-            CancellationToken.None);
-
-        var waitJson = JsonSerializer.SerializeToElement(waitResult);
-
-        waitJson.GetProperty("success").GetBoolean().Should().BeTrue();
-        waitJson.GetProperty("timedOut").GetBoolean().Should().BeTrue();
-        waitJson.GetProperty("completionReason").GetString().Should().Be("TriggerMutationTimedOut");
-        waitJson.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
-        waitJson.GetProperty("requiresReconnect").GetBoolean().Should().BeFalse();
-        connected.SessionManager.GetPipeClient(processId)!.IsConnected.Should().BeTrue(
-            "an injected non-pipe timeout should not tear down a healthy connection");
     }
 
     [Fact]

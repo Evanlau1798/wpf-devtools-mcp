@@ -29,7 +29,7 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string GetUiBlockCatalog =
         """
-        Use this tool to inspect WPF DevTools Composer block definitions, properties, slots, allowedKinds, renderer availability, and source provenance before composing a blueprint.
+        Use this tool for brief-first discovery of Composer block definitions, properties, slots, allowedKinds, renderer availability, and source provenance before composing an original blueprint.
 
         CATEGORY: UI Composer
 
@@ -38,10 +38,11 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this for live WPF runtime inspection or to read third-party source code. Use scene tools for running target state.
 
         RESPONSE SUMMARY:
-        - Returns success, itemCount, items, and diagnostics.
+        - Returns success, itemCount, items, authoringGuidance, and diagnostics.
         - Each item includes packId, packVersion, kind, displayName, pack-defined description, category, properties, slots, allowedKinds, rendererAvailable, compositionSkeleton, and sourceHintSummary.
         - Property and slot description fields explain renderer semantics. A property previewWarning identifies pack-defined final-app checks without executing pack code.
         - compositionSkeleton is a compact pack-neutral node fragment generated from that block's own required properties and declared slots. Copy it into a blueprint instead of retyping kind and slot names.
+        - authoringGuidance keeps creative-brief selection independent from recipes. Recipes remain optional accelerators or fragments.
         - Catalog source hints are path summaries only and do not include copied third-party source text.
 
         REQUEST OPTIONS:
@@ -50,12 +51,12 @@ internal static class UiComposerMcpToolDescriptions
         - kindPrefix optionally filters by block kind prefix.
         - composableOnly=true returns only blocks with available renderer templates.
         - kind optionally returns single-block detail for an exact pack-qualified block kind.
-        - includeRecipes=true includes recipe catalog entries that can be passed to expand_ui_recipe.
+        - includeRecipes defaults to false for brief-first discovery. Set true only after choosing an independent creative brief.
 
         EXAMPLES:
-        - {"packIds":["wpfui"],"category":"navigation"}
-        - {"kind":"wpfui.button"}
-        - {"kindPrefix":"wpfui.navigation","composableOnly":true,"includeRecipes":true}
+        - {"packIds":["sample"],"category":"navigation"}
+        - {"kind":"sample.button"}
+        - {"kindPrefix":"sample.navigation","composableOnly":true}
         """;
 
     public const string ValidateUiBlueprint =
@@ -80,7 +81,7 @@ internal static class UiComposerMcpToolDescriptions
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
-        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}"}
+        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"sample\",\"version\":\"1.0.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"sample\",\"layout\":{\"kind\":\"sample.button\"}}"}
         """;
 
     public const string ComposeUiBlueprint =
@@ -115,7 +116,7 @@ internal static class UiComposerMcpToolDescriptions
 
         CATEGORY: UI Composer
 
-        USE WHEN: You want to start from a known UI pattern, such as a navigation shell, dashboard card, data grid page, dialog flow, or tabbed settings view, instead of authoring a blueprint from scratch.
+        USE WHEN: You already chose an independent creative brief and want a pack-defined recipe as an optional accelerator or fragment instead of assembling every initial node manually.
 
         DO NOT USE: Do not use this for rendering, writing files, or mutating a WPF project. Use render_ui_blueprint or apply_ui_blueprint in later guarded workflows.
 
@@ -132,8 +133,8 @@ internal static class UiComposerMcpToolDescriptions
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
-        - {"recipeId":"wpfui.shellWithNavigation"}
-        - {"recipeId":"wpfui.dataGridPage","inputs":{"itemsSource":"{Binding Orders}","emptyText":"No orders"}}
+        - {"recipeId":"sample.workspaceStarter"}
+        - {"recipeId":"sample.collectionView","inputs":{"itemsSource":"{Binding Items}","emptyText":"No items"}}
         """;
 
     public const string RenderUiBlueprint =
@@ -158,7 +159,7 @@ internal static class UiComposerMcpToolDescriptions
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
-        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}"}
+        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"sample\",\"version\":\"1.0.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"sample\",\"layout\":{\"kind\":\"sample.button\"}}"}
         """;
 
     public const string RepairUiBlueprint =
@@ -185,7 +186,7 @@ internal static class UiComposerMcpToolDescriptions
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
-        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.missing\"}}"}
+        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"sample\",\"version\":\"1.0.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"sample\",\"layout\":{\"kind\":\"sample.missing\"}}"}
         """;
 
     public const string ApplyUiBlueprint =
@@ -203,7 +204,7 @@ internal static class UiComposerMcpToolDescriptions
         - behaviorIntegrationContract lists every command-bound interaction, its command path and parameter, implementation guidance, and final-app verification guidance. Implement every required interaction before treating generated controls as functional.
         - Non-dry-run writes require confirmApply=true, persist generated XAML atomically, are restricted to project-root-relative targetPath under projectRoot, and create a backup when updating an existing view file.
         - A successful non-dry-run response returns the executed file plan using the pre-write target state: create remains create and update includes its backup path.
-        - MainWindow.xaml outputs for WPF UI FluentWindow add x:Class and return a code-behind-integration filePlan entry when the code-behind base class must be reviewed separately.
+        - Root blocks whose pack renderer declares codeBehindBaseType add x:Class and return a code-behind-integration filePlan entry for that validated pack-defined base type.
         - Generated files include WPFDEVTOOLS_BLUEPRINT_SOURCE and WPFDEVTOOLS_SAFE_SLOT markers for reversible repair-first workflows.
 
         REQUEST OPTIONS:
@@ -215,7 +216,7 @@ internal static class UiComposerMcpToolDescriptions
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
-        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}","projectRoot":"C:\\Work\\SampleApp"}
+        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"sample\",\"version\":\"1.0.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"sample\",\"layout\":{\"kind\":\"sample.button\"}}","projectRoot":"C:\\Work\\SampleApp"}
         """;
 
     public const string PreviewUiBlueprint =
@@ -251,7 +252,7 @@ internal static class UiComposerMcpToolDescriptions
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
         EXAMPLES:
-        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}","restoreEnabled":true,"startHost":true,"includeRuntimeDiagnostics":true}
-        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"wpfui\",\"version\":\"0.1.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"wpfui\",\"layout\":{\"kind\":\"wpfui.button\"}}","restoreEnabled":true,"startHost":true,"includeScreenshotDiagnostics":true,"screenshotOutputMode":"file"}
+        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"sample\",\"version\":\"1.0.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"sample\",\"layout\":{\"kind\":\"sample.button\"}}","restoreEnabled":true,"startHost":true,"includeRuntimeDiagnostics":true}
+        - {"blueprintJson":"{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"name\":\"Demo\",\"packs\":[{\"id\":\"sample\",\"version\":\"1.0.0\",\"required\":true,\"role\":\"primary\"}],\"primaryPack\":\"sample\",\"layout\":{\"kind\":\"sample.button\"}}","restoreEnabled":true,"startHost":true,"includeScreenshotDiagnostics":true,"screenshotOutputMode":"file"}
         """;
 }

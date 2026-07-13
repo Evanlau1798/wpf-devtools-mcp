@@ -52,7 +52,7 @@ Request options:
 
 Request options:
 
-- `packIds`: optional pack id filter，例如 `["wpfui"]`。
+- `packIds`: optional pack id filter，例如 `["sample"]`。
 - `category`: optional block category filter。
 - `kindPrefix`: optional pack-qualified kind prefix。
 - `composableOnly`: true 時只回傳具備 renderer template 的 blocks。
@@ -62,6 +62,8 @@ Request options:
 Catalog entries 只包含 source hint paths，不會把第三方 source code 複製進 tool output。
 
 Pack author 可為 blocks、properties 與 slots 提供 inert `description` text。當 structural preview 的 measurement 或 styling 可能與 final package 不同時，property 也可提供 `previewWarning`。選擇值之前應先讀取這些 pack-defined fields；它們能說明 renderer 行為，而不需在 Composer 加入 library-specific logic。
+
+Response 也會包含 `authoringGuidance`。其中 `strategy="brief-first"` 與 `creativeBriefRequired=true` 會要求 Agent 先依 discovered capabilities 自行決定 product purpose 與 information architecture。`includeRecipes` 預設為 false；之後才把 recipes 當成 optional accelerators 或 fragments 使用。
 
 每個 catalog item 都包含依該 block 自身 contract 產生的 pack-neutral
 `compositionSkeleton`。其中會提供精確 `kind`、required properties 的值，以及
@@ -100,7 +102,7 @@ Request options:
 
 Request options:
 
-- `recipeId`: required pack-qualified recipe id，例如 `wpfui.shellWithNavigation`。
+- `recipeId`: required pack-qualified recipe id，例如 `sample.workspaceStarter`。
 - `inputs`: optional JSON object，提供 recipe input values。省略時會使用 recipe defaults。
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。

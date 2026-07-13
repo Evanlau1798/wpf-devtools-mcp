@@ -38,11 +38,11 @@ public static partial class UiComposerMcpTools
     [McpServerTool(Name = "get_ui_block_catalog", Title = "Get UI Composer Block Catalog", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.GetUiBlockCatalog)]
     public static Task<CallToolResult> GetUiBlockCatalog(
-        [Description("Optional pack IDs to include, such as wpfui. Omit to include all enabled packs.")] string[]? packIds = null,
+        [Description("Optional pack IDs to include, such as sample. Omit to include all enabled packs.")] string[]? packIds = null,
         [Description("Optional block category filter, such as navigation, input, feedback, window, or layout.")] string? category = null,
-        [Description("Optional block kind prefix filter, such as wpfui.navigation.")] string? kindPrefix = null,
+        [Description("Optional block kind prefix filter, such as sample.navigation.")] string? kindPrefix = null,
         [Description("When true, returns only blocks with an available renderer template.")] bool composableOnly = false,
-        [Description("Optional exact block kind for single-block detail, such as wpfui.button.")] string? kind = null,
+        [Description("Optional exact block kind for single-block detail, such as sample.button.")] string? kind = null,
         [Description("When true, includes recipe catalog entries from the same pack scope in the response.")] bool includeRecipes = false,
         [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
@@ -89,7 +89,7 @@ public static partial class UiComposerMcpTools
     [McpServerTool(Name = "expand_ui_recipe", Title = "Expand UI Composer Recipe", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.ExpandUiRecipe)]
     public static Task<CallToolResult> ExpandUiRecipe(
-        [Description("Pack-qualified recipe id, such as wpfui.shellWithNavigation.")] string recipeId,
+        [Description("Pack-qualified recipe id, such as sample.workspaceStarter.")] string recipeId,
         [Description("Optional JSON object containing recipe input values. Omit to use recipe defaults.")] System.Text.Json.JsonElement? inputs = null,
         [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
@@ -265,6 +265,18 @@ public static partial class UiComposerMcpTools
             items = result.Items,
             recipeCount = recipes.Count,
             recipes,
+            authoringGuidance = new
+            {
+                strategy = "brief-first",
+                recipesRequested = includeRecipes,
+                creativeBriefRequired = true,
+                principles = new[]
+                {
+                    "Choose an original product purpose and information architecture from discovered pack capabilities before selecting a recipe.",
+                    "Treat recipes as optional accelerators or fragments, then adapt them to the independent creative brief.",
+                    "Use pack-defined descriptions, customization guidance, skeletons, and slot rules instead of assuming a library-specific design."
+                }
+            },
             diagnostics = result.Diagnostics,
             observability = ComposerObservability.ForCatalog(result.Diagnostics)
         };

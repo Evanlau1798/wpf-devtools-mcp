@@ -52,7 +52,7 @@ Returns block catalog entries from enabled Composer packs. Use it after `list_ui
 
 Request options:
 
-- `packIds`: optional pack id filter, such as `["wpfui"]`.
+- `packIds`: optional pack id filter, such as `["sample"]`.
 - `category`: optional block category filter.
 - `kindPrefix`: optional pack-qualified kind prefix.
 - `composableOnly`: when true, returns only blocks with an available renderer template.
@@ -62,6 +62,8 @@ Request options:
 Catalog entries include source hint paths only. They do not copy third-party source code into tool output.
 
 Pack authors can provide inert `description` text for blocks, properties, and slots. Properties can also provide `previewWarning` when structural preview may differ from final package measurement or styling. Read these pack-defined fields before choosing values; they describe renderer behavior without adding library-specific logic to Composer.
+
+The response also includes `authoringGuidance`. Its `strategy="brief-first"` and `creativeBriefRequired=true` fields tell an Agent to establish an independent product purpose and information architecture from discovered capabilities. `includeRecipes` defaults to false; request recipes only later as optional accelerators or fragments.
 
 Every catalog item includes a pack-neutral `compositionSkeleton` generated from
 that block's own contract. It contains the exact `kind`, values for required
@@ -101,7 +103,7 @@ Expands a starter recipe into a full UI blueprint and runs blueprint validation 
 
 Request options:
 
-- `recipeId`: required pack-qualified recipe id, such as `wpfui.shellWithNavigation`.
+- `recipeId`: required pack-qualified recipe id, such as `sample.workspaceStarter`.
 - `inputs`: optional JSON object with recipe input values. Omitted inputs use recipe defaults when available.
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.

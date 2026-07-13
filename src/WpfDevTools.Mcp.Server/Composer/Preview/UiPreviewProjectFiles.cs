@@ -262,8 +262,14 @@ internal static class UiPreviewProjectFiles
 
     private static bool HasNativeWindowRoot(string xaml)
     {
-        var root = xaml.AsSpan().TrimStart();
-        const string tag = "<Window";
+        var rootStart = FindRootElementStart(xaml);
+        if (rootStart < 0)
+        {
+            return false;
+        }
+
+        var root = xaml.AsSpan(rootStart + 1);
+        const string tag = "Window";
         return root.StartsWith(tag, StringComparison.Ordinal)
             && root.Length > tag.Length
             && (char.IsWhiteSpace(root[tag.Length]) || root[tag.Length] is '>' or '/');

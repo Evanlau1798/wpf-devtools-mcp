@@ -53,6 +53,9 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("Non-dry-run writes");
         description.Should().Contain("executed file plan");
         description.Should().Contain("pre-write");
+        description.Should().Contain("packageIntegrationGuidance");
+        description.Should().Contain("ManagePackageVersionsCentrally");
+        description.Should().Contain("does not edit project or central package files");
     }
 
     [Fact]

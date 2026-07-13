@@ -161,20 +161,28 @@ public sealed class ComposerPipelineContractTests
         english.Should().Contain("## Apply-to-build workflow");
         english.Should().ContainAll(
             "behaviorIntegrationContract",
+            "packageIntegrationGuidance",
             "Directory.Packages.props",
-            "<ui:ThemesDictionary Theme=\"Dark\" />",
-            "Wpf.Ui.Controls.FluentWindow",
+            "projectPackageReference",
+            "centralPackageVersion",
+            "codeBehindBaseType",
             "dotnet build",
             "capture_state_snapshot");
+        english.Should().NotContain("<PackageReference Include=\"WPF-UI\"");
+        english.Should().NotContain("public partial class MainWindow : Wpf.Ui.Controls.FluentWindow");
 
         zhTw.Should().Contain("## 從 apply 到可執行應用程式");
         zhTw.Should().ContainAll(
             "behaviorIntegrationContract",
+            "packageIntegrationGuidance",
             "Directory.Packages.props",
-            "<ui:ThemesDictionary Theme=\"Dark\" />",
-            "Wpf.Ui.Controls.FluentWindow",
+            "projectPackageReference",
+            "centralPackageVersion",
+            "codeBehindBaseType",
             "dotnet build",
             "capture_state_snapshot");
+        zhTw.Should().NotContain("<PackageReference Include=\"WPF-UI\"");
+        zhTw.Should().NotContain("public partial class MainWindow : Wpf.Ui.Controls.FluentWindow");
     }
 
     private static string GetWorkflowJob(string workflow, string name)

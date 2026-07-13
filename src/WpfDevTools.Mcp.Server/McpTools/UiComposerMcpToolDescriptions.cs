@@ -148,7 +148,8 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this to write project files. This tool always returns a dry-run plan and does not modify the filesystem.
 
         RESPONSE SUMMARY:
-        - Returns success, valid, dryRun, xaml, filePlan, requiredResources, requiredNuGetPackages, validation, errors, and diagnostics.
+        - Returns success, valid, dryRun, xaml, filePlan, requiredResources, requiredNuGetPackages, packageIntegrationGuidance, validation, errors, and diagnostics.
+        - packageIntegrationGuidance inspects the target project and emits generic projectPackageReference plus optional centralPackageVersion snippets without editing files.
         - Renderer errors include jsonPath and block/template-oriented recovery guidance.
         - filePlan.wouldWriteFiles is always false.
 
@@ -200,7 +201,8 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this as a general filesystem writer. Non-dry-run writes require WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true, WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true, and an exact WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS match.
 
         RESPONSE SUMMARY:
-        - Dry-run is the default and returns filePlan entries with targetPath, action, riskLevel, resourcePlan, requiredNuGetPackages, viewModelBindingContract, and behaviorIntegrationContract without writing files.
+        - Dry-run is the default and returns filePlan entries with targetPath, action, riskLevel, resourcePlan, requiredNuGetPackages, packageIntegrationGuidance, viewModelBindingContract, and behaviorIntegrationContract without writing files.
+        - packageIntegrationGuidance detects ManagePackageVersionsCentrally, returns projectPackageReference and centralPackageVersion snippets for pack-declared packages, and does not edit project or central package files.
         - behaviorIntegrationContract lists every command-bound interaction, its command path and parameter, implementation guidance, and final-app verification guidance. Implement every required interaction before treating generated controls as functional.
         - Non-dry-run writes require confirmApply=true, persist generated XAML atomically, are restricted to project-root-relative targetPath under projectRoot, and create a backup when updating an existing view file.
         - A successful non-dry-run response returns the executed file plan using the pre-write target state: create remains create and update includes its backup path.
@@ -237,7 +239,7 @@ internal static class UiComposerMcpToolDescriptions
         - elementCorrelations maps each renderer root's transient x:Name to its blueprint jsonPath and blockKind. These names are never written into the blueprint or emitted by render/apply.
         - restoreEnabled=false runs dotnet build --no-restore and returns missing-assets diagnostics when the temporary project has not been restored.
         - startHost=true starts the temporary host after build, waits for an explicit generated-view load sentinel, then terminates the process tree.
-        - includeRuntimeDiagnostics=true with startHost=true reuses connect(), get_ui_summary(depthMode="semantic"), and get_layout_info against the temporary preview host.
+        - includeRuntimeDiagnostics=true with startHost=true reuses connect(), get_ui_summary(depthMode="semantic"), one focused find_elements correlation lookup, and get_layout_info against the temporary preview host.
         - includeScreenshotDiagnostics=true with startHost=true enables runtime diagnostics and adds element_screenshot using screenshotOutputMode only when the screenshot policy gate allows it.
         - screenshotOutputMode="file" returns a resource-backed PNG that remains readable after the temporary preview host exits.
         - Compile failures map back to the compiler line/column source-map entry and renderer template path when available; restore/build infrastructure failures stay at $.layout.

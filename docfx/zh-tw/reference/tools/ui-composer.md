@@ -126,7 +126,7 @@ Request options:
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
-完成 render 呼叫時 response 會維持 `success=true`，並用 `valid` 表示 render 是否有效。成功結果包含 `xaml`、`requiredNuGetPackages`、`requiredResources`，以及 `wouldWriteFiles=false` 的 `filePlan`。無效結果會回傳 validation 或 render issues，包含 `jsonPath`、`code`、`message` 與 `repairSuggestion`。
+完成 render 呼叫時 response 會維持 `success=true`，並用 `valid` 表示 render 是否有效。成功結果包含 `xaml`、`requiredNuGetPackages`、`requiredResources`、`packageIntegrationGuidance`，以及 `wouldWriteFiles=false` 的 `filePlan`。Package guidance 會依 target project 推導，而且不會編輯 project 或 central package files。無效結果會回傳 validation 或 render issues，包含 `jsonPath`、`code`、`message` 與 `repairSuggestion`。
 
 ## `preview_ui_blueprint`
 
@@ -137,7 +137,7 @@ Request options:
 - `blueprintJson`: required UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`。
 - `restoreEnabled`: optional boolean，預設為 true。false 時 temporary project 會用 `--no-restore` build，以便 deterministic 驗證 missing-restore diagnostics。
 - `startHost`: optional boolean，預設為 false。true 時 successful build 後會啟動 temporary preview host，並回報 generated-view load status。
-- `includeRuntimeDiagnostics`: optional boolean，預設為 false。搭配 `startHost=true` 時，會對 temporary host 重用 `connect`、`get_ui_summary(depthMode="semantic")` 與 `get_layout_info`。這需要 `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`。
+- `includeRuntimeDiagnostics`: optional boolean，預設為 false。搭配 `startHost=true` 時，會對 temporary host 重用 `connect`、`get_ui_summary(depthMode="semantic")`、一次 focused `find_elements` correlation lookup 與 `get_layout_info`。這需要 `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`。
 - `includeScreenshotDiagnostics`: optional boolean，預設為 false。搭配 `startHost=true` 時會啟用 runtime diagnostics，且只有在 `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` 與 `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` 同時允許時才會要求 screenshot。
 - `screenshotOutputMode`: optional closed value，預設為 `metadata`；需要保留 server-owned PNG 時使用 `file`，response 會回傳 `resourceUri` 與精確的 `resourceRead` request。Temporary preview host 結束後、server session 結束前，必須在相同 MCP server session 以 `resourceRead.method`（`resources/read`）和 `resourceRead.params` 讀取。其他值（包含 `base64`）會在 preview work 開始前回傳 `InvalidArgument`。
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
@@ -182,47 +182,13 @@ Request options:
 
 `apply_ui_blueprint` 只會寫入經審查的 view XAML；它不會暗中修改 project file、application resources、code-behind、ViewModel 或 startup flow。請把 response 內的 plans 當成 authoritative integration checklist：
 
-1. 先執行 dry apply，檢查 `filePlan`、`requiredNuGetPackages`、`resourcePlan`、`viewModelBindingContract` 與 `behaviorIntegrationContract`。
+1. 先執行 dry apply，檢查 `filePlan`、`requiredNuGetPackages`、`packageIntegrationGuidance`、`resourcePlan`、`viewModelBindingContract` 與 `behaviorIntegrationContract`。
 2. 只有在 project-root gates 已精確限制到目標專案後，才執行 confirmed apply。
-3. 加入 `requiredNuGetPackages` 列出的所有 package。未使用 central package management 的專案可使用：
+3. 依 `packageIntegrationGuidance` 處理每個 pack-declared package。`mode="project"` 時，把各 `projectPackageReference` 加入回報的 project file。因 `ManagePackageVersionsCentrally=true` 而得到 `mode="central"` 時，把 versionless `projectPackageReference` 加入 project，並把對應 `centralPackageVersion` 加入 `Directory.Packages.props`。`mode="unknown"` 時先檢查 project。Composer 不會編輯這兩種檔案。
+4. 依每個 pack 的需求，把 `resourcePlan` entries 加入 application resource location。請以回傳的 pack data 為準，不要假設特定 library namespace 或 dictionary。
+5. 若 `filePlan` 包含 `role="code-behind-integration"`，請依 action 與 pack renderer 驗證過的 `codeBehindBaseType`，讓 generated XAML `x:Class` 與 code-behind 繼承相同 type。Composer 只規劃此變更，不會寫入 code-behind。
 
-   ```xml
-   <PackageReference Include="WPF-UI" Version="4.3.0" />
-   ```
-
-   若 `ManagePackageVersionsCentrally=true`，請移除 `PackageReference` 上的 `Version`，並在 `Directory.Packages.props` 設定：
-
-   ```xml
-   <ItemGroup>
-     <PackageVersion Include="WPF-UI" Version="4.3.0" />
-   </ItemGroup>
-   ```
-
-4. 在 `App.xaml` 宣告 WPF UI namespace，並加入 response 所列的 dictionaries：
-
-   ```xml
-   <Application xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml" ...>
-     <Application.Resources>
-       <ResourceDictionary>
-         <ResourceDictionary.MergedDictionaries>
-           <ui:ThemesDictionary Theme="Dark" />
-           <ui:ControlsDictionary />
-         </ResourceDictionary.MergedDictionaries>
-       </ResourceDictionary>
-     </Application.Resources>
-   </Application>
-   ```
-
-5. 若 `filePlan` 包含 `role="code-behind-integration"`，generated XAML 的 `x:Class` 與 code-behind 必須使用相同 base type：
-
-   ```csharp
-   public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
-   {
-       public MainWindow() => InitializeComponent();
-   }
-   ```
-
-6. 將 `behaviorIntegrationContract.status="required"` 視為 release gate。必須在 view DataContext 實作每個 `commandPath`。Navigation command 會收到 `commandParameter`，且必須更新 selected application state 與 destination content；action command 必須產生可觀察的應用程式行為，並提供合適的 `CanExecute` policy。Built-in navigation recipe 預設使用 `NavigateCommand` 與 `PrimaryActionCommand`。這些是 application contracts，不是自動生成的 business logic。
+6. 將 `behaviorIntegrationContract.status="required"` 視為 release gate。必須在 view DataContext 實作每個 pack-defined `commandPath`。Navigation command 會收到 `commandParameter`，且必須更新 selected application state 與 destination content；action command 必須產生可觀察的應用程式行為，並提供合適的 `CanExecute` policy。這些是 application contracts，不是自動生成的 business logic。
 7. 分開執行 restore、build 與實際 application launch：
 
    ```powershell

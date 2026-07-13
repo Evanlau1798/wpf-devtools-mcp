@@ -20,7 +20,8 @@ internal sealed record RenderBlueprintResult(
     IReadOnlyList<BlueprintValidationIssue> Errors,
     IReadOnlyList<string> Diagnostics,
     IReadOnlyList<RenderSourceMapEntry> SourceMap,
-    IReadOnlyList<RenderElementCorrelation> ElementCorrelations)
+    IReadOnlyList<RenderElementCorrelation> ElementCorrelations,
+    PackageIntegrationPlan PackageIntegrationGuidance)
 {
     public static RenderBlueprintResult Invalid(
         RenderBlueprintRequest request,
@@ -40,7 +41,8 @@ internal sealed record RenderBlueprintResult(
             Errors: errors,
             Diagnostics: validation.Diagnostics,
             SourceMap: [],
-            ElementCorrelations: []);
+            ElementCorrelations: [],
+            PackageIntegrationGuidance: PackageIntegrationPlanner.Create(request.ProjectRoot, []));
 }
 
 internal sealed record RenderFilePlan(string TargetPath, bool WouldWriteFiles);

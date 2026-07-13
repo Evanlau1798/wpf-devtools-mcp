@@ -52,6 +52,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         errors.AddRange(XamlSafetyScanner.Scan(rendererXaml, resolvedSourceMap, context.RequiredResources));
         var xaml = AddRootXmlNamespaces(rendererXaml, context.XmlNamespaces);
         var filePlan = new RenderFilePlan(ResolveTargetPath(request, blueprint), WouldWriteFiles: false);
+        var packageGuidance = PackageIntegrationPlanner.Create(request.ProjectRoot, context.RequiredNuGetPackages);
 
         return new RenderBlueprintResult(
             errors.Count == 0,
@@ -65,7 +66,8 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             errors,
             context.Diagnostics,
             resolvedSourceMap,
-            elementCorrelations);
+            elementCorrelations,
+            packageGuidance);
     }
 
     private string RenderNode(

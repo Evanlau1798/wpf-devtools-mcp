@@ -127,7 +127,7 @@ Request options:
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
-The response keeps `success=true` for a completed render call and reports render validity in `valid`. Successful results include `xaml`, `requiredNuGetPackages`, `requiredResources`, and a `filePlan` with `wouldWriteFiles=false`. Invalid results return validation or render issues with `jsonPath`, `code`, `message`, and `repairSuggestion`.
+The response keeps `success=true` for a completed render call and reports render validity in `valid`. Successful results include `xaml`, `requiredNuGetPackages`, `requiredResources`, `packageIntegrationGuidance`, and a `filePlan` with `wouldWriteFiles=false`. Package guidance is derived from the target project and never edits project or central package files. Invalid results return validation or render issues with `jsonPath`, `code`, `message`, and `repairSuggestion`.
 
 ## `preview_ui_blueprint`
 
@@ -138,7 +138,7 @@ Request options:
 - `blueprintJson`: required UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`.
 - `restoreEnabled`: optional boolean that defaults to true. When false, the temporary project is built with `--no-restore` so missing-restore diagnostics can be validated deterministically.
 - `startHost`: optional boolean that defaults to false. When true, the temporary preview host starts after a successful build and reports generated-view load status.
-- `includeRuntimeDiagnostics`: optional boolean that defaults to false. When true with `startHost=true`, the tool reuses `connect`, `get_ui_summary(depthMode="semantic")`, and `get_layout_info` against the temporary host. This requires `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`.
+- `includeRuntimeDiagnostics`: optional boolean that defaults to false. When true with `startHost=true`, the tool reuses `connect`, `get_ui_summary(depthMode="semantic")`, one focused `find_elements` correlation lookup, and `get_layout_info` against the temporary host. This requires `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true`.
 - `includeScreenshotDiagnostics`: optional boolean that defaults to false. When true with `startHost=true`, the tool enables runtime diagnostics and requests a screenshot only if both `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` and `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true`.
 - `screenshotOutputMode`: optional closed value that defaults to `metadata`; use `file` to retain a server-owned PNG and return its `resourceUri` plus an exact `resourceRead` request. Call `resourceRead.method` (`resources/read`) with `resourceRead.params` in the same MCP server session, after the temporary preview host exits but before that server session ends. Other values, including `base64`, return `InvalidArgument` before preview work starts.
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
@@ -183,47 +183,13 @@ Non-dry-run writes require `confirmApply=true`, `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTI
 
 `apply_ui_blueprint` writes reviewed view XAML; it does not silently edit the project file, application resources, code-behind, ViewModel, or startup flow. Use the returned plans as the authoritative integration checklist:
 
-1. Run dry apply and review `filePlan`, `requiredNuGetPackages`, `resourcePlan`, `viewModelBindingContract`, and `behaviorIntegrationContract`.
+1. Run dry apply and review `filePlan`, `requiredNuGetPackages`, `packageIntegrationGuidance`, `resourcePlan`, `viewModelBindingContract`, and `behaviorIntegrationContract`.
 2. Run confirmed apply only after the project-root gates are scoped to the intended project.
-3. Add every package in `requiredNuGetPackages`. For a project without central package management:
+3. Follow `packageIntegrationGuidance` for every pack-declared package. When `mode="project"`, add each returned `projectPackageReference` to the reported project file. When `mode="central"` because `ManagePackageVersionsCentrally=true`, add the versionless `projectPackageReference` to the project and the matching `centralPackageVersion` to `Directory.Packages.props`. When `mode="unknown"`, inspect the project first. Composer does not edit either file.
+4. Apply each entry in `resourcePlan` to the application resource location required by that pack. Treat the returned pack data as authoritative; do not assume a specific library namespace or dictionary.
+5. If `filePlan` contains `role="code-behind-integration"`, use its action and the pack renderer's validated `codeBehindBaseType` so generated XAML `x:Class` and code-behind inherit the same type. Composer plans this change but does not write code-behind.
 
-   ```xml
-   <PackageReference Include="WPF-UI" Version="4.3.0" />
-   ```
-
-   When `ManagePackageVersionsCentrally=true`, omit `Version` on the `PackageReference` and put it in `Directory.Packages.props`:
-
-   ```xml
-   <ItemGroup>
-     <PackageVersion Include="WPF-UI" Version="4.3.0" />
-   </ItemGroup>
-   ```
-
-4. Add the returned WPF UI dictionaries to `App.xaml` and declare the WPF UI namespace:
-
-   ```xml
-   <Application xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml" ...>
-     <Application.Resources>
-       <ResourceDictionary>
-         <ResourceDictionary.MergedDictionaries>
-           <ui:ThemesDictionary Theme="Dark" />
-           <ui:ControlsDictionary />
-         </ResourceDictionary.MergedDictionaries>
-       </ResourceDictionary>
-     </Application.Resources>
-   </Application>
-   ```
-
-5. If `filePlan` contains `role="code-behind-integration"`, make the generated XAML `x:Class` and its code-behind use the same base type:
-
-   ```csharp
-   public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
-   {
-       public MainWindow() => InitializeComponent();
-   }
-   ```
-
-6. Treat `behaviorIntegrationContract.status="required"` as a release gate. Implement every listed `commandPath` on the view DataContext. Navigation commands receive `commandParameter` and must update selected application state and destination content; action commands must perform observable application behavior and expose an appropriate `CanExecute` policy. The built-in navigation recipe uses `NavigateCommand` and `PrimaryActionCommand` by default. These are application contracts, not generated business logic.
+6. Treat `behaviorIntegrationContract.status="required"` as a release gate. Implement every pack-defined `commandPath` on the view DataContext. Navigation commands receive `commandParameter` and must update selected application state and destination content; action commands must perform observable application behavior and expose an appropriate `CanExecute` policy. These are application contracts, not generated business logic.
 7. Restore, build, and launch the actual application separately:
 
    ```powershell

@@ -341,6 +341,7 @@ public sealed partial class GitHubPagesInstallerScriptTests
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
                 scriptPath,
                 overwrite: true);
+            ReleaseScriptTestHarness.CopyOnlineInstallerRuntimeBundle(tempRoot);
             var scriptInstallerRoot = Path.Combine(tempRoot, "installer");
             Directory.CreateDirectory(scriptInstallerRoot);
             File.Copy(

@@ -126,7 +126,7 @@ public sealed class OnlineInstallerPlanModeTests
     }
 
     [Fact]
-    public void OnlineInstaller_PlanMode_WithoutAdjacentHelpers_ShouldNotBootstrapOrMutateWorkingRoot()
+    public void OnlineInstaller_PlanMode_WithIntegrityRuntime_ShouldNotUseNetworkOrMutateWorkingRoot()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -135,6 +135,7 @@ public sealed class OnlineInstallerPlanModeTests
             var workingRoot = Path.Combine(tempRoot, "working-root");
             var installRoot = Path.Combine(tempRoot, "install-root");
             File.Copy(ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"), scriptCopy);
+            ReleaseScriptTestHarness.CopyOnlineInstallerRuntimeBundle(tempRoot);
 
             var command = string.Join("; ",
                 "$ErrorActionPreference = 'Stop'",

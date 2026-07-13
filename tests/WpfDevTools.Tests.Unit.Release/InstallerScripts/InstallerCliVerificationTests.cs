@@ -9,8 +9,7 @@ public sealed partial class InstallerScriptTests
     [Fact]
     public void OnlineInstallerScript_ShouldDeclareVerificationCommandHelper()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
         var manifestContent = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json"));
 

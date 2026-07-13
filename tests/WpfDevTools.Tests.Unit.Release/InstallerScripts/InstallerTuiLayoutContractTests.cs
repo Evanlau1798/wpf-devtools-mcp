@@ -9,8 +9,7 @@ public sealed class InstallerTuiLayoutContractTests
     [Fact]
     public void OnlineInstallerScript_ShouldIncludeDedicatedTerminalAndLayoutHelpers()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("scripts/installer/Tui.Terminal.ps1");
         content.Should().Contain("scripts/installer/Tui.Layout.ps1");

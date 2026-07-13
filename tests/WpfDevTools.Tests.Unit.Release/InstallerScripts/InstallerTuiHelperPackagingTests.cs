@@ -9,8 +9,7 @@ public sealed class InstallerTuiHelperPackagingTests
     [Fact]
     public void OnlineInstallerScript_ShouldDeclarePseudoWindowHelpersInBootstrapSources()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("scripts/installer/Tui.State.ps1");
         content.Should().Contain("scripts/installer/Tui.PathEditor.ps1");

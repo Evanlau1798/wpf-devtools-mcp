@@ -24,6 +24,17 @@ $definitionsRoot = Join-Path $definitionsBaseRoot ([guid]::NewGuid().ToString('N
 New-Item -ItemType Directory -Force -Path $definitionsRoot | Out-Null
 $definitionsInstallerRoot = Join-Path $definitionsRoot 'installer'
 New-Item -ItemType Directory -Force -Path $definitionsInstallerRoot | Out-Null
+$runtimeSourceRoot = Join-Path $sourceScriptRoot 'installer'
+if (-not (Test-Path -LiteralPath $runtimeSourceRoot -PathType Container)) {
+    $runtimeSourceRoot = Join-Path (Get-Location).Path 'scripts\installer'
+}
+$runtimeManifestSource = Join-Path $runtimeSourceRoot 'installer-helpers.manifest.json'
+if (Test-Path -LiteralPath $runtimeManifestSource -PathType Leaf) {
+    Copy-Item -LiteralPath $runtimeManifestSource -Destination (Join-Path $definitionsInstallerRoot 'installer-helpers.manifest.json') -Force
+}
+Get-ChildItem -LiteralPath $runtimeSourceRoot -Filter 'OnlineInstaller.Runtime.*.ps1' -File -ErrorAction SilentlyContinue | ForEach-Object {
+    Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $definitionsInstallerRoot $_.Name) -Force
+}
 $releaseAssetModuleSource = Join-Path $sourceScriptRoot 'installer\online-installer.release-assets.ps1'
 if (-not (Test-Path -LiteralPath $releaseAssetModuleSource -PathType Leaf)) {
     $releaseAssetModuleSource = Join-Path (Get-Location).Path 'scripts\installer\online-installer.release-assets.ps1'

@@ -9,8 +9,7 @@ public sealed class InstallerInteractiveUiScriptTests
     [Fact]
     public void OnlineInstallerScript_ShouldDeclareCliFirstTuiContracts()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("Start-TuiInstaller");
         content.Should().Contain("Render-TuiScreen");
@@ -32,8 +31,7 @@ public sealed class InstallerInteractiveUiScriptTests
     [Fact]
     public void OnlineInstallerScript_ShouldDeclareKeyboardNavigationAndTuiSettingsRows()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("Architecture");
         content.Should().Contain("Install location");
@@ -48,8 +46,7 @@ public sealed class InstallerInteractiveUiScriptTests
     [Fact]
     public void OnlineInstallerScript_ShouldDotSourceTuiHelpersAndAvoidPrimaryWpfMarkers()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("scripts/installer/Tui.Window.ps1");
         content.Should().Contain("scripts/installer/Tui.Presenters.ps1");
@@ -93,8 +90,7 @@ public sealed class InstallerInteractiveUiScriptTests
     [Fact]
     public void TuiFlow_ShouldDeclareConfirmScreenAndDualUninstallActions()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("ConfirmScreen");
         content.Should().Contain("UnregisterTarget");
@@ -123,8 +119,7 @@ public sealed class InstallerInteractiveUiScriptTests
     [Fact]
     public void OnlineInstallerScript_ShouldKeepCliFallbackPlainWithoutLegacyDecorativeBanners()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("Read-Host");
         content.Should().Contain("Release version");

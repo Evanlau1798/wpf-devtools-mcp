@@ -66,7 +66,7 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
 
     [Theory]
     [MemberData(nameof(StandaloneInstallerRegressionTestSupport.RemovalActions), MemberType = typeof(StandaloneInstallerRegressionTestSupport))]
-    public void StandaloneOnlineInstaller_ExecutedOutsideRepo_RemovalModes_ShouldNotRequireAnyHelperRuntime(string action)
+    public void StandaloneOnlineInstaller_WithoutInstalledHelpers_ShouldUseIntegrityTrackedRuntime(string action)
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -99,6 +99,7 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
                 standaloneScriptPath,
                 overwrite: true);
+            ReleaseScriptTestHarness.CopyOnlineInstallerRuntimeBundle(standaloneRoot);
             File.WriteAllText(
                 wrapperPath,
                 string.Join(Environment.NewLine,
@@ -114,10 +115,14 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
                     "-NonInteractive -Force -OutputJson"
                 ]));
 
+            var removalEnvironment = new Dictionary<string, string?>(CreateStandaloneEnvironment(tempRoot))
+            {
+                ["WPFDEVTOOLS_INSTALLER_HELPER_BASE_URI"] = null
+            };
             var removal = ReleaseScriptTestHarness.RunPowerShellScript(
                 wrapperPath,
                 [],
-                CreateStandaloneEnvironment(tempRoot));
+                removalEnvironment);
 
             removal.ExitCode.Should().Be(0, removal.Stderr);
             using var json = JsonDocument.Parse(removal.Stdout);

@@ -9,8 +9,7 @@ public sealed class InstallerStatePersistenceTests
     [Fact]
     public void OnlineInstallerScript_ShouldDeclareStateInstallationHelper()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
         var manifestContent = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json"));
 

@@ -8,8 +8,7 @@ public sealed class InstallerTuiStartupProgressTests
     [Fact]
     public void OnlineInstallerScript_ResolveSelection_ShouldCheckTuiSupportBeforeLoadingInstallerState()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         var startIndex = content.IndexOf("function Resolve-Selection", StringComparison.Ordinal);
         startIndex.Should().BeGreaterThanOrEqualTo(0);
@@ -26,8 +25,7 @@ public sealed class InstallerTuiStartupProgressTests
     [Fact]
     public void OnlineInstallerScript_TestTuiSupport_ShouldEmitBootstrapProgressBeforeHelperResolution()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         var startIndex = content.IndexOf("function Test-TuiSupport", StringComparison.Ordinal);
         startIndex.Should().BeGreaterThanOrEqualTo(0);

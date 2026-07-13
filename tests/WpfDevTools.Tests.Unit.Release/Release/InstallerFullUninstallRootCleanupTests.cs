@@ -70,6 +70,7 @@ public sealed class InstallerFullUninstallRootCleanupTests
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
                 standaloneInstaller,
                 overwrite: true);
+            ReleaseScriptTestHarness.CopyOnlineInstallerRuntimeBundle(standaloneRoot);
             File.Copy(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/online-installer.release-assets.ps1"),
                 Path.Combine(standaloneInstallerModules, "online-installer.release-assets.ps1"),

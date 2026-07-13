@@ -18,8 +18,7 @@ public sealed class OnlineInstallerContractTests
     [Fact]
     public void OnlineInstallerScript_ShouldBeTuiFirstWhileKeepingAutomationFlags()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("'plan'");
         content.Should().Contain("Get-InstallerPlan");
@@ -35,8 +34,7 @@ public sealed class OnlineInstallerContractTests
     [Fact]
     public void OnlineInstallerScript_ShouldSupportDistinctArchitectureAndWindowsClientSelections()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("'x64'");
         content.Should().Contain("'x86'");
@@ -50,8 +48,7 @@ public sealed class OnlineInstallerContractTests
     [Fact]
     public void OnlineInstallerScript_ShouldResolveOnlineOfflineModesAndPersistInstallerState()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("Resolve-InstallerMode");
         content.Should().Contain("Resolve-InstallerStatePath");
@@ -64,8 +61,7 @@ public sealed class OnlineInstallerContractTests
     [Fact]
     public void OnlineInstallerScript_ShouldDeclareTwoStepConfirmationAndFullUninstallContracts()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("ConfirmScreen");
         content.Should().Contain("ConfirmationStep");
@@ -77,7 +73,7 @@ public sealed class OnlineInstallerContractTests
     public void OnlineInstallerScript_ShouldDownloadVersionedReleaseArchiveNames()
     {
         var content =
-            File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1")) +
+            ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle() +
             Environment.NewLine +
             File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/online-installer.release-assets.ps1"));
 
@@ -110,6 +106,7 @@ public sealed class OnlineInstallerContractTests
             File.Copy(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
                 standaloneScript);
+            ReleaseScriptTestHarness.CopyOnlineInstallerRuntimeBundle(tempRoot);
             var modulePath = ReleaseScriptTestHarness.GetRepoFilePath(
                 "scripts/installer/online-installer.release-assets.ps1");
             var probePath = Path.Combine(tempRoot, "probe.ps1");
@@ -165,6 +162,7 @@ public sealed class OnlineInstallerContractTests
             File.Copy(
                 ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
                 standaloneScript);
+            ReleaseScriptTestHarness.CopyOnlineInstallerRuntimeBundle(tempRoot);
             var modulePath = ReleaseScriptTestHarness.GetRepoFilePath(
                 "scripts/installer/online-installer.release-assets.ps1");
             var probePath = Path.Combine(tempRoot, "probe.ps1");
@@ -208,8 +206,7 @@ public sealed class OnlineInstallerContractTests
     [Fact]
     public void OnlineInstallerScript_ShouldForceTls12BeforeNetworkCalls()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         var tlsIndex = content.IndexOf("[Net.ServicePointManager]::SecurityProtocol", StringComparison.Ordinal);
         var firstWebRequestIndex = content.IndexOf("Invoke-WebRequest", StringComparison.Ordinal);
@@ -231,7 +228,9 @@ public sealed class OnlineInstallerContractTests
                      "scripts/installer/Installer.Release.ps1"
                  })
         {
-            var content = File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath(relativePath));
+            var content = relativePath == "scripts/online-installer.ps1"
+                ? ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle()
+                : File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath(relativePath));
 
             content.Should().Contain("function Invoke-InstallerWebRequest",
                 $"{relativePath} should define the Windows PowerShell 5.1 web-request compatibility wrapper");
@@ -244,8 +243,7 @@ public sealed class OnlineInstallerContractTests
     [Fact]
     public void OnlineInstallerScript_ShouldCompareInstallerModeFunctionResultsExplicitly()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         Regex.Matches(content, @"Resolve-InstallerMode\s+-(?:eq|ne)\b")
             .Should().BeEmpty(
@@ -255,8 +253,7 @@ public sealed class OnlineInstallerContractTests
     [Fact]
     public void OnlineInstallerScript_ShouldAvoidLegacyDecorativeCliBranding()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().NotContain("WPF DEVTOOLS MCP");
         content.Should().NotContain("<Binding Path=\"{Binding}\" />");
@@ -268,8 +265,7 @@ public sealed class OnlineInstallerContractTests
     [Fact]
     public void OnlineInstallerScript_ShouldOffloadBootstrapUiHelpersIntoInstallerModules()
     {
-        var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
-        var content = File.ReadAllText(scriptPath);
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
         var manifestContent = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json"));
 
@@ -282,8 +278,7 @@ public sealed class OnlineInstallerContractTests
     [Fact]
     public void OnlineInstallerScript_ShouldNotHardRequireSharedModulesBeforeStandaloneNonInteractiveRemoval()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().NotContain("Assert-InstallerHelperRuntimeAvailable -ResolvedAction $ResolvedAction\r\n    foreach ($helperPath in @(Get-InstallerSharedModulePaths))",
             "standalone noninteractive uninstall/full-uninstall must have a recovery path that does not hard-fail before it can inspect state or existing registration artifacts");
@@ -292,8 +287,7 @@ public sealed class OnlineInstallerContractTests
     [Fact]
     public void OnlineInstallerScript_ShouldFindInstallerHelpersInWindowsCreatedArchives()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("\"bin\\installer\\$LeafName\"",
             "PowerShell Compress-Archive on Windows stores release entries with backslash separators");
@@ -304,8 +298,7 @@ public sealed class OnlineInstallerContractTests
     [Fact]
     public void OnlineInstallerSupportedClients_ShouldMatchAgentInstallDocumentation()
     {
-        var script = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var script = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
         var functionStart = script.IndexOf("function Get-SupportedClients", StringComparison.Ordinal);
         var functionEnd = script.IndexOf("function Resolve-ClientBaseId", StringComparison.Ordinal);
         functionStart.Should().BeGreaterThanOrEqualTo(0);

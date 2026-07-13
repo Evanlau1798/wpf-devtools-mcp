@@ -15,8 +15,7 @@ public sealed partial class InstallerBootstrapTests
     [Fact]
     public void OnlineInstallerScript_ShouldDeferLatestVersionLookupUntilAfterTuiStartup()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("Initialize-TuiStartupState");
         content.Should().Contain("Get-LatestInstallerVersion -UseCacheOnly");
@@ -43,8 +42,7 @@ public sealed partial class InstallerBootstrapTests
     [Fact]
     public void OnlineInstallerScript_ShouldDeclareBootstrapProgressAndCliFallbackMessages()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("Write-TuiBootstrapScreen");
         content.Should().Contain("Preparing installer UI...");
@@ -54,8 +52,7 @@ public sealed partial class InstallerBootstrapTests
     [Fact]
     public void OnlineInstallerScript_ShouldUseManifestBackedHelperCacheKeys()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("installer-helpers.manifest.json");
         content.Should().Contain("Get-InstallerHelperRuntimeCacheKey");
@@ -65,8 +62,7 @@ public sealed partial class InstallerBootstrapTests
     [Fact]
     public void OnlineInstallerScript_ShouldKeepDefinitionBoundaryMarkerImmediatelyAboveMainEntrypoint()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
         var marker = TestHelpers.OnlineInstallerDefinitionBoundaryMarker;
 
         var markerIndex = content.IndexOf(marker, StringComparison.Ordinal);
@@ -286,8 +282,7 @@ Resolve-InstallerScriptRoot
     [Fact]
     public void OnlineInstallerScript_ShouldDeclareBootstrapPseudoWindowBeforeHelperDownloadCompletes()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("Write-TuiBootstrapScreen");
         content.Should().Contain("Enter-TuiBootstrapTerminalSession");
@@ -300,8 +295,7 @@ Resolve-InstallerScriptRoot
     [Fact]
     public void OnlineInstallerScript_ShouldBootstrapHelperRuntimeFromReleaseArchives()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("Get-TuiHelperArchiveDownloadDetails");
         content.Should().Contain("Assert-TuiHelperArchiveIntegrity");

@@ -9,8 +9,7 @@ public sealed class InstallerUninstallBehaviorTests
     [Fact]
     public void OnlineInstallerScript_ShouldDeclareSharedDiscoveryAndUninstallHelpers()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
         var manifestContent = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json"));
 
@@ -52,8 +51,7 @@ public sealed class InstallerUninstallBehaviorTests
     [Fact]
     public void OnlineInstallerScript_ShouldDeclareStandaloneUninstallHelper()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
         var manifestContent = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/installer-helpers.manifest.json"));
 
@@ -78,8 +76,7 @@ public sealed class InstallerUninstallBehaviorTests
     [Fact]
     public void OnlineInstallerScript_ShouldDeclareHelperCacheKeyAndVerifiedRemovalContracts()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("installer-helpers.manifest.json");
         content.Should().Contain("Get-InstallerHelperRuntimeCacheKey");
@@ -93,8 +90,7 @@ public sealed class InstallerUninstallBehaviorTests
     [Fact]
     public void OnlineInstallerScript_ShouldDeclareDualUninstallModes()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("unregister");
         content.Should().Contain("full-uninstall");
@@ -112,7 +108,9 @@ public sealed class InstallerUninstallBehaviorTests
 
         foreach (var file in files)
         {
-            var content = File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath(file));
+            var content = file == "scripts/online-installer.ps1"
+                ? ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle()
+                : File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath(file));
 
             content.Should().Contain("cleanupScope");
             content.Should().Contain("selected-registration-only");

@@ -321,8 +321,7 @@ public sealed class InstallerProcessLifecycleTests
     {
         var flowContent = File.ReadAllText(
             ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Tui.Flow.ps1"));
-        var installerContent = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var installerContent = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         flowContent.Should().Contain("Stop-TuiLatestVersionRefreshCore");
         installerContent.Should().Contain("Stop-LatestInstallerVersionRefresh");

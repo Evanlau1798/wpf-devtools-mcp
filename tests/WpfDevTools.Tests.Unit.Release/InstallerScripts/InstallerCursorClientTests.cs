@@ -9,8 +9,7 @@ public sealed class InstallerCursorClientInstallTests
     [Fact]
     public void OnlineInstallerScript_ShouldDeclareCursorClientSupportAndCodexCliLabel()
     {
-        var content = File.ReadAllText(
-            ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"));
+        var content = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
 
         content.Should().Contain("'cursor'");
         content.Should().Contain(".cursor\\mcp.json");

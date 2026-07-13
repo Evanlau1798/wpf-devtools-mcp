@@ -106,7 +106,7 @@ internal static class UiComposerMcpToolDescriptions
         - valid=false is a validation result, not an MCP transport failure.
 
         REQUEST OPTIONS:
-        - blueprintJson is required and must contain schemaVersion wpfdevtools.ui-blueprint.v1.
+        - blueprintJson accepts raw JSON or an opaque draftRef. Raw JSON must contain schemaVersion wpfdevtools.ui-blueprint.v1.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 
@@ -122,12 +122,12 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this as a general JSON patch tool or filesystem writer. It only inserts exact compositionSkeleton content declared by installed packs and validates the candidate blueprint before returning it.
 
         RESPONSE SUMMARY:
-        - Returns success, composed, blueprint, blueprintJson, insertedPath, invalidCandidate, candidateBlueprintJson, candidateWritten, validation, and errors.
-        - composed=true returns a new validated blueprint object; the input text is never mutated and no file is written.
-        - When insertion creates an invalid document, composed=false keeps blueprint omitted but returns invalidCandidate, candidateBlueprintJson, and candidateWritten=false for repair. Path and non-composable failures return no candidate.
+        - Raw JSON input returns success, composed, blueprint, blueprintJson, insertedPath, invalidCandidate, candidateBlueprintJson, candidateWritten, validation, and errors.
+        - Draft input returns a new derived draftRef and omits the full blueprint; the source draft remains unchanged.
+        - When a draft-derived insertion is invalid, candidateDraftRef retains the immutable candidate for repair. Raw input instead returns invalidCandidate, candidateBlueprintJson, and candidateWritten=false. Path and non-composable failures return no candidate.
 
         REQUEST OPTIONS:
-        - blueprintJson is the current full blueprint JSON text.
+        - blueprintJson accepts raw JSON or an opaque draftRef.
         - targetPath identifies an existing slot. Use $.layout.slots.<slot> for a root slot or include an explicit child index before each nested slot.
         - kind is an exact pack-qualified kind from get_ui_block_catalog(composableOnly=true).
         - insertionIndex optionally inserts before an existing child; omit it to append.
@@ -173,7 +173,7 @@ internal static class UiComposerMcpToolDescriptions
         - filePlan.wouldWriteFiles is always false.
 
         REQUEST OPTIONS:
-        - blueprintJson is required and must contain schemaVersion wpfdevtools.ui-blueprint.v1.
+        - blueprintJson accepts raw JSON or an opaque draftRef. Raw JSON must contain schemaVersion wpfdevtools.ui-blueprint.v1.
         - targetPath optionally supplies a target XAML path suggestion; the renderer does not write it.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
@@ -196,7 +196,7 @@ internal static class UiComposerMcpToolDescriptions
         - Renderer and compile repairs identify whether the next step is a blueprint change or a pack renderer template issue.
 
         REQUEST OPTIONS:
-        - blueprintJson is required and must contain schemaVersion wpfdevtools.ui-blueprint.v1.
+        - blueprintJson accepts raw JSON or an opaque draftRef. Raw JSON must contain schemaVersion wpfdevtools.ui-blueprint.v1.
         - diagnosticsJson optionally accepts diagnostics returned by render_ui_blueprint or preview_ui_blueprint.
         - targetPath optionally supplies a target XAML path suggestion for render diagnostics only; the tool does not write it.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
@@ -220,7 +220,7 @@ internal static class UiComposerMcpToolDescriptions
         - Pack-declared codeBehindBaseType adds x:Class planning. Generated views retain reversible blueprint and safe-slot markers.
 
         REQUEST OPTIONS:
-        - Pass blueprintJson, the exact reviewed projectRoot, and an optional project-relative targetPath.
+        - Pass blueprintJson as raw JSON or an opaque draftRef, plus the exact reviewed projectRoot and an optional project-relative targetPath.
         - dryRun defaults true; set confirmApply=true only after review. localAppDataRoot selects the pack scope.
 
         EXAMPLES:
@@ -240,7 +240,7 @@ internal static class UiComposerMcpToolDescriptions
         - Atomic changes record backupPath and rollbackAction; later failure rolls earlier operations back.
 
         REQUEST OPTIONS:
-        - blueprintJson, projectRoot, targetPath, reviewedPlanHash, confirmIntegration=true, and pack scope must match the reviewed dry-run.
+        - blueprintJson accepts raw JSON or an opaque draftRef; it, projectRoot, targetPath, reviewedPlanHash, confirmIntegration=true, and pack scope must match the reviewed dry-run.
 
         EXAMPLES:
         """ + CanonicalExamples;
@@ -267,7 +267,7 @@ internal static class UiComposerMcpToolDescriptions
         - Compile failures map back to the compiler line/column source-map entry and renderer template path when available; restore/build infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:
-        - blueprintJson is required and must contain schemaVersion wpfdevtools.ui-blueprint.v1.
+        - blueprintJson accepts raw JSON or an opaque draftRef. Raw JSON must contain schemaVersion wpfdevtools.ui-blueprint.v1.
         - restoreEnabled defaults to true for compile smoke; set false to verify restore-disabled diagnostics.
         - startHost defaults to false for fast compile smoke; set true for preview host load smoke.
         - includeRuntimeDiagnostics defaults to false; set true with startHost=true after enabling the sensitive-reads policy gate.

@@ -12,7 +12,10 @@
   "slots": {
     "content": { "allowedKinds": ["*"] }
   },
-  "renderer": { "xamlTemplate": "renderers/xaml/window.xaml.sbn" },
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/window.xaml.sbn",
+    "codeBehindBaseType": "System.Windows.Window"
+  },
   "sourceHints": [
     { "path": "README.md", "usage": "official MaterialDesignWindow style setup" }
   ]

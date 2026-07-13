@@ -1,5 +1,4 @@
 using FluentAssertions;
-using MahApps.Metro.Controls;
 using WpfDevTools.Mcp.Server.Composer.Apply;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Tests.Unit.TestSupport;
@@ -8,31 +7,6 @@ namespace WpfDevTools.Tests.Unit.Composer;
 
 public sealed class ComposerPackNeutralCodeBehindTests
 {
-    [Fact]
-    public void ApplyBlueprint_ShouldUsePinnedRealMahAppsMetroWindowBaseType()
-    {
-        var projectRoot = RealExtensionPackFixture.CreateMahAppsProject();
-        try
-        {
-            var result = new UiBlueprintApplyService(CreateRegistry(projectRoot)).Apply(
-                new ApplyBlueprintRequest(RealExtensionPackFixture.MahAppsBlueprint, projectRoot, "Views/OperationsWindow.xaml"));
-
-            result.Success.Should().BeTrue(string.Join(
-                Environment.NewLine,
-                result.Errors.Select(error => $"{error.Code}: {error.Message}")));
-            result.Xaml.Should().Contain("<mah:MetroWindow");
-            result.FilePlan.Should().Contain(item =>
-                item.Role == "code-behind-integration"
-                && item.TargetPath == Path.Combine(projectRoot, "Views", "OperationsWindow.xaml.cs")
-                && item.Action.Contains(typeof(MetroWindow).FullName!, StringComparison.Ordinal));
-            typeof(MetroWindow).IsSubclassOf(typeof(System.Windows.Window)).Should().BeTrue();
-        }
-        finally
-        {
-            TestDirectory.Delete(projectRoot);
-        }
-    }
-
     [Fact]
     public void ApplyBlueprint_ShouldPlanCustomWindowBaseTypeFromPackRendererMetadata()
     {

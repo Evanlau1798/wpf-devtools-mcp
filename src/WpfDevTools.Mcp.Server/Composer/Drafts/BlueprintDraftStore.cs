@@ -172,11 +172,26 @@ internal sealed class BlueprintDraftStore
                     "Blueprint draft root must be a JSON object."));
             }
 
-            var before = target.DeepClone();
-            var issue = BlueprintDraftPathMutation.Apply(target, jsonPath, value, remove);
-            return issue is null
-                ? CreateDerived(target, before)
-                : BlueprintDraftMutationResult.Invalid(issue);
+            var issue = BlueprintDraftPathMutation.Apply(
+                target,
+                jsonPath,
+                value,
+                remove,
+                out var previousValue,
+                out var previousValueExists);
+            if (issue is not null)
+            {
+                return BlueprintDraftMutationResult.Invalid(issue);
+            }
+
+            var nextValue = remove ? null : JsonNode.Parse(value!.Value.GetRawText());
+            var summary = BlueprintDraftChangeSummaryBuilder.BuildSingle(
+                previousValue,
+                nextValue,
+                jsonPath,
+                previousValueExists,
+                afterExists: !remove);
+            return CreateDerived(target, summary);
         }
         catch (JsonException ex)
         {
@@ -189,6 +204,16 @@ internal sealed class BlueprintDraftStore
         var derived = Create(target.ToJsonString());
         return derived.Success
             ? derived with { ChangeSummary = BlueprintDraftChangeSummaryBuilder.Build(before, target) }
+            : derived;
+    }
+
+    private BlueprintDraftMutationResult CreateDerived(
+        JsonObject target,
+        BlueprintDraftChangeSummary changeSummary)
+    {
+        var derived = Create(target.ToJsonString());
+        return derived.Success
+            ? derived with { ChangeSummary = changeSummary }
             : derived;
     }
 

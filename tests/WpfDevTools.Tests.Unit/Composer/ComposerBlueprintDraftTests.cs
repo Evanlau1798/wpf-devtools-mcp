@@ -111,6 +111,27 @@ public sealed class ComposerBlueprintDraftTests
     }
 
     [Fact]
+    public void DraftStore_PathUpdateShouldReportTheExactRemovedArrayItem()
+    {
+        var store = new BlueprintDraftStore(4, 4096, TimeSpan.FromMinutes(5));
+        var original = store.Create("""{"items":["a","b"]}""");
+
+        var removed = store.ApplyPathUpdate(
+            original.DraftRef,
+            "$.items[0]",
+            value: null,
+            remove: true);
+
+        removed.Success.Should().BeTrue(removed.Error?.Message);
+        store.Resolve(removed.DraftRef).BlueprintJson.Should().Be("""{"items":["b"]}""");
+        removed.ChangeSummary!.Changes.Should().ContainSingle(change =>
+            change.JsonPath == "$.items[0]"
+            && change.ChangeType == "removed"
+            && change.Before == "\"a\""
+            && change.After == null);
+    }
+
+    [Fact]
     public void DraftStore_PathUpdateShouldDistinguishAnAddedJsonNullFromAMissingProperty()
     {
         var store = new BlueprintDraftStore(4, 4096, TimeSpan.FromMinutes(5));

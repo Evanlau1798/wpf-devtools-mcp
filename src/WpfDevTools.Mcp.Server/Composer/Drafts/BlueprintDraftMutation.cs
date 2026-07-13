@@ -10,8 +10,12 @@ internal static class BlueprintDraftPathMutation
         JsonObject root,
         string jsonPath,
         JsonElement? value,
-        bool remove)
+        bool remove,
+        out JsonNode? previousValue,
+        out bool previousValueExists)
     {
+        previousValue = null;
+        previousValueExists = false;
         if (!TryParse(jsonPath, out var segments) || segments.Count == 0)
         {
             return Issue(
@@ -50,9 +54,13 @@ internal static class BlueprintDraftPathMutation
         var final = segments[^1];
         if (final.PropertyName is { } propertyName && current is JsonObject targetObject)
         {
+            previousValueExists = targetObject.TryGetPropertyValue(propertyName, out previousValue);
+            previousValue = previousValue?.DeepClone();
             if (remove)
             {
-                return targetObject.Remove(propertyName) ? null : PathNotFound(jsonPath);
+                return previousValueExists && targetObject.Remove(propertyName)
+                    ? null
+                    : PathNotFound(jsonPath);
             }
 
             targetObject[propertyName] = ParseValue(value!.Value);
@@ -66,6 +74,8 @@ internal static class BlueprintDraftPathMutation
                 return PathNotFound(jsonPath);
             }
 
+            previousValueExists = true;
+            previousValue = targetArray[arrayIndex]?.DeepClone();
             if (remove)
             {
                 targetArray.RemoveAt(arrayIndex);
@@ -247,6 +257,23 @@ internal static class BlueprintDraftChangeSummaryBuilder
         var changes = new List<BlueprintDraftChange>();
         var changeCount = 0;
         Collect(before, after, "$", beforeExists: true, afterExists: true, changes, ref changeCount);
+        return new BlueprintDraftChangeSummary(
+            changeCount,
+            changes.Count,
+            changeCount > changes.Count,
+            changes);
+    }
+
+    public static BlueprintDraftChangeSummary BuildSingle(
+        JsonNode? before,
+        JsonNode? after,
+        string jsonPath,
+        bool beforeExists,
+        bool afterExists)
+    {
+        var changes = new List<BlueprintDraftChange>();
+        var changeCount = 0;
+        Collect(before, after, jsonPath, beforeExists, afterExists, changes, ref changeCount);
         return new BlueprintDraftChangeSummary(
             changeCount,
             changes.Count,

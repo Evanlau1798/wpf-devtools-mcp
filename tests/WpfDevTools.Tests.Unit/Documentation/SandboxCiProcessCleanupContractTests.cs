@@ -26,7 +26,7 @@ public sealed partial class SandboxCiScriptContractTests
             $env:WPFDEVTOOLS_TEST_CHILD_MARKER = '{{token}}'
             $env:WPFDEVTOOLS_TEST_CHILD_STARTED_PATH = '{{EscapePowerShellPath(childStartedPath)}}'
             $SmokeTargetPath = '{{EscapePowerShellPath(smokeTargetPath)}}'
-            $SmokeTargetStartupTimeoutSeconds = 3
+            $SmokeTargetStartupTimeoutSeconds = 1
             try {
                 Start-SmokeTarget | Out-Null
                 throw 'Start-SmokeTarget unexpectedly returned.'
@@ -118,6 +118,9 @@ public sealed partial class SandboxCiScriptContractTests
         runner.Should().Contain("Stop-ExistingProcessSnapshots -Snapshots $Snapshots");
         runner.Should().Contain("Expand-ProcessSnapshots");
         stopBlock.Should().Contain("while (-not $Process.HasExited");
+        stopBlock.Should().Contain("$gracefulCloseRequested = $Process.CloseMainWindow()");
+        stopBlock.Should().Contain("if ($gracefulCloseRequested) {");
+        stopBlock.Should().NotContain("$Process.CloseMainWindow() | Out-Null");
         stopBlock.Should().Contain("$descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))");
         stopBlock.Should().Contain("if (-not $Process.WaitForExit(5000))");
         stopBlock.Should().Contain("Smoke target did not exit after force kill");

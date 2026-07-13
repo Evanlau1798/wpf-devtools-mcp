@@ -441,12 +441,14 @@ function Stop-SmokeTarget {
 
             if ($processIsRunning) {
                 $descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))
-                $Process.CloseMainWindow() | Out-Null
-                $deadline = [DateTime]::UtcNow.AddSeconds(5)
-                while (-not $Process.HasExited -and [DateTime]::UtcNow -lt $deadline) {
-                    $descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))
-                    Start-Sleep -Milliseconds 100
-                    $Process.Refresh()
+                $gracefulCloseRequested = $Process.CloseMainWindow()
+                if ($gracefulCloseRequested) {
+                    $deadline = [DateTime]::UtcNow.AddSeconds(5)
+                    while (-not $Process.HasExited -and [DateTime]::UtcNow -lt $deadline) {
+                        $descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))
+                        Start-Sleep -Milliseconds 100
+                        $Process.Refresh()
+                    }
                 }
 
                 if (-not $Process.HasExited) {

@@ -11,6 +11,9 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
     private static readonly Regex NamespacePattern = new(
         "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$",
         RegexOptions.CultureInvariant);
+    private static readonly Regex RootElementPattern = new(
+        "^\\s*<(?<prefix>[A-Za-z_][A-Za-z0-9_.-]*):(?<type>[A-Za-z_][A-Za-z0-9_]*)[\\s/>]",
+        RegexOptions.CultureInvariant);
     private static readonly IReadOnlyDictionary<string, string> BaseTypes = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["frameworkElement"] = "FrameworkElement",
@@ -103,7 +106,7 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
             return new PreviewContractGenerationResult(false, string.Empty, new Dictionary<string, string>(), null, null, diagnostics);
         }
 
-        var windowRoot = ResolveWindowRoot(blueprint.Layout.Kind, contracts);
+        var windowRoot = ResolveWindowRoot(renderedXaml, contracts);
         return new PreviewContractGenerationResult(
             true,
             GenerateSource(contracts),
@@ -322,28 +325,30 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
         source.AppendLine("        }");
     }
 
-    private static PreviewWindowRoot? ResolveWindowRoot(string rootKind, IReadOnlyList<ResolvedPreviewContract> contracts)
+    private static PreviewWindowRoot? ResolveWindowRoot(
+        string renderedXaml,
+        IReadOnlyList<ResolvedPreviewContract> contracts)
     {
-        foreach (var contract in contracts)
+        var rootElement = RootElementPattern.Match(renderedXaml);
+        if (!rootElement.Success)
         {
-            var prefix = contract.PackId + ".";
-            if (!rootKind.StartsWith(prefix, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var suffix = rootKind[prefix.Length..];
-            var type = contract.Contract.Types.FirstOrDefault(item =>
-                string.Equals(item.Key, suffix, StringComparison.OrdinalIgnoreCase));
-            if (type.Value?.BaseKind == "window")
-            {
-                return new PreviewWindowRoot(
-                    contract.Prefix + ":" + type.Key,
-                    contract.Contract.ClrNamespace + "." + type.Key);
-            }
+            return null;
         }
 
-        return null;
+        var prefix = rootElement.Groups["prefix"].Value;
+        var typeName = rootElement.Groups["type"].Value;
+        var contract = contracts.FirstOrDefault(candidate =>
+            string.Equals(candidate.Prefix, prefix, StringComparison.Ordinal));
+        if (contract is null
+            || !contract.Contract.Types.TryGetValue(typeName, out var type)
+            || type.BaseKind != "window")
+        {
+            return null;
+        }
+
+        return new PreviewWindowRoot(
+            prefix + ":" + typeName,
+            contract.Contract.ClrNamespace + "." + typeName);
     }
 
     private static PreviewDiagnostic Diagnostic(string code, string message)

@@ -63,6 +63,16 @@ public sealed class McpToolPrerequisiteDescriptionTests
     }
 
     [Fact]
+    public void ListUiBlockPacksDescription_ShouldExplainPackNeutralBlueprintHints()
+    {
+        var description = GetMcpTools()
+            .Single(tool => string.Equals(tool.Name, "list_ui_block_packs", StringComparison.Ordinal))
+            .Description;
+
+        description.Should().ContainAll("kind", "themeTokens", "suggested blueprint role", "required=true");
+    }
+
+    [Fact]
     public void PreviewUiBlueprintDescription_ShouldDiscloseStructuralOnlyVisualFidelity()
     {
         var description = GetMcpTools()

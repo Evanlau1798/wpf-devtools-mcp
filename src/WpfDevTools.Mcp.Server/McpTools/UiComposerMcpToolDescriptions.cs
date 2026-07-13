@@ -30,7 +30,8 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - Returns success, packCount, packs, allowedPackRoles, and diagnostics.
-        - Each pack entry includes id, version, scope, role, required, blockCount, recipeCount, exampleCount, rendererCount, readinessValid, sourceRepository, and blockKinds.
+        - Each pack entry includes id, version, scope, kind, themeTokens, role, required, blockCount, recipeCount, exampleCount, rendererCount, readinessValid, sourceRepository, and blockKinds.
+        - role is the pack-kind-derived suggested blueprint role. required=true marks a default required declaration; every pack whose blocks are used must still be declared.
         - allowedPackRoles is the authoritative pack-neutral role list for blueprint packs[].role values.
         - The response omits absolute pack root paths; read structuredContent for the canonical payload and content[0].text only as a compact fallback.
 

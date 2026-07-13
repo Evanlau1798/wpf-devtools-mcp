@@ -37,7 +37,7 @@ The observability payload does not include blueprint JSON, generated XAML, full 
 
 ## `list_ui_block_packs`
 
-Lists installed UI block packs from built-in, project-local, and user-global roots. The response includes pack id, version, scope, block count, recipe count, example count, renderer count, source repository, readiness metadata, diagnostics, and available block kinds. Use the top-level `allowedPackRoles` as the authoritative pack-neutral values for blueprint `packs[].role`; do not guess a role from a pack id.
+Lists installed UI block packs from built-in, project-local, and user-global roots. Each entry includes `kind`, `themeTokens`, `role`, `required`, counts, provenance, readiness metadata, and available block kinds. `role` is the pack-kind-derived suggested blueprint role, while `required=true` marks a default required declaration; `required=false` never permits omitting a pack whose blocks the blueprint uses. Use the top-level `allowedPackRoles` as the authoritative pack-neutral values for blueprint `packs[].role`; do not guess a role from a pack id.
 
 Request options:
 

@@ -123,6 +123,16 @@ public sealed class ComposerPipelineContractTests
     }
 
     [Fact]
+    public void UiComposerDocs_ShouldExplainPackDiscoveryBlueprintHints()
+    {
+        var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");
+        var zhTw = ReadRepoFile("docfx/zh-tw/reference/tools/ui-composer.md");
+
+        english.Should().ContainAll("`kind`", "`themeTokens`", "suggested blueprint role", "`required=true`");
+        zhTw.Should().ContainAll("`kind`", "`themeTokens`", "建議的 blueprint role", "`required=true`");
+    }
+
+    [Fact]
     public void UiComposerDocs_ShouldDocumentPathAwarePackNeutralComposition()
     {
         var english = ReadRepoFile("docfx/reference/tools/ui-composer.md");

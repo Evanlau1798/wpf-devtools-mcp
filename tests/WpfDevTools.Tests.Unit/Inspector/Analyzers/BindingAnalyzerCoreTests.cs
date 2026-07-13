@@ -3,6 +3,7 @@ using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
 using System.Diagnostics;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -30,10 +31,18 @@ public class BindingAnalyzerTests
         textBox.SetBinding(TextBox.TextProperty, binding);
 
         // Act
-        var result = analyzer.GetBindingValueChain(textBox, "Text");
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.GetBindingValueChain(textBox, "Text"));
 
         // Assert
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("hasBinding").GetBoolean().Should().BeTrue();
+        result.GetProperty("propertyName").GetString().Should().Be("Text");
+        var chain = result.GetProperty("chain").EnumerateArray().ToArray();
+        result.GetProperty("chainLength").GetInt32().Should().Be(chain.Length);
+        chain.Select(step => step.GetProperty("sourceKind").GetString()).Should()
+            .Contain(["BindingDefinition", "ResolvedSource", "FinalValue"]);
+        chain[0].GetProperty("path").GetString().Should().Be("Width");
     }
 
     [StaFact]

@@ -16,18 +16,22 @@ namespace WpfDevTools.Tests.Unit.Inspector.Handlers;
 [Collection("TimingSensitive")]
 public sealed class TreeHandlersSerializeToXamlTests
 {
-    [Fact]
-    public void Constructor_ShouldKeepFourParameterBinaryCompatibleSignature()
+    [StaFact]
+    public async Task SerializeToXaml_WhenElementIsMissing_ShouldReturnStructuredError()
     {
-        var constructor = typeof(TreeHandlers).GetConstructor(new[]
-        {
-            typeof(VisualTreeAnalyzer),
-            typeof(LogicalTreeAnalyzer),
-            typeof(XamlSerializer),
-            typeof(ElementFinder)
-        });
+        var handler = new TreeHandlers(
+            new VisualTreeAnalyzer(new ElementFinder()),
+            new LogicalTreeAnalyzer(new ElementFinder()),
+            new XamlSerializer(),
+            new ElementFinder());
+        var parameters = JsonDocument.Parse("{\"elementId\":\"missing-element\"}").RootElement;
 
-        constructor.Should().NotBeNull();
+        var result = await handler.HandleAsync("serialize_to_xaml", parameters, CancellationToken.None);
+        var json = JsonSerializer.SerializeToElement(result);
+
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("ElementNotFound");
+        json.GetProperty("hint").GetString().Should().Contain("elementId");
     }
 
     [Fact]

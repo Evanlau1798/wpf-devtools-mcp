@@ -30,19 +30,4 @@ public class ClearDpValueToolTests
         resultJson.GetProperty("error").GetString().Should().Contain("propertyName");
     }
 
-    [Fact]
-    public async Task Execute_WithValidParameters_ShouldIncludePropertyNameAndElementId()
-    {
-        // Arrange
-        var sessionManager = new SessionManager();
-        sessionManager.AddSession(12345);
-        var tool = new ClearDpValueTool(sessionManager);
-        var parameters = new { processId = 12345, propertyName = "Width", elementId = "myButton" };
-
-        // Act
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-    }
 }

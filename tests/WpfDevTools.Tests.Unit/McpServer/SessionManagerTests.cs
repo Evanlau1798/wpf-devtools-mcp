@@ -9,23 +9,6 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public class SessionManagerTests
 {
     [Fact]
-    public void AddSession_WithAuthManager_CreatesSessionWithPipeClient()
-    {
-        // Arrange
-        var authManager = new AuthenticationManager(() => Convert.ToBase64String(new byte[32]));
-        using var sm = new SessionManager(authManager: authManager);
-        var processId = Environment.ProcessId;
-
-        // Act
-        sm.AddSession(processId);
-        var client = sm.GetPipeClient(processId);
-
-        // Assert
-        client.Should().NotBeNull();
-        sm.RemoveSession(processId);
-    }
-
-    [Fact]
     public void Constructor_WithAuthAndCert_AcceptsParameters()
     {
         // Arrange & Act

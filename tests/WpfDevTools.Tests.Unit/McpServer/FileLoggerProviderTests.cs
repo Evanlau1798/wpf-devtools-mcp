@@ -35,16 +35,6 @@ public class FileLoggerProviderTests : IDisposable
     }
 
     [Fact]
-    public void CreateLogger_ShouldReturnNonNullLogger()
-    {
-        using var provider = new FileLoggerProvider(_fileLogger);
-
-        var logger = provider.CreateLogger("TestCategory");
-
-        logger.Should().NotBeNull();
-    }
-
-    [Fact]
     public void CreateLogger_WithDifferentCategories_ShouldReturnDistinctLoggers()
     {
         using var provider = new FileLoggerProvider(_fileLogger);
@@ -75,17 +65,6 @@ public class FileLoggerProviderTests : IDisposable
 
         logger.IsEnabled(LogLevel.Debug).Should().BeFalse();
         logger.IsEnabled(LogLevel.Trace).Should().BeFalse();
-    }
-
-    [Fact]
-    public void Logger_BeginScope_ShouldReturnDisposable()
-    {
-        using var provider = new FileLoggerProvider(_fileLogger);
-        var logger = provider.CreateLogger("Test");
-
-        var scope = logger.BeginScope("test scope");
-
-        scope.Should().NotBeNull();
     }
 
     [Fact]

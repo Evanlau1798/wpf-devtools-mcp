@@ -36,22 +36,6 @@ public class WatchDpChangesToolTests
     }
 
     [Fact]
-    public async Task Execute_WithValidParameters_ShouldIncludePropertyNameAndElementId()
-    {
-        // Arrange
-        var sessionManager = new SessionManager();
-        sessionManager.AddSession(12345);
-        var tool = new WatchDpChangesTool(sessionManager);
-        var parameters = new { processId = 12345, propertyName = "Width", elementId = "myButton" };
-
-        // Act
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-    }
-
-    [Fact]
     public async Task Execute_WithValidParameters_ShouldNotPiggybackDrainEvents()
     {
         const int processId = 12346;

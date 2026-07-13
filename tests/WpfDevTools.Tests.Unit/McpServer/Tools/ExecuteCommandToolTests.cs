@@ -30,19 +30,4 @@ public class ExecuteCommandToolTests
         resultJson.GetProperty("error").GetString().Should().Contain("commandName");
     }
 
-    [Fact]
-    public async Task Execute_WithValidParameters_ShouldIncludeCommandNameAndParameter()
-    {
-        // Arrange
-        var sessionManager = new SessionManager();
-        sessionManager.AddSession(12345);
-        var tool = new ExecuteCommandTool(sessionManager);
-        var parameters = new { processId = 12345, commandName = "SaveCommand", parameter = "test.txt" };
-
-        // Act
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-    }
 }

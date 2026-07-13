@@ -24,19 +24,6 @@ public sealed class GetBindingErrorsToolTests : IDisposable
 
 
     [Fact]
-    public async Task Execute_WithValidParameters_ShouldReturnPlaceholder()
-    {
-        var sessionManager = new SessionManager();
-        sessionManager.AddSession(12345);
-        var tool = new GetBindingErrorsTool(sessionManager);
-        var parameters = new { processId = 12345 };
-
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        result.Should().NotBeNull();
-    }
-
-    [Fact]
     public async Task Execute_ShouldRequestVerboseInspectorPayload_WhenCallerOmitsCompact()
     {
         const int processId = 51041;

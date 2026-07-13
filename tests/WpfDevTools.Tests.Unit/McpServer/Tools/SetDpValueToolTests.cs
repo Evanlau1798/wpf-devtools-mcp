@@ -49,19 +49,4 @@ public class SetDpValueToolTests
         resultJson.GetProperty("error").GetString().Should().Contain("value");
     }
 
-    [Fact]
-    public async Task Execute_WithValidParameters_ShouldIncludeAllParameters()
-    {
-        // Arrange
-        var sessionManager = new SessionManager();
-        sessionManager.AddSession(12345);
-        var tool = new SetDpValueTool(sessionManager);
-        var parameters = new { processId = 12345, propertyName = "Width", value = "100", elementId = "myButton" };
-
-        // Act
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-    }
 }

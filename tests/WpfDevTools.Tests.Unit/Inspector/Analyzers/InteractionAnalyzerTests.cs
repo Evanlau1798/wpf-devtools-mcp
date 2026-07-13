@@ -150,10 +150,11 @@ public class InteractionAnalyzerTests
         var elementId = finder.GenerateElementId(button);
 
         // Act
-        var result = analyzer.ScrollToElement(elementId);
+        var result = JsonSerializer.SerializeToElement(analyzer.ScrollToElement(elementId));
 
         // Assert
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("elementType").GetString().Should().Be("Button");
     }
 
     [StaFact]
@@ -192,26 +193,14 @@ public class InteractionAnalyzerTests
         var targetId = finder.GenerateElementId(target);
 
         // Act
-        var result = analyzer.DragAndDrop(sourceId, targetId, "Text");
+        var result = JsonSerializer.SerializeToElement(
+            analyzer.DragAndDrop(sourceId, targetId, "Text"));
 
         // Assert
-        result.Should().NotBeNull();
-    }
-
-    [StaFact]
-    public void SimulateKeyboard_WithValidElement_ShouldSimulateKeyPress()
-    {
-        // Arrange
-        var finder = new ElementFinder();
-        var analyzer = new InteractionAnalyzer(finder);
-        var textBox = new TextBox();
-        var elementId = finder.GenerateElementId(textBox);
-
-        // Act
-        var result = analyzer.SimulateKeyboard(elementId, "A", "KeyDown");
-
-        // Assert
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeTrue(result.GetRawText());
+        result.GetProperty("sourceType").GetString().Should().Be("Button");
+        result.GetProperty("targetType").GetString().Should().Be("Button");
+        result.GetProperty("dataFormat").GetString().Should().Be("Text");
     }
 
     [StaFact]

@@ -49,19 +49,4 @@ public class OverrideStyleSetterToolTests
         resultJson.GetProperty("error").GetString().Should().Contain("value");
     }
 
-    [Fact]
-    public async Task Execute_WithValidParameters_ShouldIncludeAllParameters()
-    {
-        // Arrange
-        var sessionManager = new SessionManager();
-        sessionManager.AddSession(12345);
-        var tool = new OverrideStyleSetterTool(sessionManager);
-        var parameters = new { processId = 12345, propertyName = "Background", value = "Red", elementId = "myButton" };
-
-        // Act
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-    }
 }

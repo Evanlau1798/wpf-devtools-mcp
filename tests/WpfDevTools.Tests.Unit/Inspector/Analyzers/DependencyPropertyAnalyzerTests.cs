@@ -365,13 +365,26 @@ public class DependencyPropertyAnalyzerTests : IDisposable
         DependencyPropertyAnalyzer.StopAllWatchers();
         DependencyPropertyAnalyzer.ResetMonitoring();
 
-        // Act - Should not throw after reset
+        // Act
         var finder = new ElementFinder();
         var analyzer = new DependencyPropertyAnalyzer(finder);
-        var result = analyzer.GetChangeLog();
+        var button = new Button();
+        var elementId = finder.GenerateElementId(button);
+        dynamic watchResult = analyzer.WatchChanges("Width", elementId);
+        dynamic logResult = analyzer.GetChangeLog();
 
         // Assert
-        result.Should().NotBeNull();
+        try
+        {
+            ((bool)watchResult.success).Should().BeTrue();
+            ((bool)logResult.success).Should().BeTrue();
+            ((int)logResult.changeCount).Should().Be(0);
+            ((IEnumerable<object>)logResult.changes).Should().BeEmpty();
+        }
+        finally
+        {
+            DependencyPropertyAnalyzer.StopAllWatchers();
+        }
     }
 
     [StaFact]

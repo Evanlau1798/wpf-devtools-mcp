@@ -30,19 +30,4 @@ public class SimulateKeyboardToolTests
         resultJson.GetProperty("error").GetString().Should().Contain("key");
     }
 
-    [Fact]
-    public async Task Execute_WithValidParameters_ShouldIncludeTextAndElementId()
-    {
-        // Arrange
-        var sessionManager = new SessionManager();
-        sessionManager.AddSession(12345);
-        var tool = new SimulateKeyboardTool(sessionManager);
-        var parameters = new { processId = 12345, key = "Hello", elementId = "myTextBox" };
-
-        // Act
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-    }
 }

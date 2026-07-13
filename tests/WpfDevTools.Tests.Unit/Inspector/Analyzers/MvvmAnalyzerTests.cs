@@ -2,6 +2,7 @@ using Xunit;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
 using WpfDevTools.Inspector.Utilities;
+using System.Text.Json;
 using System.Windows.Controls;
 
 namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
@@ -17,10 +18,12 @@ public class MvvmAnalyzerTests
         var analyzer = new MvvmAnalyzer(finder);
 
         // Act
-        var result = analyzer.GetViewModel(null);
+        var result = JsonSerializer.SerializeToElement(analyzer.GetViewModel(null));
 
         // Assert
-        result.Should().NotBeNull();
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("errorCode").GetString().Should().Be("ElementNotFound");
+        result.GetProperty("error").GetString().Should().Be("Element not found");
     }
 
     [StaFact]

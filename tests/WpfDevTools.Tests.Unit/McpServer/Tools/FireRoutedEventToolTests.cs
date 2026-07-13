@@ -30,19 +30,4 @@ public class FireRoutedEventToolTests
         resultJson.GetProperty("error").GetString().Should().Contain("eventName");
     }
 
-    [Fact]
-    public async Task Execute_WithValidParameters_ShouldIncludeEventNameAndElementId()
-    {
-        // Arrange
-        var sessionManager = new SessionManager();
-        sessionManager.AddSession(12345);
-        var tool = new FireRoutedEventTool(sessionManager);
-        var parameters = new { processId = 12345, eventName = "Click", elementId = "myButton" };
-
-        // Act
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-    }
 }

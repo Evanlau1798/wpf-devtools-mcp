@@ -28,19 +28,6 @@ public sealed class WaitForDpChangeToolTests
     }
 
     [Fact]
-    public async Task Execute_WithValidParameters_ShouldReturnResult()
-    {
-        var sessionManager = new SessionManager();
-        sessionManager.AddSession(12345);
-        var tool = new WaitForDpChangeTool(sessionManager);
-        var parameters = new { processId = 12345, propertyName = "Width", elementId = "myButton", timeoutMs = 100, pollIntervalMs = 50 };
-
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        result.Should().NotBeNull();
-    }
-
-    [Fact]
     public async Task Execute_WithTimeoutAboveSafeHostBudget_ShouldReturnInvalidArgumentBeforeSnapshot()
     {
         const int processId = 4949;

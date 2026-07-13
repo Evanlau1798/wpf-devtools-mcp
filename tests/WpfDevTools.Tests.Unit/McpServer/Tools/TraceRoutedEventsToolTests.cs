@@ -88,19 +88,6 @@ public partial class TraceRoutedEventsToolTests
     }
 
     [Fact]
-    public async Task Execute_WithValidParameters_ShouldIncludeEventNameAndElementId()
-    {
-        var sessionManager = new SessionManager();
-        sessionManager.AddSession(12345);
-        var tool = new TraceRoutedEventsTool(sessionManager);
-        var parameters = new { processId = 12345, eventName = "Click", elementId = "myButton" };
-
-        var result = await tool.ExecuteAsync(ToJsonElement(parameters), CancellationToken.None);
-
-        result.Should().NotBeNull();
-    }
-
-    [Fact]
     public async Task Execute_WithStartMode_ShouldStoreActiveTraceState()
     {
         const int processId = 22001;

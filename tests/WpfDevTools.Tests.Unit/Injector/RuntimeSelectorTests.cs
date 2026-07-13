@@ -51,7 +51,7 @@ public class RuntimeSelectorTests
         var result = RuntimeSelector.SelectInspectorDll(
             TargetRuntime.Unknown, candidates);
 
-        result.Should().NotBeNull();
+        result.Should().Be(candidates[0]);
     }
 
     [Fact]

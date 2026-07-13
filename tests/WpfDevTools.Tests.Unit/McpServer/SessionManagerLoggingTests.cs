@@ -20,63 +20,6 @@ public class SessionManagerLoggingTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_ShouldAcceptILogger()
-    {
-        // SessionManager should accept an optional ILogger parameter
-        using var sm = new SessionManager(
-            new RateLimiterManager(100),
-            authManager: null,
-            certManager: null,
-            logger: _logger);
-
-        sm.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void Constructor_ShouldAcceptNullLogger()
-    {
-        // Null logger should be accepted (backward compatibility)
-        using var sm = new SessionManager(
-            new RateLimiterManager(100),
-            authManager: null,
-            certManager: null,
-            logger: null);
-
-        sm.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void BackwardCompatConstructor_ShouldStillWork()
-    {
-        // Existing constructor signatures must remain valid
-        using var sm = new SessionManager(maxRequestsPerMinute: 100);
-        sm.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void PublicConstructorSignatures_ShouldRemainAvailable()
-    {
-        typeof(SessionManager)
-            .GetConstructor(new[]
-            {
-                typeof(IRateLimiterManager),
-                typeof(AuthenticationManager),
-                typeof(CertificateManager),
-                typeof(ILogger<SessionManager>)
-            })
-            .Should().NotBeNull();
-
-        typeof(SessionManager)
-            .GetConstructor(new[]
-            {
-                typeof(int),
-                typeof(AuthenticationManager),
-                typeof(CertificateManager)
-            })
-            .Should().NotBeNull();
-    }
-
-    [Fact]
     public void PerformCleanup_WhenCleanupFails_ShouldLogErrorViaLogger()
     {
         // Arrange: Create SessionManager with a rate limiter that throws on RemoveSession

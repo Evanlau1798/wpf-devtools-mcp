@@ -41,4 +41,25 @@ public sealed class ComposerAgentSteeringTests
         text.ToLowerInvariant().Should().NotContain("wpfui");
         text.ToLowerInvariant().Should().NotContain("fluentwindow");
     }
+
+    [Theory]
+    [InlineData("{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"packs\":[{\"id\":\"\",\"version\":\"0.1.0\"}],\"layout\":{\"kind\":\"\"}}")]
+    [InlineData("{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"packs\":[],\"layout\":{\"kind\":\"button\"}}")]
+    public async Task BlueprintValidationRepairGuidance_ShouldRemainPackNeutral(string blueprintJson)
+    {
+        var result = await UiComposerMcpTools.ValidateUiBlueprint(
+            blueprintJson,
+            cancellationToken: CancellationToken.None);
+
+        result.IsError.Should().BeFalse();
+        var guidance = result.StructuredContent!.Value
+            .GetProperty("errors")
+            .GetRawText()
+            .ToLowerInvariant();
+        guidance.Should().NotContain("wpfui");
+        guidance.Should().NotContain("fluentwindow");
+        guidance.Should().NotContain("materialdesign");
+        guidance.Should().NotContain("mahapps");
+        guidance.Should().NotContain("handycontrol");
+    }
 }

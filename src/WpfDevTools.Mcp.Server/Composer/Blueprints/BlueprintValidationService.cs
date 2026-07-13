@@ -116,7 +116,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
             var path = $"$.packs[{index}]";
             if (string.IsNullOrWhiteSpace(packRef.Id))
             {
-                errors.Add(Issue(path + ".id", "PackIdMissing", "Pack reference is missing id.", "Set packs[].id to an installed pack id such as wpfui."));
+                errors.Add(Issue(path + ".id", "PackIdMissing", "Pack reference is missing id.", "Set packs[].id to an id returned by list_ui_block_packs."));
                 continue;
             }
 
@@ -217,7 +217,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
 
         if (string.IsNullOrWhiteSpace(blueprint.Layout.Kind))
         {
-            errors.Add(Issue("$.layout.kind", "RequiredFieldMissing", "Blueprint layout.kind is required.", "Set layout.kind to a pack-qualified block kind such as wpfui.card."));
+            errors.Add(Issue("$.layout.kind", "RequiredFieldMissing", "Blueprint layout.kind is required.", "Set layout.kind to a pack-qualified kind returned by get_ui_block_catalog."));
         }
     }
 
@@ -268,7 +268,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
 
         if (!node.Kind.Contains('.', StringComparison.Ordinal))
         {
-            errors.Add(Issue(path, "UnqualifiedBlockKind", $"Block kind '{node.Kind}' is not pack-qualified.", "Use a pack-qualified kind such as wpfui.button."));
+            errors.Add(Issue(path, "UnqualifiedBlockKind", $"Block kind '{node.Kind}' is not pack-qualified.", "Use a pack-qualified kind returned by get_ui_block_catalog."));
             return;
         }
 

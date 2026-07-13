@@ -1,8 +1,11 @@
 using System.IO;
 using System.IO.Compression;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using FluentAssertions;
+using ModelContextProtocol.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Tests.Integration.E2E;
 using WpfDevTools.Tests.Integration.TestSupport;
 using Xunit;
@@ -248,9 +251,8 @@ public sealed class ReleasePackagingIntegrationTests
         initializeResponse.TryGetProperty("error", out _).Should().BeFalse(initializeResponse.GetRawText());
         initializeResponse.TryGetProperty("result", out _).Should().BeTrue(initializeResponse.GetRawText());
         var tools = (await client.ListToolsAsync()).GetProperty("result").GetProperty("tools").EnumerateArray().ToArray();
-        tools.Should().HaveCount(74);
-        tools.Select(tool => tool.GetProperty("name").GetString()).Should()
-            .Contain(["get_processes", "connect", "ping", "get_ui_summary", "get_binding_errors"]);
+        var toolNames = tools.Select(tool => tool.GetProperty("name").GetString()!).ToArray();
+        toolNames.Should().OnlyHaveUniqueItems().And.BeEquivalentTo(GetSourceRegisteredToolNames());
     }
 
     private static string CreateAuthSecret()
@@ -259,6 +261,16 @@ public sealed class ReleasePackagingIntegrationTests
         RandomNumberGenerator.Fill(secretBytes);
         return Convert.ToBase64String(secretBytes);
     }
+
+    private static string[] GetSourceRegisteredToolNames()
+        => typeof(ProcessMcpTools).Assembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() is not null)
+            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+            .Select(method => method.GetCustomAttribute<McpServerToolAttribute>()?.Name)
+            .Where(name => name is not null)
+            .Select(name => name!)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
 
     private static string CreateArchiveLayoutDiagnostic(string archivePath, string extractRoot)
     {

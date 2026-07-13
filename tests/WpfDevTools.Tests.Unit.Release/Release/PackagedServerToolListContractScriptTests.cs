@@ -19,30 +19,17 @@ public sealed class PackagedServerToolListContractScriptTests
     }
 
     [Fact]
-    public void ToolListContract_WhenExpectedNamesAreNotSeventyFour_ShouldFail()
-    {
-        var result = RunHelperScript("""
-            $expected = 1..73 | ForEach-Object { "tool$_" }
-            $response = New-ToolsResponse -ToolNames $expected
-            Test-McpToolListContract -ToolsResponse $response -ExpectedToolNames $expected
-            """);
-
-        result.ExitCode.Should().NotBe(0);
-        result.Output.Should().Contain("expected 74");
-    }
-
-    [Fact]
     public void ToolListContract_WhenRuntimeOmitsExpectedTool_ShouldFail()
     {
         var result = RunHelperScript("""
             $expected = New-ExpectedToolNames
-            $actual = @($expected | Where-Object { $_ -ne 'tool56' })
+            $actual = @($expected | Where-Object { $_ -ne 'tool4' })
             $response = New-ToolsResponse -ToolNames $actual
             Test-McpToolListContract -ToolsResponse $response -ExpectedToolNames $expected
             """);
 
         result.ExitCode.Should().NotBe(0);
-        result.Output.Should().Contain("tool56");
+        result.Output.Should().Contain("tool4");
     }
 
     [Fact]
@@ -93,7 +80,7 @@ public sealed class PackagedServerToolListContractScriptTests
                 'get_state_diff',
                 'restore_state_snapshot'
             )
-            return @($representative + (1..66 | ForEach-Object { "tool$_" }))
+            return @($representative + (1..4 | ForEach-Object { "tool$_" }))
         }
 
         function New-ToolsResponse {

@@ -23,7 +23,6 @@ function Test-McpToolListContract {
     param(
         [Parameter(Mandatory)] [object]$ToolsResponse,
         [Parameter(Mandatory)] [string[]]$ExpectedToolNames,
-        [int]$ExpectedToolCount = 74,
         [string[]]$RepresentativeToolNames = @(
             'connect',
             'get_processes',
@@ -39,10 +38,6 @@ function Test-McpToolListContract {
     $expectedNames = @($ExpectedToolNames |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         Sort-Object -Unique)
-    if ($expectedNames.Count -ne $ExpectedToolCount) {
-        throw "Expected source MCP tool contract to contain expected $ExpectedToolCount tools, but found $($expectedNames.Count)."
-    }
-
     $toolNames = @($ToolsResponse.result.tools |
         ForEach-Object { [string]$_.name } |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) })

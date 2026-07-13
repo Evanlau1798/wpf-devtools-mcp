@@ -231,8 +231,9 @@ function Assert-PublicReleaseStrictEvidence {
     $security = $Evidence['security']
     $packageSmoke = $Evidence['packageSmoke']
     $liveSmoke = $Evidence['liveSmoke']
-    if ([int]$Evidence['toolsList']['count'] -ne 74) {
-        $failures += 'toolsList.count'
+    foreach ($property in @('count', 'nameSetHash', 'schemaSnapshotHash')) {
+        $values = @($RuntimeEvidence | ForEach-Object { [string]$_.toolsList.$property } | Sort-Object -Unique)
+        if ($values.Count -ne 1 -or [string]::IsNullOrWhiteSpace($values[0]) -or ($property -eq 'count' -and [int]$values[0] -le 0)) { $failures += "toolsList.$property" }
     }
     if ($docfx['englishParity'] -ne $true) {
         $failures += 'docfx.englishParity'

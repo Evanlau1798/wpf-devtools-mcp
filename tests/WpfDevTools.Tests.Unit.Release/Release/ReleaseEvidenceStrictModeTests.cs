@@ -81,7 +81,7 @@ public sealed class ReleaseEvidenceStrictModeTests
     }
 
     [Fact]
-    public void WriteReleaseEvidence_PublicReleaseStrictMode_ShouldFailWhenToolCountIsUnexpected()
+    public void WriteReleaseEvidence_PublicReleaseStrictMode_ShouldFailWhenToolContractEvidenceDisagrees()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -97,7 +97,7 @@ public sealed class ReleaseEvidenceStrictModeTests
                     installMode: "package-local",
                     packageLocalStatus: "passed",
                     onlineInstallerStatus: "passed-or-not-public",
-                    toolCount: 70),
+                    toolCount: 12),
                 WriteRuntimeEvidence(
                     tempRoot,
                     mitmPassed: true,
@@ -106,7 +106,9 @@ public sealed class ReleaseEvidenceStrictModeTests
                     installMode: "online-installer",
                     packageLocalStatus: "passed-or-not-public",
                     onlineInstallerStatus: "passed",
-                    toolCount: 70));
+                    toolCount: 13,
+                    nameSetHash: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                    schemaSnapshotHash: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"));
             var docFxEvidencePath = WriteDocFxEvidence(tempRoot);
 
             var result = ReleaseScriptTestHarness.RunPowerShellScript(
@@ -114,8 +116,10 @@ public sealed class ReleaseEvidenceStrictModeTests
                 BuildArguments(tempRoot, outputPath, runtimeEvidencePath, docFxEvidencePath, extraArguments: ["-PublicReleaseStrict"]));
 
             result.ExitCode.Should().NotBe(0);
-            (result.Stdout + Environment.NewLine + result.Stderr)
-                .Should().Contain("toolsList.count");
+            var output = result.Stdout + Environment.NewLine + result.Stderr;
+            output.Should().Contain("toolsList.count");
+            output.Should().Contain("toolsList.nameSetHash");
+            output.Should().Contain("toolsList.schemaSnapshotHash");
         }
         finally
         {
@@ -131,7 +135,9 @@ public sealed class ReleaseEvidenceStrictModeTests
         string installMode = "package-local",
         string packageLocalStatus = "passed",
         string onlineInstallerStatus = "passed-or-not-public",
-        int toolCount = 74)
+        int toolCount = 12,
+        string nameSetHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        string schemaSnapshotHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
     {
         var path = Path.Combine(tempRoot, fileName);
         File.WriteAllText(path, $$"""
@@ -139,8 +145,8 @@ public sealed class ReleaseEvidenceStrictModeTests
               "installMode": "{{installMode}}",
               "toolsList": {
                 "count": {{toolCount}},
-                "nameSetHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "schemaSnapshotHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                "nameSetHash": "{{nameSetHash}}",
+                "schemaSnapshotHash": "{{schemaSnapshotHash}}"
               },
               "security": {
                 "mitmMatrixPassed": {{mitmPassed.ToString().ToLowerInvariant()}},

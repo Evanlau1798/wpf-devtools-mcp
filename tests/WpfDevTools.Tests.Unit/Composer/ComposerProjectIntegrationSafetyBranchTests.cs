@@ -40,6 +40,44 @@ public sealed class ComposerProjectIntegrationSafetyBranchTests
     }
 
     [Fact]
+    public void DryRun_WithInheritedCentralPackageOutsideRoot_ShouldSuggestProjectLocalOptOut()
+    {
+        var parent = Path.Combine(
+            Path.GetTempPath(),
+            "wpfdevtools-inherited-central-" + Guid.NewGuid().ToString("N"));
+        var projectRoot = Path.Combine(parent, "scratch-project");
+        Directory.CreateDirectory(parent);
+        CreateFixture(projectRoot, centralPackageManagement: false);
+        File.WriteAllText(Path.Combine(parent, "Directory.Packages.props"),
+            """
+            <Project>
+              <PropertyGroup>
+                <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+              </PropertyGroup>
+            </Project>
+            """);
+        try
+        {
+            var result = new UiBlueprintApplyService(CreateRegistry(projectRoot)).Apply(
+                new ApplyBlueprintRequest(Blueprint(), projectRoot, "MainWindow.xaml"));
+
+            result.ProjectIntegrationPlan.Ready.Should().BeFalse();
+            var issue = result.ProjectIntegrationPlan.Errors
+                .Should().ContainSingle(error => error.Code == "IntegrationPathOutsideRoot")
+                .Which;
+            issue.Message.Should().Contain("central package file");
+            issue.RepairSuggestion.Should()
+                .Contain("Directory.Packages.props")
+                .And.Contain("<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>")
+                .And.Contain("rerun");
+        }
+        finally
+        {
+            TestDirectory.Delete(parent);
+        }
+    }
+
+    [Fact]
     public void Apply_WhenLaterOperationFails_ShouldDeleteNewCentralPackageFileDuringRollback()
     {
         var root = CreateFixture(centralPackageManagement: true);

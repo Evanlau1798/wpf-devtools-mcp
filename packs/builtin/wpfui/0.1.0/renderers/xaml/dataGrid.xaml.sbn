@@ -13,6 +13,6 @@
         </Style.Triggers>
       </Style>
     </ContentControl.Style>
-    {{slot.emptyState}}
+    <StackPanel>{{slot.emptyState}}</StackPanel>
   </ContentControl>
 </Grid>

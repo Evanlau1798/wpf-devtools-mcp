@@ -251,7 +251,7 @@ public sealed class ComposerRealWpfUiRuntimeTests
     }
 
     [StaFact]
-    public void DataGridEmptyState_ShouldRemainVisibleUntilItemsArrive()
+    public void DataGridEmptyStates_ShouldLoadAndRemainVisibleUntilItemsArrive()
     {
         var render = Render("""
             {
@@ -260,13 +260,19 @@ public sealed class ComposerRealWpfUiRuntimeTests
               "properties": { "itemsSource": "{Binding Rows}" },
               "slots": {
                 "columns": [{ "kind": "core.template" }],
-                "emptyState": [{
-                  "kind": "wpfui.card",
-                  "slots": { "content": [{
-                    "kind": "core.text",
-                    "properties": { "text": "No firing batches scheduled." }
-                  }] }
-                }]
+                "emptyState": [
+                  {
+                    "kind": "wpfui.card",
+                    "slots": { "content": [{
+                      "kind": "core.text",
+                      "properties": { "text": "No firing batches scheduled." }
+                    }] }
+                  },
+                  {
+                    "kind": "wpfui.textBlock",
+                    "properties": { "text": "Refresh the ledger after scheduling." }
+                  }
+                ]
               }
             }
             """);
@@ -291,11 +297,14 @@ public sealed class ComposerRealWpfUiRuntimeTests
             var dataGrid = descendants.OfType<WpfUiDataGrid>().Should().ContainSingle().Subject;
             var emptyState = descendants.OfType<TextBlock>().Should().ContainSingle(text =>
                 string.Equals(text.Text, "No firing batches scheduled.", StringComparison.Ordinal)).Subject;
+            var emptyStateHint = descendants.OfType<TextBlock>().Should().ContainSingle(text =>
+                string.Equals(text.Text, "Refresh the ledger after scheduling.", StringComparison.Ordinal)).Subject;
             dataGrid.Name.Should().Be("FiringLedger");
             content.Name.Should().BeEmpty();
             emptyState.IsVisible.Should().BeTrue();
             emptyState.ActualWidth.Should().BeGreaterThan(0);
             emptyState.ActualHeight.Should().BeGreaterThan(0);
+            emptyStateHint.IsVisible.Should().BeTrue();
 
             rows.Add(new { Batch = "K-104" });
             host.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
@@ -303,6 +312,7 @@ public sealed class ComposerRealWpfUiRuntimeTests
 
             dataGrid.HasItems.Should().BeTrue();
             emptyState.IsVisible.Should().BeFalse();
+            emptyStateHint.IsVisible.Should().BeFalse();
         }
         finally
         {

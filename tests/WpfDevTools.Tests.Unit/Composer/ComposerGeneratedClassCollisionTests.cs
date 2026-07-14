@@ -71,6 +71,41 @@ public sealed class ComposerGeneratedClassCollisionTests
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RenderBlueprint_ShouldRejectRenderedNameMatchingGeneratedClass(bool usePropertyToken)
+    {
+        var projectRoot = CreateProjectWithNamedWindowPack(usePropertyToken);
+        try
+        {
+            var properties = usePropertyToken
+                ? ", \"properties\": { \"memberName\": \"GeneratedView\" }"
+                : string.Empty;
+            var blueprint = $$"""
+                {
+                  "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+                  "name": "GeneratedView",
+                  "packs": [{ "id": "sample", "version": "1.0.0", "required": true, "role": "primary" }],
+                  "primaryPack": "sample",
+                  "layout": { "kind": "sample.window"{{properties}} }
+                }
+                """;
+
+            var result = new UiBlueprintRenderer(CreateProjectRegistry(projectRoot)).Render(
+                new RenderBlueprintRequest(blueprint, "Views/GeneratedView.xaml", projectRoot));
+
+            result.Success.Should().BeFalse();
+            result.Errors.Should().ContainSingle(issue =>
+                issue.Code == "GeneratedClassMemberNameCollision"
+                && issue.JsonPath == "$.layout");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
     private static PackRegistry CreateBuiltinRegistry()
         => PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
 
@@ -146,6 +181,31 @@ public sealed class ComposerGeneratedClassCollisionTests
             """
             <sample:Panel />
             """);
+        return projectRoot;
+    }
+
+    private static string CreateProjectWithNamedWindowPack(bool usePropertyToken)
+    {
+        var projectRoot = TestDirectory.Create();
+        var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", "sample", "1.0.0");
+        Directory.CreateDirectory(Path.Combine(packRoot, "blocks"));
+        Directory.CreateDirectory(Path.Combine(packRoot, "renderers", "xaml"));
+        File.WriteAllText(Path.Combine(packRoot, "pack.json"), """
+            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"sample","kind":"control-pack","displayName":"Sample","version":"1.0.0","blocks":["sample.window"],"recipes":[]}
+            """);
+        File.WriteAllText(Path.Combine(packRoot, "source.lock.json"), """
+            {"schemaVersion":"wpfdevtools.source-lock.v1","sources":[],"transformPolicy":{}}
+            """);
+        File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"), """
+            {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"sample","version":"1.0.0","scope":"project-local","path":".","enabled":true}
+            """);
+        var properties = usePropertyToken ? "\"memberName\": { \"type\": \"string\" }" : string.Empty;
+        File.WriteAllText(Path.Combine(packRoot, "blocks", "window.block.json"), $$"""
+            {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"sample.window","displayName":"Window","description":"Named third-party window.","category":"window","properties":{ {{properties}} },"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/window.xaml.sbn","codeBehindBaseType":"System.Windows.Window"},"sourceHints":[]}
+            """);
+        File.WriteAllText(
+            Path.Combine(packRoot, "renderers", "xaml", "window.xaml.sbn"),
+            usePropertyToken ? "<Window x:Name=\"{{memberName}}\" />" : "<Window x:Name=\"GeneratedView\" />");
         return projectRoot;
     }
 }

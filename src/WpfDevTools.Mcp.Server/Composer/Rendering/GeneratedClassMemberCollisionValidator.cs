@@ -1,3 +1,5 @@
+using System.Xml;
+using System.Xml.Linq;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 
@@ -10,15 +12,11 @@ internal static class GeneratedClassMemberCollisionValidator
         IReadOnlyDictionary<string, UiBlockDefinition> blocks,
         string targetPath)
     {
-        if (!blocks.TryGetValue(blueprint.Layout.Kind, out var rootBlock)
-            || string.IsNullOrWhiteSpace(rootBlock.Renderer.CodeBehindBaseType))
+        if (!TryResolveGeneratedClassName(blueprint, blocks, targetPath, out var className))
         {
             return [];
         }
 
-        var className = ComposerCSharpIdentifier.Create(
-            Path.GetFileNameWithoutExtension(targetPath),
-            "MainWindow");
         var issues = new List<BlueprintValidationIssue>();
         var pending = new Stack<(UiBlueprintNode Node, string Path)>();
         pending.Push((blueprint.Layout, "$.layout"));
@@ -48,5 +46,65 @@ internal static class GeneratedClassMemberCollisionValidator
         }
 
         return issues;
+    }
+
+    public static void AddRenderedIssues(
+        UiBlueprint blueprint,
+        IReadOnlyDictionary<string, UiBlockDefinition> blocks,
+        string targetPath,
+        string xaml,
+        List<BlueprintValidationIssue> issues)
+    {
+        if (issues.Any(issue => issue.Code == "GeneratedClassMemberNameCollision")
+            || !TryResolveGeneratedClassName(blueprint, blocks, targetPath, out var className))
+        {
+            return;
+        }
+
+        XDocument document;
+        try
+        {
+            document = XDocument.Parse(xaml, LoadOptions.PreserveWhitespace);
+        }
+        catch (XmlException)
+        {
+            return;
+        }
+
+        if (document.Root is null
+            || !document.Root.DescendantsAndSelf().SelectMany(element => element.Attributes()).Any(attribute =>
+                attribute.Name.LocalName == "Name"
+                && string.Equals(attribute.Value, className, StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        issues.Add(new BlueprintValidationIssue(
+            "$.layout",
+            "GeneratedClassMemberNameCollision",
+            $"Rendered XAML name '{className}' conflicts with generated class '{className}'.",
+            "Change the renderer name or bound name property, or choose a different targetPath.",
+            [],
+            [],
+            null));
+    }
+
+    private static bool TryResolveGeneratedClassName(
+        UiBlueprint blueprint,
+        IReadOnlyDictionary<string, UiBlockDefinition> blocks,
+        string targetPath,
+        out string className)
+    {
+        className = string.Empty;
+        if (!blocks.TryGetValue(blueprint.Layout.Kind, out var rootBlock)
+            || string.IsNullOrWhiteSpace(rootBlock.Renderer.CodeBehindBaseType))
+        {
+            return false;
+        }
+
+        className = ComposerCSharpIdentifier.Create(
+            Path.GetFileNameWithoutExtension(targetPath),
+            "MainWindow");
+        return true;
     }
 }

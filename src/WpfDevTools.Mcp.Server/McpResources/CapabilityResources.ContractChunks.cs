@@ -103,32 +103,8 @@ public static partial class CapabilityResources
                 McpErrorCode.ResourceNotFound);
         }
 
-        if (offset < 0
-            || offset >= resource.Bytes.Length
-            || length <= 0
-            || length > MaxContractTextChunkBytes
-            || !IsUtf8Boundary(resource.Bytes, offset))
-        {
-            throw new McpProtocolException(
-                $"Contract text chunk requires a UTF-8 boundary offset within the {resource.Bytes.Length}-byte resource and length from 1 to {MaxContractTextChunkBytes} bytes.",
-                McpErrorCode.InvalidParams);
-        }
-
-        var end = Math.Min(offset + length, resource.Bytes.Length);
-        while (end > offset && !IsUtf8Boundary(resource.Bytes, end))
-        {
-            end--;
-        }
-
-        if (end == offset)
-        {
-            throw new McpProtocolException(
-                "Contract text chunk length is too small to include the next complete UTF-8 character.",
-                McpErrorCode.InvalidParams);
-        }
-
+        var (text, end) = GetContractUtf8TextSlice(resource.Bytes, offset, length);
         var byteLength = end - offset;
-        var text = Encoding.UTF8.GetString(resource.Bytes, offset, byteLength);
         var uri = $"wpf://contracts/{contractId}/text-chunks/{offset}/{length}";
         return JsonSerializer.Serialize(new
         {
@@ -142,6 +118,38 @@ public static partial class CapabilityResources
             resourceSha256 = resource.Sha256,
             text
         }, JsonResourceSerializerOptions);
+    }
+
+    internal static (string Text, int NextOffset) GetContractUtf8TextSlice(
+        byte[] bytes,
+        int offset,
+        int length)
+    {
+        if (offset < 0
+            || offset >= bytes.Length
+            || length <= 0
+            || length > MaxContractTextChunkBytes
+            || !IsUtf8Boundary(bytes, offset))
+        {
+            throw new McpProtocolException(
+                $"Contract text chunk requires a UTF-8 boundary offset within the {bytes.Length}-byte resource and length from 1 to {MaxContractTextChunkBytes} bytes.",
+                McpErrorCode.InvalidParams);
+        }
+
+        var end = Math.Min(offset + length, bytes.Length);
+        while (end > offset && !IsUtf8Boundary(bytes, end))
+        {
+            end--;
+        }
+
+        if (end == offset)
+        {
+            throw new McpProtocolException(
+                "Contract text chunk length is too small to include the next complete UTF-8 character.",
+                McpErrorCode.InvalidParams);
+        }
+
+        return (Encoding.UTF8.GetString(bytes, offset, end - offset), end);
     }
 
     private static bool IsUtf8Boundary(byte[] bytes, int offset) =>

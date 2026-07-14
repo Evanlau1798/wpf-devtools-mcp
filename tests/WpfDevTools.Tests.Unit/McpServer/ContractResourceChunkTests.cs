@@ -159,6 +159,31 @@ public sealed class ContractResourceChunkTests
             .Where(exception => exception.ErrorCode == McpErrorCode.InvalidParams);
     }
 
+    [Fact]
+    public void ContractTextChunk_WithMultibyteUtf8_ShouldShrinkToCharacterBoundaries()
+    {
+        var bytes = Encoding.UTF8.GetBytes("A€B");
+
+        CapabilityResources.GetContractUtf8TextSlice(bytes, 0, 2)
+            .Should().Be(("A", 1));
+        CapabilityResources.GetContractUtf8TextSlice(bytes, 1, 3)
+            .Should().Be(("€", 4));
+        CapabilityResources.GetContractUtf8TextSlice(bytes, 4, 1)
+            .Should().Be(("B", 5));
+    }
+
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 1)]
+    public void ContractTextChunk_WithInvalidMultibyteBoundary_ShouldReject(int offset, int length)
+    {
+        var bytes = Encoding.UTF8.GetBytes("A€B");
+        var act = () => CapabilityResources.GetContractUtf8TextSlice(bytes, offset, length);
+
+        act.Should().Throw<McpProtocolException>()
+            .Where(exception => exception.ErrorCode == McpErrorCode.InvalidParams);
+    }
+
     private static IReadOnlyDictionary<string, string> ExpectedContracts()
         => new Dictionary<string, string>(StringComparer.Ordinal)
         {

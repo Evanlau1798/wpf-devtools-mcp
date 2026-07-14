@@ -122,10 +122,8 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this as a general JSON patch tool or filesystem writer. It only inserts exact compositionSkeleton content declared by installed packs and validates the candidate blueprint before returning it.
 
         RESPONSE SUMMARY:
-        - Raw input returns the composed blueprint, insertion path, validation, and repair candidate fields.
-        - Draft input returns a new derived draftRef and omits the full blueprint; the source draft remains unchanged.
-        - Invalid draft insertion returns candidateDraftRef for repair; raw input returns candidateBlueprintJson. Path and non-composable failures return no candidate.
-        - Any non-composed outcome returns success=false as an MCP error result while preserving structured diagnostics and candidate recovery fields.
+        - Success returns validation plus the raw blueprint or a derived draftRef that omits the full blueprint; source drafts stay unchanged.
+        - Failure returns success=false as an MCP error result with diagnostics and any available candidateDraftRef or candidateBlueprintJson.
 
         REQUEST OPTIONS:
         - blueprintJson accepts raw JSON or an opaque draftRef.

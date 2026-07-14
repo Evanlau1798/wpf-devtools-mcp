@@ -14,7 +14,7 @@ public sealed class ComposerContractTests
         UiComposerSchemaVersions.SourceRepository.Should()
             .Be("https://github.com/Evanlau1798/wpf-devtools-extension-pack-creator");
         UiComposerSchemaVersions.SourceRef.Should().Be("master");
-        UiComposerSchemaVersions.SourceCommit.Should().Be("b74aa0003db520f3887fcf788fa5c6158780c6c1");
+        UiComposerSchemaVersions.SourceCommit.Should().Be("d94f187785a7fb3bed37f16dc465b0e781be4e03");
 
         UiComposerSchemaVersions.SchemaFiles.Keys.Should().BeEquivalentTo(
         [
@@ -60,7 +60,10 @@ public sealed class ComposerContractTests
 
         pack.Id.Should().Be("wpfui");
         pack.Blocks.Should().HaveCount(16);
-        sourceLock.Sources.Should().ContainSingle().Which.Paths.Should().Equal("src/Wpf.Ui");
+        sourceLock.Sources.Should().ContainSingle().Which.Paths.Should().Equal(
+            "src/Wpf.Ui",
+            "src/Wpf.Ui/Controls/ControlAppearance.cs",
+            "src/Wpf.Ui/Controls/SymbolRegular.cs");
         block.Slots.Should().ContainKey("icon")
             .WhoseValue.AllowedKinds.Should().Contain("wpfui.symbolIcon");
         recipe.PackId.Should().Be("wpfui");

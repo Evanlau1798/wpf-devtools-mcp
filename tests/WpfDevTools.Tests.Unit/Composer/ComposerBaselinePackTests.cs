@@ -56,7 +56,10 @@ public sealed class ComposerBaselinePackTests
             .Should().HaveCount(1);
 
         GetStringArray(sourceLock.RootElement.GetProperty("sources")[0], "paths")
-            .Should().Equal("src/Wpf.Ui");
+            .Should().Equal(
+                "src/Wpf.Ui",
+                "src/Wpf.Ui/Controls/ControlAppearance.cs",
+                "src/Wpf.Ui/Controls/SymbolRegular.cs");
         ExpectedBlockKinds.Should().NotContain(kind =>
             kind.Contains("gallery", StringComparison.OrdinalIgnoreCase)
             || kind.Contains("syntax", StringComparison.OrdinalIgnoreCase)

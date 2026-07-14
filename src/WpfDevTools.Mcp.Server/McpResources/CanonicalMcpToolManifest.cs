@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.McpTools;
@@ -156,15 +157,24 @@ internal static class CanonicalMcpToolManifest
         var maxLength = parameter.GetCustomAttribute<MaxLengthAttribute>()?.Length
                         ?? stringLength?.MaximumLength;
         var range = parameter.GetCustomAttribute<RangeAttribute>();
-        return minLength is null && maxLength is null && range is null
+        var allowedValues = parameter.GetCustomAttribute<AllowedValuesAttribute>()?.Values;
+        return minLength is null && maxLength is null && range is null && allowedValues is null
             ? null
-            : new ParameterConstraints(minLength, maxLength, range?.Minimum, range?.Maximum);
+            : new ParameterConstraints(minLength, maxLength, range?.Minimum, range?.Maximum, allowedValues);
     }
 
     private static string FormatConstraints(ParameterConstraints? constraints)
-        => constraints is null
-            ? string.Empty
-            : $"{constraints.minLength}:{constraints.maxLength}:{constraints.minimum}:{constraints.maximum}";
+    {
+        if (constraints is null)
+        {
+            return string.Empty;
+        }
+
+        var baseValue = $"{constraints.minLength}:{constraints.maxLength}:{constraints.minimum}:{constraints.maximum}";
+        return constraints.allowedValues is null
+            ? baseValue
+            : $"{baseValue}:allowedValues={JsonSerializer.Serialize(constraints.allowedValues)}";
+    }
 
     private static string GetTypeName(Type type)
     {
@@ -206,5 +216,6 @@ internal static class CanonicalMcpToolManifest
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? minLength,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? maxLength,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] object? minimum,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] object? maximum);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] object? maximum,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] object?[]? allowedValues);
 }

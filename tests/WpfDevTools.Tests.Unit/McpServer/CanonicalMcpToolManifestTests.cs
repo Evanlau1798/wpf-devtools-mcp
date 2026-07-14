@@ -94,6 +94,14 @@ public sealed class CanonicalMcpToolManifestTests
         depth.GetProperty("constraints").GetProperty("minimum").GetInt32().Should().Be(0);
         depth.GetProperty("constraints").GetProperty("maximum").GetInt32()
             .Should().Be(TreeRequestOptions.MaxDepthLimit);
+
+        var drainEvents = tools.Single(tool => GetName(tool) == "drain_events");
+        var eventTypes = drainEvents.GetProperty("parameters").EnumerateArray()
+            .Single(parameter => parameter.GetProperty("name").GetString() == "eventTypes");
+        eventTypes.GetProperty("type").GetString().Should().Be("String[]");
+        eventTypes.GetProperty("constraints").GetProperty("allowedValues")
+            .EnumerateArray().Select(value => value.GetString())
+            .Should().Equal("all", "DpChange", "RoutedEvent", "BindingError", "ValidationChange");
     }
 
     [Fact]

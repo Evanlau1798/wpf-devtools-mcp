@@ -181,6 +181,14 @@ public sealed class McpToolSearchMetadataE2eTests
                     .Select(tool => tool.GetProperty("name").GetString()).ToArray();
                 root.GetProperty("toolCount").GetInt32().Should().Be(sourceTools.Length);
                 manifestNames.Should().BeEquivalentTo(sourceTools.Select(tool => tool.Name));
+                var drainEvents = root.GetProperty("tools").EnumerateArray()
+                    .Single(tool => tool.GetProperty("name").GetString() == "drain_events");
+                var eventTypes = drainEvents.GetProperty("parameters").EnumerateArray()
+                    .Single(parameter => parameter.GetProperty("name").GetString() == "eventTypes");
+                eventTypes.GetProperty("type").GetString().Should().Be("String[]");
+                eventTypes.GetProperty("constraints").GetProperty("allowedValues")
+                    .EnumerateArray().Select(value => value.GetString())
+                    .Should().Equal("all", "DpChange", "RoutedEvent", "BindingError", "ValidationChange");
             }),
             ("tool examples content", async () =>
             {

@@ -64,6 +64,8 @@ public sealed class McpToolInputConstraintTests
 
         var previewSchema = CreateInputSchema(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint));
         AssertEnumConstraint(previewSchema, "screenshotOutputMode", "metadata", "file");
+        AssertIntegerConstraint(previewSchema, "screenshotMaxWidth", minimum: 1, maximum: int.MaxValue);
+        AssertIntegerConstraint(previewSchema, "screenshotMaxHeight", minimum: 1, maximum: int.MaxValue);
     }
 
     private static void AssertTreeConstraints(JsonElement schema)

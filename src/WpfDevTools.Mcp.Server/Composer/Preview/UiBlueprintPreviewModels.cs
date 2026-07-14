@@ -11,7 +11,9 @@ internal sealed record PreviewBlueprintRequest(
     bool StartHost = false,
     bool IncludeRuntimeDiagnostics = false,
     bool IncludeScreenshotDiagnostics = false,
-    string ScreenshotOutputMode = "metadata")
+    string ScreenshotOutputMode = "metadata",
+    int? ScreenshotMaxWidth = 1024,
+    int? ScreenshotMaxHeight = 1024)
 {
     public IReadOnlyList<RenderElementCorrelation> RuntimeElementCorrelations { get; init; } = [];
 }

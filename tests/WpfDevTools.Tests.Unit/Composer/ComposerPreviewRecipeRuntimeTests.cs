@@ -37,7 +37,9 @@ public sealed class ComposerPreviewRecipeRuntimeTests
                 StartHost: true,
                 IncludeRuntimeDiagnostics: true,
                 IncludeScreenshotDiagnostics: true,
-                ScreenshotOutputMode: "file"),
+                ScreenshotOutputMode: "file",
+                ScreenshotMaxWidth: 640,
+                ScreenshotMaxHeight: 480),
             timeout.Token);
 
         result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
@@ -65,6 +67,8 @@ public sealed class ComposerPreviewRecipeRuntimeTests
         GetDiagnosticPayload(diagnostics, "get_layout_info").ValueKind.Should().Be(JsonValueKind.Object);
         var screenshot = GetDiagnosticPayload(diagnostics, "element_screenshot");
         screenshot.GetProperty("outputMode").GetString().Should().Be("file");
+        screenshot.GetProperty("width").GetInt32().Should().BeLessThanOrEqualTo(640);
+        screenshot.GetProperty("height").GetInt32().Should().BeLessThanOrEqualTo(480);
         var screenshotId = screenshot.GetProperty("screenshotId").GetString();
         var resourceRead = screenshot.GetProperty("resourceRead");
         resourceRead.GetProperty("method").GetString().Should().Be("resources/read");

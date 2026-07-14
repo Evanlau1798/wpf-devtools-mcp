@@ -16,6 +16,8 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
         Process previewProcess,
         bool includeScreenshotDiagnostics,
         string screenshotOutputMode,
+        int? screenshotMaxWidth,
+        int? screenshotMaxHeight,
         IReadOnlyList<RenderElementCorrelation> elementCorrelations,
         CancellationToken cancellationToken)
     {
@@ -78,7 +80,9 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                     ct => new ElementScreenshotTool(sessionManager).ExecuteAsync(
                         ToolCallHelper.BuildJsonArgs(
                             ("processId", processId),
-                            ("outputMode", screenshotOutputMode)),
+                            ("outputMode", screenshotOutputMode),
+                            ("maxWidth", screenshotMaxWidth),
+                            ("maxHeight", screenshotMaxHeight)),
                         ct),
                     cancellationToken).ConfigureAwait(false);
                 diagnostics.Add(screenshotDiagnostic);

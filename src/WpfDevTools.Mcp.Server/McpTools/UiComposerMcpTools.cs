@@ -196,6 +196,10 @@ public static partial class UiComposerMcpTools
         [Description("When true with startHost=true, enables runtime diagnostics and also requests screenshot diagnostics. Requires the sensitive-reads and screenshot policy gates.")] bool includeScreenshotDiagnostics = false,
         [AllowedValues("metadata", "file")]
         [Description("Screenshot output mode used when includeScreenshotDiagnostics=true: 'metadata' (default) or resource-backed 'file'.")] string screenshotOutputMode = "metadata",
+        [Range(1, int.MaxValue)]
+        [Description("Optional maximum preview screenshot width. Defaults to 1024 for reliable agent image consumption; pass null for the rendered width.")] int? screenshotMaxWidth = 1024,
+        [Range(1, int.MaxValue)]
+        [Description("Optional maximum preview screenshot height. Defaults to 1024 for reliable agent image consumption; pass null for the rendered height.")] int? screenshotMaxHeight = 1024,
         [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global packs.")] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
@@ -207,6 +211,8 @@ public static partial class UiComposerMcpTools
             ("includeRuntimeDiagnostics", includeRuntimeDiagnostics),
             ("includeScreenshotDiagnostics", includeScreenshotDiagnostics),
             ("screenshotOutputMode", screenshotOutputMode),
+            ("screenshotMaxWidth", screenshotMaxWidth),
+            ("screenshotMaxHeight", screenshotMaxHeight),
             ("projectRoot", projectRoot),
             ("localAppDataRoot", localAppDataRoot));
 
@@ -219,6 +225,8 @@ public static partial class UiComposerMcpTools
                 includeRuntimeDiagnostics,
                 includeScreenshotDiagnostics,
                 screenshotOutputMode,
+                screenshotMaxWidth,
+                screenshotMaxHeight,
                 projectRoot,
                 localAppDataRoot,
                 token),
@@ -414,6 +422,8 @@ public static partial class UiComposerMcpTools
         bool includeRuntimeDiagnostics,
         bool includeScreenshotDiagnostics,
         string screenshotOutputMode,
+        int? screenshotMaxWidth,
+        int? screenshotMaxHeight,
         string? projectRoot,
         string? localAppDataRoot,
         CancellationToken cancellationToken)
@@ -435,6 +445,31 @@ public static partial class UiComposerMcpTools
             return screenshotOutputModeError!;
         }
 
+        var screenshotSizeArgs = ToolCallHelper.BuildJsonArgs(
+            ("screenshotMaxWidth", screenshotMaxWidth),
+            ("screenshotMaxHeight", screenshotMaxHeight));
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+                screenshotSizeArgs,
+                "screenshotMaxWidth",
+                1,
+                int.MaxValue,
+                out var resolvedScreenshotMaxWidth,
+                out var screenshotMaxWidthError))
+        {
+            return screenshotMaxWidthError!;
+        }
+
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+                screenshotSizeArgs,
+                "screenshotMaxHeight",
+                1,
+                int.MaxValue,
+                out var resolvedScreenshotMaxHeight,
+                out var screenshotMaxHeightError))
+        {
+            return screenshotMaxHeightError!;
+        }
+
         var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot, localAppDataRoot), sessionManager)
             .PreviewAsync(
                 new PreviewBlueprintRequest(
@@ -443,7 +478,9 @@ public static partial class UiComposerMcpTools
                     StartHost: startHost,
                     IncludeRuntimeDiagnostics: includeRuntimeDiagnostics,
                     IncludeScreenshotDiagnostics: includeScreenshotDiagnostics,
-                    ScreenshotOutputMode: resolvedScreenshotOutputMode),
+                    ScreenshotOutputMode: resolvedScreenshotOutputMode,
+                    ScreenshotMaxWidth: resolvedScreenshotMaxWidth,
+                    ScreenshotMaxHeight: resolvedScreenshotMaxHeight),
                 cancellationToken)
             .ConfigureAwait(false);
 

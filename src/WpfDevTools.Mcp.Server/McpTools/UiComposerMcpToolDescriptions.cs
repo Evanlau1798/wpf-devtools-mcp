@@ -263,8 +263,9 @@ internal static class UiComposerMcpToolDescriptions
         - restoreEnabled=false runs dotnet build --no-restore and returns missing-assets diagnostics when the temporary project has not been restored.
         - startHost=true starts the temporary host after build, waits for an explicit generated-view load sentinel, then terminates the process tree.
         - includeRuntimeDiagnostics=true with startHost=true reuses connect(), semantic summary, a bounded correlation lookup plan covering generated and renderer-provided names, and layout diagnostics.
-        - includeScreenshotDiagnostics=true with startHost=true enables runtime diagnostics and adds element_screenshot using screenshotOutputMode only when the screenshot policy gate allows it.
+        - includeScreenshotDiagnostics=true with startHost=true enables runtime diagnostics and adds a bounded element_screenshot using screenshotOutputMode only when the screenshot policy gate allows it.
         - screenshotOutputMode="file" returns a resource-backed PNG that remains readable after the temporary preview host exits.
+        - screenshotMaxWidth and screenshotMaxHeight default to 1024 for reliable Agent image consumption; pass explicit null values only when full rendered dimensions are required.
         - Compile failures map back to the compiler line/column source-map entry and renderer template path when available; restore/build infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:
@@ -274,6 +275,7 @@ internal static class UiComposerMcpToolDescriptions
         - includeRuntimeDiagnostics defaults to false; set true with startHost=true after enabling the sensitive-reads policy gate.
         - includeScreenshotDiagnostics defaults to false; set true with startHost=true only when pixel evidence is needed; it requires both sensitive-reads and screenshot policy gates.
         - screenshotOutputMode defaults to metadata; use file when resources/read structural pixel evidence is required. Do not approve final styling from the preview image.
+        - screenshotMaxWidth and screenshotMaxHeight default to 1024. Keep the bounds for visual review across constrained Agent image bridges; use null only for full-size archival evidence.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 

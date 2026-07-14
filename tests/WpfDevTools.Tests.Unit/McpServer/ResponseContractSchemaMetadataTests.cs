@@ -54,6 +54,8 @@ public sealed class ResponseContractSchemaMetadataTests
         AssertNumericConstraint(constraints, "drain_events", "maxEvents", null, 1, null);
         AssertNumericConstraint(constraints, "get_binding_errors", "maxErrors", null, 1, null);
         AssertNumericConstraint(constraints, "get_ui_summary", "depth", null, 0, 100);
+        AssertNumericConstraint(constraints, "preview_ui_blueprint", "screenshotMaxWidth", 1024, 1, int.MaxValue);
+        AssertNumericConstraint(constraints, "preview_ui_blueprint", "screenshotMaxHeight", 1024, 1, int.MaxValue);
         AssertNumericConstraint(constraints, "element_screenshot", "maxWidth", null, 1, int.MaxValue);
         AssertNumericConstraint(constraints, "element_screenshot", "maxHeight", null, 1, int.MaxValue);
     }

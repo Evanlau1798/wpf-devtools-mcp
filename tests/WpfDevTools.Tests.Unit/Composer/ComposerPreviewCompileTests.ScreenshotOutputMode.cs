@@ -23,4 +23,22 @@ public sealed partial class ComposerPreviewCompileTests
         payload.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
         payload.GetProperty("error").GetString().Should().Contain("screenshotOutputMode");
     }
+
+    [Fact]
+    public async Task PreviewUiBlueprintTool_WhenScreenshotBoundsAreInvalid_ShouldRejectBeforePreview()
+    {
+        using var sessionManager = new SessionManager();
+
+        var result = await UiComposerMcpTools.PreviewUiBlueprint(
+            sessionManager,
+            blueprintJson: "not-json",
+            restoreEnabled: false,
+            screenshotMaxWidth: 0,
+            cancellationToken: CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        var payload = result.StructuredContent!.Value;
+        payload.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        payload.GetProperty("error").GetString().Should().Contain("screenshotMaxWidth");
+    }
 }

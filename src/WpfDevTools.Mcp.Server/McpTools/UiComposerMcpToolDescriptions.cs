@@ -19,7 +19,7 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string PatchUiBlueprintDraft =
         """
-        USE WHEN: Deriving a draft with JSON Merge Patch or one JSON-path set/remove. Do not combine patchJson with jsonPath.
+        USE WHEN: Deriving a draft with JSON Merge Patch or one JSON-path set/remove. A stable @ElementName.properties alias may replace a deep exact path. Do not combine patchJson with jsonPath.
 
         CATEGORY: UI Composer
 
@@ -128,7 +128,7 @@ internal static class UiComposerMcpToolDescriptions
 
         REQUEST OPTIONS:
         - blueprintJson accepts raw JSON or an opaque draftRef.
-        - targetPath identifies an existing slot. Use $.layout.slots.<slot> for a root slot or include an explicit child index before each nested slot.
+        - targetPath identifies an existing slot. Use $.layout.slots.<slot>, include an explicit child index before each nested slot, or address a uniquely named node with @ElementName.slots.<slot>.
         - kind is an exact pack-qualified kind from get_ui_block_catalog(composableOnly=true).
         - properties optionally configures the inserted node with one JSON object of pack-defined values; installed block validation remains authoritative.
         - insertionIndex optionally inserts before an existing child; omit it to append.

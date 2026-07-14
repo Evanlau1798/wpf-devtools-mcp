@@ -43,7 +43,12 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
             return new BlueprintCompositionResult(false, null, null, null, null, [propertiesIssue!]);
         }
 
-        if (!TryResolveTarget(blueprint, targetPath, out var target, out var issue))
+        if (!TryResolveTarget(
+                blueprint,
+                targetPath,
+                out var target,
+                out var resolvedTargetPath,
+                out var issue))
         {
             return new BlueprintCompositionResult(false, null, null, null, null, [issue!]);
         }
@@ -52,7 +57,7 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
         var index = insertionIndex ?? targetSlot.Count;
         if (index < 0 || index > targetSlot.Count)
         {
-            return Failure(targetPath, "CompositionIndexOutOfRange",
+            return Failure(resolvedTargetPath, "CompositionIndexOutOfRange",
                 $"Insertion index {index} is outside the target slot range 0..{targetSlot.Count}.",
                 "Omit insertionIndex to append, or choose an index within the target slot range.");
         }
@@ -61,7 +66,7 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
         var candidateJson = blueprint.ToJsonString();
         if (candidateJson.Length > BoundaryStringLimits.MaxStringifiedJsonArgumentLength)
         {
-            return Failure(targetPath, "BlueprintCompositionTooLarge",
+            return Failure(resolvedTargetPath, "BlueprintCompositionTooLarge",
                 $"Composed blueprint has {candidateJson.Length} characters; the reusable input maximum is {BoundaryStringLimits.MaxStringifiedJsonArgumentLength}.",
                 "Reduce the current blueprint or inserted block properties before composing again.");
         }
@@ -80,7 +85,7 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
             true,
             blueprint,
             candidateJson,
-            $"{targetPath}[{index}]",
+            $"{resolvedTargetPath}[{index}]",
             validation,
             []);
     }
@@ -128,11 +133,30 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
         JsonObject blueprint,
         string targetPath,
         out JsonArray? target,
+        out string resolvedTargetPath,
         out BlueprintCompositionIssue? issue)
     {
         target = null;
+        resolvedTargetPath = targetPath;
         issue = null;
-        var match = TargetPathPattern().Match(targetPath);
+        var resolution = BlueprintNodePathResolver.Resolve(blueprint, targetPath);
+        if (!resolution.Success)
+        {
+            issue = new BlueprintCompositionIssue(
+                targetPath,
+                resolution.Code switch
+                {
+                    "ElementAliasNotFound" => "CompositionTargetElementNotFound",
+                    "ElementAliasAmbiguous" => "CompositionTargetElementAmbiguous",
+                    _ => "InvalidCompositionTargetPath"
+                },
+                resolution.Message!,
+                resolution.RepairSuggestion!);
+            return false;
+        }
+
+        resolvedTargetPath = resolution.JsonPath;
+        var match = TargetPathPattern().Match(resolvedTargetPath);
         if (!match.Success)
         {
             issue = InvalidPath(targetPath);
@@ -155,7 +179,7 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
             if (children is null)
             {
                 issue = new BlueprintCompositionIssue(
-                    targetPath,
+                    resolvedTargetPath,
                     "CompositionTargetNotFound",
                     $"Target slot '{slotNames[i]}' does not exist at the requested blueprint path.",
                     "Use an existing slots.<name> path from the current blueprint object.");
@@ -181,7 +205,7 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
             if (index < 0 || index >= children.Count || children[index] is not JsonObject child)
             {
                 issue = new BlueprintCompositionIssue(
-                    targetPath,
+                    resolvedTargetPath,
                     "CompositionTargetNotFound",
                     $"Child index {index} does not identify a block at slot '{slotNames[i]}'.",
                     "Choose an existing child index before navigating to its nested slot.");

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Mcp.Server.Composer.Drafts;
@@ -171,6 +172,22 @@ internal sealed class BlueprintDraftStore
                 return BlueprintDraftMutationResult.Invalid(InvalidJsonIssue(
                     "Blueprint draft root must be a JSON object."));
             }
+
+            var resolution = BlueprintNodePathResolver.Resolve(target, jsonPath);
+            if (!resolution.Success)
+            {
+                return BlueprintDraftMutationResult.Invalid(Issue(
+                    resolution.Code switch
+                    {
+                        "ElementAliasNotFound" => "BlueprintDraftElementNotFound",
+                        "ElementAliasAmbiguous" => "BlueprintDraftElementAmbiguous",
+                        _ => "InvalidBlueprintDraftPath"
+                    },
+                    resolution.Message!,
+                    resolution.RepairSuggestion!));
+            }
+
+            jsonPath = resolution.JsonPath;
 
             var issue = BlueprintDraftPathMutation.Apply(
                 target,

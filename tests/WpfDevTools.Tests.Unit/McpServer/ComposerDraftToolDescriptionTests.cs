@@ -46,6 +46,11 @@ public sealed class ComposerDraftToolDescriptionTests
         compose.Should().Contain("omits the full blueprint", "draft transport must remain compact");
         compose.Should().Contain("success=false");
         compose.Should().Contain("MCP error result");
+        compose.Should().Contain("@ElementName.slots");
+        typeof(UiComposerMcpTools).GetMethod(nameof(UiComposerMcpTools.ComposeUiBlueprint))!
+            .GetParameters().Single(parameter => parameter.Name == "targetPath")
+            .GetCustomAttribute<DescriptionAttribute>()!.Description
+            .Should().Contain("@ElementName.slots");
     }
 
     [Fact]
@@ -59,7 +64,8 @@ public sealed class ComposerDraftToolDescriptionTests
         description.Should().Contain("Do not combine patchJson with jsonPath");
         method.GetParameters().Single(parameter => parameter.Name == "jsonPath")
             .GetCustomAttribute<DescriptionAttribute>()!.Description
-            .Should().Contain("[\"accent.color\"]");
+            .Should().Contain("[\"accent.color\"]")
+            .And.Contain("@ElementName.properties");
 
         using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
         var tool = document.RootElement.GetProperty("tools").EnumerateArray()

@@ -105,7 +105,7 @@ children 或 optional properties，不必手動重打 pack-specific kind 與 slo
 以兩種互斥模式之一衍生新 draft：
 
 - Broad change：傳入 `draftRef` 與 `patchJson`，使用 JSON Merge Patch。
-- Surgical change：傳入 `draftRef`、exact path（例如 `$.layout.slots.children[0].properties.text`）與 `value`；pack-defined property key 若不是 simple identifier，請使用 bracket-quoted segment，例如 `$.layout.properties["accent.color"]`。若要刪除 target，省略 `value` 並設定 `remove=true`。
+- Surgical change：傳入 `draftRef`、exact path（例如 `$.layout.slots.children[0].properties.text`）與 `value`；target node 若具有唯一的標準 blueprint `elementName`，可使用穩定別名 `@ElementName.properties.text`，不必重複巢狀 array path。Pack-defined property key 若不是 simple identifier，請使用 bracket-quoted segment，例如 `$.layout.properties["accent.color"]`。若要刪除 target，省略 `value` 並設定 `remove=true`。
 
 Response 會回傳新 reference、`sourceDraftRef`、retention metadata，以及 compact `changeSummary`；其中包含 `changeCount`、bounded `changes` 與 truncation metadata。每個 change 會列出 `jsonPath`、`changeType` 及 compact `before`/`after` values，且不會 echo 完整 blueprint。若目標是把 catalog block 插入 slot array，應改用 `compose_ui_blueprint`。
 
@@ -116,7 +116,7 @@ Response 會回傳新 reference、`sourceDraftRef`、retention metadata，以及
 Request options:
 
 - `blueprintJson`: 目前完整的 blueprint JSON 文字或 opaque `draftRef`。
-- `targetPath`: 精確 slot path。Root slot 使用 `$.layout.slots.<slot>`；每個 nested slot 前必須提供明確 child index，例如 `$.layout.slots.content[0].slots.actions`。
+- `targetPath`: 精確 slot path。Root slot 使用 `$.layout.slots.<slot>`；每個 nested slot 前提供明確 child index，例如 `$.layout.slots.content[0].slots.actions`；node 具有唯一的標準 blueprint `elementName` 時，也可使用 `@ElementName.slots.actions`。成功 response 仍會回傳解析後的精確 `insertedPath`。
 - `kind`: 來自 `get_ui_block_catalog` 搭配 `composableOnly=true` 的 exact pack-qualified block kind。
 - `properties`: optional JSON object，可在插入時套用 pack-defined values。Installed block contract 會驗證 property name、type、range 與 allowed values。
 - `insertionIndex`: optional zero-based position；省略時 append。

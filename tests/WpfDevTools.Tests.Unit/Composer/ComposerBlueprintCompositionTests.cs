@@ -45,6 +45,35 @@ public sealed class ComposerBlueprintCompositionTests
     }
 
     [Fact]
+    public async Task ComposeUiBlueprintTool_ShouldResolveNamedNodeAliasToExactSlotPath()
+    {
+        var projectRoot = CreateProjectWithCompositionPack();
+        try
+        {
+            var result = await UiComposerMcpTools.ComposeUiBlueprint(
+                CreateBlueprint(),
+                targetPath: "@ActionRail.slots.items",
+                kind: "nebula.action",
+                projectRoot: projectRoot,
+                localAppDataRoot: projectRoot,
+                cancellationToken: CancellationToken.None);
+
+            result.IsError.Should().BeFalse();
+            var payload = result.StructuredContent!.Value;
+            payload.GetProperty("insertedPath").GetString()
+                .Should().Be("$.layout.slots.content[0].slots.items[0]");
+            payload.GetProperty("blueprint").GetProperty("layout")
+                .GetProperty("slots").GetProperty("content")[0]
+                .GetProperty("slots").GetProperty("items")[0]
+                .GetProperty("kind").GetString().Should().Be("nebula.action");
+        }
+        finally
+        {
+            Directory.Delete(projectRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task ComposeUiBlueprintTool_ShouldApplyPackValidatedPropertiesDuringInsertion()
     {
         var projectRoot = CreateProjectWithCompositionPack();
@@ -280,7 +309,12 @@ public sealed class ComposerBlueprintCompositionTests
                 {
                     content = new[]
                     {
-                        new { kind = "nebula.stack", slots = new { items = Array.Empty<object>() } }
+                        new
+                        {
+                            kind = "nebula.stack",
+                            elementName = "ActionRail",
+                            slots = new { items = Array.Empty<object>() }
+                        }
                     }
                 }
             }

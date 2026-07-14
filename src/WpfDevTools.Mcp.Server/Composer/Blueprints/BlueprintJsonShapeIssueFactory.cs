@@ -181,10 +181,10 @@ internal static class BlueprintJsonShapeIssueFactory
 
         foreach (var slot in slots.EnumerateObject())
         {
-            var slotPath = path + ".slots." + slot.Name;
+            var slotPath = AppendPropertyPath(path + ".slots", slot.Name);
             if (slot.Value.ValueKind != JsonValueKind.Array)
             {
-                issue = CreateIssue(slotPath, slot.Value.ValueKind.ToString());
+                issue = CreateIssue(slotPath, slot.Value.ValueKind.ToString(), SlotItemsShape);
                 return true;
             }
 
@@ -194,7 +194,7 @@ internal static class BlueprintJsonShapeIssueFactory
                 var childPath = $"{slotPath}[{index}]";
                 if (child.ValueKind != JsonValueKind.Object)
                 {
-                    issue = CreateIssue(childPath, child.ValueKind.ToString());
+                    issue = CreateIssue(childPath, child.ValueKind.ToString(), NodeShape);
                     return true;
                 }
 
@@ -229,7 +229,10 @@ internal static class BlueprintJsonShapeIssueFactory
         {
             if (property.Value.ValueKind != JsonValueKind.String)
             {
-                issue = CreateIssue($"{parentPath}.{propertyName}.{property.Name}", property.Value.ValueKind.ToString());
+                issue = CreateIssue(
+                    AppendPropertyPath($"{parentPath}.{propertyName}", property.Name),
+                    property.Value.ValueKind.ToString(),
+                    "\"text\"");
                 return true;
             }
         }
@@ -269,9 +272,12 @@ internal static class BlueprintJsonShapeIssueFactory
         return true;
     }
 
-    private static BlueprintValidationIssue CreateIssue(string path, string observed)
+    private static BlueprintValidationIssue CreateIssue(
+        string path,
+        string observed,
+        string? expectedShape = null)
     {
-        var expected = DescribeExpectedShape(path);
+        var expected = expectedShape ?? DescribeExpectedShape(path);
         return new BlueprintValidationIssue(
             path,
             "InvalidBlueprintShape",
@@ -361,6 +367,22 @@ internal static class BlueprintJsonShapeIssueFactory
 
         return true;
     }
+
+    private static string AppendPropertyPath(string parentPath, string propertyName)
+        => IsSimplePropertyName(propertyName)
+            ? $"{parentPath}.{propertyName}"
+            : $"{parentPath}[{JsonSerializer.Serialize(propertyName)}]";
+
+    private static bool IsSimplePropertyName(string propertyName)
+        => propertyName.Length > 0
+           && IsAsciiLetterOrUnderscore(propertyName[0])
+           && propertyName.Skip(1).All(character =>
+               IsAsciiLetterOrUnderscore(character) || char.IsAsciiDigit(character));
+
+    private static bool IsAsciiLetterOrUnderscore(char character)
+        => character == '_'
+           || character is >= 'a' and <= 'z'
+           || character is >= 'A' and <= 'Z';
 
     private static IEnumerable<PathSegment> ParseSegments(string path)
     {

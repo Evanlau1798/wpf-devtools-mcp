@@ -32,6 +32,7 @@ public sealed class DocfxGeneratedContractSnapshotTests
         var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(relativePath));
 
         content.Should().Contain("requiredParameters");
+        content.Should().Contain("parameter `constraints`");
         content.Should().Contain("inputSchemaHash");
         content.Should().Contain("outputSchemaHash");
         content.Should().Contain("policyCapabilityTags");

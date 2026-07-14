@@ -77,7 +77,7 @@ Use the smallest workflow that answers the question. Prefer scene-level aggregat
 - Structured clients should read `result.structuredContent` as the canonical wire payload.
 - `tools/list` advertises exact `outputSchema` shapes for high-value tools such as `connect`, `get_processes`, `get_ui_summary`, `get_element_snapshot(elementId)`, state snapshot/restore, batch mutation, and screenshots. Other tools inherit the common structured payload schema with stable fields such as `success`, `navigation`, and common identifiers. Claude-compatible clients should validate discovery against these structured-output metadata shapes.
 - Use MCP resource `wpf://contracts/response` for the stable detailed WPF payload contract.
-- Use MCP resource `wpf://contracts/tools` for canonical machine-readable tool names, categories, safety flags, capability tags, and parameter metadata.
+- Use MCP resource `wpf://contracts/tools` for canonical machine-readable tool names, categories, safety flags, capability tags, parameter metadata, and reflection-backed parameter `constraints`.
 - If a client bridge truncates a contract resource, read the compact `wpf://contracts/index`, request the advertised `wpf://contracts/{contractId}/chunks/{offset}/{length}` ranges sequentially at no more than 16 KiB, concatenate decoded UTF-8 bytes without transformation, and verify `byteLength` plus SHA-256 before parsing JSON.
 - `result.content[0].text` is a compact JSON fallback that preserves high-signal top-level scalar fields and collection counts, not a duplicate transport of the full JSON object. Set `WPFDEVTOOLS_TEXT_FALLBACK_MODE=full` only for legacy clients that require it.
 - Error results include `result.content[0].annotations` while preserving `result.structuredContent` for machine-readable handling.
@@ -98,8 +98,8 @@ If a tool signature, policy gate, or response schema changes, update the relevan
 
 These values are generated from the runtime MCP contract resources. If a tool is added or renamed, a method signature changes, policy gates move, or response fields change, the documentation tests require this snapshot to be regenerated.
 
-- `wpf://contracts/tools` SHA-256: `87968d395d8bce2cac2249959576f79605e142672e4af223f4b69dab6152268d`
+- `wpf://contracts/tools` SHA-256: `afaa0d30762c2739caaf24c99e50eed99c19c38de571e545ea37c46b94b04662`
 - `wpf://contracts/response` SHA-256: `4cd347f6945d0d7956cc7ec13c3ec75c87eedad79b85282f903bb902e3dcaadb`
-- Validation scope: `toolCount`, `name`, `title`, `parameters`, `requiredParameters`, `inputSchemaHash`, `outputSchemaHash`, `capabilityTags`, `policyCapabilityTags`, `annotations`, `parameterConstraints`, `parameterVocabularies`, and `highValueTools`.
+- Validation scope: `toolCount`, `name`, `title`, `parameters`, parameter `constraints`, `requiredParameters`, `inputSchemaHash`, `outputSchemaHash`, `capabilityTags`, `policyCapabilityTags`, `annotations`, `parameterConstraints`, `parameterVocabularies`, and `highValueTools`.
 
 Use the category pages for the most important tools, semantics, and gotchas.

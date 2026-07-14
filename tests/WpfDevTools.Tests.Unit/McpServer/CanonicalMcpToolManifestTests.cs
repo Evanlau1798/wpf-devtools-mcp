@@ -5,6 +5,7 @@ using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.McpResources;
 using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -73,6 +74,26 @@ public sealed class CanonicalMcpToolManifestTests
             tool.GetProperty("liveTestCoverageStatus").GetString()
                 .Should().BeOneOf(allowedLiveCoverageStatuses);
         }
+    }
+
+    [Fact]
+    public void ToolManifestResource_ShouldExposeReflectionBackedInputConstraints()
+    {
+        using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
+        var tools = document.RootElement.GetProperty("tools").EnumerateArray().ToArray();
+
+        var compose = tools.Single(tool => GetName(tool) == "compose_ui_blueprint");
+        var blueprintJson = compose.GetProperty("parameters").EnumerateArray()
+            .Single(parameter => parameter.GetProperty("name").GetString() == "blueprintJson");
+        blueprintJson.GetProperty("constraints").GetProperty("maxLength").GetInt32()
+            .Should().Be(BoundaryStringLimits.MaxStringifiedJsonArgumentLength);
+
+        var visualTree = tools.Single(tool => GetName(tool) == "get_visual_tree");
+        var depth = visualTree.GetProperty("parameters").EnumerateArray()
+            .Single(parameter => parameter.GetProperty("name").GetString() == "depth");
+        depth.GetProperty("constraints").GetProperty("minimum").GetInt32().Should().Be(0);
+        depth.GetProperty("constraints").GetProperty("maximum").GetInt32()
+            .Should().Be(TreeRequestOptions.MaxDepthLimit);
     }
 
     [Fact]

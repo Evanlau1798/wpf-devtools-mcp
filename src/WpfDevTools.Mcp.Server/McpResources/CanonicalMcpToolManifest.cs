@@ -1,7 +1,9 @@
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Serialization;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.McpTools;
 
@@ -46,7 +48,7 @@ internal static class CanonicalMcpToolManifest
             .Select(parameter => parameter.name)
             .ToArray();
         var inputHashSource = string.Join("|", parameters.Select(parameter =>
-            $"{parameter.name}:{parameter.type}:{parameter.required}:{parameter.defaultValue}:{parameter.description}"));
+            $"{parameter.name}:{parameter.type}:{parameter.required}:{parameter.defaultValue}:{parameter.description}:{FormatConstraints(parameter.constraints)}"));
         var toolName = attribute.Name!;
         var outputSchemaStatus = McpToolOutputSchemas.GetSchemaStatus(toolName);
         var mutationRestoreRequirementStatus = GetMutationRestoreRequirementStatus(entry);
@@ -141,9 +143,28 @@ internal static class CanonicalMcpToolManifest
                 GetTypeName(parameter.ParameterType),
                 !parameter.HasDefaultValue,
                 parameter.HasDefaultValue ? FormatDefaultValue(parameter.DefaultValue) : null,
-                parameter.GetCustomAttribute<DescriptionAttribute>()?.Description ?? string.Empty))
+                parameter.GetCustomAttribute<DescriptionAttribute>()?.Description ?? string.Empty,
+                GetConstraints(parameter)))
             .ToArray();
     }
+
+    private static ParameterConstraints? GetConstraints(ParameterInfo parameter)
+    {
+        var stringLength = parameter.GetCustomAttribute<StringLengthAttribute>();
+        var minLength = parameter.GetCustomAttribute<MinLengthAttribute>()?.Length
+                        ?? stringLength?.MinimumLength;
+        var maxLength = parameter.GetCustomAttribute<MaxLengthAttribute>()?.Length
+                        ?? stringLength?.MaximumLength;
+        var range = parameter.GetCustomAttribute<RangeAttribute>();
+        return minLength is null && maxLength is null && range is null
+            ? null
+            : new ParameterConstraints(minLength, maxLength, range?.Minimum, range?.Maximum);
+    }
+
+    private static string FormatConstraints(ParameterConstraints? constraints)
+        => constraints is null
+            ? string.Empty
+            : $"{constraints.minLength}:{constraints.maxLength}:{constraints.minimum}:{constraints.maximum}";
 
     private static string GetTypeName(Type type)
     {
@@ -177,5 +198,13 @@ internal static class CanonicalMcpToolManifest
         string type,
         bool required,
         string? defaultValue,
-        string description);
+        string description,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        ParameterConstraints? constraints);
+
+    private sealed record ParameterConstraints(
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? minLength,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? maxLength,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] object? minimum,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] object? maximum);
 }

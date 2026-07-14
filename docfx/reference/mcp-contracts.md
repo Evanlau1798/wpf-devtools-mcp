@@ -6,11 +6,13 @@ Use this page when an MCP client or agent needs the machine-readable runtime con
 
 1. Start the server with the target policy gates needed for the task.
 2. Call MCP discovery such as `initialize`, `tools/list`, `prompts/list`, and `resources/list`.
-3. Read `wpf://contracts/tools` for tool names, categories, parameters, required fields, capability tags, and policy tags.
+3. Read `wpf://contracts/tools` for tool names, categories, parameters, required fields, reflection-backed parameter `constraints`, capability tags, and policy tags.
 4. Read `wpf://contracts/response` for response envelopes, compatibility aliases, navigation metadata, and error recovery fields.
 5. Read `wpf://capabilities` when the client needs a compact capability summary.
 
 Do not hard-code tool arguments from old screenshots or prior runs. Runtime discovery is the source of truth.
+
+Each manifest parameter may include a compact `constraints` object. Fields such as `minLength`, `maxLength`, `minimum`, and `maximum` mirror the validation annotations that also contribute to `inputSchemaHash`; use them when a client cannot expose the raw `tools/list` input schema.
 
 ## Prompt And Resource Names
 

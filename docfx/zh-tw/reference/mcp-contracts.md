@@ -6,11 +6,13 @@
 
 1. 依任務需求啟動 server，並只開啟必要 policy gates。
 2. 呼叫 MCP discovery，例如 `initialize`、`tools/list`、`prompts/list` 與 `resources/list`。
-3. 讀取 `wpf://contracts/tools`，取得 tool names、categories、parameters、required fields、capability tags 與 policy tags。
+3. 讀取 `wpf://contracts/tools`，取得 tool names、categories、parameters、required fields、reflection-backed parameter `constraints`、capability tags 與 policy tags。
 4. 讀取 `wpf://contracts/response`，取得 response envelope、compatibility aliases、navigation metadata 與 error recovery fields。
 5. 需要 compact capability summary 時，再讀取 `wpf://capabilities`。
 
 不要從舊截圖或舊執行紀錄硬寫 tool arguments。Runtime discovery 才是真源。
+
+每個 manifest parameter 都可能包含 compact `constraints` object。`minLength`、`maxLength`、`minimum` 與 `maximum` 會反映同樣納入 `inputSchemaHash` 的 validation annotations；client 無法公開 raw `tools/list` input schema 時，可直接使用這些欄位。
 
 ## Prompt 與 Resource 名稱
 

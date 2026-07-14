@@ -47,6 +47,9 @@ public sealed class ComposerDraftToolDescriptionTests
         compose.Should().Contain("success=false");
         compose.Should().Contain("MCP error result");
         compose.Should().Contain("@ElementName.slots");
+        compose.Should().Contain("insertedNodeSummary");
+        compose.Should().Contain("32");
+        compose.Should().Contain("160");
         typeof(UiComposerMcpTools).GetMethod(nameof(UiComposerMcpTools.ComposeUiBlueprint))!
             .GetParameters().Single(parameter => parameter.Name == "targetPath")
             .GetCustomAttribute<DescriptionAttribute>()!.Description

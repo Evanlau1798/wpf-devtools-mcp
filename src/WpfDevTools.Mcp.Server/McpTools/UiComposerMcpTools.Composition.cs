@@ -98,6 +98,7 @@ public static partial class UiComposerMcpTools
                     derived.CharacterCount,
                     derived.ExpiresAt,
                     insertedPath = result.InsertedPath,
+                    insertedNodeSummary = result.InsertedNodeSummary,
                     validation,
                     errors = result.Errors,
                     observability
@@ -133,6 +134,7 @@ public static partial class UiComposerMcpTools
                 blueprint = result.Blueprint,
                 blueprintJson = result.BlueprintJson,
                 insertedPath = result.InsertedPath,
+                insertedNodeSummary = result.InsertedNodeSummary,
                 validation,
                 errors = result.Errors,
                 observability

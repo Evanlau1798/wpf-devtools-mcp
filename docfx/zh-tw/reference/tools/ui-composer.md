@@ -124,6 +124,8 @@ Request options:
 
 需要在插入時設定 block 時，使用 `properties` 可避免再透過很長的 nested path 追加一次 edit，同時仍以 pack 的 `compositionSkeleton` 為權威。Raw JSON input 在 `composed=true` 時會回傳新的 `blueprint`、compact `blueprintJson`、精確 `insertedPath` 與 validation result。Draft input 則回傳新的 immutable `draftRef` 並省略完整文件，source draft 保持不變。所有未完成 composition 的 outcome 都會以 MCP error result 回傳 `success=false`。Invalid draft-derived candidate 仍會保留在 `candidateDraftRef`；raw input 則維持既有 `invalidCandidate` 與 `candidateBlueprintJson` recovery shape。兩者都不會寫入 project files。Ambiguous path 與 non-composable block 只回傳可採取行動的 errors，不提供 candidate。
 
+每個成功 response 也會回傳 bounded `insertedNodeSummary`，讓 caller 不必 render 或取回完整 draft，就能驗證同呼叫的設定。內容包含解析後的精確 JSON path、kind、optional element name、property total/reported counts、truncation state，以及最多 32 個 deterministic property entries。每個 entry 包含 name、JSON value kind、最多 160 字元的 compact value 與明確的 value-truncation flag。
+
 ## `validate_ui_blueprint`
 
 依照已安裝 Composer pack contracts 驗證 UI blueprint JSON。請在 `list_ui_block_packs` 與 `get_ui_block_catalog` 之後、rendering XAML 或 apply generated UI 之前使用。

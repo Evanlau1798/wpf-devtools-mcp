@@ -9,6 +9,9 @@ namespace WpfDevTools.Mcp.Server.Composer.Blueprints;
 
 internal sealed partial class BlueprintCompositionService(PackRegistry registry)
 {
+    private const int MaxSummaryProperties = 32;
+    private const int MaxSummaryValueCharacters = 160;
+
     public BlueprintCompositionResult Compose(
         string blueprintJson,
         string targetPath,
@@ -63,6 +66,7 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
         }
 
         targetSlot.Insert(index, configuredNode);
+        var insertedPath = $"{resolvedTargetPath}[{index}]";
         var candidateJson = blueprint.ToJsonString();
         if (candidateJson.Length > BoundaryStringLimits.MaxStringifiedJsonArgumentLength)
         {
@@ -85,9 +89,52 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
             true,
             blueprint,
             candidateJson,
-            $"{resolvedTargetPath}[{index}]",
+            insertedPath,
             validation,
-            []);
+            [])
+        {
+            InsertedNodeSummary = CreateInsertedNodeSummary(configuredNode!, insertedPath)
+        };
+    }
+
+    private static BlueprintCompositionNodeSummary CreateInsertedNodeSummary(
+        JsonNode configuredNode,
+        string insertedPath)
+    {
+        var configuredObject = configuredNode.AsObject();
+        var properties = configuredObject["properties"] as JsonObject;
+        var propertyCount = properties?.Count ?? 0;
+        var propertySummaries = properties?
+            .OrderBy(property => property.Key, StringComparer.Ordinal)
+            .Take(MaxSummaryProperties)
+            .Select(property => SummarizeProperty(property.Key, property.Value))
+            .ToArray() ?? [];
+        return new BlueprintCompositionNodeSummary(
+            insertedPath,
+            configuredObject["kind"]?.GetValue<string>() ?? string.Empty,
+            configuredObject["elementName"] is JsonValue elementName
+                && elementName.TryGetValue<string>(out var name)
+                    ? name
+                    : null,
+            propertyCount,
+            propertySummaries.Length,
+            propertyCount > propertySummaries.Length,
+            propertySummaries);
+    }
+
+    private static BlueprintCompositionPropertySummary SummarizeProperty(
+        string name,
+        JsonNode? value)
+    {
+        var raw = value?.ToJsonString() ?? "null";
+        using var document = JsonDocument.Parse(raw);
+        return new BlueprintCompositionPropertySummary(
+            name,
+            document.RootElement.ValueKind.ToString(),
+            raw.Length <= MaxSummaryValueCharacters
+                ? raw
+                : raw[..(MaxSummaryValueCharacters - 3)] + "...",
+            raw.Length > MaxSummaryValueCharacters);
     }
 
     private static bool TryCreateConfiguredNode(
@@ -248,7 +295,23 @@ internal sealed record BlueprintCompositionResult(
 {
     public JsonObject? InvalidCandidate { get; init; }
     public string? CandidateBlueprintJson { get; init; }
+    public BlueprintCompositionNodeSummary? InsertedNodeSummary { get; init; }
 }
+
+internal sealed record BlueprintCompositionNodeSummary(
+    string JsonPath,
+    string Kind,
+    string? ElementName,
+    int PropertyCount,
+    int ReportedPropertyCount,
+    bool PropertiesTruncated,
+    IReadOnlyList<BlueprintCompositionPropertySummary> Properties);
+
+internal sealed record BlueprintCompositionPropertySummary(
+    string Name,
+    string ValueKind,
+    string CompactValue,
+    bool ValueTruncated);
 
 internal sealed record BlueprintCompositionIssue(
     string JsonPath,

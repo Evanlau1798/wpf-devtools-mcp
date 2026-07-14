@@ -96,6 +96,92 @@ public sealed class ComposerBlueprintCompositionTests
                 .GetProperty("layout").GetProperty("slots").GetProperty("content")[0]
                 .GetProperty("slots").GetProperty("items")[0]
                 .GetProperty("properties").GetProperty("label").GetString().Should().Be("Run now");
+            var summary = payload.GetProperty("insertedNodeSummary");
+            summary.GetProperty("jsonPath").GetString()
+                .Should().Be("$.layout.slots.content[0].slots.items[0]");
+            summary.GetProperty("kind").GetString().Should().Be("nebula.action");
+            summary.GetProperty("propertyCount").GetInt32().Should().Be(1);
+            summary.GetProperty("reportedPropertyCount").GetInt32().Should().Be(1);
+            summary.GetProperty("propertiesTruncated").GetBoolean().Should().BeFalse();
+            var property = summary.GetProperty("properties")[0];
+            property.GetProperty("name").GetString().Should().Be("label");
+            property.GetProperty("valueKind").GetString().Should().Be("String");
+            property.GetProperty("compactValue").GetString().Should().Be("\"Run now\"");
+            property.GetProperty("valueTruncated").GetBoolean().Should().BeFalse();
+        }
+        finally
+        {
+            Directory.Delete(projectRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ComposeUiBlueprintTool_ShouldReturnBoundedInsertedSummaryForDraftInput()
+    {
+        var projectRoot = CreateProjectWithCompositionPack();
+        using var properties = JsonDocument.Parse($$"""{"label":"{{new string('x', 200)}}"}""");
+        try
+        {
+            var created = await UiComposerMcpTools.CreateUiBlueprintDraft(
+                CreateBlueprint(),
+                CancellationToken.None);
+            var sourceDraftRef = created.StructuredContent!.Value.GetProperty("draftRef").GetString()!;
+
+            var result = await UiComposerMcpTools.ComposeUiBlueprint(
+                sourceDraftRef,
+                targetPath: "@ActionRail.slots.items",
+                kind: "nebula.action",
+                properties: properties.RootElement,
+                projectRoot: projectRoot,
+                localAppDataRoot: projectRoot,
+                cancellationToken: CancellationToken.None);
+
+            result.IsError.Should().BeFalse();
+            var payload = result.StructuredContent!.Value;
+            payload.TryGetProperty("blueprint", out _).Should().BeFalse();
+            payload.GetProperty("draftRef").GetString().Should().NotBe(sourceDraftRef);
+            var summary = payload.GetProperty("insertedNodeSummary");
+            summary.GetProperty("jsonPath").GetString()
+                .Should().Be("$.layout.slots.content[0].slots.items[0]");
+            var property = summary.GetProperty("properties")[0];
+            property.GetProperty("compactValue").GetString()!.Should().HaveLength(160);
+            property.GetProperty("valueTruncated").GetBoolean().Should().BeTrue();
+        }
+        finally
+        {
+            Directory.Delete(projectRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ComposeUiBlueprintTool_ShouldBoundReportedPropertyCount()
+    {
+        var projectRoot = CreateProjectWithCompositionPack();
+        try
+        {
+            AddOptionalActionProperties(projectRoot, count: 33);
+            var configured = new JsonObject { ["label"] = "Run" };
+            for (var index = 0; index < 33; index++)
+            {
+                configured[$"extra{index:D2}"] = "value";
+            }
+
+            using var properties = JsonDocument.Parse(configured.ToJsonString());
+            var result = await UiComposerMcpTools.ComposeUiBlueprint(
+                CreateBlueprint(),
+                targetPath: "@ActionRail.slots.items",
+                kind: "nebula.action",
+                properties: properties.RootElement,
+                projectRoot: projectRoot,
+                localAppDataRoot: projectRoot,
+                cancellationToken: CancellationToken.None);
+
+            result.IsError.Should().BeFalse();
+            var summary = result.StructuredContent!.Value.GetProperty("insertedNodeSummary");
+            summary.GetProperty("propertyCount").GetInt32().Should().Be(34);
+            summary.GetProperty("reportedPropertyCount").GetInt32().Should().Be(32);
+            summary.GetProperty("propertiesTruncated").GetBoolean().Should().BeTrue();
+            summary.GetProperty("properties").GetArrayLength().Should().Be(32);
         }
         finally
         {
@@ -357,4 +443,19 @@ public sealed class ComposerBlueprintCompositionTests
 
     private static void WriteBlock(string root, string name, string json)
         => File.WriteAllText(Path.Combine(root, "blocks", name + ".block.json"), json);
+
+    private static void AddOptionalActionProperties(string projectRoot, int count)
+    {
+        var path = Path.Combine(
+            projectRoot,
+            ".wpfdevtools", "packs", "nebula", "1.0.0", "blocks", "action.block.json");
+        var block = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        var properties = block["properties"]!.AsObject();
+        for (var index = 0; index < count; index++)
+        {
+            properties[$"extra{index:D2}"] = JsonNode.Parse("""{"type":"string","required":false}""");
+        }
+
+        File.WriteAllText(path, block.ToJsonString());
+    }
 }

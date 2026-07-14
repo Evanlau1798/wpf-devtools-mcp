@@ -124,6 +124,7 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - Success returns validation plus the raw blueprint or a derived draftRef that omits the full blueprint; source drafts stay unchanged.
+        - insertedNodeSummary publishes the resolved path, kind, optional element name, and at most 32 deterministic property entries with 160-character compact values and truncation flags.
         - Failure returns success=false as an MCP error result with diagnostics and any available candidateDraftRef or candidateBlueprintJson.
 
         REQUEST OPTIONS:

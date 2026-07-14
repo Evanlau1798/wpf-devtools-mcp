@@ -16,6 +16,12 @@ public sealed class ComposerPreviewLayoutRiskDocumentationTests
         content.Should().Contain("get_clipping_info");
         content.Should().Contain("jsonPath");
         content.Should().Contain("blockKind");
+        content.Should().ContainAll(
+            "correlatedTargetCount",
+            "resolvedTargetCount",
+            "inspectedTargetCount",
+            "inspectionTruncated",
+            "warningsTruncated");
     }
 
     [Theory]

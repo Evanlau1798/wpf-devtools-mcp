@@ -103,6 +103,14 @@ internal sealed record PreviewLayoutRiskSummary(
     bool WarningsTruncated,
     IReadOnlyList<PreviewLayoutWarning> Warnings)
 {
+    public int CorrelatedTargetCount { get; init; }
+
+    public int ResolvedTargetCount { get; init; }
+
+    public int InspectedTargetCount { get; init; }
+
+    public bool InspectionTruncated { get; init; }
+
     public static PreviewLayoutRiskSummary Empty { get; } = new(0, 0, false, []);
 }
 

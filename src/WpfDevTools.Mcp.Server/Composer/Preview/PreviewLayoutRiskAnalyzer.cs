@@ -11,6 +11,20 @@ internal static class PreviewLayoutRiskAnalyzer
         IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics,
         IReadOnlyList<RenderElementCorrelation> correlations)
     {
+        var correlatedTargetCount = correlations
+            .Select(item => item.ElementName)
+            .Distinct(StringComparer.Ordinal)
+            .Count();
+        var exactNameLookupTruncated = correlations
+            .Select(item => item.ElementName)
+            .Where(name => !name.StartsWith("WpfDevToolsBp_", StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .Skip(UiBlueprintPreviewDiagnosticsBridge.ExistingNameLookupLimit)
+            .Any();
+        var resolvedTargetCount = UiBlueprintPreviewDiagnosticsBridge
+            .BuildClippingTargetIds(diagnostics)
+            .Count;
+        var inspectedTargetCount = ReadInspectedElementIds(diagnostics).Count;
         var namesByElementId = BuildElementNameMap(diagnostics);
         var correlationsByName = correlations
             .GroupBy(item => item.ElementName, StringComparer.Ordinal)
@@ -34,7 +48,39 @@ internal static class PreviewLayoutRiskAnalyzer
             clipped.Length,
             warnings.Length,
             clipped.Length > warnings.Length,
-            warnings);
+            warnings)
+        {
+            CorrelatedTargetCount = correlatedTargetCount,
+            ResolvedTargetCount = resolvedTargetCount,
+            InspectedTargetCount = inspectedTargetCount,
+            InspectionTruncated = exactNameLookupTruncated
+                                  || resolvedTargetCount < correlatedTargetCount
+                                  || inspectedTargetCount < resolvedTargetCount
+        };
+    }
+
+    private static IReadOnlySet<string> ReadInspectedElementIds(
+        IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics)
+    {
+        var inspected = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var diagnostic in diagnostics.Where(item =>
+                     item.Tool == "get_clipping_info" && item.Success))
+        {
+            var results = ReadArray(diagnostic.Payload, "results").ToArray();
+            if (results.Length == 0)
+            {
+                inspected.UnionWith(diagnostic.TargetElementIds);
+                continue;
+            }
+
+            inspected.UnionWith(results
+                .Where(result => result.TryGetProperty("success", out var success)
+                                 && success.ValueKind == JsonValueKind.True)
+                .Select(result => ReadString(result, "elementId"))
+                .Where(elementId => elementId is not null)!);
+        }
+
+        return inspected;
     }
 
     private static Dictionary<string, string> BuildElementNameMap(

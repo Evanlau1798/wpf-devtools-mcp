@@ -30,6 +30,27 @@ public sealed class ComposerPreviewLayoutRiskTests
     }
 
     [Fact]
+    public void BuildClippingTargetIds_ShouldPreserveMoreThanOneBatchOfResolvedTargets()
+    {
+        var results = Enumerable.Range(1, 101)
+            .Select(index => new
+            {
+                elementId = $"Element_{index}",
+                elementName = $"Target{index}"
+            })
+            .ToArray();
+        var diagnostics = new[]
+        {
+            Diagnostic("find_elements", new { success = true, results })
+        };
+
+        var targets = UiBlueprintPreviewDiagnosticsBridge.BuildClippingTargetIds(diagnostics);
+
+        targets.Should().HaveCount(101);
+        targets.Should().StartWith("Element_1").And.EndWith("Element_101");
+    }
+
+    [Fact]
     public void Analyze_ShouldMapClippedElementToExactBlueprintPath()
     {
         var diagnostics = new[]
@@ -85,6 +106,77 @@ public sealed class ComposerPreviewLayoutRiskTests
             SuggestedFix = "Increase the available layout slot."
         }, options => options.ExcludingMissingMembers());
         summary.Warnings[0].OverflowAmount.GetProperty("right").GetDouble().Should().Be(50);
+    }
+
+    [Fact]
+    public void Analyze_ShouldExposeIncompleteCoverageForThirtyThreeExactNames()
+    {
+        var correlations = Enumerable.Range(1, 33)
+            .Select(index => new RenderElementCorrelation(
+                $"Target{index}",
+                $"$.layout.slots.children[{index - 1}]",
+                "nebula.item"))
+            .ToArray();
+        var resolved = Enumerable.Range(1, 32)
+            .Select(index => new { elementId = $"Element_{index}", elementName = $"Target{index}" })
+            .ToArray();
+        var resolvedIds = resolved.Select(item => item.elementId).ToArray();
+        var clipping = Diagnostic("get_clipping_info", new
+        {
+            success = true,
+            results = resolvedIds.Select(elementId => new { success = true, elementId, isClipped = false })
+        }) with
+        {
+            TargetElementIds = resolvedIds
+        };
+
+        UiBlueprintPreviewDiagnosticsBridge.BuildCorrelationLookupPlan(correlations).Should().HaveCount(32);
+        var summary = PreviewLayoutRiskAnalyzer.Analyze(
+            [Diagnostic("find_elements", new { success = true, results = resolved }), clipping],
+            correlations);
+
+        summary.CorrelatedTargetCount.Should().Be(33);
+        summary.ResolvedTargetCount.Should().Be(32);
+        summary.InspectedTargetCount.Should().Be(32);
+        summary.InspectionTruncated.Should().BeTrue();
+        summary.WarningsTruncated.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Analyze_ShouldReportCompleteCoverageForOneHundredOneInspectedTargets()
+    {
+        var correlations = Enumerable.Range(1, 101)
+            .Select(index => new RenderElementCorrelation(
+                $"WpfDevToolsBp_{index:0000}",
+                $"$.layout.slots.children[{index - 1}]",
+                "nebula.item"))
+            .ToArray();
+        var resolved = Enumerable.Range(1, 101)
+            .Select(index => new
+            {
+                elementId = $"Element_{index}",
+                elementName = $"WpfDevToolsBp_{index:0000}"
+            })
+            .ToArray();
+        var resolvedIds = resolved.Select(item => item.elementId).ToArray();
+        var clipping = Diagnostic("get_clipping_info", new
+        {
+            success = true,
+            results = resolvedIds.Select(elementId => new { success = true, elementId, isClipped = false })
+        }) with
+        {
+            TargetElementIds = resolvedIds
+        };
+
+        var summary = PreviewLayoutRiskAnalyzer.Analyze(
+            [Diagnostic("find_elements", new { success = true, results = resolved }), clipping],
+            correlations);
+
+        summary.CorrelatedTargetCount.Should().Be(101);
+        summary.ResolvedTargetCount.Should().Be(101);
+        summary.InspectedTargetCount.Should().Be(101);
+        summary.InspectionTruncated.Should().BeFalse();
+        summary.WarningsTruncated.Should().BeFalse();
     }
 
     [Fact]

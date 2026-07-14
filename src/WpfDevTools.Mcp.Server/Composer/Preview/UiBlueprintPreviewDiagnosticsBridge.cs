@@ -9,7 +9,7 @@ namespace WpfDevTools.Mcp.Server.Composer.Preview;
 internal static class UiBlueprintPreviewDiagnosticsBridge
 {
     private const int ToolTimeoutSeconds = 60;
-    private const int ExistingNameLookupLimit = 32;
+    internal const int ExistingNameLookupLimit = 32;
 
     internal static async Task<IReadOnlyList<PreviewRuntimeDiagnostic>> CaptureAsync(
         SessionManager sessionManager,
@@ -68,7 +68,7 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
             }
 
             var clippingTargets = BuildClippingTargetIds(lookupDiagnostics);
-            if (clippingTargets.Count > 0)
+            foreach (var clippingBatch in clippingTargets.Chunk(BatchItemLimits.MaxQueryInputItems))
             {
                 var clippingDiagnostic = await RunGatedAsync(
                     policy,
@@ -76,10 +76,10 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                     ct => new GetClippingInfoTool(sessionManager).ExecuteAsync(
                         ToolCallHelper.BuildJsonArgs(
                             ("processId", processId),
-                            ("elementIds", clippingTargets)),
+                            ("elementIds", clippingBatch)),
                         ct),
                     cancellationToken).ConfigureAwait(false);
-                diagnostics.Add(clippingDiagnostic with { TargetElementIds = clippingTargets });
+                diagnostics.Add(clippingDiagnostic with { TargetElementIds = clippingBatch });
             }
 
             diagnostics.Add(await RunGatedAsync(
@@ -148,7 +148,6 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
             .Where(elementId => !string.IsNullOrWhiteSpace(elementId))
             .Select(elementId => elementId!)
             .Distinct(StringComparer.Ordinal)
-            .Take(BatchItemLimits.MaxQueryInputItems)
             .ToArray();
 
     private static IEnumerable<JsonElement> ReadSearchResults(JsonElement payload)

@@ -73,6 +73,7 @@ try
         filters.AddListToolsFilter(next => async (request, cancellationToken) =>
         {
             var result = await next(request, cancellationToken);
+            McpToolInputSchemaNormalizer.Apply(result.Tools);
             McpToolOutputSchemas.Apply(result.Tools);
             return result;
         });

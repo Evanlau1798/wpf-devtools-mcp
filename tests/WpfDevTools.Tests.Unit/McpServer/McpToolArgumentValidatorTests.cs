@@ -116,6 +116,25 @@ public sealed class McpToolArgumentValidatorTests
         payload.GetProperty("hint").GetString().Should().Contain("resourceUri");
     }
 
+    [Fact]
+    public void Validate_DrainEventsScalarEventTypes_ShouldReturnActionableInvalidArgument()
+    {
+        var arguments = ToArguments(new
+        {
+            processId = 12345,
+            eventTypes = "RoutedEvent"
+        });
+
+        var result = McpToolArgumentValidator.Validate("drain_events", arguments);
+
+        result.Should().NotBeNull("eventTypes is an array in the callable and canonical contracts");
+        result!.IsError.Should().BeTrue();
+        var payload = result.StructuredContent!.Value;
+        payload.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        payload.GetProperty("error").GetString().Should().Contain("eventTypes");
+        payload.GetProperty("hint").GetString().Should().Contain("[\"RoutedEvent\"]");
+    }
+
     [Theory]
     [InlineData("click_element", "elementId")]
     [InlineData("scroll_to_element", "elementId")]

@@ -1,11 +1,10 @@
-using System.ComponentModel.DataAnnotations;
-using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpResources;
+using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -36,17 +35,17 @@ public sealed class McpToolInputSchemaEnumTests
     }
 
     [Fact]
-    public void DrainEventsEventTypes_ShouldExposeClosedVocabularyMetadata()
+    public void DrainEventsEventTypes_ShouldPublishArrayItemVocabulary()
     {
         string[] expectedValues = ["all", "DpChange", "RoutedEvent", "BindingError", "ValidationChange"];
-        var method = typeof(WpfDevTools.Mcp.Server.McpTools.EventDrainMcpTools)
-            .GetMethod(nameof(WpfDevTools.Mcp.Server.McpTools.EventDrainMcpTools.DrainEvents));
-        method.Should().NotBeNull();
+        var schema = CreateInputSchema(
+            typeof(WpfDevTools.Mcp.Server.McpTools.EventDrainMcpTools),
+            nameof(WpfDevTools.Mcp.Server.McpTools.EventDrainMcpTools.DrainEvents));
+        var eventTypes = schema.GetProperty("properties").GetProperty("eventTypes");
 
-        var parameter = method!.GetParameters().Single(parameter => parameter.Name == "eventTypes");
-        parameter.GetCustomAttribute<AllowedValuesAttribute>()?.Values
-            .Should().BeEquivalentTo(expectedValues,
-                "array-valued closed vocabularies should still be discoverable even when the SDK does not project item enums");
+        AssertSchemaTypeContains(eventTypes.GetProperty("type"), "array");
+        AssertSchemaTypeContains(eventTypes.GetProperty("items").GetProperty("type"), "string");
+        AssertEnumConstraint(schema, "eventTypes", expectedValues);
 
         var contractJson = JsonSerializer.SerializeToElement(ResponseContractParameterVocabularies.GetParameterVocabularies());
         var eventTypesVocabulary = contractJson.EnumerateArray()
@@ -65,9 +64,12 @@ public sealed class McpToolInputSchemaEnumTests
         using var services = new ServiceCollection()
             .AddSingleton<SessionManager>(_ => throw new InvalidOperationException("Schema tests do not invoke tools."))
             .BuildServiceProvider();
-        return McpServerTool.Create(method!, target: null, new McpServerToolCreateOptions { Services = services })
-            .ProtocolTool
-            .InputSchema;
+        var tool = McpServerTool.Create(
+            method!,
+            target: null,
+            new McpServerToolCreateOptions { Services = services }).ProtocolTool;
+        McpToolInputSchemaNormalizer.Apply(tool);
+        return tool.InputSchema;
     }
 
     private static void AssertEnumConstraint(JsonElement schema, string parameterName, string[] expectedValues)
@@ -82,5 +84,16 @@ public sealed class McpToolInputSchemaEnumTests
             .ToArray();
 
         values.Should().BeEquivalentTo(expectedValues);
+    }
+
+    private static void AssertSchemaTypeContains(JsonElement typeElement, string expectedType)
+    {
+        if (typeElement.ValueKind == JsonValueKind.String)
+        {
+            typeElement.GetString().Should().Be(expectedType);
+            return;
+        }
+
+        typeElement.EnumerateArray().Select(type => type.GetString()).Should().Contain(expectedType);
     }
 }

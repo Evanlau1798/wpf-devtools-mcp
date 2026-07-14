@@ -90,6 +90,14 @@ internal static class McpToolArgumentValidator
             return CreateElementScreenshotOutputPathErrorResult();
         }
 
+        if (string.Equals(toolName, "drain_events", StringComparison.Ordinal)
+            && argumentArray is not null
+            && TryGetArgument(argumentArray, "eventTypes", out var eventTypes)
+            && eventTypes.ValueKind is not JsonValueKind.Array and not JsonValueKind.Null)
+        {
+            return CreateDrainEventsEventTypesErrorResult();
+        }
+
         if (toolName is not null
             && RequiredArgumentsByTool.TryGetValue(toolName, out var requiredArguments)
             && TryFindMissingRequiredArgument(argumentArray, requiredArguments, out var missingArgument))
@@ -231,6 +239,16 @@ internal static class McpToolArgumentValidator
         const string hint = "element_screenshot file mode is resource-backed. Omit outputPath, call with outputMode='file', then read the returned resourceUri with resources/read.";
         return ToolCallHelper.CreateStructuredErrorResult(
             "Unknown argument 'outputPath' for element_screenshot. File mode returns a server-owned resourceUri and does not write to an agent-selected local path.",
+            ToolErrorCode.InvalidArgument.ToString(),
+            hint,
+            suggestedAction: hint);
+    }
+
+    private static CallToolResult CreateDrainEventsEventTypesErrorResult()
+    {
+        const string hint = "Pass eventTypes as an array such as [\"RoutedEvent\"], pass [\"all\"], or omit eventTypes to drain all buffered event types.";
+        return ToolCallHelper.CreateStructuredErrorResult(
+            "eventTypes must be an array of event-type strings.",
             ToolErrorCode.InvalidArgument.ToString(),
             hint,
             suggestedAction: hint);

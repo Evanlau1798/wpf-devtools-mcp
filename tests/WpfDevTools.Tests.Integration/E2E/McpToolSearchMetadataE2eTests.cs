@@ -125,6 +125,20 @@ public sealed class McpToolSearchMetadataE2eTests
                 mutationSchema.GetProperty("properties").TryGetProperty("triggerMutation", out _).Should().BeTrue();
                 mutationSchema.GetProperty("required").EnumerateArray()
                     .Select(item => item.GetString()).Should().Contain("triggerMutation");
+            }),
+            ("event drain input schema", async () =>
+            {
+                var drainEvents = (await ListRuntimeToolsAsync(client))
+                    .Single(tool => tool.GetProperty("name").GetString() == "drain_events");
+                var eventTypes = drainEvents.GetProperty("inputSchema")
+                    .GetProperty("properties").GetProperty("eventTypes");
+
+                eventTypes.GetProperty("type").EnumerateArray()
+                    .Select(type => type.GetString()).Should().Contain("array");
+                eventTypes.TryGetProperty("enum", out _).Should().BeFalse();
+                eventTypes.GetProperty("items").GetProperty("enum").EnumerateArray()
+                    .Select(value => value.GetString())
+                    .Should().BeEquivalentTo("all", "DpChange", "RoutedEvent", "BindingError", "ValidationChange");
             }));
     }
 

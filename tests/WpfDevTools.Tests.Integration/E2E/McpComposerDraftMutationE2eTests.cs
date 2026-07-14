@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text.Json;
 using FluentAssertions;
 
@@ -10,25 +11,38 @@ public sealed class McpComposerDraftMutationE2eTests
     [Fact]
     public async Task ComposeBlueprintFailure_ShouldExposeMcpErrorAndStructuredOutcome()
     {
+        var isolatedPackRoot = Path.Combine(
+            Path.GetTempPath(),
+            "wpfdevtools-compose-e2e-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(isolatedPackRoot);
         using var client = new McpStdioClient();
-        await client.StartAsync(FindServerExecutable());
+        try
+        {
+            await client.StartAsync(FindServerExecutable());
 
-        var envelope = await client.CallToolEnvelopeAsync(
-            "compose_ui_blueprint",
-            new
-            {
-                blueprintJson = "{}",
-                targetPath = "$.layout.slots.content",
-                kind = "missing.block"
-            });
+            var envelope = await client.CallToolEnvelopeAsync(
+                "compose_ui_blueprint",
+                new
+                {
+                    blueprintJson = "{}",
+                    targetPath = "$.layout.slots.content",
+                    kind = "missing.block",
+                    projectRoot = isolatedPackRoot,
+                    localAppDataRoot = isolatedPackRoot
+                });
 
-        var result = envelope.GetProperty("result");
-        result.GetProperty("isError").GetBoolean().Should().BeTrue(envelope.GetRawText());
-        var structured = result.GetProperty("structuredContent");
-        structured.GetProperty("success").GetBoolean().Should().BeFalse(envelope.GetRawText());
-        structured.GetProperty("composed").GetBoolean().Should().BeFalse(envelope.GetRawText());
-        structured.GetProperty("errors")[0].GetProperty("code").GetString()
-            .Should().Be("BlockNotComposable");
+            var result = envelope.GetProperty("result");
+            result.GetProperty("isError").GetBoolean().Should().BeTrue(envelope.GetRawText());
+            var structured = result.GetProperty("structuredContent");
+            structured.GetProperty("success").GetBoolean().Should().BeFalse(envelope.GetRawText());
+            structured.GetProperty("composed").GetBoolean().Should().BeFalse(envelope.GetRawText());
+            structured.GetProperty("errors")[0].GetProperty("code").GetString()
+                .Should().Be("BlockNotComposable");
+        }
+        finally
+        {
+            Directory.Delete(isolatedPackRoot, recursive: true);
+        }
     }
 
     [Fact]

@@ -36,8 +36,11 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             "<inline-blueprint>",
             UiComposerSchemaVersions.UiBlueprint);
         var context = RenderContext.Create(registry, blueprint.Packs, blueprint.ResourceVariants);
+        var targetPath = ResolveTargetPath(request, blueprint);
         ReserveExistingElementNames(blueprint.Layout, blueprint.Packs, context.ReservedElementNames);
-        var errors = new List<BlueprintValidationIssue>();
+        var errors = GeneratedClassMemberCollisionValidator
+            .Validate(blueprint, context.Blocks, targetPath)
+            .ToList();
         var sourceMap = new List<RenderSourceMapEntry>();
         var elementCorrelations = new List<RenderElementCorrelation>();
         var rendererXaml = RenderNode(
@@ -52,7 +55,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         var resolvedSourceMap = ResolveSourceMap(rendererXaml, sourceMap);
         errors.AddRange(XamlSafetyScanner.Scan(rendererXaml, resolvedSourceMap, context.RequiredResources));
         var xaml = AddRootXmlNamespaces(rendererXaml, context.XmlNamespaces);
-        var filePlan = new RenderFilePlan(ResolveTargetPath(request, blueprint), WouldWriteFiles: false);
+        var filePlan = new RenderFilePlan(targetPath, WouldWriteFiles: false);
         var packageGuidance = PackageIntegrationPlanner.Create(request.ProjectRoot, context.RequiredNuGetPackages);
 
         return new RenderBlueprintResult(

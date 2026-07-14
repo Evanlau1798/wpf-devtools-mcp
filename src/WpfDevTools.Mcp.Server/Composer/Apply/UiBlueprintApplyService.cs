@@ -262,13 +262,13 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
     }
 
     private static string ResolveProjectMainWindowClass(string projectRoot, string targetPath)
-        => $"{ResolveRootNamespace(projectRoot)}.{ToCSharpIdentifier(Path.GetFileNameWithoutExtension(targetPath), "MainWindow")}";
+        => $"{ResolveRootNamespace(projectRoot)}.{ComposerCSharpIdentifier.Create(Path.GetFileNameWithoutExtension(targetPath), "MainWindow")}";
 
     private static string ResolveRootNamespace(string projectRoot)
     {
         if (!Directory.Exists(projectRoot))
         {
-            return ToCSharpIdentifier(Path.GetFileName(projectRoot), "Application");
+            return ComposerCSharpIdentifier.Create(Path.GetFileName(projectRoot), "Application");
         }
 
         var projectFile = Directory.EnumerateFiles(projectRoot, "*.csproj", SearchOption.TopDirectoryOnly)
@@ -276,7 +276,7 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
             .FirstOrDefault();
         if (projectFile is null)
         {
-            return ToCSharpIdentifier(Path.GetFileName(projectRoot), "Application");
+            return ComposerCSharpIdentifier.Create(Path.GetFileName(projectRoot), "Application");
         }
 
         try
@@ -286,35 +286,21 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
                 .FirstOrDefault(element => element.Name.LocalName == "RootNamespace")
                 ?.Value;
             return string.IsNullOrWhiteSpace(rootNamespace)
-                ? ToCSharpIdentifier(Path.GetFileNameWithoutExtension(projectFile), "Application")
+                ? ComposerCSharpIdentifier.Create(Path.GetFileNameWithoutExtension(projectFile), "Application")
                 : SanitizeNamespace(rootNamespace);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException)
         {
-            return ToCSharpIdentifier(Path.GetFileNameWithoutExtension(projectFile), "Application");
+            return ComposerCSharpIdentifier.Create(Path.GetFileNameWithoutExtension(projectFile), "Application");
         }
     }
 
     private static string SanitizeNamespace(string value)
     {
         var parts = value.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(part => ToCSharpIdentifier(part, "Application"))
+            .Select(part => ComposerCSharpIdentifier.Create(part, "Application"))
             .ToArray();
         return parts.Length == 0 ? "Application" : string.Join(".", parts);
-    }
-
-    private static string ToCSharpIdentifier(string value, string fallback)
-    {
-        var builder = new StringBuilder();
-        foreach (var ch in value)
-        {
-            var valid = builder.Length == 0
-                ? char.IsLetter(ch) || ch == '_'
-                : char.IsLetterOrDigit(ch) || ch == '_';
-            builder.Append(valid ? ch : '_');
-        }
-
-        return builder.Length == 0 ? fallback : builder.ToString();
     }
 
     private static string? ExtractSafeSlot(string? existingContent)

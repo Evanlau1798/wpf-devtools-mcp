@@ -23,6 +23,7 @@ using WpfUiNavigationView = Wpf.Ui.Controls.NavigationView;
 using WpfUiNavigationViewItem = Wpf.Ui.Controls.NavigationViewItem;
 using WpfUiNumberBox = Wpf.Ui.Controls.NumberBox;
 using WpfUiProgressRing = Wpf.Ui.Controls.ProgressRing;
+using WpfUiSymbolIcon = Wpf.Ui.Controls.SymbolIcon;
 using WpfUiTabView = Wpf.Ui.Controls.TabView;
 using WpfUiTabViewItem = Wpf.Ui.Controls.TabViewItem;
 using WpfUiTitleBar = Wpf.Ui.Controls.TitleBar;
@@ -223,6 +224,28 @@ public sealed class ComposerRealWpfUiRuntimeTests
         {
             window.Close();
         }
+    }
+
+    [StaFact]
+    public void SymbolIconVocabulary_ShouldMatchPackageEnumAndLoadExactValue()
+    {
+        var registry = PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
+        var pack = ComposerPackLoader.Load(registry.ListPacks().Packs
+            .Single(item => item.Id == "wpfui").RootPath);
+        pack.Blocks.Single(block => block.Kind == "wpfui.symbolIcon")
+            .Properties["symbol"].AllowedValues
+            .Should().Equal(Enum.GetNames<Wpf.Ui.Controls.SymbolRegular>());
+
+        var render = Render("""
+            {
+              "kind": "wpfui.symbolIcon",
+              "properties": { "symbol": "Temperature24" }
+            }
+            """);
+
+        render.Success.Should().BeTrue(string.Join(Environment.NewLine, render.Errors.Select(error => error.Message)));
+        var icon = XamlReader.Parse(render.Xaml).Should().BeOfType<WpfUiSymbolIcon>().Subject;
+        icon.Symbol.Should().Be(Wpf.Ui.Controls.SymbolRegular.Temperature24);
     }
 
     private static RenderBlueprintResult Render(string layout)

@@ -10,7 +10,9 @@
       "localPath": "<source-root>/wpfui-main",
       "name": "WPF UI",
       "paths": [
-        "src/Wpf.Ui"
+        "src/Wpf.Ui",
+        "src/Wpf.Ui/Controls/ControlAppearance.cs",
+        "src/Wpf.Ui/Controls/SymbolRegular.cs"
       ],
       "url": "https://github.com/lepoco/wpfui",
       "usage": "semantic extraction from public control APIs and XAML patterns"

@@ -79,6 +79,7 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - Returns items with kind, pack-defined description, properties, slots, allowedKinds, renderer availability, compositionSkeleton, previewWarning, and source-hint paths.
+        - Large vocabularies are bounded with allowedValueCount and allowedValuesTruncated; query exact kind for full values.
         - compositionSkeleton is a compact pack-neutral node derived from required properties and declared slots.
         - authoringGuidance keeps brief-first creative decisions independent; recipes remain optional accelerators.
         - Source hints never copy third-party source text.

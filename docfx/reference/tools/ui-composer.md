@@ -77,6 +77,8 @@ Request options:
 
 Catalog entries include source hint paths only. They do not copy third-party source code into tool output.
 
+For a large pack-owned property vocabulary, broad discovery returns the first 12 `allowedValues` plus `allowedValueCount` and `allowedValuesTruncated=true`. Before setting that property, call `get_ui_block_catalog` again with its exact `kind`; focused detail returns the complete vocabulary. Validation remains exact and returns a bounded set of relevant repair values.
+
 Pack authors can provide inert `description` text for blocks, properties, and slots. Properties can also provide `previewWarning` when structural preview may differ from final package measurement or styling. Read these pack-defined fields before choosing values; they describe renderer behavior without adding library-specific logic to Composer.
 
 The response also includes `authoringGuidance`. Its `strategy="brief-first"` and `creativeBriefRequired=true` fields tell an Agent to establish an independent product purpose and information architecture from discovered capabilities. `includeRecipes` defaults to false; request recipes only later as optional accelerators or fragments.

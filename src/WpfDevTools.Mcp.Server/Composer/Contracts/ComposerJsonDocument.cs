@@ -75,6 +75,7 @@ internal sealed class UiBlockProperty
     public bool Integer { get; set; }
     public string Format { get; set; } = string.Empty;
     public string[] AllowedValues { get; set; } = [];
+    public string AllowedValuesPath { get; set; } = string.Empty;
 
     [JsonPropertyName("enum")]
     public string[] EnumValues { get; set; } = [];

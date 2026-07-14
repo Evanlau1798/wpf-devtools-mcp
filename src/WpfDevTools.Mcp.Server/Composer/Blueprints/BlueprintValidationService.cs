@@ -353,7 +353,8 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
                 && value.ValueKind == JsonValueKind.String
                 && !allowedValues.Contains(value.GetString() ?? string.Empty, StringComparer.Ordinal))
             {
-                errors.Add(Issue($"{path}.properties.{name}", "PropertyValueNotAllowed", $"Property '{name}' value '{value.GetString()}' is not allowed.", $"Use one of: {string.Join(", ", allowedValues)}.", allowedValues: allowedValues));
+                var suggestions = PropertyAllowedValueSuggestions.Select(value.GetString() ?? string.Empty, allowedValues);
+                errors.Add(Issue($"{path}.properties.{name}", "PropertyValueNotAllowed", $"Property '{name}' value '{value.GetString()}' is not allowed.", $"Use one of: {string.Join(", ", suggestions)}. Query get_ui_block_catalog with exact kind '{block.Kind}' for the complete vocabulary.", allowedValues: suggestions));
             }
         }
     }

@@ -77,6 +77,8 @@ Request options:
 
 Catalog entries 只包含 source hint paths，不會把第三方 source code 複製進 tool output。
 
+若 pack-owned property vocabulary 很大，broad discovery 只會回傳前 12 個 `allowedValues`，並附上 `allowedValueCount` 與 `allowedValuesTruncated=true`。設定該 property 前，請以它的 exact `kind` 再呼叫一次 `get_ui_block_catalog`；focused detail 會回傳完整 vocabulary。Validation 仍會執行完整精確比對，並只回傳 bounded、相關性高的 repair values。
+
 Pack author 可為 blocks、properties 與 slots 提供 inert `description` text。當 structural preview 的 measurement 或 styling 可能與 final package 不同時，property 也可提供 `previewWarning`。選擇值之前應先讀取這些 pack-defined fields；它們能說明 renderer 行為，而不需在 Composer 加入 library-specific logic。
 
 Response 也會包含 `authoringGuidance`。其中 `strategy="brief-first"` 與 `creativeBriefRequired=true` 會要求 Agent 先依 discovered capabilities 自行決定 product purpose 與 information architecture。`includeRecipes` 預設為 false；之後才把 recipes 當成 optional accelerators 或 fragments 使用。

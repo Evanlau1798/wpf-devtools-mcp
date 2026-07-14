@@ -6,6 +6,7 @@
   "category": "input",
   "properties": {
     "appearance": {
+      "allowedValues": ["Primary", "Secondary", "Info", "Dark", "Light", "Danger", "Success", "Caution", "Transparent"],
       "default": "Primary",
       "required": false,
       "type": "string"

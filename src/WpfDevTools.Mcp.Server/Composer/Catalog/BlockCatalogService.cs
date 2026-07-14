@@ -7,6 +7,8 @@ namespace WpfDevTools.Mcp.Server.Composer.Catalog;
 
 internal sealed class BlockCatalogService(PackRegistry registry)
 {
+    private const int MaxBriefAllowedValues = 12;
+
     public BlockCatalogResult GetCatalog(BlockCatalogQuery query)
     {
         var registryResult = registry.ListPacks();
@@ -25,7 +27,7 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             var loadedPack = ComposerPackLoader.Load(pack.RootPath);
             foreach (var block in loadedPack.Blocks)
             {
-                var item = CreateItem(pack, loadedPack.Manifest, block);
+                var item = CreateItem(pack, loadedPack.Manifest, block, includeFullAllowedValues: query.Kind is not null);
                 if (Matches(query, item))
                 {
                     items.Add(item);
@@ -49,7 +51,8 @@ internal sealed class BlockCatalogService(PackRegistry registry)
     private static BlockCatalogItem CreateItem(
         PackRegistryItem pack,
         UiPackManifest manifest,
-        UiBlockDefinition block)
+        UiBlockDefinition block,
+        bool includeFullAllowedValues)
     {
         var slots = block.Slots.ToDictionary(
             pair => pair.Key,
@@ -57,17 +60,7 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             StringComparer.Ordinal);
         var properties = block.Properties.ToDictionary(
             pair => pair.Key,
-            pair => new BlockCatalogProperty(
-                pair.Value.Type,
-                pair.Value.Description,
-                pair.Value.PreviewWarning,
-                pair.Value.Required,
-                pair.Value.Default,
-                pair.Value.AllowedValues.Length > 0 ? pair.Value.AllowedValues : pair.Value.EnumValues,
-                pair.Value.Minimum,
-                pair.Value.Maximum,
-                pair.Value.Integer,
-                pair.Value.Format),
+            pair => CreateProperty(pair.Value, includeFullAllowedValues),
             StringComparer.Ordinal);
 
         return new BlockCatalogItem(
@@ -83,6 +76,27 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             HasRenderer(manifest, block),
             CreateCompositionSkeleton(block),
             block.SourceHints.Select(hint => hint.Path).Where(path => !string.IsNullOrWhiteSpace(path)).ToArray());
+    }
+
+    private static BlockCatalogProperty CreateProperty(UiBlockProperty property, bool includeFullAllowedValues)
+    {
+        var allAllowedValues = property.AllowedValues.Length > 0 ? property.AllowedValues : property.EnumValues;
+        var allowedValues = includeFullAllowedValues || allAllowedValues.Length <= MaxBriefAllowedValues
+            ? allAllowedValues
+            : allAllowedValues[..MaxBriefAllowedValues];
+        return new BlockCatalogProperty(
+            property.Type,
+            property.Description,
+            property.PreviewWarning,
+            property.Required,
+            property.Default,
+            allowedValues,
+            allAllowedValues.Length,
+            allowedValues.Length < allAllowedValues.Length,
+            property.Minimum,
+            property.Maximum,
+            property.Integer,
+            property.Format);
     }
 
     private static JsonElement? CreateCompositionSkeleton(UiBlockDefinition block)
@@ -223,6 +237,8 @@ internal sealed record BlockCatalogProperty(
     bool Required,
     JsonElement? Default,
     IReadOnlyList<string> AllowedValues,
+    int AllowedValueCount,
+    bool AllowedValuesTruncated,
     double? Minimum,
     double? Maximum,
     bool Integer,

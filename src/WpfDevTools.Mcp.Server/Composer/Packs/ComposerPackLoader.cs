@@ -68,6 +68,7 @@ internal static class ComposerPackLoader
             Path.Combine(root, "blocks"),
             "*.block.json",
             UiComposerSchemaVersions.UiBlock);
+        PackPropertyVocabularyLoader.Hydrate(root, blocks);
         ValidateBlockContracts(manifest, blocks);
         foreach (var block in blocks)
         {
@@ -170,6 +171,7 @@ internal static class ComposerPackLoader
             .Concat(EnumerateOptionalFiles(Path.Combine(root, "blocks"), "*.block.json"))
             .Concat(EnumerateOptionalFiles(Path.Combine(root, "recipes"), "*.recipe.json"))
             .Concat(EnumerateOptionalFiles(Path.Combine(root, "examples"), "*.ui.json"))
+            .Concat(EnumerateOptionalFiles(Path.Combine(root, "vocabularies"), "*.json"))
             .Concat(EnumerateOptionalFiles(Path.Combine(root, "renderers", "xaml"), "*.xaml.sbn"))
             .Select(Path.GetFullPath)
             .Order(StringComparer.Ordinal);

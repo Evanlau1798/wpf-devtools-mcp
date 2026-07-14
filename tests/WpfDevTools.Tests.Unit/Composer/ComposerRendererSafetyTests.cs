@@ -22,6 +22,7 @@ public sealed class ComposerRendererSafetyTests
     [InlineData("<TextBlock Text=\"{Binding FallbackValue={StaticResource Placeholder}, Source={StaticResource Process}}\" />", "UnsafeBindingExpression")]
     [InlineData("<TextBlock><TextBlock.Text><Binding Source=\"{StaticResource Process}\" /></TextBlock.Text></TextBlock>", "UnsafeBindingExpression")]
     [InlineData("<TextBlock><TextBlock.Text><MultiBinding Converter=\"{StaticResource Converter}\" /></TextBlock.Text></TextBlock>", "UnsafeBindingExpression")]
+    [InlineData("<TextBlock Text=\"{Binding Tag, RelativeSource={RelativeSource PreviousData}}\" />", "UnsafeBindingExpression")]
     [InlineData("<ResourceDictionary Source=\"pack://application:,,,/Unsafe;component/App.xaml\" />", "UnsafeResourceDictionarySource")]
     [InlineData("<ResourceDictionary.Source>pack://application:,,,/Unsafe;component/App.xaml</ResourceDictionary.Source>", "UnsafeResourceDictionarySource")]
     public void RenderBlueprint_ShouldRejectUnsafeRendererOutput(string rendererTemplate, string expectedCode)
@@ -37,6 +38,27 @@ public sealed class ComposerRendererSafetyTests
             result.Errors.Should().Contain(issue => issue.Code == expectedCode
                 && issue.JsonPath == "$.layout"
                 && issue.RepairSuggestion.Length > 0);
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
+    public void RenderBlueprint_ShouldAllowConstrainedAncestorBinding()
+    {
+        const string rendererTemplate =
+            "<ContentControl Visibility=\"{Binding Children[0].HasItems, RelativeSource={RelativeSource AncestorType={x:Type Grid}}}\" />";
+        var projectRoot = CreateTempProjectWithSafetyPack(rendererTemplate);
+        try
+        {
+            var renderer = new UiBlueprintRenderer(CreateRegistry(projectRoot));
+
+            var result = renderer.Render(new RenderBlueprintRequest(Blueprint()));
+
+            result.Success.Should().BeTrue();
+            result.Xaml.Should().Contain("RelativeSource AncestorType={x:Type Grid}");
         }
         finally
         {

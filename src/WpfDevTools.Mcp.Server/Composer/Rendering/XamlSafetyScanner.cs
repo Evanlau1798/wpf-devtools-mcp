@@ -6,7 +6,13 @@ namespace WpfDevTools.Mcp.Server.Composer.Rendering;
 internal static class XamlSafetyScanner
 {
     private static readonly Regex UnsafeBindingPattern = new(
-        @"(?:Source|ElementName|RelativeSource|Converter)\s*=|ObjectDataProvider|x:Static",
+        @"\b(?:Source|ElementName|Converter)\s*=|ObjectDataProvider|x:Static",
+        RegexOptions.CultureInvariant);
+    private static readonly Regex RelativeSourcePattern = new(
+        @"RelativeSource\s*=",
+        RegexOptions.CultureInvariant);
+    private static readonly Regex SafeAncestorBindingPattern = new(
+        @"^\{Binding\s+[^,{}]+\s*,\s*RelativeSource\s*=\s*\{RelativeSource\s+AncestorType\s*=\s*\{x:Type\s+[A-Za-z_][A-Za-z0-9_.:-]*\}\s*\}\s*\}$",
         RegexOptions.CultureInvariant);
 
     private static readonly HashSet<string> EventNames = new(StringComparer.Ordinal)
@@ -175,7 +181,8 @@ internal static class XamlSafetyScanner
     private static bool IsUnsafeBindingAttribute(string tagLocalName, string attributeLocalName, string value)
     {
         if (value.Contains("{Binding", StringComparison.Ordinal)
-            && UnsafeBindingPattern.IsMatch(value))
+            && (UnsafeBindingPattern.IsMatch(value)
+                || (RelativeSourcePattern.IsMatch(value) && !SafeAncestorBindingPattern.IsMatch(value))))
         {
             return true;
         }

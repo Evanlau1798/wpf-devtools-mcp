@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -18,6 +19,7 @@ using Wpf.Ui.Markup;
 using WpfUiAutoSuggestBox = Wpf.Ui.Controls.AutoSuggestBox;
 using WpfUiButton = Wpf.Ui.Controls.Button;
 using WpfUiCard = Wpf.Ui.Controls.Card;
+using WpfUiDataGrid = Wpf.Ui.Controls.DataGrid;
 using WpfUiFluentWindow = Wpf.Ui.Controls.FluentWindow;
 using WpfUiNavigationView = Wpf.Ui.Controls.NavigationView;
 using WpfUiNavigationViewItem = Wpf.Ui.Controls.NavigationViewItem;
@@ -246,6 +248,66 @@ public sealed class ComposerRealWpfUiRuntimeTests
         render.Success.Should().BeTrue(string.Join(Environment.NewLine, render.Errors.Select(error => error.Message)));
         var icon = XamlReader.Parse(render.Xaml).Should().BeOfType<WpfUiSymbolIcon>().Subject;
         icon.Symbol.Should().Be(Wpf.Ui.Controls.SymbolRegular.Temperature24);
+    }
+
+    [StaFact]
+    public void DataGridEmptyState_ShouldRemainVisibleUntilItemsArrive()
+    {
+        var render = Render("""
+            {
+              "kind": "wpfui.dataGrid",
+              "elementName": "FiringLedger",
+              "properties": { "itemsSource": "{Binding Rows}" },
+              "slots": {
+                "columns": [{ "kind": "core.template" }],
+                "emptyState": [{
+                  "kind": "wpfui.card",
+                  "slots": { "content": [{
+                    "kind": "core.text",
+                    "properties": { "text": "No firing batches scheduled." }
+                  }] }
+                }]
+              }
+            }
+            """);
+
+        render.Success.Should().BeTrue(string.Join(Environment.NewLine, render.Errors.Select(error => error.Message)));
+        var content = XamlReader.Parse(render.Xaml).Should().BeOfType<Grid>().Subject;
+        var rows = new ObservableCollection<object>();
+        var host = new Window
+        {
+            Width = 640,
+            Height = 420,
+            Content = content,
+            DataContext = new { Rows = rows }
+        };
+        AddWpfUiResourcesFromPlan(host, render.RequiredResources);
+
+        try
+        {
+            host.Show();
+            host.UpdateLayout();
+            var descendants = EnumerateDescendants(host).ToArray();
+            var dataGrid = descendants.OfType<WpfUiDataGrid>().Should().ContainSingle().Subject;
+            var emptyState = descendants.OfType<TextBlock>().Should().ContainSingle(text =>
+                string.Equals(text.Text, "No firing batches scheduled.", StringComparison.Ordinal)).Subject;
+            dataGrid.Name.Should().Be("FiringLedger");
+            content.Name.Should().BeEmpty();
+            emptyState.IsVisible.Should().BeTrue();
+            emptyState.ActualWidth.Should().BeGreaterThan(0);
+            emptyState.ActualHeight.Should().BeGreaterThan(0);
+
+            rows.Add(new { Batch = "K-104" });
+            host.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            host.UpdateLayout();
+
+            dataGrid.HasItems.Should().BeTrue();
+            emptyState.IsVisible.Should().BeFalse();
+        }
+        finally
+        {
+            host.Close();
+        }
     }
 
     private static RenderBlueprintResult Render(string layout)

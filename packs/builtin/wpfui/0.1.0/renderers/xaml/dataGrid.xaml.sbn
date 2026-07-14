@@ -1,4 +1,18 @@
-<ui:DataGrid ItemsSource="{{itemsSource}}">
-  <ui:DataGrid.Columns>{{slot.columns}}</ui:DataGrid.Columns>
-  {{slot.emptyState}}
-</ui:DataGrid>
+<Grid>
+  <ui:DataGrid{{identity.attributes}} ItemsSource="{{itemsSource}}">
+    <ui:DataGrid.Columns>{{slot.columns}}</ui:DataGrid.Columns>
+  </ui:DataGrid>
+  <ContentControl HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+    <ContentControl.Style>
+      <Style TargetType="{x:Type ContentControl}">
+        <Setter Property="Visibility" Value="Visible" />
+        <Style.Triggers>
+          <DataTrigger Binding="{Binding Children[0].HasItems, RelativeSource={RelativeSource AncestorType={x:Type Grid}}}" Value="True">
+            <Setter Property="Visibility" Value="Collapsed" />
+          </DataTrigger>
+        </Style.Triggers>
+      </Style>
+    </ContentControl.Style>
+    {{slot.emptyState}}
+  </ContentControl>
+</Grid>

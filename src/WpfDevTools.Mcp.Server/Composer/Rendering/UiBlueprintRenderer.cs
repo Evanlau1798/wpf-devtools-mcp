@@ -98,19 +98,46 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         }
 
         var template = OmitUnsetPropertyAttributes(templateResult.Template.Content, node, block);
+        var identityTargets = TokenPattern.Matches(template)
+            .Where(match => match.Groups["name"].Value == IdentityAttributesToken)
+            .ToArray();
+        if (identityTargets.Length > 1)
+        {
+            errors.Add(Issue(path, "RendererIdentityTargetAmbiguous", $"Renderer for block '{block.Kind}' declares identity.attributes more than once.", "Keep exactly one {{identity.attributes}} token on the XAML element that should receive authored identity and preview correlation."));
+            return string.Empty;
+        }
+
+        if (identityTargets.Length == 1
+            && !RendererIdentityTargetValidator.IsValidPlacement(template, identityTargets[0].Index, identityTargets[0].Length))
+        {
+            errors.Add(Issue(path, "RendererIdentityTargetPlacementInvalid", $"Renderer for block '{block.Kind}' places identity.attributes outside a XAML start tag.", "Place {{identity.attributes}} after the selected element name and outside attribute values."));
+            return string.Empty;
+        }
+
+        if (identityTargets.Length == 1
+            && RendererIdentityTargetValidator.HasStaticIdentityConflict(template, identityTargets[0].Index, identityTargets[0].Length))
+        {
+            errors.Add(Issue(path, "RendererIdentityTargetConflict", $"Renderer for block '{block.Kind}' combines identity.attributes with a static identity attribute.", "Remove x:Name, Name, and AutomationProperties.AutomationId from the selected start tag."));
+            return string.Empty;
+        }
+
+        var hasIdentityTarget = identityTargets.Length == 1;
         var rendered = TokenPattern.Replace(template, match =>
             ResolveToken(match.Groups["name"].Value, node, block, path, packs, context, errors, sourceMap,
                 includeTransientElementCorrelation, elementCorrelations));
         rendered = EmptyPropertyElementPattern.Replace(rendered, string.Empty);
-        rendered = AddAuthoredIdentity(rendered, node, path, errors);
-        if (includeTransientElementCorrelation)
+        if (!hasIdentityTarget)
         {
-            rendered = AddTransientElementCorrelation(
-                rendered,
-                path,
-                node.Kind,
-                context.ReservedElementNames,
-                elementCorrelations);
+            rendered = AddAuthoredIdentity(rendered, node, path, errors);
+            if (includeTransientElementCorrelation)
+            {
+                rendered = AddTransientElementCorrelation(
+                    rendered,
+                    path,
+                    node.Kind,
+                    context.ReservedElementNames,
+                    elementCorrelations);
+            }
         }
 
         sourceMap.Add(new RenderSourceMapEntry(path, node.Kind, templateResult.Template.TemplatePath, rendered));
@@ -129,6 +156,17 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         bool includeTransientElementCorrelation,
         List<RenderElementCorrelation> elementCorrelations)
     {
+        if (token == IdentityAttributesToken)
+        {
+            return RenderIdentityAttributes(
+                node,
+                path,
+                block.Kind,
+                includeTransientElementCorrelation,
+                context.ReservedElementNames,
+                elementCorrelations);
+        }
+
         if (token.StartsWith("slot.", StringComparison.Ordinal))
         {
             var slotName = token["slot.".Length..];

@@ -7,6 +7,8 @@ namespace WpfDevTools.Mcp.Server.Composer.Rendering;
 
 internal sealed partial class UiBlueprintRenderer
 {
+    private const string IdentityAttributesToken = "identity.attributes";
+
     private static readonly Regex RootNamePattern = new(
         "(?:^|\\s)(?:x:Name|Name)\\s*=\\s*(?:\"(?<double>[^\"]+)\"|'(?<single>[^']+)')",
         RegexOptions.CultureInvariant);
@@ -126,6 +128,37 @@ internal sealed partial class UiBlueprintRenderer
 
         correlations.Add(new RenderElementCorrelation(elementName, jsonPath, blockKind));
         return xaml;
+    }
+
+    private static string RenderIdentityAttributes(
+        UiBlueprintNode node,
+        string jsonPath,
+        string blockKind,
+        bool includeTransientElementCorrelation,
+        IReadOnlySet<string> reservedNames,
+        List<RenderElementCorrelation> correlations)
+    {
+        var elementName = node.ElementName;
+        if (includeTransientElementCorrelation && elementName is null)
+        {
+            elementName = CreateGeneratedName(reservedNames, correlations);
+        }
+
+        var attributes = new List<string>();
+        if (elementName is not null)
+        {
+            attributes.Add($"x:Name=\"{EscapeAttribute(elementName)}\"");
+        }
+        if (node.AutomationId is not null)
+        {
+            attributes.Add($"AutomationProperties.AutomationId=\"{EscapeAttribute(node.AutomationId)}\"");
+        }
+        if (includeTransientElementCorrelation && elementName is not null)
+        {
+            correlations.Add(new RenderElementCorrelation(elementName, jsonPath, blockKind));
+        }
+
+        return attributes.Count == 0 ? string.Empty : " " + string.Join(" ", attributes);
     }
 
     private void ReserveExistingElementNames(

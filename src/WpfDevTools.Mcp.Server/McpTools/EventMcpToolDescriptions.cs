@@ -5,9 +5,8 @@ internal static class EventMcpToolDescriptions
     private const string EventMetadata = "CATEGORY: Event\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
     public const string TraceRoutedEvents =
-        "Use this tool to trace WPF routed events during runtime interaction and diagnose event flow.\n\n" +
-        EventMetadata + "[Event] Trace a routed event over a short capture window and return collected records, or run in a two-step non-blocking workflow for AI agents. " +
-        "Use `mode=\"start\"` to start tracing immediately, then trigger UI activity with another tool, then call `mode=\"get\"` to fetch the buffered records.\n\n" +
+        "Trace bounded WPF routed events during runtime interaction.\n\n" +
+        EventMetadata + "Use `capture` for one call, or `start` + interaction + `drain_events` for non-blocking agents.\n\n" +
         "USE WHEN: Debugging event handling issues; confirming whether Click/MouseDown style events are firing; correlating routed events with follow-up tool calls from the same MCP session.\n" +
         "DO NOT USE: As a long-running subscription. This tool captures only a bounded in-memory trace.\n\n" +
         "MODES:\n" +
@@ -19,11 +18,11 @@ internal static class EventMcpToolDescriptions
         "  - success, mode: \"capture\", eventName, duration, isTracing, eventCount, events, handlerInvocationCount, cleanupState (optional), cleanupFailed (optional), cleanupIncomplete (optional)\n" +
         "- start mode:\n" +
         "  - success, mode: \"start\", eventName, requestedDuration, effectiveDuration, shortDurationOverrideUsed, isTracing, message\n" +
-        "  - NOTE: effectiveDuration may be higher than requestedDuration (minimum 30s enforced by default for AI agent IPC round-trips). When they differ, `nextSteps` provides an exact retry with the original `durationMs` and `allowShortStartDuration=true`; use it only when the shorter explicit window is intentional.\n" +
+        "  - If effectiveDuration > requestedDuration, nextSteps retries durationMs with allowShortStartDuration=true; otherwise keep the safe 30s minimum.\n" +
         "- get mode:\n" +
         "  - success, mode: \"get\", isTracing, eventCount, totalEventCount, returnedEventCount, eventsTruncated, maxEvents, events, handlerInvocationCount, cleanupState (optional), cleanupFailed (optional), cleanupIncomplete (optional)\n" +
         "  - NOTE: Provide maxEvents to cap returned trace records. When capped, totalEventCount preserves the original count and eventsTruncated=true signals that more events were available.\n\n" +
-        "TIP: For AI-driven automation, prefer `mode=\"start\"` + `click_element`/`fire_routed_event` + `mode=\"get\"` so the capture window is not blocked by the current request.\n\n" +
+        "TIP: Prefer `start` + interaction + `drain_events` for non-blocking agent workflows.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"invalid event name\" -> verify eventName is a valid WPF RoutedEvent\n" +

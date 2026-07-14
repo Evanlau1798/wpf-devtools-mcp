@@ -258,7 +258,7 @@ internal static class UiComposerMcpToolDescriptions
         - Returns compile, host, structural-fidelity, screenshot-verification, pack-warning, and element-correlation evidence.
         - visualFidelity="structural-stub" means preview screenshots are structural-only evidence. Validate final styling in the applied, built, and launched WPF application.
         - screenshotVerificationGuidance tells clients to re-read the same resource and verify its SHA-256 before regenerating a semantically complete preview that appears sparse.
-        - visualComparisonChecklist names expected stub differences and each required final-app check.
+        - visualComparisonChecklist names expected stub differences in window chrome, icons, control templates, and layout and spacing.
         - propertyWarnings contains pack-defined guidance only for explicitly supplied properties, with the exact blueprint JSON path, block kind, property name, and message.
         - elementCorrelations maps each renderer root's transient x:Name to its blueprint jsonPath and blockKind. These names are never written into the blueprint or emitted by render/apply.
         - restoreEnabled=false runs dotnet build --no-restore and returns missing-assets diagnostics when the temporary project has not been restored.

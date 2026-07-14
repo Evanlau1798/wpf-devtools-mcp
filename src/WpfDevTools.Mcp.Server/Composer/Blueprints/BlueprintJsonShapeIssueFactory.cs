@@ -406,6 +406,13 @@ internal static class BlueprintJsonShapeIssueFactory
 
             if (path[index] == '[')
             {
+                if (TryReadQuotedProperty(path, index, out var propertyName, out var nextIndex))
+                {
+                    yield return new(propertyName, null);
+                    index = nextIndex;
+                    continue;
+                }
+
                 var close = path.IndexOf(']', index + 1);
                 if (close < 0 || !int.TryParse(path[(index + 1)..close], out var arrayIndex))
                 {
@@ -419,6 +426,56 @@ internal static class BlueprintJsonShapeIssueFactory
 
             yield break;
         }
+    }
+
+    private static bool TryReadQuotedProperty(
+        string path,
+        int openBracketIndex,
+        out string propertyName,
+        out int nextIndex)
+    {
+        propertyName = string.Empty;
+        nextIndex = openBracketIndex;
+        var quoteStart = openBracketIndex + 1;
+        if (quoteStart >= path.Length || path[quoteStart] != '"')
+        {
+            return false;
+        }
+
+        var escaped = false;
+        for (var index = quoteStart + 1; index < path.Length; index++)
+        {
+            if (escaped)
+            {
+                escaped = false;
+                continue;
+            }
+
+            if (path[index] == '\\')
+            {
+                escaped = true;
+                continue;
+            }
+
+            if (path[index] != '"' || index + 1 >= path.Length || path[index + 1] != ']')
+            {
+                continue;
+            }
+
+            try
+            {
+                propertyName = JsonSerializer.Deserialize<string>(path[quoteStart..(index + 1)]) ?? string.Empty;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+
+            nextIndex = index + 2;
+            return true;
+        }
+
+        return false;
     }
 
     private readonly record struct PathSegment(string? PropertyName, int? ArrayIndex);

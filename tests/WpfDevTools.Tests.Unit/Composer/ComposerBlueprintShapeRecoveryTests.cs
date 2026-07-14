@@ -66,6 +66,18 @@ public sealed class ComposerBlueprintShapeRecoveryTests
             "$.layout.slots[\"action]area\"][0]",
             "False",
             "{ \"kind\": \"pack.block\", \"slots\": {} }"
+        },
+        {
+            "{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"packs\":[],\"layout\":{\"kind\":\"core.stack\",\"slots\":{\"action.area\":[{\"kind\":42}]}}}",
+            "$.layout.slots[\"action.area\"][0].kind",
+            "Number",
+            "\"text\""
+        },
+        {
+            """{"schemaVersion":"wpfdevtools.ui-blueprint.v1","packs":[],"layout":{"kind":"core.stack","slots":{"action\"\\area":[{"kind":false}]}}}""",
+            """$.layout.slots["action\u0022\\area"][0].kind""",
+            "False",
+            "\"text\""
         }
     };
 

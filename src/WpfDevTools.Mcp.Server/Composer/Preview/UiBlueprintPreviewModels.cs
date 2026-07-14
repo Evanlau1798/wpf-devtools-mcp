@@ -75,7 +75,10 @@ internal sealed record PreviewDiagnostic(
     string Code,
     string Message,
     string JsonPath,
-    string RendererTemplatePath);
+    string RendererTemplatePath)
+{
+    public IReadOnlyList<string> RelatedJsonPaths { get; init; } = [];
+}
 
 internal sealed record PreviewHostResult(
     string Status,

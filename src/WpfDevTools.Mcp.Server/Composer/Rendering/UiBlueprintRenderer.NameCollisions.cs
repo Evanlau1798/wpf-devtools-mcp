@@ -73,7 +73,11 @@ internal sealed partial class UiBlueprintRenderer
                     occurrence.JsonPath,
                     "RenderedNameCollision",
                     $"Rendered XAML name '{attribute.Value}' is repeated in one namescope by '{first.JsonPath}' and '{occurrence.JsonPath}'.",
-                    "Use unique names per renderer instance, or move the named part into a template or style namescope."));
+                    "Use unique names per renderer instance, or move the named part into a template or style namescope.")
+                    with
+                    {
+                        RelatedJsonPaths = [first.JsonPath, occurrence.JsonPath]
+                    });
             }
             else
             {

@@ -45,7 +45,10 @@ internal sealed record BlueprintValidationIssue(
     string RepairSuggestion,
     IReadOnlyList<string> AllowedKinds,
     IReadOnlyList<string> AllowedValues,
-    string? ParentSlot);
+    string? ParentSlot)
+{
+    public IReadOnlyList<string> RelatedJsonPaths { get; init; } = [];
+}
 
 internal sealed record BlueprintValidationContext(
     IReadOnlySet<string> DeclaredPackIds,

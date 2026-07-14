@@ -1,4 +1,6 @@
 using FluentAssertions;
+using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
 using WpfDevTools.Tests.Unit.TestSupport;
@@ -16,10 +18,12 @@ public sealed class ComposerRenderedNameCollisionTests
             var result = Render(projectRoot);
 
             result.Success.Should().BeFalse();
-            result.Errors.Should().ContainSingle(issue =>
-                issue.Code == "RenderedNameCollision"
-                && issue.JsonPath == "$.layout.slots.children[1]"
-                && issue.Message.Contains("$.layout.slots.children[0]", StringComparison.Ordinal));
+            var issue = result.Errors.Should().ContainSingle(item =>
+                item.Code == "RenderedNameCollision").Subject;
+            issue.JsonPath.Should().Be("$.layout.slots.children[1]");
+            issue.RelatedJsonPaths.Should().Equal(
+                "$.layout.slots.children[0]",
+                "$.layout.slots.children[1]");
             result.SourceMap.Where(entry => entry.BlockKind == "sample.namedPart")
                 .Select(entry => entry.StartIndex).Should().OnlyHaveUniqueItems();
         }
@@ -105,6 +109,38 @@ public sealed class ComposerRenderedNameCollisionTests
 
             act.Should().Throw<InvalidDataException>()
                 .WithMessage("*InvalidRendererNameScopeElements*");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
+    [Fact]
+    public async Task PreviewTool_ShouldPublishBothRenderedNameCollisionPaths()
+    {
+        var projectRoot = CreatePack("<Grid x:Name=\"SharedPart\" />");
+        try
+        {
+            using var sessionManager = new SessionManager();
+
+            var result = await UiComposerMcpTools.PreviewUiBlueprint(
+                sessionManager,
+                Blueprint(),
+                restoreEnabled: false,
+                projectRoot: projectRoot,
+                cancellationToken: CancellationToken.None);
+
+            result.IsError.Should().BeTrue();
+            var diagnostic = result.StructuredContent!.Value.GetProperty("diagnostics")
+                .EnumerateArray()
+                .Single(item => item.GetProperty("code").GetString() == "RenderedNameCollision");
+            diagnostic.GetProperty("relatedJsonPaths")
+                .EnumerateArray()
+                .Select(item => item.GetString())
+                .Should().Equal(
+                    "$.layout.slots.children[0]",
+                    "$.layout.slots.children[1]");
         }
         finally
         {

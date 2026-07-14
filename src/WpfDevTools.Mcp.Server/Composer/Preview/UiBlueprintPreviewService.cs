@@ -43,7 +43,10 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                     error.Code,
                     error.Message,
                     error.JsonPath,
-                    rendererTemplatePath)).ToArray());
+                    rendererTemplatePath)
+                {
+                    RelatedJsonPaths = error.RelatedJsonPaths
+                }).ToArray());
         }
 
         var propertyWarnings = CollectPropertyWarnings(request.BlueprintJson);

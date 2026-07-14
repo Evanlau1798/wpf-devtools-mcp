@@ -148,6 +148,35 @@ public sealed class ComposerRenderedNameCollisionTests
         }
     }
 
+    [Fact]
+    public async Task ApplyTool_ShouldPublishBothRenderedNameCollisionPaths()
+    {
+        var projectRoot = CreatePack("<Grid x:Name=\"SharedPart\" />");
+        try
+        {
+            var result = await UiComposerMcpTools.ApplyUiBlueprint(
+                Blueprint(),
+                projectRoot,
+                dryRun: true,
+                cancellationToken: CancellationToken.None);
+
+            result.IsError.Should().BeTrue();
+            var issue = result.StructuredContent!.Value.GetProperty("errors")
+                .EnumerateArray()
+                .Single(item => item.GetProperty("code").GetString() == "RenderedNameCollision");
+            issue.GetProperty("relatedJsonPaths")
+                .EnumerateArray()
+                .Select(item => item.GetString())
+                .Should().Equal(
+                    "$.layout.slots.children[0]",
+                    "$.layout.slots.children[1]");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
     private static RenderBlueprintResult Render(string projectRoot)
     {
         var registry = new PackRegistry(

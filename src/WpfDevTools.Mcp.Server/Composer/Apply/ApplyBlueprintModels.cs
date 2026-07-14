@@ -88,8 +88,13 @@ internal sealed record BehaviorInteractionPlan(
 
 internal sealed record ApplyBlueprintIssue(string JsonPath, string Code, string Message, string RepairSuggestion)
 {
+    public IReadOnlyList<string> RelatedJsonPaths { get; init; } = [];
+
     public static ApplyBlueprintIssue FromValidationIssue(Composer.Blueprints.BlueprintValidationIssue issue)
-        => new(issue.JsonPath, issue.Code, issue.Message, issue.RepairSuggestion);
+        => new(issue.JsonPath, issue.Code, issue.Message, issue.RepairSuggestion)
+        {
+            RelatedJsonPaths = issue.RelatedJsonPaths
+        };
 }
 
 internal sealed record ApplyFileWriteResult(bool Success, string? BackupPath, bool TargetExisted, ApplyBlueprintIssue? Error)

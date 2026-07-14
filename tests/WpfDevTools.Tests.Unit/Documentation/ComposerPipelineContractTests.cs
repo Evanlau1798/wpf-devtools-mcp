@@ -130,8 +130,12 @@ public sealed class ComposerPipelineContractTests
             "projectPackageReference",
             "centralPackageVersion",
             "codeBehindBaseType",
-            "dotnet build",
-            "capture_state_snapshot");
+             "dotnet build",
+             "capture_state_snapshot");
+        documentation.Should().Contain(
+            "retry `preview_ui_blueprint` with `screenshotMaxWidth=1024` and `screenshotMaxHeight=1024`");
+        documentation.Should().NotContain("retry `element_screenshot`",
+            "the temporary preview host has exited before the tool returns");
         AssertPackNeutralExamples(documentation);
     }
 
@@ -209,8 +213,12 @@ public sealed class ComposerPipelineContractTests
             "projectPackageReference",
             "centralPackageVersion",
             "codeBehindBaseType",
-            "dotnet build",
-            "capture_state_snapshot");
+             "dotnet build",
+             "capture_state_snapshot");
+        documentation.Should().Contain(
+            "以 `screenshotMaxWidth=1024` 與 `screenshotMaxHeight=1024` 重跑 `preview_ui_blueprint`");
+        documentation.Should().NotContain("重試 `element_screenshot`",
+            "tool 回傳前 temporary preview host 已結束");
         AssertPackNeutralExamples(documentation);
     }
 

@@ -375,57 +375,63 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
         IReadOnlyList<RequiredNuGetPackage> packages,
         BehaviorIntegrationContractPlan behaviorContract,
         IReadOnlyList<ViewModelBindingRequirement> bindingRequirements)
-        => new(
-            TargetPath: Path.Combine(projectRoot, "ViewModels", Path.GetFileNameWithoutExtension(targetPath) + ".Bindings.json"),
-            Content: JsonSerializer.Serialize(new
+    {
+        var requirementsContract = new
+        {
+            status = bindingRequirements.Count == 0 ? "not-detected" : "required",
+            implementationReadiness = bindingRequirements.Count == 0
+                ? "not-required"
+                : "project-implementation-required",
+            composerWritesViewModelSource = false,
+            requirements = bindingRequirements.Select(requirement => new
             {
-                schemaVersion = "wpfdevtools.viewmodel-binding-contract.v1",
-                view = Path.GetFileName(targetPath),
-                requiredPackages = packages.Select(package => package.Id).ToArray(),
-                bindingRequirements = new
+                bindingStatus = requirement.BindingStatus,
+                bindingPath = requirement.BindingPath,
+                rawBindings = requirement.RawBindings,
+                implementationStatus = "required",
+                usages = requirement.Usages.Select(usage => new
                 {
-                    status = bindingRequirements.Count == 0 ? "not-detected" : "required",
-                    implementationReadiness = bindingRequirements.Count == 0
-                        ? "not-required"
-                        : "project-implementation-required",
-                    composerWritesViewModelSource = false,
-                    requirements = bindingRequirements.Select(requirement => new
-                    {
-                        bindingStatus = requirement.BindingStatus,
-                        bindingPath = requirement.BindingPath,
-                        rawBindings = requirement.RawBindings,
-                        implementationStatus = "required",
-                        usages = requirement.Usages.Select(usage => new
-                        {
-                            jsonPath = usage.JsonPath,
-                            blockKind = usage.BlockKind,
-                            propertyName = usage.PropertyName,
-                            declaredPropertyType = usage.DeclaredPropertyType,
-                            rawBinding = usage.RawBinding
-                        })
-                    }),
-                    implementationGuidance = bindingRequirements.Count == 0
-                        ? "No authored ViewModel bindings were detected."
-                        : "Implement every resolved binding path in the project ViewModel and resolve every path-unresolved binding. Composer does not write ViewModel source.",
-                    verificationGuidance = "Build and launch the final app, then verify every listed usage has an active binding without runtime binding errors."
-                },
-                behaviorIntegration = new
-                {
-                    status = behaviorContract.Status,
-                    sourceRecipeId = behaviorContract.SourceRecipeId,
-                    interactions = behaviorContract.Interactions.Select(interaction => new
-                    {
-                        kind = interaction.Kind,
-                        commandPath = interaction.CommandPath,
-                        commandParameter = interaction.CommandParameter,
-                        targetPageTag = interaction.TargetPageTag,
-                        label = interaction.Label,
-                        implementationGuidance = interaction.ImplementationGuidance
-                    }),
-                    implementationGuidance = behaviorContract.ImplementationGuidance,
-                    verificationGuidance = behaviorContract.VerificationGuidance
-                }
+                    jsonPath = usage.JsonPath,
+                    blockKind = usage.BlockKind,
+                    propertyName = usage.PropertyName,
+                    declaredPropertyType = usage.DeclaredPropertyType,
+                    rawBinding = usage.RawBinding
+                })
             }),
-            WouldWrite: false);
+            implementationGuidance = bindingRequirements.Count == 0
+                ? "No authored ViewModel bindings were detected."
+                : "Implement every resolved binding path in the project ViewModel and resolve every path-unresolved binding. Composer does not write ViewModel source.",
+            verificationGuidance = "Build and launch the final app, then verify every listed usage has an active binding without runtime binding errors."
+        };
+        var content = JsonSerializer.Serialize(new
+        {
+            schemaVersion = "wpfdevtools.viewmodel-binding-contract.v1",
+            view = Path.GetFileName(targetPath),
+            requiredPackages = packages.Select(package => package.Id).ToArray(),
+            bindingRequirements = requirementsContract,
+            behaviorIntegration = new
+            {
+                status = behaviorContract.Status,
+                sourceRecipeId = behaviorContract.SourceRecipeId,
+                interactions = behaviorContract.Interactions.Select(interaction => new
+                {
+                    kind = interaction.Kind,
+                    commandPath = interaction.CommandPath,
+                    commandParameter = interaction.CommandParameter,
+                    targetPageTag = interaction.TargetPageTag,
+                    label = interaction.Label,
+                    implementationGuidance = interaction.ImplementationGuidance
+                }),
+                implementationGuidance = behaviorContract.ImplementationGuidance,
+                verificationGuidance = behaviorContract.VerificationGuidance
+            }
+        });
+
+        return new(
+            TargetPath: Path.Combine(projectRoot, "ViewModels", Path.GetFileNameWithoutExtension(targetPath) + ".Bindings.json"),
+            Content: content,
+            WouldWrite: false,
+            BindingRequirements: JsonSerializer.SerializeToElement(requirementsContract));
+    }
 
 }

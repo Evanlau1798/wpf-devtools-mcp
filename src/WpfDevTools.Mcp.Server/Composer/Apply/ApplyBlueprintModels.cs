@@ -1,3 +1,4 @@
+using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
 
 namespace WpfDevTools.Mcp.Server.Composer.Apply;
@@ -42,7 +43,7 @@ internal sealed record ApplyBlueprintResult(
         bool dryRun,
         IReadOnlyList<ApplyBlueprintIssue> errors,
         bool requiresConfirmation = false)
-        => new(false, false, dryRun, requiresConfirmation, false, string.Empty, [], [], [], new ViewModelBindingContractPlan(string.Empty, string.Empty, false), BehaviorIntegrationContractPlan.Empty, ProjectIntegrationPlan.Empty, errors);
+        => new(false, false, dryRun, requiresConfirmation, false, string.Empty, [], [], [], new ViewModelBindingContractPlan(string.Empty, string.Empty, false, null), BehaviorIntegrationContractPlan.Empty, ProjectIntegrationPlan.Empty, errors);
 }
 
 internal sealed record ApplyFilePlanItem(
@@ -54,7 +55,11 @@ internal sealed record ApplyFilePlanItem(
     string? BackupPath,
     bool Reversible);
 
-internal sealed record ViewModelBindingContractPlan(string TargetPath, string Content, bool WouldWrite);
+internal sealed record ViewModelBindingContractPlan(
+    string TargetPath,
+    string Content,
+    bool WouldWrite,
+    JsonElement? BindingRequirements);
 
 internal sealed record BehaviorIntegrationContractPlan(
     string Status,

@@ -306,6 +306,11 @@ public sealed class ComposerApplyDryRunTests
             var behavior = payload.GetProperty("behaviorIntegrationContract");
             behavior.GetProperty("status").GetString().Should().Be("required");
             behavior.GetProperty("interactions")[0].GetProperty("commandPath").GetString().Should().Be("ApplyCommand");
+            var bindings = payload.GetProperty("viewModelBindingContract")
+                .GetProperty("bindingRequirements");
+            bindings.GetProperty("status").GetString().Should().Be("required");
+            bindings.GetProperty("requirements")[0].GetProperty("bindingPath")
+                .GetString().Should().Be("ApplyCommand");
         }
         finally
         {

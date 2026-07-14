@@ -19,7 +19,7 @@ public static partial class UiComposerMcpTools
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
         [Description("Current UI blueprint JSON text or opaque draftRef. Raw JSON returns a new object; draft input returns a new immutable derived draftRef.")] string blueprintJson,
         [StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
-        [Description("Exact target slot path, or stable elementName alias such as @ElementName.slots.actions. Exact examples: $.layout.slots.content or $.layout.slots.content[0].slots.actions.")] string targetPath,
+        [Description("Slot target: exact JSON path or unique @ElementName.slots.<slot>.")] string targetPath,
         [StringLength(BoundaryStringLimits.MaxLabelLength)]
         [Description("Exact pack-qualified block kind to insert. Its compositionSkeleton is resolved from the installed pack.")] string kind,
         [Description("Optional JSON object of pack-defined property values to apply while inserting the block. Values are validated against the installed block contract.")] JsonElement? properties = null,

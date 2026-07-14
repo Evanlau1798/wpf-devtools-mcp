@@ -33,4 +33,17 @@ public sealed class ComposerCompositionIdentityDocumentationTests
             "`targetSlotSummary`",
             "`remainingCapacity`");
     }
+
+    [Theory]
+    [InlineData("docfx/reference/tools/ui-composer.md")]
+    [InlineData("docfx/zh-tw/reference/tools/ui-composer.md")]
+    public void ComposerReference_ShouldDocumentBlueprintShapeRecovery(string path)
+    {
+        var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(path));
+
+        content.Should().ContainAll(
+            "InvalidBlueprintShape",
+            "`observedValueKind`",
+            "`expectedJsonShape`");
+    }
 }

@@ -20,7 +20,14 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
                 "<inline-blueprint>",
                 UiComposerSchemaVersions.UiBlueprint);
         }
-        catch (Exception ex) when (ex is InvalidDataException or JsonException)
+        catch (JsonException ex)
+        {
+            errors.Add(BlueprintJsonShapeIssueFactory.TryCreate(blueprintJson, ex, out var issue)
+                ? issue
+                : Issue("$", "InvalidBlueprintJson", ex.Message, "Provide syntactically valid JSON with schemaVersion wpfdevtools.ui-blueprint.v1."));
+            return new BlueprintValidationResult(errors, warnings, [], BlueprintResolutionPlan.Empty);
+        }
+        catch (InvalidDataException ex)
         {
             errors.Add(Issue("$", "InvalidBlueprintJson", ex.Message, "Provide valid JSON with schemaVersion wpfdevtools.ui-blueprint.v1."));
             return new BlueprintValidationResult(errors, warnings, [], BlueprintResolutionPlan.Empty);

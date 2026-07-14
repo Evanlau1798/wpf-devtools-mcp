@@ -74,6 +74,7 @@ internal static class ComposerPackLoader
         {
             ValidateRendererTemplatePath(root, block);
             ValidateCodeBehindBaseType(block);
+            ValidateRendererNameScopeElements(block);
             ValidateInteractionContract(block);
         }
 
@@ -250,6 +251,27 @@ internal static class ComposerPackLoader
                 $"Renderer codeBehindBaseType for block '{block.Kind}' must be a namespace-qualified CLR type name.");
         }
     }
+
+    private static void ValidateRendererNameScopeElements(UiBlockDefinition block)
+    {
+        var elements = block.Renderer.NameScopeElements;
+        var invalidElement = elements.FirstOrDefault(element =>
+            string.IsNullOrEmpty(element)
+            || !(IsAsciiLetter(element[0]) || element[0] == '_')
+            || element.Skip(1).Any(ch => !IsAsciiLetter(ch) && ch is not (>= '0' and <= '9') && ch != '_'));
+        var hasDuplicates = elements.Distinct(StringComparer.Ordinal).Count() != elements.Length;
+        if (elements.Length <= 64 && invalidElement is null && !hasDuplicates)
+        {
+            return;
+        }
+
+        throw new InvalidDataException(
+            $"InvalidRendererNameScopeElements: renderer nameScopeElements for block '{block.Kind}' " +
+            "must contain at most 64 unique XAML local names matching [A-Za-z_][A-Za-z0-9_]*.");
+    }
+
+    private static bool IsAsciiLetter(char value)
+        => value is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
 
     private static void ValidateInteractionContract(UiBlockDefinition block)
     {

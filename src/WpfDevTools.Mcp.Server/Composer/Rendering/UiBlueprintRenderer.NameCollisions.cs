@@ -6,10 +6,23 @@ namespace WpfDevTools.Mcp.Server.Composer.Rendering;
 
 internal sealed partial class UiBlueprintRenderer
 {
+    private const string WpfPresentationNamespace =
+        "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+
+    private static readonly HashSet<string> WpfNameScopeElements =
+    [
+        "ControlTemplate",
+        "DataTemplate",
+        "HierarchicalDataTemplate",
+        "ItemsPanelTemplate",
+        "Style"
+    ];
+
     private static void AddRenderedNameCollisionIssues(
         string rendererXaml,
         string namespacedXaml,
         IReadOnlyList<RenderSourceMapEntry> sourceMap,
+        IReadOnlyDictionary<string, Contracts.UiBlockDefinition> blocks,
         List<BlueprintValidationIssue> issues)
     {
         XDocument document;
@@ -37,6 +50,7 @@ internal sealed partial class UiBlueprintRenderer
             namespacedXaml,
             insertion,
             sourceMap,
+            blocks,
             issues);
     }
 
@@ -47,6 +61,7 @@ internal sealed partial class UiBlueprintRenderer
         string namespacedXaml,
         NamespaceInsertion insertion,
         IReadOnlyList<RenderSourceMapEntry> sourceMap,
+        IReadOnlyDictionary<string, Contracts.UiBlockDefinition> blocks,
         List<BlueprintValidationIssue> issues)
     {
         foreach (var attribute in element.Attributes().Where(attribute => attribute.Name.LocalName == "Name"))
@@ -66,7 +81,13 @@ internal sealed partial class UiBlueprintRenderer
             }
         }
 
-        var childScope = CreatesNestedNameScope(element)
+        var childScope = CreatesNestedNameScope(
+            element,
+            rendererXaml,
+            namespacedXaml,
+            insertion,
+            sourceMap,
+            blocks)
             ? new Dictionary<string, RenderedNameOccurrence>(StringComparer.Ordinal)
             : scope;
         foreach (var child in element.Elements())
@@ -78,6 +99,7 @@ internal sealed partial class UiBlueprintRenderer
                 namespacedXaml,
                 insertion,
                 sourceMap,
+                blocks,
                 issues);
         }
     }
@@ -89,26 +111,49 @@ internal sealed partial class UiBlueprintRenderer
         NamespaceInsertion insertion,
         IReadOnlyList<RenderSourceMapEntry> sourceMap)
     {
-        var lineInfo = (IXmlLineInfo)attribute;
+        var entry = FindSourceEntry(attribute, rendererXaml, namespacedXaml, insertion, sourceMap);
+        return new RenderedNameOccurrence(entry?.JsonPath ?? "$.layout");
+    }
+
+    private static RenderSourceMapEntry? FindSourceEntry(
+        XObject node,
+        string rendererXaml,
+        string namespacedXaml,
+        NamespaceInsertion insertion,
+        IReadOnlyList<RenderSourceMapEntry> sourceMap)
+    {
+        var lineInfo = (IXmlLineInfo)node;
         var namespacedIndex = lineInfo.HasLineInfo()
             ? ToTextIndex(namespacedXaml, lineInfo.LineNumber, lineInfo.LinePosition)
             : -1;
         var rendererIndex = namespacedIndex > insertion.Index
             ? namespacedIndex - insertion.Length
             : namespacedIndex;
-        var entry = sourceMap
+        return sourceMap
             .Where(entry => entry.StartIndex <= rendererIndex && rendererIndex < entry.EndIndex)
             .OrderByDescending(entry => entry.JsonPath.Length)
             .FirstOrDefault();
-        return new RenderedNameOccurrence(entry?.JsonPath ?? "$.layout");
     }
 
-    private static bool CreatesNestedNameScope(XElement element)
+    private static bool CreatesNestedNameScope(
+        XElement element,
+        string rendererXaml,
+        string namespacedXaml,
+        NamespaceInsertion insertion,
+        IReadOnlyList<RenderSourceMapEntry> sourceMap,
+        IReadOnlyDictionary<string, Contracts.UiBlockDefinition> blocks)
     {
         var localName = element.Name.LocalName;
-        return !localName.Contains('.', StringComparison.Ordinal)
-            && (localName.EndsWith("Template", StringComparison.Ordinal)
-                || string.Equals(localName, "Style", StringComparison.Ordinal));
+        if (string.Equals(element.Name.NamespaceName, WpfPresentationNamespace, StringComparison.Ordinal)
+            && WpfNameScopeElements.Contains(localName))
+        {
+            return true;
+        }
+
+        var sourceEntry = FindSourceEntry(element, rendererXaml, namespacedXaml, insertion, sourceMap);
+        return sourceEntry is not null
+            && blocks.TryGetValue(sourceEntry.BlockKind, out var block)
+            && block.Renderer.NameScopeElements.Contains(localName, StringComparer.Ordinal);
     }
 
     private static NamespaceInsertion FindNamespaceInsertion(string rendererXaml, string namespacedXaml)

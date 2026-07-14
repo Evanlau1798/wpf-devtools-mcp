@@ -21,7 +21,8 @@ public sealed class ComposerPreviewLayoutRiskDocumentationTests
             "resolvedTargetCount",
             "inspectedTargetCount",
             "inspectionTruncated",
-            "warningsTruncated");
+            "warningsTruncated",
+            "searchComplete=false");
     }
 
     [Theory]

@@ -51,6 +51,29 @@ public sealed class ComposerPreviewLayoutRiskTests
     }
 
     [Fact]
+    public void BuildClippingTargetIds_ShouldExcludeUncorrelatedPrefixMatches()
+    {
+        var diagnostics = new[]
+        {
+            Diagnostic("find_elements", new
+            {
+                success = true,
+                results = new[]
+                {
+                    new { elementId = "Element_1", elementName = "TargetA" },
+                    new { elementId = "Element_2", elementName = "TargetA.Helper" }
+                }
+            })
+        };
+
+        var targets = UiBlueprintPreviewDiagnosticsBridge.BuildClippingTargetIds(
+            diagnostics,
+            new HashSet<string>(["TargetA"], StringComparer.Ordinal));
+
+        targets.Should().Equal("Element_1");
+    }
+
+    [Fact]
     public void Analyze_ShouldMapClippedElementToExactBlueprintPath()
     {
         var diagnostics = new[]
@@ -140,6 +163,71 @@ public sealed class ComposerPreviewLayoutRiskTests
         summary.InspectedTargetCount.Should().Be(32);
         summary.InspectionTruncated.Should().BeTrue();
         summary.WarningsTruncated.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Analyze_ShouldNotLetDuplicateMatchesHideAnUnresolvedCorrelation()
+    {
+        var correlations = new[]
+        {
+            new RenderElementCorrelation("TargetA", "$.layout.slots.children[0]", "nebula.item"),
+            new RenderElementCorrelation("TargetB", "$.layout.slots.children[1]", "nebula.item")
+        };
+        var resolvedIds = new[] { "Element_A1", "Element_A2" };
+        var diagnostics = new[]
+        {
+            Diagnostic("find_elements", new
+            {
+                success = true,
+                searchComplete = true,
+                results = resolvedIds.Select(elementId => new { elementId, elementName = "TargetA" })
+            }),
+            Diagnostic("get_clipping_info", new
+            {
+                success = true,
+                results = resolvedIds.Select(elementId => new { success = true, elementId, isClipped = false })
+            }) with
+            {
+                TargetElementIds = resolvedIds
+            }
+        };
+
+        var summary = PreviewLayoutRiskAnalyzer.Analyze(diagnostics, correlations);
+
+        summary.CorrelatedTargetCount.Should().Be(2);
+        summary.ResolvedTargetCount.Should().Be(2);
+        summary.InspectedTargetCount.Should().Be(2);
+        summary.InspectionTruncated.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Analyze_ShouldExposeIncompleteFindElementsSearch()
+    {
+        var diagnostics = new[]
+        {
+            Diagnostic("find_elements", new
+            {
+                success = true,
+                searchComplete = false,
+                results = new[] { new { elementId = "Element_1", elementName = "TargetA" } }
+            }),
+            Diagnostic("get_clipping_info", new
+            {
+                success = true,
+                isClipped = false
+            }) with
+            {
+                TargetElementIds = ["Element_1"]
+            }
+        };
+
+        var summary = PreviewLayoutRiskAnalyzer.Analyze(
+            diagnostics,
+            [new RenderElementCorrelation("TargetA", "$.layout", "nebula.item")]);
+
+        summary.ResolvedTargetCount.Should().Be(1);
+        summary.InspectedTargetCount.Should().Be(1);
+        summary.InspectionTruncated.Should().BeTrue();
     }
 
     [Fact]

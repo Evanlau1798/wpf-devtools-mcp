@@ -67,7 +67,10 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                 lookupDiagnostics.Add(lookupDiagnostic);
             }
 
-            var clippingTargets = BuildClippingTargetIds(lookupDiagnostics);
+            var correlatedElementNames = elementCorrelations
+                .Select(item => item.ElementName)
+                .ToHashSet(StringComparer.Ordinal);
+            var clippingTargets = BuildClippingTargetIds(lookupDiagnostics, correlatedElementNames);
             foreach (var clippingBatch in clippingTargets.Chunk(BatchItemLimits.MaxQueryInputItems))
             {
                 var clippingDiagnostic = await RunGatedAsync(
@@ -140,10 +143,15 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
     }
 
     internal static IReadOnlyList<string> BuildClippingTargetIds(
-        IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics)
+        IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics,
+        IReadOnlySet<string>? correlatedElementNames = null)
         => diagnostics
             .Where(diagnostic => diagnostic.Tool == "find_elements" && diagnostic.Success)
             .SelectMany(diagnostic => ReadSearchResults(diagnostic.Payload))
+            .Where(result => correlatedElementNames is null
+                             || result.TryGetProperty("elementName", out var elementName)
+                             && elementName.ValueKind == JsonValueKind.String
+                             && correlatedElementNames.Contains(elementName.GetString()!))
             .Select(result => result.GetProperty("elementId").GetString())
             .Where(elementId => !string.IsNullOrWhiteSpace(elementId))
             .Select(elementId => elementId!)

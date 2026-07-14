@@ -11,20 +11,26 @@ internal static class PreviewLayoutRiskAnalyzer
         IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics,
         IReadOnlyList<RenderElementCorrelation> correlations)
     {
-        var correlatedTargetCount = correlations
+        var correlatedElementNames = correlations
             .Select(item => item.ElementName)
-            .Distinct(StringComparer.Ordinal)
-            .Count();
+            .ToHashSet(StringComparer.Ordinal);
+        var correlatedTargetCount = correlatedElementNames.Count;
         var exactNameLookupTruncated = correlations
             .Select(item => item.ElementName)
             .Where(name => !name.StartsWith("WpfDevToolsBp_", StringComparison.Ordinal))
             .Distinct(StringComparer.Ordinal)
             .Skip(UiBlueprintPreviewDiagnosticsBridge.ExistingNameLookupLimit)
             .Any();
-        var resolvedTargetCount = UiBlueprintPreviewDiagnosticsBridge
-            .BuildClippingTargetIds(diagnostics)
-            .Count;
-        var inspectedTargetCount = ReadInspectedElementIds(diagnostics).Count;
+        var resolvedTargets = ReadResolvedTargets(diagnostics, correlatedElementNames).ToArray();
+        var resolvedElementIds = resolvedTargets
+            .Select(item => item.ElementId)
+            .ToHashSet(StringComparer.Ordinal);
+        var resolvedCorrelationNames = resolvedTargets
+            .Select(item => item.ElementName)
+            .ToHashSet(StringComparer.Ordinal);
+        var inspectedTargetCount = ReadInspectedElementIds(diagnostics)
+            .Intersect(resolvedElementIds, StringComparer.Ordinal)
+            .Count();
         var namesByElementId = BuildElementNameMap(diagnostics);
         var correlationsByName = correlations
             .GroupBy(item => item.ElementName, StringComparer.Ordinal)
@@ -51,13 +57,35 @@ internal static class PreviewLayoutRiskAnalyzer
             warnings)
         {
             CorrelatedTargetCount = correlatedTargetCount,
-            ResolvedTargetCount = resolvedTargetCount,
+            ResolvedTargetCount = resolvedElementIds.Count,
             InspectedTargetCount = inspectedTargetCount,
             InspectionTruncated = exactNameLookupTruncated
-                                  || resolvedTargetCount < correlatedTargetCount
-                                  || inspectedTargetCount < resolvedTargetCount
+                                  || HasIncompleteSearch(diagnostics)
+                                  || resolvedCorrelationNames.Count < correlatedTargetCount
+                                  || inspectedTargetCount < resolvedElementIds.Count
         };
     }
+
+    private static IEnumerable<(string ElementId, string ElementName)> ReadResolvedTargets(
+        IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics,
+        IReadOnlySet<string> correlatedElementNames)
+        => diagnostics
+            .Where(diagnostic => diagnostic.Tool == "find_elements" && diagnostic.Success)
+            .SelectMany(diagnostic => ReadArray(diagnostic.Payload, "results"))
+            .Where(result => TryReadString(result, "elementId", out _)
+                             && TryReadString(result, "elementName", out var elementName)
+                             && correlatedElementNames.Contains(elementName))
+            .Select(result => (
+                result.GetProperty("elementId").GetString()!,
+                result.GetProperty("elementName").GetString()!));
+
+    private static bool HasIncompleteSearch(IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics)
+        => diagnostics.Any(diagnostic =>
+            diagnostic.Tool == "find_elements"
+            && diagnostic.Success
+            && diagnostic.Payload.ValueKind == JsonValueKind.Object
+            && diagnostic.Payload.TryGetProperty("searchComplete", out var searchComplete)
+            && searchComplete.ValueKind == JsonValueKind.False);
 
     private static IReadOnlySet<string> ReadInspectedElementIds(
         IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics)

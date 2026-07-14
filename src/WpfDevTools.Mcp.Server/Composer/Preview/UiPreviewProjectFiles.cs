@@ -80,6 +80,7 @@ internal static class UiPreviewProjectFiles
         }
 
         lines.Add("using System.Windows;");
+        lines.Add("using System.Windows.Media;");
         lines.Add("using System.Windows.Threading;");
         if (includeRuntimeDiagnostics)
         {
@@ -91,12 +92,16 @@ internal static class UiPreviewProjectFiles
             "namespace PreviewHost;",
             "public partial " + "class MainWindow : " + (windowRootType ?? "Window"),
             "{",
+            "    private const int RequiredRenderedFrames = 2;",
+            "    private int _renderedFrameCount;",
+            string.Empty,
             "    public MainWindow()",
             "    {",
             "        try",
             "        {",
             "            InitializeComponent();",
-            "            ContentRendered += OnContentRendered;"
+            "            ContentRendered += OnContentRendered;",
+            "            Closed += OnClosed;"
         ]);
 
         if (includeRuntimeDiagnostics)
@@ -117,7 +122,26 @@ internal static class UiPreviewProjectFiles
             "    private void OnContentRendered(object? sender, EventArgs e)",
             "    {",
             "        ContentRendered -= OnContentRendered;",
+            "        CompositionTarget.Rendering += OnRendering;",
+            "    }",
+            string.Empty,
+            "    private void OnRendering(object? sender, EventArgs e)",
+            "    {",
+            "        _renderedFrameCount++;",
+            "        if (_renderedFrameCount < RequiredRenderedFrames)",
+            "        {",
+            "            return;",
+            "        }",
+            string.Empty,
+            "        CompositionTarget.Rendering -= OnRendering;",
             "        Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(MarkPreviewReady));",
+            "    }",
+            string.Empty,
+            "    private void OnClosed(object? sender, EventArgs e)",
+            "    {",
+            "        Closed -= OnClosed;",
+            "        ContentRendered -= OnContentRendered;",
+            "        CompositionTarget.Rendering -= OnRendering;",
             "    }",
             string.Empty,
             "    private static void MarkPreviewReady()",

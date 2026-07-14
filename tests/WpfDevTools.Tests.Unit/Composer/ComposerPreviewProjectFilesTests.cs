@@ -91,13 +91,15 @@ public sealed class ComposerPreviewProjectFilesTests
     }
 
     [Fact]
-    public void Write_ShouldSignalLoadedOnlyAfterWindowContentIsRendered()
+    public void Write_ShouldSignalLoadedOnlyAfterTwoCompositorFrames()
     {
         var codeBehind = WritePreviewCodeBehind("<Grid />");
 
         codeBehind.Should().Contain("ContentRendered += OnContentRendered;");
+        codeBehind.Should().Contain("CompositionTarget.Rendering += OnRendering;");
+        codeBehind.Should().Contain("RequiredRenderedFrames = 2");
         codeBehind.Should().Contain("DispatcherPriority.ContextIdle");
-        codeBehind.IndexOf("ContentRendered += OnContentRendered;", StringComparison.Ordinal).Should()
+        codeBehind.IndexOf("CompositionTarget.Rendering += OnRendering;", StringComparison.Ordinal).Should()
             .BeLessThan(codeBehind.IndexOf("File.WriteAllText", StringComparison.Ordinal));
     }
 

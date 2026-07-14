@@ -52,6 +52,8 @@ internal sealed record PreviewBlueprintResult(
 
     public IReadOnlyList<RenderElementCorrelation> ElementCorrelations { get; init; } = [];
 
+    public PreviewLayoutRiskSummary LayoutRiskSummary { get; init; } = PreviewLayoutRiskSummary.Empty;
+
     public static PreviewBlueprintResult Invalid(
         bool restoreEnabled,
         string xaml,
@@ -90,6 +92,28 @@ internal sealed record PreviewHostResult(
 internal sealed record PreviewRuntimeDiagnostic(
     string Tool,
     bool Success,
-    JsonElement Payload);
+    JsonElement Payload)
+{
+    public IReadOnlyList<string> TargetElementIds { get; init; } = [];
+}
+
+internal sealed record PreviewLayoutRiskSummary(
+    int ClippedElementCount,
+    int ReportedWarningCount,
+    bool WarningsTruncated,
+    IReadOnlyList<PreviewLayoutWarning> Warnings)
+{
+    public static PreviewLayoutRiskSummary Empty { get; } = new(0, 0, false, []);
+}
+
+internal sealed record PreviewLayoutWarning(
+    string Code,
+    string JsonPath,
+    string BlockKind,
+    string ElementName,
+    string ElementId,
+    string ClippingSource,
+    JsonElement OverflowAmount,
+    string? SuggestedFix);
 
 internal sealed record PreviewCorrelationLookup(string Query, string MatchMode);

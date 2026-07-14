@@ -36,13 +36,15 @@ public static class LayoutMcpTools
     [Description(LayoutMcpToolDescriptions.GetClippingInfo)]
     public static Task<CallToolResult> GetClippingInfo(
         SessionManager sessionManager,
-        [Description("Element ID whose clipping state should be analyzed.")] string elementId,
+        [Description("Optional element ID whose clipping state should be analyzed. Use either elementId or elementIds.")] string? elementId = null,
         [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description("Optional list of element IDs for batch clipping inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("processId", processId),
-            ("elementId", elementId));
+            ("elementId", elementId),
+            ("elementIds", elementIds));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
             (a, ct) => ToolCallHelper.CachedTool<GetClippingInfoTool>(sessionManager, "GetClippingInfoTool", () => new GetClippingInfoTool(sessionManager)).ExecuteAsync(a, ct),

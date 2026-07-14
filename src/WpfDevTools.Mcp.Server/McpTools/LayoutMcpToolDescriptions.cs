@@ -27,19 +27,15 @@ internal static class LayoutMcpToolDescriptions
         "- { \"processId\": 12345 }";
 
     public const string GetClippingInfo =
-        "Inspect clipping and overflow for one WPF element and its visual ancestors.\n\n" +
-        LayoutMetadata + "[Layout] Detect explicit Clip, ClipToBounds, and WPF-generated layout clips. " +
-        "The scope excludes descendants.\n\n" +
-        "USE WHEN: A concrete element appears cut off; use find_elements(query) first when only its visible text is known.\n" +
-        "DO NOT USE: For general layout info (use get_layout_info instead).\n\n" +
-        "RESPONSE: isClipped, analysisScope, clippingSource, clip/effective bounds, directional overflowAmount, " +
-        "clippingAncestors, and suggestedFix.\n\n" +
-        "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"element not found\" -> verify elementId\n" +
-        "- \"elementId required\" -> must specify which element to check\n\n" +
+        "Inspect explicit Clip, ClipToBounds, layout clips, and overflow for known WPF targets and their ancestors.\n\n" +
+        LayoutMetadata +
+        "USE: Pass `elementId`, or up to 100 `elementIds`; use find_elements first when only text is known. " +
+        "This does not implicitly scan descendants. Use get_layout_info for general sizing.\n" +
+        "RETURNS: isClipped, clippingSource, bounds, directional overflowAmount, clippingAncestors, suggestedFix; batches retain elementId correlation.\n" +
+        "ERRORS: not connected -> connect; target missing -> verify elementId; no targets -> pass elementId or elementIds.\n" +
         "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\" }";
+        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\" }\n" +
+        "- { \"processId\": 12345, \"elementIds\": [\"PrimaryAction\", \"SecondaryAction\"] }";
 
     public const string HighlightElement =
         "Use this tool to highlight a WPF element so runtime inspection targets stay unambiguous.\n\n" +

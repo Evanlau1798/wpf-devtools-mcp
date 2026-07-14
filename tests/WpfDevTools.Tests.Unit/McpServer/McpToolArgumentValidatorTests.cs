@@ -140,7 +140,6 @@ public sealed class McpToolArgumentValidatorTests
     [InlineData("scroll_to_element", "elementId")]
     [InlineData("get_template_tree", "elementId")]
     [InlineData("force_binding_update", "propertyName")]
-    [InlineData("get_clipping_info", "elementId")]
     [InlineData("get_element_snapshot", "elementId")]
     [InlineData("set_dp_value", "value", "{\"propertyName\":\"Text\"}")]
     [InlineData("modify_viewmodel", "value", "{\"propertyName\":\"Name\"}")]

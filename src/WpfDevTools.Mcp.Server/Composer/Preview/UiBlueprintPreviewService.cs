@@ -128,6 +128,10 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 diagnostics = diagnostics.Concat(CreateHostDiagnostics(previewHost, rendererTemplatePath)).ToArray();
             }
 
+            var layoutRiskSummary = PreviewLayoutRiskAnalyzer.Analyze(
+                previewHost.RuntimeDiagnostics ?? [],
+                render.ElementCorrelations);
+
             return new PreviewBlueprintResult(
                 Success: true,
                 Valid: true,
@@ -139,7 +143,8 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 PreviewHost: previewHost)
             {
                 PropertyWarnings = propertyWarnings,
-                ElementCorrelations = render.ElementCorrelations
+                ElementCorrelations = render.ElementCorrelations,
+                LayoutRiskSummary = layoutRiskSummary
             };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

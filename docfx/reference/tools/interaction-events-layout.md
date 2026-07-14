@@ -56,7 +56,7 @@ Some interaction and diagnostic responses may piggyback a compact `pendingEvents
 - `get_clipping_info`
 - `invalidate_layout`
 
-`get_clipping_info` analyzes one concrete target and its visual ancestors. It detects explicit `Clip`, `ClipToBounds`, and WPF-generated layout clips, then reports `clippingSource`, directional `overflowAmount`, the responsible `clippingAncestors`, and a generic `suggestedFix`. It does not aggregate clipping across every descendant of a container. When a caption or control looks cut off but has no name, use `find_elements(query: "visible text")` first and pass the returned `elementId` to `get_clipping_info`. `diagnose_visibility` uses the same effective clipping boundaries for partial and full visibility classification.
+`get_clipping_info` analyzes one concrete target and its visual ancestors, or up to 100 explicit targets through `elementIds`. It detects explicit `Clip`, `ClipToBounds`, and WPF-generated layout clips, then reports `clippingSource`, directional `overflowAmount`, the responsible `clippingAncestors`, and a generic `suggestedFix`. Batch results retain `elementId` correlation. It does not implicitly aggregate every descendant of a container. When a caption or control looks cut off but has no name, use `find_elements(query: "visible text")` first and pass the returned IDs to `get_clipping_info`. `diagnose_visibility` uses the same effective clipping boundaries for partial and full visibility classification.
 
 ## MVVM
 

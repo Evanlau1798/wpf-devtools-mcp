@@ -207,6 +207,7 @@ public class McpToolContractConsistencyTests
     [Theory]
     [InlineData(typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindings))]
     [InlineData(typeof(LayoutMcpTools), nameof(LayoutMcpTools.GetLayoutInfo))]
+    [InlineData(typeof(LayoutMcpTools), nameof(LayoutMcpTools.GetClippingInfo))]
     [InlineData(typeof(StyleMcpTools), nameof(StyleMcpTools.GetAppliedStyles))]
     [InlineData(typeof(MvvmMcpTools), nameof(MvvmMcpTools.GetValidationErrors))]
     public void ElementBatchTools_ShouldExposeOptionalElementIds(Type toolType, string methodName)

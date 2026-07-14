@@ -148,6 +148,44 @@ public class BatchQueryToolTests
             ("NameTextBox", "Text"));
     }
 
+    [Fact]
+    public async Task GetClippingInfoTool_WithElementBatch_ShouldIssueCorrelatedRequests()
+    {
+        const int processId = 52003;
+        using var session = await ConnectedBatchQuerySession.CreateAsync(processId);
+        var tool = new GetClippingInfoTool(session.SessionManager);
+
+        var result = await tool.ExecuteAsync(TestHelpers.ToJsonElement(new
+        {
+            processId,
+            elementIds = new[] { "PrimaryAction", "SecondaryAction" }
+        }), CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeTrue(json.GetRawText());
+        json.GetProperty("resultCount").GetInt32().Should().Be(2);
+        session.Requests.Where(request => request.Item1 is not null).Should().Equal(
+            ("PrimaryAction", null),
+            ("SecondaryAction", null));
+    }
+
+    [Fact]
+    public async Task GetClippingInfoTool_WithoutTargets_ShouldReturnStructuredError()
+    {
+        var sessionManager = new SessionManager();
+        sessionManager.AddSession(52004);
+
+        var result = await new GetClippingInfoTool(sessionManager).ExecuteAsync(
+            TestHelpers.ToJsonElement(new { processId = 52004 }),
+            CancellationToken.None);
+
+        var json = JsonSerializer.SerializeToElement(result);
+        json.GetProperty("success").GetBoolean().Should().BeFalse();
+        json.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        json.GetProperty("error").GetString().Should().Contain("elementId");
+        json.GetProperty("error").GetString().Should().Contain("elementIds");
+    }
+
     private sealed class ConnectedBatchQuerySession(
         SessionManager sessionManager,
         NamedPipeServerStream server,

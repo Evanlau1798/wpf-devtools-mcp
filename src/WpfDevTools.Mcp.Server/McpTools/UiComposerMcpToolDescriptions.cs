@@ -262,9 +262,10 @@ internal static class UiComposerMcpToolDescriptions
         - visualComparisonChecklist names expected stub differences in window chrome, icons, control templates, and layout and spacing.
         - propertyWarnings contains pack-defined guidance only for explicitly supplied properties, with the exact blueprint JSON path, block kind, property name, and message.
         - elementCorrelations maps each renderer root's transient x:Name to its blueprint jsonPath and blockKind. These names are never written into the blueprint or emitted by render/apply.
+        - layoutRiskSummary maps clipping to exact jsonPath/blockKind; recheck the final app.
         - restoreEnabled=false runs dotnet build --no-restore and returns missing-assets diagnostics when the temporary project has not been restored.
         - startHost=true starts the temporary host after build, waits for an explicit generated-view load sentinel, then terminates the process tree.
-        - includeRuntimeDiagnostics=true with startHost=true reuses connect(), semantic summary, a bounded correlation lookup plan covering generated and renderer-provided names, and layout diagnostics.
+        - includeRuntimeDiagnostics=true with startHost=true reuses connect(), semantic summary, bounded correlation lookup, batched clipping, and layout diagnostics.
         - includeScreenshotDiagnostics=true with startHost=true adds a policy-gated bounded element_screenshot.
         - screenshotOutputMode="file" returns a resource-backed PNG that remains readable after the temporary preview host exits.
         - Screenshot bounds default to 1024 for reliable Agent image consumption; pass null only for full-size evidence.

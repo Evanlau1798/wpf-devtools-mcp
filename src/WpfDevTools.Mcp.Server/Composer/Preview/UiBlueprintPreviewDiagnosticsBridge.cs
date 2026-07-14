@@ -49,9 +49,10 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                     ct),
                 cancellationToken).ConfigureAwait(false));
 
+            var lookupDiagnostics = new List<PreviewRuntimeDiagnostic>();
             foreach (var lookup in BuildCorrelationLookupPlan(elementCorrelations))
             {
-                diagnostics.Add(await RunGatedAsync(
+                var lookupDiagnostic = await RunGatedAsync(
                     policy,
                     "find_elements",
                     ct => new FindElementsTool(sessionManager).ExecuteAsync(
@@ -61,7 +62,24 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                             ("matchMode", lookup.MatchMode),
                             ("maxResults", 500)),
                         ct),
-                    cancellationToken).ConfigureAwait(false));
+                    cancellationToken).ConfigureAwait(false);
+                diagnostics.Add(lookupDiagnostic);
+                lookupDiagnostics.Add(lookupDiagnostic);
+            }
+
+            var clippingTargets = BuildClippingTargetIds(lookupDiagnostics);
+            if (clippingTargets.Count > 0)
+            {
+                var clippingDiagnostic = await RunGatedAsync(
+                    policy,
+                    "get_clipping_info",
+                    ct => new GetClippingInfoTool(sessionManager).ExecuteAsync(
+                        ToolCallHelper.BuildJsonArgs(
+                            ("processId", processId),
+                            ("elementIds", clippingTargets)),
+                        ct),
+                    cancellationToken).ConfigureAwait(false);
+                diagnostics.Add(clippingDiagnostic with { TargetElementIds = clippingTargets });
             }
 
             diagnostics.Add(await RunGatedAsync(
@@ -120,6 +138,28 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
             .Select(name => new PreviewCorrelationLookup(name, "exact")));
         return plan;
     }
+
+    internal static IReadOnlyList<string> BuildClippingTargetIds(
+        IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics)
+        => diagnostics
+            .Where(diagnostic => diagnostic.Tool == "find_elements" && diagnostic.Success)
+            .SelectMany(diagnostic => ReadSearchResults(diagnostic.Payload))
+            .Select(result => result.GetProperty("elementId").GetString())
+            .Where(elementId => !string.IsNullOrWhiteSpace(elementId))
+            .Select(elementId => elementId!)
+            .Distinct(StringComparer.Ordinal)
+            .Take(BatchItemLimits.MaxQueryInputItems)
+            .ToArray();
+
+    private static IEnumerable<JsonElement> ReadSearchResults(JsonElement payload)
+        => payload.ValueKind == JsonValueKind.Object
+           && payload.TryGetProperty("results", out var results)
+           && results.ValueKind == JsonValueKind.Array
+            ? results.EnumerateArray().Where(result =>
+                result.ValueKind == JsonValueKind.Object
+                && result.TryGetProperty("elementId", out var elementId)
+                && elementId.ValueKind == JsonValueKind.String)
+            : [];
 
     private static string? GetRegisteredFileScreenshotId(
         PreviewRuntimeDiagnostic? diagnostic,

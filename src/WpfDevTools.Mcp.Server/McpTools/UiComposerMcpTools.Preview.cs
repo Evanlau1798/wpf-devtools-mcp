@@ -96,6 +96,7 @@ public static partial class UiComposerMcpTools
             result.VisualComparisonChecklist,
             result.PropertyWarnings,
             result.ElementCorrelations,
+            result.LayoutRiskSummary,
             observability = ComposerObservability.ForPreview(result)
         };
     }

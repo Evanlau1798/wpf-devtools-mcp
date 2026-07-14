@@ -42,7 +42,6 @@ internal static class McpToolArgumentValidator
         ["force_binding_update"] = ["propertyName"],
         ["get_affected_elements"] = ["propertyName"],
         ["get_binding_value_chain"] = ["propertyName"],
-        ["get_clipping_info"] = ["elementId"],
         ["get_dp_metadata"] = ["propertyName"],
         ["get_element_snapshot"] = ["elementId"],
         ["get_event_handlers"] = ["eventName", "elementId"],

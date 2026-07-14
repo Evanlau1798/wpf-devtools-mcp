@@ -198,6 +198,8 @@ public sealed partial class ComposerPreviewCompileTests
             result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
             result.PreviewHost.RuntimeDiagnostics.Should()
                 .Contain(diagnostic => diagnostic.Tool == "connect" && diagnostic.Success);
+            result.PreviewHost.RuntimeDiagnostics.Should()
+                .Contain(diagnostic => diagnostic.Tool == "get_clipping_info" && diagnostic.Success);
             File.ReadAllText(Path.Combine(tempRoot, "MainWindow.xaml.cs"))
                 .Should().Contain("DeleteFileBestEffort(optionsPath)");
             File.Exists(Path.Combine(

@@ -21,10 +21,23 @@ public sealed class GetClippingInfoTool : PipeConnectedToolBase
     /// <returns>Tool result containing clipping information or error</returns>
     public async Task<object> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        var (processId, elementId, error) = ParseCommonParams(arguments, _sessionManager);
+        var (processId, _, error) = ParseCommonParams(arguments, _sessionManager);
         if (error != null) return error;
+        var elements = BatchQueryArgumentParser.ParseStringTargets(
+            arguments,
+            "elementId",
+            "elementIds",
+            requireAtLeastOne: true);
+        if (elements.Error != null) return elements.Error;
 
-        return await SendInspectorRequestAsync(processId, "get_clipping_info",
-            new { elementId }, cancellationToken);
+        return await BatchQueryExecutor.ExecuteAsync(
+            elements.Targets,
+            new string?[] { null },
+            (elementId, _, ct) => SendInspectorRequestAsync(
+                processId,
+                "get_clipping_info",
+                new { elementId },
+                ct),
+            cancellationToken);
     }
 }

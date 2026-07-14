@@ -245,6 +245,32 @@ public sealed class McpToolSearchMetadataE2eTests
         annotations.GetProperty("priority").GetDouble().Should().Be(1.0d);
     }
 
+    [Fact]
+    public async Task DraftArrayRemoval_ShouldPublishExplicitBeforeAndAfterMembersOverStdio()
+    {
+        using var client = new McpStdioClient();
+        await client.StartAsync(FindServerExecutable());
+        var created = await client.CallToolAsync("create_ui_blueprint_draft", new
+        {
+            blueprintJson = """{"items":["alpha","beta"]}"""
+        });
+        var draftRef = created.GetProperty("draftRef").GetString();
+
+        var removed = await client.CallToolAsync("patch_ui_blueprint_draft", new
+        {
+            draftRef,
+            jsonPath = "$.items[0]",
+            remove = true
+        });
+
+        var change = removed.GetProperty("changeSummary").GetProperty("changes")[0];
+        change.GetProperty("jsonPath").GetString().Should().Be("$.items[0]");
+        change.GetProperty("changeType").GetString().Should().Be("removed");
+        change.GetProperty("before").GetString().Should().Be("\"alpha\"");
+        change.TryGetProperty("after", out var after).Should().BeTrue();
+        after.ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
     private static async Task ExecuteChecksAsync(params (string Name, Func<Task> Execute)[] checks)
     {
         using var aggregateScope = new AssertionScope();

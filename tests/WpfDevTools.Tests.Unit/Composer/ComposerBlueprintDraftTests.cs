@@ -230,6 +230,31 @@ public sealed class ComposerBlueprintDraftTests
     }
 
     [Fact]
+    public async Task PatchDraft_ArrayRemovalShouldPublishAnExplicitNullAfterValue()
+    {
+        var created = await UiComposerMcpTools.CreateUiBlueprintDraft(
+            """{"items":["a","b"]}""",
+            CancellationToken.None);
+        var draftRef = created.StructuredContent!.Value.GetProperty("draftRef").GetString()!;
+
+        var removed = await UiComposerMcpTools.PatchUiBlueprintDraft(
+            draftRef,
+            patchJson: null,
+            jsonPath: "$.items[0]",
+            value: null,
+            remove: true,
+            cancellationToken: CancellationToken.None);
+
+        removed.IsError.Should().BeFalse(removed.StructuredContent?.GetRawText());
+        var change = removed.StructuredContent!.Value.GetProperty("changeSummary")
+            .GetProperty("changes")[0];
+        change.GetProperty("jsonPath").GetString().Should().Be("$.items[0]");
+        change.GetProperty("before").GetString().Should().Be("\"a\"");
+        change.TryGetProperty("after", out var after).Should().BeTrue();
+        after.ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
     public async Task PatchDraft_ExplicitJsonNullDefaultsShouldFollowTheSelectedMode()
     {
         var created = await UiComposerMcpTools.CreateUiBlueprintDraft(

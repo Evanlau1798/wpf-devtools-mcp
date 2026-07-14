@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace WpfDevTools.Mcp.Server.Composer.Drafts;
 
 internal sealed record BlueprintDraftIssue(
@@ -26,7 +28,9 @@ internal sealed record BlueprintDraftChangeSummary(
 internal sealed record BlueprintDraftChange(
     string JsonPath,
     string ChangeType,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     string? Before,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     string? After);
 
 internal sealed record BlueprintDraftResolution(

@@ -10,6 +10,54 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public sealed class ToolNavigationEventRetryTests
 {
     [Fact]
+    public async Task ExecuteAndWrapAsync_WhenShortStartDurationIsRaised_ShouldSerializeOneSafeRetry()
+    {
+        using var scope = ToolCallHelper.BeginTestScope(
+            navigationPlanner: new ToolNavigationPlanner(new ToolNavigationRegistry()));
+        var arguments = ToolCallHelper.BuildJsonArgs(
+            ("processId", 12345),
+            ("eventName", "Click"),
+            ("elementId", "SaveButton"),
+            ("duration", 5000),
+            ("mode", "start"),
+            ("allowShortStartDuration", false));
+
+        var first = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                mode = "start",
+                requestedDuration = 5000,
+                effectiveDuration = 30000,
+                shortDurationOverrideUsed = false
+            }),
+            arguments,
+            CancellationToken.None,
+            toolName: "trace_routed_events");
+
+        var retry = first.StructuredContent!.Value.GetProperty("nextSteps").EnumerateArray().Single();
+        retry.GetProperty("tool").GetString().Should().Be("trace_routed_events");
+        retry.GetProperty("params").GetProperty("durationMs").GetInt32().Should().Be(5000);
+        retry.GetProperty("params").GetProperty("allowShortStartDuration").GetBoolean().Should().BeTrue();
+        retry.TryGetProperty("allowSameToolRetry", out _).Should().BeFalse();
+
+        var second = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = true,
+                mode = "start",
+                requestedDuration = 5000,
+                effectiveDuration = 5000,
+                shortDurationOverrideUsed = true
+            }),
+            arguments,
+            CancellationToken.None,
+            toolName: "trace_routed_events");
+
+        second.StructuredContent!.Value.GetProperty("nextSteps").GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
     public async Task TraceRoutedEventsWrapper_ShouldUsePublicToolName()
     {
         var metrics = new MetricsCollector();

@@ -158,6 +158,12 @@ public sealed class McpToolSearchMetadataE2eTests
                 "wpf://contracts/{contractId}/chunks/{offset}/{length}",
                 "wpf_contract_chunk",
                 "Contract Resource Chunk")),
+            ("contract text chunk template listing", () => AssertResourceTemplateListedAsync(
+                client,
+                "wpf://contracts/{contractId}/text-chunks/{offset}/{length}",
+                "wpf_contract_text_chunk",
+                "Contract Resource Text Chunk",
+                "application/json")),
             ("tool manifest listing", () => AssertResourceListedAsync(
                 client, "wpf://contracts/tools", "wpf_tool_manifest", "Tool Manifest")),
             ("tool examples listing", () => AssertResourceListedAsync(
@@ -221,6 +227,35 @@ public sealed class McpToolSearchMetadataE2eTests
                 content.Length.Should().Be(byteLength);
                 Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant().Should().Be(expectedSha256);
                 using var reconstructedDocument = JsonDocument.Parse(content);
+                reconstructedDocument.RootElement.GetProperty("resourceUri").GetString()
+                    .Should().Be("wpf://contracts/response");
+            }),
+            ("text-chunked response contract reconstruction", async () =>
+            {
+                using var index = await ReadJsonResourceAsync(client, "wpf://contracts/index");
+                var entry = index.RootElement.GetProperty("resources").EnumerateArray()
+                    .Single(resource => resource.GetProperty("id").GetString() == "response");
+                var resourceByteLength = entry.GetProperty("byteLength").GetInt32();
+                var resourceSha256 = entry.GetProperty("sha256").GetString();
+                var maxTextChunkBytes = index.RootElement.GetProperty("maxTextChunkBytes").GetInt32();
+                var segments = new List<string>();
+                var offset = 0;
+
+                while (offset < resourceByteLength)
+                {
+                    using var envelope = await ReadJsonResourceAsync(
+                        client,
+                        $"wpf://contracts/response/text-chunks/{offset}/{maxTextChunkBytes}");
+                    var root = envelope.RootElement;
+                    root.GetProperty("offset").GetInt32().Should().Be(offset);
+                    root.GetProperty("resourceByteLength").GetInt32().Should().Be(resourceByteLength);
+                    root.GetProperty("resourceSha256").GetString().Should().Be(resourceSha256);
+                    segments.Add(root.GetProperty("text").GetString()!);
+                    offset = root.GetProperty("nextOffset").GetInt32();
+                }
+
+                offset.Should().Be(resourceByteLength);
+                using var reconstructedDocument = JsonDocument.Parse(string.Concat(segments));
                 reconstructedDocument.RootElement.GetProperty("resourceUri").GetString()
                     .Should().Be("wpf://contracts/response");
             }),
@@ -320,14 +355,15 @@ public sealed class McpToolSearchMetadataE2eTests
         McpStdioClient client,
         string uriTemplate,
         string name,
-        string title)
+        string title,
+        string mimeType = "application/octet-stream")
     {
         var response = await client.ListResourceTemplatesAsync();
         var template = response.GetProperty("result").GetProperty("resourceTemplates")
             .EnumerateArray().Single(item => item.GetProperty("uriTemplate").GetString() == uriTemplate);
         template.GetProperty("name").GetString().Should().Be(name);
         template.GetProperty("title").GetString().Should().Be(title);
-        template.GetProperty("mimeType").GetString().Should().Be("application/octet-stream");
+        template.GetProperty("mimeType").GetString().Should().Be(mimeType);
     }
 
     private static void AssertTitle(

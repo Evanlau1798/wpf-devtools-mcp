@@ -11,6 +11,7 @@ namespace WpfDevTools.Mcp.Server.McpResources;
 public static partial class CapabilityResources
 {
     internal const int MaxContractChunkBytes = 16 * 1024;
+    internal const int MaxContractTextChunkBytes = 8 * 1024;
     private const string ContractIndexResourceUri = "wpf://contracts/index";
     private static readonly Lazy<IReadOnlyDictionary<string, ContractResourceSnapshot>> ContractSnapshots =
         new(CreateContractSnapshots, LazyThreadSafetyMode.ExecutionAndPublication);
@@ -32,16 +33,20 @@ public static partial class CapabilityResources
                 mimeType = "application/json",
                 byteLength = resource.Bytes.Length,
                 sha256 = resource.Sha256,
-                chunkUriTemplate = $"wpf://contracts/{resource.Id}/chunks/{{offset}}/{{length}}"
+                chunkUriTemplate = $"wpf://contracts/{resource.Id}/chunks/{{offset}}/{{length}}",
+                textChunkUriTemplate = $"wpf://contracts/{resource.Id}/text-chunks/{{offset}}/{{length}}"
             });
         return JsonSerializer.Serialize(new
         {
             resourceUri = ContractIndexResourceUri,
-            version = "1.0",
+            version = "1.1",
             maxChunkBytes = MaxContractChunkBytes,
+            maxTextChunkBytes = MaxContractTextChunkBytes,
             encoding = "utf-8",
             chunkMimeType = "application/octet-stream",
+            textChunkMimeType = "application/json",
             reconstruction = "Read sequential chunks from offset 0, concatenate decoded bytes without transformation, then verify byteLength and sha256 before parsing JSON.",
+            textChunkReconstruction = "Read sequential text-chunk envelopes from offset 0, append each text field, advance to nextOffset, then parse JSON. No base64 or client-side hashing is required; every envelope includes the canonical snapshot SHA-256.",
             resources
         }, JsonResourceSerializerOptions);
     }
@@ -79,6 +84,70 @@ public static partial class CapabilityResources
         var uri = $"wpf://contracts/{contractId}/chunks/{offset}/{length}";
         return BlobResourceContents.FromBytes(bytes, uri, "application/octet-stream");
     }
+
+    [McpServerResource(
+        Name = "wpf_contract_text_chunk",
+        Title = "Contract Resource Text Chunk",
+        UriTemplate = "wpf://contracts/{contractId}/text-chunks/{offset}/{length}",
+        MimeType = "application/json")]
+    [Description("Reads an at-most 8 KiB UTF-8-aligned contract chunk as a JSON text envelope, avoiding client-side base64 decoding and hashing requirements.")]
+    public static string GetContractResourceTextChunk(
+        string contractId,
+        int offset,
+        int length)
+    {
+        if (!ContractSnapshots.Value.TryGetValue(contractId, out var resource))
+        {
+            throw new McpProtocolException(
+                $"Contract resource '{contractId}' is not available. Read {ContractIndexResourceUri} for valid IDs.",
+                McpErrorCode.ResourceNotFound);
+        }
+
+        if (offset < 0
+            || offset >= resource.Bytes.Length
+            || length <= 0
+            || length > MaxContractTextChunkBytes
+            || !IsUtf8Boundary(resource.Bytes, offset))
+        {
+            throw new McpProtocolException(
+                $"Contract text chunk requires a UTF-8 boundary offset within the {resource.Bytes.Length}-byte resource and length from 1 to {MaxContractTextChunkBytes} bytes.",
+                McpErrorCode.InvalidParams);
+        }
+
+        var end = Math.Min(offset + length, resource.Bytes.Length);
+        while (end > offset && !IsUtf8Boundary(resource.Bytes, end))
+        {
+            end--;
+        }
+
+        if (end == offset)
+        {
+            throw new McpProtocolException(
+                "Contract text chunk length is too small to include the next complete UTF-8 character.",
+                McpErrorCode.InvalidParams);
+        }
+
+        var byteLength = end - offset;
+        var text = Encoding.UTF8.GetString(resource.Bytes, offset, byteLength);
+        var uri = $"wpf://contracts/{contractId}/text-chunks/{offset}/{length}";
+        return JsonSerializer.Serialize(new
+        {
+            contractId,
+            resourceUri = uri,
+            offset,
+            byteLength,
+            nextOffset = end,
+            complete = end == resource.Bytes.Length,
+            resourceByteLength = resource.Bytes.Length,
+            resourceSha256 = resource.Sha256,
+            text
+        }, JsonResourceSerializerOptions);
+    }
+
+    private static bool IsUtf8Boundary(byte[] bytes, int offset) =>
+        offset == 0
+        || offset == bytes.Length
+        || (bytes[offset] & 0xC0) != 0x80;
 
     private static IReadOnlyDictionary<string, ContractResourceSnapshot> CreateContractSnapshots()
     {

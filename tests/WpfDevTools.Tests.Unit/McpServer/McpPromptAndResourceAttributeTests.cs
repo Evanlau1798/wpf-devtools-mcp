@@ -118,6 +118,7 @@ public class McpPromptAndResourceAttributeTests
     [InlineData("wpf_response_contract", "wpf://contracts/response")]
     [InlineData("wpf_contract_index", "wpf://contracts/index")]
     [InlineData("wpf_contract_chunk", "wpf://contracts/{contractId}/chunks/{offset}/{length}")]
+    [InlineData("wpf_contract_text_chunk", "wpf://contracts/{contractId}/text-chunks/{offset}/{length}")]
     [InlineData("wpf_tool_examples", "wpf://contracts/tool-examples")]
     [InlineData("wpf_starter_path", "wpf://workflows/starter-path")]
     [InlineData("wpf_binding_workflow", "wpf://workflows/binding-debug")]

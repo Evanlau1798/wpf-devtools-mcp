@@ -12,6 +12,7 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public sealed class ContractResourceChunkTests
 {
     private const int MaxChunkBytes = 16 * 1024;
+    private const int MaxTextChunkBytes = 8 * 1024;
 
     public static readonly TheoryData<string> ContractIds = new()
     {
@@ -30,6 +31,7 @@ public sealed class ContractResourceChunkTests
 
         root.GetProperty("resourceUri").GetString().Should().Be("wpf://contracts/index");
         root.GetProperty("maxChunkBytes").GetInt32().Should().Be(MaxChunkBytes);
+        root.GetProperty("maxTextChunkBytes").GetInt32().Should().Be(MaxTextChunkBytes);
         resources.Keys.Should().BeEquivalentTo(["response", "tools", "tool-examples"]);
 
         foreach (var (id, content) in ExpectedContracts())
@@ -40,6 +42,8 @@ public sealed class ContractResourceChunkTests
             entry.GetProperty("sha256").GetString().Should().Be(Sha256(bytes));
             entry.GetProperty("chunkUriTemplate").GetString()
                 .Should().Be($"wpf://contracts/{id}/chunks/{{offset}}/{{length}}");
+            entry.GetProperty("textChunkUriTemplate").GetString()
+                .Should().Be($"wpf://contracts/{id}/text-chunks/{{offset}}/{{length}}");
         }
     }
 
@@ -48,10 +52,44 @@ public sealed class ContractResourceChunkTests
     {
         CapabilityResources.GetCapabilities().Should().Contain("wpf://contracts/index")
             .And.Contain("16 KiB")
+            .And.Contain("text-chunks")
+            .And.Contain("base64")
             .And.Contain("SHA-256");
         ServerInstructions.Value.Should().Contain("wpf://contracts/index")
             .And.Contain("16 KiB")
+            .And.Contain("text-chunks")
+            .And.Contain("base64")
             .And.Contain("SHA-256");
+    }
+
+    [Theory]
+    [MemberData(nameof(ContractIds))]
+    public void ContractTextChunks_ShouldReconstructWithoutClientBinaryDecoding(string contractId)
+    {
+        var expected = ExpectedContracts()[contractId];
+        var expectedBytes = Encoding.UTF8.GetBytes(expected);
+        var reconstructed = new StringBuilder();
+        var offset = 0;
+
+        while (offset < expectedBytes.Length)
+        {
+            var envelopeJson = CapabilityResources.GetContractResourceTextChunk(
+                contractId,
+                offset,
+                MaxTextChunkBytes);
+            using var envelope = JsonDocument.Parse(envelopeJson);
+            var root = envelope.RootElement;
+            root.GetProperty("offset").GetInt32().Should().Be(offset);
+            root.GetProperty("resourceByteLength").GetInt32().Should().Be(expectedBytes.Length);
+            root.GetProperty("resourceSha256").GetString().Should().Be(Sha256(expectedBytes));
+            reconstructed.Append(root.GetProperty("text").GetString());
+            var nextOffset = root.GetProperty("nextOffset").GetInt32();
+            nextOffset.Should().BeGreaterThan(offset);
+            offset = nextOffset;
+        }
+
+        reconstructed.ToString().Should().Be(expected);
+        offset.Should().Be(expectedBytes.Length);
     }
 
     [Theory]
@@ -86,6 +124,15 @@ public sealed class ContractResourceChunkTests
             .Where(exception => exception.ErrorCode == McpErrorCode.ResourceNotFound);
     }
 
+    [Fact]
+    public void ContractTextChunk_WithUnknownId_ShouldReturnResourceNotFound()
+    {
+        var act = () => CapabilityResources.GetContractResourceTextChunk("unknown", 0, 1);
+
+        act.Should().Throw<McpProtocolException>()
+            .Where(exception => exception.ErrorCode == McpErrorCode.ResourceNotFound);
+    }
+
     [Theory]
     [InlineData(-1, 1)]
     [InlineData(0, 0)]
@@ -94,6 +141,19 @@ public sealed class ContractResourceChunkTests
     public void ContractChunk_WithInvalidRange_ShouldReject(int offset, int length)
     {
         var act = () => CapabilityResources.GetContractResourceChunk("response", offset, length);
+
+        act.Should().Throw<McpProtocolException>()
+            .Where(exception => exception.ErrorCode == McpErrorCode.InvalidParams);
+    }
+
+    [Theory]
+    [InlineData(-1, 1)]
+    [InlineData(0, 0)]
+    [InlineData(0, MaxTextChunkBytes + 1)]
+    [InlineData(int.MaxValue, 1)]
+    public void ContractTextChunk_WithInvalidRange_ShouldReject(int offset, int length)
+    {
+        var act = () => CapabilityResources.GetContractResourceTextChunk("response", offset, length);
 
         act.Should().Throw<McpProtocolException>()
             .Where(exception => exception.ErrorCode == McpErrorCode.InvalidParams);

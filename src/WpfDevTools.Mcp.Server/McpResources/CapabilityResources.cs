@@ -27,7 +27,7 @@ public static partial class CapabilityResources
         - Transport: `stdio`
         - Tool surface: WPF process discovery, connection, exact-match element search, tree inspection, binding diagnostics, DependencyProperty analysis, MVVM inspection, style/template inspection, interaction, layout, performance, and routed-event diagnostics
         - Prompt surface: workflow entry points for start diagnostics, connection, binding diagnosis, command/click diagnosis, elevated-target diagnosis, performance profiling, and secondary-window inspection
-        - Resource surface: capability summary, response contract JSON, canonical tool manifest JSON, structured tool input examples, compact contract reconstruction index, bounded contract chunks, workflow references, retained screenshot PNG resources, elevated-target limitations, injection failure notes, window/focus limitations, performance profiling notes, and runtime state safety notes
+        - Resource surface: capability summary, response contract JSON, canonical tool manifest JSON, structured tool input examples, compact contract reconstruction index, bounded binary and text contract chunks, workflow references, retained screenshot PNG resources, elevated-target limitations, injection failure notes, window/focus limitations, performance profiling notes, and runtime state safety notes
         - Feature flags: `prompts=true`, `resources=true`, `stateSnapshots=true`, `diagnosticNormalization=true`, `elevatedTargetDiagnostics=true`
 
         ## Recommended workflow shape
@@ -42,7 +42,7 @@ public static partial class CapabilityResources
         ## Response contract notes
 
         - Machine-readable JSON contract resources: `wpf://contracts/response` for stable response fields, `wpf://contracts/tools` for the canonical tool manifest, and `wpf://contracts/tool-examples` for complex input examples.
-        - If a client bridge truncates one of those JSON resources, read `wpf://contracts/index`, fetch its advertised UTF-8 chunks sequentially at no more than 16 KiB, concatenate the decoded bytes, then verify the published byte length and SHA-256 before parsing.
+        - If a client bridge truncates one of those JSON resources, read `wpf://contracts/index`. Prefer its `text-chunks` route to append ready-to-parse text without base64 or client-side hashing; the 16 KiB binary chunks remain available when exact byte verification against the published SHA-256 is required.
         - Read `wpf://contracts/response` when clients need stable field-level metadata for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, canonical `recovery` error guidance, closed vocabularies for common enum-like parameters, and the `get_binding_errors` `navigation=false` opt-out without relying on prose alone.
         - By default, every tool response includes compatibility `nextSteps`; tools without runtime-computable guidance return `nextSteps: []`.
         - By default, responses also include a `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and `contextRefs`.

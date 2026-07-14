@@ -62,7 +62,8 @@ public sealed class ToolNavigationPlanner(ToolNavigationRegistry registry)
         IReadOnlyList<ToolNextStep> steps,
         IReadOnlyList<ToolNextStep>? excluded = null) =>
         steps
-            .Where(step => !string.Equals(step.Tool, toolName, StringComparison.Ordinal))
+            .Where(step => step.AllowSameToolRetry
+                || !string.Equals(step.Tool, toolName, StringComparison.Ordinal))
             .Where(step => excluded is null || !excluded.Any(existing => existing.Tool == step.Tool && existing.Params.GetRawText() == step.Params.GetRawText()))
             .Select(step => step with
             {

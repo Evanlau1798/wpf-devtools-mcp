@@ -43,6 +43,8 @@ Mutation success response 可能包含 `restoreRequired: true`、`restoreStatus:
 
 若你先用 `trace_routed_events(mode: "start")` 建立 trace session，再做互動，後續通常應先呼叫 `drain_events` 明確讀回 buffered event records。`trace_routed_events(mode: "get")` 仍可用來讀取 trace session，但當 session 內也可能存在 binding、dependency property 或 validation event 時，`drain_events` 是較建議的 shared-buffer read path。
 
+Start mode 預設會保留安全的 30 秒下限。若 `effectiveDuration` 大於 `requestedDuration`，回應的 `nextSteps` 會提供精確的 `trace_routed_events` 重試，保留原本公開參數 `durationMs` 並設為 `allowShortStartDuration=true`。只有在確實需要較短時窗時才使用該重試；否則保留較安全的 effective duration。
+
 當你需要控制 trace payload 大小時，可在 `trace_routed_events(mode: "get")` 或 capture-mode retrieval 使用 `maxEvents`。Trace 回應會提供 `returnedEventCount`、`totalEventCount`、`eventsTruncated` 與 `maxEvents`，讓 agent 能判斷 `events` 陣列是否為刻意截斷，並只在需要時用更大的 cap 重試。
 
 Trace 回應也會在 trace teardown 延遲或復原時帶出 cleanup state。請搭配 `cleanupState`、`cleanupFailed` 與 `cleanupIncomplete` 判斷：`deferredCompleted` 代表先前 cleanup 問題已復原且 handler 已移除；`deferredPending`、`deferredFailed` 或 `failed` 則表示開始下一個 trace 前要更謹慎。

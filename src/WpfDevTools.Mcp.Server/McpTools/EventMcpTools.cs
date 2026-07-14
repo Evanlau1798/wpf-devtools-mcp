@@ -48,7 +48,8 @@ public static class EventMcpTools
             (a, ct) => ToolCallHelper.CachedTool<TraceRoutedEventsTool>(sessionManager, "TraceRoutedEventsTool", () => new TraceRoutedEventsTool(sessionManager)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
-            timeoutSeconds: timeoutSeconds);
+            timeoutSeconds: timeoutSeconds,
+            toolName: "trace_routed_events");
     }
 
     [McpServerTool(Name = "get_event_handlers", Title = "Inspect WPF Event Handlers", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]

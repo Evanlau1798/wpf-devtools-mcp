@@ -13,4 +13,7 @@ public sealed record ToolNextStep(
     string? WorkflowId = null,
     IReadOnlyList<string>? PrefetchTools = null,
     string? WhyNow = null,
-    string? Confidence = null);
+    string? Confidence = null)
+{
+    internal bool AllowSameToolRetry { get; init; }
+}

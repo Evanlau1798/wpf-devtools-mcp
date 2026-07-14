@@ -43,6 +43,8 @@ Interaction tool responses now also carry `nextSteps` and `navigation`. When the
 
 If you start a trace session with `trace_routed_events(mode: "start")` before the interaction, the usual next step is `drain_events` to read back the buffered event records explicitly. `trace_routed_events(mode: "get")` remains available for trace-session retrieval, but `drain_events` is the preferred shared-buffer read path when the session may also contain binding, dependency property, or validation events.
 
+Start mode keeps a safe 30-second minimum by default. If `effectiveDuration` is higher than `requestedDuration`, the response `nextSteps` includes an exact `trace_routed_events` retry that preserves the original public `durationMs` and sets `allowShortStartDuration=true`. Use that retry only when the shorter window is intentional; otherwise keep the safer effective duration.
+
 Use `maxEvents` on `trace_routed_events(mode: "get")` or capture-mode retrieval when you need to cap trace payload size. Trace responses include `returnedEventCount`, `totalEventCount`, `eventsTruncated`, and `maxEvents` so agents can detect that the `events` array is intentionally partial and retry with a larger cap only when needed.
 
 Trace responses also surface cleanup state when trace teardown is delayed or recovered. Use `cleanupState`, `cleanupFailed`, and `cleanupIncomplete` together: `deferredCompleted` means an earlier cleanup problem recovered and the handlers were removed, while `deferredPending`, `deferredFailed`, or `failed` need more caution before starting another trace.

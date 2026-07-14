@@ -19,7 +19,7 @@ internal static class EventMcpToolDescriptions
         "  - success, mode: \"capture\", eventName, duration, isTracing, eventCount, events, handlerInvocationCount, cleanupState (optional), cleanupFailed (optional), cleanupIncomplete (optional)\n" +
         "- start mode:\n" +
         "  - success, mode: \"start\", eventName, requestedDuration, effectiveDuration, shortDurationOverrideUsed, isTracing, message\n" +
-        "  - NOTE: effectiveDuration may be higher than requestedDuration (minimum 30s enforced by default for AI agent IPC round-trips). Set `allowShortStartDuration=true` to opt into a shorter explicit window.\n" +
+        "  - NOTE: effectiveDuration may be higher than requestedDuration (minimum 30s enforced by default for AI agent IPC round-trips). When they differ, `nextSteps` provides an exact retry with the original `durationMs` and `allowShortStartDuration=true`; use it only when the shorter explicit window is intentional.\n" +
         "- get mode:\n" +
         "  - success, mode: \"get\", isTracing, eventCount, totalEventCount, returnedEventCount, eventsTruncated, maxEvents, events, handlerInvocationCount, cleanupState (optional), cleanupFailed (optional), cleanupIncomplete (optional)\n" +
         "  - NOTE: Provide maxEvents to cap returned trace records. When capped, totalEventCount preserves the original count and eventsTruncated=true signals that more events were available.\n\n" +

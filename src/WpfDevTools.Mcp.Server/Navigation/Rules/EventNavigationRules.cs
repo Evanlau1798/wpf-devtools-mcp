@@ -8,6 +8,51 @@ internal static class EventNavigationRules
     public static void Register(ToolNavigationRegistry registry)
     {
         registry.Register("get_event_handlers", BuildGetEventHandlers);
+        registry.Register("trace_routed_events", BuildTraceRoutedEvents);
+    }
+
+    private static IReadOnlyList<ToolNextStep> BuildTraceRoutedEvents(ToolNavigationContext context)
+    {
+        if (!TryGetBool(context.Payload, "success", out var success)
+            || !success
+            || !TryGetString(context.Payload, "mode", out var mode)
+            || !string.Equals(mode, "start", StringComparison.OrdinalIgnoreCase)
+            || !TryGetInt(context.Payload, "requestedDuration", out var requestedDuration)
+            || !TryGetInt(context.Payload, "effectiveDuration", out var effectiveDuration)
+            || effectiveDuration <= requestedDuration
+            || !TryGetBool(context.Payload, "shortDurationOverrideUsed", out var overrideUsed)
+            || overrideUsed)
+        {
+            return Array.Empty<ToolNextStep>();
+        }
+
+        var eventName = TryGetString(context.Arguments, "eventName");
+        if (eventName is null)
+        {
+            return Array.Empty<ToolNextStep>();
+        }
+
+        var reason = $"The requested {requestedDuration} ms start window was raised to {effectiveDuration} ms by the safe default; retry explicitly to honor the shorter window.";
+        return
+        [
+            new ToolNextStep(
+                "trace_routed_events",
+                NavigationParamBuilders.Create(
+                    ("processId", TryGetInt(context.Arguments, "processId")),
+                    ("eventName", eventName),
+                    ("elementId", TryGetString(context.Arguments, "elementId")),
+                    ("durationMs", requestedDuration),
+                    ("mode", "start"),
+                    ("allowShortStartDuration", true),
+                    ("maxEvents", TryGetInt(context.Arguments, "maxEvents"))),
+                reason,
+                ToolNextStepKind.Action,
+                1,
+                ExpectedOutcome: $"Start a trace session that honors the requested {requestedDuration} ms duration.")
+            {
+                AllowSameToolRetry = true
+            }
+        ];
     }
 
     private static IReadOnlyList<ToolNextStep> BuildGetEventHandlers(ToolNavigationContext context)
@@ -101,5 +146,12 @@ internal static class EventNavigationRules
         }
 
         return null;
+    }
+
+    private static string? TryGetString(JsonElement? element, string propertyName)
+    {
+        return element is { } candidate && TryGetString(candidate, propertyName, out var value)
+            ? value
+            : null;
     }
 }

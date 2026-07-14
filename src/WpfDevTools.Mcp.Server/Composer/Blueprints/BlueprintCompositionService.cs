@@ -12,6 +12,7 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
         string blueprintJson,
         string targetPath,
         string kind,
+        JsonElement? properties = null,
         int? insertionIndex = null)
     {
         JsonObject blueprint;
@@ -36,6 +37,11 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
                 "Choose a renderer-backed kind from get_ui_block_catalog(composableOnly=true).");
         }
 
+        if (!TryCreateConfiguredNode(skeleton, properties, out var configuredNode, out var propertiesIssue))
+        {
+            return new BlueprintCompositionResult(false, null, null, null, null, [propertiesIssue!]);
+        }
+
         if (!TryResolveTarget(blueprint, targetPath, out var target, out var issue))
         {
             return new BlueprintCompositionResult(false, null, null, null, null, [issue!]);
@@ -50,7 +56,7 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
                 "Omit insertionIndex to append, or choose an index within the target slot range.");
         }
 
-        targetSlot.Insert(index, JsonNode.Parse(skeleton.GetRawText()));
+        targetSlot.Insert(index, configuredNode);
         var candidateJson = blueprint.ToJsonString();
         var validation = new BlueprintValidationService(registry).Validate(candidateJson);
         if (!validation.Success)
@@ -69,6 +75,45 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
             $"{targetPath}[{index}]",
             validation,
             []);
+    }
+
+    private static bool TryCreateConfiguredNode(
+        JsonElement skeleton,
+        JsonElement? properties,
+        out JsonNode? configuredNode,
+        out BlueprintCompositionIssue? issue)
+    {
+        configuredNode = JsonNode.Parse(skeleton.GetRawText());
+        issue = null;
+        if (properties is null || properties.Value.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (properties.Value.ValueKind != JsonValueKind.Object || configuredNode is not JsonObject configuredObject)
+        {
+            issue = new BlueprintCompositionIssue(
+                "$.properties",
+                "InvalidCompositionProperties",
+                "Composition properties must be a JSON object.",
+                "Pass an object containing only property values declared by the selected block kind.");
+            return false;
+        }
+
+        var suppliedProperties = properties.Value.EnumerateObject().ToArray();
+        if (suppliedProperties.Length == 0)
+        {
+            return true;
+        }
+
+        var targetProperties = configuredObject["properties"] as JsonObject ?? new JsonObject();
+        configuredObject["properties"] = targetProperties;
+        foreach (var property in suppliedProperties)
+        {
+            targetProperties[property.Name] = JsonNode.Parse(property.Value.GetRawText());
+        }
+
+        return true;
     }
 
     private static bool TryResolveTarget(

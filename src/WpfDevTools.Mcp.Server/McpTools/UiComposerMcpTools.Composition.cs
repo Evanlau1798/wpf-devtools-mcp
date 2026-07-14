@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
@@ -21,6 +22,7 @@ public static partial class UiComposerMcpTools
         [Description("Exact target slot path, such as $.layout.slots.content or $.layout.slots.content[0].slots.actions.")] string targetPath,
         [StringLength(BoundaryStringLimits.MaxLabelLength)]
         [Description("Exact pack-qualified block kind to insert. Its compositionSkeleton is resolved from the installed pack.")] string kind,
+        [Description("Optional JSON object of pack-defined property values to apply while inserting the block. Values are validated against the installed block contract.")] JsonElement? properties = null,
         [Description("Optional zero-based insertion index. Omit to append to the target slot.")] int? insertionIndex = null,
         [Description("Optional local WPF project root used for project-local pack discovery.")] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global pack discovery.")] string? localAppDataRoot = null,
@@ -30,6 +32,7 @@ public static partial class UiComposerMcpTools
             ("blueprintJson", blueprintJson),
             ("targetPath", targetPath),
             ("kind", kind),
+            ("properties", properties),
             ("insertionIndex", insertionIndex),
             ("projectRoot", projectRoot),
             ("localAppDataRoot", localAppDataRoot));
@@ -39,6 +42,7 @@ public static partial class UiComposerMcpTools
                 blueprintJson,
                 targetPath,
                 kind,
+                properties,
                 insertionIndex,
                 projectRoot,
                 localAppDataRoot)),
@@ -51,6 +55,7 @@ public static partial class UiComposerMcpTools
         string blueprintJson,
         string targetPath,
         string kind,
+        JsonElement? properties,
         int? insertionIndex,
         string? projectRoot,
         string? localAppDataRoot)
@@ -62,7 +67,7 @@ public static partial class UiComposerMcpTools
         }
 
         var result = new BlueprintCompositionService(CreateRegistry(projectRoot, localAppDataRoot))
-            .Compose(input.BlueprintJson, targetPath, kind, insertionIndex);
+            .Compose(input.BlueprintJson, targetPath, kind, properties, insertionIndex);
         var validation = result.Validation is null
             ? null
             : new

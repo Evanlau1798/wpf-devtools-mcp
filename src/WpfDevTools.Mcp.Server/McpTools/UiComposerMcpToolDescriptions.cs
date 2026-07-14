@@ -130,6 +130,7 @@ internal static class UiComposerMcpToolDescriptions
         - blueprintJson accepts raw JSON or an opaque draftRef.
         - targetPath identifies an existing slot. Use $.layout.slots.<slot> for a root slot or include an explicit child index before each nested slot.
         - kind is an exact pack-qualified kind from get_ui_block_catalog(composableOnly=true).
+        - properties optionally configures the inserted node with one JSON object of pack-defined values; installed block validation remains authoritative.
         - insertionIndex optionally inserts before an existing child; omit it to append.
 
         EXAMPLES:

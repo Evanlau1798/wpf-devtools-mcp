@@ -116,10 +116,11 @@ Request options:
 - `blueprintJson`: 目前完整的 blueprint JSON 文字或 opaque `draftRef`。
 - `targetPath`: 精確 slot path。Root slot 使用 `$.layout.slots.<slot>`；每個 nested slot 前必須提供明確 child index，例如 `$.layout.slots.content[0].slots.actions`。
 - `kind`: 來自 `get_ui_block_catalog` 搭配 `composableOnly=true` 的 exact pack-qualified block kind。
+- `properties`: optional JSON object，可在插入時套用 pack-defined values。Installed block contract 會驗證 property name、type、range 與 allowed values。
 - `insertionIndex`: optional zero-based position；省略時 append。
 - `projectRoot` 與 `localAppDataRoot`: optional pack discovery roots。
 
-Raw JSON input 在 `composed=true` 時會回傳新的 `blueprint`、compact `blueprintJson`、精確 `insertedPath` 與 validation result。Draft input 則回傳新的 immutable `draftRef` 並省略完整文件，source draft 保持不變。Invalid draft-derived candidate 會保留在 `candidateDraftRef`；raw input 則維持既有 `invalidCandidate` 與 `candidateBlueprintJson` recovery shape。兩者都不會寫入 project files。Ambiguous path 與 non-composable block 只回傳可採取行動的 errors，不提供 candidate。
+需要在插入時設定 block 時，使用 `properties` 可避免再透過很長的 nested path 追加一次 edit，同時仍以 pack 的 `compositionSkeleton` 為權威。Raw JSON input 在 `composed=true` 時會回傳新的 `blueprint`、compact `blueprintJson`、精確 `insertedPath` 與 validation result。Draft input 則回傳新的 immutable `draftRef` 並省略完整文件，source draft 保持不變。Invalid draft-derived candidate 會保留在 `candidateDraftRef`；raw input 則維持既有 `invalidCandidate` 與 `candidateBlueprintJson` recovery shape。兩者都不會寫入 project files。Ambiguous path 與 non-composable block 只回傳可採取行動的 errors，不提供 candidate。
 
 ## `validate_ui_blueprint`
 

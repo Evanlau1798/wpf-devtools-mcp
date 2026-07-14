@@ -42,6 +42,64 @@ public sealed class ComposerBlueprintCompositionTests
         }
     }
 
+    [Fact]
+    public async Task ComposeUiBlueprintTool_ShouldApplyPackValidatedPropertiesDuringInsertion()
+    {
+        var projectRoot = CreateProjectWithCompositionPack();
+        using var properties = JsonDocument.Parse("""{"label":"Run now"}""");
+        try
+        {
+            var result = await UiComposerMcpTools.ComposeUiBlueprint(
+                CreateBlueprint(),
+                targetPath: "$.layout.slots.content[0].slots.items",
+                kind: "nebula.action",
+                properties: properties.RootElement,
+                projectRoot: projectRoot,
+                localAppDataRoot: projectRoot,
+                cancellationToken: CancellationToken.None);
+
+            result.IsError.Should().BeFalse();
+            var payload = result.StructuredContent!.Value;
+            payload.GetProperty("composed").GetBoolean().Should().BeTrue(payload.GetRawText());
+            payload.GetProperty("blueprint")
+                .GetProperty("layout").GetProperty("slots").GetProperty("content")[0]
+                .GetProperty("slots").GetProperty("items")[0]
+                .GetProperty("properties").GetProperty("label").GetString().Should().Be("Run now");
+        }
+        finally
+        {
+            Directory.Delete(projectRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ComposeUiBlueprintTool_ShouldRejectNonObjectPropertiesWithoutCreatingACandidate()
+    {
+        var projectRoot = CreateProjectWithCompositionPack();
+        using var properties = JsonDocument.Parse("[]");
+        try
+        {
+            var result = await UiComposerMcpTools.ComposeUiBlueprint(
+                CreateBlueprint(),
+                targetPath: "$.layout.slots.content[0].slots.items",
+                kind: "nebula.action",
+                properties: properties.RootElement,
+                projectRoot: projectRoot,
+                localAppDataRoot: projectRoot,
+                cancellationToken: CancellationToken.None);
+
+            var payload = result.StructuredContent!.Value;
+            payload.GetProperty("composed").GetBoolean().Should().BeFalse(payload.GetRawText());
+            payload.GetProperty("errors")[0].GetProperty("code").GetString()
+                .Should().Be("InvalidCompositionProperties");
+            payload.TryGetProperty("candidateBlueprintJson", out _).Should().BeFalse();
+        }
+        finally
+        {
+            Directory.Delete(projectRoot, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData("$.layout.slots.content.slots.items")]
     [InlineData("$.layout.slots.content[999999999999999999999999999999].slots.items")]

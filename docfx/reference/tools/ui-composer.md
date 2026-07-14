@@ -117,10 +117,11 @@ Request options:
 - `blueprintJson`: current full blueprint JSON text or an opaque `draftRef`.
 - `targetPath`: exact slot path. Use `$.layout.slots.<slot>` for a root slot, or include an explicit child index before each nested slot, such as `$.layout.slots.content[0].slots.actions`.
 - `kind`: exact pack-qualified block kind from `get_ui_block_catalog` with `composableOnly=true`.
+- `properties`: optional JSON object of pack-defined values to apply during insertion. The installed block contract validates property names, types, ranges, and allowed values.
 - `insertionIndex`: optional zero-based position; omit it to append.
 - `projectRoot` and `localAppDataRoot`: optional pack discovery roots.
 
-With raw JSON input, `composed=true` returns a new `blueprint`, compact `blueprintJson`, exact `insertedPath`, and validation result. With draft input, it returns a new immutable `draftRef` and omits the full document; the source draft remains unchanged. An invalid draft-derived candidate is retained under `candidateDraftRef`, while raw input retains the existing `invalidCandidate` and `candidateBlueprintJson` recovery shape. Neither path writes project files. Ambiguous paths and non-composable blocks return actionable errors without a candidate.
+Use `properties` when the block should be configured at insertion time; this avoids a follow-up edit through a long nested path while keeping the pack's `compositionSkeleton` authoritative. With raw JSON input, `composed=true` returns a new `blueprint`, compact `blueprintJson`, exact `insertedPath`, and validation result. With draft input, it returns a new immutable `draftRef` and omits the full document; the source draft remains unchanged. An invalid draft-derived candidate is retained under `candidateDraftRef`, while raw input retains the existing `invalidCandidate` and `candidateBlueprintJson` recovery shape. Neither path writes project files. Ambiguous paths and non-composable blocks return actionable errors without a candidate.
 
 ## `validate_ui_blueprint`
 

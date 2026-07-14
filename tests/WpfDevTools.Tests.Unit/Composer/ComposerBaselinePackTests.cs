@@ -90,13 +90,21 @@ public sealed class ComposerBaselinePackTests
         using var readiness = ReadJson(Path.Combine(BaselineRoot, "reports", "wpfui-0.1.0.readiness.json"));
         using var archive = ZipFile.OpenRead(GetRepoFilePath(Path.Combine(BaselineRoot, "archives", "wpfui-0.1.0.zip")));
         var reportPath = GetRepoFilePath(Path.Combine(BaselineRoot, "wpfui-0.1.0-generation-report.txt"));
+        var report = File.ReadAllText(reportPath);
 
         validation.RootElement.GetProperty("valid").GetBoolean().Should().BeTrue();
         validation.RootElement.GetProperty("strict").GetBoolean().Should().BeTrue();
         coverage.RootElement.GetProperty("valid").GetBoolean().Should().BeTrue();
         readiness.RootElement.GetProperty("valid").GetBoolean().Should().BeTrue();
         GetString(readiness.RootElement, "requestedLevel").Should().Be("release");
-        File.ReadAllText(reportPath).Should().Contain("check_pack_readiness.py");
+        report.Should().Contain("check_pack_readiness.py");
+        report.Should().Contain("## Beta 60 Maintenance Commands and Results");
+        report.Should().Contain(
+            "python <extension-creator-root>/scripts/validate_pack.py packs/builtin/wpfui/0.1.0 --strict");
+        report.Should().Contain(
+            "python <extension-creator-root>/scripts/audit_pack_coverage.py packs/builtin/wpfui/0.1.0 --source-inventory <generation-workspace>/out/inventory/wpfui.source-inventory.json");
+        var coverageWarningCode = coverage.RootElement.GetProperty("warnings")[0].GetProperty("code").GetString();
+        report.Should().Contain($"warning: `{coverageWarningCode}`");
         archive.Entries.Should().OnlyContain(entry =>
             entry.FullName.StartsWith("wpfui/0.1.0/", StringComparison.Ordinal)
             && !entry.FullName.Contains('\\'));

@@ -19,4 +19,18 @@ public sealed class ComposerCompositionIdentityDocumentationTests
             "`automationId`",
             "`insertedNodeSummary`");
     }
+
+    [Theory]
+    [InlineData("docfx/reference/tools/ui-composer.md")]
+    [InlineData("docfx/zh-tw/reference/tools/ui-composer.md")]
+    public void ComposerReference_ShouldDocumentExtensionDeclaredSlotCapacity(string path)
+    {
+        var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(path));
+
+        content.Should().ContainAll(
+            "`minItems`",
+            "`maxItems`",
+            "`targetSlotSummary`",
+            "`remainingCapacity`");
+    }
 }

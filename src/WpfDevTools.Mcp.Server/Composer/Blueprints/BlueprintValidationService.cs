@@ -368,6 +368,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         List<BlueprintValidationIssue> errors,
         List<BlueprintValidationIssue> warnings)
     {
+        BlueprintSlotCardinalityValidator.AddIssues(node, path, block, errors);
         foreach (var (slotName, children) in node.Slots)
         {
             if (!block.Slots.TryGetValue(slotName, out var slot))

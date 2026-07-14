@@ -58,6 +58,8 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
                 blueprint,
                 targetPath,
                 out var target,
+                out var targetParent,
+                out var targetSlotName,
                 out var resolvedTargetPath,
                 out var issue))
         {
@@ -65,6 +67,7 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
         }
 
         var targetSlot = target!;
+        var existingCount = targetSlot.Count;
         var index = insertionIndex ?? targetSlot.Count;
         if (index < 0 || index > targetSlot.Count)
         {
@@ -74,6 +77,12 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
         }
 
         targetSlot.Insert(index, configuredNode);
+        var targetSlotSummary = CreateTargetSlotSummary(
+            targetParent!,
+            targetSlotName,
+            resolvedTargetPath,
+            existingCount,
+            targetSlot.Count);
         var insertedPath = $"{resolvedTargetPath}[{index}]";
         var candidateJson = blueprint.ToJsonString();
         if (candidateJson.Length > BoundaryStringLimits.MaxStringifiedJsonArgumentLength)
@@ -89,7 +98,8 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
             return new BlueprintCompositionResult(false, null, null, null, validation, [])
             {
                 InvalidCandidate = blueprint,
-                CandidateBlueprintJson = candidateJson
+                CandidateBlueprintJson = candidateJson,
+                TargetSlotSummary = targetSlotSummary
             };
         }
 
@@ -101,8 +111,43 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
             validation,
             [])
         {
-            InsertedNodeSummary = CreateInsertedNodeSummary(configuredNode!, insertedPath)
+            InsertedNodeSummary = CreateInsertedNodeSummary(configuredNode!, insertedPath),
+            TargetSlotSummary = targetSlotSummary
         };
+    }
+
+    private BlueprintCompositionSlotSummary? CreateTargetSlotSummary(
+        JsonObject targetParent,
+        string slotName,
+        string targetPath,
+        int existingCount,
+        int resultingCount)
+    {
+        var parentKind = targetParent["kind"]?.GetValue<string>();
+        if (parentKind is null)
+        {
+            return null;
+        }
+
+        var parent = new BlockCatalogService(registry)
+            .GetCatalog(new BlockCatalogQuery(Kind: parentKind))
+            .Items.SingleOrDefault();
+        if (parent is null || !parent.Slots.TryGetValue(slotName, out var slot))
+        {
+            return null;
+        }
+
+        return new BlueprintCompositionSlotSummary(
+            targetPath,
+            parentKind,
+            slotName,
+            existingCount,
+            resultingCount,
+            slot.MinItems,
+            slot.MaxItems,
+            slot.MaxItems is int maximum ? Math.Max(0, maximum - resultingCount) : null,
+            slot.MaxItems is int limit && resultingCount > limit,
+            slot.AllowedKinds);
     }
 
     private static BlueprintCompositionNodeSummary CreateInsertedNodeSummary(
@@ -207,10 +252,14 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
         JsonObject blueprint,
         string targetPath,
         out JsonArray? target,
+        out JsonObject? targetParent,
+        out string targetSlotName,
         out string resolvedTargetPath,
         out BlueprintCompositionIssue? issue)
     {
         target = null;
+        targetParent = null;
+        targetSlotName = string.Empty;
         resolvedTargetPath = targetPath;
         issue = null;
         var resolution = BlueprintNodePathResolver.Resolve(blueprint, targetPath);
@@ -263,6 +312,8 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
             if (i == slotNames.Length - 1)
             {
                 target = children;
+                targetParent = current;
+                targetSlotName = slotNames[i];
                 return true;
             }
 
@@ -323,6 +374,7 @@ internal sealed record BlueprintCompositionResult(
     public JsonObject? InvalidCandidate { get; init; }
     public string? CandidateBlueprintJson { get; init; }
     public BlueprintCompositionNodeSummary? InsertedNodeSummary { get; init; }
+    public BlueprintCompositionSlotSummary? TargetSlotSummary { get; init; }
 }
 
 internal sealed record BlueprintCompositionNodeSummary(
@@ -340,6 +392,18 @@ internal sealed record BlueprintCompositionPropertySummary(
     string ValueKind,
     string CompactValue,
     bool ValueTruncated);
+
+internal sealed record BlueprintCompositionSlotSummary(
+    string TargetPath,
+    string ParentKind,
+    string SlotName,
+    int ExistingCount,
+    int ResultingCount,
+    int MinItems,
+    int? MaxItems,
+    int? RemainingCapacity,
+    bool CapacityExceeded,
+    IReadOnlyList<string> AllowedKinds);
 
 internal sealed record BlueprintCompositionIssue(
     string JsonPath,

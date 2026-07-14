@@ -78,7 +78,7 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this for live target inspection or third-party source retrieval.
 
         RESPONSE SUMMARY:
-        - Returns items with kind, pack-defined description, properties, slots, allowedKinds, renderer availability, compositionSkeleton, previewWarning, and source-hint paths.
+        - Returns kind, pack guidance, properties, slots with declared bounds, renderer availability, skeleton, and source hints.
         - Large vocabularies are bounded with allowedValueCount and allowedValuesTruncated; query exact kind for full values.
         - compositionSkeleton is a compact pack-neutral node derived from required properties and declared slots.
         - authoringGuidance keeps brief-first creative decisions independent; recipes remain optional accelerators.
@@ -125,6 +125,7 @@ internal static class UiComposerMcpToolDescriptions
         RESPONSE SUMMARY:
         - Success returns validation plus the raw blueprint or a derived draftRef that omits the full blueprint; source drafts stay unchanged.
         - insertedNodeSummary: path/kind/elementName/automationId plus bounded property values.
+        - targetSlotSummary: exact parent/slot, declared kinds/bounds, counts, and remaining capacity.
         - Failure returns success=false as an MCP error result with diagnostics and any available candidateDraftRef or candidateBlueprintJson.
 
         REQUEST OPTIONS:

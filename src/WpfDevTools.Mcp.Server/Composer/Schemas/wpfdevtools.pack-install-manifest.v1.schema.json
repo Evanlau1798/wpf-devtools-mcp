@@ -48,6 +48,6 @@
   "x-source": {
     "repository": "https://github.com/Evanlau1798/wpf-devtools-extension-pack-creator",
     "ref": "master",
-    "commit": "c66ec1c09e6e530c615699e7a1deaddc8dffcaeb"
+    "commit": "cafedf2945a5660f966b516e76027f4d4f44af9f"
   }
 }

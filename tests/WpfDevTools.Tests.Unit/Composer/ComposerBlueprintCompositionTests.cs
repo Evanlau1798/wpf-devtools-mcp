@@ -37,6 +37,31 @@ public sealed class ComposerBlueprintCompositionTests
                 .GetProperty("slots").GetProperty("items")[0];
             inserted.GetProperty("kind").GetString().Should().Be("nebula.action");
             inserted.GetProperty("properties").GetProperty("label").GetString().Should().Be("Execute");
+
+            var slot = payload.GetProperty("targetSlotSummary");
+            slot.GetProperty("targetPath").GetString().Should().Be("$.layout.slots.content[0].slots.items");
+            slot.GetProperty("parentKind").GetString().Should().Be("nebula.stack");
+            slot.GetProperty("slotName").GetString().Should().Be("items");
+            slot.GetProperty("existingCount").GetInt32().Should().Be(0);
+            slot.GetProperty("resultingCount").GetInt32().Should().Be(1);
+            slot.GetProperty("minItems").GetInt32().Should().Be(0);
+            slot.GetProperty("maxItems").GetInt32().Should().Be(1);
+            slot.GetProperty("remainingCapacity").GetInt32().Should().Be(0);
+            slot.GetProperty("allowedKinds")[0].GetString().Should().Be("nebula.action");
+
+            var overflow = await UiComposerMcpTools.ComposeUiBlueprint(
+                payload.GetProperty("blueprintJson").GetString()!,
+                targetPath: "@ActionRail.slots.items",
+                kind: "nebula.action",
+                projectRoot: projectRoot,
+                localAppDataRoot: projectRoot,
+                cancellationToken: CancellationToken.None);
+            var overflowPayload = overflow.StructuredContent!.Value;
+            overflow.IsError.Should().BeTrue();
+            overflowPayload.GetProperty("validation").GetProperty("errors")[0]
+                .GetProperty("code").GetString().Should().Be("SlotMaximumItemsExceeded");
+            overflowPayload.GetProperty("targetSlotSummary").GetProperty("resultingCount")
+                .GetInt32().Should().Be(2);
         }
         finally
         {
@@ -430,7 +455,7 @@ public sealed class ComposerBlueprintCompositionTests
         File.WriteAllText(Path.Combine(root, "source.lock.json"),
             """{"schemaVersion":"wpfdevtools.source-lock.v1","sources":[{"name":"Nebula","url":"https://example.invalid/nebula","version":"1.0.0","paths":["src"]}],"transformPolicy":{}}""");
         WriteBlock(root, "frame", """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"nebula.frame","displayName":"Frame","category":"window","properties":{},"slots":{"content":{"allowedKinds":["nebula.stack"]}},"renderer":{"xamlTemplate":"renderers/xaml/frame.xaml.sbn"},"sourceHints":[]}""");
-        WriteBlock(root, "stack", """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"nebula.stack","displayName":"Stack","category":"layout","properties":{},"slots":{"items":{"allowedKinds":["nebula.action"]}},"renderer":{"xamlTemplate":"renderers/xaml/stack.xaml.sbn"},"sourceHints":[]}""");
+        WriteBlock(root, "stack", """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"nebula.stack","displayName":"Stack","category":"layout","properties":{},"slots":{"items":{"allowedKinds":["nebula.action"],"minItems":0,"maxItems":1}},"renderer":{"xamlTemplate":"renderers/xaml/stack.xaml.sbn"},"sourceHints":[]}""");
         WriteBlock(root, "action", """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"nebula.action","displayName":"Action","category":"input","properties":{"label":{"type":"string","required":true,"default":"Execute"}},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/action.xaml.sbn"},"sourceHints":[]}""");
         File.WriteAllText(Path.Combine(root, "renderers", "xaml", "frame.xaml.sbn"), "<nebula:Frame>{{slot.content}}</nebula:Frame>");
         File.WriteAllText(Path.Combine(root, "renderers", "xaml", "stack.xaml.sbn"), "<StackPanel>{{slot.items}}</StackPanel>");

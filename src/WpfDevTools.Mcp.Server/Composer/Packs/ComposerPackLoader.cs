@@ -126,6 +126,19 @@ internal static class ComposerPackLoader
             throw new InvalidDataException(
                 $"BlockManifestMismatch: loaded=[{string.Join(", ", loadedKinds)}]; declared=[{string.Join(", ", declaredKinds)}].");
         }
+
+        foreach (var block in blocks)
+        {
+            foreach (var (slotName, slot) in block.Slots)
+            {
+                if (slot.MinItems < 0
+                    || slot.MaxItems is int maxItems && (maxItems < 0 || maxItems < slot.MinItems))
+                {
+                    throw new InvalidDataException(
+                        $"InvalidSlotItemBounds: block '{block.Kind}' slot '{slotName}' requires 0 <= minItems <= maxItems when maxItems is declared.");
+                }
+            }
+        }
     }
 
     private static string CreateFingerprint(string root)

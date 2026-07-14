@@ -85,6 +85,8 @@ internal sealed class UiBlockSlot
 {
     public string Description { get; set; } = string.Empty;
     public string[] AllowedKinds { get; set; } = [];
+    public int MinItems { get; set; }
+    public int? MaxItems { get; set; }
     public string XamlItemTemplate { get; set; } = string.Empty;
 }
 

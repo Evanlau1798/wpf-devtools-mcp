@@ -109,6 +109,7 @@ public static partial class UiComposerMcpTools
                     derived.ExpiresAt,
                     insertedPath = result.InsertedPath,
                     insertedNodeSummary = result.InsertedNodeSummary,
+                    targetSlotSummary = result.TargetSlotSummary,
                     validation,
                     errors = result.Errors,
                     observability
@@ -129,6 +130,7 @@ public static partial class UiComposerMcpTools
                     candidateDraftRef = candidate.DraftRef,
                     candidateDraftCreated = true,
                     candidateWritten = false,
+                    targetSlotSummary = result.TargetSlotSummary,
                     validation,
                     errors,
                     observability
@@ -145,6 +147,7 @@ public static partial class UiComposerMcpTools
                 blueprintJson = result.BlueprintJson,
                 insertedPath = result.InsertedPath,
                 insertedNodeSummary = result.InsertedNodeSummary,
+                targetSlotSummary = result.TargetSlotSummary,
                 validation,
                 errors = result.Errors,
                 observability
@@ -156,6 +159,7 @@ public static partial class UiComposerMcpTools
                 invalidCandidate = result.InvalidCandidate,
                 candidateBlueprintJson = result.CandidateBlueprintJson,
                 candidateWritten = false,
+                targetSlotSummary = result.TargetSlotSummary,
                 validation,
                 errors,
                 observability

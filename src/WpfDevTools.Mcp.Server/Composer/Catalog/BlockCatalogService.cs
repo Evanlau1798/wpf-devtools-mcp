@@ -60,7 +60,11 @@ internal sealed class BlockCatalogService(PackRegistry registry)
     {
         var slots = block.Slots.ToDictionary(
             pair => pair.Key,
-            pair => new BlockCatalogSlot(pair.Value.Description, pair.Value.AllowedKinds),
+            pair => new BlockCatalogSlot(
+                pair.Value.Description,
+                pair.Value.AllowedKinds,
+                pair.Value.MinItems,
+                pair.Value.MaxItems),
             StringComparer.Ordinal);
         var properties = block.Properties.ToDictionary(
             pair => pair.Key,
@@ -248,4 +252,8 @@ internal sealed record BlockCatalogProperty(
     bool Integer,
     string Format);
 
-internal sealed record BlockCatalogSlot(string Description, IReadOnlyList<string> AllowedKinds);
+internal sealed record BlockCatalogSlot(
+    string Description,
+    IReadOnlyList<string> AllowedKinds,
+    int MinItems,
+    int? MaxItems);

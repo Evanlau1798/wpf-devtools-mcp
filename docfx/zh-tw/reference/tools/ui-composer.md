@@ -23,7 +23,7 @@ Composer 目前支援下列 v1 contracts；`schemaVersion` 缺失或不同時會
 - Native WPF layout 由明確的 `core@0.1.0` pack 提供，並使用 `role="layout-pack"`。請使用 `core.stack`、`core.grid`、`core.rowDefinition`、`core.columnDefinition`、`core.gridCell`、`core.border`、`core.text` 與 `core.template` 等 qualified kinds。
 - `core.grid` 支援真實 rows、columns、grid cells、spanning、alignment 與 WPF `gridLength`。Layout 行為來自 pack data，不是 engine primitive 或 WPF UI 特例。
 - Built-in WPF UI visual set 包含 `wpfui.numberBox`、`wpfui.toggleSwitch`、`wpfui.progressRing`，也提供可設定的 typography、margin、padding、alignment、width 與 window content constraints。
-- Property contract 可宣告 `minimum`、`maximum`、`integer`、`thickness` 與 `gridLength` constraints。Slot `allowedKinds` 接受 exact qualified kind、`*` 或 `<pack-id>.*`；`xamlItemTemplate` 會對每個 child 套用宣告的 wrapper。
+- Property contract 可宣告 `minimum`、`maximum`、`integer`、`thickness` 與 `gridLength` constraints。Slot `allowedKinds` 接受 exact qualified kind、`*` 或 `<pack-id>.*`；optional non-negative integer `minItems` 與 `maxItems` 宣告 child-count bounds，省略時代表最少零項且不設上限。`xamlItemTemplate` 會對每個 child 套用宣告的 wrapper。
 - Pack 可提供具 default 與 pack-owned `appearance`（`light`、`dark` 或 `neutral`）的 named `resourceVariants`。Blueprint 依 pack id 選擇 variant，因此 Composer 不需要任何 library-specific theme logic。Block property 可將 `visualRole` 宣告為 `surface`；當 explicit surface 與 selected theme-styled subtree 衝突時，validation 會在精確 property path 回傳 `SurfaceThemeContrastRisk`。
 - 會輸出 pack XML namespace 的第三方 renderer 必須在 `pack.json` 宣告安全 structural preview metadata。Composer 依 metadata 產生 preview types；使用 custom namespace 卻缺少 contract 時回傳 `PreviewContractMissing`。只輸出 native controls 的第三方 renderer 不需要 stub contract。Pack 不可提供 arbitrary preview C#。
 - Preview metadata 保持 pack-neutral：語意子類別若套用以原生基底為 TargetType 的樣式，應使用 `tabControl` 或 `tabItem`。任何 selected `baseKind` 已繼承的 member 都不可重複宣告；`Window.Content`、sizing、command、items 與 tab state 等 native properties 應直接用於 renderer XAML。Composer 會拒絕可能讓 authored value 與 native visual tree、command、style 或 template 脫節的 shadow declaration。只有整個值為 unset property token 的 renderer attribute 會被省略；明確空字串與 literal empty attribute 仍會保留。除非 blueprint 明確覆寫目前 theme，否則不要設定 `Foreground` 等可繼承 visual property。
@@ -64,7 +64,7 @@ Non-dry-run import 還需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`W
 
 ## `get_ui_block_catalog`
 
-從 enabled Composer packs 回傳 block catalog entries。Agent 需要在建立 blueprint 前理解具體 block kinds、properties、slot names、`allowedKinds`、renderer availability 或 source hint summaries 時，先呼叫 `list_ui_block_packs`，再使用此 tool。
+從 enabled Composer packs 回傳 block catalog entries。Agent 需要在建立 blueprint 前理解具體 block kinds、properties、slot names、`allowedKinds`、declared child-count bounds、renderer availability 或 source hint summaries 時，先呼叫 `list_ui_block_packs`，再使用此 tool。
 
 Request options:
 
@@ -126,6 +126,8 @@ Request options:
 需要在插入時設定 block 時，使用 `properties` 可避免再透過很長的 nested path 追加一次 edit，同時仍以 pack 的 `compositionSkeleton` 為權威。Raw JSON input 在 `composed=true` 時會回傳新的 `blueprint`、compact `blueprintJson`、精確 `insertedPath` 與 validation result。Draft input 則回傳新的 immutable `draftRef` 並省略完整文件，source draft 保持不變。所有未完成 composition 的 outcome 都會以 MCP error result 回傳 `success=false`。Invalid draft-derived candidate 仍會保留在 `candidateDraftRef`；raw input 則維持既有 `invalidCandidate` 與 `candidateBlueprintJson` recovery shape。兩者都不會寫入 project files。Ambiguous path 與 non-composable block 只回傳可採取行動的 errors，不提供 candidate。
 
 每個成功 response 也會回傳 bounded `insertedNodeSummary`，讓 caller 不必 render 或取回完整 draft，就能驗證同呼叫的設定。內容包含解析後的精確 JSON path、kind、optional `elementName` 與 `automationId`、property total/reported counts、truncation state，以及最多 32 個 deterministic property entries。每個 entry 包含 name、JSON value kind、最多 160 字元的 compact value 與明確的 value-truncation flag。
+
+Target 可解析到 installed block contract 時，`targetSlotSummary` 會回傳 exact path、parent kind、slot name、`allowedKinds`、`minItems`、`maxItems`、existing/resulting counts、`remainingCapacity` 與 capacity 是否超出。Invalid candidate 也會保留同一份 summary，讓 Agent 遇到 `SlotMinimumItemsNotMet` 或 `SlotMaximumItemsExceeded` 時不必再查一次 catalog。這些是 extension-declared child-count constraints，不是 pixel-width 預測。
 
 ## `validate_ui_blueprint`
 

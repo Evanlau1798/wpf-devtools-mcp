@@ -218,6 +218,32 @@ public sealed class ComposerPackLoaderCacheTests
     }
 
     [Fact]
+    public void Load_ShouldRejectInvertedSlotItemBounds()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = CreateMinimalPack(tempRoot);
+            var blockPath = Path.Combine(packRoot, "blocks", "text.block.json");
+            File.WriteAllText(
+                blockPath,
+                File.ReadAllText(blockPath).Replace(
+                    "\"slots\":{}",
+                    "\"slots\":{\"children\":{\"allowedKinds\":[\"*\"],\"minItems\":2,\"maxItems\":1}}",
+                    StringComparison.Ordinal));
+
+            var act = () => ComposerPackLoader.LoadUncachedForValidation(packRoot);
+
+            act.Should().Throw<InvalidDataException>()
+                .WithMessage("*InvalidSlotItemBounds*children*minItems*maxItems*");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void Load_ShouldAcceptOwnedBlockForDottedPackId()
     {
         var tempRoot = CreateTempDirectory();

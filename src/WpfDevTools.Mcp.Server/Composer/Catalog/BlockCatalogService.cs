@@ -27,7 +27,11 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             var loadedPack = ComposerPackLoader.Load(pack.RootPath);
             foreach (var block in loadedPack.Blocks)
             {
-                var item = CreateItem(pack, loadedPack.Manifest, block, includeFullAllowedValues: query.Kind is not null);
+                var item = CreateItem(
+                    pack,
+                    loadedPack.Manifest,
+                    block,
+                    includeFullAllowedValues: !string.IsNullOrWhiteSpace(query.Kind));
                 if (Matches(query, item))
                 {
                     items.Add(item);

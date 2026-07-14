@@ -47,6 +47,18 @@ public sealed class ComposerPropertyVocabularyTests
     }
 
     [Fact]
+    public void GetCatalog_WhitespaceKind_ShouldSummarizeLargePropertyVocabulary()
+    {
+        var result = new BlockCatalogService(CreateBuiltinRegistry()).GetCatalog(
+            new BlockCatalogQuery(["wpfui"], Kind: "   "));
+
+        var property = result.Items.Single(item => item.Kind == "wpfui.symbolIcon").Properties["symbol"];
+        var json = JsonSerializer.SerializeToElement(property, JsonOptions);
+        json.GetProperty("allowedValuesTruncated").GetBoolean().Should().BeTrue();
+        json.GetProperty("allowedValues").GetArrayLength().Should().Be(12);
+    }
+
+    [Fact]
     public void GetCatalog_ExactKind_ShouldReturnCompletePropertyVocabulary()
     {
         var result = new BlockCatalogService(CreateBuiltinRegistry()).GetCatalog(

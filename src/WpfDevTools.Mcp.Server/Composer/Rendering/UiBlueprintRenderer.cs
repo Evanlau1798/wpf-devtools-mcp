@@ -54,6 +54,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         errors.AddRange(XamlSafetyScanner.Scan(rendererXaml, resolvedSourceMap, context.RequiredResources));
         var xaml = AddRootXmlNamespaces(rendererXaml, context.XmlNamespaces);
         GeneratedClassMemberCollisionValidator.AddRenderedIssues(blueprint, context.Blocks, targetPath, xaml, errors);
+        AddRenderedNameCollisionIssues(rendererXaml, xaml, resolvedSourceMap, errors);
         var filePlan = new RenderFilePlan(targetPath, WouldWriteFiles: false);
         var packageGuidance = PackageIntegrationPlanner.Create(request.ProjectRoot, context.RequiredNuGetPackages);
 
@@ -342,86 +343,6 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
 
     private static BlueprintValidationIssue Issue(string jsonPath, string code, string message, string repairSuggestion)
         => new(jsonPath, code, message, repairSuggestion, [], [], null);
-
-    private static IReadOnlyList<RenderSourceMapEntry> ResolveSourceMap(
-        string xaml,
-        IReadOnlyList<RenderSourceMapEntry> entries)
-    {
-        var resolved = new List<RenderSourceMapEntry>();
-        var ordered = entries.OrderBy(entry => entry.JsonPath.Length).ToArray();
-        foreach (var entry in ordered)
-        {
-            var parent = resolved
-                .Where(candidate => IsChildPath(entry.JsonPath, candidate.JsonPath))
-                .OrderByDescending(candidate => candidate.JsonPath.Length)
-                .FirstOrDefault();
-            var start = parent is null ? 0 : parent.StartIndex;
-            var length = parent is null ? xaml.Length : Math.Max(0, parent.EndIndex - parent.StartIndex);
-            var index = FindSpanStart(xaml, entry.Xaml, start, length);
-            if (index < 0)
-            {
-                continue;
-            }
-
-            var end = index + entry.Xaml.Length;
-            var startPosition = ToLineColumn(xaml, index);
-            var endPosition = ToLineColumn(xaml, Math.Max(index, end - 1));
-            resolved.Add(entry with
-            {
-                StartIndex = index,
-                EndIndex = end,
-                StartLine = startPosition.Line,
-                StartColumn = startPosition.Column,
-                EndLine = endPosition.Line,
-                EndColumn = endPosition.Column
-            });
-        }
-
-        return resolved.OrderBy(entry => entry.StartIndex).ThenBy(entry => entry.JsonPath.Length).ToArray();
-    }
-
-    private static int FindSpanStart(string haystack, string needle, int startIndex, int length)
-    {
-        if (string.IsNullOrEmpty(needle) || startIndex < 0 || startIndex >= haystack.Length)
-        {
-            return -1;
-        }
-
-        return haystack.IndexOf(needle, startIndex, Math.Min(length, haystack.Length - startIndex), StringComparison.Ordinal);
-    }
-
-    private static bool IsChildPath(string path, string parentPath)
-        => path.Length > parentPath.Length
-            && path.StartsWith(parentPath + ".slots.", StringComparison.Ordinal);
-
-    private static (int Line, int Column) ToLineColumn(string text, int index)
-    {
-        var line = 1;
-        var column = 1;
-        for (var i = 0; i < index && i < text.Length; i++)
-        {
-            if (text[i] == '\r')
-            {
-                line++;
-                column = 1;
-                if (i + 1 < index && text[i + 1] == '\n')
-                {
-                    i++;
-                }
-            }
-            else if (text[i] == '\n')
-            {
-                line++;
-                column = 1;
-            }
-            else
-            {
-                column++;
-            }
-        }
-
-        return (line, column);
-    }
 
     private sealed class RenderContext
     {

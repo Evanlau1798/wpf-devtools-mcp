@@ -1,0 +1,148 @@
+using System.Xml;
+using System.Xml.Linq;
+using WpfDevTools.Mcp.Server.Composer.Blueprints;
+
+namespace WpfDevTools.Mcp.Server.Composer.Rendering;
+
+internal sealed partial class UiBlueprintRenderer
+{
+    private static void AddRenderedNameCollisionIssues(
+        string rendererXaml,
+        string namespacedXaml,
+        IReadOnlyList<RenderSourceMapEntry> sourceMap,
+        List<BlueprintValidationIssue> issues)
+    {
+        XDocument document;
+        try
+        {
+            document = XDocument.Parse(
+                namespacedXaml,
+                LoadOptions.PreserveWhitespace | LoadOptions.SetLineInfo);
+        }
+        catch (XmlException)
+        {
+            return;
+        }
+
+        if (document.Root is null)
+        {
+            return;
+        }
+
+        var insertion = FindNamespaceInsertion(rendererXaml, namespacedXaml);
+        VisitNameScope(
+            document.Root,
+            new Dictionary<string, RenderedNameOccurrence>(StringComparer.Ordinal),
+            rendererXaml,
+            namespacedXaml,
+            insertion,
+            sourceMap,
+            issues);
+    }
+
+    private static void VisitNameScope(
+        XElement element,
+        Dictionary<string, RenderedNameOccurrence> scope,
+        string rendererXaml,
+        string namespacedXaml,
+        NamespaceInsertion insertion,
+        IReadOnlyList<RenderSourceMapEntry> sourceMap,
+        List<BlueprintValidationIssue> issues)
+    {
+        foreach (var attribute in element.Attributes().Where(attribute => attribute.Name.LocalName == "Name"))
+        {
+            var occurrence = CreateOccurrence(attribute, rendererXaml, namespacedXaml, insertion, sourceMap);
+            if (scope.TryGetValue(attribute.Value, out var first))
+            {
+                issues.Add(Issue(
+                    occurrence.JsonPath,
+                    "RenderedNameCollision",
+                    $"Rendered XAML name '{attribute.Value}' is repeated in one namescope by '{first.JsonPath}' and '{occurrence.JsonPath}'.",
+                    "Use unique names per renderer instance, or move the named part into a template or style namescope."));
+            }
+            else
+            {
+                scope[attribute.Value] = occurrence;
+            }
+        }
+
+        var childScope = CreatesNestedNameScope(element)
+            ? new Dictionary<string, RenderedNameOccurrence>(StringComparer.Ordinal)
+            : scope;
+        foreach (var child in element.Elements())
+        {
+            VisitNameScope(
+                child,
+                childScope,
+                rendererXaml,
+                namespacedXaml,
+                insertion,
+                sourceMap,
+                issues);
+        }
+    }
+
+    private static RenderedNameOccurrence CreateOccurrence(
+        XAttribute attribute,
+        string rendererXaml,
+        string namespacedXaml,
+        NamespaceInsertion insertion,
+        IReadOnlyList<RenderSourceMapEntry> sourceMap)
+    {
+        var lineInfo = (IXmlLineInfo)attribute;
+        var namespacedIndex = lineInfo.HasLineInfo()
+            ? ToTextIndex(namespacedXaml, lineInfo.LineNumber, lineInfo.LinePosition)
+            : -1;
+        var rendererIndex = namespacedIndex > insertion.Index
+            ? namespacedIndex - insertion.Length
+            : namespacedIndex;
+        var entry = sourceMap
+            .Where(entry => entry.StartIndex <= rendererIndex && rendererIndex < entry.EndIndex)
+            .OrderByDescending(entry => entry.JsonPath.Length)
+            .FirstOrDefault();
+        return new RenderedNameOccurrence(entry?.JsonPath ?? "$.layout");
+    }
+
+    private static bool CreatesNestedNameScope(XElement element)
+    {
+        var localName = element.Name.LocalName;
+        return !localName.Contains('.', StringComparison.Ordinal)
+            && (localName.EndsWith("Template", StringComparison.Ordinal)
+                || string.Equals(localName, "Style", StringComparison.Ordinal));
+    }
+
+    private static NamespaceInsertion FindNamespaceInsertion(string rendererXaml, string namespacedXaml)
+    {
+        var length = namespacedXaml.Length - rendererXaml.Length;
+        if (length <= 0)
+        {
+            return new NamespaceInsertion(-1, 0);
+        }
+
+        var index = 0;
+        while (index < rendererXaml.Length
+               && index < namespacedXaml.Length
+               && rendererXaml[index] == namespacedXaml[index])
+        {
+            index++;
+        }
+        return new NamespaceInsertion(index, length);
+    }
+
+    private static int ToTextIndex(string text, int lineNumber, int linePosition)
+    {
+        var line = 1;
+        var index = 0;
+        while (index < text.Length && line < lineNumber)
+        {
+            if (text[index++] == '\n')
+            {
+                line++;
+            }
+        }
+        return Math.Min(text.Length, index + Math.Max(0, linePosition - 1));
+    }
+
+    private sealed record RenderedNameOccurrence(string JsonPath);
+    private sealed record NamespaceInsertion(int Index, int Length);
+}

@@ -119,13 +119,14 @@ Request options:
 - `blueprintJson`: current full blueprint JSON text or an opaque `draftRef`.
 - `targetPath`: exact slot path. Use `$.layout.slots.<slot>` for a root slot, include an explicit child index before each nested slot such as `$.layout.slots.content[0].slots.actions`, or use `@ElementName.slots.actions` when that node has a unique standard blueprint `elementName`. Successful responses still publish the resolved exact `insertedPath`.
 - `kind`: exact pack-qualified block kind from `get_ui_block_catalog` with `composableOnly=true`.
+- `elementName` and `automationId`: optional standard identities assigned during insertion. Existing blueprint validation enforces safe syntax and blueprint-wide uniqueness; neither field depends on the selected extension pack.
 - `properties`: optional JSON object of pack-defined values to apply during insertion. The installed block contract validates property names, types, ranges, and allowed values.
 - `insertionIndex`: optional zero-based position; omit it to append.
 - `projectRoot` and `localAppDataRoot`: optional pack discovery roots.
 
 Use `properties` when the block should be configured at insertion time; this avoids a follow-up edit through a long nested path while keeping the pack's `compositionSkeleton` authoritative. With raw JSON input, `composed=true` returns a new `blueprint`, compact `blueprintJson`, exact `insertedPath`, and validation result. With draft input, it returns a new immutable `draftRef` and omits the full document; the source draft remains unchanged. Every non-composed outcome returns `success=false` as an MCP error result. An invalid draft-derived candidate is still retained under `candidateDraftRef`, while raw input retains the existing `invalidCandidate` and `candidateBlueprintJson` recovery shape. Neither path writes project files. Ambiguous paths and non-composable blocks return actionable errors without a candidate.
 
-Every successful response also includes a bounded `insertedNodeSummary` so the caller can verify same-call configuration without rendering or retrieving the full draft. It publishes the resolved exact JSON path, kind, optional element name, total and reported property counts, truncation state, and up to 32 deterministic property entries. Each entry includes its name, JSON value kind, a compact value of at most 160 characters, and an explicit value-truncation flag.
+Every successful response also includes a bounded `insertedNodeSummary` so the caller can verify same-call configuration without rendering or retrieving the full draft. It publishes the resolved exact JSON path, kind, optional `elementName` and `automationId`, total and reported property counts, truncation state, and up to 32 deterministic property entries. Each entry includes its name, JSON value kind, a compact value of at most 160 characters, and an explicit value-truncation flag.
 
 ## `validate_ui_blueprint`
 

@@ -124,13 +124,14 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - Success returns validation plus the raw blueprint or a derived draftRef that omits the full blueprint; source drafts stay unchanged.
-        - insertedNodeSummary: path/kind/name; up to 32 compact values, 160 characters each, with truncation flags.
+        - insertedNodeSummary: path/kind/elementName/automationId plus bounded property values.
         - Failure returns success=false as an MCP error result with diagnostics and any available candidateDraftRef or candidateBlueprintJson.
 
         REQUEST OPTIONS:
         - blueprintJson accepts raw JSON or an opaque draftRef.
         - targetPath example: @Panel.slots.actions (or exact JSON path).
         - kind is an exact pack-qualified kind from get_ui_block_catalog(composableOnly=true).
+        - elementName and automationId optionally assign validated, blueprint-wide unique standard identity.
         - properties optionally configures the inserted node with one JSON object of pack-defined values; installed block validation remains authoritative.
         - insertionIndex optionally inserts before an existing child; omit it to append.
 

@@ -16,6 +16,8 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
         string blueprintJson,
         string targetPath,
         string kind,
+        string? elementName = null,
+        string? automationId = null,
         JsonElement? properties = null,
         int? insertionIndex = null)
     {
@@ -41,7 +43,13 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
                 "Choose a renderer-backed kind from get_ui_block_catalog(composableOnly=true).");
         }
 
-        if (!TryCreateConfiguredNode(skeleton, properties, out var configuredNode, out var propertiesIssue))
+        if (!TryCreateConfiguredNode(
+                skeleton,
+                elementName,
+                automationId,
+                properties,
+                out var configuredNode,
+                out var propertiesIssue))
         {
             return new BlueprintCompositionResult(false, null, null, null, null, [propertiesIssue!]);
         }
@@ -116,6 +124,10 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
                 && elementName.TryGetValue<string>(out var name)
                     ? name
                     : null,
+            configuredObject["automationId"] is JsonValue automationId
+                && automationId.TryGetValue<string>(out var id)
+                    ? id
+                    : null,
             propertyCount,
             propertySummaries.Length,
             propertyCount > propertySummaries.Length,
@@ -139,12 +151,27 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
 
     private static bool TryCreateConfiguredNode(
         JsonElement skeleton,
+        string? elementName,
+        string? automationId,
         JsonElement? properties,
         out JsonNode? configuredNode,
         out BlueprintCompositionIssue? issue)
     {
         configuredNode = JsonNode.Parse(skeleton.GetRawText());
         issue = null;
+        if (configuredNode is JsonObject identifiedObject)
+        {
+            if (elementName is not null)
+            {
+                identifiedObject["elementName"] = elementName;
+            }
+
+            if (automationId is not null)
+            {
+                identifiedObject["automationId"] = automationId;
+            }
+        }
+
         if (properties is null || properties.Value.ValueKind == JsonValueKind.Null)
         {
             return true;
@@ -302,6 +329,7 @@ internal sealed record BlueprintCompositionNodeSummary(
     string JsonPath,
     string Kind,
     string? ElementName,
+    string? AutomationId,
     int PropertyCount,
     int ReportedPropertyCount,
     bool PropertiesTruncated,

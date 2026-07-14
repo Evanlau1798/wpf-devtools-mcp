@@ -90,6 +90,9 @@ public sealed partial class ComposerPreviewCompileTests
         payload.GetProperty("buildSucceeded").GetBoolean().Should().BeTrue();
         payload.GetProperty("visualFidelity").GetString().Should().Be("structural-stub");
         payload.GetProperty("visualValidationGuidance").GetString().Should().Contain("applied, built, and launched WPF application");
+        var screenshotGuidance = payload.GetProperty("screenshotVerificationGuidance").GetString();
+        screenshotGuidance.Should().Contain("same screenshot resource");
+        screenshotGuidance.Should().Contain("SHA-256");
         var visualComparisonChecklist = payload.GetProperty("visualComparisonChecklist")
             .EnumerateArray()
             .ToArray();

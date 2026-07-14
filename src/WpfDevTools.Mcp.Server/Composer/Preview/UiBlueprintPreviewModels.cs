@@ -43,6 +43,9 @@ internal sealed record PreviewBlueprintResult(
     public string VisualValidationGuidance =>
         "Use preview screenshots for structural diagnostics only. Validate final styling in the applied, built, and launched WPF application.";
 
+    public string ScreenshotVerificationGuidance =>
+        "If a client displays sparse pixels while semantic evidence is complete, re-read the same screenshot resource and verify its SHA-256 before regenerating the preview or reporting a product defect.";
+
     public IReadOnlyList<PreviewVisualComparison> VisualComparisonChecklist => VisualComparisonItems;
 
     public IReadOnlyList<PreviewPropertyWarning> PropertyWarnings { get; init; } = [];

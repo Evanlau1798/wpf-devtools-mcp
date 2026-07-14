@@ -92,6 +92,7 @@ public static partial class UiComposerMcpTools
             result.PreviewHost,
             result.VisualFidelity,
             result.VisualValidationGuidance,
+            result.ScreenshotVerificationGuidance,
             result.VisualComparisonChecklist,
             result.PropertyWarnings,
             result.ElementCorrelations,

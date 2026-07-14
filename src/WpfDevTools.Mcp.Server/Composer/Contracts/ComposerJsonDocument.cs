@@ -104,9 +104,23 @@ internal sealed class UiPackPreviewType
 
 internal sealed class UiBlockRenderer
 {
+    private string[] _nameScopeElements = [];
+
     public string XamlTemplate { get; set; } = string.Empty;
     public string CodeBehindBaseType { get; set; } = string.Empty;
-    public string[] NameScopeElements { get; set; } = [];
+
+    public string[] NameScopeElements
+    {
+        get => _nameScopeElements;
+        set
+        {
+            _nameScopeElements = value ?? [];
+            HasNameScopeElementsDeclaration = true;
+        }
+    }
+
+    [JsonIgnore]
+    public bool HasNameScopeElementsDeclaration { get; private set; }
 }
 
 internal sealed class UiBlockInteraction

@@ -117,6 +117,31 @@ public sealed class ComposerRenderedNameCollisionTests
     }
 
     [Fact]
+    public void PackLoader_ShouldRejectExplicitlyEmptyNamescopeElementDeclaration()
+    {
+        var projectRoot = CreatePack(
+            "<Grid x:Name=\"SharedPart\" />",
+            declareEmptyNameScopeElements: true);
+        try
+        {
+            var packRoot = Path.Combine(
+                projectRoot,
+                ".wpfdevtools",
+                "packs",
+                "sample",
+                "1.0.0");
+            var act = () => ComposerPackLoader.Load(packRoot);
+
+            act.Should().Throw<InvalidDataException>()
+                .WithMessage("*InvalidRendererNameScopeElements*");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
+    [Fact]
     public async Task PreviewTool_ShouldPublishBothRenderedNameCollisionPaths()
     {
         var projectRoot = CreatePack("<Grid x:Name=\"SharedPart\" />");
@@ -185,7 +210,10 @@ public sealed class ComposerRenderedNameCollisionTests
         return new UiBlueprintRenderer(registry).Render(new RenderBlueprintRequest(Blueprint()));
     }
 
-    private static string CreatePack(string childRenderer, string? nameScopeElement = null)
+    private static string CreatePack(
+        string childRenderer,
+        string? nameScopeElement = null,
+        bool declareEmptyNameScopeElements = false)
     {
         var projectRoot = TestDirectory.Create();
         var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", "sample", "1.0.0");
@@ -199,9 +227,11 @@ public sealed class ComposerRenderedNameCollisionTests
             """{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"sample","version":"1.0.0","scope":"project-local","path":".","enabled":true}""");
         File.WriteAllText(Path.Combine(packRoot, "blocks", "host.block.json"),
             """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"sample.host","displayName":"Host","description":"Host.","category":"container","properties":{},"slots":{"children":{"allowedKinds":["sample.namedPart"]}},"renderer":{"xamlTemplate":"renderers/xaml/host.xaml.sbn"},"sourceHints":[]}""");
-        var nameScopeMetadata = nameScopeElement is null
-            ? string.Empty
-            : $",\"nameScopeElements\":[\"{nameScopeElement}\"]";
+        var nameScopeMetadata = declareEmptyNameScopeElements
+            ? ",\"nameScopeElements\":[]"
+            : nameScopeElement is null
+                ? string.Empty
+                : $",\"nameScopeElements\":[\"{nameScopeElement}\"]";
         File.WriteAllText(Path.Combine(packRoot, "blocks", "named-part.block.json"),
             """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"sample.namedPart","displayName":"Named part","description":"Named part.","category":"display","properties":{},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/named-part.xaml.sbn"__NAMESCOPE__},"sourceHints":[]}"""
                 .Replace("__NAMESCOPE__", nameScopeMetadata, StringComparison.Ordinal));

@@ -254,13 +254,18 @@ internal static class ComposerPackLoader
 
     private static void ValidateRendererNameScopeElements(UiBlockDefinition block)
     {
+        if (!block.Renderer.HasNameScopeElementsDeclaration)
+        {
+            return;
+        }
+
         var elements = block.Renderer.NameScopeElements;
         var invalidElement = elements.FirstOrDefault(element =>
             string.IsNullOrEmpty(element)
             || !(IsAsciiLetter(element[0]) || element[0] == '_')
             || element.Skip(1).Any(ch => !IsAsciiLetter(ch) && ch is not (>= '0' and <= '9') && ch != '_'));
         var hasDuplicates = elements.Distinct(StringComparer.Ordinal).Count() != elements.Length;
-        if (elements.Length <= 64 && invalidElement is null && !hasDuplicates)
+        if (elements.Length is >= 1 and <= 64 && invalidElement is null && !hasDuplicates)
         {
             return;
         }

@@ -125,11 +125,30 @@ internal static class ViewModelBindingRequirementBuilder
     {
         var arguments = new List<string>();
         var start = 0;
-        var depth = 0;
+        var braceDepth = 0;
+        var bracketDepth = 0;
+        var quote = '\0';
         for (var index = 0; index < value.Length; index++)
         {
-            depth += value[index] == '{' ? 1 : value[index] == '}' ? -1 : 0;
-            if (value[index] == ',' && depth == 0)
+            var character = value[index];
+            if (quote != '\0')
+            {
+                if (character == quote)
+                {
+                    quote = '\0';
+                }
+                continue;
+            }
+
+            if (character is '\'' or '"')
+            {
+                quote = character;
+                continue;
+            }
+
+            braceDepth += character == '{' ? 1 : character == '}' ? -1 : 0;
+            bracketDepth += character == '[' ? 1 : character == ']' ? -1 : 0;
+            if (character == ',' && braceDepth == 0 && bracketDepth == 0)
             {
                 arguments.Add(value[start..index].Trim());
                 start = index + 1;

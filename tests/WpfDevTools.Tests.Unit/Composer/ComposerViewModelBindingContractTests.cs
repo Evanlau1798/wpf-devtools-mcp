@@ -100,6 +100,46 @@ public sealed class ComposerViewModelBindingContractTests
         }
     }
 
+    [Fact]
+    public void ApplyBlueprint_ShouldPreserveQuotedAndIndexedBindingPathCommas()
+    {
+        var projectRoot = CreateThirdPartyPack();
+        try
+        {
+            var registry = new PackRegistry(
+                ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),
+                ComposerPackPaths.ProjectLocalRoot(projectRoot));
+            var blueprint = """
+                {
+                  "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+                  "name": "IndexedBindings",
+                  "packs": [{ "id": "sample", "version": "1.0.0", "required": true, "role": "primary" }],
+                  "primaryPack": "sample",
+                  "layout": {
+                    "kind": "sample.panel",
+                    "properties": {
+                      "dataFeed": "{Binding Path='Map[zone,day]', Mode=OneWay}",
+                      "selectionFeed": "{Binding Path=Map[region,day], Mode=OneWay}"
+                    }
+                  }
+                }
+                """;
+
+            var result = Apply(registry, blueprint);
+
+            result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+            using var document = JsonDocument.Parse(result.ViewModelBindingContract.Content);
+            document.RootElement.GetProperty("bindingRequirements").GetProperty("requirements")
+                .EnumerateArray()
+                .Select(requirement => requirement.GetProperty("bindingPath").GetString())
+                .Should().BeEquivalentTo("Map[zone,day]", "Map[region,day]");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
     private static ApplyBlueprintResult Apply(PackRegistry registry, string blueprint)
         => new UiBlueprintApplyService(registry).Apply(
             new ApplyBlueprintRequest(

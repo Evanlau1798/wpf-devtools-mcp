@@ -50,7 +50,9 @@ public sealed class ComposerDraftToolDescriptionTests
         compose.Should().Contain("insertedNodeSummary");
         compose.Should().Contain("32");
         compose.Should().Contain("160");
+        compose.Should().Contain("compact values");
         compose.Should().Contain("truncation");
+        compose.Should().NotContain("properties of 160");
         typeof(UiComposerMcpTools).GetMethod(nameof(UiComposerMcpTools.ComposeUiBlueprint))!
             .GetParameters().Single(parameter => parameter.Name == "targetPath")
             .GetCustomAttribute<DescriptionAttribute>()!.Description

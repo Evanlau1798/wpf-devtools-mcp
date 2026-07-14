@@ -45,7 +45,10 @@ internal static class BlueprintDraftPathMutation
         {
             if (!TryGetChild(current, segments[i], out var child))
             {
-                return PathNotFound(jsonPath);
+                if (remove || !TryCreateMissingObjectChild(current, segments[i], segments[i + 1], out child))
+                {
+                    return PathNotFound(jsonPath);
+                }
             }
 
             current = child!;
@@ -115,6 +118,26 @@ internal static class BlueprintDraftPathMutation
         }
 
         return false;
+    }
+
+    private static bool TryCreateMissingObjectChild(
+        JsonNode current,
+        PathSegment segment,
+        PathSegment nextSegment,
+        out JsonNode? child)
+    {
+        child = null;
+        if (segment.PropertyName is not { } propertyName
+            || nextSegment.PropertyName is null
+            || current is not JsonObject currentObject
+            || currentObject.ContainsKey(propertyName))
+        {
+            return false;
+        }
+
+        child = new JsonObject();
+        currentObject[propertyName] = child;
+        return true;
     }
 
     private static bool TryParse(string jsonPath, out List<PathSegment> segments)

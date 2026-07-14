@@ -172,6 +172,38 @@ public sealed class ComposerBlueprintDraftTests
     }
 
     [Fact]
+    public void DraftStore_PathSetShouldCreateMissingObjectParentsWithoutGuessingArraysOrRemovals()
+    {
+        var store = new BlueprintDraftStore();
+        var original = store.Create("""{"layout":{"kind":"core.text"}}""");
+        using var value = JsonDocument.Parse("\"Observation\"");
+
+        var updated = store.ApplyPathUpdate(
+            original.DraftRef,
+            "$.layout.properties.text",
+            value.RootElement,
+            remove: false);
+        var missingRemoval = store.ApplyPathUpdate(
+            original.DraftRef,
+            "$.layout.properties.text",
+            value: null,
+            remove: true);
+        var missingArray = store.ApplyPathUpdate(
+            original.DraftRef,
+            "$.layout.slots.children[0]",
+            value.RootElement,
+            remove: false);
+
+        updated.Success.Should().BeTrue(updated.Error?.Message);
+        store.Resolve(updated.DraftRef).BlueprintJson.Should()
+            .Contain("\"properties\":{\"text\":\"Observation\"}");
+        updated.ChangeSummary!.Changes.Should().ContainSingle(change =>
+            change.JsonPath == "$.layout.properties.text" && change.ChangeType == "added");
+        missingRemoval.Error!.Code.Should().Be("BlueprintDraftPathNotFound");
+        missingArray.Error!.Code.Should().Be("BlueprintDraftPathNotFound");
+    }
+
+    [Fact]
     public async Task PatchDraft_PathModeShouldReturnCompactChangeSummaryWithoutBlueprintEcho()
     {
         var created = await UiComposerMcpTools.CreateUiBlueprintDraft(

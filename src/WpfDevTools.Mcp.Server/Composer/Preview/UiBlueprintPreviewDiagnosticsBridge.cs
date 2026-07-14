@@ -71,7 +71,7 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                 .Select(item => item.ElementName)
                 .ToHashSet(StringComparer.Ordinal);
             var clippingTargets = BuildClippingTargetIds(lookupDiagnostics, correlatedElementNames);
-            foreach (var clippingBatch in clippingTargets.Chunk(BatchItemLimits.MaxQueryInputItems))
+            foreach (var clippingBatch in BuildClippingTargetBatches(clippingTargets))
             {
                 var clippingDiagnostic = await RunGatedAsync(
                     policy,
@@ -156,6 +156,13 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
             .Where(elementId => !string.IsNullOrWhiteSpace(elementId))
             .Select(elementId => elementId!)
             .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+    internal static IReadOnlyList<IReadOnlyList<string>> BuildClippingTargetBatches(
+        IReadOnlyList<string> targetIds)
+        => targetIds
+            .Chunk(BatchItemLimits.MaxQueryInputItems)
+            .Select(batch => (IReadOnlyList<string>)batch)
             .ToArray();
 
     private static IEnumerable<JsonElement> ReadSearchResults(JsonElement payload)

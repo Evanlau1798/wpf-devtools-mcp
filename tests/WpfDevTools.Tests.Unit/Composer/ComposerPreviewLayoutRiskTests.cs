@@ -51,6 +51,20 @@ public sealed class ComposerPreviewLayoutRiskTests
     }
 
     [Fact]
+    public void BuildClippingTargetBatches_ShouldSplitAtThePublicBatchLimit()
+    {
+        var targets = Enumerable.Range(1, 101)
+            .Select(index => $"Element_{index}")
+            .ToArray();
+
+        var batches = UiBlueprintPreviewDiagnosticsBridge.BuildClippingTargetBatches(targets);
+
+        batches.Should().HaveCount(2);
+        batches[0].Should().HaveCount(100);
+        batches[1].Should().Equal("Element_101");
+    }
+
+    [Fact]
     public void BuildClippingTargetIds_ShouldExcludeUncorrelatedPrefixMatches()
     {
         var diagnostics = new[]
@@ -247,17 +261,20 @@ public sealed class ComposerPreviewLayoutRiskTests
             })
             .ToArray();
         var resolvedIds = resolved.Select(item => item.elementId).ToArray();
-        var clipping = Diagnostic("get_clipping_info", new
-        {
-            success = true,
-            results = resolvedIds.Select(elementId => new { success = true, elementId, isClipped = false })
-        }) with
-        {
-            TargetElementIds = resolvedIds
-        };
+        var clippingDiagnostics = resolvedIds
+            .Chunk(100)
+            .Select(batch => Diagnostic("get_clipping_info", new
+            {
+                success = true,
+                results = batch.Select(elementId => new { success = true, elementId, isClipped = false })
+            }) with
+            {
+                TargetElementIds = batch
+            })
+            .ToArray();
 
         var summary = PreviewLayoutRiskAnalyzer.Analyze(
-            [Diagnostic("find_elements", new { success = true, results = resolved }), clipping],
+            [Diagnostic("find_elements", new { success = true, results = resolved }), .. clippingDiagnostics],
             correlations);
 
         summary.CorrelatedTargetCount.Should().Be(101);

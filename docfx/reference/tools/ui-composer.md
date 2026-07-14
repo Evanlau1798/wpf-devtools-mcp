@@ -207,7 +207,7 @@ The response includes `repairable`, `generatedXamlPatch=false`, `actionCount`, a
 
 ## `apply_ui_blueprint`
 
-Produces a guarded apply plan for a UI blueprint. The default is dry-run, so agents can inspect the generated view file path, required resources, package plan, binding contract stub, and deterministic `projectIntegrationPlan` before any write is allowed.
+Produces a guarded apply plan for a UI blueprint. The default is dry-run, so agents can inspect the generated view file path, required resources, package plan, authored binding requirements, and deterministic `projectIntegrationPlan` before any write is allowed.
 
 Request options:
 
@@ -241,8 +241,9 @@ Only plan-generated package-reference, central-package-version, application-XAML
 5. Apply each entry in `resourcePlan` manually only when it is not covered by a ready reviewed integration plan. The plan already reflects the blueprint's `resourceVariants` selections or each pack's default. Treat the returned pack data as authoritative; do not assume a specific library namespace or dictionary.
 6. If `filePlan` contains `role="code-behind-integration"` and the reviewed integration plan is not ready, use its action and the pack renderer's validated `codeBehindBaseType` so generated XAML `x:Class` and code-behind inherit the same type.
 
-7. Treat `behaviorIntegrationContract.status="required"` as a release gate. Each interaction includes `bindingStatus`, raw `commandBinding`, and a nullable parsed `commandPath`. Complex valid WPF bindings remain required when their path is unresolved; resolve them in the final view. Navigation commands receive `commandParameter` and must update selected application state and destination content; action commands must perform observable application behavior and expose an appropriate `CanExecute` policy. These are application contracts, not generated business logic.
-8. Restore, build, and launch the actual application separately:
+7. Treat `viewModelBindingContract.bindingRequirements.status="required"` as an implementation gate. Requirements are derived from pack-declared binding properties and any authored WPF binding expression, remain pack-neutral, and deduplicate the normalized binding path while preserving every exact blueprint JSON usage path. Implement every resolved path and investigate every `path-unresolved` entry; Composer deliberately reports `composerWritesViewModelSource=false`.
+8. Treat `behaviorIntegrationContract.status="required"` as a release gate. Each interaction includes `bindingStatus`, raw `commandBinding`, and a nullable parsed `commandPath`. Complex valid WPF bindings remain required when their path is unresolved; resolve them in the final view. Navigation commands receive `commandParameter` and must update selected application state and destination content; action commands must perform observable application behavior and expose an appropriate `CanExecute` policy. These are application contracts, not generated business logic.
+9. Restore, build, and launch the actual application separately:
 
    ```powershell
    dotnet restore .\YourApp.csproj
@@ -250,6 +251,6 @@ Only plan-generated package-reference, central-package-version, application-XAML
    dotnet run --project .\YourApp.csproj --no-build
    ```
 
-9. Validate the running app, not only the structural preview. Use `connect`, `get_ui_summary`, focused element reads, and `element_screenshot(outputMode="file")`. Invoke every interaction from `behaviorIntegrationContract` and verify a state or visible content change. For any diagnostic mutation, use `capture_state_snapshot`, `get_state_diff`, and `restore_state_snapshot`.
+10. Validate the running app, not only the structural preview. Use `connect`, `get_ui_summary`, focused element reads, and `element_screenshot(outputMode="file")`. Invoke every interaction from `behaviorIntegrationContract` and verify a state or visible content change. For any diagnostic mutation, use `capture_state_snapshot`, `get_state_diff`, and `restore_state_snapshot`.
 
 Do not approve a generated application merely because it compiles or because a button reports click-ready. A command-bound control remains incomplete until its DataContext command and observable result have been implemented and verified in the launched application.

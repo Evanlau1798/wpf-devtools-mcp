@@ -206,7 +206,7 @@ Response 包含 `repairable`、`generatedXamlPatch=false`、`actionCount` 與 `a
 
 ## `apply_ui_blueprint`
 
-為 UI blueprint 產生 guarded apply plan。預設為 dry-run，讓 Agent 能在任何寫檔前檢查 generated view file path、required resources、package plan、binding contract stub 與 deterministic `projectIntegrationPlan`。
+為 UI blueprint 產生 guarded apply plan。預設為 dry-run，讓 Agent 能在任何寫檔前檢查 generated view file path、required resources、package plan、authored binding requirements 與 deterministic `projectIntegrationPlan`。
 
 Request options:
 
@@ -240,8 +240,9 @@ Dry-run 的 `projectIntegrationPlan` 保持 pack-neutral。Operations 會列出 
 5. 只有在 ready reviewed integration plan 未涵蓋時，才依每個 pack 的需求手動把 `resourcePlan` entries 加入 application resource location。該 plan 已反映 blueprint 的 `resourceVariants` selections 或各 pack default。請以回傳的 pack data 為準，不要假設特定 library namespace 或 dictionary。
 6. 若 `filePlan` 包含 `role="code-behind-integration"` 且 reviewed integration plan 尚未 ready，請依 action 與 pack renderer 驗證過的 `codeBehindBaseType`，讓 generated XAML `x:Class` 與 code-behind 繼承相同 type。
 
-7. 將 `behaviorIntegrationContract.status="required"` 視為 release gate。每個 interaction 都包含 `bindingStatus`、raw `commandBinding` 與 nullable parsed `commandPath`。即使 complex valid WPF binding 的 path 無法解析，它仍是 required interaction，必須在 final view 完成解析。Navigation command 會收到 `commandParameter`，且必須更新 selected application state 與 destination content；action command 必須產生可觀察的應用程式行為，並提供合適的 `CanExecute` policy。這些是 application contracts，不是自動生成的 business logic。
-8. 分開執行 restore、build 與實際 application launch：
+7. 將 `viewModelBindingContract.bindingRequirements.status="required"` 視為 implementation gate。Requirements 會從 pack-declared binding properties 與所有 authored WPF binding expressions 泛化擷取，依 normalized binding path 去重，同時保留每個 exact blueprint JSON usage path。請實作所有 resolved paths 並調查每個 `path-unresolved` entry；Composer 會明確回報 `composerWritesViewModelSource=false`。
+8. 將 `behaviorIntegrationContract.status="required"` 視為 release gate。每個 interaction 都包含 `bindingStatus`、raw `commandBinding` 與 nullable parsed `commandPath`。即使 complex valid WPF binding 的 path 無法解析，它仍是 required interaction，必須在 final view 完成解析。Navigation command 會收到 `commandParameter`，且必須更新 selected application state 與 destination content；action command 必須產生可觀察的應用程式行為，並提供合適的 `CanExecute` policy。這些是 application contracts，不是自動生成的 business logic。
+9. 分開執行 restore、build 與實際 application launch：
 
    ```powershell
    dotnet restore .\YourApp.csproj
@@ -249,6 +250,6 @@ Dry-run 的 `projectIntegrationPlan` 保持 pack-neutral。Operations 會列出 
    dotnet run --project .\YourApp.csproj --no-build
    ```
 
-9. 驗證實際執行中的 app，而不只檢查 structural preview。使用 `connect`、`get_ui_summary`、focused element reads 與 `element_screenshot(outputMode="file")`。逐一觸發 `behaviorIntegrationContract` 中的 interaction，確認 state 或 visible content 發生變化。任何 diagnostic mutation 都應搭配 `capture_state_snapshot`、`get_state_diff` 與 `restore_state_snapshot`。
+10. 驗證實際執行中的 app，而不只檢查 structural preview。使用 `connect`、`get_ui_summary`、focused element reads 與 `element_screenshot(outputMode="file")`。逐一觸發 `behaviorIntegrationContract` 中的 interaction，確認 state 或 visible content 發生變化。任何 diagnostic mutation 都應搭配 `capture_state_snapshot`、`get_state_diff` 與 `restore_state_snapshot`。
 
 不要因為 generated application 可以 compile，或 button 顯示為 click-ready 就核准結果。Command-bound control 必須完成 DataContext command，且在 launched application 中驗證可觀察結果後，才算完整。

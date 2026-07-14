@@ -32,7 +32,13 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
         }
 
         var behaviorContract = BehaviorIntegrationContractBuilder.Build(registry, request.BlueprintJson);
-        var viewModelContract = CreateViewModelContract(projectRoot, targetPath, render.RequiredNuGetPackages, behaviorContract);
+        var bindingRequirements = ViewModelBindingRequirementBuilder.Build(registry, request.BlueprintJson);
+        var viewModelContract = CreateViewModelContract(
+            projectRoot,
+            targetPath,
+            render.RequiredNuGetPackages,
+            behaviorContract,
+            bindingRequirements);
         var codeBehind = CodeBehindIntegrationResolver.Resolve(registry, request.BlueprintJson, targetPath);
         var appliedXaml = AddProjectMainWindowClass(projectRoot, targetPath, render.Xaml, codeBehind);
         var projectIntegrationPlan = ProjectIntegrationPlanBuilder.Build(
@@ -367,7 +373,8 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
         string projectRoot,
         string targetPath,
         IReadOnlyList<RequiredNuGetPackage> packages,
-        BehaviorIntegrationContractPlan behaviorContract)
+        BehaviorIntegrationContractPlan behaviorContract,
+        IReadOnlyList<ViewModelBindingRequirement> bindingRequirements)
         => new(
             TargetPath: Path.Combine(projectRoot, "ViewModels", Path.GetFileNameWithoutExtension(targetPath) + ".Bindings.json"),
             Content: JsonSerializer.Serialize(new
@@ -375,6 +382,33 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
                 schemaVersion = "wpfdevtools.viewmodel-binding-contract.v1",
                 view = Path.GetFileName(targetPath),
                 requiredPackages = packages.Select(package => package.Id).ToArray(),
+                bindingRequirements = new
+                {
+                    status = bindingRequirements.Count == 0 ? "not-detected" : "required",
+                    implementationReadiness = bindingRequirements.Count == 0
+                        ? "not-required"
+                        : "project-implementation-required",
+                    composerWritesViewModelSource = false,
+                    requirements = bindingRequirements.Select(requirement => new
+                    {
+                        bindingStatus = requirement.BindingStatus,
+                        bindingPath = requirement.BindingPath,
+                        rawBindings = requirement.RawBindings,
+                        implementationStatus = "required",
+                        usages = requirement.Usages.Select(usage => new
+                        {
+                            jsonPath = usage.JsonPath,
+                            blockKind = usage.BlockKind,
+                            propertyName = usage.PropertyName,
+                            declaredPropertyType = usage.DeclaredPropertyType,
+                            rawBinding = usage.RawBinding
+                        })
+                    }),
+                    implementationGuidance = bindingRequirements.Count == 0
+                        ? "No authored ViewModel bindings were detected."
+                        : "Implement every resolved binding path in the project ViewModel and resolve every path-unresolved binding. Composer does not write ViewModel source.",
+                    verificationGuidance = "Build and launch the final app, then verify every listed usage has an active binding without runtime binding errors."
+                },
                 behaviorIntegration = new
                 {
                     status = behaviorContract.Status,

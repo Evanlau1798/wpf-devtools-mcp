@@ -19,7 +19,7 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string PatchUiBlueprintDraft =
         """
-        USE WHEN: Applying JSON Merge Patch or one JSON-path set/remove to a draft. jsonPath supports @ElementName.properties. Do not combine patchJson with jsonPath.
+        USE WHEN: Applying JSON Merge Patch or one JSON-path set/remove to a draft. jsonPath may be @Panel.properties.text. Do not combine patchJson with jsonPath.
 
         CATEGORY: UI Composer
 
@@ -124,12 +124,12 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - Success returns validation plus the raw blueprint or a derived draftRef that omits the full blueprint; source drafts stay unchanged.
-        - insertedNodeSummary: path/kind/name plus up to 32 properties of 160 characters.
+        - insertedNodeSummary: path/kind/name, up to 32 properties of 160 characters, plus truncation flags.
         - Failure returns success=false as an MCP error result with diagnostics and any available candidateDraftRef or candidateBlueprintJson.
 
         REQUEST OPTIONS:
         - blueprintJson accepts raw JSON or an opaque draftRef.
-        - targetPath: exact slot JSON path or unique @ElementName.slots.<slot>.
+        - targetPath example: @Panel.slots.actions (or exact JSON path).
         - kind is an exact pack-qualified kind from get_ui_block_catalog(composableOnly=true).
         - properties optionally configures the inserted node with one JSON object of pack-defined values; installed block validation remains authoritative.
         - insertionIndex optionally inserts before an existing child; omit it to append.

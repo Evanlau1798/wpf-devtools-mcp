@@ -28,7 +28,12 @@ internal static class McpToolInputSchemaNormalizer
             if (property.Value is not JsonObject parameter
                 || !ContainsType(parameter["type"], "array")
                 || parameter["enum"] is not JsonArray allowedValues
-                || parameter["items"] is not JsonObject items)
+                || parameter["items"] is not JsonObject items
+                || items.ContainsKey("enum")
+                || !ContainsType(items["type"], "string")
+                || allowedValues.Count == 0
+                || allowedValues.Any(value => value is not JsonValue candidate
+                    || !candidate.TryGetValue<string>(out _)))
             {
                 continue;
             }

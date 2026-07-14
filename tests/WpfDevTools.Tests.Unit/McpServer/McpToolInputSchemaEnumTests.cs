@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpResources;
@@ -56,6 +57,42 @@ public sealed class McpToolInputSchemaEnumTests
             .Should().BeEquivalentTo(expectedValues);
     }
 
+    [Fact]
+    public void Apply_WhenEnumContainsWholeArrays_ShouldPreserveArrayVocabulary()
+    {
+        var tool = CreateSyntheticTool(new
+        {
+            type = "array",
+            @enum = new[] { new[] { "compact" }, new[] { "verbose" } },
+            items = new { type = "string" }
+        });
+
+        McpToolInputSchemaNormalizer.Apply(tool);
+
+        var parameter = tool.InputSchema.GetProperty("properties").GetProperty("value");
+        parameter.GetProperty("enum")[0][0].GetString().Should().Be("compact");
+        parameter.GetProperty("enum")[1][0].GetString().Should().Be("verbose");
+        parameter.GetProperty("items").TryGetProperty("enum", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_WhenItemsAlreadyDefineEnum_ShouldNotOverwriteItemVocabulary()
+    {
+        var tool = CreateSyntheticTool(new
+        {
+            type = "array",
+            @enum = new[] { "misplaced" },
+            items = new { type = "string", @enum = new[] { "compact", "verbose" } }
+        });
+
+        McpToolInputSchemaNormalizer.Apply(tool);
+
+        tool.InputSchema.GetProperty("properties").GetProperty("value")
+            .GetProperty("items").GetProperty("enum")
+            .EnumerateArray().Select(value => value.GetString())
+            .Should().Equal("compact", "verbose");
+    }
+
     private static JsonElement CreateInputSchema(Type toolType, string methodName)
     {
         var method = toolType.GetMethod(methodName);
@@ -71,6 +108,17 @@ public sealed class McpToolInputSchemaEnumTests
         McpToolInputSchemaNormalizer.Apply(tool);
         return tool.InputSchema;
     }
+
+    private static Tool CreateSyntheticTool(object parameterSchema)
+        => new()
+        {
+            Name = "synthetic",
+            InputSchema = JsonSerializer.SerializeToElement(new
+            {
+                type = "object",
+                properties = new { value = parameterSchema }
+            })
+        };
 
     private static void AssertEnumConstraint(JsonElement schema, string parameterName, string[] expectedValues)
     {

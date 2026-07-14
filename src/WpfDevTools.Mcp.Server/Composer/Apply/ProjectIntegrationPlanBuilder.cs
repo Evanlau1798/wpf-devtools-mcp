@@ -336,7 +336,7 @@ internal static class ProjectIntegrationPlanBuilder
             "IntegrationPathOutsideRoot",
             $"The inspected {role} is outside projectRoot and cannot be changed by guarded integration.",
             role == "central package file"
-                ? "For an intentionally isolated project, create Directory.Packages.props inside projectRoot with <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>, then rerun the dry-run plan. Otherwise choose a projectRoot that contains every reviewed integration target."
+                ? "For an intentionally isolated project, create Directory.Packages.props inside projectRoot with <Project><PropertyGroup><ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally></PropertyGroup></Project>, then rerun the dry-run plan. Otherwise choose a projectRoot that contains every reviewed integration target."
                 : "Choose a projectRoot that contains every reviewed integration target."));
         return null;
     }

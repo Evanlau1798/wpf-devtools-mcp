@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Composer.Apply;
@@ -66,10 +67,15 @@ public sealed class ComposerProjectIntegrationSafetyBranchTests
                 .Should().ContainSingle(error => error.Code == "IntegrationPathOutsideRoot")
                 .Which;
             issue.Message.Should().Contain("central package file");
-            issue.RepairSuggestion.Should()
+            var repair = issue.RepairSuggestion!;
+            repair.Should()
                 .Contain("Directory.Packages.props")
-                .And.Contain("<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>")
+                .And.Contain("<Project><PropertyGroup><ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally></PropertyGroup></Project>")
                 .And.Contain("rerun");
+            var xmlStart = repair.IndexOf("<Project>", StringComparison.Ordinal);
+            var xmlEnd = repair.IndexOf("</Project>", StringComparison.Ordinal) + "</Project>".Length;
+            var document = XDocument.Parse(repair[xmlStart..xmlEnd]);
+            document.Root!.Name.LocalName.Should().Be("Project");
         }
         finally
         {

@@ -27,16 +27,13 @@ internal static class LayoutMcpToolDescriptions
         "- { \"processId\": 12345 }";
 
     public const string GetClippingInfo =
-        "Use this tool to inspect WPF clipping and overflow when rendered content appears cut off.\n\n" +
-        LayoutMetadata + "[Layout] Get clipping information of a WPF element. Returns whether the element " +
-        "is clipped by any ancestor, the clip bounds, and how much content overflows.\n\n" +
-        "USE WHEN: Element appears cut off or partially hidden; debugging ScrollViewer issues.\n" +
+        "Inspect clipping and overflow for one WPF element and its visual ancestors.\n\n" +
+        LayoutMetadata + "[Layout] Detect explicit Clip, ClipToBounds, and WPF-generated layout clips. " +
+        "The scope excludes descendants.\n\n" +
+        "USE WHEN: A concrete element appears cut off; use find_elements(query) first when only its visible text is known.\n" +
         "DO NOT USE: For general layout info (use get_layout_info instead).\n\n" +
-        "RESPONSE SUMMARY:\n" +
-        "  - success: boolean,\n" +
-        "  - isClipped: boolean,\n" +
-        "  - clipBounds: { x, y, width, height },\n" +
-        "  - overflowAmount: { left, top, right, bottom }\n\n" +
+        "RESPONSE: isClipped, analysisScope, clippingSource, clip/effective bounds, directional overflowAmount, " +
+        "clippingAncestors, and suggestedFix.\n\n" +
         "ERRORS:\n" +
         "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +

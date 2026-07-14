@@ -150,34 +150,21 @@ public sealed partial class LayoutAnalyzer
         }
 
         var diagnosis = ClippingDiagnosis.None;
-        if (element.Clip != null)
+        if (GetEffectiveClippingGeometry(element) is Geometry effectiveClip)
         {
-            diagnosis = diagnosis.Merge(AnalyzeClipBoundary(contentBounds, element.Clip.Bounds));
-        }
-
-        if (element.ClipToBounds)
-        {
-            diagnosis = diagnosis.Merge(AnalyzeClipBoundary(
-                contentBounds,
-                new Rect(new Point(0, 0), element.RenderSize)));
+            diagnosis = diagnosis.Merge(AnalyzeClipBoundary(contentBounds, effectiveClip.Bounds));
         }
 
         DependencyObject? current = VisualTreeHelper.GetParent(element);
         while (current is Visual ancestorVisual)
         {
-            Rect? clippingBounds = current switch
-            {
-                UIElement { Clip: not null } ancestorWithClip => ancestorWithClip.Clip!.Bounds,
-                FrameworkElement { ClipToBounds: true } ancestorFramework => new Rect(new Point(0, 0), ancestorFramework.RenderSize),
-                _ => null
-            };
-
-            if (clippingBounds != null)
+            if (current is UIElement ancestorElement &&
+                GetEffectiveClippingGeometry(ancestorElement) is Geometry ancestorClip)
             {
                 try
                 {
                     var transformedBounds = element.TransformToAncestor(ancestorVisual).TransformBounds(contentBounds);
-                    diagnosis = diagnosis.Merge(AnalyzeClipBoundary(transformedBounds, clippingBounds.Value));
+                    diagnosis = diagnosis.Merge(AnalyzeClipBoundary(transformedBounds, ancestorClip.Bounds));
                 }
                 catch (InvalidOperationException)
                 {

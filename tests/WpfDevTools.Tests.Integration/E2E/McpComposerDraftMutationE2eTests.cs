@@ -8,6 +8,30 @@ namespace WpfDevTools.Tests.Integration.E2E;
 public sealed class McpComposerDraftMutationE2eTests
 {
     [Fact]
+    public async Task ComposeBlueprintFailure_ShouldExposeMcpErrorAndStructuredOutcome()
+    {
+        using var client = new McpStdioClient();
+        await client.StartAsync(FindServerExecutable());
+
+        var envelope = await client.CallToolEnvelopeAsync(
+            "compose_ui_blueprint",
+            new
+            {
+                blueprintJson = "{}",
+                targetPath = "$.layout.slots.content",
+                kind = "missing.block"
+            });
+
+        var result = envelope.GetProperty("result");
+        result.GetProperty("isError").GetBoolean().Should().BeTrue(envelope.GetRawText());
+        var structured = result.GetProperty("structuredContent");
+        structured.GetProperty("success").GetBoolean().Should().BeFalse(envelope.GetRawText());
+        structured.GetProperty("composed").GetBoolean().Should().BeFalse(envelope.GetRawText());
+        structured.GetProperty("errors")[0].GetProperty("code").GetString()
+            .Should().Be("BlockNotComposable");
+    }
+
+    [Fact]
     public async Task PatchDraft_ShouldInterpretExplicitNullDefaultsByMutationMode()
     {
         using var client = new McpStdioClient();

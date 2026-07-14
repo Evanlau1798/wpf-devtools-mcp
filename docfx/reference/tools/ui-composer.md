@@ -121,7 +121,7 @@ Request options:
 - `insertionIndex`: optional zero-based position; omit it to append.
 - `projectRoot` and `localAppDataRoot`: optional pack discovery roots.
 
-Use `properties` when the block should be configured at insertion time; this avoids a follow-up edit through a long nested path while keeping the pack's `compositionSkeleton` authoritative. With raw JSON input, `composed=true` returns a new `blueprint`, compact `blueprintJson`, exact `insertedPath`, and validation result. With draft input, it returns a new immutable `draftRef` and omits the full document; the source draft remains unchanged. An invalid draft-derived candidate is retained under `candidateDraftRef`, while raw input retains the existing `invalidCandidate` and `candidateBlueprintJson` recovery shape. Neither path writes project files. Ambiguous paths and non-composable blocks return actionable errors without a candidate.
+Use `properties` when the block should be configured at insertion time; this avoids a follow-up edit through a long nested path while keeping the pack's `compositionSkeleton` authoritative. With raw JSON input, `composed=true` returns a new `blueprint`, compact `blueprintJson`, exact `insertedPath`, and validation result. With draft input, it returns a new immutable `draftRef` and omits the full document; the source draft remains unchanged. Every non-composed outcome returns `success=false` as an MCP error result. An invalid draft-derived candidate is still retained under `candidateDraftRef`, while raw input retains the existing `invalidCandidate` and `candidateBlueprintJson` recovery shape. Neither path writes project files. Ambiguous paths and non-composable blocks return actionable errors without a candidate.
 
 ## `validate_ui_blueprint`
 

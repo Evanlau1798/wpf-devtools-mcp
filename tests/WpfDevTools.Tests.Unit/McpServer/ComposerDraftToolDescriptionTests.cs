@@ -44,6 +44,8 @@ public sealed class ComposerDraftToolDescriptionTests
         compose.Should().Contain("derived draftRef");
         compose.Should().Contain("candidateDraftRef");
         compose.Should().Contain("omits the full blueprint", "draft transport must remain compact");
+        compose.Should().Contain("success=false");
+        compose.Should().Contain("MCP error result");
     }
 
     [Fact]

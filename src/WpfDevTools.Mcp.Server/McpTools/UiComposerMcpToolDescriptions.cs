@@ -125,6 +125,7 @@ internal static class UiComposerMcpToolDescriptions
         - Raw input returns the composed blueprint, insertion path, validation, and repair candidate fields.
         - Draft input returns a new derived draftRef and omits the full blueprint; the source draft remains unchanged.
         - Invalid draft insertion returns candidateDraftRef for repair; raw input returns candidateBlueprintJson. Path and non-composable failures return no candidate.
+        - Any non-composed outcome returns success=false as an MCP error result while preserving structured diagnostics and candidate recovery fields.
 
         REQUEST OPTIONS:
         - blueprintJson accepts raw JSON or an opaque draftRef.

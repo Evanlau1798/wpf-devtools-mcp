@@ -111,7 +111,7 @@ public static partial class UiComposerMcpTools
             return candidate.Success
                 ? new
                 {
-                    success = true,
+                    success = false,
                     composed = false,
                     draftDerived = false,
                     sourceDraftRef = input.DraftRef,
@@ -139,7 +139,7 @@ public static partial class UiComposerMcpTools
             }
             : (object)new
             {
-                success = true,
+                success = false,
                 composed = false,
                 invalidCandidate = result.InvalidCandidate,
                 candidateBlueprintJson = result.CandidateBlueprintJson,

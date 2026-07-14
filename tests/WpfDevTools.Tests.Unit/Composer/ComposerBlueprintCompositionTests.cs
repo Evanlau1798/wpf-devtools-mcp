@@ -91,6 +91,8 @@ public sealed class ComposerBlueprintCompositionTests
                 cancellationToken: CancellationToken.None);
 
             var payload = result.StructuredContent!.Value;
+            result.IsError.Should().BeTrue();
+            payload.GetProperty("success").GetBoolean().Should().BeFalse(payload.GetRawText());
             payload.GetProperty("composed").GetBoolean().Should().BeFalse(payload.GetRawText());
             payload.GetProperty("errors")[0].GetProperty("code").GetString()
                 .Should().Be("InvalidCompositionProperties");
@@ -118,9 +120,9 @@ public sealed class ComposerBlueprintCompositionTests
                 localAppDataRoot: projectRoot,
                 cancellationToken: CancellationToken.None);
 
-            result.IsError.Should().BeFalse();
+            result.IsError.Should().BeTrue();
             var payload = result.StructuredContent!.Value;
-            payload.GetProperty("success").GetBoolean().Should().BeTrue(payload.GetRawText());
+            payload.GetProperty("success").GetBoolean().Should().BeFalse(payload.GetRawText());
             payload.GetProperty("composed").GetBoolean().Should().BeFalse(payload.GetRawText());
             payload.GetProperty("errors")[0].GetProperty("code").GetString()
                 .Should().Be("InvalidCompositionTargetPath");
@@ -147,6 +149,8 @@ public sealed class ComposerBlueprintCompositionTests
                 cancellationToken: CancellationToken.None);
 
             var payload = result.StructuredContent!.Value;
+            result.IsError.Should().BeTrue();
+            payload.GetProperty("success").GetBoolean().Should().BeFalse(payload.GetRawText());
             payload.GetProperty("composed").GetBoolean().Should().BeFalse(payload.GetRawText());
             payload.GetProperty("validation").GetProperty("errors")
                 .EnumerateArray().Select(error => error.GetProperty("code").GetString())
@@ -159,6 +163,41 @@ public sealed class ComposerBlueprintCompositionTests
             JsonDocument.Parse(payload.GetProperty("candidateBlueprintJson").GetString()!).RootElement
                 .GetProperty("layout").GetProperty("kind").GetString().Should().Be("nebula.frame");
             payload.TryGetProperty("blueprint", out _).Should().BeFalse();
+        }
+        finally
+        {
+            Directory.Delete(projectRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ComposeUiBlueprintTool_ShouldPreserveDraftCandidateRecoveryOnCompositionError()
+    {
+        var projectRoot = CreateProjectWithCompositionPack();
+        try
+        {
+            var created = await UiComposerMcpTools.CreateUiBlueprintDraft(
+                CreateBlueprint(),
+                CancellationToken.None);
+            var sourceDraftRef = created.StructuredContent!.Value.GetProperty("draftRef").GetString()!;
+
+            var result = await UiComposerMcpTools.ComposeUiBlueprint(
+                sourceDraftRef,
+                targetPath: "$.layout.slots.content[0].slots.items",
+                kind: "nebula.frame",
+                projectRoot: projectRoot,
+                localAppDataRoot: projectRoot,
+                cancellationToken: CancellationToken.None);
+
+            result.IsError.Should().BeTrue();
+            var payload = result.StructuredContent!.Value;
+            payload.GetProperty("success").GetBoolean().Should().BeFalse(payload.GetRawText());
+            payload.GetProperty("composed").GetBoolean().Should().BeFalse(payload.GetRawText());
+            payload.GetProperty("sourceDraftRef").GetString().Should().Be(sourceDraftRef);
+            payload.GetProperty("candidateDraftCreated").GetBoolean().Should().BeTrue();
+            payload.GetProperty("candidateWritten").GetBoolean().Should().BeFalse();
+            payload.GetProperty("candidateDraftRef").GetString().Should().NotBeNullOrWhiteSpace();
+            payload.GetProperty("validation").GetProperty("valid").GetBoolean().Should().BeFalse();
         }
         finally
         {
@@ -181,6 +220,8 @@ public sealed class ComposerBlueprintCompositionTests
                 cancellationToken: CancellationToken.None);
 
             var payload = result.StructuredContent!.Value;
+            result.IsError.Should().BeTrue();
+            payload.GetProperty("success").GetBoolean().Should().BeFalse(payload.GetRawText());
             payload.GetProperty("composed").GetBoolean().Should().BeFalse(payload.GetRawText());
             payload.GetProperty("errors")[0].GetProperty("code").GetString()
                 .Should().Be("BlueprintCompositionTooLarge");
@@ -212,6 +253,8 @@ public sealed class ComposerBlueprintCompositionTests
                 cancellationToken: CancellationToken.None);
 
             var payload = result.StructuredContent!.Value;
+            result.IsError.Should().BeTrue();
+            payload.GetProperty("success").GetBoolean().Should().BeFalse(payload.GetRawText());
             payload.GetProperty("composed").GetBoolean().Should().BeFalse(payload.GetRawText());
             payload.GetProperty("errors")[0].GetProperty("code").GetString()
                 .Should().Be("BlueprintCompositionTooLarge");

@@ -11,6 +11,12 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
     {
         var errors = new List<BlueprintValidationIssue>();
         var warnings = new List<BlueprintValidationIssue>();
+        if (BlueprintJsonShapeIssueFactory.TryCreateStructuralMismatch(blueprintJson, out var shapeIssue))
+        {
+            errors.Add(shapeIssue);
+            return new BlueprintValidationResult(errors, warnings, [], BlueprintResolutionPlan.Empty);
+        }
+
         UiBlueprint blueprint;
 
         try

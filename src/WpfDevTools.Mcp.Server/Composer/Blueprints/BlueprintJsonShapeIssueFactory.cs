@@ -4,10 +4,32 @@ namespace WpfDevTools.Mcp.Server.Composer.Blueprints;
 
 internal static class BlueprintJsonShapeIssueFactory
 {
+    private const string BlueprintShape = "{ \"schemaVersion\": \"wpfdevtools.ui-blueprint.v1\", \"name\": \"BlueprintName\", \"packs\": [{ \"id\": \"pack-id\", \"version\": \"1.0.0\", \"role\": \"primary\", \"required\": true }], \"primaryPack\": \"pack-id\", \"layout\": { \"kind\": \"pack.block\" } }";
     private const string NodeShape = "{ \"kind\": \"pack.block\", \"slots\": {} }";
     private const string SlotMapShape = "{ \"slotName\": [{ \"kind\": \"pack.block\" }] }";
     private const string SlotItemsShape = "[{ \"kind\": \"pack.block\" }]";
-    private const string PackListShape = "[{ \"id\": \"pack-id\", \"version\": \"1.0.0\", \"role\": \"primary\", \"required\": true }]";
+    private const string PackReferenceShape = "{ \"id\": \"pack-id\", \"version\": \"1.0.0\", \"role\": \"primary\", \"required\": true }";
+    private const string PackListShape = "[" + PackReferenceShape + "]";
+    private static readonly string[] BlueprintStringFields = ["schemaVersion", "name", "primaryPack"];
+    private static readonly string[] PackStringFields = ["id", "version", "role"];
+    private static readonly string[] NodeStringFields = ["kind", "elementName", "automationId"];
+    private static readonly string[] NodeMapFields = ["properties", "bindings", "metadata"];
+
+    public static bool TryCreateStructuralMismatch(
+        string blueprintJson,
+        out BlueprintValidationIssue issue)
+    {
+        issue = null!;
+        try
+        {
+            using var document = JsonDocument.Parse(blueprintJson);
+            return TryFindStructuralMismatch(document.RootElement, out issue);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
 
     public static bool TryCreate(
         string blueprintJson,
@@ -31,26 +53,264 @@ internal static class BlueprintJsonShapeIssueFactory
             var observed = TryResolve(document.RootElement, path, out var value)
                 ? value.ValueKind.ToString()
                 : "Unknown";
-            var expected = DescribeExpectedShape(path);
-            issue = new BlueprintValidationIssue(
-                path,
-                "InvalidBlueprintShape",
-                $"Blueprint value at '{path}' is {observed}; its JSON shape does not match the blueprint contract.",
-                $"Replace {path} with {expected}.",
-                [],
-                [],
-                null)
-            {
-                ObservedValueKind = observed,
-                ExpectedJsonShape = expected
-            };
+            issue = CreateIssue(path, observed);
             return true;
         }
+    }
+
+    private static bool TryFindStructuralMismatch(
+        JsonElement root,
+        out BlueprintValidationIssue issue)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            issue = CreateIssue("$", root.ValueKind.ToString());
+            return true;
+        }
+
+        foreach (var propertyName in BlueprintStringFields)
+        {
+            if (TryFindPropertyKindMismatch(root, propertyName, "$", JsonValueKind.String, out issue))
+            {
+                return true;
+            }
+        }
+
+        if (TryFindPacksMismatch(root, out issue)
+            || TryFindStringMapMismatch(root, "resourceVariants", "$", out issue)
+            || TryFindObjectPropertyMismatch(root, "metadata", "$", out issue))
+        {
+            return true;
+        }
+
+        if (!root.TryGetProperty("layout", out var layout))
+        {
+            issue = null!;
+            return false;
+        }
+
+        if (layout.ValueKind != JsonValueKind.Object)
+        {
+            issue = CreateIssue("$.layout", layout.ValueKind.ToString());
+            return true;
+        }
+
+        return TryFindNodeMismatch(layout, "$.layout", out issue);
+    }
+
+    private static bool TryFindPacksMismatch(JsonElement root, out BlueprintValidationIssue issue)
+    {
+        if (!root.TryGetProperty("packs", out var packs))
+        {
+            issue = null!;
+            return false;
+        }
+
+        if (packs.ValueKind != JsonValueKind.Array)
+        {
+            issue = CreateIssue("$.packs", packs.ValueKind.ToString());
+            return true;
+        }
+
+        for (var index = 0; index < packs.GetArrayLength(); index++)
+        {
+            var pack = packs[index];
+            var path = $"$.packs[{index}]";
+            if (pack.ValueKind != JsonValueKind.Object)
+            {
+                issue = CreateIssue(path, pack.ValueKind.ToString());
+                return true;
+            }
+
+            foreach (var propertyName in PackStringFields)
+            {
+                if (TryFindPropertyKindMismatch(pack, propertyName, path, JsonValueKind.String, out issue))
+                {
+                    return true;
+                }
+            }
+
+            if (TryFindPropertyKindMismatch(pack, "required", path, JsonValueKind.True, out issue, JsonValueKind.False))
+            {
+                return true;
+            }
+        }
+
+        issue = null!;
+        return false;
+    }
+
+    private static bool TryFindNodeMismatch(
+        JsonElement node,
+        string path,
+        out BlueprintValidationIssue issue)
+    {
+        foreach (var propertyName in NodeStringFields)
+        {
+            if (TryFindPropertyKindMismatch(
+                node,
+                propertyName,
+                path,
+                JsonValueKind.String,
+                out issue,
+                propertyName == "kind" ? null : JsonValueKind.Null))
+            {
+                return true;
+            }
+        }
+
+        foreach (var propertyName in NodeMapFields)
+        {
+            if (TryFindObjectPropertyMismatch(node, propertyName, path, out issue))
+            {
+                return true;
+            }
+        }
+
+        if (!node.TryGetProperty("slots", out var slots))
+        {
+            issue = null!;
+            return false;
+        }
+
+        if (slots.ValueKind != JsonValueKind.Object)
+        {
+            issue = CreateIssue(path + ".slots", slots.ValueKind.ToString());
+            return true;
+        }
+
+        foreach (var slot in slots.EnumerateObject())
+        {
+            var slotPath = path + ".slots." + slot.Name;
+            if (slot.Value.ValueKind != JsonValueKind.Array)
+            {
+                issue = CreateIssue(slotPath, slot.Value.ValueKind.ToString());
+                return true;
+            }
+
+            for (var index = 0; index < slot.Value.GetArrayLength(); index++)
+            {
+                var child = slot.Value[index];
+                var childPath = $"{slotPath}[{index}]";
+                if (child.ValueKind != JsonValueKind.Object)
+                {
+                    issue = CreateIssue(childPath, child.ValueKind.ToString());
+                    return true;
+                }
+
+                if (TryFindNodeMismatch(child, childPath, out issue))
+                {
+                    return true;
+                }
+            }
+        }
+
+        issue = null!;
+        return false;
+    }
+
+    private static bool TryFindStringMapMismatch(
+        JsonElement parent,
+        string propertyName,
+        string parentPath,
+        out BlueprintValidationIssue issue)
+    {
+        if (TryFindObjectPropertyMismatch(parent, propertyName, parentPath, out issue))
+        {
+            return true;
+        }
+
+        if (!parent.TryGetProperty(propertyName, out var map))
+        {
+            return false;
+        }
+
+        foreach (var property in map.EnumerateObject())
+        {
+            if (property.Value.ValueKind != JsonValueKind.String)
+            {
+                issue = CreateIssue($"{parentPath}.{propertyName}.{property.Name}", property.Value.ValueKind.ToString());
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryFindObjectPropertyMismatch(
+        JsonElement parent,
+        string propertyName,
+        string parentPath,
+        out BlueprintValidationIssue issue)
+        => TryFindPropertyKindMismatch(
+            parent,
+            propertyName,
+            parentPath,
+            JsonValueKind.Object,
+            out issue);
+
+    private static bool TryFindPropertyKindMismatch(
+        JsonElement parent,
+        string propertyName,
+        string parentPath,
+        JsonValueKind expected,
+        out BlueprintValidationIssue issue,
+        JsonValueKind? alternate = null)
+    {
+        if (!parent.TryGetProperty(propertyName, out var property)
+            || property.ValueKind == expected
+            || property.ValueKind == alternate)
+        {
+            issue = null!;
+            return false;
+        }
+
+        issue = CreateIssue($"{parentPath}.{propertyName}", property.ValueKind.ToString());
+        return true;
+    }
+
+    private static BlueprintValidationIssue CreateIssue(string path, string observed)
+    {
+        var expected = DescribeExpectedShape(path);
+        return new BlueprintValidationIssue(
+            path,
+            "InvalidBlueprintShape",
+            $"Blueprint value at '{path}' is {observed}; its JSON shape does not match the blueprint contract.",
+            $"Replace {path} with {expected}.",
+            [],
+            [],
+            null)
+        {
+            ObservedValueKind = observed,
+            ExpectedJsonShape = expected
+        };
     }
 
     private static string DescribeExpectedShape(string path)
     {
         var segments = ParseSegments(path).ToArray();
+        if (segments.Length == 0)
+        {
+            return BlueprintShape;
+        }
+
+        var propertyNames = segments
+            .Where(segment => segment.PropertyName is not null)
+            .Select(segment => segment.PropertyName!.ToLowerInvariant())
+            .ToArray();
+        if (segments[^1].ArrayIndex is not null)
+        {
+            if (propertyNames.LastOrDefault() == "packs")
+            {
+                return PackReferenceShape;
+            }
+
+            if (propertyNames.Reverse().Skip(1).FirstOrDefault() == "slots")
+            {
+                return NodeShape;
+            }
+        }
+
         var last = segments.LastOrDefault(segment => segment.PropertyName is not null)
             .PropertyName?.ToLowerInvariant();
         var previous = segments
@@ -65,11 +325,13 @@ internal static class BlueprintJsonShapeIssueFactory
         {
             "layout" => NodeShape,
             "packs" => PackListShape,
+            "schemaversion" => "\"wpfdevtools.ui-blueprint.v1\"",
             "slots" => SlotMapShape,
             _ when previous == "slots" => SlotItemsShape,
             "properties" or "bindings" or "metadata" or "resourcevariants" => "{}",
             "required" => "true",
-            "kind" or "elementname" or "automationid" or "name" or "id" or "version" or "role" => "\"text\"",
+            _ when previous == "resourcevariants" => "\"text\"",
+            "kind" or "elementname" or "automationid" or "name" or "primarypack" or "id" or "version" or "role" => "\"text\"",
             _ => "a JSON value matching the documented blueprint field shape"
         };
     }

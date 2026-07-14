@@ -5,6 +5,73 @@ namespace WpfDevTools.Tests.Unit.Composer;
 
 public sealed class ComposerBlueprintShapeRecoveryTests
 {
+    public static TheoryData<string, string, string, string> ValidJsonShapeFailures => new()
+    {
+        {
+            "[]",
+            "$",
+            "Array",
+            "{ \"schemaVersion\": \"wpfdevtools.ui-blueprint.v1\", \"name\": \"BlueprintName\", \"packs\": [{ \"id\": \"pack-id\", \"version\": \"1.0.0\", \"role\": \"primary\", \"required\": true }], \"primaryPack\": \"pack-id\", \"layout\": { \"kind\": \"pack.block\" } }"
+        },
+        {
+            "{\"schemaVersion\":42}",
+            "$.schemaVersion",
+            "Number",
+            "\"wpfdevtools.ui-blueprint.v1\""
+        },
+        {
+            "{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"packs\":null,\"layout\":{\"kind\":\"core.stack\"}}",
+            "$.packs",
+            "Null",
+            "[{ \"id\": \"pack-id\", \"version\": \"1.0.0\", \"role\": \"primary\", \"required\": true }]"
+        },
+        {
+            "{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"packs\":[],\"layout\":null}",
+            "$.layout",
+            "Null",
+            "{ \"kind\": \"pack.block\", \"slots\": {} }"
+        },
+        {
+            "{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"packs\":[\"bad\"],\"layout\":{\"kind\":\"core.stack\"}}",
+            "$.packs[0]",
+            "String",
+            "{ \"id\": \"pack-id\", \"version\": \"1.0.0\", \"role\": \"primary\", \"required\": true }"
+        },
+        {
+            "{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"packs\":[],\"layout\":{\"kind\":\"core.stack\",\"slots\":null}}",
+            "$.layout.slots",
+            "Null",
+            "{ \"slotName\": [{ \"kind\": \"pack.block\" }] }"
+        },
+        {
+            "{\"schemaVersion\":\"wpfdevtools.ui-blueprint.v1\",\"packs\":[],\"layout\":{\"kind\":\"core.stack\",\"slots\":{\"children\":[\"bad\"]}}}",
+            "$.layout.slots.children[0]",
+            "String",
+            "{ \"kind\": \"pack.block\", \"slots\": {} }"
+        }
+    };
+
+    [Theory]
+    [MemberData(nameof(ValidJsonShapeFailures))]
+    public async Task ValidateTool_ShouldReturnCopyReadyRepairForEveryStructuralShapeFailure(
+        string blueprintJson,
+        string expectedPath,
+        string observedValueKind,
+        string expectedJsonShape)
+    {
+        var result = await UiComposerMcpTools.ValidateUiBlueprint(
+            blueprintJson,
+            cancellationToken: CancellationToken.None);
+
+        result.IsError.Should().BeFalse();
+        var error = result.StructuredContent!.Value.GetProperty("errors")[0];
+        error.GetProperty("code").GetString().Should().Be("InvalidBlueprintShape");
+        error.GetProperty("jsonPath").GetString().Should().Be(expectedPath);
+        error.GetProperty("observedValueKind").GetString().Should().Be(observedValueKind);
+        error.GetProperty("expectedJsonShape").GetString().Should().Be(expectedJsonShape);
+        error.GetProperty("repairSuggestion").GetString().Should().Be($"Replace {expectedPath} with {expectedJsonShape}.");
+    }
+
     [Fact]
     public async Task ValidateTool_ShouldMapValidJsonShapeMismatchToExactRepair()
     {

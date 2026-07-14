@@ -1,6 +1,8 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.McpTools;
+using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
@@ -164,6 +166,63 @@ public sealed class ComposerBlueprintCompositionTests
         }
     }
 
+    [Fact]
+    public async Task ComposeUiBlueprintTool_ShouldRejectRawCandidateThatExceedsTheReusableInputLimit()
+    {
+        var projectRoot = CreateProjectWithCompositionPack();
+        try
+        {
+            var result = await UiComposerMcpTools.ComposeUiBlueprint(
+                CreateMaximumLengthBlueprint(),
+                targetPath: "$.layout.slots.content[0].slots.items",
+                kind: "nebula.action",
+                projectRoot: projectRoot,
+                localAppDataRoot: projectRoot,
+                cancellationToken: CancellationToken.None);
+
+            var payload = result.StructuredContent!.Value;
+            payload.GetProperty("composed").GetBoolean().Should().BeFalse(payload.GetRawText());
+            payload.GetProperty("errors")[0].GetProperty("code").GetString()
+                .Should().Be("BlueprintCompositionTooLarge");
+            payload.TryGetProperty("candidateBlueprintJson", out _).Should().BeFalse();
+        }
+        finally
+        {
+            Directory.Delete(projectRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ComposeUiBlueprintTool_ShouldRejectDraftCandidateThatExceedsTheReusableInputLimit()
+    {
+        var projectRoot = CreateProjectWithCompositionPack();
+        try
+        {
+            var created = await UiComposerMcpTools.CreateUiBlueprintDraft(
+                CreateMaximumLengthBlueprint(),
+                CancellationToken.None);
+            var draftRef = created.StructuredContent!.Value.GetProperty("draftRef").GetString()!;
+
+            var result = await UiComposerMcpTools.ComposeUiBlueprint(
+                draftRef,
+                targetPath: "$.layout.slots.content[0].slots.items",
+                kind: "nebula.action",
+                projectRoot: projectRoot,
+                localAppDataRoot: projectRoot,
+                cancellationToken: CancellationToken.None);
+
+            var payload = result.StructuredContent!.Value;
+            payload.GetProperty("composed").GetBoolean().Should().BeFalse(payload.GetRawText());
+            payload.GetProperty("errors")[0].GetProperty("code").GetString()
+                .Should().Be("BlueprintCompositionTooLarge");
+            payload.TryGetProperty("candidateDraftRef", out _).Should().BeFalse();
+        }
+        finally
+        {
+            Directory.Delete(projectRoot, recursive: true);
+        }
+    }
+
     private static string CreateBlueprint()
         => JsonSerializer.Serialize(new
         {
@@ -183,6 +242,19 @@ public sealed class ComposerBlueprintCompositionTests
                 }
             }
         });
+
+    private static string CreateMaximumLengthBlueprint()
+    {
+        var blueprint = JsonNode.Parse(CreateBlueprint())!.AsObject();
+        blueprint["metadata"] = new JsonObject { ["padding"] = string.Empty };
+        var unpaddedLength = blueprint.ToJsonString().Length;
+        blueprint["metadata"]!["padding"] = new string(
+            'x',
+            BoundaryStringLimits.MaxStringifiedJsonArgumentLength - unpaddedLength);
+        var result = blueprint.ToJsonString();
+        result.Length.Should().Be(BoundaryStringLimits.MaxStringifiedJsonArgumentLength);
+        return result;
+    }
 
     private static string CreateProjectWithCompositionPack()
     {

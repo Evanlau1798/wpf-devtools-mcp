@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using WpfDevTools.Mcp.Server.Composer.Catalog;
 using WpfDevTools.Mcp.Server.Composer.Packs;
+using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Mcp.Server.Composer.Blueprints;
 
@@ -58,6 +59,13 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
 
         targetSlot.Insert(index, configuredNode);
         var candidateJson = blueprint.ToJsonString();
+        if (candidateJson.Length > BoundaryStringLimits.MaxStringifiedJsonArgumentLength)
+        {
+            return Failure(targetPath, "BlueprintCompositionTooLarge",
+                $"Composed blueprint has {candidateJson.Length} characters; the reusable input maximum is {BoundaryStringLimits.MaxStringifiedJsonArgumentLength}.",
+                "Reduce the current blueprint or inserted block properties before composing again.");
+        }
+
         var validation = new BlueprintValidationService(registry).Validate(candidateJson);
         if (!validation.Success)
         {

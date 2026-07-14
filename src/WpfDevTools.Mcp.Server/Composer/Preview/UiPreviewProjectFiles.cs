@@ -80,6 +80,7 @@ internal static class UiPreviewProjectFiles
         }
 
         lines.Add("using System.Windows;");
+        lines.Add("using System.Windows.Threading;");
         if (includeRuntimeDiagnostics)
         {
             lines.Add("using WpfDevTools.Inspector.Sdk;");
@@ -95,7 +96,7 @@ internal static class UiPreviewProjectFiles
             "        try",
             "        {",
             "            InitializeComponent();",
-            "            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, \"" + loadedSentinelFileName + "\"), \"loaded\");"
+            "            ContentRendered += OnContentRendered;"
         ]);
 
         if (includeRuntimeDiagnostics)
@@ -111,6 +112,17 @@ internal static class UiPreviewProjectFiles
             "            Console.Error.WriteLine(\"preview host view failed: \" + ex.GetType().FullName + \": \" + ex.Message);",
             "            throw;",
             "        }",
+            "    }",
+            string.Empty,
+            "    private void OnContentRendered(object? sender, EventArgs e)",
+            "    {",
+            "        ContentRendered -= OnContentRendered;",
+            "        Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(MarkPreviewReady));",
+            "    }",
+            string.Empty,
+            "    private static void MarkPreviewReady()",
+            "    {",
+            "        File.WriteAllText(Path.Combine(AppContext.BaseDirectory, \"" + loadedSentinelFileName + "\"), \"loaded\");",
             "    }"
         ]);
 

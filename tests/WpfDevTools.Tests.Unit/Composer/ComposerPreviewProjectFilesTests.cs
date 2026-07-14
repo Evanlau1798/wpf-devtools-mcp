@@ -90,6 +90,17 @@ public sealed class ComposerPreviewProjectFilesTests
         }
     }
 
+    [Fact]
+    public void Write_ShouldSignalLoadedOnlyAfterWindowContentIsRendered()
+    {
+        var codeBehind = WritePreviewCodeBehind("<Grid />");
+
+        codeBehind.Should().Contain("ContentRendered += OnContentRendered;");
+        codeBehind.Should().Contain("DispatcherPriority.ContextIdle");
+        codeBehind.IndexOf("ContentRendered += OnContentRendered;", StringComparison.Ordinal).Should()
+            .BeLessThan(codeBehind.IndexOf("File.WriteAllText", StringComparison.Ordinal));
+    }
+
     private static string WritePreviewXaml(string generatedXaml)
     {
         var tempRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-preview-project-" + Guid.NewGuid().ToString("N"));
@@ -111,6 +122,37 @@ public sealed class ComposerPreviewProjectFilesTests
                     null,
                     []));
             return File.ReadAllText(Path.Combine(tempRoot, "MainWindow.xaml"));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    private static string WritePreviewCodeBehind(string generatedXaml)
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-preview-project-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempRoot);
+            UiPreviewProjectFiles.Write(
+                tempRoot,
+                generatedXaml,
+                includeRuntimeDiagnostics: false,
+                loadedSentinelFileName: "loaded.txt",
+                sdkOptionsFileName: "sdk.txt",
+                sdkReadyFileName: "ready.txt",
+                previewContract: new PreviewContractGenerationResult(
+                    true,
+                    string.Empty,
+                    new Dictionary<string, string>(),
+                    null,
+                    null,
+                    []));
+            return File.ReadAllText(Path.Combine(tempRoot, "MainWindow.xaml.cs"));
         }
         finally
         {

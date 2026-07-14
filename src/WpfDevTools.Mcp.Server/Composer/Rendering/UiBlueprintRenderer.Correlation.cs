@@ -177,9 +177,12 @@ internal sealed partial class UiBlueprintRenderer
             }
 
             var template = _templateLoader.Load(node.Kind, packs).Template?.Content;
-            if (template is not null && GetRootElementName(template) is { } name)
+            if (template is not null)
             {
-                reservedNames.Add(name);
+                foreach (var name in GetElementNames(template))
+                {
+                    reservedNames.Add(name);
+                }
             }
 
             foreach (var child in node.Slots.Values.SelectMany(children => children))
@@ -189,21 +192,14 @@ internal sealed partial class UiBlueprintRenderer
         }
     }
 
-    private static string? GetRootElementName(string xaml)
+    private static IEnumerable<string> GetElementNames(string xaml)
     {
-        var rootStart = XamlDocumentRootLocator.FindStart(xaml);
-        var rootEnd = rootStart < 0 ? -1 : FindTagEnd(xaml, rootStart + 1);
-        if (rootEnd < 0)
+        foreach (Match match in RootNamePattern.Matches(xaml))
         {
-            return null;
-        }
-
-        var match = RootNamePattern.Match(xaml[rootStart..rootEnd]);
-        return match.Success
-            ? WebUtility.HtmlDecode(match.Groups["double"].Success
+            yield return WebUtility.HtmlDecode(match.Groups["double"].Success
                 ? match.Groups["double"].Value
-                : match.Groups["single"].Value)
-            : null;
+                : match.Groups["single"].Value);
+        }
     }
 
     private static string CreateGeneratedName(

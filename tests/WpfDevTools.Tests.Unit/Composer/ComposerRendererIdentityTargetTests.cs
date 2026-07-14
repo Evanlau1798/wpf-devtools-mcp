@@ -54,6 +54,30 @@ public sealed class ComposerRendererIdentityTargetTests
     }
 
     [Fact]
+    public void Renderer_ShouldReserveStaticNamesInsidePackTemplateBeforeTargetCorrelation()
+    {
+        var projectRoot = CreatePack(
+            "<Border x:Name=\"WpfDevToolsBp_0000\" /><sample:Panel{{identity.attributes}} />");
+        try
+        {
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot)).Render(
+                new RenderBlueprintRequest(
+                    Blueprint(authoredIdentity: false),
+                    IncludeTransientElementCorrelation: true));
+
+            result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+            result.ElementCorrelations.Should().ContainSingle()
+                .Which.ElementName.Should().Be("WpfDevToolsBp_0001");
+            result.Xaml.Should().Contain("<Border x:Name=\"WpfDevToolsBp_0000\" />");
+            result.Xaml.Should().Contain("<sample:Panel x:Name=\"WpfDevToolsBp_0001\" />");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
+    [Fact]
     public void Renderer_ShouldRejectMultipleIdentityTargetsInOneTemplate()
     {
         var projectRoot = CreatePack(

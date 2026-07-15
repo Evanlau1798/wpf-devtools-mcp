@@ -45,7 +45,7 @@ public static partial class UiComposerMcpTools
         [Description("When true, returns only blocks with an available renderer template.")] bool composableOnly = false,
         [Description("Optional exact block kind for single-block detail, such as sample.button.")] string? kind = null,
         [Description("When true, includes recipe catalog entries from the same pack scope in the response.")] bool includeRecipes = false,
-        [Description("When true, returns a brief discovery projection with property names, warnings, slot bounds, skeletons, and authoring roles. Query an exact kind with compact=false for full property contracts.")] bool compact = false,
+        [Description("When true, returns a brief discovery projection with block descriptions, property names, warnings, slot bounds, skeletons, and authoring roles. Query an exact kind with compact=false for full property contracts.")] bool compact = false,
         [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
         [Description(ToolDescriptionFragments.ComposerLocalAppDataRootParameter)] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
@@ -311,6 +311,7 @@ public static partial class UiComposerMcpTools
             item.PackVersion,
             item.Kind,
             item.DisplayName,
+            item.Description,
             item.Category,
             propertyNames = item.Properties.Keys.Order(StringComparer.Ordinal).ToArray(),
             propertyWarnings = item.Properties

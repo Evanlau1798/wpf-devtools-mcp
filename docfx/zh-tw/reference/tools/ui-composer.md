@@ -75,7 +75,7 @@ Request options:
 - `composableOnly`: true 時只回傳具備 renderer template 的 blocks。
 - `kind`: optional exact pack-qualified block kind，用於 single-block detail。
 - `includeRecipes`: true 時同時回傳可供 `expand_ui_recipe` 使用的 recipe catalog entries。
-- `compact`: true 時回傳精簡 discovery projection，保留 identity、category、property names 與 preview warnings、slot bounds、renderer availability、`compositionSkeleton` 及 pack-defined `authoringRoles`。省略 `maxItems` 仍表示不設上限。
+- `compact`: true 時回傳精簡 discovery projection，保留 identity、pack-authored block description、category、property names 與 preview warnings、slot bounds、renderer availability、`compositionSkeleton` 及 pack-defined `authoringRoles`。省略 `maxItems` 仍表示不設上限。
 
 Catalog entries 只包含 source hint paths，不會把第三方 source code 複製進 tool output。
 

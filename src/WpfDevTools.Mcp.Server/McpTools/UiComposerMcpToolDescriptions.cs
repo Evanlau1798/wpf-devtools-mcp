@@ -79,7 +79,7 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - Full mode returns kind, description, previewWarning, authoring roles, pack guidance, properties, slots with declared bounds, renderer availability, skeleton, and source hints.
-        - compact=true returns only discovery fields: identity, category, property names and warnings, slot bounds, renderer availability, skeleton, and authoring roles; omitted maxItems means unbounded.
+        - compact=true returns only discovery fields: identity, block description, category, property names and warnings, slot bounds, renderer availability, skeleton, and authoring roles; omitted maxItems means unbounded.
         - Large vocabularies are bounded with allowedValueCount and allowedValuesTruncated; query exact kind for full values.
         - compositionSkeleton is a compact pack-neutral node derived from required properties and declared slots.
         - authoringGuidance keeps brief-first creative decisions independent; recipes remain optional accelerators.

@@ -96,7 +96,8 @@ public sealed class ComposerBlockCatalogTests
             children.GetProperty("minItems").GetInt32().Should().Be(0);
             children.TryGetProperty("maxItems", out _).Should().BeFalse();
             stack.GetProperty("compositionSkeleton").GetProperty("kind").GetString().Should().Be("core.stack");
-            stack.TryGetProperty("description", out _).Should().BeFalse();
+            stack.GetProperty("description").GetString().Should()
+                .Contain("vertically or horizontally");
             stack.TryGetProperty("properties", out _).Should().BeFalse();
             stack.TryGetProperty("sourceHintSummary", out _).Should().BeFalse();
 

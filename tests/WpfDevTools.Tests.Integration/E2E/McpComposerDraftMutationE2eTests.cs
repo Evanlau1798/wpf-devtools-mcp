@@ -111,7 +111,8 @@ public sealed class McpComposerDraftMutationE2eTests
                 operations = new object[]
                 {
                     new { jsonPath = "$.left", value = "new-left" },
-                    new { jsonPath = "$.right", value = "new-right" }
+                    new { jsonPath = "$.right", value = "new-right" },
+                    new { jsonPath = "$.optional", value = (object?)null }
                 }
             });
 
@@ -119,7 +120,9 @@ public sealed class McpComposerDraftMutationE2eTests
         patched.GetProperty("sourceDraftRef").GetString().Should().Be(draftRef);
         patched.GetProperty("changeSummary").GetProperty("changes").EnumerateArray()
             .Select(change => change.GetProperty("jsonPath").GetString())
-            .Should().Equal("$.left", "$.right");
+            .Should().Equal("$.left", "$.right", "$.optional");
+        patched.GetProperty("changeSummary").GetProperty("changes")[2]
+            .GetProperty("after").GetString().Should().Be("null");
     }
 
     [Fact]

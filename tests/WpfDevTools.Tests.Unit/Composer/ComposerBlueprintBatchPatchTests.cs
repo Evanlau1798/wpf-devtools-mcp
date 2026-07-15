@@ -69,7 +69,7 @@ public sealed class ComposerBlueprintBatchPatchTests
             operations:
             [
                 new BlueprintDraftPathOperation("$.left", Value("changed")),
-                new BlueprintDraftPathOperation("$.missing", Remove: true)
+                new BlueprintDraftPathOperation("$.missing", remove: true)
             ],
             cancellationToken: CancellationToken.None);
 

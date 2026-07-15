@@ -6,17 +6,28 @@ using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Mcp.Server.Composer.Drafts;
 
-public sealed record BlueprintDraftPathOperation(
-    [property: Required]
-    [property: StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
-    [property: Description("Exact JSON path or stable @Element alias to set or remove.")]
-    string JsonPath,
-    [property: Description("JSON value for set mode. Omit only when remove=true.")]
-    JsonElement? Value = null,
-    [property: Description("When true, remove the exact target and omit value.")]
-    bool Remove = false)
+public sealed record BlueprintDraftPathOperation
 {
     public const int MaxOperations = 16;
+
+    public BlueprintDraftPathOperation()
+    {
+    }
+
+    public BlueprintDraftPathOperation(string jsonPath, JsonElement value = default, bool remove = false)
+        => (JsonPath, Value, Remove) = (jsonPath, value, remove);
+
+    [Required]
+    [StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
+    [Description("Exact JSON path or stable @Element alias to set or remove.")]
+    public string JsonPath { get; init; } = string.Empty;
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [Description("JSON value for set mode. Omit only when remove=true.")]
+    public JsonElement Value { get; init; }
+
+    [Description("When true, remove the exact target and omit value.")]
+    public bool Remove { get; init; }
 }
 
 internal sealed record BlueprintDraftIssue(

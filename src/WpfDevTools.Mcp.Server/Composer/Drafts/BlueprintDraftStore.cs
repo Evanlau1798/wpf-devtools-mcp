@@ -159,7 +159,7 @@ internal sealed class BlueprintDraftStore
         bool remove)
         => ApplyPathUpdatesCore(
             draftRef,
-            [new BlueprintDraftPathOperation(jsonPath, value, remove)],
+            [new BlueprintDraftPathOperation(jsonPath, value ?? default, remove)],
             indexedRequestPaths: false);
 
     public BlueprintDraftMutationResult ApplyPathUpdates(
@@ -225,7 +225,7 @@ internal sealed class BlueprintDraftStore
 
                 var nextValue = operation.Remove
                     ? null
-                    : JsonNode.Parse(operation.Value!.Value.GetRawText());
+                    : JsonNode.Parse(operation.Value.GetRawText());
                 summaries.Add(BlueprintDraftChangeSummaryBuilder.BuildSingle(
                     previousValue,
                     nextValue,

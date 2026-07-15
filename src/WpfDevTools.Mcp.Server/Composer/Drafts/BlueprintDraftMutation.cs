@@ -9,7 +9,7 @@ internal static class BlueprintDraftPathMutation
     public static BlueprintDraftIssue? Apply(
         JsonObject root,
         string jsonPath,
-        JsonElement? value,
+        JsonElement value,
         bool remove,
         out JsonNode? previousValue,
         out bool previousValueExists)
@@ -24,7 +24,7 @@ internal static class BlueprintDraftPathMutation
                 "Use a path such as $.layout.slots.children[0].properties.text.");
         }
 
-        if (!remove && value is null)
+        if (!remove && value.ValueKind == JsonValueKind.Undefined)
         {
             return Issue(
                 "BlueprintDraftValueRequired",
@@ -32,7 +32,7 @@ internal static class BlueprintDraftPathMutation
                 "Pass value, or set remove=true and omit value.");
         }
 
-        if (remove && HasNonNullJsonValue(value))
+        if (remove && value.ValueKind is not JsonValueKind.Undefined and not JsonValueKind.Null)
         {
             return Issue(
                 "BlueprintDraftRemoveValueConflict",
@@ -66,7 +66,7 @@ internal static class BlueprintDraftPathMutation
                     : PathNotFound(jsonPath);
             }
 
-            targetObject[propertyName] = ParseValue(value!.Value);
+            targetObject[propertyName] = ParseValue(value);
             return null;
         }
 
@@ -85,7 +85,7 @@ internal static class BlueprintDraftPathMutation
             }
             else
             {
-                targetArray[arrayIndex] = ParseValue(value!.Value);
+                targetArray[arrayIndex] = ParseValue(value);
             }
 
             return null;
@@ -96,9 +96,6 @@ internal static class BlueprintDraftPathMutation
 
     private static JsonNode? ParseValue(JsonElement value)
         => JsonNode.Parse(value.GetRawText());
-
-    private static bool HasNonNullJsonValue(JsonElement? value)
-        => value is { } element && element.ValueKind != JsonValueKind.Null;
 
     private static bool TryGetChild(JsonNode current, PathSegment segment, out JsonNode? child)
     {

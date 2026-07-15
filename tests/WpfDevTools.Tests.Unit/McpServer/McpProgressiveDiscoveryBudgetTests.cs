@@ -15,7 +15,7 @@ public sealed class McpProgressiveDiscoveryBudgetTests
     private const int ServerInstructionBudgetChars = 26_000;
     private const int ToolDescriptionBudgetChars = 105_000;
     private const int ToolParameterDescriptionBudgetChars = 27_000;
-    private const int OutputSchemaDescriptionBudgetChars = 390_000;
+    private const int OutputSchemaDescriptionBudgetChars = 345_000;
     private static readonly Assembly McpServerAssembly = typeof(ServerInstructions).Assembly;
 
     [Fact]
@@ -50,6 +50,39 @@ public sealed class McpProgressiveDiscoveryBudgetTests
         descriptionCharacters.Should().BeLessThanOrEqualTo(
             OutputSchemaDescriptionBudgetChars,
             "shared output-schema prose should stay compact while fields and structure remain authoritative");
+    }
+
+    [Fact]
+    public void RecursiveJsonValueBranches_ShouldRelyOnTheirAuthoritativeTypes()
+    {
+        using var services = new ServiceCollection()
+            .AddSingleton<SessionManager>(_ => throw new InvalidOperationException("Schema tests do not invoke tools."))
+            .BuildServiceProvider();
+        var method = GetToolMethods().Single(method =>
+            method.GetCustomAttribute<McpServerToolAttribute>()?.Name == "get_active_process");
+        var tool = McpServerTool.Create(
+            method,
+            target: null,
+            new McpServerToolCreateOptions { Services = services });
+        McpToolOutputSchemas.Apply(tool.ProtocolTool);
+
+        var branches = tool.ProtocolTool.OutputSchema!.Value
+            .GetProperty("properties")
+            .GetProperty("nextSteps")
+            .GetProperty("items")
+            .GetProperty("properties")
+            .GetProperty("params")
+            .GetProperty("additionalProperties")
+            .GetProperty("oneOf")
+            .EnumerateArray()
+            .ToArray();
+        var objectBranch = branches.Single(branch => branch.GetProperty("type").GetString() == "object");
+        var arrayBranch = branches.Single(branch => branch.GetProperty("type").GetString() == "array");
+
+        objectBranch.TryGetProperty("description", out _).Should().BeFalse();
+        objectBranch.TryGetProperty("additionalProperties", out _).Should().BeTrue();
+        arrayBranch.TryGetProperty("description", out _).Should().BeFalse();
+        arrayBranch.TryGetProperty("items", out _).Should().BeTrue();
     }
 
     [Fact]

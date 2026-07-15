@@ -462,8 +462,17 @@ internal static partial class McpToolOutputSchemas
         return new
         {
             oneOf = scalarSchemas.Concat([
-                ObjectSchema("JSON object.", [], additionalProperties: JsonValue(depth - 1)),
-                ArrayOf("JSON array.", JsonValue(depth - 1))
+                new
+                {
+                    type = "object",
+                    additionalProperties = JsonValue(depth - 1),
+                    properties = new Dictionary<string, object>()
+                },
+                new
+                {
+                    type = "array",
+                    items = JsonValue(depth - 1)
+                }
             ]).ToArray()
         };
     }

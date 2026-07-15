@@ -204,6 +204,8 @@ public static partial class UiComposerMcpTools
         [Description("Optional maximum preview screenshot width. Defaults to 1024 for reliable agent image consumption; pass null for the rendered width.")] int? screenshotMaxWidth = 1024,
         [Range(1, int.MaxValue)]
         [Description("Optional maximum preview screenshot height. Defaults to 1024 for reliable agent image consumption; pass null for the rendered height.")] int? screenshotMaxHeight = 1024,
+        [Range(1, UiBlueprintPreviewDiagnosticsBridge.MaximumNameLookupLimit)]
+        [Description("Maximum exact authored element names inspected by runtime correlation. Defaults to 32; raise up to 64 only when layoutRiskSummary reports lookup-budget truncation.")] int correlationLookupLimit = UiBlueprintPreviewDiagnosticsBridge.ExistingNameLookupLimit,
         [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global packs.")] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
@@ -217,6 +219,7 @@ public static partial class UiComposerMcpTools
             ("screenshotOutputMode", screenshotOutputMode),
             ("screenshotMaxWidth", screenshotMaxWidth),
             ("screenshotMaxHeight", screenshotMaxHeight),
+            ("correlationLookupLimit", correlationLookupLimit),
             ("projectRoot", projectRoot),
             ("localAppDataRoot", localAppDataRoot));
 
@@ -231,6 +234,7 @@ public static partial class UiComposerMcpTools
                 screenshotOutputMode,
                 screenshotMaxWidth,
                 screenshotMaxHeight,
+                correlationLookupLimit,
                 projectRoot,
                 localAppDataRoot,
                 token),

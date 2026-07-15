@@ -19,6 +19,7 @@ public static partial class UiComposerMcpTools
         string screenshotOutputMode,
         int? screenshotMaxWidth,
         int? screenshotMaxHeight,
+        int correlationLookupLimit,
         string? projectRoot,
         string? localAppDataRoot,
         CancellationToken cancellationToken)
@@ -65,6 +66,17 @@ public static partial class UiComposerMcpTools
             return screenshotMaxHeightError!;
         }
 
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+                ToolCallHelper.BuildJsonArgs(("correlationLookupLimit", correlationLookupLimit)),
+                "correlationLookupLimit",
+                1,
+                UiBlueprintPreviewDiagnosticsBridge.MaximumNameLookupLimit,
+                out var resolvedCorrelationLookupLimit,
+                out var correlationLookupLimitError))
+        {
+            return correlationLookupLimitError!;
+        }
+
         var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot, localAppDataRoot), sessionManager)
             .PreviewAsync(
                 new PreviewBlueprintRequest(
@@ -75,7 +87,8 @@ public static partial class UiComposerMcpTools
                     IncludeScreenshotDiagnostics: includeScreenshotDiagnostics,
                     ScreenshotOutputMode: resolvedScreenshotOutputMode,
                     ScreenshotMaxWidth: resolvedScreenshotMaxWidth,
-                    ScreenshotMaxHeight: resolvedScreenshotMaxHeight),
+                    ScreenshotMaxHeight: resolvedScreenshotMaxHeight,
+                    CorrelationLookupLimit: resolvedCorrelationLookupLimit!.Value),
                 cancellationToken)
             .ConfigureAwait(false);
 

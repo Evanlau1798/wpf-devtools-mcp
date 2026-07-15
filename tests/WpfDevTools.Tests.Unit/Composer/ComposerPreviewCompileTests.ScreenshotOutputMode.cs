@@ -41,4 +41,22 @@ public sealed partial class ComposerPreviewCompileTests
         payload.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
         payload.GetProperty("error").GetString().Should().Contain("screenshotMaxWidth");
     }
+
+    [Fact]
+    public async Task PreviewUiBlueprintTool_WhenCorrelationLookupLimitIsInvalid_ShouldRejectBeforePreview()
+    {
+        using var sessionManager = new SessionManager();
+
+        var result = await UiComposerMcpTools.PreviewUiBlueprint(
+            sessionManager,
+            blueprintJson: "not-json",
+            restoreEnabled: false,
+            correlationLookupLimit: 65,
+            cancellationToken: CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        var payload = result.StructuredContent!.Value;
+        payload.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        payload.GetProperty("error").GetString().Should().Contain("correlationLookupLimit");
+    }
 }

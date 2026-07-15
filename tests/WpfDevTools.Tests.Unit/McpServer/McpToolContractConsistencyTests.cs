@@ -261,11 +261,12 @@ public class McpToolContractConsistencyTests
     }
 
     [Fact]
-    public void PreviewUiBlueprint_ShouldExposeScreenshotOutputMode()
+    public void PreviewUiBlueprint_ShouldExposeBoundedDiagnosticOptions()
     {
         AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "screenshotOutputMode", typeof(string), "metadata");
         AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "screenshotMaxWidth", typeof(int?), 1024);
         AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "screenshotMaxHeight", typeof(int?), 1024);
+        AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "correlationLookupLimit", typeof(int), 32);
     }
 
     [Fact]

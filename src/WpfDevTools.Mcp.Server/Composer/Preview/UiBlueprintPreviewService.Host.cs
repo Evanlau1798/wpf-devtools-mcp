@@ -211,6 +211,7 @@ internal sealed partial class UiBlueprintPreviewService
             request.ScreenshotOutputMode,
             request.ScreenshotMaxWidth,
             request.ScreenshotMaxHeight,
+            request.CorrelationLookupLimit,
             request.RuntimeElementCorrelations,
             cancellationToken).ConfigureAwait(false);
     }

@@ -145,18 +145,15 @@ public sealed class ComposerPreviewLayoutRiskTests
         summary.Warnings[0].OverflowAmount.GetProperty("right").GetDouble().Should().Be(50);
     }
 
-    [Fact]
-    public void Analyze_ShouldExposeIncompleteCoverageForThirtyThreeExactNames()
+    [Theory, InlineData(32, true), InlineData(33, false)]
+    public void Analyze_ShouldRespectExactNameLookupLimit(int lookupLimit, bool expectedTruncation)
     {
         var correlations = Enumerable.Range(1, 33)
-            .Select(index => new RenderElementCorrelation(
-                $"Target{index:00}",
-                $"$.layout.slots.children[{index - 1}]",
-                "nebula.item"))
+            .Select(index => new RenderElementCorrelation($"Target{index:00}",
+                $"$.layout.slots.children[{index - 1}]", "nebula.item"))
             .ToArray();
-        var resolved = Enumerable.Range(1, 32)
-            .Select(index => new { elementId = $"Element_{index}", elementName = $"Target{index:00}" })
-            .ToArray();
+        var resolved = Enumerable.Range(1, lookupLimit)
+            .Select(index => new { elementId = $"Element_{index}", elementName = $"Target{index:00}" }).ToArray();
         var resolvedIds = resolved.Select(item => item.elementId).ToArray();
         var clipping = Diagnostic("get_clipping_info", new
         {
@@ -167,26 +164,32 @@ public sealed class ComposerPreviewLayoutRiskTests
             TargetElementIds = resolvedIds
         };
 
-        UiBlueprintPreviewDiagnosticsBridge.BuildCorrelationLookupPlan(correlations).Should().HaveCount(32);
+        UiBlueprintPreviewDiagnosticsBridge.BuildCorrelationLookupPlan(correlations, lookupLimit).Should().HaveCount(lookupLimit);
         var summary = PreviewLayoutRiskAnalyzer.Analyze(
-            [Diagnostic("find_elements", new { success = true, results = resolved }), clipping],
-            correlations);
+            [Diagnostic("find_elements", new { success = true, results = resolved }), clipping], correlations, lookupLimit);
 
         summary.CorrelatedTargetCount.Should().Be(33);
-        summary.ResolvedTargetCount.Should().Be(32);
-        summary.InspectedTargetCount.Should().Be(32);
-        summary.InspectionTruncated.Should().BeTrue();
+        summary.ResolvedTargetCount.Should().Be(lookupLimit);
+        summary.InspectedTargetCount.Should().Be(lookupLimit);
+        summary.InspectionTruncated.Should().Be(expectedTruncation);
         summary.WarningsTruncated.Should().BeFalse();
-        summary.UnresolvedCorrelationCount.Should().Be(1);
-        summary.ReportedUnresolvedCorrelationCount.Should().Be(1);
+        summary.UnresolvedCorrelationCount.Should().Be(33 - lookupLimit);
+        summary.ReportedUnresolvedCorrelationCount.Should().Be(33 - lookupLimit);
         summary.UnresolvedCorrelationsTruncated.Should().BeFalse();
-        summary.UnresolvedCorrelations.Should().ContainSingle().Which.Should().BeEquivalentTo(new
+        if (expectedTruncation)
         {
-            JsonPath = "$.layout.slots.children[32]",
-            BlockKind = "nebula.item",
-            ElementName = "Target33",
-            Reason = "lookup-budget"
-        });
+            summary.UnresolvedCorrelations.Should().ContainSingle().Which.Should().BeEquivalentTo(new
+            {
+                JsonPath = "$.layout.slots.children[32]",
+                BlockKind = "nebula.item",
+                ElementName = "Target33",
+                Reason = "lookup-budget"
+            });
+        }
+        else
+        {
+            summary.UnresolvedCorrelations.Should().BeEmpty();
+        }
     }
 
     [Fact]

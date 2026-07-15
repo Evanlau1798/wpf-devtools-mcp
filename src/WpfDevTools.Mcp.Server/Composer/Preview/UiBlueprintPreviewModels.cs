@@ -13,7 +13,8 @@ internal sealed record PreviewBlueprintRequest(
     bool IncludeScreenshotDiagnostics = false,
     string ScreenshotOutputMode = "metadata",
     int? ScreenshotMaxWidth = 1024,
-    int? ScreenshotMaxHeight = 1024)
+    int? ScreenshotMaxHeight = 1024,
+    int CorrelationLookupLimit = UiBlueprintPreviewDiagnosticsBridge.ExistingNameLookupLimit)
 {
     public IReadOnlyList<RenderElementCorrelation> RuntimeElementCorrelations { get; init; } = [];
 }

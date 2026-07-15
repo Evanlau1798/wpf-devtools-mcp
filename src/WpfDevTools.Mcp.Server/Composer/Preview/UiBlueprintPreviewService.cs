@@ -152,7 +152,8 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
 
             var layoutRiskSummary = PreviewLayoutRiskAnalyzer.Analyze(
                 previewHost.RuntimeDiagnostics ?? [],
-                render.ElementCorrelations);
+                render.ElementCorrelations,
+                request.CorrelationLookupLimit);
 
             return new PreviewBlueprintResult(
                 Success: true,

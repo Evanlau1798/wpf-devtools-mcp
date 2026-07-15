@@ -271,7 +271,7 @@ internal static class UiComposerMcpToolDescriptions
         - layoutRiskSummary maps clipping to exact jsonPath/blockKind; unresolved reason is ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-found, or search-incomplete. Recheck the final app.
         - restoreEnabled=false builds --no-restore and returns missing-assets diagnostics.
         - startHost=true starts the host after build, waits for its load sentinel, then terminates its process tree.
-        - includeRuntimeDiagnostics=true with startHost=true reuses connect(), semantic summary, bounded correlation lookup, batched clipping, and layout diagnostics.
+        - includeRuntimeDiagnostics=true with startHost=true reuses connect(), semantic summary, bounded correlation lookup, batched clipping, and layout diagnostics. Exact-name lookup defaults to 32 and can be raised to 64 only when lookup-budget truncation requires it.
         - includeScreenshotDiagnostics=true with startHost=true adds a policy-gated bounded element_screenshot.
         - screenshotOutputMode="file" returns a resource-backed PNG that remains readable after the temporary preview host exits.
         - Screenshot bounds default to 1024; pass null only for full-size evidence.
@@ -282,6 +282,7 @@ internal static class UiComposerMcpToolDescriptions
         - restoreEnabled defaults to true for compile smoke; set false to verify restore-disabled diagnostics.
         - startHost defaults to false for fast compile smoke; set true for preview host load smoke.
         - includeRuntimeDiagnostics defaults to false; set true with startHost=true after enabling the sensitive-reads policy gate.
+        - correlationLookupLimit defaults to 32 and is bounded to 64. Raise it only for lookup-budget entries; other unresolved reasons need repair, not more lookups.
         - Screenshot diagnostics require startHost plus sensitive-read and screenshot gates.
         - Use screenshotOutputMode="file" for pixel evidence. Preview pixels do not approve final styling.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.

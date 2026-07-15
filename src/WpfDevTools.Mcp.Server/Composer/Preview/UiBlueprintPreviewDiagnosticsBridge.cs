@@ -10,6 +10,7 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
 {
     private const int ToolTimeoutSeconds = 60;
     internal const int ExistingNameLookupLimit = 32;
+    internal const int MaximumNameLookupLimit = 64;
 
     internal static async Task<IReadOnlyList<PreviewRuntimeDiagnostic>> CaptureAsync(
         SessionManager sessionManager,
@@ -18,6 +19,7 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
         string screenshotOutputMode,
         int? screenshotMaxWidth,
         int? screenshotMaxHeight,
+        int correlationLookupLimit,
         IReadOnlyList<RenderElementCorrelation> elementCorrelations,
         CancellationToken cancellationToken)
     {
@@ -50,7 +52,7 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                 cancellationToken).ConfigureAwait(false));
 
             var lookupDiagnostics = new List<PreviewRuntimeDiagnostic>();
-            foreach (var lookup in BuildCorrelationLookupPlan(elementCorrelations))
+            foreach (var lookup in BuildCorrelationLookupPlan(elementCorrelations, correlationLookupLimit))
             {
                 var lookupDiagnostic = await RunGatedAsync(
                     policy,
@@ -125,7 +127,8 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
     }
 
     internal static IReadOnlyList<PreviewCorrelationLookup> BuildCorrelationLookupPlan(
-        IReadOnlyList<RenderElementCorrelation> correlations)
+        IReadOnlyList<RenderElementCorrelation> correlations,
+        int exactNameLookupLimit = ExistingNameLookupLimit)
     {
         var plan = new List<PreviewCorrelationLookup>();
         if (correlations.Any(item => item.ElementName.StartsWith("WpfDevToolsBp_", StringComparison.Ordinal)))
@@ -138,7 +141,7 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
             .Where(name => !name.StartsWith("WpfDevToolsBp_", StringComparison.Ordinal))
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
-            .Take(ExistingNameLookupLimit)
+            .Take(exactNameLookupLimit)
             .Select(name => new PreviewCorrelationLookup(name, "exact")));
         return plan;
     }

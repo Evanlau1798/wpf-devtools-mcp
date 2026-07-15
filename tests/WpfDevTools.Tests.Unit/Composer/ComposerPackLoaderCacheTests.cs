@@ -285,6 +285,42 @@ public sealed class ComposerPackLoaderCacheTests
         }
     }
 
+    [Fact]
+    public void Load_ShouldRejectClosedAdjacencyAdvisoryContractViolations()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = CreateMinimalPack(tempRoot);
+            var blockPath = Path.Combine(packRoot, "blocks", "text.block.json");
+            File.WriteAllText(
+                blockPath,
+                """
+                {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"sample.text","displayName":"Text","category":"text","authoringRoles":["copy-run"],"properties":{"mode":{"type":"string","default":"Across"},"gap":{"type":"string","format":"thickness","default":"0"}},"slots":{"items":{"allowedKinds":["sample.text"],"adjacencyAdvisory":{"childRole":"copy-run","whenProperty":"mode","whenValues":["Across"],"itemSpacingProperty":"gap","childMargnProperty":"margin","message":"Add space.","repairSuggestion":"Set a gap."}}},"renderer":{"xamlTemplate":"renderers/xaml/text.xaml.sbn"},"sourceHints":[]}
+                """);
+
+            var unknownField = () => ComposerPackLoader.LoadUncachedForValidation(packRoot);
+
+            unknownField.Should().Throw<InvalidDataException>()
+                .WithMessage("*InvalidAdjacencyAdvisory*");
+
+            File.WriteAllText(
+                blockPath,
+                """
+                {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"sample.text","displayName":"Text","category":"text","authoringRoles":["copy-run"],"properties":{"mode":{"type":"string","default":"Across"},"gap":{"type":"number","format":"thickness","default":0}},"slots":{"items":{"allowedKinds":["sample.text"],"adjacencyAdvisory":{"childRole":"copy-run","whenProperty":"mode","whenValues":["Across"],"itemSpacingProperty":"gap","message":"Add space.","repairSuggestion":"Set a gap."}}},"renderer":{"xamlTemplate":"renderers/xaml/text.xaml.sbn"},"sourceHints":[]}
+                """);
+
+            var nonStringSpacing = () => ComposerPackLoader.LoadUncachedForValidation(packRoot);
+
+            nonStringSpacing.Should().Throw<InvalidDataException>()
+                .WithMessage("*InvalidAdjacencyAdvisory*");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
     private static string CreateMinimalPack(string root, string packId = "sample")
     {
         var packRoot = Path.Combine(root, packId, "1.0.0");

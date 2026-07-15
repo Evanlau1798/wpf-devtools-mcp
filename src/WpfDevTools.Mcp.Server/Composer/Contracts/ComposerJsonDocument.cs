@@ -101,6 +101,9 @@ internal sealed class UiSlotAdjacencyAdvisory
     public string ChildMarginProperty { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
     public string RepairSuggestion { get; set; } = string.Empty;
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? UnknownFields { get; set; }
 }
 
 internal sealed class UiPackPreviewContract

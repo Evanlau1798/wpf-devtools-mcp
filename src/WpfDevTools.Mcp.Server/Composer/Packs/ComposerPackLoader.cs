@@ -176,10 +176,12 @@ internal static class ComposerPackLoader
             && advisory.WhenValues.Distinct(StringComparer.Ordinal).Count() == advisory.WhenValues.Length;
         var itemSpacingValid = !string.IsNullOrWhiteSpace(advisory.ItemSpacingProperty)
             && block.Properties.TryGetValue(advisory.ItemSpacingProperty, out var itemSpacingProperty)
+            && string.Equals(itemSpacingProperty.Type, "string", StringComparison.Ordinal)
             && string.Equals(itemSpacingProperty.Format, "thickness", StringComparison.Ordinal);
         var childMarginValid = string.IsNullOrEmpty(advisory.ChildMarginProperty)
             || !string.IsNullOrWhiteSpace(advisory.ChildMarginProperty);
         if (IsSafeSemanticToken(advisory.ChildRole)
+            && advisory.UnknownFields is null or { Count: 0 }
             && conditionValid
             && itemSpacingValid
             && childMarginValid

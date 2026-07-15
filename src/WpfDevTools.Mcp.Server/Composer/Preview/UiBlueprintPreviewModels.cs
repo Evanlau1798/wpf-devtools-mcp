@@ -111,8 +111,35 @@ internal sealed record PreviewLayoutRiskSummary(
 
     public bool InspectionTruncated { get; init; }
 
+    public int UnresolvedCorrelationCount { get; init; }
+
+    public int ReportedUnresolvedCorrelationCount { get; init; }
+
+    public bool UnresolvedCorrelationsTruncated { get; init; }
+
+    public IReadOnlyList<PreviewUnresolvedCorrelation> UnresolvedCorrelations { get; init; } = [];
+
+    public int UninspectedCorrelationCount { get; init; }
+
+    public int ReportedUninspectedCorrelationCount { get; init; }
+
+    public bool UninspectedCorrelationsTruncated { get; init; }
+
+    public IReadOnlyList<PreviewUninspectedCorrelation> UninspectedCorrelations { get; init; } = [];
+
     public static PreviewLayoutRiskSummary Empty { get; } = new(0, 0, false, []);
 }
+
+internal sealed record PreviewUnresolvedCorrelation(
+    string JsonPath,
+    string BlockKind,
+    string ElementName);
+
+internal sealed record PreviewUninspectedCorrelation(
+    string JsonPath,
+    string BlockKind,
+    string ElementName,
+    string ElementId);
 
 internal sealed record PreviewLayoutWarning(
     string Code,

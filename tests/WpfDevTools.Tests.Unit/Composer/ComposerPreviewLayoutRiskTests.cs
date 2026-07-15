@@ -177,6 +177,15 @@ public sealed class ComposerPreviewLayoutRiskTests
         summary.InspectedTargetCount.Should().Be(32);
         summary.InspectionTruncated.Should().BeTrue();
         summary.WarningsTruncated.Should().BeFalse();
+        summary.UnresolvedCorrelationCount.Should().Be(1);
+        summary.ReportedUnresolvedCorrelationCount.Should().Be(1);
+        summary.UnresolvedCorrelationsTruncated.Should().BeFalse();
+        summary.UnresolvedCorrelations.Should().ContainSingle().Which.Should().BeEquivalentTo(new
+        {
+            JsonPath = "$.layout.slots.children[32]",
+            BlockKind = "nebula.item",
+            ElementName = "Target33"
+        });
     }
 
     [Fact]
@@ -212,6 +221,12 @@ public sealed class ComposerPreviewLayoutRiskTests
         summary.ResolvedTargetCount.Should().Be(2);
         summary.InspectedTargetCount.Should().Be(2);
         summary.InspectionTruncated.Should().BeTrue();
+        summary.UnresolvedCorrelations.Should().ContainSingle().Which.Should().BeEquivalentTo(new
+        {
+            JsonPath = "$.layout.slots.children[1]",
+            BlockKind = "nebula.item",
+            ElementName = "TargetB"
+        });
     }
 
     [Fact]
@@ -282,6 +297,98 @@ public sealed class ComposerPreviewLayoutRiskTests
         summary.InspectedTargetCount.Should().Be(101);
         summary.InspectionTruncated.Should().BeFalse();
         summary.WarningsTruncated.Should().BeFalse();
+        summary.UnresolvedCorrelationCount.Should().Be(0);
+        summary.UnresolvedCorrelations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Analyze_ShouldBoundUnresolvedCorrelationDetailsIndependently()
+    {
+        var correlations = Enumerable.Range(1, 40)
+            .Select(index => new RenderElementCorrelation(
+                $"Target{index:00}",
+                $"$.layout.slots.children[{index - 1}]",
+                $"nebula.item-{index:00}"))
+            .ToArray();
+
+        var summary = PreviewLayoutRiskAnalyzer.Analyze([], correlations);
+
+        summary.UnresolvedCorrelationCount.Should().Be(40);
+        summary.ReportedUnresolvedCorrelationCount.Should().Be(32);
+        summary.UnresolvedCorrelationsTruncated.Should().BeTrue();
+        summary.UnresolvedCorrelations.Should().HaveCount(32);
+        summary.UnresolvedCorrelations[0].JsonPath.Should().Be("$.layout.slots.children[0]");
+        summary.UnresolvedCorrelations[^1].JsonPath.Should().Be("$.layout.slots.children[31]");
+    }
+
+    [Fact]
+    public void Analyze_ShouldExposeExactUninspectedRuntimeTargets()
+    {
+        var correlations = new[]
+        {
+            new RenderElementCorrelation("TargetA", "$.layout.slots.children[0]", "nebula.item-a"),
+            new RenderElementCorrelation("TargetB", "$.layout.slots.children[1]", "nebula.item-b")
+        };
+        var diagnostics = new[]
+        {
+            Diagnostic("find_elements", new
+            {
+                success = true,
+                results = new[]
+                {
+                    new { elementId = "Element_A", elementName = "TargetA" },
+                    new { elementId = "Element_B", elementName = "TargetB" }
+                }
+            }),
+            Diagnostic("get_clipping_info", new
+            {
+                success = true,
+                results = new[] { new { success = true, elementId = "Element_A", isClipped = false } }
+            }) with
+            {
+                TargetElementIds = ["Element_A"]
+            }
+        };
+
+        var summary = PreviewLayoutRiskAnalyzer.Analyze(diagnostics, correlations);
+
+        summary.UninspectedCorrelationCount.Should().Be(1);
+        summary.ReportedUninspectedCorrelationCount.Should().Be(1);
+        summary.UninspectedCorrelationsTruncated.Should().BeFalse();
+        summary.UninspectedCorrelations.Should().ContainSingle().Which.Should().BeEquivalentTo(new
+        {
+            JsonPath = "$.layout.slots.children[1]",
+            BlockKind = "nebula.item-b",
+            ElementName = "TargetB",
+            ElementId = "Element_B"
+        });
+    }
+
+    [Fact]
+    public void Analyze_ShouldBoundUninspectedCorrelationDetailsIndependently()
+    {
+        var correlations = Enumerable.Range(1, 40)
+            .Select(index => new RenderElementCorrelation(
+                $"Target{index:00}",
+                $"$.layout.slots.children[{index - 1}]",
+                $"nebula.item-{index:00}"))
+            .ToArray();
+        var resolved = correlations.Select((item, index) => new
+        {
+            elementId = $"Element_{index + 1:00}",
+            elementName = item.ElementName
+        });
+
+        var summary = PreviewLayoutRiskAnalyzer.Analyze(
+            [Diagnostic("find_elements", new { success = true, results = resolved })],
+            correlations);
+
+        summary.UninspectedCorrelationCount.Should().Be(40);
+        summary.ReportedUninspectedCorrelationCount.Should().Be(32);
+        summary.UninspectedCorrelationsTruncated.Should().BeTrue();
+        summary.UninspectedCorrelations.Should().HaveCount(32);
+        summary.UninspectedCorrelations[0].ElementId.Should().Be("Element_01");
+        summary.UninspectedCorrelations[^1].ElementId.Should().Be("Element_32");
     }
 
     [Fact]

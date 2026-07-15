@@ -6,6 +6,7 @@ namespace WpfDevTools.Mcp.Server.Composer.Preview;
 internal static class PreviewLayoutRiskAnalyzer
 {
     private const int MaxWarnings = 32;
+    private const int MaxCoverageDetails = 32;
 
     internal static PreviewLayoutRiskSummary Analyze(
         IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics,
@@ -28,9 +29,36 @@ internal static class PreviewLayoutRiskAnalyzer
         var resolvedCorrelationNames = resolvedTargets
             .Select(item => item.ElementName)
             .ToHashSet(StringComparer.Ordinal);
-        var inspectedTargetCount = ReadInspectedElementIds(diagnostics)
+        var unresolvedCorrelations = correlations
+            .Where(item => !resolvedCorrelationNames.Contains(item.ElementName))
+            .DistinctBy(item => (item.JsonPath, item.BlockKind, item.ElementName))
+            .ToArray();
+        var reportedUnresolvedCorrelations = unresolvedCorrelations
+            .Take(MaxCoverageDetails)
+            .Select(item => new PreviewUnresolvedCorrelation(
+                item.JsonPath,
+                item.BlockKind,
+                item.ElementName))
+            .ToArray();
+        var inspectedElementIds = ReadInspectedElementIds(diagnostics);
+        var inspectedTargetCount = inspectedElementIds
             .Intersect(resolvedElementIds, StringComparer.Ordinal)
             .Count();
+        var correlationsByElementName = correlations
+            .ToLookup(item => item.ElementName, StringComparer.Ordinal);
+        var uninspectedCorrelations = resolvedTargets
+            .DistinctBy(item => (item.ElementId, item.ElementName))
+            .Where(item => !inspectedElementIds.Contains(item.ElementId))
+            .SelectMany(item => correlationsByElementName[item.ElementName]
+                .Select(correlation => new PreviewUninspectedCorrelation(
+                    correlation.JsonPath,
+                    correlation.BlockKind,
+                    item.ElementName,
+                    item.ElementId)))
+            .ToArray();
+        var reportedUninspectedCorrelations = uninspectedCorrelations
+            .Take(MaxCoverageDetails)
+            .ToArray();
         var namesByElementId = BuildElementNameMap(diagnostics);
         var correlationsByName = correlations
             .GroupBy(item => item.ElementName, StringComparer.Ordinal)
@@ -62,7 +90,15 @@ internal static class PreviewLayoutRiskAnalyzer
             InspectionTruncated = exactNameLookupTruncated
                                   || HasIncompleteSearch(diagnostics)
                                   || resolvedCorrelationNames.Count < correlatedTargetCount
-                                  || inspectedTargetCount < resolvedElementIds.Count
+                                  || inspectedTargetCount < resolvedElementIds.Count,
+            UnresolvedCorrelationCount = unresolvedCorrelations.Length,
+            ReportedUnresolvedCorrelationCount = reportedUnresolvedCorrelations.Length,
+            UnresolvedCorrelationsTruncated = unresolvedCorrelations.Length > reportedUnresolvedCorrelations.Length,
+            UnresolvedCorrelations = reportedUnresolvedCorrelations,
+            UninspectedCorrelationCount = uninspectedCorrelations.Length,
+            ReportedUninspectedCorrelationCount = reportedUninspectedCorrelations.Length,
+            UninspectedCorrelationsTruncated = uninspectedCorrelations.Length > reportedUninspectedCorrelations.Length,
+            UninspectedCorrelations = reportedUninspectedCorrelations
         };
     }
 

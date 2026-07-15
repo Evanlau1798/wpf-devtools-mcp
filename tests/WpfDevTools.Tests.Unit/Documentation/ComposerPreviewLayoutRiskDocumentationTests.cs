@@ -21,6 +21,14 @@ public sealed class ComposerPreviewLayoutRiskDocumentationTests
             "resolvedTargetCount",
             "inspectedTargetCount",
             "inspectionTruncated",
+            "unresolvedCorrelationCount",
+            "reportedUnresolvedCorrelationCount",
+            "unresolvedCorrelationsTruncated",
+            "unresolvedCorrelations",
+            "uninspectedCorrelationCount",
+            "reportedUninspectedCorrelationCount",
+            "uninspectedCorrelationsTruncated",
+            "uninspectedCorrelations",
             "warningsTruncated",
             "searchComplete=false");
     }

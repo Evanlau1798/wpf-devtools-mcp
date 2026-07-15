@@ -103,19 +103,17 @@ public sealed class ComposerPreviewDiagnosticSourceTests
             buildSucceeded: false,
             buildOutput,
             rendererTemplatePath: "<fallback-renderer.xaml.sbn>",
-            render.SourceMap,
-            render.Xaml);
+            render.SourceMap);
     }
 
     private static IReadOnlyList<PreviewDiagnostic> InvokeCreateDiagnostics(
         bool buildSucceeded,
         string buildOutput,
         string rendererTemplatePath,
-        IReadOnlyList<RenderSourceMapEntry> sourceMap,
-        string xaml)
+        IReadOnlyList<RenderSourceMapEntry> sourceMap)
         => (IReadOnlyList<PreviewDiagnostic>)typeof(UiBlueprintPreviewService)
             .GetMethod("CreateDiagnostics", BindingFlags.Static | BindingFlags.NonPublic)!
-            .Invoke(null, [buildSucceeded, buildOutput, rendererTemplatePath, sourceMap, xaml])!;
+            .Invoke(null, [buildSucceeded, buildOutput, rendererTemplatePath, sourceMap])!;
 
     private static string Blueprint(string hostKind, string childKind)
         => $$"""

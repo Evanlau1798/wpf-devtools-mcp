@@ -61,6 +61,39 @@ internal static class XamlSafetyScanner
         return issues;
     }
 
+    internal static IReadOnlyList<string> ExtractResourceDictionarySources(string xaml)
+    {
+        var sources = new List<string>();
+        foreach (var tag in EnumerateTags(xaml))
+        {
+            var name = SplitName(tag.Name);
+            if (string.Equals(name.LocalName, "ResourceDictionary.Source", StringComparison.Ordinal))
+            {
+                sources.Add(ReadPropertyElementValue(xaml, tag));
+                continue;
+            }
+
+            if (!string.Equals(name.LocalName, "ResourceDictionary", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var source = tag.Attributes
+                .Where(attribute => string.Equals(
+                    SplitName(attribute.Name).LocalName,
+                    "Source",
+                    StringComparison.Ordinal))
+                .Select(attribute => attribute.Value)
+                .FirstOrDefault();
+            if (source is not null)
+            {
+                sources.Add(source);
+            }
+        }
+
+        return sources.Where(source => !string.IsNullOrWhiteSpace(source)).ToArray();
+    }
+
     private static void AddElementIssueIfUnsafe(
         string xaml,
         XamlTag tag,

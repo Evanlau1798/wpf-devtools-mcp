@@ -114,14 +114,23 @@ public sealed class McpToolPrerequisiteDescriptionTests
     }
 
     [Fact]
-    public void PreviewUiBlueprintDescription_ShouldDiscloseStructuralOnlyVisualFidelity()
+    public void PreviewUiBlueprintDescription_ShouldDiscloseResourceBackedVisualFidelity()
     {
         var description = GetMcpTools()
             .Single(tool => string.Equals(tool.Name, "preview_ui_blueprint", StringComparison.Ordinal))
             .Description;
 
-        description.Should().Contain("structural-only");
-        description.Should().Contain("applied, built, and launched WPF application");
+        description.Should().Contain("resource-backed");
+        description.Should().Contain("resource-backed, hybrid-resource-backed, structural, or not-available");
+        description.Should().Contain("hash-checked before build");
+        description.Should().Contain(McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar);
+        description.Should().Contain("content-bound approval token");
+        description.Should().Contain("exact [version]");
+        description.Should().Contain("SHA-512 contentHash");
+        description.Should().Contain("preview-local NuGet cache");
+        description.Should().Contain("Project/user packs");
+        description.Should().Contain("structural");
+        description.Should().Contain("applied, built, and launched app");
         description.Should().Contain("visualComparisonChecklist");
         description.Should().Contain("window chrome");
         description.Should().Contain("icons");

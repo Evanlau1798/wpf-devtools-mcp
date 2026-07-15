@@ -6,7 +6,8 @@ using WpfDevTools.Tests.Unit.TestSupport;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
-public sealed class ComposerGenericPreviewContractTests
+[Collection("ProcessEnvironment")]
+public sealed partial class ComposerGenericPreviewContractTests
 {
     [Fact]
     [Trait("Category", "ComposerCompile")]
@@ -25,6 +26,8 @@ public sealed class ComposerGenericPreviewContractTests
                     KeepArtifacts: true));
 
             result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+            result.VisualFidelity.Should().Be("structural");
+            result.VisualValidationGuidance.Should().Contain("structural metadata only");
             var source = File.ReadAllText(Path.Combine(previewRoot, "PackPreviewStubs.cs"));
             source.Should().Contain("namespace Sample.Controls")
                 .And.Contain("class Panel : ContentControl")
@@ -47,6 +50,7 @@ public sealed class ComposerGenericPreviewContractTests
                 new PreviewBlueprintRequest(Blueprint("sample.panel"), RestoreEnabled: false));
 
             result.Success.Should().BeFalse();
+            result.VisualFidelity.Should().Be("not-available");
             result.Diagnostics.Should().ContainSingle(diagnostic => diagnostic.Code == "PreviewContractMissing");
         }
         finally
@@ -262,7 +266,7 @@ public sealed class ComposerGenericPreviewContractTests
 
     [Fact]
     [Trait("Category", "ComposerCompile")]
-    public async Task PreviewBlueprint_ShouldCompileNewWpfUiControlsFromPackMetadata()
+    public async Task PreviewBlueprint_ShouldCompileNewWpfUiControlsWithDeclaredRuntimeResources()
     {
         var blueprint = """
             {
@@ -295,10 +299,18 @@ public sealed class ComposerGenericPreviewContractTests
                     KeepArtifacts: true));
 
             result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
-            File.ReadAllText(Path.Combine(previewRoot, "PackPreviewStubs.cs"))
-                .Should().Contain("class NavigationViewItem : System.Windows.Controls.Button")
-                .And.Contain("class TabView : System.Windows.Controls.TabControl")
-                .And.Contain("class TabViewItem : System.Windows.Controls.TabItem");
+            result.VisualFidelity.Should().Be("resource-backed");
+            File.Exists(Path.Combine(previewRoot, "PackPreviewStubs.cs")).Should().BeFalse();
+            File.ReadAllText(Path.Combine(previewRoot, "PreviewHost.csproj"))
+                .Should().Contain("<PackageReference Include=\"WPF-UI\" Version=\"[4.3.0]\" />")
+                .And.Contain("<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>");
+            var appXaml = File.ReadAllText(Path.Combine(previewRoot, "App.xaml"));
+            appXaml.Should().Contain("xmlns:ui=\"http://schemas.lepo.co/wpfui/2022/xaml\"");
+            appXaml.IndexOf("<ui:ThemesDictionary Theme=\"Dark\" />", StringComparison.Ordinal).Should()
+                .BeLessThan(appXaml.IndexOf("<ui:ControlsDictionary />", StringComparison.Ordinal));
+            File.ReadAllText(Path.Combine(previewRoot, "MainWindow.xaml"))
+                .Should().Contain("xmlns:ui=\"http://schemas.lepo.co/wpfui/2022/xaml\"")
+                .And.NotContain("clr-namespace:Wpf.Ui.Controls");
         }
         finally
         {

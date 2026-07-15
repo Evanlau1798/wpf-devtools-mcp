@@ -103,7 +103,8 @@ internal sealed class PackRegistry
             return null;
         }
 
-        var pack = ComposerPackLoader.Load(packRoot);
+        var loaded = ComposerPackLoader.LoadWithFingerprint(packRoot);
+        var pack = loaded.Pack;
         if (!string.Equals(install.Id, pack.Manifest.Id, StringComparison.Ordinal)
             || !string.Equals(install.Version, pack.Manifest.Version, StringComparison.Ordinal))
         {
@@ -130,6 +131,7 @@ internal sealed class PackRegistry
             rolePlan.Required,
             pack.Manifest.Kind)
         {
+            Fingerprint = loaded.Fingerprint,
             ThemeTokens = pack.Manifest.ThemeTokens,
             ResourceVariants = PackResourceVariantResolver.Describe(pack.Manifest)
         };
@@ -173,6 +175,7 @@ internal sealed record PackRegistryItem(
     bool Required = false,
     string Kind = "")
 {
+    public string Fingerprint { get; init; } = string.Empty;
     public IReadOnlyDictionary<string, JsonElement> ThemeTokens { get; init; }
         = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
     public PackResourceVariantCatalog ResourceVariants { get; init; } = new(string.Empty, []);

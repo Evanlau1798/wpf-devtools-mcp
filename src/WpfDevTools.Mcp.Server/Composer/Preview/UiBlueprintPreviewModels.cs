@@ -32,21 +32,58 @@ internal sealed record PreviewBlueprintResult(
 {
     private static readonly PreviewVisualComparison[] VisualComparisonItems =
     [
-        new("windowChrome", "Temporary preview window chrome is structural.", "The applied app uses its real window type, title bar, and system buttons.", "Inspect window chrome in the final applied app."),
-        new("icons", "Stub controls may omit or substitute pack icons.", "The applied app renders icons from the real UI package.", "Inspect every required icon in the final applied app."),
-        new("controlTemplates", "Stub control templates approximate styling and visual states.", "The applied app uses the real package templates, resources, and states.", "Inspect control styling and states in the final applied app."),
-        new("layoutAndSpacing", "Stub measurement can shift sizing, alignment, and spacing.", "The applied app uses the real package measure and arrange behavior.", "Inspect layout, clipping, and spacing in the final applied app.")
+        new("windowChrome", "Preview uses the available runtime-backed or structural window representation.", "The final app adds project and operating-system integration.", "Confirm window chrome in the final applied app."),
+        new("icons", "Preview shows package icons only where runtime dependencies are approved; stub-backed areas are structural.", "The final app uses the declared integration plan.", "Confirm every required icon in the final applied app."),
+        new("controlTemplates", "Preview loads approved package templates and resources; stub-backed areas do not prove final styling.", "The final app uses the declared integration plan.", "Confirm control styling and states in the final applied app."),
+        new("layoutAndSpacing", "Preview measures runtime-backed controls and structural stubs in an isolated host.", "The final app may add project-level layout context.", "Confirm layout, clipping, and spacing in the final applied app.")
     ];
+    private static readonly PreviewVisualComparison[] UnavailableVisualComparisonItems =
+        VisualComparisonItems.Select(item => item with
+        {
+            Preview = "No preview visual evidence is available for this result.",
+            RequiredAction = "Resolve preview diagnostics, load the host, then compare this area in the final applied app."
+        }).ToArray();
+    private static readonly PreviewVisualComparison[] CompileOnlyVisualComparisonItems =
+        VisualComparisonItems.Select(item => item with
+        {
+            Preview = "The preview project compiled with its selected runtime or structural configuration; the host was not started, so this is not visual evidence.",
+            RequiredAction = "Start the preview host or verify this area in the final applied app."
+        }).ToArray();
 
-    public string VisualFidelity => "structural-stub";
+    public bool UsesStructuralStubs { get; init; }
+    public bool UsesRuntimeDependencies { get; init; }
 
-    public string VisualValidationGuidance =>
-        "Use preview screenshots for structural diagnostics only. Validate final styling in the applied, built, and launched WPF application.";
+    public string VisualFidelity => !Valid || !BuildSucceeded || !HasUsableHostEvidence
+        ? "not-available"
+        : UsesStructuralStubs
+            ? UsesRuntimeDependencies ? "hybrid-resource-backed" : "structural"
+            : "resource-backed";
+
+    public string VisualValidationGuidance => PreviewHost.Status == "compiled"
+        ? VisualFidelity switch
+        {
+            "structural" => "The preview project compiled with structural metadata only, but the host was not started; no pixel evidence is available. Validate the applied, built, and launched WPF application.",
+            "hybrid-resource-backed" => "The preview project compiled with approved runtime resources and structural areas, but the host was not started; no pixel evidence is available. Validate the final application.",
+            _ => "The preview project compiled with approved runtime packages and resources, but the host was not started; no pixel evidence is available. Validate the final application."
+        }
+        : VisualFidelity switch
+        {
+            "not-available" => "No visual fidelity is available because the preview did not build or its requested host did not load. Resolve diagnostics before evaluating pixels.",
+            "structural" => "Preview uses structural metadata only. Validate all styling in the applied, built, and launched WPF application.",
+            "hybrid-resource-backed" => "Preview loads declared runtime packages and resources approved for preview while stub-backed areas remain structural. Validate final styling in the applied, built, and launched WPF application.",
+            _ => "Preview loads declared runtime packages and ordered application resources approved for preview. Confirm final styling in the applied, built, and launched WPF application."
+        };
 
     public string ScreenshotVerificationGuidance =>
         "If a client displays sparse pixels while semantic evidence is complete, re-read the same screenshot resource and verify its SHA-256 before regenerating the preview or reporting a product defect.";
 
-    public IReadOnlyList<PreviewVisualComparison> VisualComparisonChecklist => VisualComparisonItems;
+    public IReadOnlyList<PreviewVisualComparison> VisualComparisonChecklist =>
+        VisualFidelity == "not-available"
+            ? UnavailableVisualComparisonItems
+            : PreviewHost.Status == "compiled" ? CompileOnlyVisualComparisonItems : VisualComparisonItems;
+
+    private bool HasUsableHostEvidence =>
+        PreviewHost.Status is "compiled" or "loaded";
 
     public IReadOnlyList<PreviewPropertyWarning> PropertyWarnings { get; init; } = [];
 

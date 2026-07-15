@@ -62,6 +62,17 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 };
         }
 
+        var unsafeResources = UiPreviewRuntimeDependencyPolicy.ValidateResources(previewContract.RuntimeResources);
+        if (unsafeResources.Count > 0)
+        {
+            return PreviewBlueprintResult.Invalid(request.RestoreEnabled, render.Xaml, unsafeResources)
+                with
+                {
+                    PropertyWarnings = propertyWarnings,
+                    ElementCorrelations = render.ElementCorrelations
+                };
+        }
+
         var tempRoot = request.TemporaryRoot
             ?? Path.Combine(Path.GetTempPath(), "wpfdevtools-composer-preview-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempRoot);
@@ -76,10 +87,13 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 PreviewLoadedSentinelFileName,
                 PreviewSdkOptionsFileName,
                 PreviewSdkReadyFileName,
-                previewContract);
+                previewContract,
+                previewContract.RuntimeNuGetPackages,
+                previewContract.RuntimeResources);
             cancellationToken.ThrowIfCancellationRequested();
             var restoreSucceeded = true;
             var cancelled = false;
+            IReadOnlyList<PreviewDiagnostic> packageDiagnostics = [];
             if (request.RestoreEnabled)
             {
                 var restore = await RunDotnetAsync(
@@ -89,6 +103,13 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                     cancellationToken).ConfigureAwait(false);
                 restoreSucceeded = restore.Succeeded;
                 cancelled = restore.Cancelled;
+                if (restoreSucceeded && !cancelled)
+                {
+                    packageDiagnostics = UiPreviewRuntimeDependencyPolicy.ValidateRestoredPackages(
+                        tempRoot,
+                        previewContract.RuntimeNuGetPackages);
+                    restoreSucceeded = packageDiagnostics.Count == 0;
+                }
             }
 
             var buildSucceeded = false;
@@ -118,8 +139,9 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                     buildSucceeded,
                     output.ToString(),
                     rendererTemplatePath,
-                    render.SourceMap,
-                    render.Xaml)
+                    render.SourceMap)
+                .Concat(previewContract.Advisories)
+                .Concat(packageDiagnostics)
                 .Concat(CreateRequestDiagnostics(request, rendererTemplatePath))
                 .ToArray();
             if (buildSucceeded && request.StartHost)
@@ -144,7 +166,9 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
             {
                 PropertyWarnings = propertyWarnings,
                 ElementCorrelations = render.ElementCorrelations,
-                LayoutRiskSummary = layoutRiskSummary
+                LayoutRiskSummary = layoutRiskSummary,
+                UsesStructuralStubs = previewContract.UsesStructuralStubs,
+                UsesRuntimeDependencies = previewContract.UsesRuntimeDependencies
             };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -209,8 +233,7 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
         bool buildSucceeded,
         string buildOutput,
         string rendererTemplatePath,
-        IReadOnlyList<RenderSourceMapEntry> sourceMap,
-        string xaml)
+        IReadOnlyList<RenderSourceMapEntry> sourceMap)
     {
         if (!buildSucceeded)
         {
@@ -227,21 +250,10 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
             ];
         }
 
-        var diagnostics = new List<PreviewDiagnostic>
-        {
+        return
+        [
             new("PreviewXamlCompiled", "Generated preview XAML compiled successfully.", "$.layout", rendererTemplatePath)
-        };
-        if (xaml.Contains("<ui:Button.Icon>", StringComparison.Ordinal))
-        {
-            diagnostics.Add(new("ButtonIconPropertyElementValid", "Button icon slot compiled as Button.Icon property element.", "$.layout", rendererTemplatePath));
-        }
-
-        if (xaml.Contains("<ui:DataGrid.Columns>", StringComparison.Ordinal))
-        {
-            diagnostics.Add(new("DataGridColumnsPropertyElementValid", "DataGrid columns slot compiled as DataGrid.Columns property element.", "$.layout", rendererTemplatePath));
-        }
-
-        return diagnostics;
+        ];
     }
 
     private static IReadOnlyList<PreviewDiagnostic> CreateRequestDiagnostics(

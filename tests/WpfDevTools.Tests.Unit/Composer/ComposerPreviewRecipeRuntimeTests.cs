@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using FluentAssertions;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Mcp.Server;
@@ -76,7 +78,9 @@ public sealed class ComposerPreviewRecipeRuntimeTests
             .Should().Be($"wpf://screenshots/{screenshotId}");
         resourceRead.GetProperty("sameSessionRequired").GetBoolean().Should().BeTrue();
         var resource = ScreenshotResources.GetScreenshotPng(session.SessionManager, screenshotId!);
-        resource.Should().BeOfType<BlobResourceContents>().Subject.DecodedData.ToArray().Should().NotBeEmpty();
+        var png = resource.Should().BeOfType<BlobResourceContents>().Subject.DecodedData.ToArray();
+        png.Should().NotBeEmpty();
+        AssertDeclaredDarkThemeRendered(png);
     }
 
     private static JsonElement GetDiagnosticPayload(IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics, string tool)
@@ -114,6 +118,36 @@ public sealed class ComposerPreviewRecipeRuntimeTests
         }
 
         return count;
+    }
+
+    private static void AssertDeclaredDarkThemeRendered(byte[] png)
+    {
+        using var stream = new MemoryStream(png);
+        var frame = new PngBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+        var bitmap = new FormatConvertedBitmap(frame, PixelFormats.Bgra32, null, 0);
+        var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
+        bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0);
+        var darkPixels = 0;
+        var chromaticPixels = 0;
+        for (var index = 0; index < pixels.Length; index += 4)
+        {
+            var blue = pixels[index];
+            var green = pixels[index + 1];
+            var red = pixels[index + 2];
+            var alpha = pixels[index + 3];
+            if (alpha < 200)
+            {
+                continue;
+            }
+
+            var maximum = Math.Max(red, Math.Max(green, blue));
+            var minimum = Math.Min(red, Math.Min(green, blue));
+            darkPixels += maximum < 64 ? 1 : 0;
+            chromaticPixels += maximum >= 80 && maximum - minimum >= 40 ? 1 : 0;
+        }
+
+        darkPixels.Should().BeGreaterThan(bitmap.PixelWidth * bitmap.PixelHeight / 4);
+        chromaticPixels.Should().BeGreaterThan(100);
     }
 
     private sealed class EnvironmentVariableScope : IDisposable

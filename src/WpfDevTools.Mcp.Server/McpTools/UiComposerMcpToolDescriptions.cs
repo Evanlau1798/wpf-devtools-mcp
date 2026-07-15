@@ -252,26 +252,27 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string PreviewUiBlueprint =
         """
-        USE WHEN: You need compile-smoke diagnostics, a temporary host load smoke, or scene/layout runtime diagnostics before applying generated XAML to a real project.
+        USE WHEN: You need compile, temporary host-load, or scene/layout evidence before applying generated XAML.
 
         CATEGORY: UI Composer
 
-        DO NOT USE: Do not use this to launch or control a real target application. This phase builds a temporary local preview host, optionally starts that temporary host, and reports diagnostics; it does not persist project files outside its temporary workspace.
+        DO NOT USE: Do not use this to control a real target. It builds an isolated temporary host and does not persist project files.
 
         RESPONSE SUMMARY:
-        - Returns compile, host, structural-fidelity, screenshot-verification, pack-warning, and element-correlation evidence.
-        - visualFidelity="structural-stub" means preview screenshots are structural-only evidence. Validate final styling in the applied, built, and launched WPF application.
-        - screenshotVerificationGuidance tells clients to re-read the same resource and verify its SHA-256 before regenerating a semantically complete preview that appears sparse.
-        - visualComparisonChecklist names expected stub differences in window chrome, icons, control templates, and layout and spacing.
+        - Returns compile, host, visual, screenshot, warning, and correlation evidence.
+        - visualFidelity is resource-backed, hybrid-resource-backed, structural, or not-available for invalid, build, or host-load failure. Always verify the applied, built, and launched app.
+        - Built-ins have release provenance. Project/user packs remain structural until their returned content-bound approval token is set in WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS. The full package closure requires exact [version] plus SHA-512 contentHash, restores to a preview-local NuGet cache, and is hash-checked before build.
+        - screenshotVerificationGuidance says to re-read the same resource and verify SHA-256 before regenerating an apparently sparse but semantically complete preview.
+        - visualComparisonChecklist lists final checks for window chrome, icons, control templates, layout and spacing.
         - propertyWarnings contains pack-defined guidance only for explicitly supplied properties, with the exact blueprint JSON path, block kind, property name, and message.
         - elementCorrelations maps each renderer root's transient x:Name to its blueprint jsonPath and blockKind. These names are never written into the blueprint or emitted by render/apply.
         - layoutRiskSummary maps clipping to exact jsonPath/blockKind; recheck the final app.
-        - restoreEnabled=false runs dotnet build --no-restore and returns missing-assets diagnostics when the temporary project has not been restored.
-        - startHost=true starts the temporary host after build, waits for an explicit generated-view load sentinel, then terminates the process tree.
+        - restoreEnabled=false builds --no-restore and returns missing-assets diagnostics.
+        - startHost=true starts the host after build, waits for its load sentinel, then terminates its process tree.
         - includeRuntimeDiagnostics=true with startHost=true reuses connect(), semantic summary, bounded correlation lookup, batched clipping, and layout diagnostics.
         - includeScreenshotDiagnostics=true with startHost=true adds a policy-gated bounded element_screenshot.
         - screenshotOutputMode="file" returns a resource-backed PNG that remains readable after the temporary preview host exits.
-        - Screenshot bounds default to 1024 for reliable Agent image consumption; pass null only for full-size evidence.
+        - Screenshot bounds default to 1024; pass null only for full-size evidence.
         - Compile failures map back to the compiler line/column source-map entry and renderer template path when available; restore/build infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:

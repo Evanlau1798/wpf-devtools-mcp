@@ -18,24 +18,18 @@ internal static class UiPreviewProjectFiles
         string loadedSentinelFileName,
         string sdkOptionsFileName,
         string sdkReadyFileName,
-        PreviewContractGenerationResult previewContract)
+        PreviewContractGenerationResult previewContract,
+        IReadOnlyList<PreviewRuntimeNuGetPackage>? requiredNuGetPackages = null,
+        IReadOnlyList<string>? requiredResources = null)
     {
-        File.WriteAllText(Path.Combine(root, "PreviewHost.csproj"), $$"""
-            <Project Sdk="Microsoft.NET.Sdk">
-              <PropertyGroup>
-                <OutputType>WinExe</OutputType>
-                <TargetFramework>net8.0-windows</TargetFramework>
-                <UseWPF>true</UseWPF>
-                <UseAppHost>false</UseAppHost>
-                <Nullable>enable</Nullable>
-                <ImplicitUsings>enable</ImplicitUsings>
-              </PropertyGroup>
-            {{BuildInspectorSdkReferenceItemGroup(includeRuntimeDiagnostics)}}
-            </Project>
-            """, Encoding.UTF8);
-        File.WriteAllText(Path.Combine(root, "App.xaml"), """
-            <Application x:Class="PreviewHost.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" StartupUri="MainWindow.xaml" />
-            """, Encoding.UTF8);
+        File.WriteAllText(
+            Path.Combine(root, "PreviewHost.csproj"),
+            BuildProjectFile(includeRuntimeDiagnostics, requiredNuGetPackages ?? []),
+            Encoding.UTF8);
+        File.WriteAllText(
+            Path.Combine(root, "App.xaml"),
+            BuildAppXaml(previewContract.XmlNamespaces, requiredResources ?? []),
+            Encoding.UTF8);
         File.WriteAllText(Path.Combine(root, "App.xaml.cs"), BuildAppCode(), Encoding.UTF8);
         File.WriteAllText(Path.Combine(root, "MainWindow.xaml"), BuildWindowXaml(generatedXaml, previewContract), Encoding.UTF8);
         File.WriteAllText(
@@ -60,6 +54,58 @@ internal static class UiPreviewProjectFiles
             "namespace PreviewHost;",
             "public partial " + "class App : Application { }",
             string.Empty);
+
+    private static string BuildProjectFile(
+        bool includeRuntimeDiagnostics,
+        IReadOnlyList<PreviewRuntimeNuGetPackage> packages)
+        => $$"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <OutputType>WinExe</OutputType>
+                <TargetFramework>net8.0-windows</TargetFramework>
+                <UseWPF>true</UseWPF>
+                <UseAppHost>false</UseAppHost>
+                <Nullable>enable</Nullable>
+                <ImplicitUsings>enable</ImplicitUsings>
+                <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+                <RestorePackagesPath>$(MSBuildThisFileDirectory).nuget\packages</RestorePackagesPath>
+              </PropertyGroup>
+            {{BuildPackageReferenceItemGroup(packages)}}
+            {{BuildInspectorSdkReferenceItemGroup(includeRuntimeDiagnostics)}}
+            </Project>
+            """;
+
+    private static string BuildPackageReferenceItemGroup(IReadOnlyList<PreviewRuntimeNuGetPackage> packages)
+        => packages.Count == 0
+            ? string.Empty
+            : "  <ItemGroup>" + Environment.NewLine
+              + string.Join(Environment.NewLine, packages.Select(package =>
+                  $"    <PackageReference Include=\"{EscapeXml(package.Id)}\" Version=\"{EscapeXml(package.VersionRange)}\" />"))
+              + Environment.NewLine + "  </ItemGroup>";
+
+    private static string BuildAppXaml(
+        IReadOnlyDictionary<string, string> namespaces,
+        IReadOnlyList<string> resources)
+    {
+        var root = "<Application x:Class=\"PreviewHost.App\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\""
+            + " xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\""
+            + BuildPreviewNamespaceAttributes(namespaces)
+            + " StartupUri=\"MainWindow.xaml\"";
+        return resources.Count == 0
+            ? root + " />" + Environment.NewLine
+            : string.Join(
+                Environment.NewLine,
+                root + ">",
+                "  <Application.Resources>",
+                "    <ResourceDictionary>",
+                "      <ResourceDictionary.MergedDictionaries>",
+                string.Join(Environment.NewLine, resources.Select(resource => "        " + resource)),
+                "      </ResourceDictionary.MergedDictionaries>",
+                "    </ResourceDictionary>",
+                "  </Application.Resources>",
+                "</Application>",
+                string.Empty);
+    }
 
     private static string BuildMainWindowCode(
         bool includeRuntimeDiagnostics,
@@ -314,7 +360,7 @@ internal static class UiPreviewProjectFiles
 
     private static string BuildPreviewNamespaceAttributes(IReadOnlyDictionary<string, string> namespaces)
         => string.Concat(namespaces.OrderBy(item => item.Key, StringComparer.Ordinal)
-            .Select(item => $" xmlns:{item.Key}=\"clr-namespace:{item.Value}\""));
+            .Select(item => $" xmlns:{item.Key}=\"{EscapeXml(item.Value)}\""));
 
     private static string AddPreviewHostClass(string generatedXaml, string rootTag, string namespaceAttributes)
     {

@@ -34,6 +34,7 @@ internal sealed class UiPackNuGetPackage
 {
     public string Id { get; set; } = string.Empty;
     public string VersionRange { get; set; } = string.Empty;
+    public string ContentHash { get; set; } = string.Empty;
 }
 
 internal sealed class UiPackResourceSetup

@@ -23,11 +23,7 @@ public sealed partial class ComposerPreviewCompileTests
         result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
         result.BuildOutput.Should().Contain("Build succeeded.");
         result.RestoreEnabled.Should().BeTrue();
-        result.Diagnostics.Select(diagnostic => diagnostic.Code).Should().Contain([
-            "ButtonIconPropertyElementValid",
-            "DataGridColumnsPropertyElementValid",
-            "PreviewXamlCompiled"
-        ]);
+        result.Diagnostics.Select(diagnostic => diagnostic.Code).Should().Equal("PreviewXamlCompiled");
         result.PreviewHost.Status.Should().Be("compiled");
     }
 
@@ -64,6 +60,7 @@ public sealed partial class ComposerPreviewCompileTests
         result.BuildOutput.Should().Contain("cancelled");
         result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "PreviewCancelled");
         result.PreviewHost.Status.Should().Be("cancelled");
+        result.VisualFidelity.Should().Be("not-available");
         Directory.Exists(tempRoot).Should().BeFalse();
     }
 
@@ -88,8 +85,11 @@ public sealed partial class ComposerPreviewCompileTests
         payload.GetProperty("success").GetBoolean().Should().BeTrue();
         payload.GetProperty("blueprintDraftRef").GetString().Should().Be(draftRef);
         payload.GetProperty("buildSucceeded").GetBoolean().Should().BeTrue();
-        payload.GetProperty("visualFidelity").GetString().Should().Be("structural-stub");
-        payload.GetProperty("visualValidationGuidance").GetString().Should().Contain("applied, built, and launched WPF application");
+        payload.GetProperty("visualFidelity").GetString().Should().Be("resource-backed");
+        payload.GetProperty("visualValidationGuidance").GetString().Should()
+            .Contain("approved runtime packages and resources")
+            .And.Contain("host was not started")
+            .And.Contain("final application");
         var screenshotGuidance = payload.GetProperty("screenshotVerificationGuidance").GetString();
         screenshotGuidance.Should().Contain("same screenshot resource");
         screenshotGuidance.Should().Contain("SHA-256");

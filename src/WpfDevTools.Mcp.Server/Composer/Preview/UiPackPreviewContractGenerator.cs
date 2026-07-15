@@ -5,7 +5,7 @@ using WpfDevTools.Mcp.Server.Composer.Packs;
 
 namespace WpfDevTools.Mcp.Server.Composer.Preview;
 
-internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
+internal sealed partial class UiPackPreviewContractGenerator(PackRegistry registry)
 {
     private static readonly Regex IdentifierPattern = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant);
     private static readonly Regex NamespacePattern = new(
@@ -82,22 +82,92 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
         var blueprint = ComposerJsonLoader.Parse<UiBlueprint>(blueprintJson, "<inline-blueprint>", UiComposerSchemaVersions.UiBlueprint);
         var usedPackIds = CollectUsedPackIds(blueprint.Layout, blueprint.Packs.Select(pack => pack.Id).ToArray());
         var available = registry.ListPacks().Packs.ToDictionary(pack => (pack.Id, pack.Version));
+        var manifests = blueprint.Packs
+            .Where(packRef => available.ContainsKey((packRef.Id, packRef.Version)))
+            .ToDictionary(
+                packRef => packRef.Id,
+                packRef => ComposerPackLoader.Load(available[(packRef.Id, packRef.Version)].RootPath).Manifest,
+                StringComparer.Ordinal);
         var contracts = new List<ResolvedPreviewContract>();
         var diagnostics = new List<PreviewDiagnostic>();
+        var advisories = new List<PreviewDiagnostic>();
+        var xamlNamespaces = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (packId, manifest) in manifests)
+        {
+            foreach (var (prefix, namespaceUri) in manifest.XmlNamespaces)
+            {
+                if (!IsValidXmlPrefix(prefix))
+                {
+                    diagnostics.Add(Diagnostic(
+                        "PackXmlNamespaceInvalid",
+                        $"Pack '{packId}' XML prefix '{prefix}' is reserved or is not a safe XML identifier."));
+                    continue;
+                }
+
+                if (xamlNamespaces.TryGetValue(prefix, out var existing)
+                    && !string.Equals(existing, namespaceUri, StringComparison.Ordinal))
+                {
+                    diagnostics.Add(Diagnostic(
+                        "PackXmlNamespaceConflict",
+                        $"XML prefix '{prefix}' maps to both '{existing}' and '{namespaceUri}' after loading pack '{packId}'."));
+                    continue;
+                }
+
+                xamlNamespaces.TryAdd(prefix, namespaceUri);
+            }
+        }
+
+        var resourcesByPack = blueprint.Packs
+            .Where(packRef => manifests.ContainsKey(packRef.Id))
+            .ToDictionary(
+                packRef => packRef.Id,
+                packRef => PackResourceVariantResolver.Resolve(
+                    manifests[packRef.Id],
+                    blueprint.ResourceVariants.GetValueOrDefault(packRef.Id)).ApplicationMergedDictionaries,
+                StringComparer.Ordinal);
+        var runtimeCandidates = blueprint.Packs
+            .Where(packRef => manifests.ContainsKey(packRef.Id))
+            .Where(packRef => manifests[packRef.Id].NugetPackages.Any()
+                || resourcesByPack[packRef.Id].Count > 0)
+            .ToArray();
+        var approvedRuntimePackIds = new HashSet<string>(StringComparer.Ordinal);
+        var packagesByPack = new Dictionary<string, IReadOnlyList<PreviewRuntimeNuGetPackage>>(StringComparer.Ordinal);
+        foreach (var packRef in runtimeCandidates)
+        {
+            var pack = available[(packRef.Id, packRef.Version)];
+            if (!UiPreviewRuntimeDependencyPolicy.IsApproved(pack))
+            {
+                advisories.Add(Diagnostic(
+                    "PreviewRuntimeDependenciesNotApproved",
+                    $"Pack '{packRef.Id}@{packRef.Version}' remains structural. Review its executable packages and resources, then approve this exact installed content with {McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar}={UiPreviewRuntimeDependencyPolicy.CreateApprovalToken(pack)}."));
+                continue;
+            }
+
+            if (!UiPreviewRuntimeDependencyPolicy.TryResolvePackages(
+                    manifests[packRef.Id].NugetPackages,
+                    out var packages,
+                    out var packageError))
+            {
+                advisories.Add(Diagnostic("PreviewRuntimePackageNotImmutable", packageError!));
+                continue;
+            }
+
+            approvedRuntimePackIds.Add(packRef.Id);
+            packagesByPack[packRef.Id] = packages;
+        }
 
         foreach (var packRef in blueprint.Packs.Where(pack => usedPackIds.Contains(pack.Id)))
         {
-            if (!available.TryGetValue((packRef.Id, packRef.Version), out var pack))
+            if (!manifests.TryGetValue(packRef.Id, out var manifest))
             {
                 continue;
             }
 
-            var manifest = ComposerPackLoader.Load(pack.RootPath).Manifest;
             if (manifest.Preview is null)
             {
                 if (RequiresPreviewContract(manifest, renderedXaml))
                 {
-                    diagnostics.Add(Diagnostic("PreviewContractMissing", $"Pack '{pack.Id}' does not declare preview metadata."));
+                    diagnostics.Add(Diagnostic("PreviewContractMissing", $"Pack '{packRef.Id}' does not declare preview metadata."));
                 }
 
                 continue;
@@ -105,19 +175,30 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
 
             var prefix = manifest.XmlNamespaces.FirstOrDefault(item =>
                 string.Equals(item.Value, manifest.Preview.NamespaceUri, StringComparison.Ordinal)).Key;
-            var error = Validate(pack.Id, prefix, manifest.Preview);
+            var error = Validate(packRef.Id, prefix, manifest.Preview);
             if (error is not null)
             {
                 diagnostics.Add(Diagnostic("PreviewContractInvalid", error));
                 continue;
             }
 
-            contracts.Add(new ResolvedPreviewContract(pack.Id, prefix!, manifest.Preview));
+            contracts.Add(new ResolvedPreviewContract(
+                packRef.Id,
+                prefix!,
+                manifest.Preview,
+                RuntimeBacked: manifest.NugetPackages.Any()
+                    && approvedRuntimePackIds.Contains(packRef.Id)));
         }
 
         foreach (var conflict in contracts.GroupBy(contract => contract.Prefix, StringComparer.Ordinal)
                      .Where(group => group.Count() > 1))
         {
+            if (conflict.All(contract => contract.RuntimeBacked)
+                && conflict.Select(contract => contract.Contract.NamespaceUri).Distinct(StringComparer.Ordinal).Count() == 1)
+            {
+                continue;
+            }
+
             var participants = string.Join(", ", conflict.Select(contract =>
                 $"'{contract.PackId}' ({contract.Contract.NamespaceUri})"));
             diagnostics.Add(Diagnostic(
@@ -125,19 +206,65 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
                 $"Preview XML prefix '{conflict.Key}' is used by multiple packs: {participants}. Use a distinct pack-local prefix."));
         }
 
+        foreach (var conflict in contracts.GroupBy(
+                     contract => contract.Contract.NamespaceUri,
+                     StringComparer.Ordinal)
+                     .Where(group => group.Any(contract => contract.RuntimeBacked)
+                         && group.Any(contract => !contract.RuntimeBacked)))
+        {
+            diagnostics.Add(Diagnostic(
+                "PreviewNamespaceUriConflict",
+                $"Preview namespace URI '{conflict.Key}' cannot mix runtime-backed and structural contracts."));
+        }
+
+        foreach (var conflict in contracts
+                     .SelectMany(contract => contract.Contract.Types.Keys.Select(type => (Contract: contract, Type: type)))
+                     .GroupBy(item => (item.Contract.Contract.NamespaceUri, item.Type))
+                     .Where(group => group.Count() > 1))
+        {
+            diagnostics.Add(Diagnostic(
+                "PreviewNamespaceTypeConflict",
+                $"Preview type '{conflict.Key.Type}' is declared by multiple packs for namespace URI '{conflict.Key.NamespaceUri}'."));
+        }
+        diagnostics.AddRange(ValidateRuntimePackageIdentities(packagesByPack));
+
         if (diagnostics.Count > 0)
         {
             return new PreviewContractGenerationResult(false, string.Empty, new Dictionary<string, string>(), null, null, diagnostics);
         }
 
         var windowRoot = ResolveWindowRoot(renderedXaml, contracts);
+        foreach (var contract in contracts.Where(contract => !contract.RuntimeBacked))
+        {
+            xamlNamespaces[contract.Prefix] = "clr-namespace:" + contract.Contract.ClrNamespace;
+        }
+
+        var runtimePackages = blueprint.Packs
+            .Where(packRef => approvedRuntimePackIds.Contains(packRef.Id))
+            .SelectMany(packRef => packagesByPack[packRef.Id])
+            .GroupBy(package => package.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+        var runtimeResources = blueprint.Packs
+            .Where(packRef => approvedRuntimePackIds.Contains(packRef.Id))
+            .SelectMany(packRef => resourcesByPack[packRef.Id])
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
         return new PreviewContractGenerationResult(
             true,
-            GenerateSource(contracts),
-            contracts.ToDictionary(contract => contract.Prefix, contract => contract.Contract.ClrNamespace, StringComparer.Ordinal),
+            GenerateSource(contracts.Where(contract => !contract.RuntimeBacked).ToArray()),
+            xamlNamespaces,
             windowRoot?.Tag,
             windowRoot?.ClrType,
-            []);
+            [])
+        {
+            UsesStructuralStubs = contracts.Any(contract => !contract.RuntimeBacked)
+                || runtimeCandidates.Any(packRef => !approvedRuntimePackIds.Contains(packRef.Id)),
+            UsesRuntimeDependencies = runtimePackages.Length > 0 || runtimeResources.Length > 0,
+            RuntimeNuGetPackages = runtimePackages,
+            RuntimeResources = runtimeResources,
+            Advisories = advisories
+        };
     }
 
     private static HashSet<string> CollectUsedPackIds(UiBlueprintNode root, IReadOnlyCollection<string> declaredPackIds)
@@ -167,9 +294,16 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
         => manifest.XmlNamespaces.Keys.Any(prefix =>
             renderedXaml.Contains("<" + prefix + ":", StringComparison.Ordinal));
 
+    private static bool IsValidXmlPrefix(string prefix)
+        => IdentifierPattern.IsMatch(prefix)
+           && !string.Equals(prefix, "x", StringComparison.OrdinalIgnoreCase)
+           && !string.Equals(prefix, "xml", StringComparison.OrdinalIgnoreCase)
+           && !string.Equals(prefix, "xmlns", StringComparison.OrdinalIgnoreCase);
+
     private static string? Validate(string packId, string? prefix, UiPackPreviewContract contract)
     {
         if (string.IsNullOrWhiteSpace(prefix)
+            || !IsValidXmlPrefix(prefix)
             || string.IsNullOrWhiteSpace(contract.NamespaceUri)
             || !NamespacePattern.IsMatch(contract.ClrNamespace))
         {
@@ -222,6 +356,11 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
 
     private static string GenerateSource(IReadOnlyList<ResolvedPreviewContract> contracts)
     {
+        if (contracts.Count == 0)
+        {
+            return string.Empty;
+        }
+
         var source = new StringBuilder();
         source.AppendLine("using System.Collections.ObjectModel;")
             .AppendLine("using System.Windows;")
@@ -358,47 +497,4 @@ internal sealed class UiPackPreviewContractGenerator(PackRegistry registry)
         source.AppendLine("        }");
     }
 
-    private static PreviewWindowRoot? ResolveWindowRoot(
-        string renderedXaml,
-        IReadOnlyList<ResolvedPreviewContract> contracts)
-    {
-        var rootElement = RootElementPattern.Match(renderedXaml);
-        if (!rootElement.Success)
-        {
-            return null;
-        }
-
-        var prefix = rootElement.Groups["prefix"].Value;
-        var typeName = rootElement.Groups["type"].Value;
-        var contract = contracts.FirstOrDefault(candidate =>
-            string.Equals(candidate.Prefix, prefix, StringComparison.Ordinal));
-        if (contract is null
-            || !contract.Contract.Types.TryGetValue(typeName, out var type)
-            || type.BaseKind != "window")
-        {
-            return null;
-        }
-
-        return new PreviewWindowRoot(
-            prefix + ":" + typeName,
-            contract.Contract.ClrNamespace + "." + typeName);
-    }
-
-    private static PreviewDiagnostic Diagnostic(string code, string message)
-        => new(code, message, "$.packs", string.Empty);
-
-    private static string Escape(string value)
-        => value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
 }
-
-internal sealed record PreviewContractGenerationResult(
-    bool Success,
-    string Source,
-    IReadOnlyDictionary<string, string> XmlNamespaces,
-    string? WindowRootTag,
-    string? WindowRootType,
-    IReadOnlyList<PreviewDiagnostic> Diagnostics);
-
-internal sealed record ResolvedPreviewContract(string PackId, string Prefix, UiPackPreviewContract Contract);
-
-internal sealed record PreviewWindowRoot(string Tag, string ClrType);

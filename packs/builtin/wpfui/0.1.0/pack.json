@@ -13,7 +13,13 @@
   "nugetPackages": [
     {
       "id": "WPF-UI",
-      "versionRange": "[4.3.0,5.0.0)"
+      "versionRange": "[4.3.0]",
+      "contentHash": "Gz2w7AomDqInpd5JEeXY3igffDr4vx8x4ChYrBhHxWYopUiKuGJzHH0GGmBh7PbRQru/gGejit5xWeeEhbPvxg=="
+    },
+    {
+      "id": "WPF-UI.Abstractions",
+      "versionRange": "[4.3.0]",
+      "contentHash": "dliiNNv0MkE4tcVjwTOhb3gIjN0Eqo4appivHiyBN7W3oaeGaBlrOvjkBn88Vk6zSQFnTd3FFchdkdPOIaHGXg=="
     }
   ],
   "xmlNamespaces": {

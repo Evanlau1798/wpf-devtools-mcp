@@ -23,7 +23,7 @@ internal static class UiComposerMcpToolDescriptions
 
         CATEGORY: UI Composer
 
-        RETURNS: New immutable draftRef and bounded changeSummary; no blueprint echo. Use compose_ui_blueprint for slot insertion.
+        RETURNS: New immutable draftRef and bounded changeSummary; atomic entries include operationIndex. No blueprint echo. Use compose_ui_blueprint for slot insertion.
 
         EXAMPLES:
         """ + CanonicalExamples;

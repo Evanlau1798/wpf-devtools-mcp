@@ -227,6 +227,7 @@ public sealed class ComposerBlueprintDraftTests
         summary.GetProperty("changeCount").GetInt32().Should().Be(1);
         summary.GetProperty("changes")[0].GetProperty("jsonPath").GetString()
             .Should().Be("$.layout.properties.orientation");
+        summary.GetProperty("changes")[0].TryGetProperty("operationIndex", out _).Should().BeFalse();
     }
 
     [Fact]

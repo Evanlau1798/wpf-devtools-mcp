@@ -302,11 +302,15 @@ internal static class BlueprintDraftChangeSummaryBuilder
     }
 
     public static BlueprintDraftChangeSummary Combine(
-        IReadOnlyList<BlueprintDraftChangeSummary> summaries)
+        IReadOnlyList<BlueprintDraftChangeSummary> summaries,
+        bool includeOperationIndexes)
     {
         var changeCount = summaries.Sum(summary => summary.ChangeCount);
         var changes = summaries
-            .SelectMany(summary => summary.Changes)
+            .SelectMany((summary, operationIndex) => summary.Changes
+                .Select(change => includeOperationIndexes
+                    ? change with { OperationIndex = operationIndex }
+                    : change))
             .Take(MaxReportedChanges)
             .ToArray();
         return new BlueprintDraftChangeSummary(

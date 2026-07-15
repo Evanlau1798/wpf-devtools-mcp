@@ -93,7 +93,7 @@ children 或 optional properties，不必手動重打 pack-specific kind 與 slo
 
 多步驟 workflow 若要避免重複傳輸及 double-serialize 同一份文件，可使用 `create_ui_blueprint_draft`。它接受一個 blueprint JSON object，回傳 opaque `draftRef`，且不會 echo 原始文件。Immutable、process-local store 最多保留 32 drafts，每份最多 65,536 字元，每筆存活 30 minutes。Reference 無法猜測、永不持久化；MCP server process 結束、到期或容量淘汰後就會失效。
 
-使用 `patch_ui_blueprint_draft` 搭配 live reference，可建立新的 immutable derived reference。Broad object change 可傳入 JSON Merge Patch object：null 會移除 object property、nested object 會遞迴 merge、array 或 scalar 會取代 target。單一 nested edit 則傳入 exact `jsonPath` 與 native JSON `value`；若要刪除該 target，省略 value 並設定 `remove=true`。兩到 16 個相關 edits 可改傳 ordered `operations`；它們會對同一份 working copy 原子執行，並只產生一個 derived reference。Source reference 永遠不變。每次成功衍生都會回傳 bounded `changeSummary`，列出 changed paths 與 compact before/after values，而不 echo 完整 blueprint。遺失、到期或遭淘汰的 reference 會回傳 `BlueprintDraftNotFound` 與 recovery guidance。
+使用 `patch_ui_blueprint_draft` 搭配 live reference，可建立新的 immutable derived reference。Broad object change 可傳入 JSON Merge Patch object：null 會移除 object property、nested object 會遞迴 merge、array 或 scalar 會取代 target。單一 nested edit 則傳入 exact `jsonPath` 與 native JSON `value`；若要刪除該 target，省略 value 並設定 `remove=true`。兩到 16 個相關 edits 可改傳 ordered `operations`；它們會對同一份 working copy 原子執行，並只產生一個 derived reference。每筆 atomic change 都會包含從零開始的 `operationIndex`。Source reference 永遠不變。每次成功衍生都會回傳 bounded `changeSummary`，列出 changed paths 與 compact before/after values，而不 echo 完整 blueprint。遺失、到期或遭淘汰的 reference 會回傳 `BlueprintDraftNotFound` 與 recovery guidance。
 
 七個接受 `blueprintJson` 的 downstream tools 也接受 opaque `draftRef`：`compose_ui_blueprint`、`validate_ui_blueprint`、`render_ui_blueprint`、`preview_ui_blueprint`、`repair_ui_blueprint`、`apply_ui_blueprint` 與 `apply_ui_project_integration`。One-shot workflow 仍可直接使用 `blueprintJson`。
 
@@ -109,7 +109,7 @@ children 或 optional properties，不必手動重打 pack-specific kind 與 slo
 - Surgical change：傳入 `draftRef`、exact path（例如 `$.layout.slots.children[0].properties.text`）與 `value`；target node 若具有唯一的標準 blueprint `elementName`，可使用穩定別名 `@ElementName.properties.text`，不必重複巢狀 array path。Pack-defined property key 若不是 simple identifier，請使用 bracket-quoted segment，例如 `$.layout.properties["accent.color"]`。若要刪除 target，省略 `value` 並設定 `remove=true`。
 - Atomic multi-path change：傳入 `draftRef` 與一到 16 個 ordered objects 組成的 `operations` array。每個 object 沿用 surgical mode 的 `jsonPath`/`value` 或 `remove=true` contract；path 與 stable alias 會針對同一 batch 內先前 operation 的結果解析。任一 operation 無效時，完整 batch 會以精確 `$.operations[index]` request path 失敗，不保留 partial draft。此 all-or-nothing mode 只回傳一個 immutable reference 與 ordered per-path change summaries。
 
-Response 會回傳新 reference、`sourceDraftRef`、retention metadata，以及 compact `changeSummary`；其中包含 `changeCount`、bounded `changes` 與 truncation metadata。每個 change 會列出 `jsonPath`、`changeType` 及 compact `before`/`after` values，且不會 echo 完整 blueprint。若目標是把 catalog block 插入 slot array，應改用 `compose_ui_blueprint`。
+Response 會回傳新 reference、`sourceDraftRef`、retention metadata，以及 compact `changeSummary`；其中包含 `changeCount`、bounded `changes` 與 truncation metadata。每個 change 會列出 `jsonPath`、`changeType` 及 compact `before`/`after` values；atomic batch 也會包含從零開始的 `operationIndex`。Response 不會 echo 完整 blueprint。若目標是把 catalog block 插入 slot array，應改用 `compose_ui_blueprint`。
 
 ## `compose_ui_blueprint`
 

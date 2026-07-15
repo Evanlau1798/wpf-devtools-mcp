@@ -29,9 +29,11 @@ public sealed class ComposerBlueprintBatchPatchTests
         payload.GetProperty("sourceDraftRef").GetString().Should().Be(originalRef);
         var derivedRef = payload.GetProperty("draftRef").GetString()!;
         derivedRef.Should().NotBe(originalRef);
-        payload.GetProperty("changeSummary").GetProperty("changes").EnumerateArray()
-            .Select(change => change.GetProperty("jsonPath").GetString())
+        var changes = payload.GetProperty("changeSummary").GetProperty("changes").EnumerateArray().ToArray();
+        changes.Select(change => change.GetProperty("jsonPath").GetString())
             .Should().Equal("$.left", "$.right");
+        changes.Select(change => change.GetProperty("operationIndex").GetInt32())
+            .Should().Equal(0, 1);
 
         BlueprintInputResolver.Store.Resolve(originalRef).BlueprintJson.Should()
             .Be("""{"left":"old","right":"old"}""");

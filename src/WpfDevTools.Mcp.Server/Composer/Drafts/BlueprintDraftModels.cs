@@ -60,7 +60,9 @@ internal sealed record BlueprintDraftChange(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     string? Before,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-    string? After);
+    string? After,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    int? OperationIndex = null);
 
 internal sealed record BlueprintDraftResolution(
     bool Success,

@@ -69,6 +69,7 @@ public sealed class ComposerDraftToolDescriptionTests
         description.Should().Contain("JSON-path set/remove");
         description.Should().Contain("16 ordered atomic operations");
         description.Should().Contain("changeSummary");
+        description.Should().Contain("operationIndex");
         description.Should().Contain("Do not combine patchJson, jsonPath, or operations");
         method.GetParameters().Single(parameter => parameter.Name == "jsonPath")
             .GetCustomAttribute<DescriptionAttribute>()!.Description

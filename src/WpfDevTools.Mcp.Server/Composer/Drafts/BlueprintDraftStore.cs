@@ -234,7 +234,9 @@ internal sealed class BlueprintDraftStore
                     afterExists: !operation.Remove));
             }
 
-            return CreateDerived(target, BlueprintDraftChangeSummaryBuilder.Combine(summaries));
+            return CreateDerived(
+                target,
+                BlueprintDraftChangeSummaryBuilder.Combine(summaries, includeOperationIndexes: indexedRequestPaths));
         }
         catch (JsonException ex)
         {

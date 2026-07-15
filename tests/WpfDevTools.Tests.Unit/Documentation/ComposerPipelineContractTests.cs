@@ -98,6 +98,7 @@ public sealed class ComposerPipelineContractTests
             "opaque `draftRef`",
             "JSON Merge Patch",
             "`operations`",
+            "`operationIndex`",
             "16",
             "all-or-nothing",
             "immutable",

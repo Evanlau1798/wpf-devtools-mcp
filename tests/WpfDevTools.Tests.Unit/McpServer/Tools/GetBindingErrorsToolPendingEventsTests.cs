@@ -249,7 +249,8 @@ public sealed class GetBindingErrorsToolPendingEventsTests
             {
                 success = false,
                 error = "drain failed",
-                errorCode = "Timeout"
+                errorCode = "Timeout",
+                requiresReconnect = true
             }));
         var tool = new GetBindingErrorsTool(connected.SessionManager);
 
@@ -292,9 +293,11 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         result.GetProperty("pendingEventsPiggybackFailed").GetBoolean().Should().BeTrue();
         result.GetProperty("pendingEventsPiggybackFailureType").GetString().Should().Be("Timeout");
         result.GetProperty("pendingEventsMayRemainBuffered").GetBoolean().Should().BeTrue();
-        result.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
-        result.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
-        result.GetProperty("pendingEventsPiggybackSuggestedAction").GetString().Should().Contain("Reconnect");
+        result.GetProperty("pendingEventsPiggybackRequiresReconnect").GetBoolean().Should().BeFalse();
+        result.GetProperty("pendingEventsStateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
+        result.TryGetProperty("requiresReconnect", out _).Should().BeFalse();
+        result.TryGetProperty("stateAfterTimeoutUnknown", out _).Should().BeFalse();
+        result.GetProperty("pendingEventsPiggybackSuggestedAction").GetString().Should().NotContain("Reconnect").And.Contain("drain_events");
     }
 
     [Fact]

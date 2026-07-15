@@ -312,8 +312,7 @@ public abstract partial class PipeConnectedToolBase
                 return result;
             }
 
-            object drainResult;
-            drainResult = await SendInspectorRequestCoreAsync(
+            var drainResult = await SendInspectorRequestCoreAsync(
                 processId,
                 expectedSessionGeneration,
                 "drain_events",
@@ -324,12 +323,11 @@ public abstract partial class PipeConnectedToolBase
             var drainPayload = ToJsonElement(drainResult);
             if (!IsSuccessfulPayload(drainPayload))
             {
+                var failureType = ResolvePiggybackFailureType(drainPayload);
                 return MergePiggybackFailureDiagnostics(
-                    result,
-                    processId,
-                    ResolvePiggybackFailureType(drainPayload),
-                    GetStringProperty(drainPayload, "errorCode"),
-                    GetStringProperty(drainPayload, "error"));
+                    result, processId, failureType,
+                    PiggybackFailureRequiresReconnect(failureType, drainPayload),
+                    GetStringProperty(drainPayload, "errorCode"), GetStringProperty(drainPayload, "error"));
             }
 
             _sessionManager.TryPeekPendingEventReplay(processId, replayLock.SessionGeneration, out var existingReplayPayload);
@@ -382,10 +380,12 @@ public abstract partial class PipeConnectedToolBase
         }
         catch (Exception ex)
         {
+            var failureType = ResolvePiggybackFailureType(ex);
             return MergePiggybackFailureDiagnostics(
                 result,
                 processId,
-                ResolvePiggybackFailureType(ex),
+                failureType,
+                PiggybackFailureRequiresReconnect(failureType),
                 null,
                 ex.Message);
         }

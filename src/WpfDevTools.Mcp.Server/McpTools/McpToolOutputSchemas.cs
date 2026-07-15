@@ -322,7 +322,7 @@ internal static partial class McpToolOutputSchemas
             ["pendingEventsMayRemainBuffered"] = Boolean("Whether pending events may remain buffered for an explicit drain_events call."),
             ["pendingEventsPiggybackRequiresReconnect"] = Boolean("Whether reconnect is recommended before recovering piggybacked pending events."),
             ["pendingEventsStateAfterTimeoutUnknown"] = Boolean("Whether pending-event state is unknown after a piggyback timeout or transport reset."),
-            ["pendingEventsPiggybackSuggestedAction"] = String("Recommended reconnect and drain_events workflow after piggyback recovery fails."),
+            ["pendingEventsPiggybackSuggestedAction"] = String("Recommended recovery workflow after piggyback failure."),
             ["restoreRequired"] = Boolean("Whether the runtime mutation should be restored if the caller needs the app left unchanged."),
             ["restoreStatus"] = String("Restore status for the mutation response, such as notRestored."),
             ["restoreSuggestedAction"] = String("Recommended restore_state_snapshot workflow after mutation verification."),

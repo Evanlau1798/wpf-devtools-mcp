@@ -176,6 +176,7 @@ public abstract partial class PipeConnectedToolBase
         object primaryResult,
         int processId,
         string failureType,
+        bool requiresReconnect,
         string? errorCode,
         string? errorMessage)
     {
@@ -189,7 +190,8 @@ public abstract partial class PipeConnectedToolBase
 
             var buffer = new ArrayBufferWriter<byte>();
             using var writer = new Utf8JsonWriter(buffer);
-            var requiresReconnect = PiggybackFailureRequiresReconnect(failureType);
+            var pendingEventStateAfterTimeoutUnknown = requiresReconnect
+                                                       || string.Equals(failureType, "Timeout", StringComparison.Ordinal);
             var suggestedAction = BuildPiggybackFailureSuggestedAction(processId, requiresReconnect);
             writer.WriteStartObject();
 
@@ -218,11 +220,15 @@ public abstract partial class PipeConnectedToolBase
             writer.WriteBoolean("pendingEventsMayRemainBuffered", true);
             writer.WriteBoolean("pendingEventsPiggybackRequiresReconnect", requiresReconnect);
             writer.WriteString("pendingEventsPiggybackSuggestedAction", suggestedAction);
+            if (pendingEventStateAfterTimeoutUnknown)
+            {
+                writer.WriteBoolean("pendingEventsStateAfterTimeoutUnknown", true);
+            }
+
             if (requiresReconnect)
             {
                 writer.WriteBoolean("requiresReconnect", true);
                 writer.WriteBoolean("stateAfterTimeoutUnknown", true);
-                writer.WriteBoolean("pendingEventsStateAfterTimeoutUnknown", true);
                 writer.WriteString("suggestedAction", suggestedAction);
             }
 
@@ -266,9 +272,14 @@ public abstract partial class PipeConnectedToolBase
         _ => ex.GetType().Name
     };
 
+    private static bool PiggybackFailureRequiresReconnect(string failureType, JsonElement payload) =>
+        PiggybackFailureRequiresReconnect(failureType)
+        || (payload.ValueKind == JsonValueKind.Object
+            && payload.TryGetProperty("requiresReconnect", out var requiresReconnect)
+            && requiresReconnect.ValueKind == JsonValueKind.True);
+
     private static bool PiggybackFailureRequiresReconnect(string failureType) =>
-        string.Equals(failureType, "Timeout", StringComparison.Ordinal)
-        || string.Equals(failureType, "TransportReset", StringComparison.Ordinal);
+        string.Equals(failureType, "TransportReset", StringComparison.Ordinal);
 
     private static string BuildPiggybackFailureSuggestedAction(int processId, bool requiresReconnect) =>
         requiresReconnect

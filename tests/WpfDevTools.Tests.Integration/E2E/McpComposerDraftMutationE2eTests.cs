@@ -93,6 +93,35 @@ public sealed class McpComposerDraftMutationE2eTests
             .GetProperty("after").GetString().Should().Be("null");
     }
 
+    [Fact]
+    public async Task PatchDraft_ShouldBindAtomicOperationsOverStdio()
+    {
+        using var client = new McpStdioClient();
+        await client.StartAsync(FindServerExecutable());
+        var created = await client.CallToolAsync(
+            "create_ui_blueprint_draft",
+            new { blueprintJson = """{"left":"old","right":"old"}""" });
+        var draftRef = created.GetProperty("draftRef").GetString()!;
+
+        var patched = await client.CallToolAsync(
+            "patch_ui_blueprint_draft",
+            new
+            {
+                draftRef,
+                operations = new object[]
+                {
+                    new { jsonPath = "$.left", value = "new-left" },
+                    new { jsonPath = "$.right", value = "new-right" }
+                }
+            });
+
+        patched.GetProperty("success").GetBoolean().Should().BeTrue(patched.GetRawText());
+        patched.GetProperty("sourceDraftRef").GetString().Should().Be(draftRef);
+        patched.GetProperty("changeSummary").GetProperty("changes").EnumerateArray()
+            .Select(change => change.GetProperty("jsonPath").GetString())
+            .Should().Equal("$.left", "$.right");
+    }
+
     private static string FindServerExecutable()
         => IntegrationExecutableLocator.FindExecutable(
                AppContext.BaseDirectory,

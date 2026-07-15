@@ -67,12 +67,16 @@ public sealed class ComposerDraftToolDescriptionTests
         var description = method.GetCustomAttribute<DescriptionAttribute>()!.Description;
         description.Should().Contain("JSON Merge Patch");
         description.Should().Contain("JSON-path set/remove");
+        description.Should().Contain("16 ordered atomic operations");
         description.Should().Contain("changeSummary");
-        description.Should().Contain("Do not combine patchJson with jsonPath");
+        description.Should().Contain("Do not combine patchJson, jsonPath, or operations");
         method.GetParameters().Single(parameter => parameter.Name == "jsonPath")
             .GetCustomAttribute<DescriptionAttribute>()!.Description
             .Should().Contain("$.layout.properties[\"accent.color\"]")
             .And.Contain("@Panel.properties.text");
+        method.GetParameters().Single(parameter => parameter.Name == "operations")
+            .GetCustomAttribute<DescriptionAttribute>()!.Description
+            .Should().Contain("16").And.Contain("atomic");
 
         using var document = JsonDocument.Parse(CapabilityResources.GetToolManifest());
         var tool = document.RootElement.GetProperty("tools").EnumerateArray()
@@ -81,6 +85,6 @@ public sealed class ComposerDraftToolDescriptionTests
             .Select(entry => entry.GetString()).Should().Equal("draftRef");
         tool.GetProperty("parameters").EnumerateArray()
             .Select(entry => entry.GetProperty("name").GetString())
-            .Should().Contain(["patchJson", "jsonPath", "value", "remove"]);
+            .Should().Contain(["patchJson", "jsonPath", "value", "remove", "operations"]);
     }
 }

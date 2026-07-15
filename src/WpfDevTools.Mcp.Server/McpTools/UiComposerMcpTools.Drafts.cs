@@ -37,6 +37,8 @@ public static partial class UiComposerMcpTools
         [Description("Set/remove target: $.layout.properties[\"accent.color\"] or @Panel.properties.text. Do not combine with patchJson.")] string? jsonPath = null,
         [Description("JSON value for jsonPath set mode. Omit only when remove=true.")] JsonElement? value = null,
         [Description("When true, removes the exact jsonPath target. Omit value and patchJson.")] bool remove = false,
+        [MaxLength(BlueprintDraftPathOperation.MaxOperations)]
+        [Description("Optional ordered array of up to 16 atomic set/remove operations. Do not combine with patchJson or jsonPath.")] BlueprintDraftPathOperation[]? operations = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -44,9 +46,10 @@ public static partial class UiComposerMcpTools
             ("patchJson", patchJson),
             ("jsonPath", jsonPath),
             ("value", value),
-            ("remove", remove));
+            ("remove", remove),
+            ("operations", operations));
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult(PatchDraft(draftRef, patchJson, jsonPath, value, remove)),
+            (_, _) => Task.FromResult(PatchDraft(draftRef, patchJson, jsonPath, value, remove, operations)),
             args,
             cancellationToken,
             timeoutSeconds: 10);
@@ -60,18 +63,22 @@ public static partial class UiComposerMcpTools
         string? patchJson,
         string? jsonPath,
         JsonElement? value,
-        bool remove)
+        bool remove,
+        BlueprintDraftPathOperation[]? operations)
     {
-        if ((patchJson is null) == (jsonPath is null))
+        var modeCount = (patchJson is null ? 0 : 1)
+                        + (jsonPath is null ? 0 : 1)
+                        + (operations is null ? 0 : 1);
+        if (modeCount != 1)
         {
             var issue = new BlueprintDraftIssue(
-                patchJson is null
+                modeCount == 0
                     ? "BlueprintDraftMutationModeRequired"
                     : "BlueprintDraftMutationModeConflict",
-                patchJson is null
-                    ? "Pass either patchJson or jsonPath mutation arguments."
-                    : "patchJson and jsonPath mutation modes cannot be combined.",
-                "Use patchJson for JSON Merge Patch, or jsonPath with value/remove for one surgical change.");
+                modeCount == 0
+                    ? "Pass patchJson, jsonPath, or operations mutation arguments."
+                    : "patchJson, jsonPath, and operations mutation modes cannot be combined.",
+                "Use exactly one mutation mode per call.");
             return BlueprintDraftError(issue, "$.");
         }
 
@@ -85,21 +92,54 @@ public static partial class UiComposerMcpTools
                 "$.patchJson");
         }
 
+        if (operations is not null && (HasNonNullJsonValue(value) || remove))
+        {
+            return BlueprintDraftError(
+                new BlueprintDraftIssue(
+                    "BlueprintDraftMutationModeConflict",
+                    "Atomic operations mode cannot include single-path mutation arguments.",
+                    "Pass only draftRef and operations for an atomic multi-path edit."),
+                "$.operations");
+        }
+
+        if (operations is { Length: 0 })
+        {
+            return BlueprintDraftError(
+                new BlueprintDraftIssue(
+                    "BlueprintDraftOperationsRequired",
+                    "Atomic operations mode requires at least one operation.",
+                    "Pass one to 16 ordered set/remove operations."),
+                "$.operations");
+        }
+
+        if (operations is { Length: > BlueprintDraftPathOperation.MaxOperations })
+        {
+            return BlueprintDraftError(
+                new BlueprintDraftIssue(
+                    "BlueprintDraftTooManyOperations",
+                    $"Atomic operations mode accepts at most {BlueprintDraftPathOperation.MaxOperations} operations.",
+                    "Split the edit into bounded batches of 16 operations or fewer."),
+                "$.operations");
+        }
+
         var result = patchJson is not null
             ? BlueprintInputResolver.Store.ApplyMergePatch(draftRef, patchJson)
-            : BlueprintInputResolver.Store.ApplyPathUpdate(draftRef, jsonPath!, value, remove);
+            : operations is not null
+                ? BlueprintInputResolver.Store.ApplyPathUpdates(draftRef, operations)
+                : BlueprintInputResolver.Store.ApplyPathUpdate(draftRef, jsonPath!, value, remove);
         if (result.Success)
         {
             return DraftMutationPayload(result, draftRef);
         }
 
-        var errorPath = result.Error!.Code switch
+        var errorPath = result.Error!.RequestJsonPath ?? result.Error.Code switch
         {
             "BlueprintDraftNotFound" => "$.draftRef",
             "InvalidBlueprintDraftPath" or "BlueprintDraftPathNotFound" => "$.jsonPath",
             "BlueprintDraftValueRequired" or "BlueprintDraftRemoveValueConflict" => "$.value",
+            "BlueprintDraftTooLarge" when operations is not null => "$.operations",
             "BlueprintDraftTooLarge" when patchJson is null => "$.value",
-            _ => patchJson is not null ? "$.patchJson" : "$.jsonPath"
+            _ => patchJson is not null ? "$.patchJson" : operations is not null ? "$.operations" : "$.jsonPath"
         };
         return BlueprintDraftError(result.Error, errorPath);
     }

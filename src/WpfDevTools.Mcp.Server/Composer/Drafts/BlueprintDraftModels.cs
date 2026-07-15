@@ -1,11 +1,29 @@
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Mcp.Server.Composer.Drafts;
+
+public sealed record BlueprintDraftPathOperation(
+    [property: Required]
+    [property: StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
+    [property: Description("Exact JSON path or stable @Element alias to set or remove.")]
+    string JsonPath,
+    [property: Description("JSON value for set mode. Omit only when remove=true.")]
+    JsonElement? Value = null,
+    [property: Description("When true, remove the exact target and omit value.")]
+    bool Remove = false)
+{
+    public const int MaxOperations = 16;
+}
 
 internal sealed record BlueprintDraftIssue(
     string Code,
     string Message,
-    string RepairSuggestion);
+    string RepairSuggestion,
+    string? RequestJsonPath = null);
 
 internal sealed record BlueprintDraftMutationResult(
     bool Success,

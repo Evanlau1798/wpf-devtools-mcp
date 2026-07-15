@@ -157,6 +157,20 @@ internal sealed class BlueprintDraftStore
         string jsonPath,
         JsonElement? value,
         bool remove)
+        => ApplyPathUpdatesCore(
+            draftRef,
+            [new BlueprintDraftPathOperation(jsonPath, value, remove)],
+            indexedRequestPaths: false);
+
+    public BlueprintDraftMutationResult ApplyPathUpdates(
+        string draftRef,
+        IReadOnlyList<BlueprintDraftPathOperation> operations)
+        => ApplyPathUpdatesCore(draftRef, operations, indexedRequestPaths: true);
+
+    private BlueprintDraftMutationResult ApplyPathUpdatesCore(
+        string draftRef,
+        IReadOnlyList<BlueprintDraftPathOperation> operations,
+        bool indexedRequestPaths)
     {
         var source = Resolve(draftRef);
         if (!source.Success)
@@ -173,48 +187,69 @@ internal sealed class BlueprintDraftStore
                     "Blueprint draft root must be a JSON object."));
             }
 
-            var resolution = BlueprintNodePathResolver.Resolve(target, jsonPath);
-            if (!resolution.Success)
+            var summaries = new List<BlueprintDraftChangeSummary>(operations.Count);
+            for (var index = 0; index < operations.Count; index++)
             {
-                return BlueprintDraftMutationResult.Invalid(Issue(
-                    resolution.Code switch
-                    {
-                        "ElementAliasNotFound" => "BlueprintDraftElementNotFound",
-                        "ElementAliasAmbiguous" => "BlueprintDraftElementAmbiguous",
-                        _ => "InvalidBlueprintDraftPath"
-                    },
-                    resolution.Message!,
-                    resolution.RepairSuggestion!));
+                var operation = operations[index];
+                var resolution = BlueprintNodePathResolver.Resolve(target, operation.JsonPath);
+                if (!resolution.Success)
+                {
+                    var issue = Issue(
+                        resolution.Code switch
+                        {
+                            "ElementAliasNotFound" => "BlueprintDraftElementNotFound",
+                            "ElementAliasAmbiguous" => "BlueprintDraftElementAmbiguous",
+                            _ => "InvalidBlueprintDraftPath"
+                        },
+                        resolution.Message!,
+                        resolution.RepairSuggestion!);
+                    return BlueprintDraftMutationResult.Invalid(WithRequestPath(issue, index, "jsonPath", indexedRequestPaths));
+                }
+
+                var jsonPath = resolution.JsonPath;
+                var mutationIssue = BlueprintDraftPathMutation.Apply(
+                    target,
+                    jsonPath,
+                    operation.Value,
+                    operation.Remove,
+                    out var previousValue,
+                    out var previousValueExists);
+                if (mutationIssue is not null)
+                {
+                    var field = mutationIssue.Code is "BlueprintDraftValueRequired" or "BlueprintDraftRemoveValueConflict"
+                        ? "value"
+                        : "jsonPath";
+                    return BlueprintDraftMutationResult.Invalid(
+                        WithRequestPath(mutationIssue, index, field, indexedRequestPaths));
+                }
+
+                var nextValue = operation.Remove
+                    ? null
+                    : JsonNode.Parse(operation.Value!.Value.GetRawText());
+                summaries.Add(BlueprintDraftChangeSummaryBuilder.BuildSingle(
+                    previousValue,
+                    nextValue,
+                    jsonPath,
+                    previousValueExists,
+                    afterExists: !operation.Remove));
             }
 
-            jsonPath = resolution.JsonPath;
-
-            var issue = BlueprintDraftPathMutation.Apply(
-                target,
-                jsonPath,
-                value,
-                remove,
-                out var previousValue,
-                out var previousValueExists);
-            if (issue is not null)
-            {
-                return BlueprintDraftMutationResult.Invalid(issue);
-            }
-
-            var nextValue = remove ? null : JsonNode.Parse(value!.Value.GetRawText());
-            var summary = BlueprintDraftChangeSummaryBuilder.BuildSingle(
-                previousValue,
-                nextValue,
-                jsonPath,
-                previousValueExists,
-                afterExists: !remove);
-            return CreateDerived(target, summary);
+            return CreateDerived(target, BlueprintDraftChangeSummaryBuilder.Combine(summaries));
         }
         catch (JsonException ex)
         {
             return BlueprintDraftMutationResult.Invalid(InvalidJsonIssue(ex.Message));
         }
     }
+
+    private static BlueprintDraftIssue WithRequestPath(
+        BlueprintDraftIssue issue,
+        int operationIndex,
+        string field,
+        bool indexedRequestPaths)
+        => indexedRequestPaths
+            ? issue with { RequestJsonPath = $"$.operations[{operationIndex}].{field}" }
+            : issue;
 
     private BlueprintDraftMutationResult CreateDerived(JsonObject target, JsonNode before)
     {

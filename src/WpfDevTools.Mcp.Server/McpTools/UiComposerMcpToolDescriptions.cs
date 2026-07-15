@@ -19,7 +19,7 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string PatchUiBlueprintDraft =
         """
-        USE WHEN: Applying JSON Merge Patch or one JSON-path set/remove to a draft. jsonPath may be @Panel.properties.text. Do not combine patchJson with jsonPath.
+        USE WHEN: Applying JSON Merge Patch, one JSON-path set/remove, or up to 16 ordered atomic operations. jsonPath may be @Panel.properties.text. Do not combine patchJson, jsonPath, or operations.
 
         CATEGORY: UI Composer
 

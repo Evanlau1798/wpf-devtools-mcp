@@ -304,6 +304,21 @@ internal static class BlueprintDraftChangeSummaryBuilder
             changes);
     }
 
+    public static BlueprintDraftChangeSummary Combine(
+        IReadOnlyList<BlueprintDraftChangeSummary> summaries)
+    {
+        var changeCount = summaries.Sum(summary => summary.ChangeCount);
+        var changes = summaries
+            .SelectMany(summary => summary.Changes)
+            .Take(MaxReportedChanges)
+            .ToArray();
+        return new BlueprintDraftChangeSummary(
+            changeCount,
+            changes.Length,
+            summaries.Any(summary => summary.Truncated) || changeCount > changes.Length,
+            changes);
+    }
+
     private static void Collect(
         JsonNode? before,
         JsonNode? after,

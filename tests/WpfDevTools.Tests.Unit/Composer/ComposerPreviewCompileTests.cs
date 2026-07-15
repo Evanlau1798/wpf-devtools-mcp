@@ -129,6 +129,19 @@ public sealed partial class ComposerPreviewCompileTests
     }
 
     [Fact]
+    public void CreateDotnetStartInfo_WhenWindowsEnvironmentIsMissing_ShouldRestoreWindowsRoots()
+    {
+        using var windowsDirectory = new EnvironmentVariableScope("WINDIR", null);
+        using var systemRoot = new EnvironmentVariableScope("SystemRoot", null);
+
+        var startInfo = UiBlueprintPreviewService.CreateDotnetStartInfo(Path.GetTempPath());
+        var expected = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+
+        startInfo.Environment["WINDIR"].Should().Be(expected);
+        startInfo.Environment["SystemRoot"].Should().Be(expected);
+    }
+
+    [Fact]
     [Trait("Category", "ComposerCompile")]
     public async Task PreviewBlueprintAsync_WhenRuntimeDiagnosticsNotRequested_ShouldNotGenerateInspectorSdkDependency()
     {

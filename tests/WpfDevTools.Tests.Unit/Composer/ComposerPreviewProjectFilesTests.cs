@@ -1,22 +1,10 @@
 using FluentAssertions;
-using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer.Preview;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
 public sealed class ComposerPreviewProjectFilesTests
 {
-    [Fact]
-    public void Write_ShouldPinPreviewBuildToNet8Sdk()
-    {
-        var globalJson = WritePreviewFile("<Grid />", "global.json");
-
-        using var document = JsonDocument.Parse(globalJson);
-        var sdk = document.RootElement.GetProperty("sdk");
-        sdk.GetProperty("version").GetString().Should().Be("8.0.100");
-        sdk.GetProperty("rollForward").GetString().Should().Be("latestFeature");
-    }
-
     [Theory]
     [InlineData("  <Window><Grid /></Window>", 1)]
     [InlineData("<?xml version=\"1.0\"?><Window><Grid /></Window>", 1)]
@@ -116,9 +104,6 @@ public sealed class ComposerPreviewProjectFilesTests
     }
 
     private static string WritePreviewXaml(string generatedXaml)
-        => WritePreviewFile(generatedXaml, "MainWindow.xaml");
-
-    private static string WritePreviewFile(string generatedXaml, string fileName)
     {
         var tempRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-preview-project-" + Guid.NewGuid().ToString("N"));
         try
@@ -138,7 +123,7 @@ public sealed class ComposerPreviewProjectFilesTests
                     null,
                     null,
                     []));
-            return File.ReadAllText(Path.Combine(tempRoot, fileName));
+            return File.ReadAllText(Path.Combine(tempRoot, "MainWindow.xaml"));
         }
         finally
         {

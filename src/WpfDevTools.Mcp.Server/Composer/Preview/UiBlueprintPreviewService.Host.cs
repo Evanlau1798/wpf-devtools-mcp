@@ -43,17 +43,7 @@ internal sealed partial class UiBlueprintPreviewService
         DeleteFileBestEffort(sdkOptionsPath);
         DeleteFileBestEffort(sdkReadyPath);
         using var process = new Process();
-        process.StartInfo = new ProcessStartInfo("dotnet")
-        {
-            WorkingDirectory = tempRoot,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        var windowsDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-        process.StartInfo.Environment["WINDIR"] = windowsDirectory;
-        process.StartInfo.Environment["SystemRoot"] = windowsDirectory;
+        process.StartInfo = CreateDotnetStartInfo(tempRoot);
         process.StartInfo.ArgumentList.Add(hostDll);
 
         try

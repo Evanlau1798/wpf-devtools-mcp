@@ -377,14 +377,7 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
         CancellationToken cancellationToken)
     {
         using var process = new Process();
-        process.StartInfo = new ProcessStartInfo("dotnet")
-        {
-            WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
+        process.StartInfo = CreateDotnetStartInfo(workingDirectory);
         process.StartInfo.Environment["MSBUILDDISABLENODEREUSE"] = "1";
         process.StartInfo.Environment["DOTNET_CLI_UI_LANGUAGE"] = "en";
         foreach (var argument in arguments)
@@ -422,6 +415,22 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
         output.Append(await standardOutput.ConfigureAwait(false));
         output.Append(await standardError.ConfigureAwait(false));
         return new DotnetCommandResult(process.ExitCode == 0, Cancelled: false);
+    }
+
+    internal static ProcessStartInfo CreateDotnetStartInfo(string workingDirectory)
+    {
+        var startInfo = new ProcessStartInfo("dotnet")
+        {
+            WorkingDirectory = workingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        var windowsDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        startInfo.Environment["WINDIR"] = windowsDirectory;
+        startInfo.Environment["SystemRoot"] = windowsDirectory;
+        return startInfo;
     }
 
     private static void DeleteDirectoryBestEffort(string tempRoot)

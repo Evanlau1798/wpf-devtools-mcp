@@ -111,10 +111,15 @@ public sealed class ComposerProjectIntegrationTests
             var secondNoOp = service.Apply(new ApplyBlueprintRequest(Blueprint(), root, "MainWindow.xaml"));
 
             applied.Success.Should().BeTrue(applied.Errors.FirstOrDefault()?.Message);
+            firstNoOp.Success.Should().BeTrue(firstNoOp.Errors.FirstOrDefault()?.Message);
+            firstNoOp.ProjectIntegrationPlan.Ready.Should().BeTrue();
+            firstNoOp.ProjectIntegrationPlan.Operations.Should().HaveCount(3);
             firstNoOp.ProjectIntegrationPlan.Operations.Should().OnlyContain(operation =>
                 operation.Action == "none"
                 && operation.Precondition.Exists
                 && operation.Precondition.Sha256 == operation.ProposedSha256);
+            secondNoOp.Success.Should().BeTrue(secondNoOp.Errors.FirstOrDefault()?.Message);
+            secondNoOp.ProjectIntegrationPlan.Ready.Should().BeTrue();
             firstNoOp.ProjectIntegrationPlan.PlanHash.Should().Be(secondNoOp.ProjectIntegrationPlan.PlanHash);
         }
         finally

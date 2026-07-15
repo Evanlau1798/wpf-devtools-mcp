@@ -37,7 +37,7 @@ public static partial class UiComposerMcpTools
         [Description("Set/remove target: $.layout.properties[\"accent.color\"] or @Panel.properties.text. Do not combine with patchJson.")] string? jsonPath = null,
         [Description("JSON value for jsonPath set mode. Omit only when remove=true.")] JsonElement? value = null,
         [Description("When true, removes the exact jsonPath target. Omit value and patchJson.")] bool remove = false,
-        [MaxLength(BlueprintDraftPathOperation.MaxOperations)]
+        [MinLength(1), MaxLength(BlueprintDraftPathOperation.MaxOperations)]
         [Description("Optional ordered array of up to 16 atomic set/remove operations. Do not combine with patchJson or jsonPath.")] BlueprintDraftPathOperation[]? operations = null,
         CancellationToken cancellationToken = default)
     {

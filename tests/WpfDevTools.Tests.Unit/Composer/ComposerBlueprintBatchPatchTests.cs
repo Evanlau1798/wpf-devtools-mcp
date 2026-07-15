@@ -131,6 +131,7 @@ public sealed class ComposerBlueprintBatchPatchTests
             new McpServerToolCreateOptions { Services = services }).ProtocolTool.InputSchema;
 
         var operations = schema.GetProperty("properties").GetProperty("operations");
+        operations.GetProperty("minItems").GetInt32().Should().Be(1);
         operations.GetProperty("maxItems").GetInt32().Should().Be(16);
         var item = operations.GetProperty("items");
         item.GetProperty("properties").EnumerateObject().Select(property => property.Name)

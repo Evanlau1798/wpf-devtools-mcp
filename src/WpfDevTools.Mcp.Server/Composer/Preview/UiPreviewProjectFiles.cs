@@ -22,6 +22,7 @@ internal static class UiPreviewProjectFiles
         IReadOnlyList<PreviewRuntimeNuGetPackage>? requiredNuGetPackages = null,
         IReadOnlyList<string>? requiredResources = null)
     {
+        File.WriteAllText(Path.Combine(root, "global.json"), BuildGlobalJson(), Encoding.UTF8);
         File.WriteAllText(
             Path.Combine(root, "PreviewHost.csproj"),
             BuildProjectFile(includeRuntimeDiagnostics, requiredNuGetPackages ?? []),
@@ -46,6 +47,16 @@ internal static class UiPreviewProjectFiles
             File.WriteAllText(Path.Combine(root, "PackPreviewStubs.cs"), previewContract.Source, Encoding.UTF8);
         }
     }
+
+    private static string BuildGlobalJson()
+        => """
+            {
+              "sdk": {
+                "version": "8.0.100",
+                "rollForward": "latestFeature"
+              }
+            }
+            """;
 
     private static string BuildAppCode()
         => string.Join(

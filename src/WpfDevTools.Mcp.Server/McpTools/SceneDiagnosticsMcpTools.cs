@@ -19,7 +19,7 @@ public static class SceneDiagnosticsMcpTools
     public static Task<CallToolResult> GetStateDiff(
         SessionManager sessionManager,
         [Description("Snapshot ID returned by capture_state_snapshot.")] string snapshotId,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional human-readable description of the action that happened after the snapshot was captured.")] string? trigger = null,
         CancellationToken cancellationToken = default)
     {
@@ -42,7 +42,7 @@ public static class SceneDiagnosticsMcpTools
     public static Task<CallToolResult> GetElementSnapshot(
         SessionManager sessionManager,
         [Description("Runtime element ID to inspect.")] string elementId,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional boolean true for the default property probes, or an array of extra DependencyProperty names to append after the defaults. Duplicates are ignored and defaults are always kept.")] JsonElement? includeProperties = null,
         CancellationToken cancellationToken = default)
     {
@@ -65,7 +65,7 @@ public static class SceneDiagnosticsMcpTools
     public static Task<CallToolResult> DiagnoseVisibility(
         SessionManager sessionManager,
         [Description("Runtime element ID to inspect.")] string elementId,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -86,7 +86,7 @@ public static class SceneDiagnosticsMcpTools
     public static Task<CallToolResult> GetInteractionReadiness(
         SessionManager sessionManager,
         [Description("Runtime element ID to inspect.")] string elementId,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional interaction type label. Defaults to Click.")] string interactionType = "Click",
         CancellationToken cancellationToken = default)
     {
@@ -109,7 +109,7 @@ public static class SceneDiagnosticsMcpTools
     public static Task<CallToolResult> GetUiSummary(
         SessionManager sessionManager,
         [Description("Optional runtime element ID to scope the semantic summary. Omit to summarize the root window.")] string? elementId = null,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Range(0, TreeRequestOptions.MaxDepthLimit)]
         [Description("Optional maximum visual depth to summarize. Omit to use the default semantic summary depth budget.")] int? depth = null,
         [AllowedValues("semantic", "visual")]
@@ -138,7 +138,7 @@ public static class SceneDiagnosticsMcpTools
     public static Task<CallToolResult> GetFormSummary(
         SessionManager sessionManager,
         [Description("Optional runtime element ID to scope the form summary. Omit to use the root window.")] string? elementId = null,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Set true to keep framework-internal template controls such as RepeatButton or DataGrid header elements in the form summary. Default false keeps the response user-signal focused.")] bool includeFramework = false,
         CancellationToken cancellationToken = default)
     {

@@ -16,7 +16,7 @@ public static class StateMcpTools
     [Description(StateMcpToolDescriptions.CaptureStateSnapshot)]
     public static Task<CallToolResult> CaptureStateSnapshot(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID whose state should be captured. Omit for the root window.")] string? elementId = null,
         [Description("Optional DependencyProperty names to capture as restorable local-value state. At most 100 names, each 256 characters or fewer; duplicates are ignored. Binding-backed expressions are captured with same-session restore handles when possible; non-Binding expressions remain skipped capability boundaries.")] string[]? propertyNames = null,
         [Description("Optional ViewModel property names to capture from the current DataContext. At most 100 names, each 256 characters or fewer; duplicates are ignored.")] string[]? viewModelPropertyNames = null,
@@ -46,7 +46,7 @@ public static class StateMcpTools
     public static Task<CallToolResult> RestoreStateSnapshot(
         SessionManager sessionManager,
         [Description("Snapshot ID returned by capture_state_snapshot.")] string snapshotId,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Remove the stored snapshot after restore succeeds. Defaults to true.")] bool removeAfterRestore = true,
         CancellationToken cancellationToken = default)
     {

@@ -21,8 +21,8 @@ public static partial class UiComposerMcpTools
     [McpServerTool(Name = "list_ui_block_packs", Title = "List UI Composer Block Packs", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.ListUiBlockPacks)]
     public static Task<CallToolResult> ListUiBlockPacks(
-        [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
-        [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
+        [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
+        [Description(ToolDescriptionFragments.ComposerLocalAppDataRootParameter)] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -45,8 +45,8 @@ public static partial class UiComposerMcpTools
         [Description("When true, returns only blocks with an available renderer template.")] bool composableOnly = false,
         [Description("Optional exact block kind for single-block detail, such as sample.button.")] string? kind = null,
         [Description("When true, includes recipe catalog entries from the same pack scope in the response.")] bool includeRecipes = false,
-        [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
-        [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
+        [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
+        [Description(ToolDescriptionFragments.ComposerLocalAppDataRootParameter)] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -71,8 +71,8 @@ public static partial class UiComposerMcpTools
     public static Task<CallToolResult> ValidateUiBlueprint(
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
         [Description("UI blueprint JSON text or an opaque draftRef to validate against installed Composer pack contracts.")] string blueprintJson,
-        [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
-        [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
+        [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
+        [Description(ToolDescriptionFragments.ComposerLocalAppDataRootParameter)] string? localAppDataRoot = null,
         [Description("Optional target XAML file path. Omit to validate against the default Views/<blueprint-name>.xaml target.")] string? targetPath = null,
         CancellationToken cancellationToken = default)
     {
@@ -94,8 +94,8 @@ public static partial class UiComposerMcpTools
     public static Task<CallToolResult> ExpandUiRecipe(
         [Description("Pack-qualified recipe id, such as sample.workspaceStarter.")] string recipeId,
         [Description("Optional JSON object containing recipe input values. Omit to use recipe defaults.")] System.Text.Json.JsonElement? inputs = null,
-        [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
-        [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
+        [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
+        [Description(ToolDescriptionFragments.ComposerLocalAppDataRootParameter)] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -117,8 +117,8 @@ public static partial class UiComposerMcpTools
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
         [Description("UI blueprint JSON text or an opaque draftRef to render in dry-run mode.")] string blueprintJson,
         [Description("Optional target XAML file path suggestion. The renderer does not write this file.")] string? targetPath = null,
-        [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
-        [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
+        [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
+        [Description(ToolDescriptionFragments.ComposerLocalAppDataRootParameter)] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -141,8 +141,8 @@ public static partial class UiComposerMcpTools
         [Description("UI blueprint JSON text or an opaque draftRef to analyze for repair guidance.")] string blueprintJson,
         [Description("Optional preview, renderer, or compile diagnostics JSON object or array returned by preview_ui_blueprint or render_ui_blueprint.")] string? diagnosticsJson = null,
         [Description("Optional target XAML file path suggestion used only for render diagnostics. This tool does not write the file.")] string? targetPath = null,
-        [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
-        [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
+        [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
+        [Description(ToolDescriptionFragments.ComposerLocalAppDataRootParameter)] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -202,7 +202,7 @@ public static partial class UiComposerMcpTools
         [Description("Optional maximum preview screenshot width. Defaults to 1024 for reliable agent image consumption; pass null for the rendered width.")] int? screenshotMaxWidth = 1024,
         [Range(1, int.MaxValue)]
         [Description("Optional maximum preview screenshot height. Defaults to 1024 for reliable agent image consumption; pass null for the rendered height.")] int? screenshotMaxHeight = 1024,
-        [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
+        [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global packs.")] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
     {

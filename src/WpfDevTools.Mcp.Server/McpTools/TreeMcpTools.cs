@@ -18,7 +18,7 @@ public static class TreeMcpTools
     [Description(TreeMcpToolDescriptions.GetVisualTree)]
     public static Task<CallToolResult> GetVisualTree(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional starting element ID from get_visual_tree or get_logical_tree. Omit for the root window.")] string? elementId = null,
         [Range(0, TreeRequestOptions.MaxDepthLimit)]
         [Description("Optional maximum traversal depth. Use 2-4 for initial exploration.")] int? depth = null,
@@ -49,7 +49,7 @@ public static class TreeMcpTools
     [Description(TreeMcpToolDescriptions.GetLogicalTree)]
     public static Task<CallToolResult> GetLogicalTree(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional starting element ID from get_logical_tree or get_visual_tree. Omit for the root window.")] string? elementId = null,
         [Range(0, TreeRequestOptions.MaxDepthLimit)]
         [Description("Optional maximum traversal depth for the logical tree walk.")] int? depth = null,
@@ -81,7 +81,7 @@ public static class TreeMcpTools
     public static Task<CallToolResult> SerializeToXaml(
         SessionManager sessionManager,
         [Description("Current runtime element ID to serialize. Obtain this from get_ui_summary, find_elements, get_visual_tree, or get_logical_tree in the same session.")] string elementId,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -98,7 +98,7 @@ public static class TreeMcpTools
     [Description(TreeMcpToolDescriptions.GetNamescope)]
     public static Task<CallToolResult> GetNamescope(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional namescope root element ID. Omit for the root window.")] string? elementId = null,
         [Range(1, TreeTraversalDefaults.MaxNodesLimit)]
         [Description("Optional hard cap for the number of elements inspected while discovering names. Defaults to 10000.")] int? maxNodes = null,
@@ -120,7 +120,7 @@ public static class TreeMcpTools
     public static Task<CallToolResult> GetTemplateTree(
         SessionManager sessionManager,
         [Description("Element ID of the templated control to inspect.")] string elementId,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional maximum traversal depth for the template visual tree.")] int? depth = null,
         [Range(1, TreeTraversalDefaults.MaxNodesLimit)]
         [Description("Optional hard cap for returned template tree nodes. Defaults to 1000.")] int? maxNodes = null,
@@ -145,7 +145,7 @@ public static class TreeMcpTools
     [Description(TreeMcpToolDescriptions.GetWindows)]
     public static Task<CallToolResult> GetWindows(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -161,7 +161,7 @@ public static class TreeMcpTools
     [Description(TreeMcpToolDescriptions.FindElements)]
     public static Task<CallToolResult> FindElements(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional root element ID to search within. Omit for the root window.")] string? elementId = null,
         [Description("Optional general semantic query matched against element type, FrameworkElement.Name, AutomationId, Text, Content, or Header. Prefer precise filters for deterministic automation.")] string? query = null,
         [Description("Optional exact WPF type name filter, such as Button or TextBox.")] string? typeName = null,
@@ -206,7 +206,7 @@ public static class TreeMcpTools
     [Description(TreeMcpToolDescriptions.CompareTrees)]
     public static Task<CallToolResult> CompareTrees(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID to compare from instead of the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {

@@ -19,7 +19,7 @@ public static class MvvmMcpTools
     [Description(MvvmMcpToolDescriptions.GetViewModel)]
     public static Task<CallToolResult> GetViewModel(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID whose DataContext should be inspected. Omit for the root window.")] string? elementId = null,
         [Description("Optional list of ViewModel property names to include. Omit to return all readable properties.")] string[]? propertyNames = null,
         CancellationToken cancellationToken = default)
@@ -39,7 +39,7 @@ public static class MvvmMcpTools
     [Description(MvvmMcpToolDescriptions.GetCommands)]
     public static Task<CallToolResult> GetCommands(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID whose ViewModel commands should be listed. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -58,11 +58,11 @@ public static class MvvmMcpTools
     public static Task<CallToolResult> ExecuteCommand(
         SessionManager sessionManager,
         [Description("ICommand property name to execute, such as SaveCommand.")] string commandName,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID whose DataContext provides the command. Omit for the root window.")] string? elementId = null,
         [Description("Optional command parameter serialized as a string.")] string? parameter = null,
         [AllowedValues("compact", "minimal", "verbose", "standard")]
-        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'minimal' for the most concise success confirmation, use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
+        [Description(ToolDescriptionFragments.SuccessDetailParameter)] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -84,9 +84,9 @@ public static class MvvmMcpTools
     [Description(MvvmMcpToolDescriptions.GetValidationErrors)]
     public static Task<CallToolResult> GetValidationErrors(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID whose validation errors should be returned. Omit to inspect the root window.")] string? elementId = null,
-        [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
+        [Description(ToolDescriptionFragments.BatchElementIdsParameter)] string[]? elementIds = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -107,10 +107,10 @@ public static class MvvmMcpTools
         SessionManager sessionManager,
         [Description("ViewModel property name to update at runtime.")] string propertyName,
         [Description("New property value encoded as raw JSON.")] JsonElement value,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID whose DataContext owns the property. Omit for the root window.")] string? elementId = null,
         [AllowedValues("compact", "minimal", "verbose", "standard")]
-        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'minimal' for success/property/newValue confirmation only, use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
+        [Description(ToolDescriptionFragments.MutationDetailParameter)] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

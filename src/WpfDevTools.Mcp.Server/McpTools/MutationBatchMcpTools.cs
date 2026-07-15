@@ -21,7 +21,7 @@ public static class MutationBatchMcpTools
         [Description("Optional capture_state_snapshot request as a JSON object, or true to infer a single-element snapshot from mutation propertyName values. Required when includeDiff=true. Example: { \"propertyNames\": [\"Text\"], \"viewModelPropertyNames\": [\"Name\"] }")] JsonElement? captureSnapshot = null,
         [Description("Optional flag to run get_state_diff after all mutations succeed. Requires captureSnapshot.")] bool includeDiff = false,
         [Description("Optional trigger label forwarded to get_state_diff. Defaults to 'batch_mutate'.")] string? trigger = null,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional default element ID injected into mutation steps that do not specify elementId explicitly.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {

@@ -16,7 +16,7 @@ public static class PerformanceMcpTools
     [Description(PerformanceMcpToolDescriptions.GetRenderStats)]
     public static Task<CallToolResult> GetRenderStats(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("When true, waits for a baseline render sampling window before returning so the first call is less likely to be low-confidence.")] bool warmUp = false,
         CancellationToken cancellationToken = default)
     {
@@ -34,7 +34,7 @@ public static class PerformanceMcpTools
     [Description(PerformanceMcpToolDescriptions.FindBindingLeaks)]
     public static Task<CallToolResult> FindBindingLeaks(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional minimum live-binding count that should be flagged as suspicious.")] int? threshold = null,
         [Description("Optional sampling duration in milliseconds before evaluating leak signals. Recommended: >=3000 for higher-confidence output.")] int? samplingDurationMs = null,
         [Description("When true, automatically applies the minimum recommended sampling duration if samplingDurationMs is omitted or shorter than the recommendation.")] bool warmUp = false,
@@ -56,7 +56,7 @@ public static class PerformanceMcpTools
     [Description(PerformanceMcpToolDescriptions.MeasureElementRenderTime)]
     public static Task<CallToolResult> MeasureElementRenderTime(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID whose render time should be measured. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -74,7 +74,7 @@ public static class PerformanceMcpTools
     [Description(PerformanceMcpToolDescriptions.GetVisualCount)]
     public static Task<CallToolResult> GetVisualCount(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID whose visual subtree should be counted. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {

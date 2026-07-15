@@ -14,6 +14,7 @@ public sealed class McpProgressiveDiscoveryBudgetTests
 {
     private const int ServerInstructionBudgetChars = 26_000;
     private const int ToolDescriptionBudgetChars = 105_000;
+    private const int ToolParameterDescriptionBudgetChars = 27_000;
     private const int OutputSchemaDescriptionBudgetChars = 390_000;
     private static readonly Assembly McpServerAssembly = typeof(ServerInstructions).Assembly;
 
@@ -49,6 +50,20 @@ public sealed class McpProgressiveDiscoveryBudgetTests
         descriptionCharacters.Should().BeLessThanOrEqualTo(
             OutputSchemaDescriptionBudgetChars,
             "shared output-schema prose should stay compact while fields and structure remain authoritative");
+    }
+
+    [Fact]
+    public void ToolParameterDescriptions_ShouldStayWithinProgressiveDiscoveryBudget()
+    {
+        var descriptionCharacters = GetToolMethods()
+            .SelectMany(method => method.GetParameters())
+            .Select(parameter => parameter.GetCustomAttribute<DescriptionAttribute>()?.Description)
+            .Where(description => !string.IsNullOrWhiteSpace(description))
+            .Sum(description => description!.Length);
+
+        descriptionCharacters.Should().BeLessThanOrEqualTo(
+            ToolParameterDescriptionBudgetChars,
+            "repeated parameter prose should preserve routing details without multiplying context cost");
     }
 
     [Fact]

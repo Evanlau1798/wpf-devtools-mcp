@@ -19,7 +19,7 @@ public static class EventMcpTools
     [Description(EventMcpToolDescriptions.TraceRoutedEvents)]
     public static Task<CallToolResult> TraceRoutedEvents(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional WPF routed event name to trace, such as Click or MouseDown. Required for `capture` and `start`, optional for `get`.")] string? eventName = null,
         [Description("Optional element ID to scope the event trace. Omit for the root window.")] string? elementId = null,
         [Range(0, TraceRoutedEventsTool.MaxDurationMs)]
@@ -58,7 +58,7 @@ public static class EventMcpTools
         SessionManager sessionManager,
         [Description("WPF routed event name whose handlers should be listed.")] string eventName,
         [Description("Required element ID whose handlers should be inspected.")] string elementId,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -79,10 +79,10 @@ public static class EventMcpTools
         SessionManager sessionManager,
         [Description("WPF routed event name to raise, such as Click.")] string eventName,
         [Description("Required target element ID that should receive the routed event.")] string elementId,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional JSON payload for custom routed event arguments. Currently unused for standard RoutedEvents (Click, MouseDown); reserved for custom events.")] JsonElement? eventArgs = null,
         [AllowedValues("compact", "minimal", "verbose", "standard")]
-        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'minimal' for success/property/newValue confirmation only, use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
+        [Description(ToolDescriptionFragments.MutationDetailParameter)] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

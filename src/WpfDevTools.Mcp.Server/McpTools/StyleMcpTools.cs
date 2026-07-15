@@ -18,9 +18,9 @@ public static class StyleMcpTools
     [Description(StyleMcpToolDescriptions.GetAppliedStyles)]
     public static Task<CallToolResult> GetAppliedStyles(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID whose applied styles should be returned. Omit for the root window.")] string? elementId = null,
-        [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
+        [Description(ToolDescriptionFragments.BatchElementIdsParameter)] string[]? elementIds = null,
         [Description("Optional compact response mode. When true, return style summaries instead of full setter payloads.")] bool compact = false,
         CancellationToken cancellationToken = default)
     {
@@ -41,7 +41,7 @@ public static class StyleMcpTools
     public static Task<CallToolResult> GetTriggers(
         SessionManager sessionManager,
         [Description("Element ID whose style and template triggers should be listed.")] string elementId,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -59,7 +59,7 @@ public static class StyleMcpTools
     public static Task<CallToolResult> GetResourceChain(
         SessionManager sessionManager,
         [Description("XAML resource key to resolve, such as PrimaryBrush or ButtonStyle.")] string resourceKey,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional starting element ID for resource lookup. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -81,9 +81,9 @@ public static class StyleMcpTools
         [Description("Style-backed property name to override at runtime.")] string propertyName,
         [Description("New property value encoded as raw JSON.")] JsonElement value,
         [Description("Required element ID whose style setter should be overridden.")] string elementId,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [AllowedValues("compact", "minimal", "verbose", "standard")]
-        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'minimal' for success/property/newValue confirmation only, use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
+        [Description(ToolDescriptionFragments.MutationDetailParameter)] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

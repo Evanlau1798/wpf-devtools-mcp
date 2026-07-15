@@ -16,9 +16,9 @@ public static class LayoutMcpTools
     [Description(LayoutMcpToolDescriptions.GetLayoutInfo)]
     public static Task<CallToolResult> GetLayoutInfo(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID whose layout metrics should be returned. Omit for the root window.")] string? elementId = null,
-        [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
+        [Description(ToolDescriptionFragments.BatchElementIdsParameter)] string[]? elementIds = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -37,7 +37,7 @@ public static class LayoutMcpTools
     public static Task<CallToolResult> GetClippingInfo(
         SessionManager sessionManager,
         [Description("Optional element ID whose clipping state should be analyzed. Use either elementId or elementIds.")] string? elementId = null,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional list of element IDs for batch clipping inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
         CancellationToken cancellationToken = default)
     {
@@ -57,7 +57,7 @@ public static class LayoutMcpTools
     public static Task<CallToolResult> HighlightElement(
         SessionManager sessionManager,
         [Description("Required element ID to highlight.")] string elementId,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional WPF color name or hex color string for the highlight overlay.")] string? color = null,
         [Description("Optional highlight duration in milliseconds before the overlay is removed.")] int? duration = null,
         CancellationToken cancellationToken = default)
@@ -81,7 +81,7 @@ public static class LayoutMcpTools
     [Description(LayoutMcpToolDescriptions.InvalidateLayout)]
     public static Task<CallToolResult> InvalidateLayout(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID whose layout should be invalidated. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {

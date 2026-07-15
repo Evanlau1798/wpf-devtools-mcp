@@ -20,9 +20,9 @@ public static class DependencyPropertyMcpTools
     public static Task<CallToolResult> GetDpValueSource(
         SessionManager sessionManager,
         [Description("Optional DependencyProperty name to inspect, such as Text or IsEnabled. Omit only when propertyNames is provided for batch inspection.")] string? propertyName = null,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
-        [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
+        [Description(ToolDescriptionFragments.BatchElementIdsParameter)] string[]? elementIds = null,
         [Description("Optional list of property names for batch inspection. Use either propertyName or propertyNames, not both.")] string[]? propertyNames = null,
         [Description("Optional compact response mode. When true, only return the minimum decision-making fields for each result.")] bool compact = false,
         CancellationToken cancellationToken = default)
@@ -46,7 +46,7 @@ public static class DependencyPropertyMcpTools
     public static Task<CallToolResult> GetDpMetadata(
         SessionManager sessionManager,
         [Description("DependencyProperty name whose metadata should be returned.")] string propertyName,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID used to resolve owner-specific metadata.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -67,10 +67,10 @@ public static class DependencyPropertyMcpTools
         SessionManager sessionManager,
         [Description("DependencyProperty name to set at runtime.")] string propertyName,
         [Description("New property value encoded as raw JSON.")] JsonElement value,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         [AllowedValues("compact", "minimal", "verbose", "standard")]
-        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'minimal' for success/property/newValue confirmation only, use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
+        [Description(ToolDescriptionFragments.MutationDetailParameter)] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -93,10 +93,10 @@ public static class DependencyPropertyMcpTools
     public static Task<CallToolResult> ClearDpValue(
         SessionManager sessionManager,
         [Description("DependencyProperty name whose local value should be cleared.")] string propertyName,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         [AllowedValues("compact", "minimal", "verbose", "standard")]
-        [Description("Optional metadata detail mode: omit or use 'compact' (default), use 'minimal' for success/property/newValue confirmation only, use 'verbose' for full additive metadata, or 'standard' as a compatibility alias.")] string? detail = null,
+        [Description(ToolDescriptionFragments.MutationDetailParameter)] string? detail = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -118,7 +118,7 @@ public static class DependencyPropertyMcpTools
     public static Task<CallToolResult> WatchDpChanges(
         SessionManager sessionManager,
         [Description("DependencyProperty name to watch for runtime changes.")] string propertyName,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -138,7 +138,7 @@ public static class DependencyPropertyMcpTools
     public static Task<CallToolResult> WaitForDpChange(
         SessionManager sessionManager,
         [Description("DependencyProperty name to monitor for changes.")] string propertyName,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         [Description("Optional timeout in milliseconds. Default: 5000. Maximum: 25000.")] int? timeoutMs = null,
         [Description("Optional polling interval in milliseconds. Default: 200.")] int? pollIntervalMs = null,
@@ -165,7 +165,7 @@ public static class DependencyPropertyMcpTools
         SessionManager sessionManager,
         [Description("DependencyProperty name to monitor for changes after the mutation runs.")] string propertyName,
         [Description("Single mutation step as a JSON object, using the same shape as one batch_mutate item. Use args, not arguments: { \"tool\": \"set_dp_value\", \"args\": { \"propertyName\": \"Width\", \"value\": 100 } }.")] JsonElement triggerMutation,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID that owns the property. Omit for the root window.")] string? elementId = null,
         [Description("Optional timeout in milliseconds. Default: 5000. Maximum: 25000.")] int? timeoutMs = null,
         [Description("Optional polling interval in milliseconds. Default: 200.")] int? pollIntervalMs = null,

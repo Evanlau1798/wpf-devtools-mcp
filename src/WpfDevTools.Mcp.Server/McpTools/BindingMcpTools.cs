@@ -18,7 +18,7 @@ public static class BindingMcpTools
     [Description(BindingMcpToolDescriptions.GetBindingMismatches)]
     public static Task<CallToolResult> GetBindingMismatches(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect() or connect(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID to inspect. Omit for the root window.")] string? elementId = null,
         [Description("When true, inspect descendant elements under the chosen root as well.")] bool recursive = false,
         [Description("When true, include unnamed framework template/internal mismatch entries that are excluded by default to reduce diagnostic noise.")] bool includeFramework = false,
@@ -43,9 +43,9 @@ public static class BindingMcpTools
     [Description(BindingMcpToolDescriptions.GetBindings)]
     public static Task<CallToolResult> GetBindings(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID to inspect. Omit for the root window.")] string? elementId = null,
-        [Description("Optional list of element IDs for batch inspection. Use either elementId or elementIds, not both.")] string[]? elementIds = null,
+        [Description(ToolDescriptionFragments.BatchElementIdsParameter)] string[]? elementIds = null,
         [Description("When true, inspect descendant elements under the chosen root as well.")] bool? recursive = null,
         [AllowedValues("All", "Active", "Error")]
         [Description("Optional binding status filter such as 'All', 'Active', or 'Error'. Omit to return every binding.")] string? statusFilter = null,
@@ -69,7 +69,7 @@ public static class BindingMcpTools
     public static Task<CallToolResult> GetAffectedElements(
         SessionManager sessionManager,
         [Description("ViewModel property name to match against simple binding paths, such as Name or IsEnabled.")] string propertyName,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional root element ID that scopes the search. Omit to scan from the root window.")] string? elementId = null,
         [Description("Optional coarse DataContext type filter. This narrows candidate elements but does not prove exact binding ownership.")] string? viewModelType = null,
         [Description("When true, scan descendants under the chosen root. Default true for subtree impact analysis.")] bool recursive = true,
@@ -121,7 +121,7 @@ public static class BindingMcpTools
     public static Task<CallToolResult> GetBindingValueChain(
         SessionManager sessionManager,
         [Description("DependencyProperty name whose binding value chain should be traced, such as Text.")] string propertyName,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID that owns the bound property. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -143,7 +143,7 @@ public static class BindingMcpTools
     [Description(BindingMcpToolDescriptions.GetDataContextChain)]
     public static Task<CallToolResult> GetDataContextChain(
         SessionManager sessionManager,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID whose DataContext inheritance path should be returned.")] string? elementId = null,
         CancellationToken cancellationToken = default)
     {
@@ -162,7 +162,7 @@ public static class BindingMcpTools
     public static Task<CallToolResult> ForceBindingUpdate(
         SessionManager sessionManager,
         [Description("DependencyProperty name whose binding should be refreshed.")] string propertyName,
-        [Description("Optional connected WPF process ID returned by get_processes. Omit after connect(processId) or select_active_process(processId) has established the active process.")] int? processId = null,
+        [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID that owns the binding. Omit for the root window.")] string? elementId = null,
         [AllowedValues("Source", "Target")]
         [Description("Optional update direction: 'Source' (push UI value to ViewModel) or 'Target' (pull ViewModel value to UI). Default: Source.")] string? direction = null,

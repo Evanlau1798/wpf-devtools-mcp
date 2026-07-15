@@ -27,11 +27,14 @@ public sealed class ComposerCompositionIdentityDocumentationTests
     {
         var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(path));
 
-        content.Should().ContainAll(
+        var compositionSection = content.Split("## `compose_ui_blueprint`")[1]
+            .Split("## `validate_ui_blueprint`")[0];
+        compositionSection.Should().ContainAll(
             "`minItems`",
             "`maxItems`",
             "`targetSlotSummary`",
-            "`remainingCapacity`");
+            "`remainingCapacity`",
+            "JSON null");
     }
 
     [Theory]

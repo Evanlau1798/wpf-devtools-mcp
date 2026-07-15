@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using WpfDevTools.Mcp.Server.Composer.Catalog;
 using WpfDevTools.Mcp.Server.Composer.Packs;
@@ -400,7 +401,9 @@ internal sealed record BlueprintCompositionSlotSummary(
     int ExistingCount,
     int ResultingCount,
     int MinItems,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     int? MaxItems,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     int? RemainingCapacity,
     bool CapacityExceeded,
     IReadOnlyList<string> AllowedKinds);

@@ -127,7 +127,7 @@ Request options:
 
 每個成功 response 也會回傳 bounded `insertedNodeSummary`，讓 caller 不必 render 或取回完整 draft，就能驗證同呼叫的設定。內容包含解析後的精確 JSON path、kind、optional `elementName` 與 `automationId`、property total/reported counts、truncation state，以及最多 32 個 deterministic property entries。每個 entry 包含 name、JSON value kind、最多 160 字元的 compact value 與明確的 value-truncation flag。
 
-Target 可解析到 installed block contract 時，`targetSlotSummary` 會回傳 exact path、parent kind、slot name、`allowedKinds`、`minItems`、`maxItems`、existing/resulting counts、`remainingCapacity` 與 capacity 是否超出。Invalid candidate 也會保留同一份 summary，讓 Agent 遇到 `SlotMinimumItemsNotMet` 或 `SlotMaximumItemsExceeded` 時不必再查一次 catalog。這些是 extension-declared child-count constraints，不是 pixel-width 預測。
+Target 可解析到 installed block contract 時，`targetSlotSummary` 會回傳 exact path、parent kind、slot name、`allowedKinds`、`minItems`、`maxItems`、existing/resulting counts、`remainingCapacity` 與 capacity 是否超出。無上限的 `maxItems` 與 `remainingCapacity` 會明確回傳 JSON null，而不會省略 member。Invalid candidate 也會保留同一份 summary，讓 Agent 遇到 `SlotMinimumItemsNotMet` 或 `SlotMaximumItemsExceeded` 時不必再查一次 catalog。這些是 extension-declared child-count constraints，不是 pixel-width 預測。
 
 ## `validate_ui_blueprint`
 

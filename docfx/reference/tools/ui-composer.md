@@ -128,7 +128,7 @@ Use `properties` when the block should be configured at insertion time; this avo
 
 Every successful response also includes a bounded `insertedNodeSummary` so the caller can verify same-call configuration without rendering or retrieving the full draft. It publishes the resolved exact JSON path, kind, optional `elementName` and `automationId`, total and reported property counts, truncation state, and up to 32 deterministic property entries. Each entry includes its name, JSON value kind, a compact value of at most 160 characters, and an explicit value-truncation flag.
 
-When the target resolves to an installed block contract, `targetSlotSummary` reports its exact path, parent kind, slot name, `allowedKinds`, `minItems`, `maxItems`, existing and resulting counts, `remainingCapacity`, and whether capacity was exceeded. The same summary is retained with an invalid candidate, so the Agent can recover from `SlotMinimumItemsNotMet` or `SlotMaximumItemsExceeded` without another catalog lookup. These are extension-declared child-count constraints, not pixel-width predictions.
+When the target resolves to an installed block contract, `targetSlotSummary` reports its exact path, parent kind, slot name, `allowedKinds`, `minItems`, `maxItems`, existing and resulting counts, `remainingCapacity`, and whether capacity was exceeded. Unbounded `maxItems` and `remainingCapacity` are explicit JSON null values rather than omitted members. The same summary is retained with an invalid candidate, so the Agent can recover from `SlotMinimumItemsNotMet` or `SlotMaximumItemsExceeded` without another catalog lookup. These are extension-declared child-count constraints, not pixel-width predictions.
 
 ## `validate_ui_blueprint`
 

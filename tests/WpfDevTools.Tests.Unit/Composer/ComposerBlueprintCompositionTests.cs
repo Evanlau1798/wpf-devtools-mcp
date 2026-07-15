@@ -62,6 +62,14 @@ public sealed class ComposerBlueprintCompositionTests
                 .GetProperty("code").GetString().Should().Be("SlotMaximumItemsExceeded");
             overflowPayload.GetProperty("targetSlotSummary").GetProperty("resultingCount")
                 .GetInt32().Should().Be(2);
+
+            var unbounded = await UiComposerMcpTools.ComposeUiBlueprint(
+                CreateBlueprint(), "$.layout.slots.content", "nebula.stack",
+                projectRoot: projectRoot, localAppDataRoot: projectRoot,
+                cancellationToken: CancellationToken.None);
+            var unboundedSlot = unbounded.StructuredContent!.Value.GetProperty("targetSlotSummary");
+            unboundedSlot.GetProperty("maxItems").ValueKind.Should().Be(JsonValueKind.Null);
+            unboundedSlot.GetProperty("remainingCapacity").ValueKind.Should().Be(JsonValueKind.Null);
         }
         finally
         {

@@ -268,7 +268,7 @@ public sealed class ComposerPreviewLayoutRiskTests
     }
 
     [Fact]
-    public void Analyze_ShouldExposeIncompleteFindElementsSearch()
+    public void Analyze_ShouldExposeIncompleteSearchWithDuplicateSameElementResult()
     {
         var diagnostics = new[]
         {
@@ -276,7 +276,11 @@ public sealed class ComposerPreviewLayoutRiskTests
             {
                 success = true,
                 searchComplete = false,
-                results = new[] { new { elementId = "Element_1", elementName = "TargetA" } }
+                results = new[]
+                {
+                    new { elementId = "Element_1", elementName = "TargetA" },
+                    new { elementId = "Element_1", elementName = "TargetA" }
+                }
             }),
             Diagnostic("get_clipping_info", new
             {

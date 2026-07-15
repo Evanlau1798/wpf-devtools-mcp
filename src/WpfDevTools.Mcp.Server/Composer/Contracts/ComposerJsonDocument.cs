@@ -57,6 +57,7 @@ internal sealed class UiBlockDefinition : ComposerJsonDocument
     public string Category { get; set; } = string.Empty;
     public Dictionary<string, UiBlockProperty> Properties { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, UiBlockSlot> Slots { get; set; } = new(StringComparer.Ordinal);
+    public string[] AuthoringRoles { get; set; } = [];
     public UiBlockInteraction? Interaction { get; set; }
     public UiBlockRenderer Renderer { get; set; } = new();
     public SourceHint[] SourceHints { get; set; } = [];
@@ -88,6 +89,18 @@ internal sealed class UiBlockSlot
     public int MinItems { get; set; }
     public int? MaxItems { get; set; }
     public string XamlItemTemplate { get; set; } = string.Empty;
+    public UiSlotAdjacencyAdvisory? AdjacencyAdvisory { get; set; }
+}
+
+internal sealed class UiSlotAdjacencyAdvisory
+{
+    public string ChildRole { get; set; } = string.Empty;
+    public string WhenProperty { get; set; } = string.Empty;
+    public string[] WhenValues { get; set; } = [];
+    public string ItemSpacingProperty { get; set; } = string.Empty;
+    public string ChildMarginProperty { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public string RepairSuggestion { get; set; } = string.Empty;
 }
 
 internal sealed class UiPackPreviewContract

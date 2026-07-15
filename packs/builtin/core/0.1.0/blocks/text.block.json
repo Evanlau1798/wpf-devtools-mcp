@@ -4,6 +4,7 @@
   "displayName": "Text",
   "description": "Displays native WPF text that inherits the surrounding theme foreground unless an explicit foreground is provided.",
   "category": "display",
+  "authoringRoles": ["text-run"],
   "properties": {
     "text": { "type": "string", "default": "Text" },
     "fontSize": { "type": "number", "default": 14, "minimum": 1 },

@@ -136,6 +136,34 @@ public sealed class ComposerCorePackTests
     }
 
     [Fact]
+    public void CoreStack_ShouldWarnForAdjacentHorizontalTextWithoutSeparation()
+    {
+        var blueprint = Blueprint(
+            """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
+            "core",
+            """
+            {
+              "kind": "core.stack",
+              "properties": { "orientation": "Horizontal", "spacing": "0" },
+              "slots": {
+                "children": [
+                  { "kind": "core.text", "properties": { "text": "Speaker" } },
+                  { "kind": "core.text", "properties": { "text": "Transcript" } }
+                ]
+              }
+            }
+            """);
+
+        var result = new BlueprintValidationService(CreateRegistry()).Validate(blueprint);
+
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Warnings.Should().ContainSingle(issue =>
+            issue.Code == "AdjacentContentWithoutSeparation"
+            && issue.JsonPath == "$.layout.slots.children[1]"
+            && issue.RelatedJsonPaths.Contains("$.layout.properties.spacing"));
+    }
+
+    [Fact]
     public void CoreText_ShouldInheritThemeForegroundUnlessExplicitlyConfigured()
     {
         var inheritedBlueprint = Blueprint(

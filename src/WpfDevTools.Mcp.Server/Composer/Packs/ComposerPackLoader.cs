@@ -129,6 +129,7 @@ internal static class ComposerPackLoader
 
         foreach (var block in blocks)
         {
+            ValidateAuthoringSemantics(block);
             foreach (var (slotName, slot) in block.Slots)
             {
                 if (slot.MinItems < 0
@@ -137,9 +138,69 @@ internal static class ComposerPackLoader
                     throw new InvalidDataException(
                         $"InvalidSlotItemBounds: block '{block.Kind}' slot '{slotName}' requires 0 <= minItems <= maxItems when maxItems is declared.");
                 }
+
+                ValidateAdjacencyAdvisory(block, slotName, slot.AdjacencyAdvisory);
             }
         }
     }
+
+    private static void ValidateAuthoringSemantics(UiBlockDefinition block)
+    {
+        var roles = block.AuthoringRoles;
+        if (roles is { Length: <= 16 }
+            && roles.All(IsSafeSemanticToken)
+            && roles.Distinct(StringComparer.Ordinal).Count() == roles.Length)
+        {
+            return;
+        }
+
+        throw new InvalidDataException(
+            $"InvalidAuthoringSemantics: block '{block.Kind}' roles must contain at most 16 unique semantic tokens.");
+    }
+
+    private static void ValidateAdjacencyAdvisory(
+        UiBlockDefinition block,
+        string slotName,
+        UiSlotAdjacencyAdvisory? advisory)
+    {
+        if (advisory is null)
+        {
+            return;
+        }
+
+        var conditionValid = !string.IsNullOrWhiteSpace(advisory.WhenProperty)
+            && block.Properties.TryGetValue(advisory.WhenProperty, out var conditionProperty)
+            && string.Equals(conditionProperty.Type, "string", StringComparison.Ordinal)
+            && advisory.WhenValues is { Length: >= 1 and <= 16 }
+            && advisory.WhenValues.All(value => !string.IsNullOrWhiteSpace(value))
+            && advisory.WhenValues.Distinct(StringComparer.Ordinal).Count() == advisory.WhenValues.Length;
+        var itemSpacingValid = !string.IsNullOrWhiteSpace(advisory.ItemSpacingProperty)
+            && block.Properties.TryGetValue(advisory.ItemSpacingProperty, out var itemSpacingProperty)
+            && string.Equals(itemSpacingProperty.Format, "thickness", StringComparison.Ordinal);
+        var childMarginValid = string.IsNullOrEmpty(advisory.ChildMarginProperty)
+            || !string.IsNullOrWhiteSpace(advisory.ChildMarginProperty);
+        if (IsSafeSemanticToken(advisory.ChildRole)
+            && conditionValid
+            && itemSpacingValid
+            && childMarginValid
+            && advisory.Message is { Length: >= 1 and <= 512 }
+            && !string.IsNullOrWhiteSpace(advisory.Message)
+            && advisory.RepairSuggestion is { Length: >= 1 and <= 512 }
+            && !string.IsNullOrWhiteSpace(advisory.RepairSuggestion))
+        {
+            return;
+        }
+
+        throw new InvalidDataException(
+            $"InvalidAdjacencyAdvisory: block '{block.Kind}' slot '{slotName}' must reference declared condition and thickness spacing properties with bounded inert guidance; condition='{advisory.WhenProperty}', spacing='{advisory.ItemSpacingProperty}'.");
+    }
+
+    private static bool IsSafeSemanticToken(string value)
+        => value is { Length: >= 1 and <= 64 }
+           && IsAsciiLetter(value[0])
+           && value.Skip(1).All(character => IsAsciiLetter(character)
+               || character is >= '0' and <= '9'
+               || character is '-' or '_' or '.');
 
     private static string CreateFingerprint(string root)
     {

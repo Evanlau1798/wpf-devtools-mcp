@@ -21,7 +21,16 @@
     "children": {
       "description": "Ordered child elements rendered inside the StackPanel.",
       "allowedKinds": ["*"],
-      "xamlItemTemplate": "<Border Margin=\"{{spacing}}\">{{item}}</Border>"
+      "xamlItemTemplate": "<Border Margin=\"{{spacing}}\">{{item}}</Border>",
+      "adjacencyAdvisory": {
+        "childRole": "text-run",
+        "whenProperty": "orientation",
+        "whenValues": ["Horizontal"],
+        "itemSpacingProperty": "spacing",
+        "childMarginProperty": "margin",
+        "message": "Adjacent horizontal text runs have no effective separation and may render as one concatenated label.",
+        "repairSuggestion": "Set positive stack spacing or add trailing/leading text margin; keep zero separation only when concatenation is intentional."
+      }
     }
   },
   "renderer": { "xamlTemplate": "renderers/xaml/stack.xaml.sbn" },

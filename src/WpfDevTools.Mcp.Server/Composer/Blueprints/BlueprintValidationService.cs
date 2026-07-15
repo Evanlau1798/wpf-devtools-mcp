@@ -80,6 +80,11 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
             var context = BuildContext(declaredPacks, declaredPackIds, optionalMissingPackIds, errors);
             var usedPackIds = new HashSet<string>(StringComparer.Ordinal);
             ValidateNode(blueprint.Layout, "$.layout", null, null, context, usedPackIds, errors, warnings);
+            BlueprintAdjacentContentDiagnostics.AddIssues(
+                blueprint.Layout,
+                "$.layout",
+                context.Blocks,
+                warnings);
             warnings.AddRange(GeneratedClassMemberCollisionValidator.Validate(
                 blueprint,
                 context.Blocks,

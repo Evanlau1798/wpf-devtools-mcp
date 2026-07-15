@@ -261,6 +261,30 @@ public sealed class ComposerPackLoaderCacheTests
         }
     }
 
+    [Fact]
+    public void Load_ShouldRejectAdjacencyAdvisoryWithoutRequiredCondition()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = CreateMinimalPack(tempRoot);
+            File.WriteAllText(
+                Path.Combine(packRoot, "blocks", "text.block.json"),
+                """
+                {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"sample.text","displayName":"Text","category":"text","authoringRoles":["copy-run"],"properties":{"gap":{"type":"string","format":"thickness","default":"0"}},"slots":{"items":{"allowedKinds":["sample.text"],"adjacencyAdvisory":{"childRole":"copy-run","itemSpacingProperty":"gap","message":"Add space.","repairSuggestion":"Set a gap."}}},"renderer":{"xamlTemplate":"renderers/xaml/text.xaml.sbn"},"sourceHints":[]}
+                """);
+
+            var action = () => ComposerPackLoader.LoadUncachedForValidation(packRoot);
+
+            action.Should().Throw<InvalidDataException>()
+                .WithMessage("*InvalidAdjacencyAdvisory*condition*spacing*");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
     private static string CreateMinimalPack(string root, string packId = "sample")
     {
         var packRoot = Path.Combine(root, packId, "1.0.0");

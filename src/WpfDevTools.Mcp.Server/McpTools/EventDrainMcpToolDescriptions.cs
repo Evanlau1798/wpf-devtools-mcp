@@ -6,7 +6,7 @@ internal static class EventDrainMcpToolDescriptions
 
     public const string DrainEvents =
         "Use this tool to explicitly drain pending runtime watch events that were buffered by prior DependencyProperty or routed-event activity.\n\n" +
-        EventMetadata + "[Event] Return and clear buffered runtime events from the current Inspector session. " +
+        EventMetadata + "Return and clear buffered runtime events from the current Inspector session. " +
         "Use it when you want deterministic event consumption instead of waiting for piggyback on a later tool response.\n\n" +
         "USE WHEN: You have active DP watches or routed-event traces and need an explicit read step; you want to filter buffered events by type, element, or time window.\n" +
         "DO NOT USE: As a long-running subscription. This drains a bounded in-memory buffer.\n\n" +
@@ -22,11 +22,6 @@ internal static class EventDrainMcpToolDescriptions
         "  - pendingEvents (optional): [{ eventType, elementId, propertyName (optional), eventName (optional), timestampUtc }]\n\n" +
         "If post-drain cleanup cannot finish cleanly, the response surfaces cleanupIncomplete plus optional cleanupFailureMessage and cleanupFailureType so callers can quarantine or retry follow-up workflows explicitly.\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
         "- \"maxEvents\" invalid -> provide a positive integer when filtering the drain size\n" +
-        "- \"sinceTimestamp\" invalid -> provide an ISO-8601 timestamp\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345 }\n" +
-        "- { \"processId\": 12345, \"maxEvents\": 10, \"eventTypes\": [\"DpChange\"] }\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"sinceTimestamp\": \"2026-03-14T10:00:00.0000000Z\" }";
+        "- \"sinceTimestamp\" invalid -> provide an ISO-8601 timestamp\n\n";
 }

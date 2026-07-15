@@ -10,7 +10,7 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public sealed class McpProgressiveDiscoveryBudgetTests
 {
     private const int ServerInstructionBudgetChars = 26_000;
-    private const int ToolDescriptionBudgetChars = 120_000;
+    private const int ToolDescriptionBudgetChars = 105_000;
     private static readonly Assembly McpServerAssembly = typeof(ServerInstructions).Assembly;
 
     [Fact]

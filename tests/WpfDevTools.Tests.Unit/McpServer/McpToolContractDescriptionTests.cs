@@ -277,13 +277,13 @@ public sealed class McpToolContractDescriptionTests
     }
 
     [Fact]
-    public void GetProcessesDescription_ShouldShowEveryWindowFilterExample()
+    public void GetProcessesDescription_ShouldDocumentEveryWindowFilterValue()
     {
         var description = GetDescription(typeof(ProcessMcpTools), nameof(ProcessMcpTools.GetProcesses));
 
         foreach (var value in new[] { "visible", "all", "foreground" })
         {
-            description.Should().Contain($"\"windowFilter\": \"{value}\"");
+            description.Should().Contain($"'{value}'");
         }
     }
 

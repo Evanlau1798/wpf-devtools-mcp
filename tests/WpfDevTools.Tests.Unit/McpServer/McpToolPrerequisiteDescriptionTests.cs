@@ -9,7 +9,7 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public sealed class McpToolPrerequisiteDescriptionTests
 {
     private const string ConnectPrerequisite =
-        "PREREQUISITE: connect() or connect(processId) must have succeeded for the target process.";
+        "PREREQUISITE: connect() selected target.";
 
     private static readonly HashSet<string> ToolsThatDoNotRequireConnectedInspector = new(StringComparer.Ordinal)
     {

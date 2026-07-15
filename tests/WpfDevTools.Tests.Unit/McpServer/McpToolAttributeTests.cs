@@ -51,6 +51,13 @@ public sealed class McpToolAttributeTests
         "restore_state_snapshot", "batch_mutate"
     ];
 
+    private static readonly HashSet<string> ToolsWithComplexInlineExamples = new(StringComparer.Ordinal)
+    {
+        "batch_mutate",
+        "element_screenshot",
+        "wait_for_dp_change_after_mutation"
+    };
+
     [Fact]
     public void AllTools_ShouldExposeStableDiscoveryMetadata()
     {
@@ -67,7 +74,14 @@ public sealed class McpToolAttributeTests
             description.Should().NotBeNull($"tool '{tool.Attribute.Name}' in {tool.Type.Name} must have [Description]");
             description?.Description.Should().NotBeNullOrWhiteSpace($"tool '{tool.Attribute.Name}' description must not be empty");
             description?.Description.Should().Contain("CATEGORY:", $"tool '{tool.Attribute.Name}' must expose its category");
-            description?.Description.Should().Contain("EXAMPLES:", $"tool '{tool.Attribute.Name}' must expose canonical examples");
+            if (tool.Type == typeof(UiComposerMcpTools)
+                || ToolsWithComplexInlineExamples.Contains(tool.Attribute.Name!))
+            {
+                description?.Description.Should().Contain(
+                    "EXAMPLES:",
+                    $"tool '{tool.Attribute.Name}' has a non-obvious input or recovery shape that warrants an inline example");
+            }
+
             description?.Description.Should().NotContain("Examples:", $"tool '{tool.Attribute.Name}' must use a stable heading");
 
             foreach (var parameter in tool.Method.GetParameters().Where(IsMcpExposedParameter))
@@ -79,6 +93,10 @@ public sealed class McpToolAttributeTests
                     $"tool '{tool.Attribute.Name}' parameter '{parameter.Name}' description must not be empty");
             }
         }
+
+        ServerInstructions.Value.Should().Contain(
+            "wpf://contracts/tool-examples",
+            "trivial examples should be progressively discoverable instead of repeated in every tool description");
     }
 
     [Fact]

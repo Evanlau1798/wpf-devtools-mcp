@@ -24,20 +24,14 @@ internal static class EventMcpToolDescriptions
         "  - NOTE: Provide maxEvents to cap returned trace records. When capped, totalEventCount preserves the original count and eventsTruncated=true signals that more events were available.\n\n" +
         "TIP: Prefer `start` + interaction + `drain_events` for non-blocking agent workflows.\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
         "- \"invalid event name\" -> verify eventName is a valid WPF RoutedEvent\n" +
         "- \"eventName required\" -> required for `capture` and `start` modes\n" +
         "- \"maxEvents\" invalid -> provide a positive integer when limiting returned trace records\n" +
-        "- \"invalid mode\" -> use `capture`, `start`, or `get`\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"eventName\": \"MouseDown\", \"durationMs\": 500 }\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"eventName\": \"Click\", \"mode\": \"start\", \"durationMs\": 1000 }\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"eventName\": \"Click\", \"mode\": \"start\", \"durationMs\": 1000, \"allowShortStartDuration\": true }\n" +
-        "- { \"processId\": 12345, \"mode\": \"get\", \"maxEvents\": 25 }";
+        "- \"invalid mode\" -> use `capture`, `start`, or `get`\n\n";
 
     public const string GetEventHandlers =
         "Use this tool to inspect WPF event handlers attached to a runtime element.\n\n" +
-        EventMetadata + "[Event] Get all event handlers attached to a WPF element for a specific routed event. " +
+        EventMetadata + "Get all event handlers attached to a WPF element for a specific routed event. " +
         "Returns handler method names, declaring types, and whether they handle tunneling/bubbling.\n\n" +
         "USE WHEN: Button click does nothing; need to verify event handlers are attached.\n" +
         "DO NOT USE: Without eventName - it's required.\n\n" +
@@ -51,16 +45,13 @@ internal static class EventMcpToolDescriptions
         "    - methodName, declaringType, handledEventsToo: boolean\n\n" +
         "Empty handlers array means no handlers were visible via reflection. Class handlers, commands, template triggers, and inaccessible internals may not appear.\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +
         "- \"invalid event name\" -> verify eventName is valid\n" +
-        "- \"eventName required\" -> must specify which event\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"eventName\": \"Click\" }";
+        "- \"eventName required\" -> must specify which event\n\n";
 
     public const string FireRoutedEvent =
         "Use this tool to fire a WPF routed event when you need runtime event semantics without a physical click.\n\n" +
-        EventMetadata + "[Event] Raise a routed event on a WPF element. " +
+        EventMetadata + "Raise a routed event on a WPF element. " +
         "Behavior depends on element type and event:\n" +
         "- ButtonBase + Click: calls OnClick() via reflection, which triggers BOTH RoutedEvent handlers AND ICommand execution (same as a real user click)\n" +
         "- All other combinations: calls UIElement.RaiseEvent(), which only triggers routed event handlers (Tunneling -> Direct -> Bubbling)\n\n" +
@@ -72,18 +63,14 @@ internal static class EventMcpToolDescriptions
         "- fire_routed_event('Click') on non-ButtonBase: only fires routed event handlers, no ICommand\n" +
         "- click_element: calls OnClick() for ButtonBase descendants, selects TabItem; returns error for other element types\n\n" +
         "WARNING: This triggers real application logic. For ButtonBase+Click, ICommand WILL execute.\n\n" +
-        "DETAIL MODE: Optional `detail` controls additive metadata. Omit it or use `compact` (default) to keep only the core routed-event result while still preserving semantically relevant fallback indicators. Use `minimal` for success/property/newValue confirmation only, `verbose` for requested/effective input + observedEffect, or legacy `standard` as a compatibility alias.\n\n" +
+        ToolDescriptionFragments.DetailMode +
         "RESPONSE SUMMARY:\n" +
         "  - success: boolean,\n" +
         "  - message: string,\n" +
         "  - eventName: string,\n" +
         "  - usedOnClick: boolean  // ONLY present when ButtonBase+Click path was used; absent for other events\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +
         "- \"invalid event name\" -> verify eventName is valid\n" +
-        "- \"eventName required\" -> must specify which event\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"eventName\": \"Click\" }\n" +
-        "- { \"processId\": 12345, \"elementId\": \"Panel1\", \"eventName\": \"MouseDown\" }";
+        "- \"eventName required\" -> must specify which event\n\n";
 }

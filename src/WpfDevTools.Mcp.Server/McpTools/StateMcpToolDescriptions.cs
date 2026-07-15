@@ -6,7 +6,7 @@ internal static class StateMcpToolDescriptions
 
     public const string CaptureStateSnapshot =
         "Use this tool to capture a WPF runtime state snapshot before mutations or multi-step debugging.\n\n" +
-        StateMetadata + "[State] Capture a restorable runtime snapshot for a connected WPF process.\n\n" +
+        StateMetadata + "Capture a restorable runtime snapshot for a connected WPF process.\n\n" +
         "USE WHEN: Before mutation-heavy debugging, demos, or regression flows where rollback matters.\n" +
         "DO NOT USE: As durable persistence; snapshots are in-memory and session-scoped only.\n" +
         "RETENTION: The server retains at most 20 snapshots per process for up to 30 minutes; capture a fresh snapshot before long mutation sequences.\n\n" +
@@ -18,15 +18,11 @@ internal static class StateMcpToolDescriptions
         "  - snapshotSummary: { dependencyPropertyCount, skippedDependencyPropertyCount, viewModelPropertyCount, capturedFocus },\n" +
         "  - skippedDependencyProperties: [{ propertyName, reason, errorCode }] when individual DependencyProperty captures are skipped but another requested state dimension is captured\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"propertyNames / viewModelPropertyNames / includeFocus required\" -> choose at least one capture dimension\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"propertyNames\": [\"IsEnabled\"] }\n" +
-        "- { \"processId\": 12345, \"elementId\": \"EditorPanel\", \"viewModelPropertyNames\": [\"Name\"], \"includeFocus\": true }";
+        "- \"propertyNames / viewModelPropertyNames / includeFocus required\" -> choose at least one capture dimension\n\n";
 
     public const string RestoreStateSnapshot =
         "Use this tool to restore a WPF runtime state snapshot after temporary debugging changes.\n\n" +
-        StateMetadata + "[State] Restore a previously captured in-memory runtime snapshot.\n\n" +
+        StateMetadata + "Restore a previously captured in-memory runtime snapshot.\n\n" +
         "USE WHEN: Rolling back temporary DependencyProperty, ViewModel, or focus changes in the same session.\n" +
         "DO NOT USE: Across disconnected sessions, application restarts, or after the in-memory snapshot has expired.\n" +
         "RETENTION: Snapshots are kept for at most 30 minutes and the oldest snapshots are evicted when a process retains more than 20.\n\n" +
@@ -48,7 +44,5 @@ internal static class StateMcpToolDescriptions
         "  - follow-up guidance for failed DependencyProperty verification or skipped complex ViewModel properties\n\n" +
         "ERRORS:\n" +
         "- \"snapshotId\" -> snapshot missing, expired, already removed, or created for another process; take a fresh snapshot with capture_state_snapshot. If restore conflicts persist, inspect get_dp_value_source and get_bindings before retrying\n" +
-        "- \"not connected\" -> reconnect before restore\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"snapshotId\": \"snapshot_abc\" }";
+        "- \"not connected\" -> reconnect before restore\n\n";
 }

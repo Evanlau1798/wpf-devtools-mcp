@@ -6,7 +6,7 @@ internal static class TreeMcpToolDescriptions
 
     public const string GetVisualTree =
         "Use this tool to inspect the runtime visual tree of a running WPF window or element.\n\n" +
-        TreeMetadata + "[Tree] Get the Visual Tree (rendering structure) of a WPF element. " +
+        TreeMetadata + "Get the Visual Tree (rendering structure) of a WPF element. " +
         "Returns a hierarchical tree with elementId, type, name, and children for each node.\n\n" +
         "USE WHEN: You need to inspect template-generated elements, adorners, or the actual rendering structure.\n" +
         "DO NOT USE: Without depth parameter on large apps (use depth=2-4); use get_logical_tree for XAML structure only.\n\n" +
@@ -22,16 +22,11 @@ internal static class TreeMcpToolDescriptions
         "- columns: [elementId, type, name, childCount, depth, parentId]\n\n" +
         "- depthSufficiencyHint: { isSufficient, reasonCode, currentDepth, recommendedDepth, suggestion } when deeper traversal is likely required\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"element not found\" -> verify elementId from previous get_visual_tree call\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345 }\n" +
-        "- { \"processId\": 12345, \"depth\": 3 }\n" +
-        "- { \"processId\": 12345, \"elementId\": \"Button_1\", \"depth\": 2 }";
+        "- \"element not found\" -> verify elementId from previous get_visual_tree call\n\n";
 
     public const string GetLogicalTree =
         "Use this tool to inspect the WPF logical tree when you need runtime XAML structure rather than render-only details.\n\n" +
-        TreeMetadata + "[Tree] Get the Logical Tree (semantic/XAML structure) of a WPF element. " +
+        TreeMetadata + "Get the Logical Tree (semantic/XAML structure) of a WPF element. " +
         "Simpler than Visual Tree - shows only elements defined in XAML.\n\n" +
         "USE WHEN: You need to understand XAML structure, find named elements, or trace DataContext inheritance.\n" +
         "DO NOT USE: When you need to inspect template internals (use get_visual_tree or get_template_tree instead).\n\n" +
@@ -48,15 +43,11 @@ internal static class TreeMcpToolDescriptions
         "- hasMoreChildren can mean uninspected raw logical items remain, not necessarily DependencyObject nodes.\n\n" +
         "- depthSufficiencyHint: { isSufficient, reasonCode, currentDepth, recommendedDepth, suggestion } when deeper traversal is likely required\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"element not found\" -> verify elementId is valid\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345 }\n" +
-        "- { \"processId\": 12345, \"depth\": 5 }";
+        "- \"element not found\" -> verify elementId is valid\n\n";
 
     public const string SerializeToXaml =
         "Use this tool to serialize a live WPF element into a safe runtime XAML snapshot for inspection and comparison.\n\n" +
-        TreeMetadata + "[Tree] Serialize a WPF element to a bounded XAML-like runtime snapshot. " +
+        TreeMetadata + "Serialize a WPF element to a bounded XAML-like runtime snapshot. " +
         "Returns a markup string for the element and a capped set of children without invoking WPF XamlWriter round-trip serialization.\n\n" +
         "USE WHEN: You need to understand element structure in markup form after narrowing to a concrete live elementId.\n" +
         "DO NOT USE: As a design-time XAML export, source-code round trip, root-window dump, or with selector-style arguments. Window/root elementIds are rejected before serialization. First use get_ui_summary, get_visual_tree, get_logical_tree, or find_elements to obtain a smaller current elementId.\n\n" +
@@ -74,15 +65,13 @@ internal static class TreeMcpToolDescriptions
         "ERRORS:\n" +
         "- \"missing elementId\" -> call get_ui_summary, get_visual_tree, get_logical_tree, or find_elements first\n" +
         "- \"unknown argument\" -> use only processId and elementId\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
+
         "- \"InvalidArgument\" with reasonCode=RootWindowSerializationBlocked -> target a smaller descendant elementId first\n" +
-        "- \"XamlSerializationFailed\" -> the runtime snapshot writer could not inspect this element; inspect a smaller subtree first\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }";
+        "- \"XamlSerializationFailed\" -> the runtime snapshot writer could not inspect this element; inspect a smaller subtree first\n\n";
 
     public const string GetNamescope =
         "Use this tool to inspect a WPF namescope and discover runtime named elements, including inactive tabs.\n\n" +
-        TreeMetadata + "[Tree] Get the XAML NameScope of a WPF element. " +
+        TreeMetadata + "Get the XAML NameScope of a WPF element. " +
         "Returns all named elements (x:Name) registered in the element's scope.\n\n" +
         "USE WHEN: You need to discover all named elements in a window or UserControl, including names registered for inactive tabs or other logical-only content.\n" +
         "DO NOT USE: For finding elements by type (use get_visual_tree to browse the tree instead).\n\n" +
@@ -95,15 +84,11 @@ internal static class TreeMcpToolDescriptions
         "  - traversalTruncated: boolean,\n" +
         "  - namedElements: [{ name, elementId, type }]\n\n" +
         "NO NAMESCOPE: If the element is not a namescope root, the response is success=true with hasNameScope=false, namedElementCount=0, traversalNodeCount=0, and traversalTruncated=false. Try the parent window or UserControl when names are expected.\n" +
-        "TRUNCATION: traversalTruncated=true only means a namescope root was present and maxNodes stopped name discovery before all descendants were inspected. Omitted maxNodes defaults to 10000 for namescope discovery.\n\n" +
-        "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345 }";
+        "TRUNCATION: traversalTruncated=true only means a namescope root was present and maxNodes stopped name discovery before all descendants were inspected. Omitted maxNodes defaults to 10000 for namescope discovery.\n\n";
 
     public const string GetTemplateTree =
         "Use this tool to inspect the WPF template tree of a runtime control and understand generated parts.\n\n" +
-        TreeMetadata + "[Tree] Get the template Visual Tree of a templated WPF control (Button, ListBox, etc.). " +
+        TreeMetadata + "Get the template Visual Tree of a templated WPF control (Button, ListBox, etc.). " +
         "Shows the internal rendering structure defined by the control's ControlTemplate.\n\n" +
         "USE WHEN: You need to inspect how a loaded templated control renders internally or find template parts.\n" +
         "TARGET SELECTION: Pick a loaded templated control from the current visual tree, such as a Button, ListBox, ComboBox, or TabControl. If ElementNotLoaded or \"No template visual tree found\" is returned for one candidate, choose another current loaded templated control before reporting a template-tree limitation.\n" +
@@ -116,15 +101,12 @@ internal static class TreeMcpToolDescriptions
         "  - omittedNodeCount: number,\n" +
         "  - truncated: boolean\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
         "- \"no template\" -> element is not a templated control\n" +
-        "- \"elementId required\" -> must specify which control to inspect\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }";
+        "- \"elementId required\" -> must specify which control to inspect\n\n";
 
     public const string GetWindows =
         "Use this tool to inspect secondary windows and list WPF windows before targeting a specific runtime root.\n\n" +
-        TreeMetadata + "[Tree] Enumerate all open windows in the connected WPF application. " +
+        TreeMetadata + "Enumerate all open windows in the connected WPF application. " +
         "Returns each window's index, title, type, focus snapshot, and elementId using camelCase field names.\n\n" +
         "USE WHEN: The target app has multiple windows and you need to inspect a secondary window " +
         "(e.g., dialogs, tool windows, child windows). Use the returned elementId as the elementId " +
@@ -136,17 +118,14 @@ internal static class TreeMcpToolDescriptions
         "  - windows: [{ index, title, type, isActive, isVisible, isMainWindow, elementId }]\n\n" +
         "NOTE: isActive is a point-in-time focus snapshot and may change between calls; use isVisible/isMainWindow to interpret transient focus timing.\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
         "- \"pipe disconnected\" -> target app may have closed; reconnect\n\n" +
         "WORKFLOW:\n" +
         "1. Call get_windows to discover all open windows\n" +
-        "2. Use the elementId from the desired window as elementId in get_visual_tree, get_logical_tree, etc.\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345 }";
+        "2. Use the elementId from the desired window as elementId in get_visual_tree, get_logical_tree, etc.\n\n";
 
     public const string FindElements =
         "Use this tool to search a running WPF tree for matching runtime elements without expanding the full visual tree first.\n\n" +
-        TreeMetadata + "[Tree] Search visual and logical descendants from the chosen root using exact or contains filters. " +
+        TreeMetadata + "Search visual and logical descendants from the chosen root using exact or contains filters. " +
         "Results are bounded by maxResults and traversal is bounded by maxTraversalNodes to protect the target UI thread.\n\n" +
         "USE WHEN: You need a compact lookup entry point before calling get_visual_tree, get_layout_info, get_bindings, or other element-scoped tools.\n" +
         "DO NOT USE: As a full query language. The query parameter is a bounded convenience lookup over common semantic fields; use precise filters when automation needs determinism.\n\n" +
@@ -172,21 +151,13 @@ internal static class TreeMcpToolDescriptions
           "  - recovery (optional): structured retry budget and narrower-root guidance for a traversal-truncated zero-result search,\n" +
         "  - results: [{ elementId, elementType, elementName, automationId, matchedProperty, matchedValue }]\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify the root elementId before retrying\n" +
         "- \"maxResults\" -> must be a positive integer\n" +
-        "- \"maxTraversalNodes\" -> must be a positive integer\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"query\": \"Apply\", \"maxResults\": 10 }\n" +
-        "- { \"processId\": 12345, \"typeName\": \"Button\", \"maxResults\": 10 }\n" +
-        "- { \"processId\": 12345, \"typeName\": \"ButtonBase\", \"typeMatchMode\": \"assignable\" }\n" +
-        "- { \"processId\": 12345, \"controlType\": \"Button\", \"maxResults\": 10 }\n" +
-        "- { \"processId\": 12345, \"elementName\": \"SaveButton\" }\n" +
-        "- { \"processId\": 12345, \"propertyName\": \"Text\", \"propertyValue\": \"Ready\" }";
+        "- \"maxTraversalNodes\" -> must be a positive integer\n\n";
 
     public const string CompareTrees =
         "Use this tool to compare WPF visual and logical trees when runtime structure does not match XAML structure.\n\n" +
-        TreeMetadata + "[Tree] Compare Visual and Logical trees to identify structural differences. " +
+        TreeMetadata + "Compare Visual and Logical trees to identify structural differences. " +
         "Returns elements present in one tree but not the other.\n\n" +
         "USE WHEN: You need to understand which elements are template-generated vs XAML-defined.\n" +
         "DO NOT USE: On large apps without elementId scope (will be slow).\n\n" +
@@ -196,9 +167,5 @@ internal static class TreeMcpToolDescriptions
         "  - visualChildCount: integer,\n" +
         "  - logicalChildCount: integer,\n" +
         "  - differenceCount: integer,\n" +
-        "  - differences: [{ type: \"VisualOnly\"|\"LogicalOnly\", elementType, elementId }]\n\n" +
-        "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345 }";
+        "  - differences: [{ type: \"VisualOnly\"|\"LogicalOnly\", elementType, elementId }]\n\n";
 }

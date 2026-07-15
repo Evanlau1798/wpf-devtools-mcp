@@ -6,7 +6,7 @@ internal static class LayoutMcpToolDescriptions
 
     public const string GetLayoutInfo =
         "Use this tool to inspect WPF layout measurements and runtime positioning for an element.\n\n" +
-        LayoutMetadata + "[Layout] Get layout information of a WPF element. Returns: actualWidth, actualHeight, " +
+        LayoutMetadata + "Get layout information of a WPF element. Returns: actualWidth, actualHeight, " +
         "desiredSize, renderSize, margin, padding, horizontalAlignment, verticalAlignment, " +
         "position relative to parent and window.\n\n" +
         "USE WHEN: Element has wrong size, position, or alignment; debugging layout issues.\n" +
@@ -20,11 +20,7 @@ internal static class LayoutMcpToolDescriptions
         "  - horizontalAlignment, verticalAlignment,\n" +
         "  - positionInParent: { x, y }, positionInWindow: { x, y }\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"element not found\" -> verify elementId\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }\n" +
-        "- { \"processId\": 12345 }";
+        "- \"element not found\" -> verify elementId\n\n";
 
     public const string GetClippingInfo =
         "Inspect explicit Clip, ClipToBounds, layout clips, and overflow for known WPF targets and their ancestors.\n\n" +
@@ -32,14 +28,11 @@ internal static class LayoutMcpToolDescriptions
         "USE: Pass `elementId`, or up to 100 `elementIds`; use find_elements first when only text is known. " +
         "This does not implicitly scan descendants. Use get_layout_info for general sizing.\n" +
         "RETURNS: isClipped, clippingSource, bounds, directional overflowAmount, clippingAncestors, suggestedFix; batches retain elementId correlation.\n" +
-        "ERRORS: not connected -> connect; target missing -> verify elementId; no targets -> pass elementId or elementIds.\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\" }\n" +
-        "- { \"processId\": 12345, \"elementIds\": [\"PrimaryAction\", \"SecondaryAction\"] }";
+        "ERRORS: not connected -> connect; target missing -> verify elementId; no targets -> pass elementId or elementIds.\n";
 
     public const string HighlightElement =
         "Use this tool to highlight a WPF element so runtime inspection targets stay unambiguous.\n\n" +
-        LayoutMetadata + "[Layout] Visually highlight an element with a colored border overlay. " +
+        LayoutMetadata + "Visually highlight an element with a colored border overlay. " +
         "Useful for confirming you have the right element. Color accepts WPF color names " +
         "('Red', 'Blue', 'Yellow') or hex. Auto-removes after duration.\n\n" +
         "USE WHEN: Verifying element identification; showing users which element you're inspecting.\n" +
@@ -48,16 +41,12 @@ internal static class LayoutMcpToolDescriptions
         "  - success: boolean,\n" +
         "  - highlighted: boolean\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
         "- \"element not found\" -> verify elementId\n" +
-        "- \"invalid color\" -> use WPF color names or hex format\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\" }\n" +
-        "- { \"processId\": 12345, \"elementId\": \"SaveButton\", \"color\": \"Red\", \"duration\": 3000 }";
+        "- \"invalid color\" -> use WPF color names or hex format\n\n";
 
     public const string InvalidateLayout =
         "Use this tool to invalidate WPF layout when runtime measurements need to be recomputed immediately.\n\n" +
-        LayoutMetadata + "[Layout] Force layout invalidation on a WPF element, causing it to re-measure " +
+        LayoutMetadata + "Force layout invalidation on a WPF element, causing it to re-measure " +
         "and re-arrange. Use after modifying properties that affect layout to force an immediate update.\n\n" +
         "USE WHEN: Layout doesn't update after property changes; testing layout behavior.\n" +
         "DO NOT USE: Repeatedly in a loop (causes performance issues).\n\n" +
@@ -65,9 +54,5 @@ internal static class LayoutMcpToolDescriptions
         "  - success: boolean,\n" +
         "  - invalidated: boolean\n\n" +
         "ERRORS:\n" +
-        "- \"not connected\" -> call connect(processId) first\n" +
-        "- \"element not found\" -> verify elementId\n\n" +
-        "EXAMPLES:\n" +
-        "- { \"processId\": 12345 }\n" +
-        "- { \"processId\": 12345, \"elementId\": \"NameTextBox\" }";
+        "- \"element not found\" -> verify elementId\n\n";
 }

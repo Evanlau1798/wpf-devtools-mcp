@@ -200,19 +200,11 @@ public sealed class GetBindingErrorsToolPendingEventsTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenReplayLockIsBusyAndCallerTokenCancelsDuringBestEffortPiggyback_ShouldStillReturnPrimarySuccess()
+    public async Task ExecuteAsync_WhenReplayLockWaitTimesOut_ShouldKeepConnectedPrimarySuccess()
     {
         const int processId = 51045;
-        using var cancellation = new CancellationTokenSource();
         using var connected = await ConnectedBindingErrorsSession.CreateAsync(
             processId,
-            method =>
-            {
-                if (method == "get_binding_errors")
-                {
-                    cancellation.Cancel();
-                }
-            },
             JsonSerializer.Serialize(new
             {
                 success = true,
@@ -224,13 +216,15 @@ public sealed class GetBindingErrorsToolPendingEventsTests
 
         var result = JsonSerializer.SerializeToElement(await tool.ExecuteAsync(
             ToJsonElement(new { processId }),
-            cancellation.Token));
+            CancellationToken.None));
 
         await connected.ServerTask;
 
         connected.RequestMethods.Should().Equal("get_binding_errors");
         result.GetProperty("success").GetBoolean().Should().BeTrue();
-        result.GetProperty("errorCount").GetInt32().Should().Be(0);
+        result.GetProperty("pendingEventsPiggybackRequiresReconnect").GetBoolean().Should().BeFalse();
+        result.TryGetProperty("requiresReconnect", out _).Should().BeFalse();
+        connected.SessionManager.GetPipeClient(processId)!.IsConnected.Should().BeTrue();
     }
 
     [Fact]
@@ -293,11 +287,12 @@ public sealed class GetBindingErrorsToolPendingEventsTests
         result.GetProperty("pendingEventsPiggybackFailed").GetBoolean().Should().BeTrue();
         result.GetProperty("pendingEventsPiggybackFailureType").GetString().Should().Be("Timeout");
         result.GetProperty("pendingEventsMayRemainBuffered").GetBoolean().Should().BeTrue();
-        result.GetProperty("pendingEventsPiggybackRequiresReconnect").GetBoolean().Should().BeFalse();
+        result.GetProperty("pendingEventsPiggybackRequiresReconnect").GetBoolean().Should().BeTrue();
         result.GetProperty("pendingEventsStateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
-        result.TryGetProperty("requiresReconnect", out _).Should().BeFalse();
-        result.TryGetProperty("stateAfterTimeoutUnknown", out _).Should().BeFalse();
-        result.GetProperty("pendingEventsPiggybackSuggestedAction").GetString().Should().NotContain("Reconnect").And.Contain("drain_events");
+        result.GetProperty("requiresReconnect").GetBoolean().Should().BeTrue();
+        result.GetProperty("stateAfterTimeoutUnknown").GetBoolean().Should().BeTrue();
+        result.GetProperty("pendingEventsPiggybackSuggestedAction").GetString().Should().Contain("Reconnect");
+        connected.SessionManager.GetPipeClient(processId)!.IsConnected.Should().BeFalse();
     }
 
     [Fact]

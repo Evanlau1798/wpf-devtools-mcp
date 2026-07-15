@@ -382,12 +382,10 @@ public abstract partial class PipeConnectedToolBase
         {
             var failureType = ResolvePiggybackFailureType(ex);
             return MergePiggybackFailureDiagnostics(
-                result,
-                processId,
-                failureType,
-                PiggybackFailureRequiresReconnect(failureType),
-                null,
-                ex.Message);
+                result, processId, failureType,
+                PiggybackFailureRequiresReconnect(failureType)
+                || _sessionManager.GetPipeClient(processId, expectedSessionGeneration)?.IsConnected != true,
+                null, ex.Message);
         }
     }
 

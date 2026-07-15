@@ -3,6 +3,7 @@ using WpfDevTools.Mcp.Server.Composer.Apply;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
+using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Tests.Unit.TestSupport;
 
 namespace WpfDevTools.Tests.Unit.Composer;
@@ -31,6 +32,33 @@ public sealed class ComposerGeneratedClassCollisionTests
         result.Success.Should().BeTrue();
         result.Warnings.Should().NotContain(issue =>
             issue.Code == "GeneratedClassMemberNameCollision");
+    }
+
+    [Fact]
+    public async Task PublicValidationAndRepair_ShouldHonorExplicitTargetPath()
+    {
+        var blueprint = WindowBlueprint(
+            "\"elementName\": \"KilnLedgerWindow\",",
+            "ContentRoot");
+        var defaultValidation = await UiComposerMcpTools.ValidateUiBlueprint(
+            blueprint,
+            cancellationToken: CancellationToken.None);
+        var alternateValidation = await UiComposerMcpTools.ValidateUiBlueprint(
+            blueprint,
+            targetPath: "Views/AlternateWindow.xaml",
+            cancellationToken: CancellationToken.None);
+
+        defaultValidation.StructuredContent!.Value.GetProperty("warnings").EnumerateArray()
+            .Should().Contain(issue => issue.GetProperty("code").GetString()
+                == "GeneratedClassMemberNameCollision");
+        alternateValidation.StructuredContent!.Value.GetProperty("warnings").EnumerateArray()
+            .Should().NotContain(issue => issue.GetProperty("code").GetString()
+                == "GeneratedClassMemberNameCollision");
+
+        var repair = new BlueprintRepairService(CreateBuiltinRegistry()).Repair(
+            new BlueprintRepairRequest(blueprint, TargetPath: "Views/AlternateWindow.xaml"));
+        repair.Actions.Should().NotContain(action =>
+            action.IssueCode == "GeneratedClassMemberNameCollision");
     }
 
     [Theory]

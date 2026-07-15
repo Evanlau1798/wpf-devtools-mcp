@@ -2,12 +2,16 @@ using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 using WpfDevTools.Mcp.Server.Composer.Packs;
+using WpfDevTools.Mcp.Server.Composer.Rendering;
 
 namespace WpfDevTools.Mcp.Server.Composer.Blueprints;
 
 internal sealed class BlueprintValidationService(PackRegistry registry)
 {
-    public BlueprintValidationResult Validate(string blueprintJson)
+    public BlueprintValidationResult Validate(
+        string blueprintJson,
+        string? targetPath = null,
+        string? projectRoot = null)
     {
         var errors = new List<BlueprintValidationIssue>();
         var warnings = new List<BlueprintValidationIssue>();
@@ -76,6 +80,12 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
             var context = BuildContext(declaredPacks, declaredPackIds, optionalMissingPackIds, errors);
             var usedPackIds = new HashSet<string>(StringComparer.Ordinal);
             ValidateNode(blueprint.Layout, "$.layout", null, null, context, usedPackIds, errors, warnings);
+            warnings.AddRange(GeneratedClassMemberCollisionValidator.Validate(
+                blueprint,
+                context.Blocks,
+                UiBlueprintRenderer.ResolveTargetPath(
+                    new RenderBlueprintRequest(blueprintJson, targetPath, projectRoot),
+                    blueprint)));
             WarnForUnusedDeclaredPacks(blueprint, declaredPacks.Keys.ToHashSet(StringComparer.Ordinal), usedPackIds, warnings);
         }
 

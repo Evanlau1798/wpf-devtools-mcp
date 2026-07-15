@@ -102,12 +102,13 @@ internal static class UiComposerMcpToolDescriptions
         RESPONSE SUMMARY:
         - Returns success, valid, errorCount, warningCount, errors, warnings, blueprintSize, and diagnostics.
         - Issues include path/code/repair and allowed values. InvalidBlueprintShape adds observedValueKind/expectedJsonShape; SurfaceThemeContrastRisk flags resource conflicts.
-        - Optional node elementName and automationId values are validated for safe syntax and tree-wide uniqueness before they render to stable WPF identities.
+        - Optional node elementName and automationId values are validated for safe syntax, uniqueness, and generated class/member collisions before render.
         - blueprintSize reports currentCharacters, maximumCharacters, remainingCharacters, and utilizationPercent for the public blueprintJson limit.
         - valid=false is a validation result, not an MCP transport failure.
 
         REQUEST OPTIONS:
         - blueprintJson accepts raw JSON or an opaque draftRef. Raw JSON must contain schemaVersion wpfdevtools.ui-blueprint.v1.
+        - targetPath optionally checks generated class/member collisions for that XAML filename; omission uses Views/<blueprint-name>.xaml.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 

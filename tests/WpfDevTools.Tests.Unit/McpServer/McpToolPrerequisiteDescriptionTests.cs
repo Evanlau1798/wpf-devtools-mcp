@@ -156,6 +156,8 @@ public sealed class McpToolPrerequisiteDescriptionTests
 
         description.Should().Contain("blueprintSize");
         description.Should().Contain("remainingCharacters");
+        description.Should().Contain("targetPath");
+        description.Should().Contain("generated class/member collisions");
     }
 
     private static IEnumerable<(string Name, string Description)> GetMcpTools()

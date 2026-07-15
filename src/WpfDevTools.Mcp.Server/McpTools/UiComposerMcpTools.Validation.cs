@@ -7,7 +7,11 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 
 public static partial class UiComposerMcpTools
 {
-    private static object ValidateBlueprint(string blueprintJson, string? projectRoot, string? localAppDataRoot)
+    private static object ValidateBlueprint(
+        string blueprintJson,
+        string? targetPath,
+        string? projectRoot,
+        string? localAppDataRoot)
     {
         var input = BlueprintInputResolver.Resolve(blueprintJson);
         if (!input.Success)
@@ -16,7 +20,7 @@ public static partial class UiComposerMcpTools
         }
 
         var validator = new BlueprintValidationService(CreateRegistry(projectRoot, localAppDataRoot));
-        var result = validator.Validate(input.BlueprintJson);
+        var result = validator.Validate(input.BlueprintJson, targetPath, projectRoot);
 
         return new
         {

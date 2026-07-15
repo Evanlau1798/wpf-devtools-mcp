@@ -136,10 +136,11 @@ Target 可解析到 installed block contract 時，`targetSlotSummary` 會回傳
 Request options:
 
 - `blueprintJson`: required raw UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`；也可傳入 opaque `draftRef`。
+- `targetPath`: optional target XAML path，用於檢查 generated class/member collision；省略時使用 `Views/<blueprint-name>.xaml`。
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
-完成 validation 呼叫時 response 會維持 `success=true`，並用 `valid` 表示 blueprint 是否有效。Validation issues 會包含 `jsonPath`、`code`、`message`、`repairSuggestion`，以及相關的 `allowedKinds` 或 `allowedValues`。語法有效但 field type 不相容的 JSON 會在 serializer exact path 回傳 `InvalidBlueprintShape`，附上 `observedValueKind`、copy-ready `expectedJsonShape` 與精確 replacement guidance；malformed JSON 仍會在 root 回傳 `InvalidBlueprintJson`。未知的 pack-owned resource selection 會以 `UnknownResourceVariant` 失敗；explicit surface/theme 衝突則會在 preview 或 apply 前回傳 bounded `SurfaceThemeContrastRisk` warning。Node-level `elementName` 與 `automationId` 會在 render 前驗證安全語法與唯一性。`blueprintSize` 會回傳 `currentCharacters`、`maximumCharacters`、`remainingCharacters` 與 `utilizationPercent`，讓 Agent 能在碰到 public input limit 前先精簡文件。
+完成 validation 呼叫時 response 會維持 `success=true`，並用 `valid` 表示 blueprint 是否有效。Validation issues 會包含 `jsonPath`、`code`、`message`、`repairSuggestion`，以及相關的 `allowedKinds` 或 `allowedValues`。語法有效但 field type 不相容的 JSON 會在 serializer exact path 回傳 `InvalidBlueprintShape`，附上 `observedValueKind`、copy-ready `expectedJsonShape` 與精確 replacement guidance；malformed JSON 仍會在 root 回傳 `InvalidBlueprintJson`。未知的 pack-owned resource selection 會以 `UnknownResourceVariant` 失敗；explicit surface/theme 衝突則會在 preview 或 apply 前回傳 bounded `SurfaceThemeContrastRisk` warning。Node-level identity 會在 render 前驗證安全語法、唯一性與 `GeneratedClassMemberNameCollision`。`blueprintSize` 會回傳 `currentCharacters`、`maximumCharacters`、`remainingCharacters` 與 `utilizationPercent`，讓 Agent 能在碰到 public input limit 前先精簡文件。
 
 ## `expand_ui_recipe`
 

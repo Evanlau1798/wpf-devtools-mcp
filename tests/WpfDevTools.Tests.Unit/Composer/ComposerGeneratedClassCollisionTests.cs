@@ -1,5 +1,6 @@
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.Composer.Apply;
+using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
 using WpfDevTools.Tests.Unit.TestSupport;
@@ -8,6 +9,30 @@ namespace WpfDevTools.Tests.Unit.Composer;
 
 public sealed class ComposerGeneratedClassCollisionTests
 {
+    [Fact]
+    public void ValidateBlueprint_ShouldWarnForDefaultTargetClassMemberCollisionBeforeRender()
+    {
+        var result = new BlueprintValidationService(CreateBuiltinRegistry()).Validate(
+            WindowBlueprint("\"elementName\": \"KilnLedgerWindow\",", "ContentRoot"));
+
+        result.Success.Should().BeTrue();
+        result.Warnings.Should().ContainSingle(issue =>
+            issue.Code == "GeneratedClassMemberNameCollision"
+            && issue.JsonPath == "$.layout.elementName");
+    }
+
+    [Fact]
+    public void ValidateBlueprint_ShouldUseExplicitTargetPathForCollisionCheck()
+    {
+        var result = new BlueprintValidationService(CreateBuiltinRegistry()).Validate(
+            WindowBlueprint("\"elementName\": \"KilnLedgerWindow\",", "ContentRoot"),
+            targetPath: "Views/AlternateWindow.xaml");
+
+        result.Success.Should().BeTrue();
+        result.Warnings.Should().NotContain(issue =>
+            issue.Code == "GeneratedClassMemberNameCollision");
+    }
+
     [Theory]
     [InlineData("\"elementName\": \"KilnLedgerWindow\",", "ContentRoot", "$.layout.elementName")]
     [InlineData("", "KilnLedgerWindow", "$.layout.slots.content[0].elementName")]

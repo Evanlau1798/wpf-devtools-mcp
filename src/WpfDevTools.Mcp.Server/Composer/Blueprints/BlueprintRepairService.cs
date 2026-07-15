@@ -10,7 +10,9 @@ internal sealed class BlueprintRepairService(PackRegistry registry)
     public BlueprintRepairResult Repair(BlueprintRepairRequest request)
     {
         var actions = new List<BlueprintRepairAction>();
-        var validation = new BlueprintValidationService(registry).Validate(request.BlueprintJson);
+        var validation = new BlueprintValidationService(registry).Validate(
+            request.BlueprintJson,
+            request.TargetPath);
 
         actions.AddRange(validation.Errors.Select(issue => ToAction("validation", issue, request.BlueprintJson)));
         actions.AddRange(validation.Warnings.Select(issue => ToAction("validation-warning", issue, request.BlueprintJson)));

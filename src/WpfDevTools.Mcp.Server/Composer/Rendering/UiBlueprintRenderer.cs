@@ -25,7 +25,10 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
 
     public RenderBlueprintResult Render(RenderBlueprintRequest request)
     {
-        var validation = new BlueprintValidationService(registry).Validate(request.BlueprintJson);
+        var validation = new BlueprintValidationService(registry).Validate(
+            request.BlueprintJson,
+            request.TargetPath,
+            request.ProjectRoot);
         if (!validation.Success)
         {
             return RenderBlueprintResult.Invalid(request, validation, validation.Errors);
@@ -329,7 +332,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             .Replace("<", "&lt;", StringComparison.Ordinal)
             .Replace(">", "&gt;", StringComparison.Ordinal);
 
-    private static string ResolveTargetPath(RenderBlueprintRequest request, UiBlueprint blueprint)
+    internal static string ResolveTargetPath(RenderBlueprintRequest request, UiBlueprint blueprint)
         => RenderTargetPath.Resolve(request, string.IsNullOrWhiteSpace(request.TargetPath)
             ? Path.Combine("Views", SanitizeFileName(blueprint.Name) + ".xaml")
             : request.TargetPath);

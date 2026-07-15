@@ -73,15 +73,17 @@ public static partial class UiComposerMcpTools
         [Description("UI blueprint JSON text or an opaque draftRef to validate against installed Composer pack contracts.")] string blueprintJson,
         [Description("Optional local WPF project root. When provided, discovers project-local packs from <projectRoot>/.wpfdevtools/packs before user-global and built-in packs.")] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global packs. Omit to use the current user's LocalApplicationData path when available.")] string? localAppDataRoot = null,
+        [Description("Optional target XAML file path. Omit to validate against the default Views/<blueprint-name>.xaml target.")] string? targetPath = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
             ("blueprintJson", blueprintJson),
+            ("targetPath", targetPath),
             ("projectRoot", projectRoot),
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(ValidateBlueprint(blueprintJson, projectRoot, localAppDataRoot)),
+            (_, _) => Task.FromResult<object>(ValidateBlueprint(blueprintJson, targetPath, projectRoot, localAppDataRoot)),
             args,
             cancellationToken,
             timeoutSeconds: 10);

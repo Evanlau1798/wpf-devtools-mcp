@@ -230,6 +230,42 @@ public sealed class ComposerPreviewLayoutRiskTests
     }
 
     [Fact]
+    public void Analyze_ShouldTreatDuplicateCorrelationNamesAsExactPathCoverageGaps()
+    {
+        var correlations = new[]
+        {
+            new RenderElementCorrelation("SharedName", "$.layout.slots.children[0]", "nebula.item-a"),
+            new RenderElementCorrelation("SharedName", "$.layout.slots.children[1]", "orbit.item-b")
+        };
+        var resolvedIds = new[] { "Element_A", "Element_B" };
+        var diagnostics = new[]
+        {
+            Diagnostic("find_elements", new
+            {
+                success = true,
+                searchComplete = true,
+                results = resolvedIds.Select(elementId => new { elementId, elementName = "SharedName" })
+            }),
+            Diagnostic("get_clipping_info", new
+            {
+                success = true,
+                results = resolvedIds.Select(elementId => new { success = true, elementId, isClipped = false })
+            }) with { TargetElementIds = resolvedIds }
+        };
+
+        var summary = PreviewLayoutRiskAnalyzer.Analyze(diagnostics, correlations);
+
+        summary.CorrelatedTargetCount.Should().Be(1);
+        summary.ResolvedTargetCount.Should().Be(2);
+        summary.InspectedTargetCount.Should().Be(2);
+        summary.InspectionTruncated.Should().BeTrue();
+        summary.UnresolvedCorrelationCount.Should().Be(2);
+        summary.UnresolvedCorrelations.Select(item => item.JsonPath).Should().Equal(
+            "$.layout.slots.children[0]",
+            "$.layout.slots.children[1]");
+    }
+
+    [Fact]
     public void Analyze_ShouldExposeIncompleteFindElementsSearch()
     {
         var diagnostics = new[]

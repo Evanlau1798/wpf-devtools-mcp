@@ -30,6 +30,7 @@ public sealed class ComposerPreviewLayoutRiskDocumentationTests
             "uninspectedCorrelationsTruncated",
             "uninspectedCorrelations",
             "warningsTruncated",
+            "ambiguous",
             "searchComplete=false");
     }
 

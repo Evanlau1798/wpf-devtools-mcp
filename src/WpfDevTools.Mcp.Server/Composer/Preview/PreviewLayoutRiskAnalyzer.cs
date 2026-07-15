@@ -15,6 +15,12 @@ internal static class PreviewLayoutRiskAnalyzer
         var correlatedElementNames = correlations
             .Select(item => item.ElementName)
             .ToHashSet(StringComparer.Ordinal);
+        var ambiguousCorrelationNames = correlations
+            .DistinctBy(item => (item.JsonPath, item.BlockKind, item.ElementName))
+            .GroupBy(item => item.ElementName, StringComparer.Ordinal)
+            .Where(group => group.Skip(1).Any())
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.Ordinal);
         var correlatedTargetCount = correlatedElementNames.Count;
         var exactNameLookupTruncated = correlations
             .Select(item => item.ElementName)
@@ -30,7 +36,8 @@ internal static class PreviewLayoutRiskAnalyzer
             .Select(item => item.ElementName)
             .ToHashSet(StringComparer.Ordinal);
         var unresolvedCorrelations = correlations
-            .Where(item => !resolvedCorrelationNames.Contains(item.ElementName))
+            .Where(item => ambiguousCorrelationNames.Contains(item.ElementName)
+                           || !resolvedCorrelationNames.Contains(item.ElementName))
             .DistinctBy(item => (item.JsonPath, item.BlockKind, item.ElementName))
             .ToArray();
         var reportedUnresolvedCorrelations = unresolvedCorrelations
@@ -48,6 +55,7 @@ internal static class PreviewLayoutRiskAnalyzer
             .ToLookup(item => item.ElementName, StringComparer.Ordinal);
         var uninspectedCorrelations = resolvedTargets
             .DistinctBy(item => (item.ElementId, item.ElementName))
+            .Where(item => !ambiguousCorrelationNames.Contains(item.ElementName))
             .Where(item => !inspectedElementIds.Contains(item.ElementId))
             .SelectMany(item => correlationsByElementName[item.ElementName]
                 .Select(correlation => new PreviewUninspectedCorrelation(
@@ -89,7 +97,7 @@ internal static class PreviewLayoutRiskAnalyzer
             InspectedTargetCount = inspectedTargetCount,
             InspectionTruncated = exactNameLookupTruncated
                                   || HasIncompleteSearch(diagnostics)
-                                  || resolvedCorrelationNames.Count < correlatedTargetCount
+                                  || unresolvedCorrelations.Length > 0
                                   || inspectedTargetCount < resolvedElementIds.Count,
             UnresolvedCorrelationCount = unresolvedCorrelations.Length,
             ReportedUnresolvedCorrelationCount = reportedUnresolvedCorrelations.Length,

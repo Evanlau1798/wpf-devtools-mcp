@@ -65,7 +65,7 @@ internal static class PreviewLayoutRiskAnalyzer
                     ambiguousCorrelationNames,
                     searchedElementNames,
                     runtimeMatchCounts,
-                    hasIncompleteSearch)))
+                    diagnostics)))
             .ToArray();
         var inspectedElementIds = ReadInspectedElementIds(diagnostics);
         var inspectedTargetCount = inspectedElementIds
@@ -155,7 +155,7 @@ internal static class PreviewLayoutRiskAnalyzer
         IReadOnlySet<string> ambiguousCorrelationNames,
         IReadOnlySet<string> searchedElementNames,
         IReadOnlyDictionary<string, int> runtimeMatchCounts,
-        bool hasIncompleteSearch)
+        IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics)
     {
         if (ambiguousCorrelationNames.Contains(elementName))
         {
@@ -172,16 +172,33 @@ internal static class PreviewLayoutRiskAnalyzer
             return "runtime-match-ambiguous";
         }
 
-        return hasIncompleteSearch ? "search-incomplete" : "runtime-not-found";
+        return HasCompletedLookup(elementName, diagnostics)
+            ? "runtime-not-found"
+            : "search-incomplete";
     }
+
+    private static bool HasCompletedLookup(
+        string elementName,
+        IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics)
+    {
+        var searches = diagnostics.Where(item => item.Tool == "find_elements").ToArray();
+        var taggedSearches = searches.Where(item => item.Lookup is not null).ToArray();
+        var relevantSearches = taggedSearches.Length == 0
+            ? searches
+            : taggedSearches.Where(item => MatchesLookup(elementName, item.Lookup!));
+        return relevantSearches.Any(item => item.Success && !IsIncompleteSearch(item));
+    }
+
+    private static bool IsIncompleteSearch(PreviewRuntimeDiagnostic diagnostic)
+        => diagnostic.Payload.ValueKind == JsonValueKind.Object
+           && diagnostic.Payload.TryGetProperty("searchComplete", out var searchComplete)
+           && searchComplete.ValueKind == JsonValueKind.False;
 
     private static bool HasIncompleteSearch(IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics)
         => diagnostics.Any(diagnostic =>
             diagnostic.Tool == "find_elements"
             && diagnostic.Success
-            && diagnostic.Payload.ValueKind == JsonValueKind.Object
-            && diagnostic.Payload.TryGetProperty("searchComplete", out var searchComplete)
-            && searchComplete.ValueKind == JsonValueKind.False);
+            && IsIncompleteSearch(diagnostic));
 
     private static IReadOnlySet<string> ReadInspectedElementIds(
         IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics)

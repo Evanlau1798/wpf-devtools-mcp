@@ -131,6 +131,8 @@ internal sealed record PreviewRuntimeDiagnostic(
     bool Success,
     JsonElement Payload)
 {
+    internal PreviewCorrelationLookup? Lookup { get; init; }
+
     public IReadOnlyList<string> TargetElementIds { get; init; } = [];
 }
 

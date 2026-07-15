@@ -63,6 +63,7 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                             ("maxResults", 500)),
                         ct),
                     cancellationToken).ConfigureAwait(false);
+                lookupDiagnostic = lookupDiagnostic with { Lookup = lookup };
                 diagnostics.Add(lookupDiagnostic);
                 lookupDiagnostics.Add(lookupDiagnostic);
             }

@@ -294,7 +294,8 @@ public sealed class ComposerPreviewLayoutRiskTests
                     new { elementId = "Element_1", elementName = "TargetA" },
                     new { elementId = "Element_1", elementName = "TargetA" }
                 }
-            }),
+            }) with { Lookup = new("TargetA", "exact") },
+            Diagnostic("find_elements", new { success = true, searchComplete = true, results = Array.Empty<object>() }) with { Lookup = new("TargetB", "exact") },
             Diagnostic("get_clipping_info", new
             {
                 success = true,
@@ -320,7 +321,7 @@ public sealed class ComposerPreviewLayoutRiskTests
             JsonPath = "$.layout.slots.secondary",
             BlockKind = "nebula.item",
             ElementName = "TargetB",
-            Reason = "search-incomplete"
+            Reason = "runtime-not-found"
         });
     }
 
@@ -376,12 +377,15 @@ public sealed class ComposerPreviewLayoutRiskTests
                 $"nebula.item-{index:00}"))
             .ToArray();
 
-        var summary = PreviewLayoutRiskAnalyzer.Analyze([], correlations);
+        var failedLookup = new PreviewRuntimeDiagnostic(
+            "find_elements", Success: false, JsonSerializer.SerializeToElement(new { success = false })) with { Lookup = new("Target01", "exact") };
+        var summary = PreviewLayoutRiskAnalyzer.Analyze([failedLookup], correlations);
 
         summary.UnresolvedCorrelationCount.Should().Be(40);
         summary.ReportedUnresolvedCorrelationCount.Should().Be(32);
         summary.UnresolvedCorrelationsTruncated.Should().BeTrue();
         summary.UnresolvedCorrelations.Should().HaveCount(32);
+        summary.UnresolvedCorrelations[0].Reason.Should().Be("search-incomplete");
         summary.UnresolvedCorrelations[0].JsonPath.Should().Be("$.layout.slots.children[0]");
         summary.UnresolvedCorrelations[^1].JsonPath.Should().Be("$.layout.slots.children[31]");
     }

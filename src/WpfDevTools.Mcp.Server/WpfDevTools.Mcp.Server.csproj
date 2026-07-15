@@ -5,7 +5,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.0.0-beta.62</Version>
+    <Version>1.0.0-beta.63</Version>
     <Platforms>AnyCPU;x86;x64;ARM64</Platforms>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- CS1591: McpTools use [Description] attributes instead of XML doc comments -->

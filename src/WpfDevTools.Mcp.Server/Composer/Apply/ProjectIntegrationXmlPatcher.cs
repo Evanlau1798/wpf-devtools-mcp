@@ -182,7 +182,8 @@ internal static class ProjectIntegrationXmlPatcher
             }
 
             patch(document);
-            return ProjectContentPatchResult.CreateSuccess(document.ToString() + Environment.NewLine);
+            return ProjectContentPatchResult.CreateSuccess(
+                document.ToString().TrimEnd('\r', '\n') + Environment.NewLine);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or XmlException or InvalidOperationException)
         {

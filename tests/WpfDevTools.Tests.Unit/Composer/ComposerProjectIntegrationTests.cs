@@ -89,6 +89,41 @@ public sealed class ComposerProjectIntegrationTests
     }
 
     [Fact]
+    public void ProjectIntegration_ShouldProduceStableNoOpPlanAfterApply()
+    {
+        var root = CreateFixture();
+        using var writes = new EnvironmentVariableScope(McpServerConfiguration.AllowProjectWritesEnvVar, "true");
+        using var roots = new EnvironmentVariableScope(McpServerConfiguration.AllowedProjectRootsEnvVar, root);
+        try
+        {
+            var registry = CreateRegistry(root);
+            var service = new UiBlueprintApplyService(registry);
+            var initial = service.Apply(new ApplyBlueprintRequest(Blueprint(), root, "MainWindow.xaml"));
+            var applied = new UiBlueprintProjectIntegrationService(registry).Apply(
+                new ProjectIntegrationRequest(
+                    Blueprint(),
+                    root,
+                    "MainWindow.xaml",
+                    initial.ProjectIntegrationPlan.PlanHash,
+                    ConfirmIntegration: true));
+
+            var firstNoOp = service.Apply(new ApplyBlueprintRequest(Blueprint(), root, "MainWindow.xaml"));
+            var secondNoOp = service.Apply(new ApplyBlueprintRequest(Blueprint(), root, "MainWindow.xaml"));
+
+            applied.Success.Should().BeTrue(applied.Errors.FirstOrDefault()?.Message);
+            firstNoOp.ProjectIntegrationPlan.Operations.Should().OnlyContain(operation =>
+                operation.Action == "none"
+                && operation.Precondition.Exists
+                && operation.Precondition.Sha256 == operation.ProposedSha256);
+            firstNoOp.ProjectIntegrationPlan.PlanHash.Should().Be(secondNoOp.ProjectIntegrationPlan.PlanHash);
+        }
+        finally
+        {
+            TestDirectory.Delete(root);
+        }
+    }
+
+    [Fact]
     public void ProjectIntegration_ShouldRejectStaleReviewedPlanWithoutWriting()
     {
         var root = CreateFixture();

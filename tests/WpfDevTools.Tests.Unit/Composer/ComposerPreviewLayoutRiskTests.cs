@@ -208,7 +208,12 @@ public sealed class ComposerPreviewLayoutRiskTests
             Diagnostic("get_clipping_info", new
             {
                 success = true,
-                results = resolvedIds.Select(elementId => new { success = true, elementId, isClipped = false })
+                results = resolvedIds.Select(elementId => new
+                {
+                    success = true,
+                    elementId,
+                    isClipped = elementId == "Element_A1"
+                })
             }) with
             {
                 TargetElementIds = resolvedIds
@@ -218,15 +223,12 @@ public sealed class ComposerPreviewLayoutRiskTests
         var summary = PreviewLayoutRiskAnalyzer.Analyze(diagnostics, correlations);
 
         summary.CorrelatedTargetCount.Should().Be(2);
-        summary.ResolvedTargetCount.Should().Be(2);
-        summary.InspectedTargetCount.Should().Be(2);
+        summary.ResolvedTargetCount.Should().Be(0);
+        summary.InspectedTargetCount.Should().Be(0);
+        summary.ClippedElementCount.Should().Be(0);
+        summary.Warnings.Should().BeEmpty();
         summary.InspectionTruncated.Should().BeTrue();
-        summary.UnresolvedCorrelations.Should().ContainSingle().Which.Should().BeEquivalentTo(new
-        {
-            JsonPath = "$.layout.slots.children[1]",
-            BlockKind = "nebula.item",
-            ElementName = "TargetB"
-        });
+        summary.UnresolvedCorrelations.Select(item => item.ElementName).Should().Equal("TargetA", "TargetB");
     }
 
     [Fact]
@@ -256,8 +258,8 @@ public sealed class ComposerPreviewLayoutRiskTests
         var summary = PreviewLayoutRiskAnalyzer.Analyze(diagnostics, correlations);
 
         summary.CorrelatedTargetCount.Should().Be(1);
-        summary.ResolvedTargetCount.Should().Be(2);
-        summary.InspectedTargetCount.Should().Be(2);
+        summary.ResolvedTargetCount.Should().Be(0);
+        summary.InspectedTargetCount.Should().Be(0);
         summary.InspectionTruncated.Should().BeTrue();
         summary.UnresolvedCorrelationCount.Should().Be(2);
         summary.UnresolvedCorrelations.Select(item => item.JsonPath).Should().Equal(

@@ -28,7 +28,9 @@ internal static class PreviewLayoutRiskAnalyzer
             .Distinct(StringComparer.Ordinal)
             .Skip(UiBlueprintPreviewDiagnosticsBridge.ExistingNameLookupLimit)
             .Any();
-        var resolvedTargets = ReadResolvedTargets(diagnostics, correlatedElementNames).ToArray();
+        var resolvedTargets = ReadResolvedTargets(diagnostics, correlatedElementNames)
+            .Where(item => !ambiguousCorrelationNames.Contains(item.ElementName))
+            .ToArray();
         var resolvedElementIds = resolvedTargets
             .Select(item => item.ElementId)
             .ToHashSet(StringComparer.Ordinal);
@@ -73,6 +75,7 @@ internal static class PreviewLayoutRiskAnalyzer
             .Where(group => group.Count() == 1)
             .ToDictionary(group => group.Key, group => group.Single(), StringComparer.Ordinal);
         var clipped = ReadClippingResults(diagnostics)
+            .Where(item => item.ElementId is not null && resolvedElementIds.Contains(item.ElementId))
             .Where(item => IsClipped(item.Result))
             .ToArray();
         var warnings = clipped
@@ -120,8 +123,12 @@ internal static class PreviewLayoutRiskAnalyzer
                              && TryReadString(result, "elementName", out var elementName)
                              && correlatedElementNames.Contains(elementName))
             .Select(result => (
-                result.GetProperty("elementId").GetString()!,
-                result.GetProperty("elementName").GetString()!));
+                ElementId: result.GetProperty("elementId").GetString()!,
+                ElementName: result.GetProperty("elementName").GetString()!))
+            .Distinct()
+            .GroupBy(item => item.ElementName, StringComparer.Ordinal)
+            .Where(group => group.Count() == 1)
+            .Select(group => group.Single());
 
     private static bool HasIncompleteSearch(IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics)
         => diagnostics.Any(diagnostic =>

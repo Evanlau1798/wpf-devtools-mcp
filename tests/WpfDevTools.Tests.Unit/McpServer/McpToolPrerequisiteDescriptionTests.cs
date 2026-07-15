@@ -142,11 +142,14 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("never written into the blueprint");
         description.Should().Contain("ambiguous-authored-name");
         description.Should().Contain("lookup-budget");
-        description.Should().Contain("correlationLookupLimit");
-        description.Should().Contain("bounded to 64");
         description.Should().Contain("runtime-match-ambiguous");
         description.Should().Contain("runtime-not-found");
         description.Should().Contain("search-incomplete");
+        var lookupLimitGuidance = description.Split('\n')
+            .Single(line => line.Contains("correlationLookupLimit", StringComparison.Ordinal));
+        lookupLimitGuidance.Should().Contain("authored elementName")
+            .And.Contain("renderer-provided root x:Name")
+            .And.Contain("32").And.Contain("64").And.Contain("lookup-budget");
     }
 
     [Fact]

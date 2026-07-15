@@ -125,19 +125,24 @@ public sealed class ComposerBlueprintBatchPatchTests
         using var services = new ServiceCollection()
             .AddSingleton<SessionManager>(_ => throw new InvalidOperationException("Schema test does not invoke tools."))
             .BuildServiceProvider();
-        var schema = McpServerTool.Create(
+        var tool = McpServerTool.Create(
             method,
             target: null,
-            new McpServerToolCreateOptions { Services = services }).ProtocolTool.InputSchema;
+            new McpServerToolCreateOptions { Services = services }).ProtocolTool;
+        McpToolInputSchemaNormalizer.Apply(tool);
+        var schema = tool.InputSchema;
 
         var operations = schema.GetProperty("properties").GetProperty("operations");
         operations.GetProperty("minItems").GetInt32().Should().Be(1);
         operations.GetProperty("maxItems").GetInt32().Should().Be(16);
         var item = operations.GetProperty("items");
+        item.GetProperty("type").GetRawText().Should().NotContain("null");
         item.GetProperty("properties").EnumerateObject().Select(property => property.Name)
             .Should().Contain(["jsonPath", "value", "remove"]);
         item.GetProperty("required").EnumerateArray().Select(value => value.GetString())
             .Should().Contain("jsonPath");
+        item.GetProperty("properties").GetProperty("jsonPath")
+            .GetProperty("type").GetRawText().Should().NotContain("null");
     }
 
     private static async Task<string> CreateDraftAsync(string json)

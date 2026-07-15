@@ -122,6 +122,16 @@ public static partial class UiComposerMcpTools
                 "$.operations");
         }
 
+        if (operations is not null && Array.FindIndex(operations, operation => operation is null) is var nullIndex and >= 0)
+        {
+            return BlueprintDraftError(
+                new BlueprintDraftIssue(
+                    "BlueprintDraftOperationRequired",
+                    "Each atomic operation must be a JSON object.",
+                    "Replace the null item with an object containing jsonPath and either value or remove=true."),
+                $"$.operations[{nullIndex}]");
+        }
+
         var result = patchJson is not null
             ? BlueprintInputResolver.Store.ApplyMergePatch(draftRef, patchJson)
             : operations is not null

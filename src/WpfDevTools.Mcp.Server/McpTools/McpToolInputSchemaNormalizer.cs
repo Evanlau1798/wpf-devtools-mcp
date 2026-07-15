@@ -23,6 +23,18 @@ internal static class McpToolInputSchemaNormalizer
         }
 
         var changed = false;
+        if (string.Equals(tool.Name, "patch_ui_blueprint_draft", StringComparison.Ordinal)
+            && properties["operations"] is JsonObject operations
+            && operations["items"] is JsonObject operation)
+        {
+            changed |= RemoveNullType(operation);
+            if (operation["properties"] is JsonObject operationProperties
+                && operationProperties["jsonPath"] is JsonObject jsonPath)
+            {
+                changed |= RemoveNullType(jsonPath);
+            }
+        }
+
         foreach (var property in properties)
         {
             if (property.Value is not JsonObject parameter
@@ -56,4 +68,18 @@ internal static class McpToolInputSchemaNormalizer
               && types.Any(item => item is JsonValue candidate
                   && candidate.TryGetValue<string>(out var type)
                   && string.Equals(type, expectedType, StringComparison.Ordinal));
+
+    private static bool RemoveNullType(JsonObject schema)
+    {
+        if (schema["type"] is not JsonArray types)
+        {
+            return false;
+        }
+
+        var nullType = types.FirstOrDefault(item =>
+            item is JsonValue value
+            && value.TryGetValue<string>(out var type)
+            && string.Equals(type, "null", StringComparison.Ordinal));
+        return nullType is not null && types.Remove(nullType);
+    }
 }

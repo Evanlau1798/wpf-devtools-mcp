@@ -122,6 +122,29 @@ public sealed class McpComposerDraftMutationE2eTests
             .Should().Equal("$.left", "$.right");
     }
 
+    [Fact]
+    public async Task PatchDraft_ShouldRejectNullAtomicOperationWithIndexedStructuredError()
+    {
+        using var client = new McpStdioClient();
+        await client.StartAsync(FindServerExecutable());
+        var created = await client.CallToolAsync(
+            "create_ui_blueprint_draft",
+            new { blueprintJson = """{"name":"old"}""" });
+        var draftRef = created.GetProperty("draftRef").GetString()!;
+
+        var envelope = await client.CallToolEnvelopeAsync(
+            "patch_ui_blueprint_draft",
+            new { draftRef, operations = new object?[] { null } });
+
+        var result = envelope.GetProperty("result");
+        result.GetProperty("isError").GetBoolean().Should().BeTrue(envelope.GetRawText());
+        var structured = result.GetProperty("structuredContent");
+        structured.GetProperty("success").GetBoolean().Should().BeFalse(envelope.GetRawText());
+        var error = structured.GetProperty("errors")[0];
+        error.GetProperty("code").GetString().Should().Be("BlueprintDraftOperationRequired");
+        error.GetProperty("jsonPath").GetString().Should().Be("$.operations[0]");
+    }
+
     private static string FindServerExecutable()
         => IntegrationExecutableLocator.FindExecutable(
                AppContext.BaseDirectory,

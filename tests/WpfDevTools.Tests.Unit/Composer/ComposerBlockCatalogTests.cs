@@ -62,6 +62,56 @@ public sealed class ComposerBlockCatalogTests
     }
 
     [Fact]
+    public async Task GetUiBlockCatalogTool_ShouldExposeCompactProjection()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var full = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["core"],
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+            var compact = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["core"],
+                compact: true,
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+
+            var fullPayload = full.StructuredContent!.Value;
+            var compactPayload = compact.StructuredContent!.Value;
+            compactPayload.GetProperty("compact").GetBoolean().Should().BeTrue();
+            compactPayload.GetProperty("itemCount").GetInt32().Should()
+                .Be(fullPayload.GetProperty("itemCount").GetInt32());
+            compactPayload.GetRawText().Length.Should().BeLessThan(fullPayload.GetRawText().Length / 2);
+
+            var stack = compactPayload.GetProperty("items").EnumerateArray()
+                .Single(item => item.GetProperty("kind").GetString() == "core.stack");
+            stack.GetProperty("propertyNames").EnumerateArray().Select(value => value.GetString())
+                .Should().Contain("spacing");
+            stack.GetProperty("propertyWarnings").GetProperty("spacing").GetString().Should()
+                .Contain("final app");
+            var children = stack.GetProperty("slots").GetProperty("children");
+            children.GetProperty("allowedKinds").EnumerateArray().Select(value => value.GetString())
+                .Should().Contain("*");
+            children.GetProperty("minItems").GetInt32().Should().Be(0);
+            children.TryGetProperty("maxItems", out _).Should().BeFalse();
+            stack.GetProperty("compositionSkeleton").GetProperty("kind").GetString().Should().Be("core.stack");
+            stack.TryGetProperty("description", out _).Should().BeFalse();
+            stack.TryGetProperty("properties", out _).Should().BeFalse();
+            stack.TryGetProperty("sourceHintSummary", out _).Should().BeFalse();
+
+            var text = compactPayload.GetProperty("items").EnumerateArray()
+                .Single(item => item.GetProperty("kind").GetString() == "core.text");
+            text.GetProperty("authoringRoles").EnumerateArray().Select(value => value.GetString())
+                .Should().Contain("text-run");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void BlockCatalog_ShouldFilterByPackCategoryKindPrefixComposableAndDetail()
     {
         var catalog = CreateCatalog();

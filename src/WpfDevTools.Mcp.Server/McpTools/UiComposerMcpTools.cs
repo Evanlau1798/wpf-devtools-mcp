@@ -45,6 +45,7 @@ public static partial class UiComposerMcpTools
         [Description("When true, returns only blocks with an available renderer template.")] bool composableOnly = false,
         [Description("Optional exact block kind for single-block detail, such as sample.button.")] string? kind = null,
         [Description("When true, includes recipe catalog entries from the same pack scope in the response.")] bool includeRecipes = false,
+        [Description("When true, returns a brief discovery projection with property names, warnings, slot bounds, skeletons, and authoring roles. Query an exact kind with compact=false for full property contracts.")] bool compact = false,
         [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
         [Description(ToolDescriptionFragments.ComposerLocalAppDataRootParameter)] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
@@ -56,11 +57,12 @@ public static partial class UiComposerMcpTools
             ("composableOnly", composableOnly),
             ("kind", kind),
             ("includeRecipes", includeRecipes),
+            ("compact", compact),
             ("projectRoot", projectRoot),
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(GetCatalog(packIds, category, kindPrefix, composableOnly, kind, includeRecipes, projectRoot, localAppDataRoot)),
+            (_, _) => Task.FromResult<object>(GetCatalog(packIds, category, kindPrefix, composableOnly, kind, includeRecipes, compact, projectRoot, localAppDataRoot)),
             args,
             cancellationToken,
             timeoutSeconds: 10);
@@ -260,6 +262,7 @@ public static partial class UiComposerMcpTools
         bool composableOnly,
         string? kind,
         bool includeRecipes,
+        bool compact,
         string? projectRoot,
         string? localAppDataRoot)
     {
@@ -269,11 +272,15 @@ public static partial class UiComposerMcpTools
         var recipes = includeRecipes
             ? new RecipeCatalogService(registry).GetCatalog(new RecipeCatalogQuery(packIds)).Items
             : [];
+        object items = compact
+            ? result.Items.Select(ToCompactCatalogItem).ToArray()
+            : result.Items;
         return new
         {
             success = true,
+            compact,
             itemCount = result.Items.Count,
-            items = result.Items,
+            items,
             recipeCount = recipes.Count,
             recipes,
             authoringGuidance = new
@@ -292,6 +299,32 @@ public static partial class UiComposerMcpTools
             observability = ComposerObservability.ForCatalog(result.Diagnostics)
         };
     }
+
+    private static object ToCompactCatalogItem(BlockCatalogItem item)
+        => new
+        {
+            item.PackId,
+            item.PackVersion,
+            item.Kind,
+            item.DisplayName,
+            item.Category,
+            propertyNames = item.Properties.Keys.Order(StringComparer.Ordinal).ToArray(),
+            propertyWarnings = item.Properties
+                .Where(pair => !string.IsNullOrWhiteSpace(pair.Value.PreviewWarning))
+                .ToDictionary(pair => pair.Key, pair => pair.Value.PreviewWarning, StringComparer.Ordinal),
+            slots = item.Slots.ToDictionary(
+                pair => pair.Key,
+                pair => new
+                {
+                    pair.Value.AllowedKinds,
+                    pair.Value.MinItems,
+                    pair.Value.MaxItems
+                },
+                StringComparer.Ordinal),
+            item.RendererAvailable,
+            item.CompositionSkeleton,
+            item.AuthoringRoles
+        };
 
     private static object ExpandRecipe(
         string recipeId,

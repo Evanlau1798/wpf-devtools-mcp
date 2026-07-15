@@ -75,8 +75,11 @@ Request options:
 - `composableOnly`: true 時只回傳具備 renderer template 的 blocks。
 - `kind`: optional exact pack-qualified block kind，用於 single-block detail。
 - `includeRecipes`: true 時同時回傳可供 `expand_ui_recipe` 使用的 recipe catalog entries。
+- `compact`: true 時回傳精簡 discovery projection，保留 identity、category、property names 與 preview warnings、slot bounds、renderer availability、`compositionSkeleton` 及 pack-defined `authoringRoles`。省略 `maxItems` 仍表示不設上限。
 
 Catalog entries 只包含 source hint paths，不會把第三方 source code 複製進 tool output。
+
+Broad discovery 請使用 `compact=true`；選定 block 後，在設定不熟悉的 properties 前，以 exact `kind` 及 `compact=false` 查詢完整契約。Full mode 仍為預設，並保留 descriptions、完整 property contracts、slots 與 source hints。
 
 若 pack-owned property vocabulary 很大，broad discovery 只會回傳前 12 個 `allowedValues`，並附上 `allowedValueCount` 與 `allowedValuesTruncated=true`。設定該 property 前，請以它的 exact `kind` 再呼叫一次 `get_ui_block_catalog`；focused detail 會回傳完整 vocabulary。Validation 仍會執行完整精確比對，並只回傳 bounded、相關性高的 repair values。
 

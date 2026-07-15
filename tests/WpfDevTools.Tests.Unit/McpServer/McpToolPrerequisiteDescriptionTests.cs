@@ -159,6 +159,8 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("pack-defined");
         description.Should().Contain("compositionSkeleton");
         description.Should().Contain("pack-neutral");
+        description.Should().Contain("compact=true");
+        description.Should().Contain("exact kind");
     }
 
     [Fact]

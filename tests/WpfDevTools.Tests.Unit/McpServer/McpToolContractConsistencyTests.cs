@@ -267,6 +267,9 @@ public class McpToolContractConsistencyTests
         AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "screenshotMaxWidth", typeof(int?), 1024);
         AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "screenshotMaxHeight", typeof(int?), 1024);
         AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "correlationLookupLimit", typeof(int), 32);
+        var lookupLimit = GetParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "correlationLookupLimit");
+        lookupLimit.GetCustomAttribute<DescriptionAttribute>()!.Description.Should()
+            .Contain("non-generated correlation names (authored elementName values and renderer-provided root x:Name values)");
     }
 
     [Fact]

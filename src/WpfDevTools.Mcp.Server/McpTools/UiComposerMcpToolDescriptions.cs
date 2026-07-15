@@ -282,7 +282,7 @@ internal static class UiComposerMcpToolDescriptions
         - restoreEnabled defaults to true for compile smoke; set false to verify restore-disabled diagnostics.
         - startHost defaults to false for fast compile smoke; set true for preview host load smoke.
         - includeRuntimeDiagnostics defaults to false; set true with startHost=true after enabling the sensitive-reads policy gate.
-        - correlationLookupLimit defaults to 32 and is bounded to 64. Raise it only for lookup-budget entries; other unresolved reasons need repair, not more lookups.
+        - correlationLookupLimit bounds exact queries for non-generated correlation names (authored elementName values and renderer-provided root x:Name values), defaults to 32, and is bounded to 64. Raise it only for lookup-budget entries; other unresolved reasons need repair, not more lookups.
         - Screenshot diagnostics require startHost plus sensitive-read and screenshot gates.
         - Use screenshotOutputMode="file" for pixel evidence. Preview pixels do not approve final styling.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.

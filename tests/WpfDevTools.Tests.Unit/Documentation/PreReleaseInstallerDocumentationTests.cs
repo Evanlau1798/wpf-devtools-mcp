@@ -150,6 +150,7 @@ public sealed class PreReleaseInstallerDocumentationTests
 
     [Theory]
     [InlineData("README.md")]
+    [InlineData("AGENT_INSTALL.md")]
     [InlineData("docfx/quickstart/index.md")]
     [InlineData("docfx/zh-tw/quickstart/index.md")]
     public void PublicQuickstartDocs_ShouldShowConcretePinnedPrereleaseExampleWithoutE2eResidue(

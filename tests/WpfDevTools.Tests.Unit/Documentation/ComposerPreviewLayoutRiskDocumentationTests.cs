@@ -31,7 +31,12 @@ public sealed class ComposerPreviewLayoutRiskDocumentationTests
             "uninspectedCorrelations",
             "warningsTruncated",
             "ambiguous",
-            "searchComplete=false");
+            "searchComplete=false",
+            "ambiguous-authored-name",
+            "lookup-budget",
+            "runtime-match-ambiguous",
+            "runtime-not-found",
+            "search-incomplete");
     }
 
     [Theory]

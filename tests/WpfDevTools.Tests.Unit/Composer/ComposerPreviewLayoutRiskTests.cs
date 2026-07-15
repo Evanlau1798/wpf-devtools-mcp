@@ -150,12 +150,12 @@ public sealed class ComposerPreviewLayoutRiskTests
     {
         var correlations = Enumerable.Range(1, 33)
             .Select(index => new RenderElementCorrelation(
-                $"Target{index}",
+                $"Target{index:00}",
                 $"$.layout.slots.children[{index - 1}]",
                 "nebula.item"))
             .ToArray();
         var resolved = Enumerable.Range(1, 32)
-            .Select(index => new { elementId = $"Element_{index}", elementName = $"Target{index}" })
+            .Select(index => new { elementId = $"Element_{index}", elementName = $"Target{index:00}" })
             .ToArray();
         var resolvedIds = resolved.Select(item => item.elementId).ToArray();
         var clipping = Diagnostic("get_clipping_info", new
@@ -184,7 +184,8 @@ public sealed class ComposerPreviewLayoutRiskTests
         {
             JsonPath = "$.layout.slots.children[32]",
             BlockKind = "nebula.item",
-            ElementName = "Target33"
+            ElementName = "Target33",
+            Reason = "lookup-budget"
         });
     }
 
@@ -229,6 +230,16 @@ public sealed class ComposerPreviewLayoutRiskTests
         summary.Warnings.Should().BeEmpty();
         summary.InspectionTruncated.Should().BeTrue();
         summary.UnresolvedCorrelations.Select(item => item.ElementName).Should().Equal("TargetA", "TargetB");
+        summary.UnresolvedCorrelations.Should().ContainEquivalentOf(new
+        {
+            ElementName = "TargetA",
+            Reason = "runtime-match-ambiguous"
+        });
+        summary.UnresolvedCorrelations.Should().ContainEquivalentOf(new
+        {
+            ElementName = "TargetB",
+            Reason = "runtime-not-found"
+        });
     }
 
     [Fact]
@@ -265,6 +276,8 @@ public sealed class ComposerPreviewLayoutRiskTests
         summary.UnresolvedCorrelations.Select(item => item.JsonPath).Should().Equal(
             "$.layout.slots.children[0]",
             "$.layout.slots.children[1]");
+        summary.UnresolvedCorrelations.Should().AllSatisfy(item =>
+            item.Should().BeEquivalentTo(new { Reason = "ambiguous-authored-name" }));
     }
 
     [Fact]
@@ -294,11 +307,21 @@ public sealed class ComposerPreviewLayoutRiskTests
 
         var summary = PreviewLayoutRiskAnalyzer.Analyze(
             diagnostics,
-            [new RenderElementCorrelation("TargetA", "$.layout", "nebula.item")]);
+            [
+                new RenderElementCorrelation("TargetA", "$.layout", "nebula.item"),
+                new RenderElementCorrelation("TargetB", "$.layout.slots.secondary", "nebula.item")
+            ]);
 
         summary.ResolvedTargetCount.Should().Be(1);
         summary.InspectedTargetCount.Should().Be(1);
         summary.InspectionTruncated.Should().BeTrue();
+        summary.UnresolvedCorrelations.Should().ContainSingle().Which.Should().BeEquivalentTo(new
+        {
+            JsonPath = "$.layout.slots.secondary",
+            BlockKind = "nebula.item",
+            ElementName = "TargetB",
+            Reason = "search-incomplete"
+        });
     }
 
     [Fact]

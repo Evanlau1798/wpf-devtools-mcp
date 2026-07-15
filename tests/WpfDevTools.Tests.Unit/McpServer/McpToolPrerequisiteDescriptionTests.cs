@@ -140,6 +140,11 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("elementCorrelations");
         description.Should().Contain("transient x:Name");
         description.Should().Contain("never written into the blueprint");
+        description.Should().Contain("ambiguous-authored-name");
+        description.Should().Contain("lookup-budget");
+        description.Should().Contain("runtime-match-ambiguous");
+        description.Should().Contain("runtime-not-found");
+        description.Should().Contain("search-incomplete");
     }
 
     [Fact]

@@ -28,7 +28,18 @@ internal static class PreviewLayoutRiskAnalyzer
             .Distinct(StringComparer.Ordinal)
             .Skip(UiBlueprintPreviewDiagnosticsBridge.ExistingNameLookupLimit)
             .Any();
-        var resolvedTargets = ReadResolvedTargets(diagnostics, correlatedElementNames)
+        var lookupPlan = UiBlueprintPreviewDiagnosticsBridge.BuildCorrelationLookupPlan(correlations);
+        var searchedElementNames = correlatedElementNames
+            .Where(name => lookupPlan.Any(lookup => MatchesLookup(name, lookup)))
+            .ToHashSet(StringComparer.Ordinal);
+        var runtimeMatches = ReadRuntimeMatches(diagnostics, correlatedElementNames).ToArray();
+        var runtimeMatchCounts = runtimeMatches
+            .GroupBy(item => item.ElementName, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+        var resolvedTargets = runtimeMatches
+            .GroupBy(item => item.ElementName, StringComparer.Ordinal)
+            .Where(group => group.Count() == 1)
+            .Select(group => group.Single())
             .Where(item => !ambiguousCorrelationNames.Contains(item.ElementName))
             .ToArray();
         var resolvedElementIds = resolvedTargets
@@ -42,12 +53,19 @@ internal static class PreviewLayoutRiskAnalyzer
                            || !resolvedCorrelationNames.Contains(item.ElementName))
             .DistinctBy(item => (item.JsonPath, item.BlockKind, item.ElementName))
             .ToArray();
+        var hasIncompleteSearch = HasIncompleteSearch(diagnostics);
         var reportedUnresolvedCorrelations = unresolvedCorrelations
             .Take(MaxCoverageDetails)
             .Select(item => new PreviewUnresolvedCorrelation(
                 item.JsonPath,
                 item.BlockKind,
-                item.ElementName))
+                item.ElementName,
+                GetUnresolvedReason(
+                    item.ElementName,
+                    ambiguousCorrelationNames,
+                    searchedElementNames,
+                    runtimeMatchCounts,
+                    hasIncompleteSearch)))
             .ToArray();
         var inspectedElementIds = ReadInspectedElementIds(diagnostics);
         var inspectedTargetCount = inspectedElementIds
@@ -99,7 +117,7 @@ internal static class PreviewLayoutRiskAnalyzer
             ResolvedTargetCount = resolvedElementIds.Count,
             InspectedTargetCount = inspectedTargetCount,
             InspectionTruncated = exactNameLookupTruncated
-                                  || HasIncompleteSearch(diagnostics)
+                                  || hasIncompleteSearch
                                   || unresolvedCorrelations.Length > 0
                                   || inspectedTargetCount < resolvedElementIds.Count,
             UnresolvedCorrelationCount = unresolvedCorrelations.Length,
@@ -113,7 +131,7 @@ internal static class PreviewLayoutRiskAnalyzer
         };
     }
 
-    private static IEnumerable<(string ElementId, string ElementName)> ReadResolvedTargets(
+    private static IEnumerable<(string ElementId, string ElementName)> ReadRuntimeMatches(
         IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics,
         IReadOnlySet<string> correlatedElementNames)
         => diagnostics
@@ -125,10 +143,37 @@ internal static class PreviewLayoutRiskAnalyzer
             .Select(result => (
                 ElementId: result.GetProperty("elementId").GetString()!,
                 ElementName: result.GetProperty("elementName").GetString()!))
-            .Distinct()
-            .GroupBy(item => item.ElementName, StringComparer.Ordinal)
-            .Where(group => group.Count() == 1)
-            .Select(group => group.Single());
+            .Distinct();
+
+    private static bool MatchesLookup(string elementName, PreviewCorrelationLookup lookup)
+        => string.Equals(lookup.MatchMode, "exact", StringComparison.Ordinal)
+            ? string.Equals(elementName, lookup.Query, StringComparison.Ordinal)
+            : elementName.Contains(lookup.Query, StringComparison.Ordinal);
+
+    private static string GetUnresolvedReason(
+        string elementName,
+        IReadOnlySet<string> ambiguousCorrelationNames,
+        IReadOnlySet<string> searchedElementNames,
+        IReadOnlyDictionary<string, int> runtimeMatchCounts,
+        bool hasIncompleteSearch)
+    {
+        if (ambiguousCorrelationNames.Contains(elementName))
+        {
+            return "ambiguous-authored-name";
+        }
+
+        if (!searchedElementNames.Contains(elementName))
+        {
+            return "lookup-budget";
+        }
+
+        if (runtimeMatchCounts.TryGetValue(elementName, out var matchCount) && matchCount > 1)
+        {
+            return "runtime-match-ambiguous";
+        }
+
+        return hasIncompleteSearch ? "search-incomplete" : "runtime-not-found";
+    }
 
     private static bool HasIncompleteSearch(IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics)
         => diagnostics.Any(diagnostic =>

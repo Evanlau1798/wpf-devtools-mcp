@@ -170,7 +170,8 @@ internal sealed record PreviewLayoutRiskSummary(
 internal sealed record PreviewUnresolvedCorrelation(
     string JsonPath,
     string BlockKind,
-    string ElementName);
+    string ElementName,
+    string Reason);
 
 internal sealed record PreviewUninspectedCorrelation(
     string JsonPath,

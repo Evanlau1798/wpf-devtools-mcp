@@ -266,7 +266,7 @@ internal static class UiComposerMcpToolDescriptions
         - visualComparisonChecklist lists final checks for window chrome, icons, control templates, layout and spacing.
         - propertyWarnings contains pack-defined guidance only for explicitly supplied properties, with the exact blueprint JSON path, block kind, property name, and message.
         - elementCorrelations maps each renderer root's transient x:Name to its blueprint jsonPath and blockKind. These names are never written into the blueprint or emitted by render/apply.
-        - layoutRiskSummary maps clipping to exact jsonPath/blockKind; recheck the final app.
+        - layoutRiskSummary maps clipping to exact jsonPath/blockKind; unresolved reason is ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-found, or search-incomplete. Recheck the final app.
         - restoreEnabled=false builds --no-restore and returns missing-assets diagnostics.
         - startHost=true starts the host after build, waits for its load sentinel, then terminates its process tree.
         - includeRuntimeDiagnostics=true with startHost=true reuses connect(), semantic summary, bounded correlation lookup, batched clipping, and layout diagnostics.

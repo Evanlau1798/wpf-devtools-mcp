@@ -197,19 +197,19 @@ internal static partial class McpToolOutputSchemas
         });
 
     private static object NextStep()
-        => ObjectSchema("Recommended follow-up action.", new()
+        => ObjectSchema("Recommended action.", new()
         {
-            ["tool"] = String("Recommended MCP tool name."),
-            ["params"] = MapOf("Suggested tool arguments.", JsonValue()),
-            ["reason"] = String("Why this action is useful."),
-            ["kind"] = Integer("Numeric ToolNextStepKind value."),
-            ["priority"] = Integer("Ordering hint; lower values sort earlier."),
-            ["preconditions"] = ArrayOfString("Conditions to satisfy before using this step."),
-            ["expectedOutcome"] = String("Expected result of the follow-up action."),
-            ["workflowId"] = String("Workflow identifier when this step belongs to a guided loop."),
-            ["prefetchTools"] = ArrayOfString("Useful tools to prefetch before this step."),
-            ["whyNow"] = String("Why this step is relevant now."),
-            ["confidence"] = String("Confidence hint for the recommendation.")
+            ["tool"] = String("MCP tool."),
+            ["params"] = MapOf("Tool arguments.", JsonValue()),
+            ["reason"] = String("Why it helps."),
+            ["kind"] = Integer("ToolNextStepKind number."),
+            ["priority"] = Integer("Sort order; lower first."),
+            ["preconditions"] = ArrayOfString("Preconditions for this step."),
+            ["expectedOutcome"] = String("Expected result."),
+            ["workflowId"] = String("Guided-workflow identifier."),
+            ["prefetchTools"] = ArrayOfString("Tools to prefetch."),
+            ["whyNow"] = String("Why this step applies."),
+            ["confidence"] = String("Recommendation confidence.")
         });
 
     private static object ContextRef()
@@ -462,8 +462,8 @@ internal static partial class McpToolOutputSchemas
         return new
         {
             oneOf = scalarSchemas.Concat([
-                ObjectSchema("Arbitrary JSON object.", [], additionalProperties: JsonValue(depth - 1)),
-                ArrayOf("Arbitrary JSON array.", JsonValue(depth - 1))
+                ObjectSchema("JSON object.", [], additionalProperties: JsonValue(depth - 1)),
+                ArrayOf("JSON array.", JsonValue(depth - 1))
             ]).ToArray()
         };
     }

@@ -1,9 +1,12 @@
 using System.ComponentModel;
 using System.Reflection;
+using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpPrompts;
+using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
 
@@ -11,6 +14,7 @@ public sealed class McpProgressiveDiscoveryBudgetTests
 {
     private const int ServerInstructionBudgetChars = 26_000;
     private const int ToolDescriptionBudgetChars = 105_000;
+    private const int OutputSchemaDescriptionBudgetChars = 390_000;
     private static readonly Assembly McpServerAssembly = typeof(ServerInstructions).Assembly;
 
     [Fact]
@@ -24,6 +28,27 @@ public sealed class McpProgressiveDiscoveryBudgetTests
         descriptions.Sum(description => description.Length).Should().BeLessThanOrEqualTo(
             ToolDescriptionBudgetChars,
             "tool descriptions should be selection-oriented and defer long workflows/examples to resources");
+    }
+
+    [Fact]
+    public void OutputSchemaDescriptions_ShouldStayWithinProgressiveDiscoveryBudget()
+    {
+        using var services = new ServiceCollection()
+            .AddSingleton<SessionManager>(_ => throw new InvalidOperationException("Schema tests do not invoke tools."))
+            .BuildServiceProvider();
+        var descriptionCharacters = GetToolMethods().Sum(method =>
+        {
+            var tool = McpServerTool.Create(
+                method,
+                target: null,
+                new McpServerToolCreateOptions { Services = services });
+            McpToolOutputSchemas.Apply(tool.ProtocolTool);
+            return CountDescriptionCharacters(tool.ProtocolTool.OutputSchema!.Value);
+        });
+
+        descriptionCharacters.Should().BeLessThanOrEqualTo(
+            OutputSchemaDescriptionBudgetChars,
+            "shared output-schema prose should stay compact while fields and structure remain authoritative");
     }
 
     [Fact]
@@ -102,6 +127,24 @@ public sealed class McpProgressiveDiscoveryBudgetTests
                 }
             }
         }
+    }
+
+    private static int CountDescriptionCharacters(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            return element.EnumerateArray().Sum(CountDescriptionCharacters);
+        }
+
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return 0;
+        }
+
+        return element.EnumerateObject().Sum(property =>
+            property.NameEquals("description") && property.Value.ValueKind == JsonValueKind.String
+                ? property.Value.GetString()!.Length
+                : CountDescriptionCharacters(property.Value));
     }
 
     private static (MethodInfo Method, McpServerResourceAttribute Attribute) GetResourceByUri(string uriTemplate)

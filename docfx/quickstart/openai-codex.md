@@ -42,7 +42,7 @@ Keep the first Codex session narrow, then enable only the gate needed for the ne
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` for `element_screenshot`.
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` for `get_viewmodel`, command metadata, and ViewModel scopes in snapshots or `batch_mutate`.
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` for `capture_state_snapshot`, `batch_mutate`, interactions, event drain, and restore workflows.
-- `WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true` plus an exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match for confirmed `apply_ui_blueprint` and `apply_ui_project_integration` writes. Review the [UI Composer apply and project-integration workflow](../reference/tools/ui-composer.md) before enabling them.
+- For confirmed `apply_ui_blueprint` and `apply_ui_project_integration` writes, set `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`, `WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`, and an exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match before launching a fresh MCP server process. Review the [UI Composer apply and project-integration workflow](../reference/tools/ui-composer.md) first.
 
 Before a mutation or ordered `batch_mutate`, take `capture_state_snapshot`, inspect `get_state_diff`, and restore when the workflow needs rollback.
 

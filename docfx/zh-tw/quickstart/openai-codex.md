@@ -42,7 +42,7 @@ Use the WPF DevTools MCP server. Connect to the allowlisted WPF target and retur
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` 用於 `element_screenshot`。
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` 用於 `get_viewmodel`、command metadata，以及 snapshot 或 `batch_mutate` 內的 ViewModel scopes。
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` 用於 `capture_state_snapshot`、`batch_mutate`、interaction、event drain 與 restore workflows。
-- `WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true` 搭配 exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match，用於已確認的 `apply_ui_blueprint` 與 `apply_ui_project_integration` writes。啟用前先閱讀 [UI Composer apply 與 project-integration workflow](../reference/tools/ui-composer.md)。
+- 對已確認的 `apply_ui_blueprint` 與 `apply_ui_project_integration` writes，請先設定 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true` 與 exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match，再啟動 fresh MCP server process。請先閱讀 [UI Composer apply 與 project-integration workflow](../reference/tools/ui-composer.md)。
 
 在 mutation 或有順序的 `batch_mutate` 前，先呼叫 `capture_state_snapshot`，再檢查 `get_state_diff`，並在 workflow 需要 rollback 時 restore。
 

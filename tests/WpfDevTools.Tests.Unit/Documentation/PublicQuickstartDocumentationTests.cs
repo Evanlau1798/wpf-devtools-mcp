@@ -233,13 +233,19 @@ public sealed class PublicQuickstartDocumentationTests
     public void CodexQuickstart_ShouldLinkComposerProjectWriteWorkflowAndGates(string file)
     {
         var content = File.ReadAllText(GetRepoFilePath(file));
+        var composerApplyIndex = content.IndexOf("apply_ui_blueprint", StringComparison.Ordinal);
+        composerApplyIndex.Should().BeGreaterThan(0);
+        var composerGateContext = content[
+            Math.Max(0, composerApplyIndex - 300)..Math.Min(content.Length, composerApplyIndex + 500)];
 
-        content.Should().ContainAll(
+        composerGateContext.Should().ContainAll(
+            "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true",
             "WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true",
             "WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS",
             "apply_ui_blueprint",
             "apply_ui_project_integration",
-            "../reference/tools/ui-composer.md");
+            "../reference/tools/ui-composer.md",
+            "fresh MCP server process");
     }
 
     [Fact]

@@ -198,31 +198,30 @@ function Get-TuiHelperReleaseAssetRecordsFromGitHub {
     }
 
     $records = @()
-    $release = Get-GitHubReleaseApiResponse -ResolvedVersion $ResolvedVersion
-    if ($null -ne $release -and $null -ne $release.assets) {
-        $manifestAsset = @($release.assets) | Where-Object { $_.name -eq 'release-assets.json' } | Select-Object -First 1
-        if ($null -ne $manifestAsset) {
-            try {
-                $manifest = Invoke-RestMethod -Uri ([string]$manifestAsset.browser_download_url) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
-                $records = @(Get-TuiHelperReleaseAssetRecordsFromManifestObject -ManifestObject $manifest)
-            }
-            catch {
-            }
+    $releasePath = if ($ResolvedVersion -eq 'latest') { 'latest/download' } else {
+        $tag = if ($ResolvedVersion.StartsWith('v')) { $ResolvedVersion } else { "v$ResolvedVersion" }
+        "download/$tag"
+    }
+    $releaseBaseUri = "https://github.com/Evanlau1798/wpf-devtools-mcp/releases/$releasePath"
+    try {
+        $manifest = Invoke-RestMethod -Uri "$releaseBaseUri/release-assets.json" -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
+        $records = @(Get-TuiHelperReleaseAssetRecordsFromManifestObject -ManifestObject $manifest)
+    }
+    catch {
+    }
+    if ($records.Count -eq 0) {
+        try {
+            $checksumResponse = Invoke-InstallerWebRequest -Uri "$releaseBaseUri/SHA256SUMS.txt" -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
+            $records = @(Get-TuiHelperReleaseAssetRecordsFromChecksumContent -Content ([string]$checksumResponse.Content))
         }
-
-        if ($records.Count -eq 0) {
-            $checksumAsset = @($release.assets) | Where-Object { $_.name -eq 'SHA256SUMS.txt' } | Select-Object -First 1
-            if ($null -ne $checksumAsset) {
-                try {
-                    $checksumResponse = Invoke-InstallerWebRequest -Uri ([string]$checksumAsset.browser_download_url) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15
-                    $records = @(Get-TuiHelperReleaseAssetRecordsFromChecksumContent -Content ([string]$checksumResponse.Content))
-                }
-                catch {
-                }
-            }
+        catch {
         }
     }
-
+    if ($records.Count -eq 0) {
+        $release = Get-GitHubReleaseApiResponse -ResolvedVersion $ResolvedVersion
+        $manifestAsset = @($release.assets) | Where-Object { $_.name -eq 'release-assets.json' } | Select-Object -First 1
+        if ($null -ne $manifestAsset) { try { $manifest = Invoke-RestMethod -Uri ([string]$manifestAsset.browser_download_url) -Headers @{ 'User-Agent' = 'wpf-devtools-online-installer' } -TimeoutSec 15; $records = @(Get-TuiHelperReleaseAssetRecordsFromManifestObject -ManifestObject $manifest) } catch {} }
+    }
     $script:GitHubReleaseChecksumRecordCache[$cacheKey] = @($records)
     return @($records)
 }

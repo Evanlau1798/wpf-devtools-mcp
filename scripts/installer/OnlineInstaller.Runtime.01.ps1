@@ -363,7 +363,7 @@ $script:InstallerHelperSourcePaths = @(
 $script:InstallerHelperRepositoryRelativePath = 'scripts/installer'
 $script:InstallerReleaseAssetModuleLeafName = 'online-installer.release-assets.ps1'
 $script:InstallerReleaseAssetModuleRepositoryRelativePath = 'scripts/installer/online-installer.release-assets.ps1'
-$script:InstallerReleaseAssetModuleSha256 = '5e71a68fae23d7cc90bab58eb5487ea9841b24dd3096758ec7740e11bb20bd61'
+$script:InstallerReleaseAssetModuleSha256 = 'b74b90483fbcf2e0eb2ec755c8d0583d1497bd80b1a04bf6e658a3d82fd3ec17'
 # Shared installer modules own Resolve-InstallerStatePath, Save-InstallerState,
 # installer-state.json handling, Get-AvailableInstallerUpdates, and the rest of
 # the persistent state/update flow.

@@ -31,6 +31,41 @@ public sealed class ReleaseAssetMetadataParserTests
         RunParserScript(script);
     }
 
+    [Theory]
+    [InlineData("scripts/installer/Installer.Release.ps1", "Get-ReleaseAssetRecordsFromGitHub")]
+    [InlineData("scripts/installer/online-installer.release-assets.ps1", "Get-TuiHelperReleaseAssetRecordsFromGitHub")]
+    public void GitHubChecksumLookup_ShouldReadPredictableReleaseAssetBeforeRestApi(
+        string modulePath,
+        string recordsFunction)
+    {
+        const string version = "1.0.0-beta.75";
+        var manifestUri =
+            $"https://github.com/Evanlau1798/wpf-devtools-mcp/releases/download/v{version}/release-assets.json";
+        var script = $$"""
+            . {{Quote(ReleaseScriptTestHarness.GetRepoFilePath(modulePath))}}
+            $script:GitHubReleaseChecksumRecordCache = @{}
+            $script:apiCalls = 0
+            function Get-GitHubReleaseApiResponse {
+                $script:apiCalls++
+                throw 'API rate limit exceeded'
+            }
+            function Invoke-RestMethod {
+                param([string]$Uri, [hashtable]$Headers, [int]$TimeoutSec)
+                if ($Uri -ne '{{manifestUri}}') { throw "Unexpected URI: $Uri" }
+                return '{"assets":[{"name":"{{AssetName}}","sha256":"{{AssetSha}}"}]}'
+            }
+            function Invoke-InstallerWebRequest { throw 'Checksum fallback should not run' }
+
+            $records = @({{recordsFunction}} -ResolvedVersion '{{version}}')
+            if ($records.Count -ne 1) { throw "records: $($records.Count)" }
+            if ([string]$records[0].AssetName -ne '{{AssetName}}') { throw 'asset mismatch' }
+            if ([string]$records[0].Sha256 -ne '{{AssetSha}}') { throw 'sha mismatch' }
+            if ($script:apiCalls -ne 0) { throw "API calls: $script:apiCalls" }
+            """;
+
+        RunParserScript(script);
+    }
+
     private static string BuildParserAssertions(string manifestFunction, string checksumFunction)
         => $$"""
             $sha = '{{AssetSha}}'

@@ -96,6 +96,29 @@ public sealed class ComposerPreviewCorrelationTests
         result.Xaml.Should().NotContain("<ColumnDefinition Width=\"*\" MinWidth=\"0\" MaxWidth=\"1000000\" x:Name=");
     }
 
+    [Fact]
+    public void Renderer_ShouldPreserveAuthoredIdentityForProjectPackNonInspectableTarget()
+    {
+        var projectRoot = CreateNonInspectablePack();
+        try
+        {
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot)).Render(
+                new RenderBlueprintRequest(
+                    NonInspectableBlueprint(),
+                    IncludeTransientElementCorrelation: true));
+
+            result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+            result.ElementCorrelations.Should().BeEmpty();
+            result.Xaml.Should().Contain("x:Name=\"AuthoredDefinition\"")
+                .And.Contain("AutomationProperties.AutomationId=\"definition-target\"")
+                .And.NotContain("WpfDevToolsBp_");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
     private static PackRegistry CreateRegistry()
         => PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
 
@@ -126,6 +149,25 @@ public sealed class ComposerPreviewCorrelationTests
         return projectRoot;
     }
 
+    private static string CreateNonInspectablePack()
+    {
+        var projectRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-noninspectable-" + Guid.NewGuid().ToString("N"));
+        var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", "sample", "1.0.0");
+        Directory.CreateDirectory(Path.Combine(packRoot, "blocks"));
+        Directory.CreateDirectory(Path.Combine(packRoot, "renderers", "xaml"));
+        File.WriteAllText(Path.Combine(packRoot, "pack.json"),
+            """{"schemaVersion":"wpfdevtools.ui-pack.v1","id":"sample","kind":"layout-pack","displayName":"Sample","version":"1.0.0","blocks":["sample.definition"],"recipes":[]}""");
+        File.WriteAllText(Path.Combine(packRoot, "source.lock.json"),
+            """{"schemaVersion":"wpfdevtools.source-lock.v1","sources":[]}""");
+        File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"),
+            """{"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"sample","version":"1.0.0","scope":"project-local","path":".","enabled":true}""");
+        File.WriteAllText(Path.Combine(packRoot, "blocks", "definition.block.json"),
+            """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"sample.definition","displayName":"Definition","category":"layout-definition","properties":{},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/definition.xaml.sbn","runtimeInspectable":false},"sourceHints":[]}""");
+        File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "definition.xaml.sbn"),
+            "<RowDefinition {{identity.attributes}} />");
+        return projectRoot;
+    }
+
     private static string NamedBlueprint()
         => """
            {"schemaVersion":"wpfdevtools.ui-blueprint.v1","name":"Named","packs":[{"id":"named","version":"1.0.0","required":true,"role":"primary"}],"primaryPack":"named","layout":{"kind":"named.root","slots":{"content":[{"kind":"named.child"}]}}}
@@ -149,6 +191,11 @@ public sealed class ComposerPreviewCorrelationTests
                }
              }
            }
+           """;
+
+    private static string NonInspectableBlueprint()
+        => """
+           {"schemaVersion":"wpfdevtools.ui-blueprint.v1","name":"Definition","packs":[{"id":"sample","version":"1.0.0","required":true,"role":"primary"}],"primaryPack":"sample","layout":{"kind":"sample.definition","elementName":"AuthoredDefinition","automationId":"definition-target"}}
            """;
 
     private static string GridBlueprint()

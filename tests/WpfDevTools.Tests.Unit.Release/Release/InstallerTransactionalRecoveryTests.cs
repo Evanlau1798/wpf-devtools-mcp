@@ -7,7 +7,7 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class InstallerTransactionalRecoveryTests
 {
     [Fact]
-    public void InvokeInstallerFullUninstallCore_ShouldRestoreStateFileWhenPostSaveCleanupFails()
+    public void InvokeInstallerFullUninstallCore_ShouldKeepCommittedStateWhenRollbackDisposalFails()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -59,31 +59,39 @@ public sealed class InstallerTransactionalRecoveryTests
                 [
                     ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Uninstall.ps1").Replace("'", "''") + "'",
                     "$script:saveCompleted = $false",
-                    "$script:cleanupFailed = $false",
+                    "$script:disposalCount = 0",
                     "function Resolve-ClientStateKey { param([string]$ClientId, [string]$RegistrationMode) return $ClientId }",
                     "function Resolve-ClientBaseId { param([string]$ClientId) return $ClientId }",
+                    "function Assert-InstallerLocalPathTrusted { param([string]$Path) return $Path }",
+                    "function Get-TrustedRecordedRegistrationTarget { return '" + vscodeConfigPath.Replace("'", "''") + "' }",
                     "function Resolve-InstallerStatePath { return '" + statePath.Replace("'", "''") + "' }",
                     "function Get-DetectedInstallerRegistrations { param($State) return @([ordered]@{ ClientId='vscode'; RegistrationMode='json-file'; RegistrationTarget='" + vscodeConfigPath.Replace("'", "''") + "'; InstallRoot='" + installRoot.Replace("'", "''") + "'; Architecture='x64'; InstalledExecutable='" + installedExecutable.Replace("'", "''") + "'; InstallerOwned=$true }) }",
                     "function Get-DetectedInstallerInstallations { param($State) return @([ordered]@{ InstallRoot='" + installRoot.Replace("'", "''") + "'; Architecture='x64'; InstallBase='" + installBase.Replace("'", "''") + "'; InstalledExecutable='" + installedExecutable.Replace("'", "''") + "'; InstallerOwned=$true }) }",
                     "function Invoke-ClientUnregistration { param([string]$SelectedClient, $RegistrationRecord) $backupPath='" + Path.Combine(tempRoot, "vscode.mcp.json.rollback").Replace("'", "''") + "'; Copy-Item -LiteralPath '" + vscodeConfigPath.Replace("'", "''") + "' -Destination $backupPath -Force; '{}' | Set-Content -LiteralPath '" + vscodeConfigPath.Replace("'", "''") + "' -Encoding UTF8; return @([ordered]@{ client='vscode'; mode='json-file'; target='" + vscodeConfigPath.Replace("'", "''") + "'; backupPath=$backupPath; applied=$true }) }",
                     "function Invoke-UninstallVerification { param([string]$SelectedClient, $RegistrationRecord) return @{ Succeeded = $true; VerificationMessage = 'ok' } }",
                     "function Resolve-InstallBasePath { param([string]$ResolvedInstallRoot, [string]$ResolvedArchitecture) return '" + installBase.Replace("'", "''") + "' }",
+                    "function Move-InstallerPathWithRetry { param([string]$SourcePath, [string]$DestinationPath) Move-Item -LiteralPath $SourcePath -Destination $DestinationPath }",
                     "function Get-EmptyInstallerState { return [ordered]@{ lastInstallRoot=$null; architectures=[ordered]@{}; registrations=[ordered]@{} } }",
                     "function Save-InstallerState { param($State) $script:saveCompleted = $true; '{\"lastInstallRoot\":null,\"architectures\":{},\"registrations\":{}}' | Set-Content -LiteralPath '" + statePath.Replace("'", "''") + "' -Encoding UTF8; return '" + statePath.Replace("'", "''") + "' }",
-                    "function Remove-PathIfExists { param([string]$Path) if ([string]::IsNullOrWhiteSpace($Path)) { return }; if ($script:saveCompleted -and -not $script:cleanupFailed -and $Path -like '*.rollback-*') { $script:cleanupFailed = $true; throw 'simulated cleanup failure' }; if (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -Recurse -Force } }",
-                    "try { Invoke-InstallerFullUninstallCore -State ([ordered]@{ lastInstallRoot='" + installRoot.Replace("'", "''") + "'; architectures=[ordered]@{}; registrations=[ordered]@{} }) | Out-Null } catch { }",
-                    "[ordered]@{ State = [string](Get-Content -LiteralPath '" + statePath.Replace("'", "''") + "' -Raw); Config = [string](Get-Content -LiteralPath '" + vscodeConfigPath.Replace("'", "''") + "' -Raw); InstallExists = (Test-Path -LiteralPath '" + installBase.Replace("'", "''") + "'); ExecutableExists = (Test-Path -LiteralPath '" + installedExecutable.Replace("'", "''") + "') } | ConvertTo-Json -Compress"
+                    "function Remove-PathIfExists { param([string]$Path, [switch]$BestEffort) if ([string]::IsNullOrWhiteSpace($Path)) { return }; if ($script:saveCompleted -and $Path -like '*.rollback-*') { $script:disposalCount++; if ($script:disposalCount -eq 2) { if ($BestEffort) { return }; throw 'simulated rollback disposal failure' } }; if (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -Recurse -Force } }",
+                    "$succeeded = $false; $errorMessage=$null; try { Invoke-InstallerFullUninstallCore -State ([ordered]@{ lastInstallRoot='" + installRoot.Replace("'", "''") + "'; architectures=[ordered]@{}; registrations=[ordered]@{} }) | Out-Null; $succeeded = $true } catch { $errorMessage=$_.Exception.Message }",
+                    "$rollbackResidue = @(Get-ChildItem -LiteralPath '" + installRoot.Replace("'", "''") + "' -Filter 'x64.rollback-*' -Force -ErrorAction SilentlyContinue).Count -eq 1",
+                    "[ordered]@{ Succeeded=$succeeded; Error=$errorMessage; State=[string](Get-Content -LiteralPath '" + statePath.Replace("'", "''") + "' -Raw); Config=[string](Get-Content -LiteralPath '" + vscodeConfigPath.Replace("'", "''") + "' -Raw); InstallExists=(Test-Path -LiteralPath '" + installBase.Replace("'", "''") + "'); ExecutableExists=(Test-Path -LiteralPath '" + installedExecutable.Replace("'", "''") + "'); RollbackResidueExists=$rollbackResidue } | ConvertTo-Json -Compress"
                 ]);
 
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
 
             result.ExitCode.Should().Be(0, result.Stderr);
             using var json = JsonDocument.Parse(result.Stdout);
-            json.RootElement.GetProperty("State").GetString().Should().Contain("\"vscode\"",
-                "the original installer state should be restored if cleanup fails after state persistence completed");
-            json.RootElement.GetProperty("Config").GetString().Should().Contain("wpf-devtools");
-            json.RootElement.GetProperty("InstallExists").GetBoolean().Should().BeTrue();
-            json.RootElement.GetProperty("ExecutableExists").GetBoolean().Should().BeTrue();
+            json.RootElement.GetProperty("Succeeded").GetBoolean().Should().BeTrue(
+                json.RootElement.GetProperty("Error").GetString());
+            json.RootElement.GetProperty("State").GetString().Should().NotContain("\"vscode\"",
+                "durable state persistence is the full-uninstall commit point");
+            json.RootElement.GetProperty("Config").GetString().Should().NotContain("wpf-devtools");
+            json.RootElement.GetProperty("InstallExists").GetBoolean().Should().BeFalse();
+            json.RootElement.GetProperty("ExecutableExists").GetBoolean().Should().BeFalse();
+            json.RootElement.GetProperty("RollbackResidueExists").GetBoolean().Should().BeTrue(
+                "failed best-effort disposal may leave safe rollback residue for later cleanup");
         }
         finally
         {

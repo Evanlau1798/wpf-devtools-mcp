@@ -170,11 +170,11 @@ function Invoke-InstallerFullUninstallCore {
         $statePath = Save-InstallerState -State $newState
         $stateRestoreRequired = $true
         foreach ($registrationBackup in $registrationBackups) {
-            Remove-PathIfExists -Path ([string]$registrationBackup.BackupPath)
+            Remove-PathIfExists -Path ([string]$registrationBackup.BackupPath) -BestEffort
         }
 
         foreach ($backup in $installationBackups) {
-            Remove-PathIfExists -Path ([string]$backup.RollbackPath)
+            Remove-PathIfExists -Path ([string]$backup.RollbackPath) -BestEffort
         }
 
         $removedInstallRoots = @(Remove-InstallerOwnedEmptyInstallRoots -Installations $removedInstallations -BestEffort)

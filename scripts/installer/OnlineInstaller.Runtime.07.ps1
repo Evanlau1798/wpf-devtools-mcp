@@ -230,11 +230,11 @@ function Invoke-StandaloneFullUninstallActionCore {
             $statePath = Save-StandaloneInstallerState -State $state
             $stateRestoreRequired = $true
             foreach ($operation in $registrationOperations) {
-                Remove-PathIfExists -Path ([string]$operation.BackupPath)
+                Remove-PathIfExists -Path ([string]$operation.BackupPath) -BestEffort
             }
 
             foreach ($backup in $installationBackups) {
-                Remove-PathIfExists -Path ([string]$backup.RollbackPath)
+                Remove-PathIfExists -Path ([string]$backup.RollbackPath) -BestEffort
             }
             $removedInstallRoots = @(Remove-StandaloneInstallerOwnedEmptyInstallRoots -Installations $removedInstallations -BestEffort)
             $summary = Get-StandaloneFullUninstallResultSummary -RemovedInstallations $removedInstallations -RequestedVersion $RequestedVersion

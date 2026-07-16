@@ -7,6 +7,43 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class StandaloneFullUninstallResilienceTests
 {
     [Fact]
+    public void StandaloneFullUninstall_ShouldCommitWhenEmptyRootCleanupFails()
+    {
+        var statePath = Path.Combine(
+            ReleaseScriptTestHarness.CreateTempDirectory(),
+            "installer-state.json");
+        try
+        {
+            var command = string.Join(
+                Environment.NewLine,
+                [
+                    ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/OnlineInstaller.Runtime.07.ps1").Replace("'", "''") + "'",
+                    "$script:testState = [ordered]@{ lastInstallRoot=$null; architectures=[ordered]@{}; registrations=[ordered]@{} }",
+                    "function Get-StandaloneInstallerState { return $script:testState }",
+                    "function Resolve-StandaloneRemovalInstallRoot { return 'C:\\test-root' }",
+                    "function Get-StandaloneDetectedInstallerInstallations { return @() }",
+                    "function Get-StandaloneDetectedInstallerRegistrations { return @() }",
+                    "function Resolve-StandaloneInstallerStatePath { return '" + statePath.Replace("'", "''") + "' }",
+                    "function Save-StandaloneInstallerState { param($State) return '" + statePath.Replace("'", "''") + "' }",
+                    "function Remove-PathIfExists { param([string]$Path) }",
+                    "function Remove-StandaloneInstallerOwnedEmptyInstallRoots { param([object[]]$Installations, [switch]$BestEffort) if (-not $BestEffort) { throw 'simulated empty-root cleanup failure' }; return @() }",
+                    "function Get-StandaloneFullUninstallResultSummary { return [ordered]@{ version='test'; resolvedVersion='test'; installRoot=$null; releaseChannel='test' } }",
+                    "function Get-StandaloneFullUninstallCleanupGuidance { return 'test guidance' }",
+                    "Invoke-StandaloneFullUninstallActionCore -ResolvedAction full-uninstall -ResolvedArchitecture x64 -ResolvedClient all -ResolvedInstallRoot '' -RequestedVersion test | ConvertTo-Json -Compress"
+                ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("\"action\":\"full-uninstall\"");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(Path.GetDirectoryName(statePath)!);
+        }
+    }
+
+    [Fact]
     public void StandaloneFullUninstall_WithoutState_ShouldDiscoverDefaultInstallRoot()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

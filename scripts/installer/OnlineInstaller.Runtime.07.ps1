@@ -235,7 +235,7 @@ function Invoke-StandaloneFullUninstallActionCore {
             foreach ($backup in $installationBackups) {
                 Remove-PathIfExists -Path ([string]$backup.RollbackPath)
             }
-            $removedInstallRoots = @(Remove-StandaloneInstallerOwnedEmptyInstallRoots -Installations $removedInstallations)
+            $removedInstallRoots = @(Remove-StandaloneInstallerOwnedEmptyInstallRoots -Installations $removedInstallations -BestEffort)
             $summary = Get-StandaloneFullUninstallResultSummary -RemovedInstallations $removedInstallations -RequestedVersion $RequestedVersion
 
             return [ordered]@{

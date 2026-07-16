@@ -7,7 +7,7 @@ namespace WpfDevTools.Mcp.Server.Composer.Catalog;
 
 internal sealed class BlockCatalogService(PackRegistry registry)
 {
-    private const int MaxBriefAllowedValues = 12;
+    private const int MaxAllowedValues = 12;
 
     public BlockCatalogResult GetCatalog(BlockCatalogQuery query)
     {
@@ -31,7 +31,7 @@ internal sealed class BlockCatalogService(PackRegistry registry)
                     pack,
                     loadedPack.Manifest,
                     block,
-                    includeFullAllowedValues: !string.IsNullOrWhiteSpace(query.Kind));
+                    query.AllowedValueQuery);
                 if (Matches(query, item))
                 {
                     items.Add(item);
@@ -56,7 +56,7 @@ internal sealed class BlockCatalogService(PackRegistry registry)
         PackRegistryItem pack,
         UiPackManifest manifest,
         UiBlockDefinition block,
-        bool includeFullAllowedValues)
+        string? allowedValueQuery)
     {
         var slots = block.Slots.ToDictionary(
             pair => pair.Key,
@@ -68,7 +68,7 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             StringComparer.Ordinal);
         var properties = block.Properties.ToDictionary(
             pair => pair.Key,
-            pair => CreateProperty(pair.Value, includeFullAllowedValues),
+            pair => CreateProperty(pair.Value, allowedValueQuery),
             StringComparer.Ordinal);
 
         return new BlockCatalogItem(
@@ -87,12 +87,14 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             block.SourceHints.Select(hint => hint.Path).Where(path => !string.IsNullOrWhiteSpace(path)).ToArray());
     }
 
-    private static BlockCatalogProperty CreateProperty(UiBlockProperty property, bool includeFullAllowedValues)
+    private static BlockCatalogProperty CreateProperty(UiBlockProperty property, string? allowedValueQuery)
     {
         var allAllowedValues = property.AllowedValues.Length > 0 ? property.AllowedValues : property.EnumValues;
-        var allowedValues = includeFullAllowedValues || allAllowedValues.Length <= MaxBriefAllowedValues
+        var query = string.IsNullOrWhiteSpace(allowedValueQuery) ? null : allowedValueQuery.Trim();
+        var matches = query is null
             ? allAllowedValues
-            : allAllowedValues[..MaxBriefAllowedValues];
+            : allAllowedValues.Where(value => value.Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+        var allowedValues = matches.Length <= MaxAllowedValues ? matches : matches[..MaxAllowedValues];
         return new BlockCatalogProperty(
             property.Type,
             property.Description,
@@ -101,7 +103,8 @@ internal sealed class BlockCatalogService(PackRegistry registry)
             property.Default,
             allowedValues,
             allAllowedValues.Length,
-            allowedValues.Length < allAllowedValues.Length,
+            matches.Length,
+            allowedValues.Length < matches.Length,
             property.Minimum,
             property.Maximum,
             property.Integer,
@@ -219,7 +222,8 @@ internal sealed record BlockCatalogQuery(
     string? Category = null,
     string? KindPrefix = null,
     bool ComposableOnly = false,
-    string? Kind = null);
+    string? Kind = null,
+    string? AllowedValueQuery = null);
 
 internal sealed record BlockCatalogResult(
     IReadOnlyList<BlockCatalogItem> Items,
@@ -248,6 +252,7 @@ internal sealed record BlockCatalogProperty(
     JsonElement? Default,
     IReadOnlyList<string> AllowedValues,
     int AllowedValueCount,
+    int AllowedValueMatchCount,
     bool AllowedValuesTruncated,
     double? Minimum,
     double? Maximum,

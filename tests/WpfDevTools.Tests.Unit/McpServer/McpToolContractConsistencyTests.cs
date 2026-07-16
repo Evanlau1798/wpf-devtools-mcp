@@ -273,6 +273,12 @@ public class McpToolContractConsistencyTests
     }
 
     [Fact]
+    public void GetUiBlockCatalog_ShouldExposeBoundedAllowedValueSearch()
+    {
+        AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.GetUiBlockCatalog), "allowedValueQuery", typeof(string), null);
+    }
+
+    [Fact]
     public void SelectActiveProcess_ShouldExposeOptionalNullableProcessId_ForStructuredMissingParameter()
     {
         AssertOptionalParameter(typeof(ProcessMcpTools), nameof(ProcessMcpTools.SelectActiveProcess), "processId", typeof(int?), null);

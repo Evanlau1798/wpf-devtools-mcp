@@ -76,12 +76,13 @@ Request options:
 - `kind`: optional exact pack-qualified block kind，用於 single-block detail。
 - `includeRecipes`: true 時同時回傳可供 `expand_ui_recipe` 使用的 recipe catalog entries。
 - `compact`: true 時回傳精簡 discovery projection，保留 identity、pack-authored block description、category、property names 與 preview warnings、slot bounds、renderer availability、`compositionSkeleton` 及 pack-defined `authoringRoles`。省略 `maxItems` 仍表示不設上限。
+- `allowedValueQuery`: optional case-insensitive substring search，用於搜尋 allowed string values。請搭配 exact `kind` 與 `compact=false`；query 最長 128 字元。
 
 Catalog entries 只包含 source hint paths，不會把第三方 source code 複製進 tool output。
 
 Broad discovery 請使用 `compact=true`；選定 block 後，在設定不熟悉的 properties 前，以 exact `kind` 及 `compact=false` 查詢完整契約。Full mode 仍為預設，並保留 descriptions、完整 property contracts、slots 與 source hints。
 
-若 pack-owned property vocabulary 很大，broad discovery 只會回傳前 12 個 `allowedValues`，並附上 `allowedValueCount` 與 `allowedValuesTruncated=true`。設定該 property 前，請以它的 exact `kind` 再呼叫一次 `get_ui_block_catalog`；focused detail 會回傳完整 vocabulary。Validation 仍會執行完整精確比對，並只回傳 bounded、相關性高的 repair values。
+大型 pack-owned vocabulary 在 exact-kind detail 中也會維持 bounded。每個 property 都會回報完整 `allowedValueCount`、目前的 `allowedValueMatchCount`、最多 12 個符合條件的 `allowedValues`，以及這批 matches 是否 truncated。選值時，以 exact `kind`、`compact=false` 與簡短的概念或 icon 名稱作為 `allowedValueQuery` 再呼叫一次。Validation 仍會針對完整 pack vocabulary 做精確比對，並只回傳 bounded、相關性高的 repair values。
 
 Pack author 可為 blocks、properties 與 slots 提供 inert `description` text。當 structural preview 的 measurement 或 styling 可能與 final package 不同時，property 也可提供 `previewWarning`。選擇值之前應先讀取這些 pack-defined fields；它們能說明 renderer 行為，而不需在 Composer 加入 library-specific logic。Renderer identity target 預設可由 runtime element tools 檢查；只有非 element WPF object 無法被這些 tools 找到時，pack 才設定 `renderer.runtimeInspectable=false`。
 

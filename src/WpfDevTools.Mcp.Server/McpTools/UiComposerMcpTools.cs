@@ -39,13 +39,15 @@ public static partial class UiComposerMcpTools
     [McpServerTool(Name = "get_ui_block_catalog", Title = "Get UI Composer Block Catalog", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.GetUiBlockCatalog)]
     public static Task<CallToolResult> GetUiBlockCatalog(
-        [Description("Optional pack IDs to include, such as sample. Omit to include all enabled packs.")] string[]? packIds = null,
-        [Description("Optional block category filter, such as navigation, input, feedback, window, or layout.")] string? category = null,
-        [Description("Optional block kind prefix filter, such as sample.navigation.")] string? kindPrefix = null,
-        [Description("When true, returns only blocks with an available renderer template.")] bool composableOnly = false,
-        [Description("Optional exact block kind for single-block detail, such as sample.button.")] string? kind = null,
-        [Description("When true, includes recipe catalog entries from the same pack scope in the response.")] bool includeRecipes = false,
-        [Description("When true, returns a brief discovery projection with block descriptions, property names, warnings, slot bounds, skeletons, and authoring roles. Query an exact kind with compact=false for full property contracts.")] bool compact = false,
+        [Description("Pack IDs to include; omit for all enabled packs.")] string[]? packIds = null,
+        [Description("Optional exact block category.")] string? category = null,
+        [Description("Optional pack-qualified block kind prefix.")] string? kindPrefix = null,
+        [Description("Return only blocks with renderer templates.")] bool composableOnly = false,
+        [Description("Optional exact pack-qualified block kind.")] string? kind = null,
+        [Description("Include recipes from the same pack scope.")] bool includeRecipes = false,
+        [Description("Return brief descriptions, property names/warnings, slot bounds, skeletons, and roles; use false with exact kind for full contracts.")] bool compact = false,
+        [StringLength(128)]
+        [Description("Case-insensitive allowed-value substring search; use with exact kind. Max 128 characters.")] string? allowedValueQuery = null,
         [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
         [Description(ToolDescriptionFragments.ComposerLocalAppDataRootParameter)] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
@@ -58,11 +60,12 @@ public static partial class UiComposerMcpTools
             ("kind", kind),
             ("includeRecipes", includeRecipes),
             ("compact", compact),
+            ("allowedValueQuery", allowedValueQuery),
             ("projectRoot", projectRoot),
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(GetCatalog(packIds, category, kindPrefix, composableOnly, kind, includeRecipes, compact, projectRoot, localAppDataRoot)),
+            (_, _) => Task.FromResult<object>(GetCatalog(packIds, category, kindPrefix, composableOnly, kind, includeRecipes, compact, allowedValueQuery, projectRoot, localAppDataRoot)),
             args,
             cancellationToken,
             timeoutSeconds: 10);
@@ -267,12 +270,13 @@ public static partial class UiComposerMcpTools
         string? kind,
         bool includeRecipes,
         bool compact,
+        string? allowedValueQuery,
         string? projectRoot,
         string? localAppDataRoot)
     {
         var registry = CreateRegistry(projectRoot, localAppDataRoot);
         var catalog = new BlockCatalogService(registry);
-        var result = catalog.GetCatalog(new BlockCatalogQuery(packIds, category, kindPrefix, composableOnly, kind));
+        var result = catalog.GetCatalog(new BlockCatalogQuery(packIds, category, kindPrefix, composableOnly, kind, allowedValueQuery));
         var recipes = includeRecipes
             ? new RecipeCatalogService(registry).GetCatalog(new RecipeCatalogQuery(packIds)).Items
             : [];

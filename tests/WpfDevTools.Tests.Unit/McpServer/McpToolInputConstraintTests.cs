@@ -62,6 +62,9 @@ public sealed class McpToolInputConstraintTests
                 BoundaryStringLimits.MaxStringifiedJsonArgumentLength);
         }
 
+        var catalogSchema = CreateInputSchema(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.GetUiBlockCatalog));
+        AssertStringMaxLength(catalogSchema, "allowedValueQuery", 128);
+
         var previewSchema = CreateInputSchema(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint));
         AssertEnumConstraint(previewSchema, "screenshotOutputMode", "metadata", "file");
         AssertIntegerConstraint(previewSchema, "screenshotMaxWidth", minimum: 1, maximum: int.MaxValue);

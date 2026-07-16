@@ -59,7 +59,7 @@ public sealed class ComposerPropertyVocabularyTests
     }
 
     [Fact]
-    public void GetCatalog_ExactKind_ShouldReturnCompletePropertyVocabulary()
+    public void GetCatalog_ExactKind_ShouldBoundLargePropertyVocabulary()
     {
         var result = new BlockCatalogService(CreateBuiltinRegistry()).GetCatalog(
             new BlockCatalogQuery(["wpfui"], Kind: "wpfui.symbolIcon"));
@@ -67,13 +67,31 @@ public sealed class ComposerPropertyVocabularyTests
         var property = result.Items.Single().Properties["symbol"];
         var json = JsonSerializer.SerializeToElement(property, JsonOptions);
         json.GetProperty("allowedValueCount").GetInt32().Should().BeGreaterThan(9_000);
-        json.GetProperty("allowedValuesTruncated").GetBoolean().Should().BeFalse();
-        property.AllowedValues.Should().Contain("Temperature24");
-        property.AllowedValues.Should().NotContain("Temperature");
+        json.GetProperty("allowedValuesTruncated").GetBoolean().Should().BeTrue();
+        property.AllowedValues.Should().HaveCount(12);
     }
 
     [Fact]
-    public async Task GetUiBlockCatalogTool_ExactKind_ShouldPublishCompleteVocabulary()
+    public void GetCatalog_AllowedValueQuery_ShouldReturnBoundedMatches()
+    {
+        var result = new BlockCatalogService(CreateBuiltinRegistry()).GetCatalog(
+            new BlockCatalogQuery(
+                ["wpfui"],
+                Kind: "wpfui.symbolIcon",
+                AllowedValueQuery: "temperature24"));
+
+        var property = result.Items.Single().Properties["symbol"];
+        var json = JsonSerializer.SerializeToElement(property, JsonOptions);
+        json.GetProperty("allowedValueCount").GetInt32().Should().BeGreaterThan(9_000);
+        json.GetProperty("allowedValueMatchCount").GetInt32().Should().Be(property.AllowedValues.Count);
+        json.GetProperty("allowedValuesTruncated").GetBoolean().Should().BeFalse();
+        property.AllowedValues.Should().Contain("Temperature24");
+        property.AllowedValues.Should().OnlyContain(value =>
+            value.Contains("temperature24", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task GetUiBlockCatalogTool_ExactKind_ShouldBoundLargeVocabulary()
     {
         var localAppData = TestDirectory.Create();
         try
@@ -90,8 +108,22 @@ public sealed class ComposerPropertyVocabularyTests
                 .GetProperty("properties")
                 .GetProperty("symbol");
             property.GetProperty("allowedValueCount").GetInt32().Should().BeGreaterThan(9_000);
-            property.GetProperty("allowedValuesTruncated").GetBoolean().Should().BeFalse();
-            property.GetProperty("allowedValues").EnumerateArray()
+            property.GetProperty("allowedValuesTruncated").GetBoolean().Should().BeTrue();
+            property.GetProperty("allowedValues").GetArrayLength().Should().Be(12);
+
+            var searched = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["wpfui"],
+                kind: "wpfui.symbolIcon",
+                allowedValueQuery: "temperature24",
+                localAppDataRoot: localAppData,
+                cancellationToken: CancellationToken.None);
+            searched.IsError.Should().BeFalse();
+            var searchedProperty = searched.StructuredContent!.Value
+                .GetProperty("items")[0]
+                .GetProperty("properties")
+                .GetProperty("symbol");
+            searchedProperty.GetProperty("allowedValueMatchCount").GetInt32().Should().BeGreaterThan(0);
+            searchedProperty.GetProperty("allowedValues").EnumerateArray()
                 .Select(value => value.GetString())
                 .Should().Contain("Temperature24");
         }

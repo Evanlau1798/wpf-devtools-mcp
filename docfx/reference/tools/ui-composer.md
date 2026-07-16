@@ -76,12 +76,13 @@ Request options:
 - `kind`: optional exact pack-qualified block kind for single-block detail.
 - `includeRecipes`: when true, also returns recipe catalog entries for use with `expand_ui_recipe`.
 - `compact`: when true, returns the brief discovery projection with identity, the pack-authored block description, category, property names and preview warnings, slot bounds, renderer availability, `compositionSkeleton`, and pack-defined `authoringRoles`. An omitted `maxItems` remains unbounded.
+- `allowedValueQuery`: optional case-insensitive substring search over allowed string values. Use it with an exact `kind` and `compact=false`; the query is limited to 128 characters.
 
 Catalog entries include source hint paths only. They do not copy third-party source code into tool output.
 
 Use `compact=true` for broad discovery, then query each selected exact `kind` with `compact=false` before setting unfamiliar properties. Full mode remains the default and retains descriptions, complete property contracts, slots, and source hints.
 
-For a large pack-owned property vocabulary, broad discovery returns the first 12 `allowedValues` plus `allowedValueCount` and `allowedValuesTruncated=true`. Before setting that property, call `get_ui_block_catalog` again with its exact `kind`; focused detail returns the complete vocabulary. Validation remains exact and returns a bounded set of relevant repair values.
+Large pack-owned vocabularies always remain bounded, including exact-kind detail. Each property reports the complete `allowedValueCount`, the current `allowedValueMatchCount`, up to 12 matching `allowedValues`, and whether those matches were truncated. To choose a value, call `get_ui_block_catalog` with the exact `kind`, `compact=false`, and a short `allowedValueQuery` such as a concept or icon name. Validation still checks the complete pack vocabulary and returns a bounded set of relevant repair values.
 
 Pack authors can provide inert `description` text for blocks, properties, and slots. Properties can also provide `previewWarning` when structural preview may differ from final package measurement or styling. Read these pack-defined fields before choosing values; they describe renderer behavior without adding library-specific logic to Composer. Renderer identity targets are runtime-inspectable by default. A pack sets `renderer.runtimeInspectable=false` only for a non-element WPF object that runtime element tools cannot discover.
 

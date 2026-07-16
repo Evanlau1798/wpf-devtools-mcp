@@ -65,6 +65,8 @@ public static partial class UiComposerMcpTools
                 targetPath,
                 reviewedPlanHash,
                 confirmIntegration));
+        var packageRestoreRequired = result.Applied && result.Changes.Any(change =>
+            change.Role is "package-reference" or "central-package-version");
 
         return new
         {
@@ -74,6 +76,10 @@ public static partial class UiComposerMcpTools
             result.RolledBack,
             result.PlanHash,
             result.Changes,
+            packageRestoreRequired,
+            buildGuidance = packageRestoreRequired
+                ? "Package references changed. Run dotnet restore for the updated project before dotnet build --no-restore."
+                : null,
             result.Errors
         };
     }

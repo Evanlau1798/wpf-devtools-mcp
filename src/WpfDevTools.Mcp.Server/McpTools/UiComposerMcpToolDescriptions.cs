@@ -245,6 +245,7 @@ internal static class UiComposerMcpToolDescriptions
         - Regenerates current pack/project operations and rejects stale reviewedPlanHash with IntegrationPlanChanged before writing.
         - Applies only plan-generated package, App.xaml, startup, and code-behind operations inside the exact root.
         - Atomic changes record backupPath and rollbackAction; later failure rolls earlier operations back.
+        - Successful package-reference changes return packageRestoreRequired=true and remind the caller to run dotnet restore before a --no-restore build.
 
         REQUEST OPTIONS:
         - blueprintJson accepts raw JSON or an opaque draftRef; it, projectRoot, targetPath, reviewedPlanHash, confirmIntegration=true, and pack scope must match the reviewed dry-run.

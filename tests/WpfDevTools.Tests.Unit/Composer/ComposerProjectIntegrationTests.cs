@@ -234,6 +234,10 @@ public sealed class ComposerProjectIntegrationTests
             payload.GetProperty("success").GetBoolean().Should().BeTrue();
             payload.GetProperty("applied").GetBoolean().Should().BeTrue();
             payload.GetProperty("changes").GetArrayLength().Should().Be(3);
+            payload.GetProperty("packageRestoreRequired").GetBoolean().Should().BeTrue();
+            payload.GetProperty("buildGuidance").GetString().Should()
+                .Contain("dotnet restore")
+                .And.Contain("--no-restore");
         }
         finally
         {

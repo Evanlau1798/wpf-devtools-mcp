@@ -227,6 +227,21 @@ public sealed class PublicQuickstartDocumentationTests
         }
     }
 
+    [Theory]
+    [InlineData("docfx/quickstart/openai-codex.md")]
+    [InlineData("docfx/zh-tw/quickstart/openai-codex.md")]
+    public void CodexQuickstart_ShouldLinkComposerProjectWriteWorkflowAndGates(string file)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(file));
+
+        content.Should().ContainAll(
+            "WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true",
+            "WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS",
+            "apply_ui_blueprint",
+            "apply_ui_project_integration",
+            "../reference/tools/ui-composer.md");
+    }
+
     [Fact]
     public void DocfxConfig_ShouldNotPublishScriptsFromDocumentationSite()
     {

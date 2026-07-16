@@ -235,20 +235,20 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string ApplyUiProjectIntegration =
         """
-        USE WHEN: You reviewed apply_ui_blueprint projectIntegrationPlan and want to apply that exact pack-neutral plan.
+        USE WHEN: Apply the exact projectIntegrationPlan returned by a reviewed apply_ui_blueprint dry run.
 
         CATEGORY: UI Composer
 
-        DO NOT USE: Do not pass a guessed or stale plan hash. This destructive tool requires WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true, WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true, and an exact WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS match.
+        DO NOT USE: Never guess or reuse a stale hash. Requires WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true, WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true, and exact WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS.
 
         RESPONSE SUMMARY:
-        - Regenerates current pack/project operations and rejects stale reviewedPlanHash with IntegrationPlanChanged before writing.
-        - Applies only plan-generated package, App.xaml, startup, and code-behind operations inside the exact root.
-        - Atomic changes record backupPath and rollbackAction; later failure rolls earlier operations back.
-        - Successful package-reference changes return packageRestoreRequired=true and remind the caller to run dotnet restore before a --no-restore build.
+        - Regenerates the plan; stale reviewedPlanHash fails with IntegrationPlanChanged before writes.
+        - Applies only generated package, App.xaml, startup, and code-behind operations under projectRoot.
+        - Changes report backupPath and rollbackAction; later failure rolls back earlier operations.
+        - Package changes set packageRestoreRequired=true and buildGuidance for restore before --no-restore build.
 
         REQUEST OPTIONS:
-        - blueprintJson accepts raw JSON or an opaque draftRef; it, projectRoot, targetPath, reviewedPlanHash, confirmIntegration=true, and pack scope must match the reviewed dry-run.
+        - Match blueprintJson/draftRef, projectRoot, targetPath, reviewedPlanHash, confirmIntegration=true, and pack scope to the dry run.
 
         EXAMPLES:
         """ + CanonicalExamples;

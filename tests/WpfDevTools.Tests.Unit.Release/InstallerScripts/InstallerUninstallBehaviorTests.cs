@@ -192,6 +192,40 @@ public sealed class InstallerUninstallBehaviorTests
         }
     }
 
+    [Theory]
+    [InlineData("trust")]
+    [InlineData("existence")]
+    public void RemovePathIfExists_BestEffort_ShouldContainPreflightFailure(string failureStage)
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var targetPath = Path.Combine(tempRoot, "target");
+            Directory.CreateDirectory(targetPath);
+            var failureSetup = failureStage == "trust"
+                ? "function Assert-InstallerLocalPathTrusted { param([string]$Path) throw 'simulated trust preflight failure' }"
+                : "function Assert-InstallerLocalPathTrusted { param([string]$Path) return $Path }; function Test-Path { param([string]$LiteralPath) throw 'simulated existence preflight failure' }";
+            var command = string.Join(" ; ",
+            [
+                OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude(
+                    "-Action uninstall -Architecture x64 -Client other -InstallRoot '" + Path.Combine(tempRoot, "install-root").Replace("'", "''") + "' -NonInteractive -Force -OutputJson"),
+                failureSetup,
+                "Remove-PathIfExists -Path '" + targetPath.Replace("'", "''") + "' -BestEffort",
+                "'completed'"
+            ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Should().Contain("completed");
+            Directory.Exists(targetPath).Should().BeTrue();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     [Fact]
     public void StandaloneUninstallVerification_ShouldFailWhenRecordedOtherArtifactStillExists()
     {

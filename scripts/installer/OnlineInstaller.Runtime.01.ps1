@@ -247,9 +247,15 @@ function Remove-PathIfExists {
         return
     }
 
-    $resolvedPath = Assert-InstallerLocalPathTrusted -Path $Path
-    if (-not (Test-Path -LiteralPath $resolvedPath)) {
-        return
+    try {
+        $resolvedPath = Assert-InstallerLocalPathTrusted -Path $Path
+        if (-not (Test-Path -LiteralPath $resolvedPath -ErrorAction Stop)) {
+            return
+        }
+    }
+    catch {
+        if ($BestEffort) { return }
+        throw
     }
 
     $attempts = [Math]::Max(1, $RetryCount)

@@ -267,9 +267,16 @@ function Add-InstallerDiscoveryCandidateRoot {
 }
 
 function Get-InstallerDiscoveryCandidateRoots {
-    param([Parameter(Mandatory)] $State)
+    param(
+        [Parameter(Mandatory)] $State,
+        [string[]]$AdditionalInstallRoots = @()
+    )
 
     $roots = New-Object System.Collections.Generic.List[string]
+    foreach ($additionalInstallRoot in $AdditionalInstallRoots) {
+        Add-InstallerDiscoveryCandidateRoot -Roots $roots -Candidate $additionalInstallRoot
+    }
+
     Add-InstallerDiscoveryCandidateRoot -Roots $roots -Candidate ([string]$State.lastInstallRoot)
 
     $preferredInstallRootResolver = Get-Command 'Resolve-PreferredInstallRoot' -ErrorAction SilentlyContinue
@@ -309,7 +316,10 @@ function Get-InstallerDiscoveryCandidateRoots {
 }
 
 function Get-DetectedInstallerRegistrations {
-    param([Parameter(Mandatory)] $State)
+    param(
+        [Parameter(Mandatory)] $State,
+        [string[]]$AdditionalInstallRoots = @()
+    )
 
     $detected = [ordered]@{}
     foreach ($client in Get-SupportedClients) {
@@ -369,7 +379,7 @@ function Get-DetectedInstallerRegistrations {
         }
     }
 
-    foreach ($installRoot in @(Get-InstallerDiscoveryCandidateRoots -State $State)) {
+    foreach ($installRoot in @(Get-InstallerDiscoveryCandidateRoots -State $State -AdditionalInstallRoots $AdditionalInstallRoots)) {
         foreach ($architecture in @(Get-InstallerKnownArchitecturesCore)) {
             foreach ($manifestRegistration in @(Get-ManagedRegistrationsFromInstall -ResolvedInstallRoot $installRoot -ResolvedArchitecture $architecture)) {
                 $stateKey = Resolve-ClientStateKey -ClientId ([string]$manifestRegistration.ClientId) -RegistrationMode ([string]$manifestRegistration.RegistrationMode)
@@ -398,10 +408,13 @@ function Get-DetectedInstallerRegistrationMap {
 }
 
 function Get-DetectedInstallerInstallations {
-    param([Parameter(Mandatory)] $State)
+    param(
+        [Parameter(Mandatory)] $State,
+        [string[]]$AdditionalInstallRoots = @()
+    )
 
     $installations = [ordered]@{}
-    foreach ($registration in @(Get-DetectedInstallerRegistrations -State $State)) {
+    foreach ($registration in @(Get-DetectedInstallerRegistrations -State $State -AdditionalInstallRoots $AdditionalInstallRoots)) {
         if (-not [bool]$registration.InstallerOwned) {
             continue
         }
@@ -449,7 +462,7 @@ function Get-DetectedInstallerInstallations {
         }
     }
 
-    foreach ($candidateRoot in @(Get-InstallerDiscoveryCandidateRoots -State $State)) {
+    foreach ($candidateRoot in @(Get-InstallerDiscoveryCandidateRoots -State $State -AdditionalInstallRoots $AdditionalInstallRoots)) {
         foreach ($architecture in @(Get-InstallerKnownArchitecturesCore)) {
             $evidence = Get-LiveInstallerManifestEvidence -InstallRoot $candidateRoot -Architecture $architecture
             if ($null -eq $evidence) {

@@ -23,14 +23,17 @@ function Invoke-InstallerFullUninstallCore {
         [switch]$InstallRootWasSpecified
     )
 
-    $detectedRegistrations = @(Get-DetectedInstallerRegistrations -State $State)
-    $detectedInstallations = @(Get-DetectedInstallerInstallations -State $State)
     $scopedInstallRoot = if ($InstallRootWasSpecified) {
         Normalize-InstallerPathCore -PathValue (Assert-InstallerLocalPathTrusted -Path $InstallRoot)
     }
     else {
         $null
     }
+    $additionalInstallRoots = if ([string]::IsNullOrWhiteSpace($scopedInstallRoot)) { @() } else { @($scopedInstallRoot) }
+    $detectedRegistrations = @(
+        Get-DetectedInstallerRegistrations -State $State -AdditionalInstallRoots $additionalInstallRoots)
+    $detectedInstallations = @(
+        Get-DetectedInstallerInstallations -State $State -AdditionalInstallRoots $additionalInstallRoots)
     if (-not [string]::IsNullOrWhiteSpace($scopedInstallRoot)) {
         $detectedRegistrations = @($detectedRegistrations | Where-Object {
                 Test-InstallerRegistrationMatchesInstallRoot -RegistrationRecord $_ -ExpectedInstallRoot $scopedInstallRoot

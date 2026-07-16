@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "cacheKey":  "sha256:9ea73370c97b2efdb12fc04ccbeb0d3ec6a4a682a3874146ebeeab238adf6c22",
+    "cacheKey":  "sha256:4d653f6a04c90be5d79a96757286fee1fc84e2882b9689b62c212c7ee6a43ef3",
     "helperFiles":  [
                         {
                             "path":  "Installer.Actions.Core.ps1",
@@ -39,8 +39,8 @@
                         },
                         {
                             "path":  "Installer.Discovery.Detection.ps1",
-                            "sha256":  "8e5c51e9d4d1186583f39c0d28c2b10419c4cdd7c8e79950943068e745dde7bf",
-                            "sizeBytes":  20645
+                            "sha256":  "597299a6aa3f9c73e0e2e446d7084a66e336c9adac62109ceae98fc687d7061a",
+                            "sizeBytes":  21143
                         },
                         {
                             "path":  "Installer.Discovery.ps1",
@@ -109,8 +109,8 @@
                         },
                         {
                             "path":  "Installer.Uninstall.ps1",
-                            "sha256":  "977f26b5c8533fcf3a2c3ad3335fbb9b9a6a6d3a7893112725df3a8d149690e8",
-                            "sizeBytes":  14559
+                            "sha256":  "b87fef29ee29e7ce6db6b03fa8bf4acb4cdad4d7f1df3e61eb1bea68ac98d8e9",
+                            "sizeBytes":  14796
                         },
                         {
                             "path":  "Installer.Uninstall.Standalone.ps1",

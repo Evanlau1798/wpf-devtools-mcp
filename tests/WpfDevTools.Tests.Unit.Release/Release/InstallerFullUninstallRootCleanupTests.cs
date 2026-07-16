@@ -9,6 +9,108 @@ public sealed class InstallerFullUninstallRootCleanupTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void OnlineInstaller_FullUninstallWithExplicitRoot_ShouldRecoverFromOverwrittenSharedState(
+        bool useStandaloneFallback)
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var packageRootA = Path.Combine(tempRoot, "package-a");
+            var packageRootB = Path.Combine(tempRoot, "package-b");
+            Directory.CreateDirectory(packageRootA);
+            Directory.CreateDirectory(packageRootB);
+            var archiveA = ReleaseScriptTestHarness.CreatePackageArchive(packageRootA, "x64");
+            var archiveB = ReleaseScriptTestHarness.CreatePackageArchive(packageRootB, "x64");
+            var installRootA = Path.Combine(tempRoot, "install-a");
+            var installRootB = Path.Combine(tempRoot, "install-b");
+
+            var installA = StandaloneInstallerRegressionTestSupport.RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archiveA,
+                    "-InstallRoot", installRootA,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+            var installB = StandaloneInstallerRegressionTestSupport.RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archiveB,
+                    "-InstallRoot", installRootB,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+
+            installA.ExitCode.Should().Be(0, installA.Stderr);
+            installB.ExitCode.Should().Be(0, installB.Stderr);
+
+            var statePath = Path.Combine(tempRoot, "AppData", "Roaming", "WpfDevToolsMcp", "installer-state.json");
+            using (var overwrittenState = JsonDocument.Parse(File.ReadAllText(statePath)))
+            {
+                overwrittenState.RootElement.GetProperty("lastInstallRoot").GetString().Should().Be(installRootB);
+                overwrittenState.RootElement.GetProperty("architectures").GetProperty("x64")
+                    .GetProperty("installRoot").GetString().Should().Be(installRootB);
+                overwrittenState.RootElement.GetProperty("registrations").EnumerateObject()
+                    .Should().ContainSingle().Which.Value.GetProperty("installRoot").GetString().Should().Be(installRootB);
+            }
+
+            var removalScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+            if (useStandaloneFallback)
+            {
+                ReleaseScriptTestHarness.DeleteDirectory(
+                    Path.Combine(installRootA, "x64", "current", "bin", "installer"));
+                ReleaseScriptTestHarness.DeleteDirectory(
+                    Path.Combine(installRootB, "x64", "current", "bin", "installer"));
+                var standaloneRoot = Path.Combine(tempRoot, "standalone-removal");
+                Directory.CreateDirectory(standaloneRoot);
+                removalScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+                File.Copy(
+                    ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                    removalScriptPath,
+                    overwrite: true);
+                ReleaseScriptTestHarness.CopyOnlineInstallerRuntimeBundle(standaloneRoot);
+            }
+
+            var scopedRemoval = ReleaseScriptTestHarness.RunPowerShellScript(
+                removalScriptPath,
+                [
+                    "-Action", "full-uninstall",
+                    "-InstallRoot", installRootA,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                StandaloneInstallerRegressionTestSupport.CreateStandaloneEnvironment(tempRoot));
+
+            scopedRemoval.ExitCode.Should().Be(0, scopedRemoval.Stderr);
+            using var removalJson = JsonDocument.Parse(scopedRemoval.Stdout);
+            removalJson.RootElement.GetProperty("removedInstallation").GetBoolean().Should().BeTrue();
+            removalJson.RootElement.GetProperty("removedInstallations").EnumerateArray()
+                .Select(installation => installation.GetProperty("InstallRoot").GetString())
+                .Should().Contain(installRootA).And.NotContain(installRootB);
+            Directory.Exists(installRootA).Should().BeFalse();
+            Directory.Exists(installRootB).Should().BeTrue();
+
+            using var remainingState = JsonDocument.Parse(File.ReadAllText(statePath));
+            remainingState.RootElement.GetProperty("lastInstallRoot").GetString().Should().Be(installRootB);
+            remainingState.RootElement.GetProperty("architectures").GetProperty("x64")
+                .GetProperty("installRoot").GetString().Should().Be(installRootB);
+            remainingState.RootElement.GetProperty("registrations").EnumerateObject()
+                .Should().ContainSingle().Which.Value.GetProperty("installRoot").GetString().Should().Be(installRootB);
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void OnlineInstaller_FullUninstallWithExplicitRoot_ShouldPreserveOtherInstallRoot(
         bool useStandaloneFallback)
     {

@@ -5,9 +5,20 @@
   "description": "Semantic WPF UI Title Bar block.",
   "category": "shell",
   "properties": {
-    "height": { "default": 56, "minimum": 0, "type": "number" },
-    "padding": { "default": "16,0", "format": "thickness", "type": "string" },
+    "height": {
+      "description": "Rendered height of the Title Bar in device-independent pixels.",
+      "default": 56,
+      "minimum": 0,
+      "type": "number"
+    },
+    "padding": {
+      "description": "Inner spacing around Title Bar content, using WPF Thickness syntax.",
+      "default": "16,0",
+      "format": "thickness",
+      "type": "string"
+    },
     "title": {
+      "description": "Application title displayed in the Title Bar.",
       "default": "Application",
       "required": false,
       "type": "string"
@@ -15,12 +26,16 @@
   },
   "slots": {
     "actions": {
+      "description": "Action buttons rendered horizontally in the trailing content region.",
       "allowedKinds": [
         "wpfui.button"
       ]
     },
     "icon": {
-      "allowedKinds": ["wpfui.symbolIcon"]
+      "description": "Optional Symbol Icon rendered before the title.",
+      "allowedKinds": [
+        "wpfui.symbolIcon"
+      ]
     }
   },
   "renderer": {

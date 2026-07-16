@@ -6,32 +6,53 @@
   "category": "input",
   "properties": {
     "appearance": {
-      "allowedValues": ["Primary", "Secondary", "Info", "Dark", "Light", "Danger", "Success", "Caution", "Transparent"],
+      "description": "Visual appearance applied to the generated WPF UI Button.",
+      "allowedValues": [
+        "Primary",
+        "Secondary",
+        "Info",
+        "Dark",
+        "Light",
+        "Danger",
+        "Success",
+        "Caution",
+        "Transparent"
+      ],
       "default": "Primary",
       "required": false,
       "type": "string"
     },
     "command": {
+      "description": "Command binding assigned to the generated Button; keep x:Null when no command is available.",
       "default": "{x:Null}",
       "required": false,
       "type": "binding"
     },
     "horizontalAlignment": {
+      "description": "Horizontal alignment of the Button inside its parent layout.",
       "default": "Left",
-      "enum": ["Left", "Center", "Right", "Stretch"],
+      "enum": [
+        "Left",
+        "Center",
+        "Right",
+        "Stretch"
+      ],
       "type": "string"
     },
     "margin": {
+      "description": "Outer spacing around the Button, using WPF Thickness syntax.",
       "default": "0",
       "format": "thickness",
       "type": "string"
     },
     "minWidth": {
+      "description": "Minimum rendered width of the Button in device-independent pixels.",
       "default": 0,
       "minimum": 0,
       "type": "number"
     },
     "text": {
+      "description": "Text displayed as the Button content.",
       "default": "Button",
       "required": false,
       "type": "string"
@@ -39,15 +60,11 @@
   },
   "slots": {
     "icon": {
+      "description": "Optional Symbol Icon rendered in the Button icon region.",
       "allowedKinds": [
         "wpfui.symbolIcon"
       ]
     }
-  },
-  "interaction": {
-    "kind": "action",
-    "commandProperty": "command",
-    "labelProperty": "text"
   },
   "renderer": {
     "xamlTemplate": "renderers/xaml/button.xaml.sbn"
@@ -58,5 +75,10 @@
       "path": "src/Wpf.Ui/Controls/Button/Button.cs",
       "usage": "semantic extraction"
     }
-  ]
+  ],
+  "interaction": {
+    "kind": "action",
+    "commandProperty": "command",
+    "labelProperty": "text"
+  }
 }

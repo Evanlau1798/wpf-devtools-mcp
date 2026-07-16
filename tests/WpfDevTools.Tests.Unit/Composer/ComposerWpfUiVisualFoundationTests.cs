@@ -46,6 +46,32 @@ public sealed class ComposerWpfUiVisualFoundationTests
         tabViewItem.Description.Should().ContainEquivalentOf("themed");
     }
 
+    [Theory]
+    [InlineData("wpfui.button")]
+    [InlineData("wpfui.card")]
+    [InlineData("wpfui.fluentWindow")]
+    [InlineData("wpfui.numberBox")]
+    [InlineData("wpfui.progressRing")]
+    [InlineData("wpfui.symbolIcon")]
+    [InlineData("wpfui.titleBar")]
+    [InlineData("wpfui.toggleSwitch")]
+    public void WpfUiCatalog_ShouldDescribeHighValueCompositionContracts(string kind)
+    {
+        var item = new BlockCatalogService(CreateRegistry())
+            .GetCatalog(new BlockCatalogQuery(Kind: kind))
+            .Items.Single();
+
+        item.Properties.Should().OnlyContain(
+            property => !string.IsNullOrWhiteSpace(property.Value.Description),
+            $"{kind} properties should explain their generated XAML effect");
+        if (item.Slots.Count > 0)
+        {
+            item.Slots.Should().OnlyContain(
+                slot => !string.IsNullOrWhiteSpace(slot.Value.Description),
+                $"{kind} slots should explain their composition role");
+        }
+    }
+
     [Fact]
     public void WpfUiRenderer_ShouldApplyVisualFoundationProperties()
     {

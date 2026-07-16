@@ -6,30 +6,67 @@
   "category": "container",
   "properties": {
     "horizontalContentAlignment": {
+      "description": "Horizontal alignment applied to the Card's header and content stack.",
       "default": "Stretch",
-      "enum": ["Left", "Center", "Right", "Stretch"],
+      "enum": [
+        "Left",
+        "Center",
+        "Right",
+        "Stretch"
+      ],
       "type": "string"
     },
-    "margin": { "default": "0", "format": "thickness", "type": "string" },
-    "maxWidth": { "default": 1000000, "minimum": 0, "type": "number" },
-    "minHeight": { "default": 0, "minimum": 0, "type": "number" },
-    "padding": { "default": "16", "format": "thickness", "type": "string" },
+    "margin": {
+      "description": "Outer spacing around the Card, using WPF Thickness syntax.",
+      "default": "0",
+      "format": "thickness",
+      "type": "string"
+    },
+    "maxWidth": {
+      "description": "Maximum rendered width of the Card in device-independent pixels.",
+      "default": 1000000,
+      "minimum": 0,
+      "type": "number"
+    },
+    "minHeight": {
+      "description": "Minimum rendered height of the Card in device-independent pixels.",
+      "default": 0,
+      "minimum": 0,
+      "type": "number"
+    },
+    "padding": {
+      "description": "Inner spacing around the Card's header and content, using WPF Thickness syntax.",
+      "default": "16",
+      "format": "thickness",
+      "type": "string"
+    },
     "verticalContentAlignment": {
+      "description": "Vertical alignment applied to the Card's header and content stack.",
       "default": "Stretch",
-      "enum": ["Top", "Center", "Bottom", "Stretch"],
+      "enum": [
+        "Top",
+        "Center",
+        "Bottom",
+        "Stretch"
+      ],
       "type": "string"
     }
   },
   "slots": {
     "actions": {
+      "description": "Action buttons rendered horizontally in the Card footer.",
       "allowedKinds": [
         "wpfui.button"
       ]
     },
     "content": {
-      "allowedKinds": ["*"]
+      "description": "Primary Card body rendered after the optional header.",
+      "allowedKinds": [
+        "*"
+      ]
     },
     "header": {
+      "description": "Optional heading content rendered before the Card body.",
       "allowedKinds": [
         "core.text",
         "wpfui.textBlock"

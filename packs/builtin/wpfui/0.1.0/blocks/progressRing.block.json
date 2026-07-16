@@ -5,12 +5,39 @@
   "description": "Determinate or indeterminate circular progress feedback.",
   "category": "feedback",
   "properties": {
-    "isIndeterminate": { "default": true, "type": "boolean" },
-    "margin": { "default": "0", "format": "thickness", "type": "string" },
-    "progress": { "default": 0, "maximum": 100, "minimum": 0, "type": "number" },
-    "size": { "default": 24, "minimum": 1, "type": "number" }
+    "isIndeterminate": {
+      "description": "Shows continuous activity when true; set false to display the progress value.",
+      "default": true,
+      "type": "boolean"
+    },
+    "margin": {
+      "description": "Outer spacing around the Progress Ring, using WPF Thickness syntax.",
+      "default": "0",
+      "format": "thickness",
+      "type": "string"
+    },
+    "progress": {
+      "description": "Determinate progress percentage from 0 through 100.",
+      "default": 0,
+      "maximum": 100,
+      "minimum": 0,
+      "type": "number"
+    },
+    "size": {
+      "description": "Width and height of the circular indicator in device-independent pixels.",
+      "default": 24,
+      "minimum": 1,
+      "type": "number"
+    }
   },
   "slots": {},
-  "renderer": { "xamlTemplate": "renderers/xaml/progressRing.xaml.sbn" },
-  "sourceHints": [{ "path": "src/Wpf.Ui/Controls/ProgressRing/ProgressRing.cs", "usage": "semantic extraction" }]
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/progressRing.xaml.sbn"
+  },
+  "sourceHints": [
+    {
+      "path": "src/Wpf.Ui/Controls/ProgressRing/ProgressRing.cs",
+      "usage": "semantic extraction"
+    }
+  ]
 }

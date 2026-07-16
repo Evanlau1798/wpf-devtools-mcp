@@ -5,13 +5,42 @@
   "description": "Numeric input with bounded range and step controls.",
   "category": "input",
   "properties": {
-    "margin": { "default": "0", "format": "thickness", "type": "string" },
-    "maximum": { "default": 100, "type": "number" },
-    "minimum": { "default": 0, "type": "number" },
-    "smallChange": { "default": 1, "minimum": 0, "type": "number" },
-    "value": { "default": 0, "type": "number" }
+    "margin": {
+      "description": "Outer spacing around the Number Box, using WPF Thickness syntax.",
+      "default": "0",
+      "format": "thickness",
+      "type": "string"
+    },
+    "maximum": {
+      "description": "Highest value accepted by the Number Box.",
+      "default": 100,
+      "type": "number"
+    },
+    "minimum": {
+      "description": "Lowest value accepted by the Number Box.",
+      "default": 0,
+      "type": "number"
+    },
+    "smallChange": {
+      "description": "Amount added or removed by one small increment action.",
+      "default": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "value": {
+      "description": "Current numeric value displayed by the Number Box.",
+      "default": 0,
+      "type": "number"
+    }
   },
   "slots": {},
-  "renderer": { "xamlTemplate": "renderers/xaml/numberBox.xaml.sbn" },
-  "sourceHints": [{ "path": "src/Wpf.Ui/Controls/NumberBox/NumberBox.cs", "usage": "semantic extraction" }]
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/numberBox.xaml.sbn"
+  },
+  "sourceHints": [
+    {
+      "path": "src/Wpf.Ui/Controls/NumberBox/NumberBox.cs",
+      "usage": "semantic extraction"
+    }
+  ]
 }

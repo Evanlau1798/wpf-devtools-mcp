@@ -5,13 +5,45 @@
   "description": "Binary setting control with explicit on and off labels.",
   "category": "input",
   "properties": {
-    "isChecked": { "default": false, "type": "boolean" },
-    "labelPosition": { "default": "Right", "enum": ["Left", "Right"], "type": "string" },
-    "margin": { "default": "0", "format": "thickness", "type": "string" },
-    "offContent": { "default": "Off", "type": "string" },
-    "onContent": { "default": "On", "type": "string" }
+    "isChecked": {
+      "description": "Current on or off state of the Toggle Switch.",
+      "default": false,
+      "type": "boolean"
+    },
+    "labelPosition": {
+      "description": "Places the state label to the left or right of the switch.",
+      "default": "Right",
+      "enum": [
+        "Left",
+        "Right"
+      ],
+      "type": "string"
+    },
+    "margin": {
+      "description": "Outer spacing around the Toggle Switch, using WPF Thickness syntax.",
+      "default": "0",
+      "format": "thickness",
+      "type": "string"
+    },
+    "offContent": {
+      "description": "Label shown when the switch is off.",
+      "default": "Off",
+      "type": "string"
+    },
+    "onContent": {
+      "description": "Label shown when the switch is on.",
+      "default": "On",
+      "type": "string"
+    }
   },
   "slots": {},
-  "renderer": { "xamlTemplate": "renderers/xaml/toggleSwitch.xaml.sbn" },
-  "sourceHints": [{ "path": "src/Wpf.Ui/Controls/ToggleSwitch/ToggleSwitch.cs", "usage": "semantic extraction" }]
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/toggleSwitch.xaml.sbn"
+  },
+  "sourceHints": [
+    {
+      "path": "src/Wpf.Ui/Controls/ToggleSwitch/ToggleSwitch.cs",
+      "usage": "semantic extraction"
+    }
+  ]
 }

@@ -6,6 +6,7 @@
   "category": "display",
   "properties": {
     "symbol": {
+      "description": "WPF UI SymbolRegular member rendered by the icon; use allowed-value search for the exact name.",
       "allowedValuesPath": "vocabularies/symbolRegular.json",
       "default": "Home24",
       "required": false,

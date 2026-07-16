@@ -113,7 +113,7 @@ Before release promotion, run `dotnet restore --locked-mode` and `dotnet list pa
 
 - Re-run the installer with the previous reviewed package to roll back.
 - Use `-Action uninstall` with `-Client <client-id>` to remove or verify only the selected registration. With `-Client other`, the selected registration target is the generated `other.mcpServers.json` artifact; the installer-owned server files remain available for other clients or later reuse.
-- Use `-Action full-uninstall -InstallRoot <exact-root>` to remove registrations, generated client-registration artifacts, and installer-owned server payloads only under that root. Omit `-InstallRoot` only when a test run or decommissioning workflow must remove every detected installer root.
+- Use `-Action full-uninstall` with `-InstallRoot <exact-root>` to remove registrations, generated client-registration artifacts, and installer-owned server payloads only under that root. Omit `-InstallRoot` only when a test run or decommissioning workflow must remove every detected installer root.
 - Remove persisted auth secrets and certificates manually only when the deployment policy requires rotation or decommissioning.
 
 ## Operational verification

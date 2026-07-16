@@ -202,6 +202,7 @@ function Invoke-StandaloneFullUninstallActionCore {
                 }
             }
 
+            $removedRuntimeScreenshotCache = Remove-StandaloneRuntimeScreenshotCache
             if ([string]::IsNullOrWhiteSpace($scopedInstallRoot)) {
                 $state.registrations.Clear()
                 $state.architectures.Clear()
@@ -255,6 +256,7 @@ function Invoke-StandaloneFullUninstallActionCore {
                 removedInstallation = ($removedInstallations.Count -gt 0)
                 removedInstallations = @($removedInstallations)
                 removedInstallRoots = @($removedInstallRoots)
+                removedRuntimeScreenshotCache = $removedRuntimeScreenshotCache
                 registrations = @($registrationOperations | Where-Object { [bool]$_.Applied })
                 cleanupScope = if ($InstallRootWasSpecified) { 'explicit-install-root-registrations-and-server-locations' } else { 'registrations-and-installer-owned-server-locations' }
                 cleanupGuidance = Get-StandaloneFullUninstallCleanupGuidance -InstallRootWasSpecified:$InstallRootWasSpecified

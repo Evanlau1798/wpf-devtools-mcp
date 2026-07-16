@@ -7,6 +7,62 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class StandaloneFullUninstallResilienceTests
 {
     [Fact]
+    public void StandaloneFullUninstall_ShouldRemoveRuntimeScreenshotCache()
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var archivePath = ReleaseScriptTestHarness.CreatePackageArchive(tempRoot);
+            var installRoot = Path.Combine(tempRoot, "install-root");
+            var environment = StandaloneInstallerRegressionTestSupport.CreateStandaloneEnvironment(tempRoot);
+            var install = StandaloneInstallerRegressionTestSupport.RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archivePath,
+                    "-InstallRoot", installRoot,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                environment);
+
+            install.ExitCode.Should().Be(0, install.Stderr);
+            ReleaseScriptTestHarness.DeleteDirectory(
+                Path.Combine(installRoot, "x64", "current", "bin", "installer"));
+            var standaloneInstaller = CreateStandaloneInstaller(tempRoot);
+            var screenshotDirectory = Path.Combine(
+                environment["LOCALAPPDATA"]!,
+                "WpfDevTools",
+                "tmp",
+                "screenshots");
+            Directory.CreateDirectory(screenshotDirectory);
+            File.WriteAllBytes(Path.Combine(screenshotDirectory, "shot.png"), [137, 80, 78, 71]);
+
+            var removal = ReleaseScriptTestHarness.RunPowerShellScript(
+                standaloneInstaller,
+                [
+                    "-Action", "full-uninstall",
+                    "-InstallRoot", installRoot,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                environment);
+
+            removal.ExitCode.Should().Be(0, removal.Stderr);
+            using var removalJson = JsonDocument.Parse(removal.Stdout);
+            removalJson.RootElement.GetProperty("removedRuntimeScreenshotCache").GetBoolean().Should().BeTrue();
+            Directory.Exists(screenshotDirectory).Should().BeFalse(
+                "standalone full uninstall must purge retained runtime screenshot pixels");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void StandaloneFullUninstall_ShouldCommitWhenEmptyRootCleanupFails()
     {
         var statePath = Path.Combine(
@@ -26,6 +82,7 @@ public sealed class StandaloneFullUninstallResilienceTests
                     "function Resolve-StandaloneInstallerStatePath { return '" + statePath.Replace("'", "''") + "' }",
                     "function Save-StandaloneInstallerState { param($State) return '" + statePath.Replace("'", "''") + "' }",
                     "function Remove-PathIfExists { param([string]$Path) }",
+                    "function Remove-StandaloneRuntimeScreenshotCache { return $false }",
                     "function Remove-StandaloneInstallerOwnedEmptyInstallRoots { param([object[]]$Installations, [switch]$BestEffort) if (-not $BestEffort) { throw 'simulated empty-root cleanup failure' }; return @() }",
                     "function Get-StandaloneFullUninstallResultSummary { return [ordered]@{ version='test'; resolvedVersion='test'; installRoot=$null; releaseChannel='test' } }",
                     "function Get-StandaloneFullUninstallCleanupGuidance { return 'test guidance' }",

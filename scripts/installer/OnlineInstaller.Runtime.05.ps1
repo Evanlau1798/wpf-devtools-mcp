@@ -236,6 +236,20 @@ function Get-StandaloneDetectedInstallerInstallations {
 
     return @($installations.Values)
 }
+function Remove-StandaloneRuntimeScreenshotCache {
+    if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+        return $false
+    }
+
+    $cachePath = Join-Path $env:LOCALAPPDATA 'WpfDevTools\tmp\screenshots'
+    $trustedCachePath = Assert-InstallerLocalPathTrusted -Path $cachePath
+    if (-not (Test-Path -LiteralPath $trustedCachePath)) {
+        return $false
+    }
+
+    Remove-PathIfExists -Path $trustedCachePath
+    return $true
+}
 function Remove-StandaloneInstallerOwnedEmptyInstallRoots {
     param(
         [object[]]$Installations,

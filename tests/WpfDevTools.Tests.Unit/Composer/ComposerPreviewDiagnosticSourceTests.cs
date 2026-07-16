@@ -55,6 +55,21 @@ public sealed class ComposerPreviewDiagnosticSourceTests
     }
 
     [Fact]
+    public void CreateDiagnostics_ShouldPreferFirstCompilerErrorLine()
+    {
+        const string compilerError = "MainWindow.xaml(2,41): error CS0542: member names cannot match their enclosing type";
+        var buildOutput = $"Determining projects to restore...{Environment.NewLine}Restored PreviewHost.csproj{Environment.NewLine}{compilerError}";
+
+        var diagnostics = InvokeCreateDiagnostics(
+            buildSucceeded: false,
+            buildOutput,
+            rendererTemplatePath: "<fallback-renderer.xaml.sbn>",
+            sourceMap: []);
+
+        diagnostics.Should().ContainSingle().Which.Message.Should().Be(compilerError);
+    }
+
+    [Fact]
     public void PreviewBlueprint_ShouldNotResolveUndeclaredDottedPackRendererSource()
     {
         var projectRoot = CreateTempProjectWithBrokenPreviewPack();

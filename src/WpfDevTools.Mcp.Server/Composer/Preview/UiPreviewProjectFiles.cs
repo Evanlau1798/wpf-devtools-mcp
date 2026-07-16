@@ -22,6 +22,7 @@ internal static class UiPreviewProjectFiles
         IReadOnlyList<PreviewRuntimeNuGetPackage>? requiredNuGetPackages = null,
         IReadOnlyList<string>? requiredResources = null)
     {
+        var previewWindowClassName = "WpfDevToolsPreviewWindow_" + Guid.NewGuid().ToString("N");
         File.WriteAllText(
             Path.Combine(root, "PreviewHost.csproj"),
             BuildProjectFile(includeRuntimeDiagnostics, requiredNuGetPackages ?? []),
@@ -31,7 +32,10 @@ internal static class UiPreviewProjectFiles
             BuildAppXaml(previewContract.XmlNamespaces, requiredResources ?? []),
             Encoding.UTF8);
         File.WriteAllText(Path.Combine(root, "App.xaml.cs"), BuildAppCode(), Encoding.UTF8);
-        File.WriteAllText(Path.Combine(root, "MainWindow.xaml"), BuildWindowXaml(generatedXaml, previewContract), Encoding.UTF8);
+        File.WriteAllText(
+            Path.Combine(root, "MainWindow.xaml"),
+            BuildWindowXaml(generatedXaml, previewContract, previewWindowClassName),
+            Encoding.UTF8);
         File.WriteAllText(
             Path.Combine(root, "MainWindow.xaml.cs"),
             BuildMainWindowCode(
@@ -39,7 +43,8 @@ internal static class UiPreviewProjectFiles
                 loadedSentinelFileName,
                 sdkOptionsFileName,
                 sdkReadyFileName,
-                previewContract.WindowRootType),
+                previewContract.WindowRootType,
+                previewWindowClassName),
             Encoding.UTF8);
         if (!string.IsNullOrWhiteSpace(previewContract.Source))
         {
@@ -112,7 +117,8 @@ internal static class UiPreviewProjectFiles
         string loadedSentinelFileName,
         string sdkOptionsFileName,
         string sdkReadyFileName,
-        string? windowRootType)
+        string? windowRootType,
+        string windowClassName)
     {
         var lines = new List<string>
         {
@@ -136,12 +142,12 @@ internal static class UiPreviewProjectFiles
         lines.AddRange(
         [
             "namespace PreviewHost;",
-            "public partial " + "class MainWindow : " + (windowRootType ?? "Window"),
+            "public partial class " + windowClassName + " : " + (windowRootType ?? "Window"),
             "{",
             "    private const int RequiredRenderedFrames = 2;",
             "    private int _renderedFrameCount;",
             string.Empty,
-            "    public MainWindow()",
+            "    public " + windowClassName + "()",
             "    {",
             "        try",
             "        {",
@@ -325,17 +331,20 @@ internal static class UiPreviewProjectFiles
             .Replace("<", "&lt;", StringComparison.Ordinal)
             .Replace(">", "&gt;", StringComparison.Ordinal);
 
-    private static string BuildWindowXaml(string generatedXaml, PreviewContractGenerationResult previewContract)
+    private static string BuildWindowXaml(
+        string generatedXaml,
+        PreviewContractGenerationResult previewContract,
+        string windowClassName)
     {
         var previewFragment = RemoveRootXmlNamespaceDeclarations(generatedXaml);
         var namespaceAttributes = BuildPreviewNamespaceAttributes(previewContract.XmlNamespaces);
         var windowRootTag = previewContract.WindowRootTag
             ?? (HasNativeWindowRoot(previewFragment) ? "Window" : null);
         return windowRootTag is not null
-            ? AddPreviewHostClass(previewFragment, windowRootTag, namespaceAttributes)
+            ? AddPreviewHostClass(previewFragment, windowRootTag, namespaceAttributes, windowClassName)
             : string.Join(
                 Environment.NewLine,
-                "<Window x:Class=\"PreviewHost.MainWindow\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"" + namespaceAttributes + ">",
+                $"<Window x:Class=\"PreviewHost.{windowClassName}\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"{namespaceAttributes}>",
                 "  <Grid>",
                 Indent(previewFragment, "    "),
                 "  </Grid>",
@@ -362,7 +371,11 @@ internal static class UiPreviewProjectFiles
         => string.Concat(namespaces.OrderBy(item => item.Key, StringComparer.Ordinal)
             .Select(item => $" xmlns:{item.Key}=\"{EscapeXml(item.Value)}\""));
 
-    private static string AddPreviewHostClass(string generatedXaml, string rootTag, string namespaceAttributes)
+    private static string AddPreviewHostClass(
+        string generatedXaml,
+        string rootTag,
+        string namespaceAttributes,
+        string windowClassName)
     {
         var rootStart = XamlDocumentRootLocator.FindStart(generatedXaml);
         var attributeStart = rootStart + 1 + rootTag.Length;
@@ -373,7 +386,7 @@ internal static class UiPreviewProjectFiles
             return generatedXaml;
         }
 
-        var attributes = " x:Class=\"PreviewHost.MainWindow\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\""
+        var attributes = $" x:Class=\"PreviewHost.{windowClassName}\" xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\""
             + " xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\""
             + namespaceAttributes;
         return generatedXaml.Insert(attributeStart, attributes);

@@ -130,7 +130,8 @@ public sealed partial class ComposerGenericPreviewContractTests
             File.ReadAllText(Path.Combine(previewRoot, "MainWindow.xaml")).TrimStart()
                 .Should().StartWith("<sample:Shell");
             File.ReadAllText(Path.Combine(previewRoot, "MainWindow.xaml.cs"))
-                .Should().Contain("public partial class MainWindow : Sample.Controls.Shell");
+                .Should().Contain("public partial class WpfDevToolsPreviewWindow_")
+                .And.Contain(" : Sample.Controls.Shell");
         }
         finally
         {

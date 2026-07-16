@@ -28,6 +28,26 @@ public sealed partial class ComposerPreviewCompileTests
     }
 
     [Fact]
+    [Trait("Category", "ComposerCompile")]
+    public void PreviewBlueprint_ShouldCompileWhenRootNameMatchesLegacyPreviewClass()
+    {
+        var service = new UiBlueprintPreviewService(CreateRegistry());
+        var blueprint = Blueprint("""
+            {
+              "kind": "wpfui.fluentWindow",
+              "elementName": "MainWindow",
+              "properties": { "title": "Named preview" },
+              "slots": { "content": [{ "kind": "core.text", "properties": { "text": "Ready" } }] }
+            }
+            """);
+
+        var result = service.Preview(new PreviewBlueprintRequest(blueprint, RestoreEnabled: true));
+
+        result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+        result.Diagnostics.Should().ContainSingle(diagnostic => diagnostic.Code == "PreviewXamlCompiled");
+    }
+
+    [Fact]
     public void PreviewBlueprint_ShouldCaptureRestoreDisabledBuildFailure()
     {
         var service = new UiBlueprintPreviewService(CreateRegistry());

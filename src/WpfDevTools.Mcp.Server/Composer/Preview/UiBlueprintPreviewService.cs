@@ -20,6 +20,9 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
     private static readonly Regex MainWindowPositionPattern = new(
         @"MainWindow\.xaml\((?<line>\d+),(?<column>\d+)\)",
         RegexOptions.CultureInvariant);
+    private static readonly Regex CompilerErrorLinePattern = new(
+        @"\berror\s+[A-Za-z]+\d+\s*:",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     public PreviewBlueprintResult Preview(PreviewBlueprintRequest request)
         => PreviewAsync(request).GetAwaiter().GetResult();
@@ -245,7 +248,9 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
             [
                 new(
                     "XamlCompileFailed",
-                    FirstNonEmptyLine(buildOutput) ?? "Generated preview XAML did not compile.",
+                    FirstCompilerErrorLine(buildOutput)
+                        ?? FirstNonEmptyLine(buildOutput)
+                        ?? "Generated preview XAML did not compile.",
                     diagnosticSource?.JsonPath ?? "$.layout",
                     diagnosticSource?.RendererTemplatePath ?? rendererTemplatePath)
             ];
@@ -370,6 +375,11 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
     private static string? FirstNonEmptyLine(string value)
         => value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
             .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line));
+
+    private static string? FirstCompilerErrorLine(string value)
+        => value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .FirstOrDefault(line => CompilerErrorLinePattern.IsMatch(line));
 
     private static async Task<DotnetCommandResult> RunDotnetAsync(
         string workingDirectory,

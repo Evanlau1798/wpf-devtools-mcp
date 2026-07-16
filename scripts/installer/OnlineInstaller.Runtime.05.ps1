@@ -119,7 +119,8 @@ function Get-StandaloneDetectedInstallerRegistrationMap {
 function Get-StandaloneDetectedInstallerInstallations {
     param(
         [Parameter(Mandatory)] $State,
-        [string]$ExpectedInstallRoot
+        [string]$ExpectedInstallRoot,
+        [string]$FallbackInstallRoot
     )
 
     $installations = [ordered]@{}
@@ -195,6 +196,7 @@ function Get-StandaloneDetectedInstallerInstallations {
     $candidateRoots = New-Object System.Collections.Generic.List[string]
     foreach ($candidateRoot in @(
             $ExpectedInstallRoot
+            $FallbackInstallRoot
             [string]$State.lastInstallRoot
         )) {
         if ([string]::IsNullOrWhiteSpace($candidateRoot)) {

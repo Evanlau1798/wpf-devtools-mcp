@@ -23,7 +23,7 @@ function Invoke-StandaloneFullUninstallActionCore {
         $scopedInstallRoot
     }
 
-    $detectedInstallations = @(Get-StandaloneDetectedInstallerInstallations -State $state -ExpectedInstallRoot $effectiveInstallRoot)
+    $detectedInstallations = @(Get-StandaloneDetectedInstallerInstallations -State $state -ExpectedInstallRoot $scopedInstallRoot -FallbackInstallRoot $effectiveInstallRoot)
         $detectedRegistrations = @(Get-StandaloneDetectedInstallerRegistrations -State $state)
         if (-not [string]::IsNullOrWhiteSpace($scopedInstallRoot)) {
             $detectedInstallations = @($detectedInstallations | Where-Object {

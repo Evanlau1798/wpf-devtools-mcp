@@ -71,6 +71,8 @@ public sealed class InstallerTransactionalRecoveryTests
                     "function Invoke-UninstallVerification { param([string]$SelectedClient, $RegistrationRecord) return @{ Succeeded = $true; VerificationMessage = 'ok' } }",
                     "function Resolve-InstallBasePath { param([string]$ResolvedInstallRoot, [string]$ResolvedArchitecture) return '" + installBase.Replace("'", "''") + "' }",
                     "function Move-InstallerPathWithRetry { param([string]$SourcePath, [string]$DestinationPath) Move-Item -LiteralPath $SourcePath -Destination $DestinationPath }",
+                    "function Remove-InstallerRuntimeScreenshotCache { return $false }",
+                    "function Remove-InstallerOwnedEmptyInstallRoots { return @() }",
                     "function Get-EmptyInstallerState { return [ordered]@{ lastInstallRoot=$null; architectures=[ordered]@{}; registrations=[ordered]@{} } }",
                     "function Save-InstallerState { param($State) $script:saveCompleted = $true; '{\"lastInstallRoot\":null,\"architectures\":{},\"registrations\":{}}' | Set-Content -LiteralPath '" + statePath.Replace("'", "''") + "' -Encoding UTF8; return '" + statePath.Replace("'", "''") + "' }",
                     "function Remove-PathIfExists { param([string]$Path, [switch]$BestEffort) if ([string]::IsNullOrWhiteSpace($Path)) { return }; if ($script:saveCompleted -and $Path -like '*.rollback-*') { $script:disposalCount++; if ($script:disposalCount -eq 2) { if ($BestEffort) { return }; throw 'simulated rollback disposal failure' } }; if (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -Recurse -Force } }",

@@ -294,33 +294,22 @@ function Remove-StandaloneInstallerOwnedEmptyInstallRoots {
 
     $removedInstallRoots = @()
     foreach ($installRoot in $installRoots.Values) {
-        if (-not (Test-Path -LiteralPath $installRoot)) {
-            continue
-        }
+        try {
+            if (-not (Test-Path -LiteralPath $installRoot -ErrorAction Stop)) { continue }
+            $item = Get-Item -LiteralPath $installRoot -Force -ErrorAction Stop
+            if (-not $item.PSIsContainer) { continue }
+            if (@(Get-ChildItem -LiteralPath $installRoot -Force -ErrorAction Stop | Select-Object -First 1).Count -gt 0) { continue }
 
-        $item = Get-Item -LiteralPath $installRoot -Force
-        if (-not $item.PSIsContainer) {
-            continue
+            $removeParameters = @{ Path = $installRoot }
+            if ($BestEffort) { $removeParameters['BestEffort'] = $true }
+            Remove-PathIfExists @removeParameters
+            if (-not (Test-Path -LiteralPath $installRoot -ErrorAction Stop)) {
+                $removedInstallRoots += $installRoot
+            }
         }
-
-        $hasEntries = $false
-        foreach ($entry in @(Get-ChildItem -LiteralPath $installRoot -Force -ErrorAction Stop | Select-Object -First 1)) {
-            $hasEntries = $true
+        catch {
+            if (-not $BestEffort) { throw }
         }
-
-        if ($hasEntries) {
-            continue
-        }
-
-        $removeParameters = @{
-            Path = $installRoot
-        }
-        if ($BestEffort) {
-            $removeParameters['BestEffort'] = $true
-        }
-
-        Remove-PathIfExists @removeParameters
-        $removedInstallRoots += $installRoot
     }
 
     return @($removedInstallRoots)

@@ -7,6 +7,62 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class StandaloneFullUninstallResilienceTests
 {
     [Fact]
+    public void EmptyRootCleanup_BestEffort_ShouldContainEnumerationFailure()
+    {
+        var installRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var command = string.Join(
+                Environment.NewLine,
+                [
+                    ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/OnlineInstaller.Runtime.05.ps1").Replace("'", "''") + "'",
+                    "function Assert-InstallerLocalPathTrusted { param([string]$Path) return $Path }",
+                    "function Get-ChildItem { param([string]$LiteralPath, [switch]$Force, $ErrorAction) throw 'simulated enumeration failure' }",
+                    "$installation = [ordered]@{ InstallerOwned=$true; InstallRoot='" + installRoot.Replace("'", "''") + "' }",
+                    "@(Remove-StandaloneInstallerOwnedEmptyInstallRoots -Installations @($installation) -BestEffort).Count"
+                ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().Be("0");
+            Directory.Exists(installRoot).Should().BeTrue();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(installRoot);
+        }
+    }
+
+    [Fact]
+    public void EmptyRootCleanup_BestEffort_ShouldReportOnlyVerifiedRemoval()
+    {
+        var installRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var command = string.Join(
+                Environment.NewLine,
+                [
+                    ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/OnlineInstaller.Runtime.05.ps1").Replace("'", "''") + "'",
+                    "function Assert-InstallerLocalPathTrusted { param([string]$Path) return $Path }",
+                    "function Remove-PathIfExists { param([string]$Path, [switch]$BestEffort) }",
+                    "$installation = [ordered]@{ InstallerOwned=$true; InstallRoot='" + installRoot.Replace("'", "''") + "' }",
+                    "@(Remove-StandaloneInstallerOwnedEmptyInstallRoots -Installations @($installation) -BestEffort).Count"
+                ]);
+
+            var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().Be("0");
+            Directory.Exists(installRoot).Should().BeTrue();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(installRoot);
+        }
+    }
+
+    [Fact]
     public void StandaloneFullUninstall_ShouldRemoveRuntimeScreenshotCache()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

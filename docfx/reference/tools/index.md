@@ -59,7 +59,7 @@ Use the smallest workflow that answers the question. Prefer scene-level aggregat
 | Style/Template | `get_applied_styles` | Explain inherited or implicit visual behavior |
 | RoutedEvent | `get_event_handlers` | Investigate event routes and handlers before tracing or firing |
 | Interaction | `click_element` | Trigger behavior after locating and validating the correct element |
-| Layout | `get_layout_info` | Inspect bounds, desired size, and layout state |
+| [Layout](interaction-events-layout.md) | `get_layout_info` | Inspect bounds, desired size, and layout state |
 | MVVM | `get_viewmodel` | Inspect data and commands behind a view |
 | Performance | `get_render_stats` | Start performance triage |
 | State & Scene Diagnostics | `get_ui_summary` | Start with semantic context before using tree-heavy inspection |

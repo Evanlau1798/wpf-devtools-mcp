@@ -55,4 +55,13 @@ public sealed class ComposerPreviewLayoutRiskDocumentationTests
             "pixel",
             "screenshot");
     }
+
+    [Fact]
+    public void EnglishToolIndex_ShouldLinkLayoutReference()
+    {
+        var content = File.ReadAllText(
+            TestRepositoryPaths.GetRepoFilePath("docfx/reference/tools/index.md"));
+
+        content.Should().Contain("[Layout](interaction-events-layout.md)");
+    }
 }

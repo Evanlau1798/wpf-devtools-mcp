@@ -233,10 +233,9 @@ public sealed class PublicQuickstartDocumentationTests
     public void CodexQuickstart_ShouldLinkComposerProjectWriteWorkflowAndGates(string file)
     {
         var content = File.ReadAllText(GetRepoFilePath(file));
-        var composerApplyIndex = content.IndexOf("apply_ui_blueprint", StringComparison.Ordinal);
-        composerApplyIndex.Should().BeGreaterThan(0);
-        var composerGateContext = content[
-            Math.Max(0, composerApplyIndex - 300)..Math.Min(content.Length, composerApplyIndex + 500)];
+        var composerGateContext = content
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Single(line => line.Contains("apply_ui_blueprint", StringComparison.Ordinal));
 
         composerGateContext.Should().ContainAll(
             "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true",

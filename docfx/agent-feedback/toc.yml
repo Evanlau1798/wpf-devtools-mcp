@@ -1,5 +1,7 @@
 - name: Agent Feedback
   href: index.md
+- name: UI Composer beta.75 Codex E2E
+  href: 2026-07-17-agent-feedback-composer-beta75-codex-e2e.md
 - name: UI Composer beta.72 Codex E2E
   href: 2026-07-16-agent-feedback-composer-beta72-codex-e2e.md
 - name: WPF UI Composer Public Pre-release E2E

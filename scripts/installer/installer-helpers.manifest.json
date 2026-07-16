@@ -1,11 +1,11 @@
 {
     "schemaVersion":  1,
-    "cacheKey":  "sha256:d70047d26433a0ece40811841fb2e9fa593b47183c428704a6e9d8508a768347",
+    "cacheKey":  "sha256:086d9f309fc921fb45b6d1bff778d3e1f247b42eb5fe5af1488620fee59efe0a",
     "helperFiles":  [
                         {
                             "path":  "Installer.Actions.Core.ps1",
-                            "sha256":  "8daa4a9fbb4553fde96145677c7847c8f5367de22258cc006abd4530d57afdc4",
-                            "sizeBytes":  25519
+                            "sha256":  "7cabfcfac56b8b8dcddc1101509b2cfe56a8646c1a2a96d48fdaf33b47384ef8",
+                            "sizeBytes":  26225
                         },
                         {
                             "path":  "Installer.Actions.Paths.ps1",
@@ -44,8 +44,8 @@
                         },
                         {
                             "path":  "Installer.Discovery.ps1",
-                            "sha256":  "566e300f5f49aacda5eaa5f5e434a0c15abc92d2c2e8ee70d67612acbd34cc36",
-                            "sizeBytes":  14335
+                            "sha256":  "81ba002fc28a0ed7badd464bdc7000ca9f6a60fe2c28d95324fa1137eb5d597e",
+                            "sizeBytes":  14651
                         },
                         {
                             "path":  "Installer.Encoding.ps1",
@@ -99,8 +99,8 @@
                         },
                         {
                             "path":  "Installer.State.Installation.ps1",
-                            "sha256":  "33bfd9fb1c471f074e8bb81bbcd853ee5e348e55e7c8c9a61f984d1737a2c500",
-                            "sizeBytes":  10402
+                            "sha256":  "4a44bf94eef8406d45f4ac93064d53faad03cc29a0d7a470b29236381fd1d5e9",
+                            "sizeBytes":  10718
                         },
                         {
                             "path":  "Installer.State.ps1",
@@ -109,8 +109,8 @@
                         },
                         {
                             "path":  "Installer.Uninstall.ps1",
-                            "sha256":  "1b939cf43167e648d69fc15eec98f9373a29267363a0d85da8c528b31d697c14",
-                            "sizeBytes":  12176
+                            "sha256":  "80f632d729f5dd268ef25865e659a83776fb7fc7bdd2bd0fcf6da00bdd6f2a80",
+                            "sizeBytes":  14535
                         },
                         {
                             "path":  "Installer.Uninstall.Standalone.ps1",
@@ -144,8 +144,8 @@
                         },
                         {
                             "path":  "OnlineInstaller.Runtime.03.ps1",
-                            "sha256":  "3475d4cfad95f0f4124459ad3737c96afe03bc338a405f8b2deac44e1243e34f",
-                            "sizeBytes":  17199
+                            "sha256":  "32b5abf6c259f8dcbaeead01d5ab55157f8e4abb04f01b925f5858fce6ce1404",
+                            "sizeBytes":  17515
                         },
                         {
                             "path":  "OnlineInstaller.Runtime.04.ps1",
@@ -159,18 +159,18 @@
                         },
                         {
                             "path":  "OnlineInstaller.Runtime.06.ps1",
-                            "sha256":  "53e9bb4e1293129a0087fccfb7869ded1b6d224ccd7b30fbecdae3b7f57a9c25",
-                            "sizeBytes":  13902
+                            "sha256":  "37bed763aa427912f90868e9727401b2d4c1f316e033af14583fa9ca47d431ba",
+                            "sizeBytes":  14258
                         },
                         {
                             "path":  "OnlineInstaller.Runtime.07.ps1",
-                            "sha256":  "fbd2b2a794048417d1fa3f50555e7719d056bf1600745331fc17eca90e279808",
-                            "sizeBytes":  16697
+                            "sha256":  "1939fc56ea2c931954382776b1223dbdc0513d67af953680ca1bfd32abd46144",
+                            "sizeBytes":  19148
                         },
                         {
                             "path":  "OnlineInstaller.Runtime.08.ps1",
-                            "sha256":  "5f1da18ac6f3e47a1017ea18d930d5f4d6d88d65e61c0dc06f886a28c9ea6699",
-                            "sizeBytes":  21149
+                            "sha256":  "c55d9e75d5d33c59c5a91ecc87352a8009346919a5156a058e164ce8fd0da458",
+                            "sizeBytes":  21262
                         },
                         {
                             "path":  "OnlineInstaller.Runtime.09.ps1",
@@ -194,8 +194,8 @@
                         },
                         {
                             "path":  "OnlineInstaller.Runtime.13.ps1",
-                            "sha256":  "242f12c15eafab68b1bae1949e1ccad4ee0d6ac1e49a08e7fbd9e04e96233b98",
-                            "sizeBytes":  5757
+                            "sha256":  "5311976c3a6e735d6572456abacaea1cf94624eb59fb56e69c7f4a9b60993303",
+                            "sizeBytes":  5840
                         },
                         {
                             "path":  "Tui.Confirm.ps1",

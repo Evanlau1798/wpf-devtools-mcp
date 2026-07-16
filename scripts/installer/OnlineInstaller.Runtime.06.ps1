@@ -325,6 +325,8 @@ function Get-StandaloneUninstallCleanupGuidance {
 }
 
 function Get-StandaloneFullUninstallCleanupGuidance {
+    param([switch]$InstallRootWasSpecified)
+    if ($InstallRootWasSpecified) { return 'full-uninstall is scoped to the exact -InstallRoot path and removes detected registrations, generated client-registration artifacts, and installer-owned server locations only for that root. Persisted auth secrets and certificate stores remain manual cleanup items.' }
     return 'full-uninstall removes all detected registrations, generated client-registration artifacts, and installer-owned server locations. Persisted auth secrets and certificate stores remain manual cleanup items.'
 }
 

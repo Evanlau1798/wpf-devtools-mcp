@@ -5,14 +5,34 @@ function Invoke-StandaloneFullUninstallActionCore {
         [Parameter(Mandatory)] [string]$ResolvedClient,
         [Parameter(Mandatory)] [AllowEmptyString()] [AllowNull()] [string]$ResolvedInstallRoot,
         [Parameter(Mandatory)] [string]$RequestedVersion,
-        [switch]$UseLatestRelease
+        [switch]$UseLatestRelease,
+        [switch]$InstallRootWasSpecified
     )
 
     $state = Get-StandaloneInstallerState
-    $effectiveInstallRoot = Resolve-StandaloneRemovalInstallRoot -ResolvedInstallRoot $ResolvedInstallRoot -State $state
+    $scopedInstallRoot = if ($InstallRootWasSpecified) {
+        Normalize-StandaloneInstallerPath -PathValue (Assert-InstallerLocalPathTrusted -Path $ResolvedInstallRoot)
+    }
+    else {
+        $null
+    }
+    $effectiveInstallRoot = if ([string]::IsNullOrWhiteSpace($scopedInstallRoot)) {
+        Resolve-StandaloneRemovalInstallRoot -ResolvedInstallRoot $ResolvedInstallRoot -State $state
+    }
+    else {
+        $scopedInstallRoot
+    }
 
     $detectedInstallations = @(Get-StandaloneDetectedInstallerInstallations -State $state -ExpectedInstallRoot $effectiveInstallRoot)
         $detectedRegistrations = @(Get-StandaloneDetectedInstallerRegistrations -State $state)
+        if (-not [string]::IsNullOrWhiteSpace($scopedInstallRoot)) {
+            $detectedInstallations = @($detectedInstallations | Where-Object {
+                    Test-StandaloneInstallerPathEquals -Left ([string]$_.InstallRoot) -Right $scopedInstallRoot
+                })
+            $detectedRegistrations = @($detectedRegistrations | Where-Object {
+                    Test-StandaloneRegistrationMatchesInstallRoot -RegistrationRecord $_ -ExpectedInstallRoot $scopedInstallRoot
+                })
+        }
         $registrationMap = [ordered]@{}
         foreach ($registration in $detectedRegistrations) {
             $stateKey = Resolve-ClientStateKey -ClientId ([string]$registration.ClientId) -RegistrationMode ([string]$registration.RegistrationMode)
@@ -176,9 +196,30 @@ function Invoke-StandaloneFullUninstallActionCore {
                 }
             }
 
-            $state.registrations.Clear()
-            $state.architectures.Clear()
-            $state.lastInstallRoot = $null
+            if ([string]::IsNullOrWhiteSpace($scopedInstallRoot)) {
+                $state.registrations.Clear()
+                $state.architectures.Clear()
+                $state.lastInstallRoot = $null
+            }
+            else {
+                foreach ($key in @($state.registrations.Keys)) {
+                    if (Test-StandaloneRegistrationMatchesInstallRoot -RegistrationRecord $state.registrations[$key] -ExpectedInstallRoot $scopedInstallRoot) {
+                        $null = $state.registrations.Remove($key)
+                    }
+                }
+                foreach ($key in @($state.architectures.Keys)) {
+                    if (Test-StandaloneRegistrationMatchesInstallRoot -RegistrationRecord $state.architectures[$key] -ExpectedInstallRoot $scopedInstallRoot) {
+                        $null = $state.architectures.Remove($key)
+                    }
+                }
+                if (Test-StandaloneInstallerPathEquals -Left ([string]$state.lastInstallRoot) -Right $scopedInstallRoot) {
+                    $remainingRoot = @($state.architectures.Values) + @($state.registrations.Values) |
+                        ForEach-Object { Get-StandaloneRecordStringValue -Record $_ -PropertyNames @('installRoot', 'InstallRoot') } |
+                        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                        Select-Object -First 1
+                    $state.lastInstallRoot = $remainingRoot
+                }
+            }
             $statePath = Save-StandaloneInstallerState -State $state
             $stateRestoreRequired = $true
             foreach ($operation in $registrationOperations) {
@@ -201,7 +242,7 @@ function Invoke-StandaloneFullUninstallActionCore {
                 client = 'all'
                 packageAssetName = $null
                 downloadUri = $null
-                installRoot = $summary.installRoot
+                installRoot = if ($InstallRootWasSpecified) { $scopedInstallRoot } else { $summary.installRoot }
                 installedExecutable = $null
                 selectedClients = @()
                 statePath = $statePath
@@ -209,8 +250,8 @@ function Invoke-StandaloneFullUninstallActionCore {
                 removedInstallations = @($removedInstallations)
                 removedInstallRoots = @($removedInstallRoots)
                 registrations = @($registrationOperations | Where-Object { [bool]$_.Applied })
-                cleanupScope = 'registrations-and-installer-owned-server-locations'
-                cleanupGuidance = Get-StandaloneFullUninstallCleanupGuidance
+                cleanupScope = if ($InstallRootWasSpecified) { 'explicit-install-root-registrations-and-server-locations' } else { 'registrations-and-installer-owned-server-locations' }
+                cleanupGuidance = Get-StandaloneFullUninstallCleanupGuidance -InstallRootWasSpecified:$InstallRootWasSpecified
                 verificationMessage = "Verified removal of $($registrationOperations.Count) registration(s) and $($removedInstallations.Count) installer-owned server location(s)."
                 releaseChannel = $summary.releaseChannel
             }

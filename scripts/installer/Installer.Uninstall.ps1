@@ -17,10 +17,28 @@ function Invoke-InstallerVerifiedRemoval {
 }
 
 function Invoke-InstallerFullUninstallCore {
-    param([Parameter(Mandatory)] $State)
+    param(
+        [Parameter(Mandatory)] $State,
+        [AllowNull()] [string]$InstallRoot,
+        [switch]$InstallRootWasSpecified
+    )
 
     $detectedRegistrations = @(Get-DetectedInstallerRegistrations -State $State)
     $detectedInstallations = @(Get-DetectedInstallerInstallations -State $State)
+    $scopedInstallRoot = if ($InstallRootWasSpecified) {
+        Normalize-InstallerPathCore -PathValue (Assert-InstallerLocalPathTrusted -Path $InstallRoot)
+    }
+    else {
+        $null
+    }
+    if (-not [string]::IsNullOrWhiteSpace($scopedInstallRoot)) {
+        $detectedRegistrations = @($detectedRegistrations | Where-Object {
+                Test-InstallerRegistrationMatchesInstallRoot -RegistrationRecord $_ -ExpectedInstallRoot $scopedInstallRoot
+            })
+        $detectedInstallations = @($detectedInstallations | Where-Object {
+                Test-InstallerPathEqualsCore -Left ([string]$_.InstallRoot) -Right $scopedInstallRoot
+            })
+    }
     $unregistrationResults = @()
     $unregistrationOperations = @()
     $registrationBackups = @()
@@ -121,7 +139,34 @@ function Invoke-InstallerFullUninstallCore {
         }
 
         $removedRuntimeScreenshotCache = Remove-InstallerRuntimeScreenshotCache
-        $newState = Get-EmptyInstallerState
+        $newState = if ([string]::IsNullOrWhiteSpace($scopedInstallRoot)) {
+            Get-EmptyInstallerState
+        }
+        else {
+            $remainingState = Get-EmptyInstallerState
+            foreach ($entry in $State.architectures.GetEnumerator()) {
+                if (-not (Test-InstallerRegistrationMatchesInstallRoot -RegistrationRecord $entry.Value -ExpectedInstallRoot $scopedInstallRoot)) {
+                    $remainingState.architectures[[string]$entry.Key] = $entry.Value
+                }
+            }
+            foreach ($entry in $State.registrations.GetEnumerator()) {
+                if (-not (Test-InstallerRegistrationMatchesInstallRoot -RegistrationRecord $entry.Value -ExpectedInstallRoot $scopedInstallRoot)) {
+                    $remainingState.registrations[[string]$entry.Key] = $entry.Value
+                }
+            }
+
+            if (-not (Test-InstallerPathEqualsCore -Left ([string]$State.lastInstallRoot) -Right $scopedInstallRoot)) {
+                $remainingState.lastInstallRoot = [string]$State.lastInstallRoot
+            }
+            else {
+                $remainingRoot = @($remainingState.architectures.Values) + @($remainingState.registrations.Values) |
+                    ForEach-Object { Get-InstallerRecordStringValueCore -Record $_ -PropertyNames @('installRoot', 'InstallRoot') } |
+                    Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                    Select-Object -First 1
+                $remainingState.lastInstallRoot = $remainingRoot
+            }
+            $remainingState
+        }
         $statePath = Save-InstallerState -State $newState
         $stateRestoreRequired = $true
         foreach ($registrationBackup in $registrationBackups) {
@@ -136,6 +181,7 @@ function Invoke-InstallerFullUninstallCore {
         return [ordered]@{
             action = 'full-uninstall'
             client = 'all'
+            installRoot = $scopedInstallRoot
             statePath = $statePath
             removedInstallation = ($removedInstallations.Count -gt 0)
             removedInstallations = @($removedInstallations)

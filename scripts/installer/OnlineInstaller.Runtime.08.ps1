@@ -221,7 +221,8 @@ function Invoke-StandaloneInstallerActionCore {
         [Parameter(Mandatory)] [string]$ResolvedClient,
         [Parameter(Mandatory)] [AllowEmptyString()] [AllowNull()] [string]$ResolvedInstallRoot,
         [Parameter(Mandatory)] [string]$RequestedVersion,
-        [switch]$UseLatestRelease
+        [switch]$UseLatestRelease,
+        [switch]$InstallRootWasSpecified
     )
 
     $parameters = @{
@@ -233,6 +234,7 @@ function Invoke-StandaloneInstallerActionCore {
         UseLatestRelease = $UseLatestRelease
     }
     if ($ResolvedAction -eq 'full-uninstall') {
+        $parameters.InstallRootWasSpecified = $InstallRootWasSpecified
         return (Invoke-StandaloneFullUninstallActionCore @parameters)
     }
 

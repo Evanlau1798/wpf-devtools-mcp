@@ -101,7 +101,13 @@ function Normalize-StandaloneInstallerPath {
 
     $normalizedSeparators = $trimmed.Replace('/', '\')
     try {
-        return [System.IO.Path]::GetFullPath($normalizedSeparators)
+        $normalizedPath = [System.IO.Path]::GetFullPath($normalizedSeparators)
+        $volumeRoot = [System.IO.Path]::GetPathRoot($normalizedPath)
+        if ($normalizedPath.Length -gt $volumeRoot.Length) {
+            return $normalizedPath.TrimEnd(@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar))
+        }
+
+        return $normalizedPath
     }
     catch {
         return $normalizedSeparators

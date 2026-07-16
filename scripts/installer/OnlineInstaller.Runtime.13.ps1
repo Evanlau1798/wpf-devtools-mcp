@@ -29,7 +29,8 @@ function Invoke-InstallerAction {
                 -ResolvedClient $ResolvedClient `
                 -ResolvedInstallRoot $ResolvedInstallRoot `
                 -RequestedVersion $RequestedVersion `
-                -UseLatestRelease:$UseLatestRelease
+                -UseLatestRelease:$UseLatestRelease `
+                -InstallRootWasSpecified:([bool]$script:InstallRootWasSpecified)
         return (Add-InstallerReleaseChannelToResult -Result $standaloneResult)
     }
 

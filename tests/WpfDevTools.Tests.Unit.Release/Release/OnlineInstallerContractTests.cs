@@ -67,6 +67,7 @@ public sealed class OnlineInstallerContractTests
         content.Should().Contain("ConfirmationStep");
         content.Should().Contain("Full Uninstall");
         content.Should().Contain("full-uninstall");
+        content.Should().Contain("For full-uninstall, this scopes cleanup to that exact root.");
     }
 
     [Fact]

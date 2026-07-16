@@ -16,9 +16,10 @@ function Get-InstallerUninstallCleanupGuidance {
     return "uninstall removes or verifies only the selected registration and leaves installer-owned server locations in place.$otherClause For E2E, temporary, or decommissioning cleanup, use the full cleanup action. Use -Action full-uninstall to remove all detected registrations, generated client-registration artifacts, and installer-owned server locations."
 }
 function Get-InstallerFullUninstallCleanupGuidance {
+    param([switch]$InstallRootWasSpecified)
+    if ($InstallRootWasSpecified) { return 'full-uninstall is scoped to the exact -InstallRoot path and removes detected registrations, generated client-registration artifacts, and installer-owned server locations only for that root. Persisted auth secrets and certificate stores remain manual cleanup items.' }
     return 'full-uninstall removes all detected registrations, generated client-registration artifacts, and installer-owned server locations. Persisted auth secrets and certificate stores remain manual cleanup items.'
 }
-
 function Get-InstallerComposerPolicyProfile {
     param([Parameter(Mandatory)] [string]$ResolvedClient)
     if (-not [string]::Equals($ResolvedClient, 'other', [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -162,7 +163,7 @@ function Invoke-InstallerActionCore {
 
     if ($ResolvedAction -eq 'full-uninstall') {
         $state = Get-InstallerState
-        $result = Invoke-InstallerFullUninstallCore -State $state
+        $result = Invoke-InstallerFullUninstallCore -State $state -InstallRoot $ResolvedInstallRoot -InstallRootWasSpecified:([bool]$script:InstallRootWasSpecified)
         $summary = Get-InstallerFullUninstallResultSummary -RemovedInstallations @($result.removedInstallations) -RequestedVersion $RequestedVersion
         return [ordered]@{
             action = 'full-uninstall'
@@ -174,7 +175,7 @@ function Invoke-InstallerActionCore {
             client = 'all'
             packageAssetName = $null
             downloadUri = $null
-            installRoot = $summary.installRoot
+            installRoot = if ($script:InstallRootWasSpecified) { [string]$result.installRoot } else { $summary.installRoot }
             installedExecutable = $null
             selectedClients = @()
             statePath = [string]$result.statePath
@@ -182,8 +183,8 @@ function Invoke-InstallerActionCore {
             removedInstallations = @($result.removedInstallations)
             removedInstallRoots = @($result.removedInstallRoots)
             registrations = @($result.registrations)
-            cleanupScope = 'registrations-and-installer-owned-server-locations'
-            cleanupGuidance = Get-InstallerFullUninstallCleanupGuidance
+            cleanupScope = if ($script:InstallRootWasSpecified) { 'explicit-install-root-registrations-and-server-locations' } else { 'registrations-and-installer-owned-server-locations' }
+            cleanupGuidance = Get-InstallerFullUninstallCleanupGuidance -InstallRootWasSpecified:([bool]$script:InstallRootWasSpecified)
             verificationMessage = [string]$result.verificationMessage
             releaseChannel = $summary.releaseChannel
         }

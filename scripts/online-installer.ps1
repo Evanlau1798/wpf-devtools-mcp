@@ -56,6 +56,7 @@ Common options:
   -Architecture <arch>   x64, x86, or arm64.
   -Client <client>       claude-code, codex, grok, cursor, vscode, visual-studio, claude-desktop, or other.
   -InstallRoot <path>    Install root. Defaults to a per-user local app data path.
+                         For full-uninstall, this scopes cleanup to that exact root.
   -PackageArchivePath <zip>
                          Install from a reviewed local release archive.
   -TrustedReleaseMetadataDirectory <path>
@@ -101,7 +102,7 @@ elseif (-not [string]::IsNullOrWhiteSpace($PSCommandPath)) {
 else {
     $null
 }
-$script:InstallerHelperManifestCacheKey = 'sha256:d70047d26433a0ece40811841fb2e9fa593b47183c428704a6e9d8508a768347'
+$script:InstallerHelperManifestCacheKey = 'sha256:086d9f309fc921fb45b6d1bff778d3e1f247b42eb5fe5af1488620fee59efe0a'
 $script:OnlineInstallerRuntimeSourcePaths = @(
     'scripts/installer/OnlineInstaller.Runtime.01.ps1'
     'scripts/installer/OnlineInstaller.Runtime.02.ps1'

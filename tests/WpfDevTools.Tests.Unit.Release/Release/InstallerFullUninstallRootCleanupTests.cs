@@ -6,6 +6,121 @@ namespace WpfDevTools.Tests.Unit.Release;
 
 public sealed class InstallerFullUninstallRootCleanupTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OnlineInstaller_FullUninstallWithExplicitRoot_ShouldPreserveOtherInstallRoot(
+        bool useStandaloneFallback)
+    {
+        var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var packageRootA = Path.Combine(tempRoot, "package-a");
+            var packageRootB = Path.Combine(tempRoot, "package-b");
+            Directory.CreateDirectory(packageRootA);
+            Directory.CreateDirectory(packageRootB);
+            var archiveA = ReleaseScriptTestHarness.CreatePackageArchive(packageRootA, "x64");
+            var archiveB = ReleaseScriptTestHarness.CreatePackageArchive(packageRootB, "x86");
+            var installRootA = Path.Combine(tempRoot, "install-a");
+            var installRootB = Path.Combine(tempRoot, "install-b");
+
+            var installA = StandaloneInstallerRegressionTestSupport.RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archiveA,
+                    "-InstallRoot", installRootA,
+                    "-Client", "other",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+            var installB = StandaloneInstallerRegressionTestSupport.RunRepoInstaller(
+                tempRoot,
+                [
+                    "-PackageArchivePath", archiveB,
+                    "-InstallRoot", installRootB,
+                    "-Client", "vscode",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ]);
+
+            installA.ExitCode.Should().Be(0, installA.Stderr);
+            installB.ExitCode.Should().Be(0, installB.Stderr);
+
+            var removalScriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+            if (useStandaloneFallback)
+            {
+                ReleaseScriptTestHarness.DeleteDirectory(
+                    Path.Combine(installRootA, "x64", "current", "bin", "installer"));
+                ReleaseScriptTestHarness.DeleteDirectory(
+                    Path.Combine(installRootB, "x86", "current", "bin", "installer"));
+                var standaloneRoot = Path.Combine(tempRoot, "standalone-removal");
+                Directory.CreateDirectory(standaloneRoot);
+                removalScriptPath = Path.Combine(standaloneRoot, "online-installer.ps1");
+                File.Copy(
+                    ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1"),
+                    removalScriptPath,
+                    overwrite: true);
+                ReleaseScriptTestHarness.CopyOnlineInstallerRuntimeBundle(standaloneRoot);
+            }
+
+            var scopedRemoval = ReleaseScriptTestHarness.RunPowerShellScript(
+                removalScriptPath,
+                [
+                    "-Action", "full-uninstall",
+                    "-InstallRoot", installRootB + Path.DirectorySeparatorChar,
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                StandaloneInstallerRegressionTestSupport.CreateStandaloneEnvironment(tempRoot));
+
+            scopedRemoval.ExitCode.Should().Be(0, scopedRemoval.Stderr);
+            using var removalJson = JsonDocument.Parse(scopedRemoval.Stdout);
+            removalJson.RootElement.GetProperty("installRoot").GetString().Should().Be(installRootB);
+            removalJson.RootElement.GetProperty("cleanupScope").GetString().Should()
+                .Be("explicit-install-root-registrations-and-server-locations");
+            removalJson.RootElement.GetProperty("cleanupGuidance").GetString().Should()
+                .Contain("scoped to the exact -InstallRoot path");
+            removalJson.RootElement.GetProperty("removedInstallRoots").EnumerateArray()
+                .Select(root => root.GetString())
+                .Should().Contain(installRootB).And.NotContain(installRootA);
+            Directory.Exists(installRootB).Should().BeFalse();
+            Directory.Exists(installRootA).Should().BeTrue();
+            File.Exists(Path.Combine(installRootA, "x64", "client-registration", "other.mcpServers.json"))
+                .Should().BeTrue("an explicit-root full-uninstall must not remove another root's registration artifact");
+
+            var statePath = Path.Combine(tempRoot, "AppData", "Roaming", "WpfDevToolsMcp", "installer-state.json");
+            using var stateJson = JsonDocument.Parse(File.ReadAllText(statePath));
+            stateJson.RootElement.GetProperty("lastInstallRoot").GetString().Should().Be(installRootA);
+            stateJson.RootElement.GetProperty("architectures").TryGetProperty("x64", out var x64State).Should().BeTrue();
+            x64State.GetProperty("installRoot").GetString().Should().Be(installRootA);
+            stateJson.RootElement.GetProperty("architectures").TryGetProperty("x86", out _).Should().BeFalse();
+            var registrations = stateJson.RootElement.GetProperty("registrations").EnumerateObject().ToArray();
+            registrations.Should().ContainSingle("root-A registration state must remain present");
+            registrations[0].Value.GetProperty("installRoot").GetString().Should().Be(installRootA);
+
+            var globalRemoval = ReleaseScriptTestHarness.RunPowerShellScript(
+                removalScriptPath,
+                [
+                    "-Action", "full-uninstall",
+                    "-NonInteractive",
+                    "-Force",
+                    "-OutputJson"
+                ],
+                StandaloneInstallerRegressionTestSupport.CreateStandaloneEnvironment(tempRoot));
+
+            globalRemoval.ExitCode.Should().Be(0, globalRemoval.Stderr);
+            Directory.Exists(installRootA).Should().BeFalse(
+                "omitting -InstallRoot must preserve the existing global full-uninstall behavior");
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
+        }
+    }
+
     [Fact]
     public void OnlineInstaller_FullUninstall_ShouldRemoveEmptyInstallerOwnedInstallRoot()
     {

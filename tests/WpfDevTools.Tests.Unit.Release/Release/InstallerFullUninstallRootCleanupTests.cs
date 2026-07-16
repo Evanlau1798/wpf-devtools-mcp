@@ -245,4 +245,61 @@ public sealed class InstallerFullUninstallRootCleanupTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+
+    [Fact]
+    public void SharedEmptyRootCleanup_BestEffort_ShouldContainEnumerationFailure()
+    {
+        var installRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var result = RunSharedEmptyRootCleanupProbe(
+                installRoot,
+                "function Get-ChildItem { param([string]$LiteralPath, [switch]$Force, $ErrorAction) throw 'simulated enumeration failure' }");
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().Be("0");
+            Directory.Exists(installRoot).Should().BeTrue();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(installRoot);
+        }
+    }
+
+    [Fact]
+    public void SharedEmptyRootCleanup_BestEffort_ShouldReportOnlyVerifiedRemoval()
+    {
+        var installRoot = ReleaseScriptTestHarness.CreateTempDirectory();
+        try
+        {
+            var result = RunSharedEmptyRootCleanupProbe(
+                installRoot,
+                "function Remove-PathIfExists { param([string]$Path, [switch]$BestEffort) }");
+
+            result.ExitCode.Should().Be(0, result.Stderr);
+            result.Stdout.Trim().Should().Be("0");
+            Directory.Exists(installRoot).Should().BeTrue();
+        }
+        finally
+        {
+            ReleaseScriptTestHarness.DeleteDirectory(installRoot);
+        }
+    }
+
+    private static (int ExitCode, string Stdout, string Stderr) RunSharedEmptyRootCleanupProbe(
+        string installRoot,
+        string injectedFunction)
+    {
+        var command = string.Join(
+            Environment.NewLine,
+            [
+                ". '" + ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer/Installer.Uninstall.Standalone.ps1").Replace("'", "''") + "'",
+                "function Assert-InstallerLocalPathTrusted { param([string]$Path) return $Path }",
+                injectedFunction,
+                "$installation = [ordered]@{ InstallerOwned=$true; InstallRoot='" + installRoot.Replace("'", "''") + "' }",
+                "@(Remove-InstallerOwnedEmptyInstallRoots -Installations @($installation) -BestEffort).Count"
+            ]);
+
+        return ReleaseScriptTestHarness.RunPowerShellCommand(command);
+    }
 }

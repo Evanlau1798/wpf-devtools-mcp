@@ -235,7 +235,7 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string ApplyUiProjectIntegration =
         """
-        USE WHEN: Apply the exact projectIntegrationPlan returned by a reviewed apply_ui_blueprint dry run.
+        USE WHEN: Apply the exact reviewed pack-neutral projectIntegrationPlan from apply_ui_blueprint.
 
         CATEGORY: UI Composer
 
@@ -244,11 +244,11 @@ internal static class UiComposerMcpToolDescriptions
         RESPONSE SUMMARY:
         - Regenerates the plan; stale reviewedPlanHash fails with IntegrationPlanChanged before writes.
         - Applies only generated package, App.xaml, startup, and code-behind operations under projectRoot.
-        - Changes report backupPath and rollbackAction; later failure rolls back earlier operations.
+        - Changes report backupPath and rollbackAction; failure rolls back earlier operations.
         - Package changes set packageRestoreRequired=true and buildGuidance for restore before --no-restore build.
 
         REQUEST OPTIONS:
-        - Match blueprintJson/draftRef, projectRoot, targetPath, reviewedPlanHash, confirmIntegration=true, and pack scope to the dry run.
+        - blueprintJson is raw JSON or an opaque draftRef; match projectRoot, targetPath, reviewedPlanHash, confirmIntegration=true, and pack scope to the dry run.
 
         EXAMPLES:
         """ + CanonicalExamples;

@@ -125,14 +125,15 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         }
 
         var hasIdentityTarget = identityTargets.Length == 1;
+        var includeRuntimeCorrelation = includeTransientElementCorrelation && block.Renderer.RuntimeInspectable;
         var rendered = TokenPattern.Replace(template, match =>
             ResolveToken(match.Groups["name"].Value, node, block, path, packs, context, errors, sourceMap,
-                includeTransientElementCorrelation, elementCorrelations));
+                includeRuntimeCorrelation, elementCorrelations));
         rendered = EmptyPropertyElementPattern.Replace(rendered, string.Empty);
         if (!hasIdentityTarget)
         {
             rendered = AddAuthoredIdentity(rendered, node, path, errors);
-            if (includeTransientElementCorrelation)
+            if (includeRuntimeCorrelation)
             {
                 rendered = AddTransientElementCorrelation(
                     rendered,

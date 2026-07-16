@@ -10,6 +10,9 @@
     "maxWidth": { "type": "number", "default": 1000000, "minimum": 0 }
   },
   "slots": {},
-  "renderer": { "xamlTemplate": "renderers/xaml/columnDefinition.xaml.sbn" },
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/columnDefinition.xaml.sbn",
+    "runtimeInspectable": false
+  },
   "sourceHints": [{ "path": "System.Windows.Controls.ColumnDefinition", "usage": "native WPF grid definition" }]
 }

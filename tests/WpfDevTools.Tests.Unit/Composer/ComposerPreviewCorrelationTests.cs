@@ -83,6 +83,19 @@ public sealed class ComposerPreviewCorrelationTests
         }
     }
 
+    [Fact]
+    public void Renderer_ShouldExcludePackDeclaredNonInspectableRootsFromPreviewCorrelation()
+    {
+        var result = new UiBlueprintRenderer(CreateRegistry()).Render(
+            new RenderBlueprintRequest(GridBlueprint(), IncludeTransientElementCorrelation: true));
+
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.ElementCorrelations.Should().ContainSingle()
+            .Which.BlockKind.Should().Be("core.grid");
+        result.Xaml.Should().NotContain("<RowDefinition Height=\"Auto\" MinHeight=\"0\" MaxHeight=\"1000000\" x:Name=");
+        result.Xaml.Should().NotContain("<ColumnDefinition Width=\"*\" MinWidth=\"0\" MaxWidth=\"1000000\" x:Name=");
+    }
+
     private static PackRegistry CreateRegistry()
         => PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
 
@@ -132,6 +145,29 @@ public sealed class ComposerPreviewCorrelationTests
                "slots": {
                  "children": [
                    { "kind": "core.text", "properties": { "text": "Correlated" } }
+                 ]
+               }
+             }
+           }
+           """;
+
+    private static string GridBlueprint()
+        => """
+           {
+             "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+             "name": "PreviewGridCorrelation",
+             "packs": [
+               { "id": "core", "version": "0.1.0", "required": true, "role": "primary" }
+             ],
+             "primaryPack": "core",
+             "layout": {
+               "kind": "core.grid",
+               "slots": {
+                 "rows": [
+                   { "kind": "core.rowDefinition", "properties": { "height": "Auto" } }
+                 ],
+                 "columns": [
+                   { "kind": "core.columnDefinition", "properties": { "width": "*" } }
                  ]
                }
              }

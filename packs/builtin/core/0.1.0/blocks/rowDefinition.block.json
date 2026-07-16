@@ -10,6 +10,9 @@
     "maxHeight": { "type": "number", "default": 1000000, "minimum": 0 }
   },
   "slots": {},
-  "renderer": { "xamlTemplate": "renderers/xaml/rowDefinition.xaml.sbn" },
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/rowDefinition.xaml.sbn",
+    "runtimeInspectable": false
+  },
   "sourceHints": [{ "path": "System.Windows.Controls.RowDefinition", "usage": "native WPF grid definition" }]
 }

@@ -14,7 +14,7 @@ public sealed class ComposerContractTests
         UiComposerSchemaVersions.SourceRepository.Should()
             .Be("https://github.com/Evanlau1798/wpf-devtools-extension-pack-creator");
         UiComposerSchemaVersions.SourceRef.Should().Be("master");
-        UiComposerSchemaVersions.SourceCommit.Should().Be("7802ade3c93ccd10b17fcb02921add10aafd8573");
+        UiComposerSchemaVersions.SourceCommit.Should().Be("fd05c9f7d76e39efe2448460a305b737f9358810");
 
         UiComposerSchemaVersions.SchemaFiles.Keys.Should().BeEquivalentTo(
         [

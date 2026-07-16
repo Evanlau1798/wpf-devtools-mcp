@@ -127,6 +127,7 @@ internal sealed class UiBlockRenderer
 
     public string XamlTemplate { get; set; } = string.Empty;
     public string CodeBehindBaseType { get; set; } = string.Empty;
+    public bool RuntimeInspectable { get; set; } = true;
 
     public string[] NameScopeElements
     {

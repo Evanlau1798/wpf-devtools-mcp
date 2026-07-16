@@ -138,6 +138,17 @@ public sealed class McpToolDescriptionContractTests
     }
 
     [Fact]
+    public void GetClippingInfo_Description_ShouldSeparateLayoutRiskFromPixelLoss()
+    {
+        var description = GetDescriptionText("get_clipping_info");
+
+        description.Should().ContainAll(
+            "visibleContentImpact",
+            "does not prove visible pixel loss",
+            "confirm affected content");
+    }
+
+    [Fact]
     public void FindElements_Description_ShouldExplainTruncatedZeroResultRecovery()
     {
         var description = GetDescriptionText("find_elements");

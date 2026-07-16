@@ -49,5 +49,10 @@ public sealed class ComposerPreviewLayoutRiskDocumentationTests
         content.Should().Contain("elementIds");
         content.Should().Contain("100");
         content.Should().Contain("elementId");
+        content.Should().ContainAll(
+            "visibleContentImpact",
+            "not-determined",
+            "pixel",
+            "screenshot");
     }
 }

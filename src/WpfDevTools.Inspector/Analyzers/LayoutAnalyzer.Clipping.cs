@@ -44,6 +44,7 @@ public sealed partial class LayoutAnalyzer
             {
                 success = true,
                 isClipped,
+                visibleContentImpact = isClipped ? "not-determined" : "none",
                 analysisScope = "target-and-ancestors",
                 clippingSource,
                 clipToBounds = uiElement.ClipToBounds,
@@ -215,7 +216,9 @@ public sealed partial class LayoutAnalyzer
         if (ancestorDisplay != null)
         {
             return $"Increase the available layout slot or reduce desired size under {ancestorDisplay}; " +
-                   "inspect fixed sizes, margins, and Grid row or column sizing before changing clipping policy.";
+                   "inspect fixed sizes, margins, and Grid row or column sizing before changing clipping policy. " +
+                   "This structural overflow is not proof of visible pixel loss; confirm affected content " +
+                   "with focused descendant checks or a screenshot before changing layout.";
         }
 
         return selfSource == "explicit-clip"

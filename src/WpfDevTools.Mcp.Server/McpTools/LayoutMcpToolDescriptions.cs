@@ -27,7 +27,8 @@ internal static class LayoutMcpToolDescriptions
         LayoutMetadata +
         "USE: Pass `elementId`, or up to 100 `elementIds`; use find_elements first when only text is known. " +
         "This does not implicitly scan descendants. Use get_layout_info for general sizing.\n" +
-        "RETURNS: isClipped, clippingSource, bounds, directional overflowAmount, clippingAncestors, suggestedFix; batches retain elementId correlation.\n" +
+        "RETURNS: isClipped, clippingSource, visibleContentImpact, directional overflowAmount, clippingAncestors, suggestedFix; batches retain elementId correlation. " +
+        "Structural clipping with visibleContentImpact=not-determined does not prove visible pixel loss; confirm affected content with focused descendant checks or a screenshot.\n" +
         "ERRORS: not connected -> connect; target missing -> verify elementId; no targets -> pass elementId or elementIds.\n";
 
     public const string HighlightElement =

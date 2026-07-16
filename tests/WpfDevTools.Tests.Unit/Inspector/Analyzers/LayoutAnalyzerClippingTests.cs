@@ -62,12 +62,17 @@ public class LayoutAnalyzerClippingTests
         doc.GetProperty("isClipped").GetBoolean().Should().BeTrue(doc.GetRawText());
         doc.GetProperty("analysisScope").GetString().Should().Be("target-and-ancestors");
         doc.GetProperty("clippingSource").GetString().Should().Be("ancestor-layout-clip");
+        doc.GetProperty("visibleContentImpact").GetString().Should().Be("not-determined",
+            "layout overflow alone does not prove that meaningful rendered pixels are missing");
         var ancestor = doc.GetProperty("clippingAncestors").EnumerateArray()
             .Should().ContainSingle().Subject;
         ancestor.GetProperty("elementType").GetString().Should().Be("StackPanel");
         ancestor.GetProperty("clipSource").GetString().Should().Be("layout-clip");
         ancestor.GetProperty("overflowAmount").GetProperty("bottom").GetDouble().Should().BeGreaterThan(0);
-        doc.GetProperty("suggestedFix").GetString().Should().Contain("StackPanel");
+        doc.GetProperty("suggestedFix").GetString().Should().ContainAll(
+            "StackPanel",
+            "not proof of visible pixel loss",
+            "confirm affected content");
     }
 
     [StaFact]
@@ -97,6 +102,7 @@ public class LayoutAnalyzerClippingTests
         doc.GetProperty("hasClip").GetBoolean().Should().BeFalse();
         doc.GetProperty("isClipped").GetBoolean().Should().BeFalse(
             "ClipToBounds is a policy flag and should not imply real clipping without overflow or clip geometry");
+        doc.GetProperty("visibleContentImpact").GetString().Should().Be("none");
 
         var overflow = doc.GetProperty("overflowAmount");
         overflow.GetProperty("left").GetDouble().Should().Be(0);

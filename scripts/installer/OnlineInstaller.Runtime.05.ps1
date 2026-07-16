@@ -49,24 +49,41 @@ function Get-StandaloneDetectedInstallerRegistrations {
             $existingTarget = [string]$existing.RegistrationTarget
             $liveTarget = [string]$registration.RegistrationTarget
             $existingTargetHasRegistration = $false
-            $liveTargetHasRegistration = $false
+            $liveTargetHasRegistration = -not [string]::IsNullOrWhiteSpace($liveTarget)
             if (-not [string]::IsNullOrWhiteSpace($collectionName)) {
                 if (-not [string]::IsNullOrWhiteSpace($existingTarget)) {
                     $existingTargetHasRegistration = Test-StandaloneJsonConfigRegistration -CollectionName $collectionName -ConfigPath $existingTarget
                 }
-
-                if (-not [string]::IsNullOrWhiteSpace($liveTarget)) {
-                    $liveTargetHasRegistration = Test-StandaloneJsonConfigRegistration -CollectionName $collectionName -ConfigPath $liveTarget
-                }
             }
 
-            if ([string]::IsNullOrWhiteSpace([string]$existing.RegistrationTarget)) {
-                $existing.RegistrationTarget = [string]$registration.RegistrationTarget
+            if ($existingTargetHasRegistration) {
+                $existingLiveExecutable = Get-StandaloneJsonRegisteredExecutable -CollectionName $collectionName -ConfigPath $existingTarget
+                $existingLiveOwnership = Resolve-StandaloneInstallerOwnershipFromExecutable -InstalledExecutable $existingLiveExecutable
+                $existing.InstalledExecutable = $existingLiveExecutable
+                $existing.InstallRoot = [string]$existingLiveOwnership.InstallRoot
+                $existing.Architecture = [string]$existingLiveOwnership.Architecture
+                $existing.InstallerOwned = [bool]$existingLiveOwnership.InstallerOwned
+                $existing.ResolvedVersion = [string]$existingLiveOwnership.ResolvedVersion
             }
-            elseif ($liveTargetHasRegistration -and -not $existingTargetHasRegistration) {
+
+            if ($existingTargetHasRegistration -and $liveTargetHasRegistration -and
+                -not (Test-StandaloneInstallerPathEquals -Left $existingTarget -Right $liveTarget)) {
+                $registrationMap["$stateKey|target|$($liveTarget.ToLowerInvariant())"] = $registration
+                continue
+            }
+
+            $preferLiveEvidence = $liveTargetHasRegistration -and (
+                [string]::IsNullOrWhiteSpace($existingTarget) -or
+                -not $existingTargetHasRegistration -or
+                (Test-StandaloneInstallerPathEquals -Left $existingTarget -Right $liveTarget))
+            if ($preferLiveEvidence) {
                 $existing.RegistrationTarget = $liveTarget
                 $existing.RegistrationMode = [string]$registration.RegistrationMode
                 $existing.InstalledExecutable = [string]$registration.InstalledExecutable
+                $existing.InstallRoot = [string]$registration.InstallRoot
+                $existing.Architecture = [string]$registration.Architecture
+                $existing.InstallerOwned = [bool]$registration.InstallerOwned
+                $existing.ResolvedVersion = [string]$registration.ResolvedVersion
             }
             if ([string]::IsNullOrWhiteSpace([string]$existing.InstalledExecutable)) {
                 $existing.InstalledExecutable = [string]$registration.InstalledExecutable

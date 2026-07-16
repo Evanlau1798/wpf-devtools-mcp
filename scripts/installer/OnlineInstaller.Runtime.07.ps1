@@ -29,26 +29,32 @@ function Invoke-StandaloneFullUninstallActionCore {
             $detectedInstallations = @($detectedInstallations | Where-Object {
                     Test-StandaloneInstallerPathEquals -Left ([string]$_.InstallRoot) -Right $scopedInstallRoot
                 })
-            $detectedRegistrations = @($detectedRegistrations | Where-Object {
-                    Test-StandaloneRegistrationMatchesInstallRoot -RegistrationRecord $_ -ExpectedInstallRoot $scopedInstallRoot
-                })
         }
         $registrationMap = [ordered]@{}
         foreach ($registration in $detectedRegistrations) {
             $stateKey = Resolve-ClientStateKey -ClientId ([string]$registration.ClientId) -RegistrationMode ([string]$registration.RegistrationMode)
-            $registrationMap[$stateKey] = $registration
+            $target = Get-StandaloneRecordStringValue -Record $registration -PropertyNames @('RegistrationTarget', 'target', 'Target')
+            $mapKey = if ([string]::IsNullOrWhiteSpace($target)) { $stateKey } else { "$stateKey|target|$($target.ToLowerInvariant())" }
+            $registrationMap[$mapKey] = $registration
         }
 
         foreach ($installation in $detectedInstallations) {
             foreach ($registration in @(Get-StandaloneManagedRegistrationsFromInstall -ResolvedInstallRoot ([string]$installation.InstallRoot) -ResolvedArchitecture ([string]$installation.Architecture))) {
                 $stateKey = Resolve-ClientStateKey -ClientId ([string]$registration.ClientId) -RegistrationMode ([string]$registration.RegistrationMode)
-                if (-not $registrationMap.Contains($stateKey)) {
-                    $registrationMap[$stateKey] = $registration
+                $target = Get-StandaloneRecordStringValue -Record $registration -PropertyNames @('RegistrationTarget', 'target', 'Target')
+                $mapKey = if ([string]::IsNullOrWhiteSpace($target)) { $stateKey } else { "$stateKey|target|$($target.ToLowerInvariant())" }
+                if (-not $registrationMap.Contains($mapKey)) {
+                    $registrationMap[$mapKey] = $registration
                 }
             }
         }
 
         $detectedRegistrations = @($registrationMap.Values)
+        if (-not [string]::IsNullOrWhiteSpace($scopedInstallRoot)) {
+            $detectedRegistrations = @($detectedRegistrations | Where-Object {
+                    Test-StandaloneRegistrationMatchesInstallRoot -RegistrationRecord $_ -ExpectedInstallRoot $scopedInstallRoot
+                })
+        }
         $registrationOperations = @()
         $installationBackups = @()
         $removedInstallations = @()

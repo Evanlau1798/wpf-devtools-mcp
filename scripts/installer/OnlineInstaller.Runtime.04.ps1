@@ -157,7 +157,7 @@ function Get-StandaloneJsonVerificationTargets {
             }
         }
 
-        $changeTarget = if ($registrationChange.Contains('target')) { [string]$registrationChange.target } else { [string]$registrationChange.Target }
+        $changeTarget = Get-StandaloneRecordStringValue -Record $registrationChange -PropertyNames @('target', 'Target', 'TargetPath')
         if ([string]::IsNullOrWhiteSpace($changeTarget)) {
             continue
         }

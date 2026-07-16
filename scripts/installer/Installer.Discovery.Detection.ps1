@@ -344,7 +344,17 @@ function Get-DetectedInstallerRegistrations {
 
         foreach ($key in $keys) {
             if ($stateEvidenceMap.Contains($key) -and $externalEvidenceMap.Contains($key)) {
-                $detected[$key] = Merge-DetectedInstallerRegistration -Primary $stateEvidenceMap[$key] -Secondary $externalEvidenceMap[$key]
+                $stateEvidence = $stateEvidenceMap[$key]
+                $externalEvidence = $externalEvidenceMap[$key]
+                $detected[$key] = Merge-DetectedInstallerRegistration -Primary $stateEvidence -Secondary $externalEvidence
+                $stateTarget = [string]$stateEvidence.RegistrationTarget
+                $externalTarget = [string]$externalEvidence.RegistrationTarget
+                if (-not [string]::IsNullOrWhiteSpace($stateTarget) -and
+                    -not [string]::IsNullOrWhiteSpace($externalTarget) -and
+                    -not (Test-InstallerPathEqualsCore -Left $stateTarget -Right $externalTarget) -and
+                    (Test-InstallerPathEqualsCore -Left ([string]$detected[$key].RegistrationTarget) -Right $stateTarget)) {
+                    $detected["$key|target|$($externalTarget.ToLowerInvariant())"] = $externalEvidence
+                }
                 continue
             }
 

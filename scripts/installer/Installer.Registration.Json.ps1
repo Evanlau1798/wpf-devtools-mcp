@@ -180,6 +180,21 @@ function Test-JsonConfigRegistration {
     return $servers.Contains('wpf-devtools')
 }
 
+function Get-JsonConfigRegisteredExecutable {
+    param(
+        [Parameter(Mandatory)] [string]$CollectionName,
+        [Parameter(Mandatory)] [string]$ConfigPath
+    )
+
+    if (-not (Test-JsonConfigRegistration -CollectionName $CollectionName -ConfigPath $ConfigPath)) {
+        return $null
+    }
+
+    $root = Get-ExistingConfigMap -Path (Assert-InstallerLocalPathTrusted -Path $ConfigPath)
+    $servers = Get-ConfigCollectionMap -Root $root -CollectionName $CollectionName
+    return [string]$servers['wpf-devtools'].command
+}
+
 function Resolve-VsCodeConfigPath {
     if (-not [string]::IsNullOrWhiteSpace($VsCodeConfigPath)) { return $VsCodeConfigPath }
     return (Join-Path $env:APPDATA 'Code\User\mcp.json')

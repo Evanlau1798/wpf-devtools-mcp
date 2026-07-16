@@ -310,12 +310,15 @@ function Merge-DetectedInstallerRegistration {
         $primaryHasRegistration = Test-JsonConfigRegistration -CollectionName $collectionName -ConfigPath $primaryTarget
         $secondaryHasRegistration = Test-JsonConfigRegistration -CollectionName $collectionName -ConfigPath $secondaryTarget
         if ($primaryHasRegistration -and $secondaryHasRegistration -and -not (Test-InstallerPathEqualsCore -Left $primaryTarget -Right $secondaryTarget)) {
+            $primaryLiveExecutable = Get-JsonConfigRegisteredExecutable -CollectionName $collectionName -ConfigPath $primaryTarget
+            $primaryLiveOwnership = Resolve-InstallerOwnershipFromExecutable -InstalledExecutable $primaryLiveExecutable
             $merged['RegistrationTarget'] = $primaryTarget
             $merged['RegistrationMode'] = if (-not [string]::IsNullOrWhiteSpace([string]$Primary.RegistrationMode)) { [string]$Primary.RegistrationMode } else { [string]$merged['RegistrationMode'] }
-            $merged['InstalledExecutable'] = if (-not [string]::IsNullOrWhiteSpace([string]$Primary.InstalledExecutable)) { [string]$Primary.InstalledExecutable } else { [string]$merged['InstalledExecutable'] }
-            $merged['InstallRoot'] = if (-not [string]::IsNullOrWhiteSpace([string]$Primary.InstallRoot)) { [string]$Primary.InstallRoot } else { [string]$merged['InstallRoot'] }
-            $merged['Architecture'] = if (-not [string]::IsNullOrWhiteSpace([string]$Primary.Architecture)) { [string]$Primary.Architecture } else { [string]$merged['Architecture'] }
-            $merged['ResolvedVersion'] = if (-not [string]::IsNullOrWhiteSpace([string]$Primary.ResolvedVersion)) { [string]$Primary.ResolvedVersion } else { [string]$merged['ResolvedVersion'] }
+            $merged['InstalledExecutable'] = $primaryLiveExecutable
+            $merged['InstallRoot'] = [string]$primaryLiveOwnership.InstallRoot
+            $merged['Architecture'] = [string]$primaryLiveOwnership.Architecture
+            $merged['ResolvedVersion'] = [string]$primaryLiveOwnership.ResolvedVersion
+            $merged['InstallerOwned'] = [bool]$primaryLiveOwnership.InstallerOwned
         }
     }
 

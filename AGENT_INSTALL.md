@@ -101,7 +101,7 @@ Use `run.bat` from the extracted package root when the user wants the package en
 
 ## Approved uninstall command shapes
 
-After the user approves cleanup, reuse the exact custom install root from the install result. Use `uninstall` for one client registration or `full-uninstall` for all detected registrations and installer-owned server locations:
+After the user approves cleanup, reuse the exact custom install root from the install result. Use `uninstall` for one client registration. With an explicit `-InstallRoot`, `full-uninstall` removes only registrations and installer-owned payloads under that exact root. Omit `-InstallRoot` to remove all detected installer roots:
 
 ```powershell
 $installRoot = '<exact-install-root>'

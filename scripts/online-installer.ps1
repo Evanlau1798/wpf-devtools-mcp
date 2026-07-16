@@ -57,6 +57,7 @@ Common options:
   -Client <client>       claude-code, codex, grok, cursor, vscode, visual-studio, claude-desktop, or other.
   -InstallRoot <path>    Install root. Defaults to a per-user local app data path.
                          For full-uninstall, this scopes cleanup to that exact root.
+                         Omit -InstallRoot to remove all detected installer roots.
   -PackageArchivePath <zip>
                          Install from a reviewed local release archive.
   -TrustedReleaseMetadataDirectory <path>

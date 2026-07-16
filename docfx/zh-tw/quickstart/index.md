@@ -53,7 +53,7 @@ $version = 'v1.0.0-beta.73'
 
 ## 解除安裝或復原自訂安裝
 
-先停止正在使用 server 的 client，再沿用安裝時相同的 exact custom install root。`uninstall` 會移除單一 client registration；`full-uninstall` 會移除所有偵測到的 registrations 與 installer-owned server locations：
+先停止正在使用 server 的 client，再沿用安裝時相同的 exact custom install root。`uninstall` 會移除單一 client registration。明確提供 `-InstallRoot` 時，`full-uninstall` 只會移除該 exact root 下的 registrations 與 installer-owned payloads；省略 `-InstallRoot` 才會移除所有偵測到的 installer roots：
 
 ```powershell
 $installRoot = '<exact-install-root>'

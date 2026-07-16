@@ -71,6 +71,22 @@ public sealed class OnlineInstallerContractTests
     }
 
     [Fact]
+    public void FullUninstallDocumentation_ShouldDistinguishExplicitRootFromGlobalCleanup()
+    {
+        var sourceBundle = ReleaseScriptTestHarness.GetOnlineInstallerSourceBundle();
+        sourceBundle.Should().Contain("Omit -InstallRoot to remove all detected installer roots");
+
+        foreach (var relativePath in new[] { "README.md", "AGENT_INSTALL.md", "docfx/quickstart/index.md" })
+        {
+            File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath(relativePath))
+                .Should().Contain("Omit `-InstallRoot` to remove all detected installer roots");
+        }
+
+        File.ReadAllText(ReleaseScriptTestHarness.GetRepoFilePath("docfx/zh-tw/quickstart/index.md"))
+            .Should().Contain("省略 `-InstallRoot` 才會移除所有偵測到的 installer roots");
+    }
+
+    [Fact]
     public void OnlineInstallerScript_ShouldDownloadVersionedReleaseArchiveNames()
     {
         var content =

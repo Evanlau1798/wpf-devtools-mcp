@@ -53,7 +53,7 @@ Replace the example with the selected public pre-release tag from GitHub Release
 
 ## Uninstall or recover a custom install
 
-Stop clients using the server, then reuse the exact custom install root from installation. `uninstall` removes one client registration; `full-uninstall` removes all detected registrations and installer-owned server locations:
+Stop clients using the server, then reuse the exact custom install root from installation. `uninstall` removes one client registration. With an explicit `-InstallRoot`, `full-uninstall` removes only registrations and installer-owned payloads under that exact root. Omit `-InstallRoot` to remove all detected installer roots:
 
 ```powershell
 $installRoot = '<exact-install-root>'

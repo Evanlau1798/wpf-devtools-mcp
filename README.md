@@ -36,7 +36,7 @@ Manual package fallback: download the matching `release_<version>_win-<arch>.zip
 
 ## Uninstall
 
-Use the same exact custom install root that was used for installation. Remove one client registration with `uninstall`, or remove every detected registration and installer-owned server location with `full-uninstall`:
+Use the same exact custom install root that was used for installation. Remove one client registration with `uninstall`. With an explicit `-InstallRoot`, `full-uninstall` removes only registrations and installer-owned payloads under that exact root. Omit `-InstallRoot` to remove all detected installer roots:
 
 ```powershell
 $installRoot = '<exact-install-root>'

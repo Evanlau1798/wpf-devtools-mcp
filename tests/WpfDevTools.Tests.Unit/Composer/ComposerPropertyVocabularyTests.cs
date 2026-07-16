@@ -91,6 +91,22 @@ public sealed class ComposerPropertyVocabularyTests
     }
 
     [Fact]
+    public void GetCatalog_AllowedValueQuery_ShouldReportTruncatedMatchCoverage()
+    {
+        var result = new BlockCatalogService(CreateBuiltinRegistry()).GetCatalog(
+            new BlockCatalogQuery(
+                ["wpfui"],
+                Kind: "wpfui.symbolIcon",
+                AllowedValueQuery: "24"));
+
+        var property = result.Items.Single().Properties["symbol"];
+        property.AllowedValueMatchCount.Should().BeGreaterThan(12);
+        property.AllowedValues.Should().HaveCount(12)
+            .And.OnlyContain(value => value.Contains("24", StringComparison.OrdinalIgnoreCase));
+        property.AllowedValuesTruncated.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task GetUiBlockCatalogTool_ExactKind_ShouldBoundLargeVocabulary()
     {
         var localAppData = TestDirectory.Create();

@@ -23,13 +23,13 @@ internal static class LayoutMcpToolDescriptions
         "- \"element not found\" -> verify elementId\n\n";
 
     public const string GetClippingInfo =
-        "Inspect explicit Clip, ClipToBounds, layout clips, and overflow for known WPF targets and their ancestors.\n\n" +
+        "Inspect WPF Clip, ClipToBounds, layout clips, and overflow for targets and ancestors.\n\n" +
         LayoutMetadata +
-        "USE: Pass `elementId`, or up to 100 `elementIds`; use find_elements first when only text is known. " +
-        "This does not implicitly scan descendants. Use get_layout_info for general sizing.\n" +
-        "RETURNS: isClipped, clippingSource, visibleContentImpact, directional overflowAmount, clippingAncestors, suggestedFix; batches retain elementId correlation. " +
-        "Structural clipping with visibleContentImpact=not-determined does not prove visible pixel loss; confirm affected content with focused descendant checks or a screenshot.\n" +
-        "ERRORS: not connected -> connect; target missing -> verify elementId; no targets -> pass elementId or elementIds.\n";
+        "USE: Pass `elementId` or up to 100 `elementIds`; use find_elements when only text is known. " +
+        "No descendant scan; use get_layout_info for sizing.\n" +
+        "RETURNS: isClipped, clippingSource, visibleContentImpact, overflowAmount, clippingAncestors, suggestedFix; batches keep elementId. " +
+        "visibleContentImpact=not-determined does not prove visible pixel loss; confirm affected content with descendant checks or a screenshot.\n" +
+        "ERRORS: not connected -> connect; target missing -> verify ID; no targets -> pass elementId or elementIds.\n";
 
     public const string HighlightElement =
         "Use this tool to highlight a WPF element so runtime inspection targets stay unambiguous.\n\n" +

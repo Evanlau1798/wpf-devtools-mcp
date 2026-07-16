@@ -258,6 +258,10 @@ function Get-StandaloneDetectedConfigRegistrations {
             }
         )) {
         $registrationTarget = [string]$candidate.RegistrationTarget
+        if ([string]::IsNullOrWhiteSpace($registrationTarget)) {
+            continue
+        }
+
         $installedExecutable = Get-JsonConfigRegisteredExecutable `
             -CollectionName ([string]$candidate.CollectionName) `
             -ConfigPath $registrationTarget

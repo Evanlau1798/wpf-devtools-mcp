@@ -4,6 +4,28 @@ namespace WpfDevTools.Mcp.Server.Composer.Apply;
 
 internal sealed partial class UiBlueprintApplyService
 {
+    private static string RemoveComposerEnvelope(string content)
+        => RemoveMarkedRegions(
+            RemoveMarkedRegions(content, BlueprintHeaderPrefix, "-->"),
+            SafeSlotBegin,
+            SafeSlotEnd).Trim();
+
+    private static string RemoveMarkedRegions(string content, string beginMarker, string endMarker)
+    {
+        while (content.IndexOf(beginMarker, StringComparison.Ordinal) is var begin && begin >= 0)
+        {
+            var end = content.IndexOf(endMarker, begin + beginMarker.Length, StringComparison.Ordinal);
+            if (end < 0)
+            {
+                break;
+            }
+
+            content = content.Remove(begin, end + endMarker.Length - begin);
+        }
+
+        return content;
+    }
+
     private static ApplyFileWriteResult WriteViewFile(string projectRoot, string targetPath, string content)
     {
         var targetDirectory = Path.GetDirectoryName(targetPath)!;

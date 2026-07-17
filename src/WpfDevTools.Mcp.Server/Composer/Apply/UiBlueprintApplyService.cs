@@ -257,6 +257,7 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
     {
         var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(blueprintJson));
         var preservedSlot = ExtractSafeSlot(existingContent) ?? $"{SafeSlotBegin}{Environment.NewLine}{SafeSlotEnd}";
+        xaml = RemoveComposerEnvelope(xaml);
         return string.Join(
             Environment.NewLine,
             $"{BlueprintHeaderPrefix}{encoded} -->",

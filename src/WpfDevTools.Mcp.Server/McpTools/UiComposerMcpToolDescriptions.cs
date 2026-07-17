@@ -224,7 +224,7 @@ internal static class UiComposerMcpToolDescriptions
         - Dry-run returns filePlan, resourcePlan, requiredNuGetPackages, viewModelBindingContract, behaviorIntegrationContract, and deterministic pack-neutral projectIntegrationPlan.
         - packageIntegrationGuidance uses static XML best-effort ManagePackageVersionsCentrally detection. It reports inspectionConfidence, inspectedFiles, and inspectionLimitations; mode=unknown omits package snippets. This tool does not edit project or central package files.
         - Non-dry-run writes need confirmApply=true, are atomic under projectRoot, and return the executed file plan with pre-write state and backups.
-        - Existing Window XAML hosts a non-Window root. Pack codeBehindBaseType controls x:Class; generated views retain reversible source and safe-slot markers.
+        - Existing Window XAML hosts a non-Window root. Pack codeBehindBaseType controls x:Class; reapply keeps one source header and safe-slot envelope.
 
         REQUEST OPTIONS:
         - Pass blueprintJson as raw JSON or an opaque draftRef, plus the exact reviewed projectRoot and an optional project-relative targetPath.

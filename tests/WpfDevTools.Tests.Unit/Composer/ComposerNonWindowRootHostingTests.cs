@@ -1,5 +1,6 @@
 using FluentAssertions;
 using System.Xml.Linq;
+using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Composer.Apply;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.McpTools;
@@ -7,6 +8,7 @@ using WpfDevTools.Tests.Unit.TestSupport;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
+[Collection("ProcessEnvironment")]
 public sealed class ComposerNonWindowRootHostingTests
 {
     [Fact]
@@ -95,6 +97,43 @@ public sealed class ComposerNonWindowRootHostingTests
         }
     }
 
+    [Fact]
+    public void Apply_NonWindowRootRepeatedly_ShouldKeepSingleComposerEnvelope()
+    {
+        var root = CreateFixture();
+        try
+        {
+            using var writes = new EnvironmentVariableScope(McpServerConfiguration.AllowProjectWritesEnvVar, "true");
+            using var roots = new EnvironmentVariableScope(McpServerConfiguration.AllowedProjectRootsEnvVar, root);
+            var service = new UiBlueprintApplyService(CreateRegistry(root));
+            var request = new ApplyBlueprintRequest(
+                Blueprint(),
+                root,
+                "MainWindow.xaml",
+                DryRun: false,
+                ConfirmApply: true);
+
+            service.Apply(request).Success.Should().BeTrue();
+            var targetPath = Path.Combine(root, "MainWindow.xaml");
+            File.WriteAllText(targetPath, File.ReadAllText(targetPath).Replace(
+                "<!-- WPFDEVTOOLS_SAFE_SLOT_END: manual-content -->",
+                "<!-- Manual note -->\n<!-- WPFDEVTOOLS_SAFE_SLOT_END: manual-content -->",
+                StringComparison.Ordinal));
+
+            service.Apply(request).Success.Should().BeTrue();
+
+            var written = File.ReadAllText(targetPath);
+            CountOccurrences(written, "WPFDEVTOOLS_BLUEPRINT_SOURCE").Should().Be(1);
+            CountOccurrences(written, "WPFDEVTOOLS_SAFE_SLOT_BEGIN: manual-content").Should().Be(1);
+            CountOccurrences(written, "WPFDEVTOOLS_SAFE_SLOT_END: manual-content").Should().Be(1);
+            written.Should().Contain("Manual note");
+        }
+        finally
+        {
+            TestDirectory.Delete(root);
+        }
+    }
+
     private static PackRegistry CreateRegistry(string root)
         => new(
             ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),
@@ -142,4 +181,23 @@ public sealed class ComposerNonWindowRootHostingTests
 
     private static string RemoveComposerHeader(string xaml)
         => xaml[(xaml.IndexOf(" -->", StringComparison.Ordinal) + 4)..].TrimStart();
+
+    private static int CountOccurrences(string value, string marker)
+        => value.Split(marker, StringSplitOptions.None).Length - 1;
+
+    private sealed class EnvironmentVariableScope : IDisposable
+    {
+        private readonly string _name;
+        private readonly string? _originalValue;
+
+        public EnvironmentVariableScope(string name, string? value)
+        {
+            _name = name;
+            _originalValue = Environment.GetEnvironmentVariable(name);
+            Environment.SetEnvironmentVariable(name, value);
+        }
+
+        public void Dispose()
+            => Environment.SetEnvironmentVariable(_name, _originalValue);
+    }
 }

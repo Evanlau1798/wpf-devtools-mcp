@@ -28,6 +28,7 @@ public sealed class McpToolExecutionPolicyTests
     [InlineData("set_dp_value")]
     [InlineData("batch_mutate")]
     [InlineData("measure_element_render_time")]
+    [InlineData("preview_ui_blueprint")]
     public void EvaluateToolCall_WhenDestructiveToolsAreDisabled_ShouldDenyDestructiveTool(string toolName)
     {
         var policy = McpToolExecutionPolicy.FromConfiguredValues(

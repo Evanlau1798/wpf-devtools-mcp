@@ -191,7 +191,7 @@ public static partial class UiComposerMcpTools
             timeoutSeconds: 10);
     }
 
-    [McpServerTool(Name = "preview_ui_blueprint", Title = "Preview UI Composer Blueprint Compile Smoke", OpenWorld = false, ReadOnly = false, Destructive = false, UseStructuredContent = true)]
+    [McpServerTool(Name = "preview_ui_blueprint", Title = "Preview UI Composer Blueprint Compile Smoke", OpenWorld = false, ReadOnly = false, Destructive = true, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.PreviewUiBlueprint)]
     public static Task<CallToolResult> PreviewUiBlueprint(
         SessionManager sessionManager,

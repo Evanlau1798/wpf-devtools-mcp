@@ -233,7 +233,7 @@ The response includes `repairable`, `generatedXamlPatch=false`, `actionCount`, a
 
 ## `apply_ui_blueprint`
 
-Produces a guarded apply plan for a UI blueprint. The default is dry-run, so agents can inspect the generated view file path, required resources, package plan, authored binding requirements, and deterministic `projectIntegrationPlan` before any write is allowed.
+Produces a guarded apply plan for a UI blueprint. The default is dry-run, so agents can inspect the generated view file path, required resources, package plan, authored binding requirements, `targetWindowPlan`, and deterministic `projectIntegrationPlan` before any write is allowed.
 
 Request options:
 
@@ -242,11 +242,12 @@ Request options:
 - `targetPath`: optional target XAML file path. It must stay inside `projectRoot`.
 - `dryRun`: optional boolean that defaults to true.
 - `confirmApply`: optional boolean that must be true for non-dry-run writes after the dry-run plan has been reviewed.
+- `targetWindowWidth` and `targetWindowHeight`: optional target Window dimensions in device-independent pixels, each from 1 to 8192. Copy the reviewed `preview_ui_blueprint` `viewportWidth` and `viewportHeight` when exact preview-to-app sizing matters; omit either value to preserve that existing dimension.
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
 Non-dry-run writes require `confirmApply=true`, `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`, `WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`, and an exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match. A successful confirmed response preserves the executed file plan from the pre-write target state: a newly written file remains `action="create"`, while an existing file remains `action="update"` and reports its backup path. The tool rejects paths outside `projectRoot`, creates a backup when updating an existing view, keeps one `WPFDEVTOOLS_BLUEPRINT_SOURCE` header and one preserved `WPFDEVTOOLS_SAFE_SLOT` envelope across repeated full-view applies, and does not run NuGet restore.
 
-When `targetPath` is the existing App.xaml StartupUri and that XAML root is a `Window`, Composer can host a generated non-Window root without library-specific logic. The dry-run preserves the existing Window shell and replaces only its content; a pack-declared window root remains top-level. Other targets remain standalone views and do not claim startup integration. Confirm that the application-XAML operation includes the startup purpose before treating the generated UI as the launched surface.
+When `targetPath` is the existing App.xaml StartupUri and that XAML root is a `Window`, Composer can host a generated non-Window root without library-specific logic. The dry-run preserves the existing Window shell and replaces only its content; a pack-declared window root remains top-level. `targetWindowPlan` reports whether dimensions were configured, preserved, or do not apply. Other targets remain standalone views and do not claim startup integration. Confirm that the application-XAML operation includes the startup purpose before treating the generated UI as the launched surface.
 
 The dry-run `projectIntegrationPlan` is pack-neutral. Its operations name exact target paths, semantic purposes, current-file preconditions, and proposed SHA-256 values for package references, application resources, startup selection, and pack-declared code-behind base types. It does not expose full existing project-file content through an ungated dry-run. The plan hash binds the reviewed semantic operations to the exact proposed content and current file state.
 
@@ -262,7 +263,7 @@ Only plan-generated package-reference, central-package-version, application-XAML
 
 `apply_ui_blueprint` writes reviewed view XAML; it does not silently edit the project file, application resources, code-behind, ViewModel, or startup flow. Use the returned plans as the authoritative integration checklist:
 
-1. Run dry apply and review `filePlan`, `requiredNuGetPackages`, `packageIntegrationGuidance`, `resourcePlan`, `viewModelBindingContract`, `behaviorIntegrationContract`, and `projectIntegrationPlan`.
+1. Run dry apply and review `filePlan`, `requiredNuGetPackages`, `packageIntegrationGuidance`, `resourcePlan`, `viewModelBindingContract`, `behaviorIntegrationContract`, `targetWindowPlan`, and `projectIntegrationPlan`.
 2. Run confirmed apply only after the project-root gates are scoped to the intended project.
 3. When `projectIntegrationPlan.ready=true`, call `apply_ui_project_integration` with its exact `reviewedPlanHash` only after reviewing every operation. A stale hash fails with `IntegrationPlanChanged`; successful changes include `backupPath` and rollback evidence. When the applied plan changes package references, the response also returns `packageRestoreRequired=true` and a concise `buildGuidance` reminder.
 4. When the machine-applicable plan is not ready, follow `packageIntegrationGuidance` manually for every pack-declared package. Detection is static XML best-effort; every result reports `inspectionConfidence`, `inspectionReason`, `inspectedFiles`, and `inspectionLimitations`, including the lack of evaluated MSBuild imports and conditions. When `mode="project"`, add each returned `projectPackageReference` to the reported project file. When `mode="central"` because `ManagePackageVersionsCentrally=true`, add the versionless `projectPackageReference` to the project and the matching `centralPackageVersion` to `Directory.Packages.props`. If that central file is inherited from outside `projectRoot` and this project should be isolated, create a project-local `Directory.Packages.props` with this complete minimal XML: `<Project><PropertyGroup><ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally></PropertyGroup></Project>`. Then rerun the dry-run plan; do not edit the inherited file. When `mode="unknown"`, package snippets are null: inspect the project first and do not infer either integration shape.

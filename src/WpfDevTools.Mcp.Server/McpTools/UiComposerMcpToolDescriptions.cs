@@ -221,14 +221,14 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this as a general filesystem writer. Non-dry-run writes require WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true, WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true, and an exact WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS match.
 
         RESPONSE SUMMARY:
-        - Dry-run returns filePlan, resourcePlan, requiredNuGetPackages, viewModelBindingContract, behaviorIntegrationContract, and deterministic pack-neutral projectIntegrationPlan.
+        - Dry-run returns filePlan, resourcePlan, requiredNuGetPackages, viewModelBindingContract, behaviorIntegrationContract, targetWindowPlan, and deterministic pack-neutral projectIntegrationPlan.
         - packageIntegrationGuidance uses static XML best-effort ManagePackageVersionsCentrally detection. It reports inspectionConfidence, inspectedFiles, and inspectionLimitations; mode=unknown omits package snippets. This tool does not edit project or central package files.
         - Non-dry-run writes need confirmApply=true, are atomic under projectRoot, and return the executed file plan with pre-write state and backups.
-        - Existing Window XAML hosts a non-Window root. Pack codeBehindBaseType controls x:Class; reapply keeps one source header and safe-slot envelope.
+        - Existing Window XAML hosts a non-Window root; targetWindowPlan reports copied preview dimensions. Pack codeBehindBaseType controls x:Class; reapply keeps one source header and safe-slot envelope.
 
         REQUEST OPTIONS:
         - Pass blueprintJson as raw JSON or an opaque draftRef, plus the exact reviewed projectRoot and an optional project-relative targetPath.
-        - dryRun defaults true; set confirmApply=true only after review. localAppDataRoot selects the pack scope.
+        - dryRun defaults true; confirm only after review. Copy preview dimensions to targetWindowWidth/targetWindowHeight; omit to preserve. localAppDataRoot selects the pack scope.
 
         EXAMPLES:
         """ + CanonicalExamples;

@@ -16,6 +16,7 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
         var errors = new List<ApplyBlueprintIssue>();
         var projectRoot = NormalizeProjectRoot(request.ProjectRoot, errors);
         var targetPath = ResolveTargetPath(projectRoot, request, errors);
+        ValidateTargetWindowDimensions(request, errors);
         if (errors.Count > 0)
         {
             return ApplyBlueprintResult.Invalid(request.DryRun, errors);
@@ -45,7 +46,10 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
             targetPath,
             render.Xaml,
             isWindowRoot,
-            codeBehind is not null);
+            codeBehind is not null,
+            request.TargetWindowWidth,
+            request.TargetWindowHeight,
+            out var targetWindowPlan);
         if (!hosted.Success)
         {
             return ApplyBlueprintResult.Invalid(request.DryRun, [hosted.Error!]);
@@ -97,6 +101,7 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
                 render.RequiredNuGetPackages,
                 viewModelContract with { WouldWrite = false },
                 behaviorContract,
+                targetWindowPlan,
                 projectIntegrationPlan,
                 []);
         }
@@ -160,6 +165,7 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
             render.RequiredNuGetPackages,
             viewModelContract with { WouldWrite = false },
             behaviorContract,
+            targetWindowPlan,
             projectIntegrationPlan,
             []);
     }

@@ -303,6 +303,8 @@ public sealed class ComposerApplyDryRunTests
             payload.GetProperty("success").GetBoolean().Should().BeTrue();
             payload.GetProperty("dryRun").GetBoolean().Should().BeTrue();
             payload.GetProperty("filePlan")[0].GetProperty("wouldWrite").GetBoolean().Should().BeFalse();
+            payload.GetProperty("targetWindowPlan").GetProperty("status").GetString()
+                .Should().Be("not-applicable");
             var behavior = payload.GetProperty("behaviorIntegrationContract");
             behavior.GetProperty("status").GetString().Should().Be("required");
             behavior.GetProperty("interactions")[0].GetProperty("commandPath").GetString().Should().Be("ApplyCommand");

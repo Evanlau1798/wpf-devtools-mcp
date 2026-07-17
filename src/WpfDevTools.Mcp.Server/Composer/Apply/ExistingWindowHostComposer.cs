@@ -10,8 +10,12 @@ internal static class ExistingWindowHostComposer
         string targetPath,
         string renderedXaml,
         bool isWindowRoot,
-        bool hasPackCodeBehind)
+        bool hasPackCodeBehind,
+        int? targetWindowWidth,
+        int? targetWindowHeight,
+        out TargetWindowPlan targetWindowPlan)
     {
+        targetWindowPlan = NotApplicable();
         XDocument rendered;
         try
         {
@@ -22,9 +26,19 @@ internal static class ExistingWindowHostComposer
             return ProjectContentPatchResult.CreateSuccess(renderedXaml);
         }
 
-        if (rendered.Root is null
-            || isWindowRoot
-            || !File.Exists(targetPath)
+        if (rendered.Root is null)
+        {
+            return ProjectContentPatchResult.CreateSuccess(renderedXaml);
+        }
+
+        if (isWindowRoot)
+        {
+            ApplyDimensions(rendered.Root, targetWindowWidth, targetWindowHeight);
+            targetWindowPlan = CreatePlan("rendered-window", targetWindowWidth, targetWindowHeight);
+            return ProjectContentPatchResult.CreateSuccess(rendered.ToString(SaveOptions.DisableFormatting));
+        }
+
+        if (!File.Exists(targetPath)
             || !IsStartupTarget(projectRoot, targetPath))
         {
             return ProjectContentPatchResult.CreateSuccess(renderedXaml);
@@ -62,8 +76,41 @@ internal static class ExistingWindowHostComposer
         }
 
         existing.Root.ReplaceNodes(new XElement(rendered.Root));
+        ApplyDimensions(existing.Root, targetWindowWidth, targetWindowHeight);
+        targetWindowPlan = CreatePlan("existing-window", targetWindowWidth, targetWindowHeight);
         return ProjectContentPatchResult.CreateSuccess(existing.ToString(SaveOptions.DisableFormatting));
     }
+
+    private static void ApplyDimensions(XElement root, int? width, int? height)
+    {
+        if (width.HasValue)
+        {
+            root.SetAttributeValue("Width", width.Value);
+        }
+
+        if (height.HasValue)
+        {
+            root.SetAttributeValue("Height", height.Value);
+        }
+    }
+
+    private static TargetWindowPlan CreatePlan(string hostKind, int? width, int? height)
+    {
+        var status = width.HasValue || height.HasValue
+            ? $"configured-{hostKind}"
+            : $"preserved-{hostKind}";
+        var guidance = width.HasValue || height.HasValue
+            ? "Target Window sizing uses the reviewed values; keep them aligned with preview_ui_blueprint viewportWidth and viewportHeight."
+            : "Existing Window sizing is preserved. Pass targetWindowWidth and targetWindowHeight from the reviewed preview_ui_blueprint viewport when exact viewport parity is required.";
+        return new TargetWindowPlan(status, width, height, guidance);
+    }
+
+    private static TargetWindowPlan NotApplicable()
+        => new(
+            "not-applicable",
+            null,
+            null,
+            "The target is not a rendered Window root or an existing startup Window host; target Window dimensions do not apply.");
 
     private static bool IsStartupTarget(string projectRoot, string targetPath)
     {

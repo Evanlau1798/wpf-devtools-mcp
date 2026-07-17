@@ -49,6 +49,62 @@ public sealed class ComposerNonWindowRootHostingTests
     }
 
     [Fact]
+    public void DryRun_NonWindowRootWithReviewedTargetWindowSize_ShouldAlignHostAndReportPlan()
+    {
+        var root = CreateFixture();
+        try
+        {
+            var result = new UiBlueprintApplyService(CreateRegistry(root)).Apply(
+                new ApplyBlueprintRequest(
+                    Blueprint(),
+                    root,
+                    "MainWindow.xaml",
+                    TargetWindowWidth: 1600,
+                    TargetWindowHeight: 900));
+
+            result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+            var window = XDocument.Parse(RemoveComposerHeader(result.Xaml)).Root!;
+            window.Attribute("Width")!.Value.Should().Be("1600");
+            window.Attribute("Height")!.Value.Should().Be("900");
+            result.TargetWindowPlan.Status.Should().Be("configured-existing-window");
+            result.TargetWindowPlan.TargetWindowWidth.Should().Be(1600);
+            result.TargetWindowPlan.TargetWindowHeight.Should().Be(900);
+            result.TargetWindowPlan.Guidance.Should().Contain("preview_ui_blueprint");
+        }
+        finally
+        {
+            TestDirectory.Delete(root);
+        }
+    }
+
+    [Fact]
+    public void DryRun_NonWindowRootWithoutTargetWindowSize_ShouldPreserveExistingDimensions()
+    {
+        var root = CreateFixture();
+        try
+        {
+            var targetPath = Path.Combine(root, "MainWindow.xaml");
+            File.WriteAllText(targetPath, File.ReadAllText(targetPath).Replace(
+                "Title=\"Host\"",
+                "Title=\"Host\" Width=\"800\" Height=\"450\"",
+                StringComparison.Ordinal));
+
+            var result = new UiBlueprintApplyService(CreateRegistry(root)).Apply(
+                new ApplyBlueprintRequest(Blueprint(), root, "MainWindow.xaml"));
+
+            result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+            var window = XDocument.Parse(RemoveComposerHeader(result.Xaml)).Root!;
+            window.Attribute("Width")!.Value.Should().Be("800");
+            window.Attribute("Height")!.Value.Should().Be("450");
+            result.TargetWindowPlan.Status.Should().Be("preserved-existing-window");
+        }
+        finally
+        {
+            TestDirectory.Delete(root);
+        }
+    }
+
+    [Fact]
     public void DryRun_NonWindowRootTargetingNewView_ShouldNotClaimStartupIntegration()
     {
         var root = CreateFixture();
@@ -87,12 +143,47 @@ public sealed class ComposerNonWindowRootHostingTests
                 StringComparison.Ordinal));
 
             var result = new UiBlueprintApplyService(CreateRegistry(root)).Apply(
-                new ApplyBlueprintRequest(Blueprint(), root, "MainWindow.xaml"));
+                new ApplyBlueprintRequest(
+                    Blueprint(),
+                    root,
+                    "MainWindow.xaml",
+                    TargetWindowWidth: 1200,
+                    TargetWindowHeight: 700));
 
             result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
-            XDocument.Parse(RemoveComposerHeader(result.Xaml)).Root!.Name.LocalName.Should().Be("PanelHost");
+            var window = XDocument.Parse(RemoveComposerHeader(result.Xaml)).Root!;
+            window.Name.LocalName.Should().Be("PanelHost");
+            window.Attribute("Width")!.Value.Should().Be("1200");
+            window.Attribute("Height")!.Value.Should().Be("700");
+            result.TargetWindowPlan.Status.Should().Be("configured-rendered-window");
             result.ProjectIntegrationPlan.Operations.Should().Contain(operation =>
                 operation.Role == "application-xaml" && operation.Purposes.Contains("startup"));
+        }
+        finally
+        {
+            TestDirectory.Delete(root);
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(8193)]
+    public void DryRun_InvalidTargetWindowDimension_ShouldFail(int width)
+    {
+        var root = CreateFixture();
+        try
+        {
+            var result = new UiBlueprintApplyService(CreateRegistry(root)).Apply(
+                new ApplyBlueprintRequest(
+                    Blueprint(),
+                    root,
+                    "MainWindow.xaml",
+                    TargetWindowWidth: width));
+
+            result.Success.Should().BeFalse();
+            result.Errors.Should().ContainSingle(error =>
+                error.JsonPath == "$.targetWindowWidth"
+                && error.Code == "InvalidTargetWindowDimension");
         }
         finally
         {

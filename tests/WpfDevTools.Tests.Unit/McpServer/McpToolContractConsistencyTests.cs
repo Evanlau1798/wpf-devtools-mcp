@@ -276,6 +276,13 @@ public class McpToolContractConsistencyTests
     }
 
     [Fact]
+    public void ApplyUiBlueprint_ShouldExposeOptionalTargetWindowSize()
+    {
+        AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.ApplyUiBlueprint), "targetWindowWidth", typeof(int?), null);
+        AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.ApplyUiBlueprint), "targetWindowHeight", typeof(int?), null);
+    }
+
+    [Fact]
     public void GetUiBlockCatalog_ShouldExposeBoundedAllowedValueSearch()
     {
         AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.GetUiBlockCatalog), "allowedValueQuery", typeof(string), null);

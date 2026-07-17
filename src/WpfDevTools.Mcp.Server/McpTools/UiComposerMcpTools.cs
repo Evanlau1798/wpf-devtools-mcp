@@ -173,6 +173,10 @@ public static partial class UiComposerMcpTools
         [Description("Optional project-root-relative target XAML file path. Defaults to Views/<blueprint name>.xaml. Absolute paths are rejected.")] string? targetPath = null,
         [Description("When true or omitted, returns a dry-run plan without writing files.")] bool dryRun = true,
         [Description("Required explicit confirmation for non-dry-run writes after reviewing the dry-run file plan.")] bool confirmApply = false,
+        [Range(1, UiPreviewProjectFiles.MaximumViewportDimension)]
+        [Description("Target Window.Width in DIPs; copy preview viewportWidth.")] int? targetWindowWidth = null,
+        [Range(1, UiPreviewProjectFiles.MaximumViewportDimension)]
+        [Description("Target Window.Height in DIPs; copy preview viewportHeight.")] int? targetWindowHeight = null,
         [Description("Optional LocalApplicationData root override for user-global packs.")] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
     {
@@ -182,10 +186,12 @@ public static partial class UiComposerMcpTools
             ("targetPath", targetPath),
             ("dryRun", dryRun),
             ("confirmApply", confirmApply),
+            ("targetWindowWidth", targetWindowWidth),
+            ("targetWindowHeight", targetWindowHeight),
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(ApplyBlueprint(blueprintJson, projectRoot, targetPath, dryRun, confirmApply, localAppDataRoot)),
+            (_, _) => Task.FromResult<object>(ApplyBlueprint(blueprintJson, projectRoot, targetPath, dryRun, confirmApply, targetWindowWidth, targetWindowHeight, localAppDataRoot)),
             args,
             cancellationToken,
             timeoutSeconds: 10);
@@ -441,6 +447,8 @@ public static partial class UiComposerMcpTools
         string? targetPath,
         bool dryRun,
         bool confirmApply,
+        int? targetWindowWidth,
+        int? targetWindowHeight,
         string? localAppDataRoot)
     {
         var input = BlueprintInputResolver.Resolve(blueprintJson);
@@ -450,7 +458,7 @@ public static partial class UiComposerMcpTools
         }
 
         var result = new UiBlueprintApplyService(CreateRegistry(projectRoot, localAppDataRoot))
-            .Apply(new ApplyBlueprintRequest(input.BlueprintJson, projectRoot, targetPath, dryRun, confirmApply));
+            .Apply(new ApplyBlueprintRequest(input.BlueprintJson, projectRoot, targetPath, dryRun, confirmApply, targetWindowWidth, targetWindowHeight));
 
         return new
         {
@@ -467,6 +475,7 @@ public static partial class UiComposerMcpTools
             packageIntegrationGuidance = PackageIntegrationPlanner.Create(projectRoot, result.RequiredNuGetPackages),
             result.ViewModelBindingContract,
             result.BehaviorIntegrationContract,
+            result.TargetWindowPlan,
             result.ProjectIntegrationPlan,
             result.Errors,
             observability = ComposerObservability.ForApply(result)

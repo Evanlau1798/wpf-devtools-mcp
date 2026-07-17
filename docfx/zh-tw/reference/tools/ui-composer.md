@@ -234,7 +234,7 @@ Response 包含 `repairable`、`generatedXamlPatch=false`、`actionCount` 與 `a
 
 ## `apply_ui_blueprint`
 
-為 UI blueprint 產生 guarded apply plan。預設為 dry-run，讓 Agent 能在任何寫檔前檢查 generated view file path、required resources、package plan、authored binding requirements 與 deterministic `projectIntegrationPlan`。
+為 UI blueprint 產生 guarded apply plan。預設為 dry-run，讓 Agent 能在任何寫檔前檢查 generated view file path、required resources、package plan、authored binding requirements、`targetWindowPlan` 與 deterministic `projectIntegrationPlan`。
 
 Request options:
 
@@ -243,11 +243,12 @@ Request options:
 - `targetPath`: optional target XAML file path，必須位於 `projectRoot` 內。
 - `dryRun`: optional boolean，預設為 true。
 - `confirmApply`: optional boolean，non-dry-run 寫入前必須在檢查 dry-run plan 後設為 true。
+- `targetWindowWidth` 與 `targetWindowHeight`: optional target Window dimensions，以 device-independent pixels 表示，每個值範圍為 1 到 8192。需要精確維持 preview 與 final app 尺寸時，請複製已審查的 `preview_ui_blueprint` `viewportWidth` 與 `viewportHeight`；省略任一值會保留該既有尺寸。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
 非 dry-run 寫入需要 `confirmApply=true`、`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，且 `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` 必須 exact match。成功的 confirmed response 會保留依照寫入前 target 狀態執行的 file plan：新寫入檔案仍為 `action="create"`，既有檔案仍為 `action="update"` 並回報 backup path。此 tool 會拒絕 `projectRoot` 外的路徑、更新既有 view 前建立 backup，並在重複 full-view apply 時維持唯一一個 `WPFDEVTOOLS_BLUEPRINT_SOURCE` header 與一組保留內容的 `WPFDEVTOOLS_SAFE_SLOT` envelope，且不會執行 NuGet restore。
 
-`targetPath` 若是 existing App.xaml StartupUri 所指向、且 XAML root 為 `Window`，Composer 就能以 pack-neutral 方式 host generated non-Window root。Dry-run 會保留既有 Window shell，只以 generated content 取代原內容；pack-declared window root 仍維持 top-level。其他 targets 會保持 standalone views，不會宣稱已整合 startup。把 generated UI 視為 launched surface 前，請確認 application-XAML operation 包含 startup purpose。
+`targetPath` 若是 existing App.xaml StartupUri 所指向、且 XAML root 為 `Window`，Composer 就能以 pack-neutral 方式 host generated non-Window root。Dry-run 會保留既有 Window shell，只以 generated content 取代原內容；pack-declared window root 仍維持 top-level。`targetWindowPlan` 會回報 dimensions 是已設定、保留既有值，或不適用。其他 targets 會保持 standalone views，不會宣稱已整合 startup。把 generated UI 視為 launched surface 前，請確認 application-XAML operation 包含 startup purpose。
 
 Dry-run 的 `projectIntegrationPlan` 保持 pack-neutral。Operations 會列出 package references、application resources、startup selection 與 pack-declared code-behind base types 的 exact target paths、semantic purposes、current-file preconditions 與 proposed SHA-256。為避免 ungated dry-run 洩漏既有 project-file 內容，response 不會回傳完整 proposed content；plan hash 會把 reviewed semantic operations 綁定到 exact proposed content 與目前 file state。
 
@@ -263,7 +264,7 @@ Dry-run 的 `projectIntegrationPlan` 保持 pack-neutral。Operations 會列出 
 
 `apply_ui_blueprint` 只會寫入經審查的 view XAML；它不會暗中修改 project file、application resources、code-behind、ViewModel 或 startup flow。請把 response 內的 plans 當成 authoritative integration checklist：
 
-1. 先執行 dry apply，檢查 `filePlan`、`requiredNuGetPackages`、`packageIntegrationGuidance`、`resourcePlan`、`viewModelBindingContract`、`behaviorIntegrationContract` 與 `projectIntegrationPlan`。
+1. 先執行 dry apply，檢查 `filePlan`、`requiredNuGetPackages`、`packageIntegrationGuidance`、`resourcePlan`、`viewModelBindingContract`、`behaviorIntegrationContract`、`targetWindowPlan` 與 `projectIntegrationPlan`。
 2. 只有在 project-root gates 已精確限制到目標專案後，才執行 confirmed apply。
 3. `projectIntegrationPlan.ready=true` 時，只有在檢查所有 operations 後，才以其 exact `reviewedPlanHash` 呼叫 `apply_ui_project_integration`。Stale hash 會以 `IntegrationPlanChanged` 失敗；成功的 changes 會包含 `backupPath` 與 rollback evidence。Applied plan 有變更 package references 時，response 也會回傳 `packageRestoreRequired=true` 與精簡的 `buildGuidance` 提醒。
 4. Machine-applicable plan 尚未 ready 時，才依 `packageIntegrationGuidance` 手動處理每個 pack-declared package。偵測是 static XML best-effort；每個結果都會回報 `inspectionConfidence`、`inspectionReason`、`inspectedFiles` 與 `inspectionLimitations`，並明確說明未 evaluate MSBuild imports 與 conditions。`mode="project"` 時，把各 `projectPackageReference` 加入回報的 project file。因 `ManagePackageVersionsCentrally=true` 而得到 `mode="central"` 時，把 versionless `projectPackageReference` 加入 project，並把對應 `centralPackageVersion` 加入 `Directory.Packages.props`。若 central file 繼承自 `projectRoot` 外且此 project 應保持隔離，請在 project 內建立 `Directory.Packages.props`，並使用這份完整最小 XML：`<Project><PropertyGroup><ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally></PropertyGroup></Project>`。接著重跑 dry-run plan；不可修改 inherited file。`mode="unknown"` 時 package snippets 為 null；請先檢查 project，不可自行推測 integration shape。

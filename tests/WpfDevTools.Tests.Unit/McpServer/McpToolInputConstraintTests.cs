@@ -66,6 +66,10 @@ public sealed class McpToolInputConstraintTests
         var catalogSchema = CreateInputSchema(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.GetUiBlockCatalog));
         AssertStringMaxLength(catalogSchema, "allowedValueQuery", 128);
 
+        var applySchema = CreateInputSchema(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.ApplyUiBlueprint));
+        AssertIntegerConstraint(applySchema, "targetWindowWidth", minimum: 1, maximum: UiPreviewProjectFiles.MaximumViewportDimension);
+        AssertIntegerConstraint(applySchema, "targetWindowHeight", minimum: 1, maximum: UiPreviewProjectFiles.MaximumViewportDimension);
+
         var previewSchema = CreateInputSchema(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint));
         AssertEnumConstraint(previewSchema, "screenshotOutputMode", "metadata", "file");
         AssertIntegerConstraint(previewSchema, "screenshotMaxWidth", minimum: 1, maximum: int.MaxValue);

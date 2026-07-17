@@ -8,7 +8,9 @@ internal sealed record ApplyBlueprintRequest(
     string ProjectRoot,
     string? TargetPath = null,
     bool DryRun = true,
-    bool ConfirmApply = false);
+    bool ConfirmApply = false,
+    int? TargetWindowWidth = null,
+    int? TargetWindowHeight = null);
 
 internal sealed record ApplyBlueprintResult(
     bool Success,
@@ -22,6 +24,7 @@ internal sealed record ApplyBlueprintResult(
     IReadOnlyList<RequiredNuGetPackage> RequiredNuGetPackages,
     ViewModelBindingContractPlan ViewModelBindingContract,
     BehaviorIntegrationContractPlan BehaviorIntegrationContract,
+    TargetWindowPlan TargetWindowPlan,
     ProjectIntegrationPlan ProjectIntegrationPlan,
     IReadOnlyList<ApplyBlueprintIssue> Errors)
 {
@@ -35,15 +38,29 @@ internal sealed record ApplyBlueprintResult(
         IReadOnlyList<RequiredNuGetPackage> packages,
         ViewModelBindingContractPlan viewModelBindingContract,
         BehaviorIntegrationContractPlan behaviorIntegrationContract,
+        TargetWindowPlan targetWindowPlan,
         ProjectIntegrationPlan projectIntegrationPlan,
         IReadOnlyList<ApplyBlueprintIssue> errors)
-        => new(true, true, dryRun, requiresConfirmation, wouldWriteFiles, xaml, filePlan, resourcePlan, packages, viewModelBindingContract, behaviorIntegrationContract, projectIntegrationPlan, errors);
+        => new(true, true, dryRun, requiresConfirmation, wouldWriteFiles, xaml, filePlan, resourcePlan, packages, viewModelBindingContract, behaviorIntegrationContract, targetWindowPlan, projectIntegrationPlan, errors);
 
     public static ApplyBlueprintResult Invalid(
         bool dryRun,
         IReadOnlyList<ApplyBlueprintIssue> errors,
         bool requiresConfirmation = false)
-        => new(false, false, dryRun, requiresConfirmation, false, string.Empty, [], [], [], new ViewModelBindingContractPlan(string.Empty, string.Empty, false, null), BehaviorIntegrationContractPlan.Empty, ProjectIntegrationPlan.Empty, errors);
+        => new(false, false, dryRun, requiresConfirmation, false, string.Empty, [], [], [], new ViewModelBindingContractPlan(string.Empty, string.Empty, false, null), BehaviorIntegrationContractPlan.Empty, TargetWindowPlan.NotAvailable, ProjectIntegrationPlan.Empty, errors);
+}
+
+internal sealed record TargetWindowPlan(
+    string Status,
+    int? TargetWindowWidth,
+    int? TargetWindowHeight,
+    string Guidance)
+{
+    public static readonly TargetWindowPlan NotAvailable = new(
+        "not-available",
+        null,
+        null,
+        "Correct apply errors before reviewing target Window sizing.");
 }
 
 internal sealed record ApplyFilePlanItem(

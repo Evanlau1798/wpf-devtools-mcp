@@ -101,6 +101,42 @@ public sealed class ComposerViewModelBindingContractTests
     }
 
     [Fact]
+    public void ApplyBlueprint_ShouldIgnoreLiteralValueInBindingTypedProperty()
+    {
+        var projectRoot = CreateThirdPartyPack();
+        try
+        {
+            var registry = new PackRegistry(
+                ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),
+                ComposerPackPaths.ProjectLocalRoot(projectRoot));
+            var blueprint = """
+                {
+                  "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+                  "name": "LiteralBindingValue",
+                  "packs": [{ "id": "sample", "version": "1.0.0", "required": true, "role": "primary" }],
+                  "primaryPack": "sample",
+                  "layout": {
+                    "kind": "sample.panel",
+                    "properties": { "dataFeed": "Static instruction" }
+                  }
+                }
+                """;
+
+            var result = Apply(registry, blueprint);
+
+            result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+            using var document = JsonDocument.Parse(result.ViewModelBindingContract.Content);
+            var requirements = document.RootElement.GetProperty("bindingRequirements");
+            requirements.GetProperty("status").GetString().Should().Be("not-detected");
+            requirements.GetProperty("requirements").GetArrayLength().Should().Be(0);
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
+    [Fact]
     public void ApplyBlueprint_ShouldPreserveQuotedAndIndexedBindingPathCommas()
     {
         var projectRoot = CreateThirdPartyPack();

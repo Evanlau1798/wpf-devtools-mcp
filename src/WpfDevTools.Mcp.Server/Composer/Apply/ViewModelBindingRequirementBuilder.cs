@@ -69,8 +69,7 @@ internal static class ViewModelBindingRequirementBuilder
 
                 var rawBinding = value.GetString() ?? string.Empty;
                 var isBindingExpression = TryNormalizeBindingPath(rawBinding, out var bindingPath);
-                if (!string.Equals(property.Type, "binding", StringComparison.Ordinal)
-                    && !isBindingExpression)
+                if (!isBindingExpression)
                 {
                     continue;
                 }

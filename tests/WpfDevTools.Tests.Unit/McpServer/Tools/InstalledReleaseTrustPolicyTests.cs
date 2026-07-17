@@ -9,7 +9,7 @@ namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 public sealed class InstalledReleaseTrustPolicyTests
 {
     [Fact]
-    public void CanSkipSignatureForChecksumOnlyPayload_WithInstalledInspectorPayload_ShouldReturnTrue()
+    public void CanSkipSignatureForChecksumOnlyPayload_WithInstalledInspectorPayload_ShouldReturnFalse()
     {
         using var layout = InstalledLayout.Create();
 
@@ -18,12 +18,12 @@ public sealed class InstalledReleaseTrustPolicyTests
             layout.BaseDirectory,
             layout.ExecutablePath);
 
-        result.Should().BeTrue(
-            "checksum-only prereleases verified by release SHA metadata need a runtime path for their own installed inspector payloads");
+        result.Should().BeFalse(
+            "mutable installed metadata cannot authenticate the Inspector bytes loaded into a target process");
     }
 
     [Fact]
-    public void CanSkipSignatureForChecksumOnlyPayload_WithInstalledBootstrapperPayload_ShouldReturnTrue()
+    public void CanSkipSignatureForChecksumOnlyPayload_WithInstalledBootstrapperPayload_ShouldReturnFalse()
     {
         using var layout = InstalledLayout.Create();
 
@@ -32,7 +32,8 @@ public sealed class InstalledReleaseTrustPolicyTests
             layout.BaseDirectory,
             layout.ExecutablePath);
 
-        result.Should().BeTrue();
+        result.Should().BeFalse(
+            "mutable installed metadata cannot authenticate the native Bootstrapper bytes loaded into a target process");
     }
 
     [Fact]

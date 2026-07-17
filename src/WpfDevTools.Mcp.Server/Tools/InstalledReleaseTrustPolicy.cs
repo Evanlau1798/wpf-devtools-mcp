@@ -111,50 +111,13 @@ internal static class InstalledReleaseTrustPolicy
             return false;
         }
 
-        return CanSkipInstalledChecksumOnlyPayload(
-                   packageRoot,
-                   normalizedCurrentDirectory,
-                   normalizedProcessPath)
-               || CanSkipPortableChecksumOnlyPayload(
-                   packageRoot,
-                   packageManifestPath,
-                   normalizedCurrentDirectory,
-                   normalizedProcessPath,
-                   normalizedDllPath,
-                   payloadRelativePath);
-    }
-
-    private static bool CanSkipInstalledChecksumOnlyPayload(
-        JsonElement packageRoot,
-        string currentDirectory,
-        string processPath)
-    {
-        var installBase = Directory.GetParent(currentDirectory)?.FullName;
-        if (installBase is null)
-        {
-            return false;
-        }
-
-        var installManifestPath = Path.Combine(installBase, "install-manifest.json");
-        if (!File.Exists(installManifestPath))
-        {
-            return false;
-        }
-
-        using var installManifest = JsonDocument.Parse(File.ReadAllText(installManifestPath));
-        var installRoot = installManifest.RootElement;
-
-        if (!IsChecksumOnlyReleaseManifest(installRoot)
-            || !ManifestValuesMatch(packageRoot, installRoot, "version")
-            || !ManifestValuesMatch(packageRoot, installRoot, "architecture"))
-        {
-            return false;
-        }
-
-        var installDir = GetString(installRoot, "installDir");
-        var installedExecutable = GetString(installRoot, "executable");
-        return PathEquals(installDir, currentDirectory)
-               && PathEquals(installedExecutable, processPath);
+        return CanSkipPortableChecksumOnlyPayload(
+            packageRoot,
+            packageManifestPath,
+            normalizedCurrentDirectory,
+            normalizedProcessPath,
+            normalizedDllPath,
+            payloadRelativePath);
     }
 
     private static bool CanSkipPortableChecksumOnlyPayload(
@@ -314,14 +277,6 @@ internal static class InstalledReleaseTrustPolicy
         => string.Equals(GetString(manifest, "signaturePolicy"), ReleaseChecksumOnly, StringComparison.Ordinal)
            && string.Equals(GetString(manifest, "channel"), ReleaseChannel, StringComparison.OrdinalIgnoreCase)
            && string.Equals(GetString(manifest, "buildConfiguration"), ReleaseConfiguration, StringComparison.OrdinalIgnoreCase);
-
-    private static bool ManifestValuesMatch(JsonElement left, JsonElement right, string propertyName)
-    {
-        var leftValue = GetString(left, propertyName);
-        var rightValue = GetString(right, propertyName);
-        return !string.IsNullOrWhiteSpace(leftValue)
-               && string.Equals(leftValue, rightValue, StringComparison.OrdinalIgnoreCase);
-    }
 
     private static IEnumerable<string?> EnumerateManifestPayloadRelativePaths(JsonElement packageManifest)
     {

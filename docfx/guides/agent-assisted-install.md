@@ -48,6 +48,8 @@ Before installation, ask the user to confirm:
 
 For manual package review, keep `release_<version>_win-<arch>.zip`, `SHA256SUMS.txt`, `release-assets.json`, `release-sbom.spdx.json`, and `package-sbom.spdx.json` together. `Signed` packages require `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`; `ReleaseChecksumOnly` beta packages require SHA256 release metadata from GitHub Release sidecars or a trusted metadata directory. Use [Manual Verified Install](../quickstart/manual-install.md) for the user-facing checklist and [Release Layout](../production/release-layout.md) for the full artifact contract.
 
+`ReleaseChecksumOnly` protects raw injection only while exact payload bytes can still be compared with the original reviewed archive. An installed manifest alone is not a trust root. For unsigned raw injection, keep the original archive and `SHA256SUMS.txt` outside the installed payload and set `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY` in the MCP client process; otherwise use `Signed` installed payloads.
+
 ## Install after approval
 
 Default online installer path after explicit user approval:

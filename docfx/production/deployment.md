@@ -16,6 +16,8 @@ For a production review, keep the following files together:
 
 `release-sbom.spdx.json` and `package-sbom.spdx.json` are different artifacts. Sidecars prove provenance and review scope. `Signed` packages still require payload signature verification with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`; beta prerelease packages may use `ReleaseChecksumOnly` only when the archive is verified through SHA256 release metadata.
 
+`ReleaseChecksumOnly` protects raw injection only while exact payload bytes can still be compared with the original reviewed archive. An installed manifest alone is not a trust root. For unsigned raw injection, keep the original archive and `SHA256SUMS.txt` outside the installed payload and set `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY` in the MCP client process; otherwise use `Signed` installed payloads.
+
 ## Install paths
 
 Install the latest stable release:

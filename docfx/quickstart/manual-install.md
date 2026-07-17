@@ -25,6 +25,8 @@ ARM64 archives may be published as preview assets, but they are not guaranteed s
    - `Signed` requires signer-pin verification with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
    - `ReleaseChecksumOnly` is allowed only for beta prereleases when GitHub Release metadata verifies the archive SHA256.
 
+`ReleaseChecksumOnly` protects raw injection only while exact payload bytes can still be compared with the original reviewed archive. An installed manifest alone is not a trust root. For unsigned raw injection, keep the original archive and `SHA256SUMS.txt` outside the installed payload and set `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY` in the MCP client process; otherwise use `Signed` installed payloads.
+
 Stop if any sidecar is missing or if the archive hash does not match.
 
 ## Install From The Reviewed Archive

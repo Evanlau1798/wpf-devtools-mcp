@@ -96,6 +96,30 @@ public sealed partial class ReleaseReadinessDocumentationTests
             $"{relativePath} should keep the signed Release trust mode visible for stable production releases");
     }
 
+    [Theory]
+    [InlineData("RELEASING.md")]
+    [InlineData("AGENT_INSTALL.md")]
+    [InlineData("docfx/production/deployment.md")]
+    [InlineData("docfx/zh-tw/production/deployment.md")]
+    [InlineData("docfx/production/release-layout.md")]
+    [InlineData("docfx/zh-tw/production/release-layout.md")]
+    [InlineData("docfx/guides/agent-assisted-install.md")]
+    [InlineData("docfx/zh-tw/guides/agent-assisted-install.md")]
+    [InlineData("docfx/quickstart/manual-install.md")]
+    [InlineData("docfx/zh-tw/quickstart/manual-install.md")]
+    [InlineData("docfx/guides/troubleshooting.md")]
+    [InlineData("docfx/zh-tw/guides/troubleshooting.md")]
+    [InlineData("docfx/contributors/public-path-runtime-security.md")]
+    [InlineData("docfx/zh-tw/contributors/public-path-runtime-security.md")]
+    public void PublicReleaseDocs_ShouldRejectInstalledManifestOnlyPayloadTrust(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("installed manifest");
+        content.Should().Contain("raw injection");
+        content.Should().Contain("WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY");
+    }
+
     [Fact]
     public void PublicReleaseChecklistGuard_ShouldRejectRewordedCheckedInstallerOnboardingClaims()
     {

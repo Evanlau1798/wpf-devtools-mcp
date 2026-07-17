@@ -30,6 +30,8 @@ Release packages use one of two trust modes:
 - `Signed`: the default and the required mode for stable public releases. Payloads are signed and installer validation pins `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`.
 - `ReleaseChecksumOnly`: prerelease-only mode for beta assets when paid Authenticode signing is not available. The installer accepts it only after GitHub Release sidecars or an explicit trusted metadata directory verify the archive through SHA256 release metadata.
 
+`ReleaseChecksumOnly` protects raw injection only while exact payload bytes can still be compared with the original reviewed archive. An installed manifest alone is not a trust root. For unsigned raw injection, keep the original archive and `SHA256SUMS.txt` outside the installed payload and set `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY` in the MCP client process; otherwise use `Signed` installed payloads.
+
 Run the release preflight script from the repository root:
 
 ```powershell

@@ -9,6 +9,7 @@ Use this checklist before publishing or promoting any public installer path, Git
 - Treat `arm64` archives as prerelease-only preview assets until a practical Windows-on-ARM runtime smoke path is available.
 - Use `Signed` trust mode for stable releases, with `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` configured before publication.
 - Use `ReleaseChecksumOnly` only for beta prereleases when paid signing is unavailable, and verify every archive through SHA256 release metadata.
+- For unsigned raw injection, retain the original archive outside the installed payload and set `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY` in the MCP client process. An installed manifest alone is not a trust root.
 - Ensure `SHA256SUMS.txt` is attached to the GitHub Release.
 - Ensure `release-assets.json` is attached and lists every uploaded archive with size and SHA256 metadata.
 - Ensure the generated GitHub Release notes include the contents of `SHA256SUMS.txt`.

@@ -56,6 +56,8 @@ For manual production review, keep these files adjacent to the archive before ex
 
 `release-sbom.spdx.json` describes the release asset/archive inventory. `package-sbom.spdx.json` describes the package, dependency, script, assembly, and payload contents. `Signed` packages require the independent `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` trust root. Beta prereleases may use `ReleaseChecksumOnly` only when SHA256 release metadata from GitHub Release sidecars or a trusted metadata directory verifies the archive. `WPFDEVTOOLS_RELEASE_SIGNER_SUBJECT` is only an additional constraint after the thumbprint is pinned.
 
+`ReleaseChecksumOnly` protects raw injection only while exact payload bytes can still be compared with the original reviewed archive. An installed manifest alone is not a trust root. For unsigned raw injection, keep the original archive and `SHA256SUMS.txt` outside the installed payload and set `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY` in the MCP client process; otherwise use `Signed` installed payloads.
+
 For the user-facing checklist, use `docfx/quickstart/manual-install.md`. For the full artifact contract, use `docfx/production/release-layout.md`.
 
 ## Approved install command shapes

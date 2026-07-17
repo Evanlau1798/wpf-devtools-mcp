@@ -9,6 +9,7 @@
 - 在具備可行的 Windows-on-ARM runtime smoke 路徑前，`arm64` archives 只能作為 prerelease-only preview assets。
 - Stable release 使用 `Signed` trust mode，並在發布前設定 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。
 - 付費簽章尚不可用時，`ReleaseChecksumOnly` 只能用於 beta prerelease，且每個 archive 都必須透過 SHA256 release metadata 驗證。
+- Unsigned raw injection 必須把 original archive 保留在 installed payload 之外，並在 MCP client process 設定 `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY`。installed manifest 本身不是 trust root。
 - 確認 GitHub Release 已附上 `SHA256SUMS.txt`。
 - 確認 `release-assets.json` 已附上，且列出每個 uploaded archive 的 size 與 SHA256 metadata。
 - 確認 generated GitHub Release notes 包含 `SHA256SUMS.txt` 的內容。

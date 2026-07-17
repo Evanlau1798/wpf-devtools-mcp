@@ -41,6 +41,8 @@ Production review 時，請讓 archive 與下列 sidecar 保持相鄰：
 
 Release package 有兩種 trust mode。`Signed` package 使用 Authenticode payload verification，並需要 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`。付費簽章尚不可用時，beta prerelease package 可以使用 `ReleaseChecksumOnly`；installer 只有在 GitHub Release sidecars 或明確 trusted metadata directory 透過 SHA256 release metadata 證明 archive 後，才接受此模式。
 
+`ReleaseChecksumOnly` 只有在 exact payload bytes 仍可與 original reviewed archive 比對時，才能保護 raw injection。installed manifest 本身不是 trust root。Unsigned raw injection 必須把 original archive 與 `SHA256SUMS.txt` 保留在 installed payload 之外，並在 MCP client process 設定 `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY`；否則請使用 `Signed` installed payloads。
+
 ## 解壓後 package 結構
 
 ```text

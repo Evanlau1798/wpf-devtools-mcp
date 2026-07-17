@@ -41,6 +41,8 @@ Keep the archive adjacent to these sidecars for production review:
 
 Release packages use two trust modes. `Signed` packages use Authenticode payload verification and require `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT`. Beta prerelease packages may use `ReleaseChecksumOnly` while paid signing is unavailable; the installer accepts that mode only after GitHub Release sidecars or an explicit trusted metadata directory prove the archive through SHA256 release metadata.
 
+`ReleaseChecksumOnly` protects raw injection only while exact payload bytes can still be compared with the original reviewed archive. An installed manifest alone is not a trust root. For unsigned raw injection, keep the original archive and `SHA256SUMS.txt` outside the installed payload and set `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY` in the MCP client process; otherwise use `Signed` installed payloads.
+
 ## Extracted package layout
 
 ```text

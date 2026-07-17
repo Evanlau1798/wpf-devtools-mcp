@@ -16,6 +16,8 @@ Production review 時，請把下列檔案放在一起：
 
 `release-sbom.spdx.json` 與 `package-sbom.spdx.json` 是不同 artifact。Sidecar 可證明 provenance 與 review scope。`Signed` package 仍需要使用 `WPFDEVTOOLS_RELEASE_SIGNER_THUMBPRINT` 做 payload 簽章驗證；beta prerelease package 只有在 archive 已透過 SHA256 release metadata 驗證時，才可以使用 `ReleaseChecksumOnly`。
 
+`ReleaseChecksumOnly` 只有在 exact payload bytes 仍可與 original reviewed archive 比對時，才能保護 raw injection。installed manifest 本身不是 trust root。Unsigned raw injection 必須把 original archive 與 `SHA256SUMS.txt` 保留在 installed payload 之外，並在 MCP client process 設定 `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY`；否則請使用 `Signed` installed payloads。
+
 ## 安裝路徑
 
 安裝最新 stable release：

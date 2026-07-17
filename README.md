@@ -24,7 +24,7 @@ irm https://installer.wpf-mcptools.evanlau1798.com | iex
 Pinned pre-release install for beta or preview validation; replace the example with the selected public pre-release tag:
 
 ```powershell
-$version = 'v1.0.0-beta.81'
+$version = 'v1.0.0-beta.82'
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 
@@ -51,6 +51,7 @@ $installRoot = '<exact-install-root>'
 - Set `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` only when UI text, binding values, DependencyProperty values, or runtime state may leave the target process.
 - Set `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` only when screenshot capture is approved.
 - Set `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` only when ViewModel inspection is approved; this covers `get_viewmodel`, `get_commands`, `get_datacontext_chain`, `modify_viewmodel`, and `execute_command`, and also applies when `capture_state_snapshot`, `batch_mutate`, or `wait_for_dp_change_after_mutation` request ViewModel state.
+- Set `WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true` only when `preview_ui_blueprint` may accept reviewed, content-bound `runtimePackApprovalTokens`; each token applies to one preview call, is not persisted, and does not replace the destructive-tools gate.
 - Set `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true` only for approved mutation, interaction, render measurement, or session state-consuming tools such as `capture_state_snapshot` and `drain_events`.
 - Raw injection fallback requires `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`; blocked targets return `SecurityError` with `requiresExplicitTargetOptIn`, and malformed entries fail with `InvalidPolicyConfiguration`.
 - Treat the MCP client as untrusted by default; server-side policy gates keep denied target metadata redacted before disclosure.

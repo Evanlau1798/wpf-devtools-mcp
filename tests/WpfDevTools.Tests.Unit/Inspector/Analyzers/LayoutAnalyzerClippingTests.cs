@@ -12,6 +12,174 @@ namespace WpfDevTools.Tests.Unit.Inspector.Analyzers;
 public class LayoutAnalyzerClippingTests
 {
     [StaFact]
+    public void GetClippingInfo_WhenCenteredContentRootIsNarrowerThanClient_ShouldUseClientViewport()
+    {
+        using var finder = new ElementFinder();
+        var analyzer = new LayoutAnalyzer(finder);
+        var target = new Border { Width = 20, Height = 20 };
+        Canvas.SetLeft(target, 200);
+        var root = new Canvas
+        {
+            Width = 100,
+            Height = 100,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        root.Children.Add(target);
+        var window = new Window
+        {
+            Width = 400,
+            Height = 200,
+            WindowStyle = WindowStyle.None,
+            ResizeMode = ResizeMode.NoResize,
+            ShowInTaskbar = false,
+            Content = root
+        };
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+
+            var result = analyzer.GetClippingInfo(finder.GenerateElementId(target));
+
+            var doc = JsonSerializer.SerializeToElement(result);
+            doc.GetProperty("isClipped").GetBoolean().Should().BeFalse(doc.GetRawText());
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void GetClippingInfo_WhenCenteredContentRootExceedsClient_ShouldReportClientOverflow()
+    {
+        using var finder = new ElementFinder();
+        var analyzer = new LayoutAnalyzer(finder);
+        var target = new Border { Width = 20, Height = 20 };
+        var root = new Canvas
+        {
+            Width = 600,
+            Height = 100,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        root.Children.Add(target);
+        var window = new Window
+        {
+            Width = 400,
+            Height = 200,
+            WindowStyle = WindowStyle.None,
+            ResizeMode = ResizeMode.NoResize,
+            ShowInTaskbar = false,
+            Content = root
+        };
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+
+            var result = analyzer.GetClippingInfo(finder.GenerateElementId(target));
+
+            var doc = JsonSerializer.SerializeToElement(result);
+            doc.GetProperty("isClipped").GetBoolean().Should().BeTrue(doc.GetRawText());
+            doc.GetProperty("clippingAncestors").EnumerateArray().Should().Contain(item =>
+                item.GetProperty("clipSource").GetString() == "window-client-viewport");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void GetClippingInfo_WhenContentExceedsWindowViewport_ShouldReportViewportOverflow()
+    {
+        using var finder = new ElementFinder();
+        var analyzer = new LayoutAnalyzer(finder);
+        var root = new Grid();
+        var content = new StackPanel
+        {
+            Width = 220,
+            Height = 240,
+            VerticalAlignment = VerticalAlignment.Top
+        };
+        root.Children.Add(content);
+        var window = new Window
+        {
+            Width = 220,
+            Height = 120,
+            WindowStyle = WindowStyle.None,
+            ResizeMode = ResizeMode.NoResize,
+            ShowInTaskbar = false,
+            Content = root
+        };
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var elementId = finder.GenerateElementId(root);
+
+            var result = analyzer.GetClippingInfo(elementId);
+
+            var doc = JsonSerializer.SerializeToElement(result);
+            doc.GetProperty("isClipped").GetBoolean().Should().BeTrue(doc.GetRawText());
+            doc.GetProperty("clippingSource").GetString().Should().Be("window-client-viewport");
+            doc.GetProperty("overflowAmount").GetProperty("bottom").GetDouble().Should().BeGreaterThan(100);
+            var viewport = doc.GetProperty("clippingAncestors").EnumerateArray()
+                .Should().ContainSingle().Subject;
+            viewport.GetProperty("clipSource").GetString().Should().Be("window-client-viewport");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void DiagnoseVisibility_WhenContentExceedsWindowViewport_ShouldReportPartialClipping()
+    {
+        using var finder = new ElementFinder();
+        var analyzer = new LayoutAnalyzer(finder);
+        var root = new Grid();
+        var content = new Border
+        {
+            Width = 220,
+            Height = 240,
+            VerticalAlignment = VerticalAlignment.Top
+        };
+        root.Children.Add(content);
+        var window = new Window
+        {
+            Width = 220,
+            Height = 120,
+            WindowStyle = WindowStyle.None,
+            ResizeMode = ResizeMode.NoResize,
+            ShowInTaskbar = false,
+            Content = root
+        };
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var elementId = finder.GenerateElementId(root);
+
+            var result = analyzer.DiagnoseVisibility(elementId);
+
+            var clipping = JsonSerializer.SerializeToElement(result).GetProperty("clipping");
+            clipping.GetProperty("severity").GetString().Should().Be("partial");
+            clipping.GetProperty("isClipped").GetBoolean().Should().BeTrue();
+            clipping.GetProperty("visibleRatio").GetDouble().Should().BeInRange(0.01, 0.99);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
     public void DiagnoseVisibility_WithAncestorLayoutClip_ShouldReportPartialClipping()
     {
         using var finder = new ElementFinder();

@@ -199,6 +199,36 @@ public sealed class ComposerPackLoaderCacheTests
     }
 
     [Fact]
+    public void RendererTemplateLoader_WhenContentDiffersFromRenderSnapshot_ShouldFailClosed()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = CreateMinimalPack(tempRoot);
+            ComposerPackLoader.ClearCacheForTests();
+            var registry = new PackRegistry(Path.Combine(tempRoot, "builtin"), tempRoot);
+            var expectedFingerprint = registry.ListPacks().Packs.Single(pack => pack.Id == "sample").Fingerprint;
+            File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "text.xaml.sbn"), "<Button />");
+
+            var result = new RendererTemplateLoader(registry).Load(
+                "sample.text",
+                DeclaredSamplePack(),
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["sample"] = expectedFingerprint
+                });
+
+            result.Success.Should().BeFalse();
+            result.Errors.Should().ContainSingle(error => error.Code == "PackContentChanged");
+        }
+        finally
+        {
+            ComposerPackLoader.ClearCacheForTests();
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void Load_ShouldRejectBlockKindOwnedByAnotherPack()
     {
         var tempRoot = CreateTempDirectory();

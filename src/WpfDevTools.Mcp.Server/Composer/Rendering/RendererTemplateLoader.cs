@@ -13,7 +13,10 @@ internal sealed class RendererTemplateLoader(PackRegistry registry)
 
     private readonly Dictionary<string, RendererTemplate> _cache = new(StringComparer.Ordinal);
 
-    public RendererTemplateLoadResult Load(string blockKind, IReadOnlyList<ComposerPackReference> declaredPacks)
+    public RendererTemplateLoadResult Load(
+        string blockKind,
+        IReadOnlyList<ComposerPackReference> declaredPacks,
+        IReadOnlyDictionary<string, string>? expectedPackFingerprints = null)
     {
         var errors = new List<BlueprintValidationIssue>();
         var registryResult = registry.ListPacks();
@@ -37,6 +40,13 @@ internal sealed class RendererTemplateLoader(PackRegistry registry)
         }
 
         var loadedResult = ComposerPackLoader.LoadWithFingerprint(pack.RootPath);
+        if (expectedPackFingerprints?.TryGetValue(pack.Id, out var expectedFingerprint) == true
+            && !string.Equals(expectedFingerprint, loadedResult.Fingerprint, StringComparison.Ordinal))
+        {
+            errors.Add(PackContentChanged(pack.Id, pack.Version));
+            return new RendererTemplateLoadResult(false, null, errors, false);
+        }
+
         var cacheKey = $"{pack.Id}|{pack.Version}|{loadedResult.Fingerprint}|{blockKind}";
         if (_cache.TryGetValue(cacheKey, out var cached))
         {
@@ -60,6 +70,15 @@ internal sealed class RendererTemplateLoader(PackRegistry registry)
         }
 
         var content = File.ReadAllText(templatePath);
+        if (!string.Equals(
+                loadedResult.Fingerprint,
+                ComposerPackLoader.GetFingerprint(pack.RootPath),
+                StringComparison.Ordinal))
+        {
+            errors.Add(PackContentChanged(pack.Id, pack.Version));
+            return new RendererTemplateLoadResult(false, null, errors, false);
+        }
+
         var template = new RendererTemplate(
             blockKind,
             templatePath,
@@ -85,6 +104,13 @@ internal sealed class RendererTemplateLoader(PackRegistry registry)
 
     private static BlueprintValidationIssue Issue(string jsonPath, string code, string message, string repairSuggestion)
         => new(jsonPath, code, message, repairSuggestion, [], [], null);
+
+    private static BlueprintValidationIssue PackContentChanged(string packId, string version)
+        => Issue(
+            "$",
+            "PackContentChanged",
+            $"Pack '{packId}@{version}' changed while its renderer was being loaded.",
+            "Retry after the pack contents are stable, then review any new exact-content approval token.");
 }
 
 internal sealed record RendererTemplateLoadResult(

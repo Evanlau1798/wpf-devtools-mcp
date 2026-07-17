@@ -59,4 +59,25 @@ public sealed partial class ComposerPreviewCompileTests
         payload.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
         payload.GetProperty("error").GetString().Should().Contain("correlationLookupLimit");
     }
+
+    [Fact]
+    public async Task PreviewUiBlueprintTool_WhenRuntimeApprovalTokenLimitIsExceeded_ShouldRejectBeforePreview()
+    {
+        using var sessionManager = new SessionManager();
+        var tokens = Enumerable.Range(0, 17).Select(index => $"token-{index}").ToArray();
+
+        var result = await UiComposerMcpTools.PreviewUiBlueprint(
+            sessionManager,
+            ButtonBlueprint(),
+            restoreEnabled: false,
+            runtimePackApprovalTokens: tokens,
+            cancellationToken: CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        var payload = result.StructuredContent!.Value;
+        payload.GetProperty("errorCode").GetString().Should().Be("InvalidArgument");
+        payload.GetProperty("error").GetString().Should().Contain("runtimePackApprovalTokens");
+        payload.GetProperty("errorData").GetProperty("actualItems").GetInt32().Should().Be(17);
+        payload.GetProperty("errorData").GetProperty("maxItems").GetInt32().Should().Be(16);
+    }
 }

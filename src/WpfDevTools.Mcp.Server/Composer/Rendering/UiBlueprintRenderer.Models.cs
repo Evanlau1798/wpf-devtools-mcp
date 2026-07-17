@@ -23,6 +23,9 @@ internal sealed record RenderBlueprintResult(
     IReadOnlyList<RenderElementCorrelation> ElementCorrelations,
     PackageIntegrationPlan PackageIntegrationGuidance)
 {
+    public IReadOnlyDictionary<string, string> PackFingerprints { get; init; }
+        = new Dictionary<string, string>(StringComparer.Ordinal);
+
     public static RenderBlueprintResult Invalid(
         RenderBlueprintRequest request,
         BlueprintValidationResult validation,

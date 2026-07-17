@@ -164,6 +164,7 @@ internal sealed partial class UiBlueprintRenderer
     private void ReserveExistingElementNames(
         UiBlueprintNode root,
         IReadOnlyList<ComposerPackReference> packs,
+        IReadOnlyDictionary<string, string> expectedPackFingerprints,
         HashSet<string> reservedNames)
     {
         var pending = new Stack<UiBlueprintNode>();
@@ -176,7 +177,7 @@ internal sealed partial class UiBlueprintRenderer
                 reservedNames.Add(node.ElementName);
             }
 
-            var template = _templateLoader.Load(node.Kind, packs).Template?.Content;
+            var template = _templateLoader.Load(node.Kind, packs, expectedPackFingerprints).Template?.Content;
             if (template is not null)
             {
                 foreach (var name in GetElementNames(template))

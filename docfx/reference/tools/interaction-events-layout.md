@@ -62,7 +62,7 @@ Some interaction and diagnostic responses may piggyback a compact `pendingEvents
 - `get_clipping_info`
 - `invalidate_layout`
 
-`get_clipping_info` analyzes one concrete target and its visual ancestors, or up to 100 explicit targets through `elementIds`. It detects explicit `Clip`, `ClipToBounds`, and WPF-generated layout clips, then reports `clippingSource`, directional `overflowAmount`, the responsible `clippingAncestors`, and a generic `suggestedFix`. Batch results retain `elementId` correlation.
+`get_clipping_info` analyzes one concrete target and its visual ancestors, or up to 100 explicit targets through `elementIds`. It detects explicit `Clip`, `ClipToBounds`, WPF-generated layout clips, and Window client viewport overflow. The implicit Window boundary reports `clippingSource="window-client-viewport"`; results also include directional `overflowAmount`, the responsible `clippingAncestors`, and a generic `suggestedFix`. Batch results retain `elementId` correlation.
 
 `visibleContentImpact="not-determined"` means the structural clip or overflow does not by itself prove visible pixel loss. Confirm affected content with focused descendant checks or a screenshot before changing layout.
 

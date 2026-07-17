@@ -66,31 +66,27 @@ internal sealed partial class UiPackPreviewContractGenerator(PackRegistry regist
             ["toggleButton"] = Extend(ButtonProperties, "IsChecked"),
             ["window"] = Extend(ContentControlProperties, "AllowsTransparency", "Icon", "ResizeMode", "ShowInTaskbar", "SizeToContent", "Title", "Topmost", "WindowState", "WindowStyle")
         };
-    private static readonly IReadOnlySet<string> ContentCapableBaseKinds = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "button",
-        "contentControl",
-        "itemsControl",
-        "stackPanel",
-        "tabItem",
-        "toggleButton",
-        "window"
-    };
-
-    public PreviewContractGenerationResult Generate(string blueprintJson, string renderedXaml)
+    public PreviewContractGenerationResult Generate(
+        string blueprintJson,
+        string renderedXaml,
+        IReadOnlyCollection<string>? runtimePackApprovalTokens = null,
+        IReadOnlyDictionary<string, string>? renderedPackFingerprints = null)
     {
         var blueprint = ComposerJsonLoader.Parse<UiBlueprint>(blueprintJson, "<inline-blueprint>", UiComposerSchemaVersions.UiBlueprint);
         var usedPackIds = CollectUsedPackIds(blueprint.Layout, blueprint.Packs.Select(pack => pack.Id).ToArray());
         var available = registry.ListPacks().Packs.ToDictionary(pack => (pack.Id, pack.Version));
-        var manifests = blueprint.Packs
-            .Where(packRef => available.ContainsKey((packRef.Id, packRef.Version)))
-            .ToDictionary(
-                packRef => packRef.Id,
-                packRef => ComposerPackLoader.Load(available[(packRef.Id, packRef.Version)].RootPath).Manifest,
-                StringComparer.Ordinal);
         var contracts = new List<ResolvedPreviewContract>();
         var diagnostics = new List<PreviewDiagnostic>();
         var advisories = new List<PreviewDiagnostic>();
+        var snapshots = LoadPackSnapshots(
+            blueprint.Packs,
+            available,
+            renderedPackFingerprints,
+            diagnostics);
+        var manifests = snapshots.ToDictionary(
+            item => item.Key,
+            item => item.Value.Pack.Manifest,
+            StringComparer.Ordinal);
         var xamlNamespaces = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var (packId, manifest) in manifests)
         {
@@ -134,12 +130,12 @@ internal sealed partial class UiPackPreviewContractGenerator(PackRegistry regist
         var packagesByPack = new Dictionary<string, IReadOnlyList<PreviewRuntimeNuGetPackage>>(StringComparer.Ordinal);
         foreach (var packRef in runtimeCandidates)
         {
-            var pack = available[(packRef.Id, packRef.Version)];
-            if (!UiPreviewRuntimeDependencyPolicy.IsApproved(pack))
+            var pack = snapshots[packRef.Id].RegistryItem;
+            if (!UiPreviewRuntimeDependencyPolicy.IsApproved(pack, runtimePackApprovalTokens))
             {
                 advisories.Add(Diagnostic(
                     "PreviewRuntimeDependenciesNotApproved",
-                    $"Pack '{packRef.Id}@{packRef.Version}' remains structural. Review its executable packages and resources, then approve this exact installed content with {McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar}={UiPreviewRuntimeDependencyPolicy.CreateApprovalToken(pack)}."));
+                    $"Pack '{packRef.Id}@{packRef.Version}' remains structural. Review its executable packages and resources, then approve this exact installed content with {McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar} or pass runtimePackApprovalTokens after enabling {McpServerConfiguration.AllowComposerRuntimeApprovalsEnvVar}. Token: {UiPreviewRuntimeDependencyPolicy.CreateApprovalToken(pack)}."));
                 continue;
             }
 

@@ -54,7 +54,11 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
 
         var propertyWarnings = CollectPropertyWarnings(request.BlueprintJson);
 
-        var previewContract = new UiPackPreviewContractGenerator(registry).Generate(request.BlueprintJson, render.Xaml);
+        var previewContract = new UiPackPreviewContractGenerator(registry).Generate(
+            request.BlueprintJson,
+            render.Xaml,
+            request.RuntimePackApprovalTokens,
+            render.PackFingerprints);
         if (!previewContract.Success)
         {
             return PreviewBlueprintResult.Invalid(request.RestoreEnabled, render.Xaml, previewContract.Diagnostics)
@@ -92,7 +96,9 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 PreviewSdkReadyFileName,
                 previewContract,
                 previewContract.RuntimeNuGetPackages,
-                previewContract.RuntimeResources);
+                previewContract.RuntimeResources,
+                request.ViewportWidth,
+                request.ViewportHeight);
             cancellationToken.ThrowIfCancellationRequested();
             var restoreSucceeded = true;
             var cancelled = false;

@@ -19,11 +19,24 @@ public static partial class UiComposerMcpTools
         string screenshotOutputMode,
         int? screenshotMaxWidth,
         int? screenshotMaxHeight,
+        int? viewportWidth,
+        int? viewportHeight,
+        string[]? runtimePackApprovalTokens,
         int correlationLookupLimit,
         string? projectRoot,
         string? localAppDataRoot,
         CancellationToken cancellationToken)
     {
+        if (runtimePackApprovalTokens is { Length: > UiPreviewRuntimeDependencyPolicy.MaximumCallApprovalTokens })
+        {
+            return BatchItemLimits.CreateInvalidArgumentError(
+                "runtimePackApprovalTokens",
+                runtimePackApprovalTokens.Length,
+                UiPreviewRuntimeDependencyPolicy.MaximumCallApprovalTokens,
+                $"runtimePackApprovalTokens accepts at most {UiPreviewRuntimeDependencyPolicy.MaximumCallApprovalTokens} items.",
+                "Pass only exact-content tokens for packs used by this preview call.");
+        }
+
         var input = BlueprintInputResolver.Resolve(blueprintJson);
         if (!input.Success)
         {
@@ -66,6 +79,31 @@ public static partial class UiComposerMcpTools
             return screenshotMaxHeightError!;
         }
 
+        var viewportArgs = ToolCallHelper.BuildJsonArgs(
+            ("viewportWidth", viewportWidth),
+            ("viewportHeight", viewportHeight));
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+                viewportArgs,
+                "viewportWidth",
+                1,
+                UiPreviewProjectFiles.MaximumViewportDimension,
+                out var resolvedViewportWidth,
+                out var viewportWidthError))
+        {
+            return viewportWidthError!;
+        }
+
+        if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
+                viewportArgs,
+                "viewportHeight",
+                1,
+                UiPreviewProjectFiles.MaximumViewportDimension,
+                out var resolvedViewportHeight,
+                out var viewportHeightError))
+        {
+            return viewportHeightError!;
+        }
+
         if (!BoundaryParameterValidator.TryGetOptionalIntInRange(
                 ToolCallHelper.BuildJsonArgs(("correlationLookupLimit", correlationLookupLimit)),
                 "correlationLookupLimit",
@@ -88,7 +126,10 @@ public static partial class UiComposerMcpTools
                     ScreenshotOutputMode: resolvedScreenshotOutputMode,
                     ScreenshotMaxWidth: resolvedScreenshotMaxWidth,
                     ScreenshotMaxHeight: resolvedScreenshotMaxHeight,
-                    CorrelationLookupLimit: resolvedCorrelationLookupLimit!.Value),
+                    CorrelationLookupLimit: resolvedCorrelationLookupLimit!.Value,
+                    ViewportWidth: resolvedViewportWidth,
+                    ViewportHeight: resolvedViewportHeight,
+                    RuntimePackApprovalTokens: runtimePackApprovalTokens),
                 cancellationToken)
             .ConfigureAwait(false);
 

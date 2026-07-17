@@ -178,20 +178,28 @@ public sealed partial class LayoutAnalyzer : DispatcherAnalyzerBase
 
     private static bool TryGetVisibleViewportRoot(FrameworkElement element, out UIElement viewportRoot)
     {
-        if (Window.GetWindow(element)?.Content is UIElement contentRoot)
+        var window = Window.GetWindow(element);
+        if (window is null)
         {
-            viewportRoot = contentRoot;
-            return true;
+            viewportRoot = null!;
+            return false;
         }
 
-        if (Window.GetWindow(element) is UIElement window)
+        DependencyObject? current = element;
+        while (current is not null && !ReferenceEquals(current, window))
         {
-            viewportRoot = window;
-            return true;
+            if (current is ContentPresenter presenter
+                && ReferenceEquals(presenter.Content, window.Content))
+            {
+                viewportRoot = presenter;
+                return true;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
         }
 
-        viewportRoot = null!;
-        return false;
+        viewportRoot = window;
+        return true;
     }
 
     /// <summary>

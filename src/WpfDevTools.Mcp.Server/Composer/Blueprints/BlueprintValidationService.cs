@@ -6,7 +6,7 @@ using WpfDevTools.Mcp.Server.Composer.Rendering;
 
 namespace WpfDevTools.Mcp.Server.Composer.Blueprints;
 
-internal sealed class BlueprintValidationService(PackRegistry registry)
+internal sealed partial class BlueprintValidationService(PackRegistry registry)
 {
     public BlueprintValidationResult Validate(
         string blueprintJson,
@@ -67,6 +67,8 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
                 "Add the primaryPack id to packs[] or choose a declared pack id."));
         }
 
+        IReadOnlyDictionary<string, string> validationPackFingerprints =
+            new Dictionary<string, string>(StringComparer.Ordinal);
         if (!string.IsNullOrWhiteSpace(blueprint.Layout.Kind))
         {
             var declaredPackIds = blueprint.Packs
@@ -78,6 +80,7 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
                 .Select(pack => pack.Id)
                 .ToHashSet(StringComparer.Ordinal);
             var context = BuildContext(declaredPacks, declaredPackIds, optionalMissingPackIds, errors);
+            validationPackFingerprints = context.PackFingerprints;
             var usedPackIds = new HashSet<string>(StringComparer.Ordinal);
             ValidateNode(blueprint.Layout, "$.layout", null, null, context, usedPackIds, errors, warnings);
             BlueprintAdjacentContentDiagnostics.AddIssues(
@@ -96,7 +99,10 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
 
         BlueprintVisualThemeDiagnostics.AddIssues(blueprint, registryResult.Packs, errors, warnings);
 
-        return new BlueprintValidationResult(errors, warnings, registryResult.Diagnostics, resolution);
+        return new BlueprintValidationResult(errors, warnings, registryResult.Diagnostics, resolution)
+        {
+            PackFingerprints = validationPackFingerprints
+        };
     }
 
     private static bool ValidateNodeCount(UiBlueprintNode root, List<BlueprintValidationIssue> errors)
@@ -250,35 +256,6 @@ internal sealed class BlueprintValidationService(PackRegistry registry)
         {
             errors.Add(Issue("$.layout.kind", "RequiredFieldMissing", "Blueprint layout.kind is required.", "Set layout.kind to a pack-qualified kind returned by get_ui_block_catalog."));
         }
-    }
-
-    private static BlueprintValidationContext BuildContext(
-        IReadOnlyDictionary<string, PackRegistryItem> declaredPacks,
-        IReadOnlySet<string> declaredPackIds,
-        IReadOnlySet<string> optionalMissingPackIds,
-        List<BlueprintValidationIssue> errors)
-    {
-        var blocks = new Dictionary<string, UiBlockDefinition>(StringComparer.Ordinal);
-        var packKinds = new Dictionary<string, string[]>(StringComparer.Ordinal);
-
-        foreach (var pack in declaredPacks.Values)
-        {
-            try
-            {
-                var loaded = ComposerPackLoader.Load(pack.RootPath);
-                packKinds[pack.Id] = loaded.Blocks.Select(block => block.Kind).Order(StringComparer.Ordinal).ToArray();
-                foreach (var block in loaded.Blocks)
-                {
-                    blocks[block.Kind] = block;
-                }
-            }
-            catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or UnauthorizedAccessException)
-            {
-                errors.Add(Issue("$.packs", "PackLoadFailed", $"Pack '{pack.Id}' could not be loaded: {ex.Message}", "Repair or reinstall the pack, then retry validation."));
-            }
-        }
-
-        return new BlueprintValidationContext(declaredPackIds, declaredPacks.Keys.ToHashSet(StringComparer.Ordinal), optionalMissingPackIds, blocks, packKinds);
     }
 
     private static void ValidateNode(

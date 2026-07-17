@@ -9,11 +9,15 @@ namespace WpfDevTools.Mcp.Server.Composer.Preview;
 
 internal static partial class UiPreviewRuntimeDependencyPolicy
 {
+    internal const int MaximumCallApprovalTokens = 16;
+
     private static readonly Regex ExactVersionPattern = new(
         "^\\[(?<version>[A-Za-z0-9][A-Za-z0-9.+-]*)\\]$",
         RegexOptions.CultureInvariant);
 
-    public static bool IsApproved(PackRegistryItem pack)
+    public static bool IsApproved(
+        PackRegistryItem pack,
+        IReadOnlyCollection<string>? callApprovalTokens = null)
     {
         if (pack.Scope == PackScope.Builtin)
         {
@@ -22,10 +26,13 @@ internal static partial class UiPreviewRuntimeDependencyPolicy
 
         var configured = Environment.GetEnvironmentVariable(
             McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar);
-        return configured?.Split(
+        var configuredTokens = configured?.Split(
                 new[] { ';', ',' },
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Contains(CreateApprovalToken(pack), StringComparer.Ordinal) == true;
+            ?? [];
+        var expected = CreateApprovalToken(pack);
+        return configuredTokens.Contains(expected, StringComparer.Ordinal)
+               || callApprovalTokens?.Contains(expected, StringComparer.Ordinal) == true;
     }
 
     public static string CreateApprovalToken(PackRegistryItem pack)

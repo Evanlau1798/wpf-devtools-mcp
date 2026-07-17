@@ -33,7 +33,8 @@ public sealed class SecurityDocumentationTests
             "WPFDEVTOOLS_AUTH_SECRET", "WPFDEVTOOLS_CERT_DIR", "WPFDEVTOOLS_CERT_THUMBPRINT",
             "WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS", "WPFDEVTOOLS_MCP_ALLOWED_TARGETS",
             "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS", "WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS",
-            "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS", "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION"
+            "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS", "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION",
+            "WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS"
         };
         var unsupportedVariables = new[]
         {
@@ -109,7 +110,8 @@ public sealed class SecurityDocumentationTests
             PolicyPaths,
             "WPFDEVTOOLS_MCP_ALLOWED_TARGETS", "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS",
             "WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS", "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS",
-            "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION");
+            "WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION",
+            "WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS");
 
         AssertContainsAll(
             [.. PolicyPaths, "docfx/reference/tools/process-and-connection.md", "docfx/zh-tw/reference/tools/process-and-connection.md", "src/WpfDevTools.Mcp.Server/McpTools/ProcessMcpToolDescriptions.cs"],

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentAssertions;
+using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Mcp.Server.McpResources;
 using WpfDevTools.Shared.Configuration;
 
@@ -56,6 +57,8 @@ public sealed class ResponseContractSchemaMetadataTests
         AssertNumericConstraint(constraints, "get_ui_summary", "depth", null, 0, 100);
         AssertNumericConstraint(constraints, "preview_ui_blueprint", "screenshotMaxWidth", 1024, 1, int.MaxValue);
         AssertNumericConstraint(constraints, "preview_ui_blueprint", "screenshotMaxHeight", 1024, 1, int.MaxValue);
+        AssertNumericConstraint(constraints, "preview_ui_blueprint", "viewportWidth", null, 1, UiPreviewProjectFiles.MaximumViewportDimension);
+        AssertNumericConstraint(constraints, "preview_ui_blueprint", "viewportHeight", null, 1, UiPreviewProjectFiles.MaximumViewportDimension);
         AssertNumericConstraint(constraints, "element_screenshot", "maxWidth", null, 1, int.MaxValue);
         AssertNumericConstraint(constraints, "element_screenshot", "maxHeight", null, 1, int.MaxValue);
     }
@@ -68,6 +71,11 @@ public sealed class ResponseContractSchemaMetadataTests
 
         AssertArrayConstraint(constraints, "capture_state_snapshot", "propertyNames", 100);
         AssertArrayConstraint(constraints, "capture_state_snapshot", "viewModelPropertyNames", 100);
+        AssertArrayConstraint(
+            constraints,
+            "preview_ui_blueprint",
+            "runtimePackApprovalTokens",
+            UiPreviewRuntimeDependencyPolicy.MaximumCallApprovalTokens);
         AssertStringConstraint(constraints, "capture_state_snapshot", "propertyNames[]", 256);
         AssertStringConstraint(constraints, "capture_state_snapshot", "viewModelPropertyNames[]", 256);
     }

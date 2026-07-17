@@ -264,18 +264,12 @@ internal static class UiComposerMcpToolDescriptions
         RESPONSE SUMMARY:
         - Returns compile, host, visual, screenshot, warning, and correlation evidence.
         - visualFidelity is resource-backed, hybrid-resource-backed, structural, or not-available for invalid, build, or host-load failure. Always verify the applied, built, and launched app.
-        - Built-ins have release provenance. Project/user packs remain structural until their returned content-bound approval token is set in WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS. The full package closure requires exact [version] plus SHA-512 contentHash, restores to a preview-local NuGet cache, and is hash-checked before build.
+        - Built-ins have release provenance. Project/user packs remain structural until their returned content-bound approval token is set in WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS, or passed in runtimePackApprovalTokens for one preview call after WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true. The full package closure requires exact [version] plus SHA-512 contentHash, restores to a preview-local NuGet cache, and is hash-checked before build.
         - screenshotVerificationGuidance says to re-read the same resource and verify SHA-256 before regenerating an apparently sparse but semantically complete preview.
         - visualComparisonChecklist lists final checks for window chrome, icons, control templates, layout and spacing.
         - propertyWarnings contains pack-defined guidance only for explicitly supplied properties, with the exact blueprint JSON path, block kind, property name, and message.
         - elementCorrelations maps each renderer root's transient x:Name to its blueprint jsonPath and blockKind. These names are never written into the blueprint or emitted by render/apply.
-        - layoutRiskSummary maps clipping to exact jsonPath/blockKind; unresolved reason is ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-found, or search-incomplete. Recheck the final app.
-        - restoreEnabled=false builds --no-restore and returns missing-assets diagnostics.
-        - startHost=true starts the host after build, waits for its load sentinel, then terminates its process tree.
-        - includeRuntimeDiagnostics=true with startHost=true reuses connect(), semantic summary, bounded correlation lookup, batched clipping, and layout diagnostics. Exact-name lookup defaults to 32 and can be raised to 64 only when lookup-budget truncation requires it.
-        - includeScreenshotDiagnostics=true with startHost=true adds a policy-gated bounded element_screenshot.
-        - screenshotOutputMode="file" returns a resource-backed PNG that remains readable after the temporary preview host exits.
-        - Screenshot bounds default to 1024; pass null only for full-size evidence.
+        - layoutRiskSummary maps clipping, including Window client viewport overflow, to exact jsonPath/blockKind; unresolved reason is ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-found, or search-incomplete. Recheck the final app.
         - Compile failures map back to the compiler line/column source-map entry and renderer template path when available; restore/build infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:
@@ -286,6 +280,8 @@ internal static class UiComposerMcpToolDescriptions
         - correlationLookupLimit caps exact queries for non-generated correlation names (authored elementName values and renderer-provided root x:Name values) at 32 (max 64). Raise only for lookup-budget; repair other reasons.
         - Screenshot diagnostics require startHost plus sensitive-read and screenshot gates.
         - Use screenshotOutputMode="file" for pixel evidence. Preview pixels do not approve final styling.
+        - viewportWidth and viewportHeight set preview Window.Width and Window.Height in DIPs; match the target Window dimensions to expose overflow before apply. Screenshot bounds only resize returned pixels.
+        - runtimePackApprovalTokens accepts up to 16 reviewed exact-content tokens for this call only; it requires WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true and is never persisted.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 

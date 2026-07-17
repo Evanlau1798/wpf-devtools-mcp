@@ -174,6 +174,15 @@ public sealed partial class LayoutAnalyzer
             current = VisualTreeHelper.GetParent(current);
         }
 
+        if (TryGetWindowViewportBoundary(
+                element,
+                out _,
+                out var transformedContentBounds,
+                out var viewportBounds))
+        {
+            diagnosis = diagnosis.Merge(AnalyzeClipBoundary(transformedContentBounds, viewportBounds));
+        }
+
         return diagnosis;
     }
 

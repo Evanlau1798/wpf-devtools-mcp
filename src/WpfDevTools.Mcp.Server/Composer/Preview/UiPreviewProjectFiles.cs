@@ -7,6 +7,8 @@ namespace WpfDevTools.Mcp.Server.Composer.Preview;
 
 internal static class UiPreviewProjectFiles
 {
+    internal const int MaximumViewportDimension = 8192;
+
     private static readonly Regex RootXmlNamespaceAttributePattern = new(
         @"\s+xmlns(?::[A-Za-z_][A-Za-z0-9_.-]*)?\s*=\s*(""[^""]*""|'[^']*'|[^\s/>]+)",
         RegexOptions.CultureInvariant);
@@ -20,7 +22,9 @@ internal static class UiPreviewProjectFiles
         string sdkReadyFileName,
         PreviewContractGenerationResult previewContract,
         IReadOnlyList<PreviewRuntimeNuGetPackage>? requiredNuGetPackages = null,
-        IReadOnlyList<string>? requiredResources = null)
+        IReadOnlyList<string>? requiredResources = null,
+        int? viewportWidth = null,
+        int? viewportHeight = null)
     {
         var previewWindowClassName = "WpfDevToolsPreviewWindow_" + Guid.NewGuid().ToString("N");
         File.WriteAllText(
@@ -34,7 +38,12 @@ internal static class UiPreviewProjectFiles
         File.WriteAllText(Path.Combine(root, "App.xaml.cs"), BuildAppCode(), Encoding.UTF8);
         File.WriteAllText(
             Path.Combine(root, "MainWindow.xaml"),
-            BuildWindowXaml(generatedXaml, previewContract, previewWindowClassName),
+            BuildWindowXaml(
+                generatedXaml,
+                previewContract,
+                previewWindowClassName,
+                viewportWidth,
+                viewportHeight),
             Encoding.UTF8);
         File.WriteAllText(
             Path.Combine(root, "MainWindow.xaml.cs"),
@@ -335,13 +344,15 @@ internal static class UiPreviewProjectFiles
     private static string BuildWindowXaml(
         string generatedXaml,
         PreviewContractGenerationResult previewContract,
-        string windowClassName)
+        string windowClassName,
+        int? viewportWidth,
+        int? viewportHeight)
     {
         var previewFragment = RemoveRootXmlNamespaceDeclarations(generatedXaml);
         var namespaceAttributes = BuildPreviewNamespaceAttributes(previewContract.XmlNamespaces);
         var windowRootTag = previewContract.WindowRootTag
             ?? (HasNativeWindowRoot(previewFragment) ? "Window" : null);
-        return windowRootTag is not null
+        var windowXaml = windowRootTag is not null
             ? AddPreviewHostClass(previewFragment, windowRootTag, namespaceAttributes, windowClassName)
             : string.Join(
                 Environment.NewLine,
@@ -351,6 +362,11 @@ internal static class UiPreviewProjectFiles
                 "  </Grid>",
                 "</Window>",
                 string.Empty);
+        return UiPreviewViewportConstraint.Apply(
+            windowXaml,
+            windowRootTag ?? "Window",
+            viewportWidth,
+            viewportHeight);
     }
 
     private static bool HasNativeWindowRoot(string xaml)

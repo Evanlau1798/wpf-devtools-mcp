@@ -39,8 +39,24 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             "<inline-blueprint>",
             UiComposerSchemaVersions.UiBlueprint);
         var context = RenderContext.Create(registry, blueprint.Packs, blueprint.ResourceVariants);
+        var snapshotIssue = ValidatePackSnapshotContinuity(
+            validation.PackFingerprints,
+            context.PackFingerprints);
+        if (snapshotIssue is not null)
+        {
+            var failedValidation = validation with
+            {
+                Errors = [.. validation.Errors, snapshotIssue]
+            };
+            return RenderBlueprintResult.Invalid(request, failedValidation, failedValidation.Errors);
+        }
+
         var targetPath = ResolveTargetPath(request, blueprint);
-        ReserveExistingElementNames(blueprint.Layout, blueprint.Packs, context.ReservedElementNames);
+        ReserveExistingElementNames(
+            blueprint.Layout,
+            blueprint.Packs,
+            context.PackFingerprints,
+            context.ReservedElementNames);
         var errors = GeneratedClassMemberCollisionValidator.Validate(blueprint, context.Blocks, targetPath).ToList();
         var sourceMap = new List<RenderSourceMapEntry>();
         var elementCorrelations = new List<RenderElementCorrelation>();
@@ -74,7 +90,10 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             context.Diagnostics,
             resolvedSourceMap,
             elementCorrelations,
-            packageGuidance);
+            packageGuidance)
+        {
+            PackFingerprints = context.PackFingerprints
+        };
     }
 
     private string RenderNode(
@@ -93,7 +112,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             return string.Empty;
         }
 
-        var templateResult = _templateLoader.Load(node.Kind, packs);
+        var templateResult = _templateLoader.Load(node.Kind, packs, context.PackFingerprints);
         if (!templateResult.Success || templateResult.Template is null)
         {
             errors.AddRange(templateResult.Errors.Select(error => error with { JsonPath = path }));
@@ -355,12 +374,14 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             IReadOnlyList<RequiredNuGetPackage> packages,
             IReadOnlyList<string> resources,
             IReadOnlyDictionary<string, string> xmlNamespaces,
+            IReadOnlyDictionary<string, string> packFingerprints,
             IReadOnlyList<string> diagnostics)
         {
             Blocks = blocks;
             RequiredNuGetPackages = packages;
             RequiredResources = resources;
             XmlNamespaces = xmlNamespaces;
+            PackFingerprints = packFingerprints;
             Diagnostics = diagnostics;
             ReservedElementNames = new HashSet<string>(StringComparer.Ordinal);
         }
@@ -369,6 +390,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         public IReadOnlyList<RequiredNuGetPackage> RequiredNuGetPackages { get; }
         public IReadOnlyList<string> RequiredResources { get; }
         public IReadOnlyDictionary<string, string> XmlNamespaces { get; }
+        public IReadOnlyDictionary<string, string> PackFingerprints { get; }
         public IReadOnlyList<string> Diagnostics { get; }
         public HashSet<string> ReservedElementNames { get; }
 
@@ -383,6 +405,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             var packages = new List<RequiredNuGetPackage>();
             var resources = new List<string>();
             var xmlNamespaces = new Dictionary<string, string>(StringComparer.Ordinal);
+            var packFingerprints = new Dictionary<string, string>(StringComparer.Ordinal);
 
             foreach (var declared in declaredPacks)
             {
@@ -392,7 +415,9 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
                     continue;
                 }
 
-                var loaded = ComposerPackLoader.Load(pack.RootPath);
+                var loadedResult = ComposerPackLoader.LoadWithFingerprint(pack.RootPath);
+                var loaded = loadedResult.Pack;
+                packFingerprints[declared.Id] = loadedResult.Fingerprint;
                 foreach (var block in loaded.Blocks)
                 {
                     blocks[block.Kind] = block;
@@ -417,6 +442,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
                     .ToArray(),
                 resources.Distinct(StringComparer.Ordinal).ToArray(),
                 xmlNamespaces,
+                packFingerprints,
                 registryResult.Diagnostics);
         }
     }

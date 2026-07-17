@@ -4,6 +4,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Shared.Validation;
 
@@ -69,6 +70,10 @@ public sealed class McpToolInputConstraintTests
         AssertEnumConstraint(previewSchema, "screenshotOutputMode", "metadata", "file");
         AssertIntegerConstraint(previewSchema, "screenshotMaxWidth", minimum: 1, maximum: int.MaxValue);
         AssertIntegerConstraint(previewSchema, "screenshotMaxHeight", minimum: 1, maximum: int.MaxValue);
+        AssertIntegerConstraint(previewSchema, "viewportWidth", minimum: 1, maximum: UiPreviewProjectFiles.MaximumViewportDimension);
+        AssertIntegerConstraint(previewSchema, "viewportHeight", minimum: 1, maximum: UiPreviewProjectFiles.MaximumViewportDimension);
+        previewSchema.GetProperty("properties").GetProperty("runtimePackApprovalTokens")
+            .GetProperty("maxItems").GetInt32().Should().Be(UiPreviewRuntimeDependencyPolicy.MaximumCallApprovalTokens);
     }
 
     private static void AssertTreeConstraints(JsonElement schema)

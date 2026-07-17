@@ -5,6 +5,40 @@ namespace WpfDevTools.Tests.Unit.Composer;
 
 public sealed class ComposerPreviewProjectFilesTests
 {
+    [Fact]
+    public void Write_WithExplicitViewport_ShouldConstrainWrapperWindow()
+    {
+        var xaml = WritePreviewXaml("<Grid />", viewportWidth: 800, viewportHeight: 450);
+
+        xaml.Should().Contain("Width=\"800\"");
+        xaml.Should().Contain("Height=\"450\"");
+    }
+
+    [Fact]
+    public void Write_WithExplicitViewport_ShouldOverrideWindowRootDimensions()
+    {
+        var xaml = WritePreviewXaml(
+            "<Window Width=\"1024\" Height=\"768\"><Grid /></Window>",
+            viewportWidth: 800,
+            viewportHeight: 450);
+
+        xaml.Should().Contain("Width=\"800\"");
+        xaml.Should().Contain("Height=\"450\"");
+        xaml.Should().NotContain("Width=\"1024\"");
+        xaml.Should().NotContain("Height=\"768\"");
+    }
+
+    [Fact]
+    public void Write_WithMarkupExtensionWidthArgument_ShouldPreserveQuotedValue()
+    {
+        var xaml = WritePreviewXaml(
+            "<Window Tag=\"{Binding Width='5'}\"><Grid /></Window>",
+            viewportWidth: 800);
+
+        xaml.Should().Contain("Tag=\"{Binding Width='5'}\"");
+        xaml.Should().Contain(" Width=\"800\"");
+    }
+
     [Theory]
     [InlineData("  <Window><Grid /></Window>", 1)]
     [InlineData("<?xml version=\"1.0\"?><Window><Grid /></Window>", 1)]
@@ -103,7 +137,10 @@ public sealed class ComposerPreviewProjectFilesTests
             .BeLessThan(codeBehind.IndexOf("File.WriteAllText", StringComparison.Ordinal));
     }
 
-    private static string WritePreviewXaml(string generatedXaml)
+    private static string WritePreviewXaml(
+        string generatedXaml,
+        int? viewportWidth = null,
+        int? viewportHeight = null)
     {
         var tempRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-preview-project-" + Guid.NewGuid().ToString("N"));
         try
@@ -122,7 +159,9 @@ public sealed class ComposerPreviewProjectFilesTests
                     new Dictionary<string, string>(),
                     null,
                     null,
-                    []));
+                    []),
+                viewportWidth: viewportWidth,
+                viewportHeight: viewportHeight);
             return File.ReadAllText(Path.Combine(tempRoot, "MainWindow.xaml"));
         }
         finally

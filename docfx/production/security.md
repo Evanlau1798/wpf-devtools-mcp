@@ -44,6 +44,7 @@ The server evaluates high-risk MCP `tools/call` requests before dispatching them
 | `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS` | `false` | UI text, binding values, DP values, event payloads, scene/tree summaries, runtime state | Sensitive UI or application data leaving the target process | `get_ui_summary` |
 | `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | `false` | Screenshot metadata/file/base64 output through `element_screenshot` | Pixel data leakage | `element_screenshot` |
 | `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | `false` | ViewModel, command, DataContext chain, and ViewModel-triggered snapshot/batch operations | Runtime business state exposure or command misuse | `get_viewmodel` |
+| `WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS` | `false` | Reviewed `runtimePackApprovalTokens` for one `preview_ui_blueprint` call | Loading unreviewed third-party preview dependencies | `preview_ui_blueprint` |
 | `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS` | `false` | Approved interaction, mutation, render measurement, state snapshots, event drain, and batch mutation | Target app state changes | `click_element`, `batch_mutate` |
 | `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS` | Disabled | Raw injection fallback into exact reviewed executable paths | Unexpected code loading into an app process | `connect` |
 
@@ -55,6 +56,7 @@ Use the smallest gate set that matches the diagnostic task. For example, scene-l
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` opts into `element_screenshot` at the MCP boundary.
 - `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` opts into target UI text, DependencyProperty and binding values, routed-event payloads, tree/scene summaries, and runtime state snapshots. This is the per-session diagnostic profile gate for read-heavy tools such as `get_ui_summary`, `get_visual_tree`, `get_bindings`, and `get_state_diff`.
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` opts into `get_viewmodel`, `get_commands`, `get_datacontext_chain`, `modify_viewmodel`, and `execute_command`. The same gate applies when `capture_state_snapshot` requests `viewModelPropertyNames`, when `batch_mutate` captures or mutates ViewModel state, and when `wait_for_dp_change_after_mutation` uses a ViewModel mutation trigger.
+- `WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true` allows a reviewed content-bound token to be supplied through `runtimePackApprovalTokens` for one preview call. The token binds the exact pack root, id, version, and fingerprint, is not persisted, and does not replace `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`.
 - Unset, false, or invalid boolean gates fail closed for the affected category.
 
 ### MCP JSON-RPC envelope boundary
@@ -84,6 +86,7 @@ Keep unset or `false`:
 
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS`
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION`
+- `WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS`
 - `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS`
 - `WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS`
 

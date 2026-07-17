@@ -9,6 +9,8 @@ internal sealed record BlueprintValidationResult(
     BlueprintResolutionPlan Resolution)
 {
     public bool Success => Errors.Count == 0;
+    public IReadOnlyDictionary<string, string> PackFingerprints { get; init; }
+        = new Dictionary<string, string>(StringComparer.Ordinal);
 }
 
 internal sealed record BlueprintResolutionPlan(
@@ -57,4 +59,8 @@ internal sealed record BlueprintValidationContext(
     IReadOnlySet<string> LoadedPackIds,
     IReadOnlySet<string> OptionalMissingPackIds,
     IReadOnlyDictionary<string, UiBlockDefinition> Blocks,
-    IReadOnlyDictionary<string, string[]> PackKinds);
+    IReadOnlyDictionary<string, string[]> PackKinds)
+{
+    public IReadOnlyDictionary<string, string> PackFingerprints { get; init; }
+        = new Dictionary<string, string>(StringComparer.Ordinal);
+}

@@ -123,7 +123,73 @@ public sealed partial class LayoutAnalyzer
             current = VisualTreeHelper.GetParent(current);
         }
 
+        if (TryGetWindowViewportBoundary(
+                frameworkElement,
+                out var viewportRoot,
+                out var transformedContentBounds,
+                out var viewportBounds))
+        {
+            var viewportOverflow = ComputeOverflow(transformedContentBounds, viewportBounds);
+            if (HasOverflow(viewportOverflow))
+            {
+                var elementType = viewportRoot.GetType().Name;
+                var elementName = (viewportRoot as FrameworkElement)?.Name;
+                ancestors.Add(new
+                {
+                    elementId = _elementFinder.GenerateElementId(viewportRoot),
+                    elementType,
+                    elementName = string.IsNullOrWhiteSpace(elementName) ? null : elementName,
+                    clipSource = "window-client-viewport",
+                    effectiveClipBounds = CreateBoundsInfo(viewportBounds),
+                    overflowAmount = CreateOverflowInfo(viewportOverflow)
+                });
+                primarySource ??= "window-client-viewport";
+                primaryDisplay ??= "Window client viewport";
+                overflow = MaxOverflow(overflow, viewportOverflow);
+            }
+        }
+
         return (ancestors, overflow, primarySource ?? "none", primaryDisplay);
+    }
+
+    private static bool TryGetWindowViewportBoundary(
+        FrameworkElement element,
+        out UIElement viewportRoot,
+        out Rect transformedContentBounds,
+        out Rect viewportBounds)
+    {
+        transformedContentBounds = Rect.Empty;
+        viewportBounds = Rect.Empty;
+        if (!TryGetVisibleViewportRoot(element, out viewportRoot)
+            || viewportRoot.RenderSize.Width <= 0
+            || viewportRoot.RenderSize.Height <= 0)
+        {
+            return false;
+        }
+
+        viewportBounds = new Rect(new Point(0, 0), viewportRoot.RenderSize);
+        var contentBounds = GetContentBounds(element);
+        if (contentBounds.IsEmpty)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(element, viewportRoot))
+        {
+            transformedContentBounds = contentBounds;
+            return true;
+        }
+
+        try
+        {
+            transformedContentBounds = element.TransformToAncestor(viewportRoot)
+                .TransformBounds(contentBounds);
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     private static (double left, double top, double right, double bottom)

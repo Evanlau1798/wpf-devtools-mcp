@@ -23,7 +23,7 @@ internal static class LayoutMcpToolDescriptions
         "- \"element not found\" -> verify elementId\n\n";
 
     public const string GetClippingInfo =
-        "Inspect WPF Clip, ClipToBounds, layout clips, and overflow for targets and ancestors.\n\n" +
+        "Inspect WPF Clip, ClipToBounds, layout clips, Window client viewport overflow, and ancestor overflow.\n\n" +
         LayoutMetadata +
         "USE: Pass `elementId` or up to 100 `elementIds`; use find_elements when only text is known. " +
         "No descendant scan; use get_layout_info for sizing.\n" +

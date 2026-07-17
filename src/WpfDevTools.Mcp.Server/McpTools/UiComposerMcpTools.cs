@@ -30,7 +30,7 @@ public static partial class UiComposerMcpTools
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(ListPacks(projectRoot, localAppDataRoot)),
+            (_, token) => Task.FromResult<object>(ListPacks(projectRoot, localAppDataRoot, token)),
             args,
             cancellationToken,
             timeoutSeconds: 10);
@@ -246,10 +246,13 @@ public static partial class UiComposerMcpTools
             timeoutSeconds: 135);
     }
 
-    private static object ListPacks(string? projectRoot, string? localAppDataRoot)
+    private static object ListPacks(
+        string? projectRoot,
+        string? localAppDataRoot,
+        CancellationToken cancellationToken)
     {
         var registry = CreateRegistry(projectRoot, localAppDataRoot);
-        var result = registry.ListPacks();
+        var result = registry.ListPacks(cancellationToken);
 
         return new
         {

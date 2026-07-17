@@ -6,43 +6,44 @@ namespace WpfDevTools.Mcp.Server.Composer.Packs;
 
 internal sealed class PackRegistry
 {
+    private const int MaxVisitedDirectories = 4096;
+    private const int MaxPackCandidates = 256;
+    private const int MaxDiagnostics = 64;
     private readonly (PackScope Scope, string Root)[] _roots;
 
     public PackRegistry(string builtinRoot, string? projectRoot = null, string? userRoot = null)
     {
         _roots =
         [
-            (PackScope.ProjectLocal, projectRoot ?? string.Empty),
-            (PackScope.UserGlobal, userRoot ?? string.Empty),
-            (PackScope.Builtin, builtinRoot)
+            (PackScope.ProjectLocal, NormalizeRoot(projectRoot, nameof(projectRoot))),
+            (PackScope.UserGlobal, NormalizeRoot(userRoot, nameof(userRoot))),
+            (PackScope.Builtin, ComposerLocalPathPolicy.RequireLocalRoot(builtinRoot, nameof(builtinRoot)))
         ];
     }
 
     public static PackRegistry ForRepository(string repoRoot)
         => new(ComposerPackPaths.BuiltinRoot(repoRoot));
 
-    public PackRegistryResult ListPacks()
+    private static string NormalizeRoot(string? root, string parameterName)
+        => string.IsNullOrWhiteSpace(root)
+            ? string.Empty
+            : ComposerLocalPathPolicy.RequireLocalRoot(root, parameterName);
+
+    public PackRegistryResult ListPacks(CancellationToken cancellationToken = default)
     {
         var packs = new Dictionary<string, PackRegistryItem>(StringComparer.Ordinal);
         var diagnostics = new List<string>();
 
         foreach (var (scope, root) in _roots)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
             {
                 continue;
             }
 
-            foreach (var packRoot in Directory.EnumerateFiles(root, "pack.json", SearchOption.AllDirectories)
-                         .Select(Path.GetDirectoryName)
-                         .Where(path => path is not null)
-                         .Select(path => path!))
+            foreach (var packRoot in EnumeratePackRoots(root, cancellationToken))
             {
-                if (IsUnderStagingRoot(root, packRoot))
-                {
-                    continue;
-                }
-
                 var item = TryLoadSafe(scope, packRoot, diagnostics);
                 if (item is null)
                 {
@@ -53,7 +54,7 @@ internal sealed class PackRegistry
                 {
                     if (!string.Equals(existing.Version, item.Version, StringComparison.Ordinal))
                     {
-                        diagnostics.Add($"Pack '{item.Id}' has multiple versions: {existing.Version}, {item.Version}.");
+                        AddDiagnostic(diagnostics, $"Pack '{item.Id}' has multiple versions: {existing.Version}, {item.Version}.");
                     }
 
                     continue;
@@ -66,13 +67,62 @@ internal sealed class PackRegistry
         return new PackRegistryResult(packs.Values.OrderBy(pack => pack.Id, StringComparer.Ordinal).ToArray(), diagnostics);
     }
 
-    private static bool IsUnderStagingRoot(string root, string packRoot)
+    private static IEnumerable<string> EnumeratePackRoots(string root, CancellationToken cancellationToken)
     {
-        var stagingRoot = Path.GetFullPath(Path.Combine(root, ".staging"))
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            + Path.DirectorySeparatorChar;
-        var normalizedPackRoot = Path.GetFullPath(packRoot);
-        return normalizedPackRoot.StartsWith(stagingRoot, StringComparison.OrdinalIgnoreCase);
+        if (IsReparsePoint(root))
+        {
+            throw new InvalidDataException("Pack discovery root must not be a reparse point.");
+        }
+
+        var visitedDirectories = 0;
+        var packCandidates = 0;
+        foreach (var packIdRoot in Directory.EnumerateDirectories(root))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            EnsureDirectoryBudget(ref visitedDirectories);
+            if (string.Equals(Path.GetFileName(packIdRoot), ".staging", StringComparison.OrdinalIgnoreCase)
+                || IsReparsePoint(packIdRoot))
+            {
+                continue;
+            }
+
+            foreach (var versionRoot in Directory.EnumerateDirectories(packIdRoot))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                EnsureDirectoryBudget(ref visitedDirectories);
+                if (IsReparsePoint(versionRoot)
+                    || !File.Exists(Path.Combine(versionRoot, "pack.json")))
+                {
+                    continue;
+                }
+
+                if (++packCandidates > MaxPackCandidates)
+                {
+                    throw new InvalidDataException($"Pack discovery candidate limit of {MaxPackCandidates} was exceeded.");
+                }
+
+                yield return versionRoot;
+            }
+        }
+    }
+
+    private static void EnsureDirectoryBudget(ref int visitedDirectories)
+    {
+        if (++visitedDirectories > MaxVisitedDirectories)
+        {
+            throw new InvalidDataException($"Pack discovery directory limit of {MaxVisitedDirectories} was exceeded.");
+        }
+    }
+
+    private static bool IsReparsePoint(string path)
+        => (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+
+    private static void AddDiagnostic(List<string> diagnostics, string message)
+    {
+        if (diagnostics.Count < MaxDiagnostics)
+        {
+            diagnostics.Add(message);
+        }
     }
 
     private static PackRegistryItem? TryLoadSafe(PackScope scope, string packRoot, List<string> diagnostics)
@@ -83,7 +133,7 @@ internal sealed class PackRegistry
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or UnauthorizedAccessException)
         {
-            diagnostics.Add($"Pack at {ComposerPathRedactor.RedactedPath} could not be loaded: {ComposerPathRedactor.Redact(ex.Message)}");
+            AddDiagnostic(diagnostics, $"Pack at {ComposerPathRedactor.RedactedPath} could not be loaded: {ComposerPathRedactor.Redact(ex.Message)}");
             return null;
         }
     }
@@ -99,7 +149,7 @@ internal sealed class PackRegistry
         var install = ComposerJsonLoader.Load<PackInstallManifest>(installManifestPath, UiComposerSchemaVersions.PackInstallManifest);
         if (!install.Enabled)
         {
-            diagnostics.Add($"Pack '{install.Id}' {install.Version} is disabled.");
+            AddDiagnostic(diagnostics, $"Pack '{install.Id}' {install.Version} is disabled.");
             return null;
         }
 

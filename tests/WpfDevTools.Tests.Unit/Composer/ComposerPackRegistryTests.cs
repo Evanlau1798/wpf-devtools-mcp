@@ -8,6 +8,30 @@ namespace WpfDevTools.Tests.Unit.Composer;
 
 public sealed class ComposerPackRegistryTests
 {
+    [Theory]
+    [InlineData(@"\\controlled.invalid\share")]
+    [InlineData("//controlled.invalid/share")]
+    [InlineData(@"\\?\UNC\controlled.invalid\share")]
+    public void ComposerLocalPathPolicy_ShouldRejectNetworkPathSyntax(string path)
+    {
+        var act = () => ComposerLocalPathPolicy.RequireLocalRoot(path, "projectRoot");
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*local*");
+    }
+
+    [Fact]
+    public void ComposerLocalPathPolicy_ShouldRejectMappedNetworkDrive()
+    {
+        var act = () => ComposerLocalPathPolicy.RequireLocalRoot(
+            Path.GetFullPath("C:/packs"),
+            "projectRoot",
+            static _ => DriveType.Network);
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*local*");
+    }
+
     [Fact]
     public void PackPathContract_ShouldUseDocumentedRoots()
     {
@@ -208,6 +232,67 @@ public sealed class ComposerPackRegistryTests
     }
 
     [Fact]
+    public void PackRegistry_ShouldCapInvalidPackDiagnostics()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = ComposerPackPaths.ProjectLocalRoot(Path.Combine(tempRoot, "project"));
+            CreateInvalidPackCandidates(packRoot, 100);
+
+            var result = new PackRegistry(Path.Combine(tempRoot, "builtin"), packRoot).ListPacks();
+
+            result.Packs.Should().BeEmpty();
+            result.Diagnostics.Should().HaveCountLessThanOrEqualTo(64);
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void PackRegistry_ShouldRejectMoreThan256PackCandidates()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = ComposerPackPaths.ProjectLocalRoot(Path.Combine(tempRoot, "project"));
+            CreateInvalidPackCandidates(packRoot, 257);
+            var registry = new PackRegistry(Path.Combine(tempRoot, "builtin"), packRoot);
+
+            var act = () => registry.ListPacks();
+
+            act.Should().Throw<InvalidDataException>()
+                .WithMessage("*limit*");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void PackRegistry_ShouldObserveCancellationBeforeDiscovery()
+    {
+        var tempRoot = CreateTempDirectory();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        try
+        {
+            var registry = new PackRegistry(Path.Combine(tempRoot, "builtin"));
+
+            var act = () => registry.ListPacks(cancellation.Token);
+
+            act.Should().Throw<OperationCanceledException>();
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public async Task ListUiBlockPacksTool_ShouldReturnBuiltInWpfUiPack()
     {
         var tempRoot = CreateTempDirectory();
@@ -248,6 +333,16 @@ public sealed class ComposerPackRegistryTests
             $$"""
             {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"wpfui","version":"0.1.0","scope":"project-local","path":"{{destination.Replace("\\", "\\\\")}}","enabled":{{enabled.ToString().ToLowerInvariant()}}}
             """);
+    }
+
+    private static void CreateInvalidPackCandidates(string packRoot, int count)
+    {
+        for (var index = 0; index < count; index++)
+        {
+            var destination = Path.Combine(packRoot, $"pack-{index:D3}", "1.0.0");
+            Directory.CreateDirectory(destination);
+            File.WriteAllText(Path.Combine(destination, "pack.json"), "{}");
+        }
     }
 
     private static void CreateMinimalPack(

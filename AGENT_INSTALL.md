@@ -71,7 +71,7 @@ irm https://installer.wpf-mcptools.evanlau1798.com | iex
 Pinned public pre-release after explicit user approval:
 
 ```powershell
-$version = 'v1.0.0-beta.79'
+$version = 'v1.0.0-beta.80'
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 

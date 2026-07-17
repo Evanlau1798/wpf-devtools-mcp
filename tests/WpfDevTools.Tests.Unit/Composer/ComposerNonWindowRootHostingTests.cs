@@ -1,4 +1,7 @@
 using FluentAssertions;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Markup;
 using System.Xml.Linq;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.Composer.Apply;
@@ -97,8 +100,80 @@ public sealed class ComposerNonWindowRootHostingTests
         }
     }
 
-    [Fact]
+    [StaFact]
     public void Apply_NonWindowRootRepeatedly_ShouldKeepSingleComposerEnvelope()
+    {
+        var root = CreateFixture();
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(root, ".wpfdevtools", "packs", "neutral", "1.0.0", "renderers", "xaml", "panel-host.xaml.sbn"),
+                "<Button Content=\"Generated\" />");
+            using var writes = new EnvironmentVariableScope(McpServerConfiguration.AllowProjectWritesEnvVar, "true");
+            using var roots = new EnvironmentVariableScope(McpServerConfiguration.AllowedProjectRootsEnvVar, root);
+            var service = new UiBlueprintApplyService(CreateRegistry(root));
+            var request = new ApplyBlueprintRequest(
+                Blueprint(),
+                root,
+                "MainWindow.xaml",
+                DryRun: false,
+                ConfirmApply: true);
+
+            service.Apply(request).Success.Should().BeTrue();
+            var targetPath = Path.Combine(root, "MainWindow.xaml");
+            var existing = XDocument.Load(targetPath, LoadOptions.PreserveWhitespace);
+            existing.Root!.SetAttributeValue(
+                XNamespace.Xmlns + "sys",
+                "clr-namespace:System;assembly=System.Runtime");
+            File.WriteAllText(targetPath, existing.ToString(SaveOptions.DisableFormatting).Replace(
+                "<!-- WPFDEVTOOLS_SAFE_SLOT_END: manual-content -->",
+                "<TextBlock Text=\"Manual note\" Tag=\"{x:Static sys:String.Empty}\" />\n<!-- WPFDEVTOOLS_SAFE_SLOT_END: manual-content -->",
+                StringComparison.Ordinal));
+
+            service.Apply(request).Success.Should().BeTrue();
+
+            var written = File.ReadAllText(targetPath);
+            CountOccurrences(written, "WPFDEVTOOLS_BLUEPRINT_SOURCE").Should().Be(1);
+            CountOccurrences(written, "WPFDEVTOOLS_SAFE_SLOT_BEGIN: manual-content").Should().Be(1);
+            CountOccurrences(written, "WPFDEVTOOLS_SAFE_SLOT_END: manual-content").Should().Be(1);
+            written.Should().Contain("Manual note");
+            var document = XDocument.Parse(written);
+            document.Descendants().Should().Contain(element =>
+                element.Name.LocalName == "TextBlock"
+                && element.Name.NamespaceName == "http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                && element.Attribute("Text") != null
+                && element.Attribute("Text")!.Value == "Manual note");
+            document.Descendants().Single(element => element.Attribute("Text")?.Value == "Manual note")
+                .GetNamespaceOfPrefix("sys")!.NamespaceName.Should().Be("clr-namespace:System;assembly=System.Runtime");
+            document.Root!.Attribute(XName.Get("Class", "http://schemas.microsoft.com/winfx/2006/xaml"))!.Remove();
+            var window = XamlReader.Parse(document.Root.ToString()).Should().BeOfType<Window>().Subject;
+            try
+            {
+                window.Content.Should().BeOfType<Grid>();
+            }
+            finally
+            {
+                window.Close();
+            }
+
+            File.WriteAllText(targetPath, written.Replace(
+                "<!-- WPFDEVTOOLS_SAFE_SLOT_END: manual-content -->",
+                string.Empty,
+                StringComparison.Ordinal));
+            var malformedContent = File.ReadAllText(targetPath);
+            var malformed = service.Apply(request);
+            malformed.Success.Should().BeFalse();
+            malformed.Errors.Should().Contain(error => error.Code == "MalformedComposerSafeSlot");
+            File.ReadAllText(targetPath).Should().Be(malformedContent);
+        }
+        finally
+        {
+            TestDirectory.Delete(root);
+        }
+    }
+
+    [Fact]
+    public void Apply_DuplicateSafeSlots_ShouldFailBeforeReplacingTarget()
     {
         var root = CreateFixture();
         try
@@ -112,21 +187,19 @@ public sealed class ComposerNonWindowRootHostingTests
                 "MainWindow.xaml",
                 DryRun: false,
                 ConfirmApply: true);
-
             service.Apply(request).Success.Should().BeTrue();
             var targetPath = Path.Combine(root, "MainWindow.xaml");
-            File.WriteAllText(targetPath, File.ReadAllText(targetPath).Replace(
+            var duplicated = File.ReadAllText(targetPath).Replace(
                 "<!-- WPFDEVTOOLS_SAFE_SLOT_END: manual-content -->",
-                "<!-- Manual note -->\n<!-- WPFDEVTOOLS_SAFE_SLOT_END: manual-content -->",
-                StringComparison.Ordinal));
+                "<!-- WPFDEVTOOLS_SAFE_SLOT_END: manual-content -->\n<!-- WPFDEVTOOLS_SAFE_SLOT_BEGIN: manual-content -->\n<TextBlock Text=\"Second slot\" />\n<!-- WPFDEVTOOLS_SAFE_SLOT_END: manual-content -->",
+                StringComparison.Ordinal);
+            File.WriteAllText(targetPath, duplicated);
 
-            service.Apply(request).Success.Should().BeTrue();
+            var result = service.Apply(request);
 
-            var written = File.ReadAllText(targetPath);
-            CountOccurrences(written, "WPFDEVTOOLS_BLUEPRINT_SOURCE").Should().Be(1);
-            CountOccurrences(written, "WPFDEVTOOLS_SAFE_SLOT_BEGIN: manual-content").Should().Be(1);
-            CountOccurrences(written, "WPFDEVTOOLS_SAFE_SLOT_END: manual-content").Should().Be(1);
-            written.Should().Contain("Manual note");
+            result.Success.Should().BeFalse();
+            result.Errors.Should().Contain(error => error.Code == "MalformedComposerSafeSlot");
+            File.ReadAllText(targetPath).Should().Be(duplicated);
         }
         finally
         {

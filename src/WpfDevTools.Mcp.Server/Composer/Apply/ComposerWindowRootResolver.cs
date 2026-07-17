@@ -10,31 +10,52 @@ internal static class ComposerWindowRootResolver
         => IsWindowRoot(ResolveSelectedManifests(registry, blueprintJson), xaml);
 
     public static bool IsWindowRoot(IReadOnlyList<UiPackManifest> manifests, string xaml)
+        => string.Equals(ResolveRootBaseKind(manifests, xaml), "window", StringComparison.Ordinal);
+
+    public static string? ResolveRootBaseKind(PackRegistry registry, string blueprintJson, string xaml)
+        => ResolveRootBaseKind(ResolveSelectedManifests(registry, blueprintJson), xaml);
+
+    public static string? ResolveRootBaseKind(IReadOnlyList<UiPackManifest> manifests, string xaml)
     {
         try
         {
             var root = XDocument.Parse(xaml).Root;
             if (root is null)
             {
-                return false;
+                return null;
             }
 
             if (string.Equals(root.Name.LocalName, "Window", StringComparison.Ordinal))
             {
-                return true;
+                return "window";
             }
 
-            return manifests
+            if (string.Equals(root.Name.NamespaceName, "http://schemas.microsoft.com/winfx/2006/xaml/presentation", StringComparison.Ordinal))
+            {
+                return root.Name.LocalName switch
+                {
+                    "ResourceDictionary" => "resourceDictionary",
+                    "UserControl" or "Page" => "contentControl",
+                    "Grid" or "StackPanel" or "DockPanel" or "Canvas" or "WrapPanel" or "UniformGrid" => "stackPanel",
+                    _ => null
+                };
+            }
+
+            var declaredBaseKinds = manifests
                 .Where(manifest => string.Equals(
                     manifest.Preview?.NamespaceUri,
                     root.Name.NamespaceName,
                     StringComparison.Ordinal))
-                .Any(manifest => manifest.Preview!.Types.TryGetValue(root.Name.LocalName, out var type)
-                    && string.Equals(type.BaseKind, "window", StringComparison.Ordinal));
+                .Select(manifest => manifest.Preview!.Types.GetValueOrDefault(root.Name.LocalName)?.BaseKind)
+                .Where(baseKind => !string.IsNullOrWhiteSpace(baseKind))
+                .ToArray();
+            return declaredBaseKinds.Contains("window", StringComparer.Ordinal)
+                ? "window"
+                : declaredBaseKinds.FirstOrDefault();
         }
         catch (System.Xml.XmlException)
         {
-            return false;
+            return null;
         }
     }
 

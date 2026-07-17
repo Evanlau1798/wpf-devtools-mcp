@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
 using WpfDevTools.Mcp.Server.Composer.Packs;
@@ -75,7 +74,12 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
 
         if (request.DryRun)
         {
-            var dryRunXaml = AddComposerHeaderAndSafeSlot(request.BlueprintJson, appliedXaml, existingContent: null);
+            var dryRunDocument = AddComposerHeaderAndSafeSlot(request.BlueprintJson, appliedXaml, existingContent: null);
+            if (!dryRunDocument.Success)
+            {
+                return ApplyBlueprintResult.Invalid(dryRun: true, [dryRunDocument.Error!]);
+            }
+
             var filePlan = CreateFilePlan(
                 targetPath,
                 viewModelContract.TargetPath,
@@ -87,7 +91,7 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
                 dryRun: true,
                 requiresConfirmation: true,
                 wouldWriteFiles: false,
-                dryRunXaml,
+                dryRunDocument.Content,
                 filePlan,
                 render.RequiredResources,
                 render.RequiredNuGetPackages,
@@ -134,8 +138,13 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
             return ApplyBlueprintResult.Invalid(dryRun: false, [existingContent.Error!]);
         }
 
-        var generatedXaml = AddComposerHeaderAndSafeSlot(request.BlueprintJson, appliedXaml, existingContent.Content);
-        var write = WriteViewFile(projectRoot, targetPath, generatedXaml);
+        var generatedDocument = AddComposerHeaderAndSafeSlot(request.BlueprintJson, appliedXaml, existingContent.Content);
+        if (!generatedDocument.Success)
+        {
+            return ApplyBlueprintResult.Invalid(dryRun: false, [generatedDocument.Error!]);
+        }
+
+        var write = WriteViewFile(projectRoot, targetPath, generatedDocument.Content);
         if (!write.Success)
         {
             return ApplyBlueprintResult.Invalid(dryRun: false, [write.Error!]);
@@ -145,7 +154,7 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
             dryRun: false,
             requiresConfirmation: false,
             wouldWriteFiles: true,
-            generatedXaml,
+            generatedDocument.Content,
             CreateFilePlan(targetPath, viewModelContract.TargetPath, false, write.TargetExisted, write.BackupPath, codeBehind),
             render.RequiredResources,
             render.RequiredNuGetPackages,
@@ -253,19 +262,6 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
         return string.IsNullOrWhiteSpace(sanitized) ? "GeneratedView" : sanitized;
     }
 
-    private static string AddComposerHeaderAndSafeSlot(string blueprintJson, string xaml, string? existingContent)
-    {
-        var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(blueprintJson));
-        var preservedSlot = ExtractSafeSlot(existingContent) ?? $"{SafeSlotBegin}{Environment.NewLine}{SafeSlotEnd}";
-        xaml = RemoveComposerEnvelope(xaml);
-        return string.Join(
-            Environment.NewLine,
-            $"{BlueprintHeaderPrefix}{encoded} -->",
-            xaml,
-            preservedSlot,
-            string.Empty);
-    }
-
     private static string AddProjectMainWindowClass(
         string projectRoot,
         string targetPath,
@@ -368,23 +364,6 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
             .Select(part => ComposerCSharpIdentifier.Create(part, "Application"))
             .ToArray();
         return parts.Length == 0 ? "Application" : string.Join(".", parts);
-    }
-
-    private static string? ExtractSafeSlot(string? existingContent)
-    {
-        if (string.IsNullOrEmpty(existingContent))
-        {
-            return null;
-        }
-
-        var begin = existingContent.IndexOf(SafeSlotBegin, StringComparison.Ordinal);
-        var end = existingContent.IndexOf(SafeSlotEnd, StringComparison.Ordinal);
-        if (begin < 0 || end < begin)
-        {
-            return null;
-        }
-
-        return existingContent[begin..(end + SafeSlotEnd.Length)];
     }
 
     private static ApplyFilePlanItem[] CreateFilePlan(

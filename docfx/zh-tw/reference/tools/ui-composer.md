@@ -49,7 +49,7 @@ Request options:
 
 此 tool 的公開 payload 不會回傳 absolute pack root paths。請以 `structuredContent` 作為 canonical result，`content[0].text` 只作為 compact fallback。
 
-Caller-selected roots 必須解析為 local fixed-drive directories；UNC、device 與其他 remote roots 會在 filesystem probing 前遭拒絕。Discovery 受 pack count、directory 與 file traversal limits 約束，因此仍應優先提供窄範圍 root。
+Caller-selected roots 必須解析至本機非網路儲存體；UNC、device 與其他 remote roots 會在 filesystem probing 前遭拒絕。在 Windows 上，directory discovery 前會逐一檢查每個既有 path component；任何 reparse-point ancestor 或 root 都會在 existence check 或 enumeration 可能跟隨它之前遭拒絕。Discovery 受 pack count、directory 與 file traversal limits 約束，因此仍應優先提供窄範圍 root。
 
 ## `import_ui_block_pack`
 

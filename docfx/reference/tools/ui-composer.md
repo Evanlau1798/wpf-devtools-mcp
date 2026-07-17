@@ -49,7 +49,7 @@ Request options:
 
 The tool omits absolute pack root paths from its public payload. Use `structuredContent` as the canonical result and treat `content[0].text` as a compact fallback.
 
-Caller-selected roots must resolve to local fixed-drive directories; UNC, device, and other remote roots are rejected before filesystem probing. Discovery is bounded by pack count and directory/file traversal limits, so narrow roots remain preferable.
+Caller-selected roots must resolve to local non-network storage. UNC, device, and other remote roots are rejected before filesystem probing. On Windows, every existing path component is checked before directory discovery; a reparse-point ancestor or root is rejected before existence checks or enumeration can follow it. Discovery is bounded by pack count and directory/file traversal limits, so narrow roots remain preferable.
 
 ## `import_ui_block_pack`
 

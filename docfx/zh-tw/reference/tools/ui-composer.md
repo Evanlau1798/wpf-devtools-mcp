@@ -49,6 +49,8 @@ Request options:
 
 此 tool 的公開 payload 不會回傳 absolute pack root paths。請以 `structuredContent` 作為 canonical result，`content[0].text` 只作為 compact fallback。
 
+Caller-selected roots 必須解析為 local fixed-drive directories；UNC、device 與其他 remote roots 會在 filesystem probing 前遭拒絕。Discovery 受 pack count、directory 與 file traversal limits 約束，因此仍應優先提供窄範圍 root。
+
 ## `import_ui_block_pack`
 
 驗證 normalized extension-pack ZIP，並只在明確核准後安裝至 `<projectRoot>/.wpfdevtools/packs`。預設 dry-run 會回傳 pack identity、archive SHA256、destination root 與 relative file plan，而且不寫入檔案。
@@ -58,10 +60,11 @@ Request options:
 - `archivePath`: 必填，經審查 normalized pack ZIP 的 absolute local path。
 - `projectRoot`: 必填，absolute local WPF project root；這是唯一 write boundary。
 - `dryRun`: 預設為 `true`；先審查 archive hash 與完整 file plan。
+- `reviewedArchiveSha256`: `dryRun=false` 時必填；請從已審查的 dry-run response 原樣複製 `archiveSha256`。若 archive 在審查與寫入之間變更，import 會失敗。
 - `confirmImport`: `dryRun=false` 時必須為 `true`。
 - `allowOverwrite`: 預設為 `false`；只有在審查相同 pack id/version 的 replacement 後才啟用。
 
-Non-dry-run import 還需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，以及 exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match。Importer 會拒絕 unsafe archive entries、invalid pack contracts、destination reparse points，以及 project-local registry 以外的 writes；它不會修改 project files、package references、resources、XAML、code-behind 或 ViewModels。
+Non-dry-run import 還需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，以及 exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match。Importer 會使用同一個已開啟的 archive handle 綁定審查與 extraction，並拒絕 unsafe archive entries、invalid pack contracts、destination reparse points，以及 project-local registry 以外的 writes；它不會修改 project files、package references、resources、XAML、code-behind 或 ViewModels。
 
 ## `get_ui_block_catalog`
 
@@ -197,7 +200,9 @@ Request options:
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
-此 tool 只寫入隔離的 temporary preview directory，compile smoke 後會刪除。Built-in runtime packs 由 release provenance 信任。NuGet build targets、control constructors 與 resource markup 都是可執行的第三方相依套件，因此 project-local 與 user-global packs 預設維持 structural；審查後必須把 `PreviewRuntimeDependenciesNotApproved` 回傳的綁定內容的 approval token 設到 `WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS` 才會載入。Token 綁定 pack scope、canonical installed root、id、version 與 fingerprint，不能授權另一個 project 或修改後的 pack。Runtime dependency closure 中的每個 package 都必須列出 exact `[version]` 與 NuGet SHA-512 `contentHash`；restore 使用 preview-local NuGet cache、拒絕未宣告的 transitive packages，並在 build 前核對所有 hashes。Selected resources 會在產生 project 前執行 safety scan。已核准 packs 會使用其 NuGet packages、XML namespaces、selected resource variants 與去重且維持順序的 application dictionaries。Engine 維持 pack-neutral，不會針對 WPF UI、pack ID、block kind、control type 或 resource name 分支。
+Preview 會執行 restore/build，且可能載入第三方程式碼，因此 `preview_ui_blueprint` 屬於 destructive tool；即使只做 compile，也需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`。
+
+此 tool 只寫入隔離的 temporary preview directory，compile smoke 後會刪除。Built-in runtime packs 由 release provenance 信任。NuGet build targets、control constructors 與 resource markup 都是可執行的第三方相依套件，因此 project-local 與 user-global packs 預設維持 structural；審查後必須把 `PreviewRuntimeDependenciesNotApproved` 回傳的綁定內容的 approval token 設到 `WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS` 才會載入。Token 綁定 pack scope、canonical installed root、id、version 與 fingerprint，不能授權另一個 project 或修改後的 pack。Runtime dependency closure 中的每個 package 都必須列出 exact `[version]` 與 NuGet SHA-512 `contentHash`；restore 使用 preview-local NuGet cache、拒絕未宣告的 transitive packages，並在 build 前核對所有 hashes。Selected resources 會在產生 project 前執行 safety scan：preview 會拒絕外部或 rooted image、navigation、media、XML 與 resource-dictionary locations，但允許 application-local relative pack resources。已核准 packs 會使用其 NuGet packages、XML namespaces、selected resource variants 與去重且維持順序的 application dictionaries。Engine 維持 pack-neutral，不會針對 WPF UI、pack ID、block kind、control type 或 resource name 分支。
 
 完成結果依序以 `visualFidelity="resource-backed"` 表示純 runtime output、`"hybrid-resource-backed"` 表示 runtime/stub 混合、`"structural"` 表示只有 stubs；invalid、cancelled 或 build failure 則回報 `"not-available"`。`visualValidationGuidance` 與 `visualComparisonChecklist` 仍要求在 apply、build 並 launch 後確認 final app。成功結果包含 generated `xaml`、`buildOutput` 與 `previewHost` summary。Runtime diagnostics 是 opt-in。成功的 `screenshotOutputMode="file"` resource 仍受 `SessionManager` 的 24 小時與 100-resource 上限管理，並在 expiry、eviction 或 disposal 時移除。若 client 顯示缺漏或大片暗色，但 semantic evidence 完整，先依 `screenshotVerificationGuidance` 重讀同一個 resource 並核對 SHA-256，再決定是否重跑。相同 decoded bytes 仍 sparse 時，才以 `screenshotMaxWidth=1024` 與 `screenshotMaxHeight=1024` 重跑 `preview_ui_blueprint`；原呼叫回傳時 temporary host 已結束。Verified image 與 semantic summary 尚未一致前，不可回報 product visual failure。Build failure 會在可用時對應回 blueprint root 與 renderer template path。
 

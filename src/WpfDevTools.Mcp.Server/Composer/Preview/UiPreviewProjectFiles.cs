@@ -104,7 +104,8 @@ internal static class UiPreviewProjectFiles
                 "  <Application.Resources>",
                 "    <ResourceDictionary>",
                 "      <ResourceDictionary.MergedDictionaries>",
-                string.Join(Environment.NewLine, resources.Select(resource => "        " + resource)),
+                string.Join(Environment.NewLine, resources.Select(resource =>
+                    "        " + PreviewResourcePolicy.NormalizeApplicationResource(resource))),
                 "      </ResourceDictionary.MergedDictionaries>",
                 "    </ResourceDictionary>",
                 "  </Application.Resources>",

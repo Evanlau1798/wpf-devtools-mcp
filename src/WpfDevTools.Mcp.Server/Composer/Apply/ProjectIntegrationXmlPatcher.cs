@@ -127,9 +127,7 @@ internal static class ProjectIntegrationXmlPatcher
     {
         if (!resource.TrimStart().StartsWith('<'))
         {
-            if (!resource.StartsWith("pack://application:,,,/", StringComparison.Ordinal)
-                || resource.Contains("..", StringComparison.Ordinal)
-                || resource.Contains('\\'))
+            if (!PreviewResourcePolicy.IsApplicationLocalPackSource(resource))
             {
                 throw new XmlException("Pack resource URI must reference an application-local pack resource.");
             }

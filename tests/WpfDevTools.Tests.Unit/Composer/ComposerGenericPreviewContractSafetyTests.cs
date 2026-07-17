@@ -70,6 +70,64 @@ public sealed partial class ComposerGenericPreviewContractTests
         }
     }
 
+    [Theory]
+    [InlineData("https://controlled.invalid/theme.xaml")]
+    [InlineData("<ResourceDictionary Source=\"https://controlled.invalid/theme.xaml\" />")]
+    [InlineData("<ResourceDictionary><ResourceDictionary.Source>file:///C:/private.xaml</ResourceDictionary.Source></ResourceDictionary>")]
+    public async Task PreviewBlueprint_ShouldRejectExternalApprovedResourceBeforeWritingProject(string resource)
+    {
+        var projectRoot = CreateProjectPack(includePreview: true, baseKind: "contentControl");
+        var previewRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-preview-external-resource-" + Guid.NewGuid().ToString("N"));
+        AddRuntimeMetadata(projectRoot, "sample", resource);
+        using var trusted = TrustRuntimePacks(projectRoot, "sample");
+        try
+        {
+            var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot)).PreviewAsync(
+                new PreviewBlueprintRequest(
+                    Blueprint("sample.panel"),
+                    RestoreEnabled: false,
+                    TemporaryRoot: previewRoot,
+                    KeepArtifacts: true));
+
+            result.Success.Should().BeFalse();
+            result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "UnsafePreviewResource");
+            Directory.Exists(previewRoot).Should().BeFalse();
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+            DeleteDirectory(previewRoot);
+        }
+    }
+
+    [Fact]
+    public async Task PreviewBlueprint_ShouldNormalizeBareApplicationPackResource()
+    {
+        const string source = "pack://application:,,,/Sample.Runtime;component/Themes/Controls.xaml";
+        var projectRoot = CreateProjectPack(includePreview: true, baseKind: "contentControl");
+        var previewRoot = CreateTempDirectory();
+        AddRuntimeMetadata(projectRoot, "sample", source);
+        using var trusted = TrustRuntimePacks(projectRoot, "sample");
+        try
+        {
+            var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot)).PreviewAsync(
+                new PreviewBlueprintRequest(
+                    Blueprint("sample.panel"),
+                    RestoreEnabled: false,
+                    TemporaryRoot: previewRoot,
+                    KeepArtifacts: true));
+
+            result.Valid.Should().BeTrue(string.Join(Environment.NewLine, result.Diagnostics.Select(item => item.Message)));
+            File.ReadAllText(Path.Combine(previewRoot, "App.xaml")).Should()
+                .Contain($"<ResourceDictionary Source=\"{source}\" />");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+            DeleteDirectory(previewRoot);
+        }
+    }
+
     [Fact]
     public async Task PreviewBlueprint_ShouldAllowApprovedPacksSharingTheSameRuntimeNamespace()
     {

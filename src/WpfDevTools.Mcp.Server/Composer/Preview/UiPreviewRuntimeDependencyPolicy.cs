@@ -78,13 +78,21 @@ internal static partial class UiPreviewRuntimeDependencyPolicy
             .SelectMany(XamlSafetyScanner.ExtractResourceDictionarySources)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
-        return resources
+        var directSourceDiagnostics = resources
+            .Where(resource => !resource.TrimStart().StartsWith('<'))
+            .Where(resource => !PreviewResourcePolicy.IsApplicationLocalPackSource(resource))
+            .Select(_ => new PreviewDiagnostic(
+                "UnsafePreviewResource",
+                "Preview resources must be inline XAML or application-local pack URIs.",
+                "$.packs",
+                string.Empty));
+        return directSourceDiagnostics.Concat(resources
             .SelectMany(resource => XamlSafetyScanner.Scan(resource, [], declaredSources))
             .Select(issue => new PreviewDiagnostic(
                 "UnsafePreviewResource",
                 issue.Message,
                 "$.packs",
-                string.Empty))
+                string.Empty)))
             .ToArray();
     }
 

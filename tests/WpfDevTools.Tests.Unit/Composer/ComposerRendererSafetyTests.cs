@@ -17,6 +17,12 @@ public sealed class ComposerRendererSafetyTests
     [InlineData("<Button Button.Click=\"Run\" />", "UnsafeEventHandlerAttribute")]
     [InlineData("<Grid xmlns:evil=\"clr-namespace:Unsafe\" />", "UnsafeXmlNamespace")]
     [InlineData("<ObjectDataProvider MethodName=\"Start\" />", "UnsafeExecutableObject")]
+    [InlineData("<XmlDataProvider Source=\"https://controlled.invalid/data.xml\" />", "UnsafePreviewIoObject")]
+    [InlineData("<WebBrowser Source=\"https://controlled.invalid/\" />", "UnsafePreviewIoObject")]
+    [InlineData("<Frame Source=\"https://controlled.invalid/\" />", "UnsafePreviewIoObject")]
+    [InlineData("<MediaElement Source=\"https://controlled.invalid/media.mp4\" />", "UnsafePreviewIoObject")]
+    [InlineData("<Image Source=\"https://controlled.invalid/image.png\" />", "UnsafePreviewUri")]
+    [InlineData("<BitmapImage UriSource=\"file:///C:/private.png\" />", "UnsafePreviewUri")]
     [InlineData("<TextBlock Text=\"{Binding Source={StaticResource Process}}\" />", "UnsafeBindingExpression")]
     [InlineData("<TextBlock Text=\"{Binding Source = {StaticResource Process}}\" />", "UnsafeBindingExpression")]
     [InlineData("<TextBlock Text=\"{Binding FallbackValue={StaticResource Placeholder}, Source={StaticResource Process}}\" />", "UnsafeBindingExpression")]
@@ -64,6 +70,19 @@ public sealed class ComposerRendererSafetyTests
         {
             DeleteDirectory(projectRoot);
         }
+    }
+
+    [Fact]
+    public void XamlSafetyScanner_ShouldRejectDeclaredExternalDictionarySource()
+    {
+        const string source = "https://controlled.invalid/theme.xaml";
+
+        var issues = XamlSafetyScanner.Scan(
+            $"<ResourceDictionary Source=\"{source}\" />",
+            [],
+            [source]);
+
+        issues.Should().ContainSingle(issue => issue.Code == "UnsafeResourceDictionarySource");
     }
 
     [Fact]

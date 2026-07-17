@@ -172,7 +172,7 @@ public sealed class ComposerPackImportTests
             var archivePath = GetRepoFilePath("packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip");
             var destinationRoot = Path.Combine(tempRoot, "packs");
 
-            var plan = PackImportService.Import(archivePath, destinationRoot, "project-local");
+            var plan = ImportReviewed(archivePath, destinationRoot);
 
             plan.DryRun.Should().BeFalse();
             plan.ArchiveSha256.Should().HaveLength(64);
@@ -188,11 +188,11 @@ public sealed class ComposerPackImportTests
             manifest.RootElement.GetProperty("metadata").GetProperty("installedAtUtc").GetString()
                 .Should().NotBeNullOrWhiteSpace();
 
-            var act = () => PackImportService.Import(archivePath, destinationRoot, "project-local");
+            var act = () => ImportReviewed(archivePath, destinationRoot);
             act.Should().Throw<IOException>()
                 .WithMessage("*already exists*");
 
-            var overwrite = PackImportService.Import(archivePath, destinationRoot, "project-local", allowOverwrite: true);
+            var overwrite = ImportReviewed(archivePath, destinationRoot, allowOverwrite: true);
             overwrite.ArchiveSha256.Should().Be(plan.ArchiveSha256);
         }
         finally
@@ -209,7 +209,7 @@ public sealed class ComposerPackImportTests
         {
             var archivePath = CreateCollisionArchive(tempRoot, "bad.zip");
             var destinationRoot = Path.Combine(tempRoot, "packs");
-            var act = () => PackImportService.Import(archivePath, destinationRoot, "project-local");
+            var act = () => ImportReviewed(archivePath, destinationRoot);
 
             act.Should().Throw<Exception>();
             Directory.Exists(Path.Combine(destinationRoot, ".staging")).Should().BeFalse();
@@ -236,7 +236,7 @@ public sealed class ComposerPackImportTests
             }
 
             var destinationRoot = Path.Combine(tempRoot, "packs");
-            var act = () => PackImportService.Import(archivePath, destinationRoot, "project-local");
+            var act = () => ImportReviewed(archivePath, destinationRoot);
 
             act.Should().Throw<Exception>();
             Directory.Exists(Path.Combine(destinationRoot, "wpfui", "0.1.0")).Should().BeFalse();
@@ -261,10 +261,10 @@ public sealed class ComposerPackImportTests
             }
 
             var destinationRoot = Path.Combine(tempRoot, "packs");
-            PackImportService.Import(goodArchive, destinationRoot, "project-local");
+            ImportReviewed(goodArchive, destinationRoot);
 
             var badArchive = CreateCollisionArchive(tempRoot, "bad.zip");
-            var act = () => PackImportService.Import(badArchive, destinationRoot, "project-local", allowOverwrite: true);
+            var act = () => ImportReviewed(badArchive, destinationRoot, allowOverwrite: true);
 
             act.Should().Throw<Exception>();
             var installedRoot = Path.Combine(destinationRoot, "wpfui", "0.1.0");
@@ -291,7 +291,7 @@ public sealed class ComposerPackImportTests
 
             ComposerPackLoader.ClearCacheForTests();
             var destinationRoot = Path.Combine(tempRoot, "packs");
-            PackImportService.Import(archivePath, destinationRoot, "project-local");
+            ImportReviewed(archivePath, destinationRoot);
 
             ComposerPackLoader.CachedPackRootsForTests().Should().NotContain(
                 root => root.Contains($"{Path.DirectorySeparatorChar}.staging{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase),
@@ -314,6 +314,59 @@ public sealed class ComposerPackImportTests
         WriteEntry(archive, "wpfui/0.1.0/collision/file.txt", "file");
         WriteEntry(archive, "wpfui/0.1.0/collision", "file");
         return archivePath;
+    }
+
+    [Fact]
+    public void PackImportService_ShouldUseOneArchiveSnapshotForPlanAndExtraction()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var archivePath = Path.Combine(tempRoot, "pack.zip");
+            using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            {
+                WriteMinimalPackEntries(archive);
+                WriteEntry(archive, "wpfui/0.1.0/reviewed.txt", "reviewed");
+            }
+
+            var destinationRoot = Path.Combine(tempRoot, "packs");
+            var review = PackImportService.CreateDryRunPlan(archivePath, destinationRoot);
+            using var reviewedSnapshot = new MemoryStream(File.ReadAllBytes(archivePath));
+            File.Delete(archivePath);
+            using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            {
+                WriteMinimalPackEntries(archive);
+                WriteEntry(archive, "wpfui/0.1.0/unreviewed.txt", "unreviewed");
+            }
+
+            PackImportService.Import(
+                reviewedSnapshot,
+                destinationRoot,
+                "project-local",
+                review.ArchiveSha256);
+
+            var installedRoot = Path.Combine(destinationRoot, "wpfui", "0.1.0");
+            File.ReadAllText(Path.Combine(installedRoot, "reviewed.txt")).Should().Be("reviewed");
+            File.Exists(Path.Combine(installedRoot, "unreviewed.txt")).Should().BeFalse();
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    private static PackImportPlan ImportReviewed(
+        string archivePath,
+        string destinationRoot,
+        bool allowOverwrite = false)
+    {
+        var review = PackImportService.CreateDryRunPlan(archivePath, destinationRoot);
+        return PackImportService.Import(
+            archivePath,
+            destinationRoot,
+            "project-local",
+            review.ArchiveSha256,
+            allowOverwrite);
     }
 
     private static void WriteMinimalPackEntries(ZipArchive archive)

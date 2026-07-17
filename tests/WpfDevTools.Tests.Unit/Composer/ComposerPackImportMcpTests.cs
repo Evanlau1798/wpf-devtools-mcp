@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpTools;
@@ -57,7 +58,7 @@ public sealed class ComposerPackImportMcpTests
     }
 
     [Fact]
-    public async Task ImportUiBlockPack_ShouldWriteOnlyToAllowlistedProjectPackRoot()
+    public async Task ImportUiBlockPack_ShouldRequireReviewedArchiveHashBeforeWriting()
     {
         var projectRoot = CreateProjectRoot();
         using var writes = new EnvironmentVariableScope(
@@ -75,6 +76,67 @@ public sealed class ComposerPackImportMcpTests
                 confirmImport: true,
                 cancellationToken: CancellationToken.None);
 
+            result.IsError.Should().BeTrue();
+            result.StructuredContent!.Value.GetProperty("errors")[0]
+                .GetProperty("code").GetString().Should().Be("ReviewedArchiveHashRequired");
+            Directory.Exists(Path.Combine(projectRoot, ".wpfdevtools")).Should().BeFalse();
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
+    [Fact]
+    public async Task ImportUiBlockPack_ShouldRejectMalformedReviewedArchiveHash()
+    {
+        var projectRoot = CreateProjectRoot();
+        try
+        {
+            var result = await UiComposerMcpTools.ImportUiBlockPack(
+                ArchivePath(),
+                projectRoot,
+                dryRun: false,
+                confirmImport: true,
+                reviewedArchiveSha256: "not-a-sha256",
+                cancellationToken: CancellationToken.None);
+
+            result.IsError.Should().BeTrue();
+            result.StructuredContent!.Value.GetProperty("errors")[0]
+                .GetProperty("code").GetString().Should().Be("InvalidReviewedArchiveHash");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
+    [Fact]
+    public async Task ImportUiBlockPack_ShouldWriteOnlyToAllowlistedProjectPackRoot()
+    {
+        var projectRoot = CreateProjectRoot();
+        using var writes = new EnvironmentVariableScope(
+            McpServerConfiguration.AllowProjectWritesEnvVar,
+            "true");
+        using var roots = new EnvironmentVariableScope(
+            McpServerConfiguration.AllowedProjectRootsEnvVar,
+            projectRoot);
+        try
+        {
+            var review = await UiComposerMcpTools.ImportUiBlockPack(
+                ArchivePath(),
+                projectRoot,
+                cancellationToken: CancellationToken.None);
+            var reviewedArchiveSha256 = review.StructuredContent!.Value
+                .GetProperty("archiveSha256").GetString();
+            var result = await UiComposerMcpTools.ImportUiBlockPack(
+                ArchivePath(),
+                projectRoot,
+                dryRun: false,
+                confirmImport: true,
+                reviewedArchiveSha256: reviewedArchiveSha256,
+                cancellationToken: CancellationToken.None);
+
             result.IsError.Should().BeFalse();
             var payload = result.StructuredContent!.Value;
             payload.GetProperty("success").GetBoolean().Should().BeTrue();
@@ -86,6 +148,52 @@ public sealed class ComposerPackImportMcpTests
                 payload.GetProperty("packId").GetString()!,
                 payload.GetProperty("version").GetString()!,
                 "install.manifest.json")).Should().BeTrue();
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
+    [Fact]
+    public async Task ImportUiBlockPack_ShouldRejectArchiveChangedAfterReview()
+    {
+        var projectRoot = CreateProjectRoot();
+        var archivePath = Path.Combine(projectRoot, "reviewed.zip");
+        File.Copy(ArchivePath(), archivePath);
+        using var writes = new EnvironmentVariableScope(
+            McpServerConfiguration.AllowProjectWritesEnvVar,
+            "true");
+        using var roots = new EnvironmentVariableScope(
+            McpServerConfiguration.AllowedProjectRootsEnvVar,
+            projectRoot);
+        try
+        {
+            var review = await UiComposerMcpTools.ImportUiBlockPack(
+                archivePath,
+                projectRoot,
+                cancellationToken: CancellationToken.None);
+            var reviewedArchiveSha256 = review.StructuredContent!.Value
+                .GetProperty("archiveSha256").GetString();
+            using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Update))
+            using (var writer = new StreamWriter(
+                       archive.CreateEntry("wpfui/0.1.0/unreviewed.txt").Open()))
+            {
+                writer.Write("changed after review");
+            }
+
+            var result = await UiComposerMcpTools.ImportUiBlockPack(
+                archivePath,
+                projectRoot,
+                dryRun: false,
+                confirmImport: true,
+                reviewedArchiveSha256: reviewedArchiveSha256,
+                cancellationToken: CancellationToken.None);
+
+            result.IsError.Should().BeTrue();
+            result.StructuredContent!.Value.GetProperty("errors")[0]
+                .GetProperty("code").GetString().Should().Be("ImportPlanChanged");
+            Directory.Exists(Path.Combine(projectRoot, ".wpfdevtools")).Should().BeFalse();
         }
         finally
         {

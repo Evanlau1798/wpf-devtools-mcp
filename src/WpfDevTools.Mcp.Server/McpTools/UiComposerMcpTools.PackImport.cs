@@ -19,6 +19,7 @@ public static partial class UiComposerMcpTools
         [Description("Absolute local project root; import stays under .wpfdevtools/packs.")] string projectRoot,
         [Description("Return a plan without writing. Defaults to true.")] bool dryRun = true,
         [Description("Required when dryRun=false.")] bool confirmImport = false,
+        [Description("SHA-256 returned by the reviewed dry run; required when dryRun=false.")] string? reviewedArchiveSha256 = null,
         [Description("Allow same-version replacement. Defaults to false.")] bool allowOverwrite = false,
         CancellationToken cancellationToken = default)
     {
@@ -27,10 +28,17 @@ public static partial class UiComposerMcpTools
             ("projectRoot", projectRoot),
             ("dryRun", dryRun),
             ("confirmImport", confirmImport),
+            ("reviewedArchiveSha256", reviewedArchiveSha256),
             ("allowOverwrite", allowOverwrite));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult(ImportPack(archivePath, projectRoot, dryRun, confirmImport, allowOverwrite)),
+            (_, _) => Task.FromResult(ImportPack(
+                archivePath,
+                projectRoot,
+                dryRun,
+                confirmImport,
+                reviewedArchiveSha256,
+                allowOverwrite)),
             args,
             cancellationToken,
             timeoutSeconds: 30);
@@ -41,6 +49,7 @@ public static partial class UiComposerMcpTools
         string projectRoot,
         bool dryRun,
         bool confirmImport,
+        string? reviewedArchiveSha256,
         bool allowOverwrite)
     {
         var normalizedProjectRoot = NormalizeImportProjectRoot(projectRoot);
@@ -61,6 +70,31 @@ public static partial class UiComposerMcpTools
                 "Non-dry-run pack import requires confirmImport=true.",
                 "Review the dry-run file plan, then retry with confirmImport=true for the same archive and projectRoot.",
                 requiresConfirmation: true);
+        }
+
+        if (string.IsNullOrWhiteSpace(reviewedArchiveSha256))
+        {
+            return ImportFailure(
+                "ReviewedArchiveHashRequired",
+                "$.reviewedArchiveSha256",
+                "Non-dry-run pack import requires the SHA-256 returned by the reviewed dry run.",
+                "Run a dry import, review its file plan, then pass archiveSha256 as reviewedArchiveSha256.",
+                requiresConfirmation: true);
+        }
+
+        if (reviewedArchiveSha256.Length != 64 || reviewedArchiveSha256.Any(character => !Uri.IsHexDigit(character)))
+        {
+            return ImportFailure(
+                "InvalidReviewedArchiveHash",
+                "$.reviewedArchiveSha256",
+                "reviewedArchiveSha256 must be a 64-character SHA-256 hexadecimal value.",
+                "Copy archiveSha256 exactly from the dry-run response.",
+                requiresConfirmation: true);
+        }
+
+        if (!string.Equals(plan.ArchiveSha256, reviewedArchiveSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            return ImportPlanChangedFailure();
         }
 
         var authorization = ProjectWritePolicy.Authorize(normalizedProjectRoot);
@@ -84,12 +118,20 @@ public static partial class UiComposerMcpTools
                 requiresConfirmation: false);
         }
 
-        var imported = PackImportService.Import(
-            normalizedArchivePath,
-            destinationRoot,
-            "project-local",
-            allowOverwrite);
-        return ToImportPayload(imported, destinationRoot, imported: true, requiresConfirmation: false);
+        try
+        {
+            var imported = PackImportService.Import(
+                normalizedArchivePath,
+                destinationRoot,
+                "project-local",
+                reviewedArchiveSha256,
+                allowOverwrite);
+            return ToImportPayload(imported, destinationRoot, imported: true, requiresConfirmation: false);
+        }
+        catch (PackImportPlanChangedException)
+        {
+            return ImportPlanChangedFailure();
+        }
     }
 
     private static string NormalizeImportProjectRoot(string projectRoot)
@@ -159,4 +201,12 @@ public static partial class UiComposerMcpTools
             requiresConfirmation,
             errors = new[] { new { jsonPath, code, message, repairSuggestion } }
         };
+
+    private static object ImportPlanChangedFailure()
+        => ImportFailure(
+            "ImportPlanChanged",
+            "$.reviewedArchiveSha256",
+            "Pack archive content changed after review.",
+            "Run a new dry import, review the new file plan, and confirm its archiveSha256.",
+            requiresConfirmation: true);
 }

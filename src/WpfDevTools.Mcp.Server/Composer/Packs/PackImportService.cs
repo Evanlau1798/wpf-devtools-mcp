@@ -12,17 +12,56 @@ internal static class PackImportService
         string archivePath,
         string destinationRoot,
         PackImportLimits? limits = null)
-        => CreatePlan(archivePath, destinationRoot, dryRun: true, limits ?? PackImportLimits.Default);
+    {
+        using var archiveStream = OpenArchive(archivePath);
+        var archiveSha256 = ComputeSha256(archiveStream);
+        using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read, leaveOpen: true);
+        return CreatePlan(
+            archive,
+            destinationRoot,
+            dryRun: true,
+            limits ?? PackImportLimits.Default,
+            archiveSha256);
+    }
 
     public static PackImportPlan Import(
         string archivePath,
         string destinationRoot,
         string sourceScope,
+        string reviewedArchiveSha256,
+        bool allowOverwrite = false,
+        PackImportLimits? limits = null)
+    {
+        using var archiveStream = OpenArchive(archivePath);
+        return Import(
+            archiveStream,
+            destinationRoot,
+            sourceScope,
+            reviewedArchiveSha256,
+            allowOverwrite,
+            limits);
+    }
+
+    public static PackImportPlan Import(
+        Stream archiveStream,
+        string destinationRoot,
+        string sourceScope,
+        string reviewedArchiveSha256,
         bool allowOverwrite = false,
         PackImportLimits? limits = null)
     {
         var activeLimits = limits ?? PackImportLimits.Default;
-        var plan = CreatePlan(archivePath, destinationRoot, dryRun: false, activeLimits);
+        var archiveSha256 = ComputeSha256(archiveStream);
+        using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read, leaveOpen: true);
+        var plan = CreatePlan(archive, destinationRoot, dryRun: false, activeLimits, archiveSha256);
+        if (!string.Equals(
+                plan.ArchiveSha256,
+                reviewedArchiveSha256,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new PackImportPlanChangedException();
+        }
+
         var destination = Path.Combine(destinationRoot, plan.PackId, plan.Version);
         if (Directory.Exists(destination) && !allowOverwrite)
         {
@@ -37,7 +76,7 @@ internal static class PackImportService
         try
         {
             Directory.CreateDirectory(stagingPackRoot);
-            ExtractArchive(archivePath, $"{plan.PackId}/{plan.Version}", stagingPackRoot, activeLimits);
+            ExtractArchive(archive, $"{plan.PackId}/{plan.Version}", stagingPackRoot, activeLimits);
             WriteInstallManifest(stagingPackRoot, destination, plan, sourceScope);
             ComposerPackLoader.LoadUncachedForValidation(stagingPackRoot);
 
@@ -92,13 +131,12 @@ internal static class PackImportService
     }
 
     private static PackImportPlan CreatePlan(
-        string archivePath,
+        ZipArchive archive,
         string destinationRoot,
         bool dryRun,
-        PackImportLimits limits)
+        PackImportLimits limits,
+        string archiveSha256)
     {
-        var archiveSha256 = ComputeSha256(archivePath);
-        using var archive = ZipFile.OpenRead(archivePath);
         var files = archive.Entries
             .Where(entry => !entry.FullName.EndsWith("/", StringComparison.Ordinal))
             .ToArray();
@@ -227,12 +265,11 @@ internal static class PackImportService
     }
 
     private static void ExtractArchive(
-        string archivePath,
+        ZipArchive archive,
         string prefix,
         string destination,
         PackImportLimits limits)
     {
-        using var archive = ZipFile.OpenRead(archivePath);
         var files = archive.Entries
             .Where(entry => !entry.FullName.EndsWith("/", StringComparison.Ordinal))
             .ToArray();
@@ -329,10 +366,20 @@ internal static class PackImportService
         }
     }
 
-    private static string ComputeSha256(string archivePath)
+    private static FileStream OpenArchive(string archivePath)
+        => new(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+    private static string ComputeSha256(Stream archiveStream)
     {
-        using var stream = File.OpenRead(archivePath);
-        return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+        if (!archiveStream.CanRead || !archiveStream.CanSeek)
+        {
+            throw new ArgumentException("Archive stream must be readable and seekable.", nameof(archiveStream));
+        }
+
+        archiveStream.Position = 0;
+        var digest = Convert.ToHexString(SHA256.HashData(archiveStream)).ToLowerInvariant();
+        archiveStream.Position = 0;
+        return digest;
     }
 }
 
@@ -356,3 +403,11 @@ internal sealed record PackImportPlan(
     ComposerObservabilityPayload Observability);
 
 internal sealed record PackImportFilePlan(string RelativePath, string TargetPath, long Length);
+
+internal sealed class PackImportPlanChangedException : InvalidOperationException
+{
+    public PackImportPlanChangedException()
+        : base("Pack archive content changed after review; run a new dry import.")
+    {
+    }
+}

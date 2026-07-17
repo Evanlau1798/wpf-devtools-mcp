@@ -140,8 +140,17 @@ internal static class XamlSafetyScanner
                     ResolveJsonPath(sourceMap, tag.StartIndex),
                     "UnsafeResourceDictionarySource",
                     $"Generated renderer XAML ResourceDictionary Source '{source}' is not declared by the pack.",
-                    "Reference only resource dictionaries declared in pack.json resourceSetup.applicationMergedDictionaries."));
+                "Reference only resource dictionaries declared in pack.json resourceSetup.applicationMergedDictionaries."));
             }
+        }
+
+        if (IsUnsafePreviewUriPropertyElement(name.LocalName, ReadPropertyElementValue(xaml, tag)))
+        {
+            issues.Add(Issue(
+                ResolveJsonPath(sourceMap, tag.StartIndex),
+                "UnsafePreviewUri",
+                $"Generated renderer XAML must not assign literal URI content to {name.LocalName}.",
+                "Use inert structural content or a simple binding that does not initiate preview-host I/O."));
         }
     }
 
@@ -240,6 +249,11 @@ internal static class XamlSafetyScanner
                     && string.Equals(attributeLocalName, "Source", StringComparison.Ordinal))
                 || (string.Equals(tagLocalName, "BitmapImage", StringComparison.Ordinal)
                     && string.Equals(attributeLocalName, "UriSource", StringComparison.Ordinal)));
+
+    private static bool IsUnsafePreviewUriPropertyElement(string localName, string value)
+        => !value.TrimStart().StartsWith("{Binding", StringComparison.Ordinal)
+            && (string.Equals(localName, "Image.Source", StringComparison.Ordinal)
+                || string.Equals(localName, "BitmapImage.UriSource", StringComparison.Ordinal));
 
     private static bool IsResourceDictionarySource(string tagLocalName, string attributeLocalName)
         => string.Equals(tagLocalName, "ResourceDictionary", StringComparison.Ordinal)

@@ -31,7 +31,34 @@ public sealed class ComposerPackLoaderCacheTests
     }
 
     [Fact]
-    public void Load_ShouldNotReadUnchangedPackFileContentForCacheHit()
+    public void Load_ShouldInvalidateCacheWhenContentChangesWithPreservedMetadata()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = CreateMinimalPack(tempRoot);
+            var blockPath = Path.Combine(packRoot, "blocks", "text.block.json");
+            ComposerPackLoader.ClearCacheForTests();
+            var first = ComposerPackLoader.LoadWithFingerprint(packRoot);
+            var originalWriteTime = File.GetLastWriteTimeUtc(blockPath);
+
+            WriteBlock(packRoot, "Fake");
+            File.SetLastWriteTimeUtc(blockPath, originalWriteTime);
+            var second = ComposerPackLoader.LoadWithFingerprint(packRoot);
+
+            second.FromCache.Should().BeFalse();
+            second.Fingerprint.Should().NotBe(first.Fingerprint);
+            second.Pack.Blocks.Single().DisplayName.Should().Be("Fake");
+        }
+        finally
+        {
+            ComposerPackLoader.ClearCacheForTests();
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void Load_ShouldNotReadUntrackedPayloadForCacheHit()
     {
         var tempRoot = CreateTempDirectory();
         try

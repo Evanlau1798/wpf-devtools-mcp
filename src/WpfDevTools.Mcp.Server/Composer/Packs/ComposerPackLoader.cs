@@ -15,9 +15,9 @@ internal static class ComposerPackLoader
     internal static ComposerPackLoadResult LoadWithFingerprint(string packRoot)
     {
         var root = Path.GetFullPath(packRoot);
-        var stamp = CreateStamp(root);
+        var observedFingerprint = CreateFingerprint(root);
         if (Cache.TryGetValue(root, out var cached)
-            && string.Equals(cached.Stamp, stamp, StringComparison.Ordinal))
+            && string.Equals(cached.Fingerprint, observedFingerprint, StringComparison.Ordinal))
         {
             return new ComposerPackLoadResult(cached.Pack, cached.Fingerprint, FromCache: true);
         }
@@ -25,10 +25,14 @@ internal static class ComposerPackLoader
         try
         {
             var pack = LoadUncached(root);
-            var fingerprint = CreateFingerprint(root);
-            var currentStamp = CreateStamp(root);
-            Cache[root] = new CachedComposerPack(currentStamp, fingerprint, pack);
-            return new ComposerPackLoadResult(pack, fingerprint, FromCache: false);
+            var loadedFingerprint = CreateFingerprint(root);
+            if (!string.Equals(observedFingerprint, loadedFingerprint, StringComparison.Ordinal))
+            {
+                throw new IOException("Pack content changed while it was being loaded.");
+            }
+
+            Cache[root] = new CachedComposerPack(loadedFingerprint, pack);
+            return new ComposerPackLoadResult(pack, loadedFingerprint, FromCache: false);
         }
         catch
         {
@@ -224,20 +228,6 @@ internal static class ComposerPackLoader
         return Convert.ToHexString(hash.GetHashAndReset());
     }
 
-    private static string CreateStamp(string root)
-    {
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        foreach (var file in EnumeratePackFiles(root))
-        {
-            var fileInfo = new FileInfo(file);
-            AppendLengthPrefixed(hash, Encoding.UTF8.GetBytes(Path.GetRelativePath(root, file).Replace('\\', '/')));
-            AppendInt64(hash, fileInfo.Length);
-            AppendInt64(hash, fileInfo.LastWriteTimeUtc.Ticks);
-        }
-
-        return Convert.ToHexString(hash.GetHashAndReset());
-    }
-
     private static IEnumerable<string> EnumeratePackFiles(string root)
         => new[]
         {
@@ -407,7 +397,7 @@ internal static class ComposerPackLoader
 
 internal sealed record ComposerPackLoadResult(ComposerPack Pack, string Fingerprint, bool FromCache);
 
-internal sealed record CachedComposerPack(string Stamp, string Fingerprint, ComposerPack Pack);
+internal sealed record CachedComposerPack(string Fingerprint, ComposerPack Pack);
 
 internal sealed record ComposerPack(
     UiPackManifest Manifest,

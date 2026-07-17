@@ -143,15 +143,16 @@ internal static class InstalledReleaseTrustPolicy
                 continue;
             }
 
-            if (!VerifyArchiveHashSidecar(archivePath, shaSidecarPath, archiveName))
-            {
-                continue;
-            }
-
             var executableRelativePath = GetString(packageRoot, "entryExecutable");
-            if (VerifyArchiveEntryMatchesFile(archivePath, "bin/manifest.json", packageManifestPath)
-                && VerifyArchiveEntryMatchesFile(archivePath, executableRelativePath, processPath)
-                && VerifyArchiveEntryMatchesFile(archivePath, payloadRelativePath, dllPath))
+            if (VerifyArchiveAndEntries(
+                    archivePath,
+                    shaSidecarPath,
+                    archiveName,
+                    [
+                        ("bin/manifest.json", packageManifestPath),
+                        (executableRelativePath, processPath),
+                        (payloadRelativePath, dllPath)
+                    ]))
             {
                 return true;
             }
@@ -189,10 +190,11 @@ internal static class InstalledReleaseTrustPolicy
         }
     }
 
-    private static bool VerifyArchiveHashSidecar(
+    private static bool VerifyArchiveAndEntries(
         string archivePath,
         string shaSidecarPath,
-        string archiveName)
+        string archiveName,
+        IReadOnlyList<(string? RelativePath, string FilePath)> expectedEntries)
     {
         var expectedHash = ReadExpectedSha256(shaSidecarPath, archiveName);
         if (expectedHash is null)
@@ -200,9 +202,23 @@ internal static class InstalledReleaseTrustPolicy
             return false;
         }
 
-        using var archiveStream = File.OpenRead(archivePath);
+        using var archiveStream = new FileStream(
+            archivePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read);
         var actualHash = Convert.ToHexString(SHA256.HashData(archiveStream));
-        return string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase);
+        if (!string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        archiveStream.Position = 0;
+        using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read, leaveOpen: false);
+        return expectedEntries.All(expected => VerifyArchiveEntryMatchesFile(
+            archive,
+            expected.RelativePath,
+            expected.FilePath));
     }
 
     private static string? ReadExpectedSha256(string shaSidecarPath, string archiveName)
@@ -230,7 +246,7 @@ internal static class InstalledReleaseTrustPolicy
     }
 
     private static bool VerifyArchiveEntryMatchesFile(
-        string archivePath,
+        ZipArchive archive,
         string? relativePath,
         string filePath)
     {
@@ -245,7 +261,6 @@ internal static class InstalledReleaseTrustPolicy
             return false;
         }
 
-        using var archive = ZipFile.OpenRead(archivePath);
         var entry = archive.GetEntry(entryName);
         if (entry is null)
         {

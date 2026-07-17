@@ -2,6 +2,7 @@ using FluentAssertions;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Tests.Unit.TestSupport;
 
 namespace WpfDevTools.Tests.Unit.McpServer.Tools;
 
@@ -147,6 +148,16 @@ public sealed class InstalledReleaseTrustPolicyTests
             layout.ExecutablePath);
 
         result.Should().BeFalse("portable payload bytes must still match the verified GitHub release ZIP entry");
+    }
+
+    [Fact]
+    public void PortableReleaseTrust_ShouldNotReopenArchivePathAfterHashValidation()
+    {
+        var source = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(
+            "src/WpfDevTools.Mcp.Server/Tools/InstalledReleaseTrustPolicy.cs"));
+
+        source.Should().NotContain("ZipFile.OpenRead(archivePath)",
+            "all archive entries must be read from the same locked handle that passed SHA-256 validation");
     }
 
     private sealed class InstalledLayout : IDisposable

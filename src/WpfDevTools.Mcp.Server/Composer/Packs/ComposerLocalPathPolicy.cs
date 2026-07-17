@@ -49,6 +49,46 @@ internal static class ComposerLocalPathPolicy
             throw new ArgumentException("Composer pack roots must be on local storage.", parameterName);
         }
 
+        RejectReparsePointAncestors(fullPath, driveRoot, parameterName);
+
         return fullPath;
+    }
+
+    private static void RejectReparsePointAncestors(
+        string fullPath,
+        string driveRoot,
+        string parameterName)
+    {
+        var current = driveRoot;
+        var relativePath = fullPath[driveRoot.Length..];
+        foreach (var segment in relativePath.Split(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, segment);
+            FileAttributes attributes;
+            try
+            {
+                attributes = File.GetAttributes(current);
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                break;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                throw new ArgumentException(
+                    "Composer pack root ancestors could not be validated as local directories.",
+                    parameterName,
+                    ex);
+            }
+
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new ArgumentException(
+                    "Composer pack roots must not traverse a reparse point.",
+                    parameterName);
+            }
+        }
     }
 }

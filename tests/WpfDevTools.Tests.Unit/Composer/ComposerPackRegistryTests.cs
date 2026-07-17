@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Diagnostics;
 using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Tests.Unit.TestSupport;
@@ -30,6 +31,35 @@ public sealed class ComposerPackRegistryTests
 
         act.Should().Throw<ArgumentException>()
             .WithMessage("*local*");
+    }
+
+    [Fact]
+    public void ComposerLocalPathPolicy_ShouldRejectReparsePointAncestor()
+    {
+        var tempRoot = CreateTempDirectory();
+        var target = Path.Combine(tempRoot, "target");
+        var junction = Path.Combine(tempRoot, "junction");
+        Directory.CreateDirectory(Path.Combine(target, "packs"));
+        try
+        {
+            CreateDirectoryJunction(junction, target);
+
+            var act = () => ComposerLocalPathPolicy.RequireLocalRoot(
+                Path.Combine(junction, "packs"),
+                "projectRoot");
+
+            act.Should().Throw<ArgumentException>()
+                .WithMessage("*reparse point*");
+        }
+        finally
+        {
+            if (Directory.Exists(junction))
+            {
+                Directory.Delete(junction);
+            }
+
+            DeleteDirectory(tempRoot);
+        }
     }
 
     [Fact]
@@ -399,6 +429,22 @@ public sealed class ComposerPackRegistryTests
         var path = Path.Combine(Path.GetTempPath(), "wpfdevtools-composer-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private static void CreateDirectoryJunction(string junctionPath, string targetPath)
+    {
+        using var process = Process.Start(new ProcessStartInfo
+        {
+            FileName = "cmd.exe",
+            Arguments = $"/c mklink /J \"{junctionPath}\" \"{targetPath}\"",
+            CreateNoWindow = true,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false
+        });
+        process.Should().NotBeNull();
+        process!.WaitForExit();
+        process.ExitCode.Should().Be(0, process.StandardError.ReadToEnd() + process.StandardOutput.ReadToEnd());
     }
 
     private static void DeleteDirectory(string path)

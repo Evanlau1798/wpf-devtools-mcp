@@ -239,7 +239,7 @@ Request options:
 - `confirmApply`: optional boolean，non-dry-run 寫入前必須在檢查 dry-run plan 後設為 true。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
-非 dry-run 寫入需要 `confirmApply=true`、`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，且 `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` 必須 exact match。成功的 confirmed response 會保留依照寫入前 target 狀態執行的 file plan：新寫入檔案仍為 `action="create"`，既有檔案仍為 `action="update"` 並回報 backup path。此 tool 會拒絕 `projectRoot` 外的路徑、更新既有 view 前建立 backup、加入 `WPFDEVTOOLS_BLUEPRINT_SOURCE` header、保留 `WPFDEVTOOLS_SAFE_SLOT` manual-edit markers，且不會執行 NuGet restore。
+非 dry-run 寫入需要 `confirmApply=true`、`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，且 `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` 必須 exact match。成功的 confirmed response 會保留依照寫入前 target 狀態執行的 file plan：新寫入檔案仍為 `action="create"`，既有檔案仍為 `action="update"` 並回報 backup path。此 tool 會拒絕 `projectRoot` 外的路徑、更新既有 view 前建立 backup，並在重複 full-view apply 時維持唯一一個 `WPFDEVTOOLS_BLUEPRINT_SOURCE` header 與一組保留內容的 `WPFDEVTOOLS_SAFE_SLOT` envelope，且不會執行 NuGet restore。
 
 `targetPath` 若是 existing App.xaml StartupUri 所指向、且 XAML root 為 `Window`，Composer 就能以 pack-neutral 方式 host generated non-Window root。Dry-run 會保留既有 Window shell，只以 generated content 取代原內容；pack-declared window root 仍維持 top-level。其他 targets 會保持 standalone views，不會宣稱已整合 startup。把 generated UI 視為 launched surface 前，請確認 application-XAML operation 包含 startup purpose。
 
@@ -264,7 +264,7 @@ Dry-run 的 `projectIntegrationPlan` 保持 pack-neutral。Operations 會列出 
 5. 只有在 ready reviewed integration plan 未涵蓋時，才依每個 pack 的需求手動把 `resourcePlan` entries 加入 application resource location。該 plan 已反映 blueprint 的 `resourceVariants` selections 或各 pack default。請以回傳的 pack data 為準，不要假設特定 library namespace 或 dictionary。
 6. 若 `filePlan` 包含 `role="code-behind-integration"` 且 reviewed integration plan 尚未 ready，請依 action 與 pack renderer 驗證過的 `codeBehindBaseType`，讓 generated XAML `x:Class` 與 code-behind 繼承相同 type。
 
-7. 將 `viewModelBindingContract.bindingRequirements.status="required"` 視為 implementation gate。Requirements 會從 pack-declared binding properties 與所有 authored WPF binding expressions 泛化擷取，依 normalized binding path 去重，同時保留每個 exact blueprint JSON usage path。請實作所有 resolved paths 並調查每個 `path-unresolved` entry；Composer 會明確回報 `composerWritesViewModelSource=false`。
+7. 將 `viewModelBindingContract.bindingRequirements.status="required"` 視為 implementation gate。Requirements 只會從實際 authored WPF binding expressions 擷取，不受 pack property type 影響，並依 normalized binding path 去重，同時保留每個 exact blueprint JSON usage path。Literal property value 不會建立 ViewModel requirement。請實作所有 resolved paths 並調查每個 `path-unresolved` entry；Composer 會明確回報 `composerWritesViewModelSource=false`。
 8. 將 `behaviorIntegrationContract.status="required"` 視為 release gate。每個 interaction 都包含 `bindingStatus`、raw `commandBinding` 與 nullable parsed `commandPath`。即使 complex valid WPF binding 的 path 無法解析，它仍是 required interaction，必須在 final view 完成解析。Navigation command 會收到 `commandParameter`，且必須更新 selected application state 與 destination content；action command 必須產生可觀察的應用程式行為，並提供合適的 `CanExecute` policy。這些是 application contracts，不是自動生成的 business logic。
 9. 分開執行 restore、build 與實際 application launch：
 

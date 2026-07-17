@@ -125,6 +125,20 @@ internal static class ProjectIntegrationXmlPatcher
         XNamespace presentation,
         IReadOnlyDictionary<string, string> namespaces)
     {
+        if (!resource.TrimStart().StartsWith('<'))
+        {
+            if (!resource.StartsWith("pack://application:,,,/", StringComparison.Ordinal)
+                || resource.Contains("..", StringComparison.Ordinal)
+                || resource.Contains('\\'))
+            {
+                throw new XmlException("Pack resource URI must reference an application-local pack resource.");
+            }
+
+            return new XElement(
+                presentation + "ResourceDictionary",
+                new XAttribute("Source", resource));
+        }
+
         var wrapper = new XElement(presentation + "Wrapper");
         foreach (var (prefix, namespaceUri) in namespaces)
         {

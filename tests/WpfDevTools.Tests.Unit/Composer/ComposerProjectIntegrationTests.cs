@@ -301,6 +301,45 @@ public sealed class ComposerProjectIntegrationTests
         }
     }
 
+    [Fact]
+    public void DryRun_ShouldIntegrateBarePackUriIntoEmptyApplicationResources()
+    {
+        var root = CreateFixture();
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "App.xaml"),
+                """
+                <Application x:Class="NebulaApp.App"
+                             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                  <Application.Resources />
+                </Application>
+                """);
+            var packPath = Path.Combine(root, ".wpfdevtools", "packs", "nebula", "1.0.0", "pack.json");
+            File.WriteAllText(
+                packPath,
+                File.ReadAllText(packPath).Replace(
+                    "<nebula:Theme Mode=\\\"Light\\\" />",
+                    "pack://application:,,,/Nebula.Controls;component/Themes/Light.xaml",
+                    StringComparison.Ordinal));
+
+            var result = new UiBlueprintApplyService(CreateRegistry(root)).Apply(
+                new ApplyBlueprintRequest(Blueprint(), root, "MainWindow.xaml"));
+
+            result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+            result.ProjectIntegrationPlan.Ready.Should().BeTrue(
+                result.ProjectIntegrationPlan.Errors.FirstOrDefault()?.Message);
+            var applicationPatch = result.ProjectIntegrationPlan.Operations
+                .Single(operation => operation.Role == "application-xaml");
+            applicationPatch.ProposedContent.Should()
+                .Contain("<ResourceDictionary Source=\"pack://application:,,,/Nebula.Controls;component/Themes/Light.xaml\"");
+        }
+        finally
+        {
+            TestDirectory.Delete(root);
+        }
+    }
+
     private static PackRegistry CreateRegistry(string root)
         => new(
             ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),

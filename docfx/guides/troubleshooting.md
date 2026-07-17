@@ -34,7 +34,7 @@ If `connect()` returns `SecurityError: Security verification failed` after a man
 <InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
 
-Prefer the installed executable for normal `Signed` client registration. For checksum-only prerelease raw injection, package-local or installed payloads must remain comparable with the original archive: keep the archive and `SHA256SUMS.txt` outside the installed payload, then set `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY` in the MCP client process. The installer parameters validate the archive during installation but do not make an installed manifest a later trust root.
+Prefer the installed executable for normal `Signed` client registration. For portable checksum-only prerelease raw injection, use package-local `run.bat` or `bin\wpf-devtools-<arch>.exe` only while the extracted package stays in the same directory as the original archive and `SHA256SUMS.txt`, or set `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY` in the MCP client process. Installed checksum-only payloads also require that independent archive access; installer parameters validate the archive during installation but do not make an installed manifest a later trust root.
 
 ## elevated target or administrator mismatch
 

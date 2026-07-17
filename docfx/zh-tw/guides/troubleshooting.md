@@ -34,7 +34,7 @@ SDK-hosted reuse 透過 named pipes 通訊；target-side host 已啟動後，不
 <InstallRoot>\<arch>\current\bin\wpf-devtools-<arch>.exe
 ```
 
-一般 `Signed` client registration 建議使用 installed executable。Checksum-only prerelease raw injection 的 package-local 或 installed payloads 必須仍可與 original archive 比對：請把 archive 與 `SHA256SUMS.txt` 保留在 installed payload 之外，再於 MCP client process 設定 `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY`。Installer parameters 只會在安裝時驗證 archive，不會讓 installed manifest 成為後續 trust root。
+一般 `Signed` client registration 建議使用 installed executable。Portable checksum-only prerelease raw injection 只有在 extracted package 與原始 archive 及 `SHA256SUMS.txt` 放在同一目錄時，才使用 package-local `run.bat` 或 `bin\wpf-devtools-<arch>.exe`；另一種方式是在 MCP client process 設定 `WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY`。Installed checksum-only payloads 也需要這項 independent archive access；installer parameters 只會在安裝時驗證 archive，不會讓 installed manifest 成為後續 trust root。
 
 ## elevated target 與系統管理員權限不一致
 

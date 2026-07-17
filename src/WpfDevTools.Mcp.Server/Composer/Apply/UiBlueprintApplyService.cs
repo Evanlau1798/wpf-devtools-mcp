@@ -40,7 +40,17 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
             behaviorContract,
             bindingRequirements);
         var codeBehind = CodeBehindIntegrationResolver.Resolve(registry, request.BlueprintJson, targetPath);
-        var appliedXaml = AddProjectMainWindowClass(projectRoot, targetPath, render.Xaml, codeBehind);
+        var appliedXaml = AddProjectMainWindowClass(
+            projectRoot,
+            targetPath,
+            render.Xaml,
+            codeBehind,
+            errors);
+        if (errors.Count > 0)
+        {
+            return ApplyBlueprintResult.Invalid(request.DryRun, errors);
+        }
+
         var projectIntegrationPlan = ProjectIntegrationPlanBuilder.Build(
             registry,
             request.BlueprintJson,
@@ -247,9 +257,11 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
         string projectRoot,
         string targetPath,
         string xaml,
-        CodeBehindIntegrationPlan? codeBehind)
+        CodeBehindIntegrationPlan? codeBehind,
+        List<ApplyBlueprintIssue> errors)
     {
-        var hasExistingCodeBehind = File.Exists(Path.ChangeExtension(targetPath, ".xaml.cs"));
+        var codeBehindPath = Path.ChangeExtension(targetPath, ".xaml.cs");
+        var hasExistingCodeBehind = File.Exists(codeBehindPath);
         if ((!hasExistingCodeBehind && codeBehind is null)
             || xaml.Contains("x:Class=", StringComparison.Ordinal))
         {
@@ -266,11 +278,45 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
         var xmlns = xaml.Contains("xmlns:x=", StringComparison.Ordinal)
             ? string.Empty
             : " xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"";
-        return xaml.Insert(insertAt, $"{xmlns} x:Class=\"{ResolveProjectMainWindowClass(projectRoot, targetPath)}\"");
+        var className = ResolveProjectMainWindowClass(
+            projectRoot,
+            targetPath,
+            codeBehindPath,
+            hasExistingCodeBehind,
+            errors);
+        return className is null
+            ? xaml
+            : xaml.Insert(insertAt, $"{xmlns} x:Class=\"{className}\"");
     }
 
-    private static string ResolveProjectMainWindowClass(string projectRoot, string targetPath)
-        => $"{ResolveRootNamespace(projectRoot)}.{ComposerCSharpIdentifier.Create(Path.GetFileNameWithoutExtension(targetPath), "MainWindow")}";
+    private static string? ResolveProjectMainWindowClass(
+        string projectRoot,
+        string targetPath,
+        string codeBehindPath,
+        bool hasExistingCodeBehind,
+        List<ApplyBlueprintIssue> errors)
+    {
+        var className = ComposerCSharpIdentifier.Create(
+            Path.GetFileNameWithoutExtension(targetPath),
+            "MainWindow");
+        if (!hasExistingCodeBehind)
+        {
+            return $"{ResolveRootNamespace(projectRoot)}.{className}";
+        }
+
+        var resolution = ExistingCodeBehindClassResolver.Resolve(codeBehindPath, className);
+        if (resolution.Success)
+        {
+            return resolution.FullClassName;
+        }
+
+        errors.Add(new ApplyBlueprintIssue(
+            "$.targetPath",
+            "CodeBehindClassUnresolved",
+            resolution.FailureReason ?? "The existing code-behind class could not be resolved.",
+            "Align the existing partial class name with the target XAML filename, then rerun the dry-run plan."));
+        return null;
+    }
 
     private static string ResolveRootNamespace(string projectRoot)
     {

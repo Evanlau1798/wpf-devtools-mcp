@@ -85,20 +85,7 @@ public sealed class ComposerPackNeutralCodeBehindTests
         var projectRoot = CreateProjectWithWindowPack("System.Windows.Window");
         try
         {
-            var blockPath = Path.Combine(
-                projectRoot,
-                ".wpfdevtools",
-                "packs",
-                "sample",
-                "1.0.0",
-                "blocks",
-                "window.block.json");
-            File.WriteAllText(
-                blockPath,
-                File.ReadAllText(blockPath).Replace(
-                    ",\"codeBehindBaseType\":\"System.Windows.Window\"",
-                    string.Empty,
-                    StringComparison.Ordinal));
+            RemovePackCodeBehindRequirement(projectRoot);
             File.WriteAllText(
                 Path.Combine(projectRoot, "MainWindow.xaml.cs"),
                 "namespace PackNeutralApp; public partial class MainWindow : System.Windows.Window { public MainWindow() => InitializeComponent(); }");
@@ -116,10 +103,76 @@ public sealed class ComposerPackNeutralCodeBehindTests
         }
     }
 
+    [Theory]
+    [InlineData("namespace CustomerApp.Views; public partial class SettingsWindow : System.Windows.Window { }")]
+    [InlineData("namespace CustomerApp.Views { public partial class SettingsWindow : System.Windows.Window { } }")]
+    public void ApplyBlueprint_ShouldUseExistingCodeBehindNamespace(string codeBehindSource)
+    {
+        var projectRoot = CreateProjectWithWindowPack("System.Windows.Window");
+        try
+        {
+            RemovePackCodeBehindRequirement(projectRoot);
+            var viewsRoot = Path.Combine(projectRoot, "Views");
+            Directory.CreateDirectory(viewsRoot);
+            File.WriteAllText(Path.Combine(viewsRoot, "SettingsWindow.xaml.cs"), codeBehindSource);
+
+            var result = new UiBlueprintApplyService(CreateRegistry(projectRoot)).Apply(
+                new ApplyBlueprintRequest(Blueprint(), projectRoot, "Views/SettingsWindow.xaml"));
+
+            result.Success.Should().BeTrue();
+            result.Xaml.Should().Contain("x:Class=\"CustomerApp.Views.SettingsWindow\"");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
+    [Fact]
+    public void ApplyBlueprint_ShouldReportUnresolvableExistingCodeBehindClass()
+    {
+        var projectRoot = CreateProjectWithWindowPack("System.Windows.Window");
+        try
+        {
+            RemovePackCodeBehindRequirement(projectRoot);
+            File.WriteAllText(
+                Path.Combine(projectRoot, "MainWindow.xaml.cs"),
+                "namespace CustomerApp; public partial class DifferentWindow : System.Windows.Window { }");
+
+            var result = new UiBlueprintApplyService(CreateRegistry(projectRoot)).Apply(
+                new ApplyBlueprintRequest(Blueprint(), projectRoot, "MainWindow.xaml"));
+
+            result.Success.Should().BeFalse();
+            result.Errors.Should().ContainSingle(error => error.Code == "CodeBehindClassUnresolved");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
     private static PackRegistry CreateRegistry(string projectRoot)
         => new(
             ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),
             ComposerPackPaths.ProjectLocalRoot(projectRoot));
+
+    private static void RemovePackCodeBehindRequirement(string projectRoot)
+    {
+        var blockPath = Path.Combine(
+            projectRoot,
+            ".wpfdevtools",
+            "packs",
+            "sample",
+            "1.0.0",
+            "blocks",
+            "window.block.json");
+        File.WriteAllText(
+            blockPath,
+            File.ReadAllText(blockPath).Replace(
+                ",\"codeBehindBaseType\":\"System.Windows.Window\"",
+                string.Empty,
+                StringComparison.Ordinal));
+    }
 
     private static string CreateProjectWithWindowPack(string baseType)
     {

@@ -351,6 +351,9 @@ public partial class ToolCallHelperTests
         structured.GetProperty("suggestedAction").GetString().Should().Contain("-PackageArchivePath");
         structured.GetProperty("suggestedAction").GetString().Should().Contain("-TrustedReleaseMetadataDirectory");
         structured.GetProperty("suggestedAction").GetString().Should().Contain("WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY");
+        structured.GetProperty("suggestedAction").GetString().Should().Contain("MCP client process");
+        structured.GetProperty("suggestedAction").GetString().Should().Contain("installed manifest alone");
+        structured.GetProperty("suggestedAction").GetString().Should().NotContain("then register the installed executable");
         structured.GetProperty("recovery").GetProperty("suggestedAction").GetString().Should().Contain("original archive");
 
         var recommended = structured.GetProperty("navigation").GetProperty("recommended");

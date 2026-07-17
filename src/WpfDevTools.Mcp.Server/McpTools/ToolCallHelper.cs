@@ -33,7 +33,7 @@ public static partial class ToolCallHelper
     private const string SecurityVerificationHint =
         "Checksum-only prerelease payloads need trusted release metadata. Keep SHA256SUMS.txt beside the original archive, set WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY to that directory, or use the reviewed installer path.";
     private const string SecurityVerificationSuggestedAction =
-        "For portable validation, keep the extracted package in the same directory as the original archive and SHA256SUMS.txt, or set WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY to the directory that contains them. Otherwise run the online installer with -PackageArchivePath and -TrustedReleaseMetadataDirectory, then register the installed executable.";
+        "For unsigned validation, keep the original archive and SHA256SUMS.txt available, and set WPFDEVTOOLS_TRUSTED_RELEASE_METADATA_DIRECTORY in the MCP client process. Use the online installer with -PackageArchivePath and -TrustedReleaseMetadataDirectory to verify a reviewed local archive, but an installed manifest alone does not authorize later raw-injection payloads; otherwise use a Signed installed package.";
 
     private static readonly ConcurrentDictionary<string, object> GlobalToolCache = new();
     private static ConditionalWeakTable<SessionManager, ConcurrentDictionary<string, object>> HostToolCaches = new();

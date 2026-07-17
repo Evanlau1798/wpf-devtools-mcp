@@ -235,7 +235,7 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string ApplyUiProjectIntegration =
         """
-        USE WHEN: Apply the exact reviewed pack-neutral projectIntegrationPlan from apply_ui_blueprint.
+        USE WHEN: Apply exact reviewed pack-neutral projectIntegrationPlan from apply_ui_blueprint.
 
         CATEGORY: UI Composer
 

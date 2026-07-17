@@ -138,7 +138,7 @@ public sealed class ComposerProjectIntegrationSafetyBranchTests
         using var roots = new EnvironmentVariableScope(McpServerConfiguration.AllowedProjectRootsEnvVar, linkedRoot);
         try
         {
-            var registry = CreateRegistry(linkedRoot);
+            var registry = CreateRegistry(actualRoot);
             var dryRun = new UiBlueprintApplyService(registry).Apply(
                 new ApplyBlueprintRequest(Blueprint(), linkedRoot, "MainWindow.xaml"));
 

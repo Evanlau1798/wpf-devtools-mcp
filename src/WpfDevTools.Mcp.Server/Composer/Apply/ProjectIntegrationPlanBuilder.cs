@@ -30,7 +30,6 @@ internal static class ProjectIntegrationPlanBuilder
             targetPath,
             appliedXaml,
             resources,
-            codeBehind is not null,
             operations,
             errors);
         AddCodeBehindOperation(appliedXaml, codeBehind, operations, errors);
@@ -102,12 +101,11 @@ internal static class ProjectIntegrationPlanBuilder
         string targetPath,
         string appliedXaml,
         IReadOnlyList<string> resources,
-        bool setStartup,
         List<ProjectIntegrationOperation> operations,
         List<ApplyBlueprintIssue> errors)
     {
-        var selectedManifests = ResolveSelectedManifests(registry, blueprintJson);
-        setStartup = setStartup || IsWindowRoot(selectedManifests, appliedXaml);
+        var selectedManifests = ComposerWindowRootResolver.ResolveSelectedManifests(registry, blueprintJson);
+        var setStartup = ComposerWindowRootResolver.IsWindowRoot(selectedManifests, appliedXaml);
         if (resources.Count == 0 && !setStartup)
         {
             return;
@@ -146,7 +144,11 @@ internal static class ProjectIntegrationPlanBuilder
                 resources,
                 namespaces,
                 setStartup),
-            "Merge pack-declared resources and select the generated window as StartupUri.",
+            setStartup
+                ? resources.Count == 0
+                    ? "Select the generated window as StartupUri."
+                    : "Merge pack-declared resources and select the generated window as StartupUri."
+                : "Merge pack-declared application resources.",
             operations,
             errors);
     }
@@ -245,56 +247,6 @@ internal static class ProjectIntegrationPlanBuilder
         }
 
         return namespaces;
-    }
-
-    private static bool IsWindowRoot(IReadOnlyList<UiPackManifest> manifests, string xaml)
-    {
-        try
-        {
-            var root = XDocument.Parse(xaml).Root;
-            if (root is null)
-            {
-                return false;
-            }
-
-            if (string.Equals(root.Name.LocalName, "Window", StringComparison.Ordinal))
-            {
-                return true;
-            }
-
-            return manifests
-                .Where(manifest => string.Equals(
-                    manifest.Preview?.NamespaceUri,
-                    root.Name.NamespaceName,
-                    StringComparison.Ordinal))
-                .Any(manifest => manifest.Preview!.Types.TryGetValue(root.Name.LocalName, out var type)
-                    && string.Equals(type.BaseKind, "window", StringComparison.Ordinal));
-        }
-        catch (System.Xml.XmlException)
-        {
-            return false;
-        }
-    }
-
-    private static IReadOnlyList<UiPackManifest> ResolveSelectedManifests(
-        PackRegistry registry,
-        string blueprintJson)
-    {
-        var blueprint = ComposerJsonLoader.Parse<UiBlueprint>(
-            blueprintJson,
-            "<inline-blueprint>",
-            UiComposerSchemaVersions.UiBlueprint);
-        var requested = new Dictionary<string, ComposerPackReference>(StringComparer.Ordinal);
-        foreach (var pack in blueprint.Packs)
-        {
-            requested[pack.Id] = pack;
-        }
-
-        return registry.ListPacks().Packs
-            .Where(available => requested.TryGetValue(available.Id, out var packRef)
-                && string.Equals(packRef.Version, available.Version, StringComparison.Ordinal))
-            .Select(available => ComposerPackLoader.Load(available.RootPath).Manifest)
-            .ToArray();
     }
 
     private static bool TryGetClassIdentity(string xaml, out string rootNamespace, out string className)

@@ -241,6 +241,8 @@ Request options:
 
 非 dry-run 寫入需要 `confirmApply=true`、`WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，且 `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` 必須 exact match。成功的 confirmed response 會保留依照寫入前 target 狀態執行的 file plan：新寫入檔案仍為 `action="create"`，既有檔案仍為 `action="update"` 並回報 backup path。此 tool 會拒絕 `projectRoot` 外的路徑、更新既有 view 前建立 backup、加入 `WPFDEVTOOLS_BLUEPRINT_SOURCE` header、保留 `WPFDEVTOOLS_SAFE_SLOT` manual-edit markers，且不會執行 NuGet restore。
 
+`targetPath` 若是 existing App.xaml StartupUri 所指向、且 XAML root 為 `Window`，Composer 就能以 pack-neutral 方式 host generated non-Window root。Dry-run 會保留既有 Window shell，只以 generated content 取代原內容；pack-declared window root 仍維持 top-level。其他 targets 會保持 standalone views，不會宣稱已整合 startup。把 generated UI 視為 launched surface 前，請確認 application-XAML operation 包含 startup purpose。
+
 Dry-run 的 `projectIntegrationPlan` 保持 pack-neutral。Operations 會列出 package references、application resources、startup selection 與 pack-declared code-behind base types 的 exact target paths、semantic purposes、current-file preconditions 與 proposed SHA-256。為避免 ungated dry-run 洩漏既有 project-file 內容，response 不會回傳完整 proposed content；plan hash 會把 reviewed semantic operations 綁定到 exact proposed content 與目前 file state。
 
 ## `apply_ui_project_integration`

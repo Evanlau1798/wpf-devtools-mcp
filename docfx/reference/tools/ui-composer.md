@@ -242,6 +242,8 @@ Request options:
 
 Non-dry-run writes require `confirmApply=true`, `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`, `WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`, and an exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match. A successful confirmed response preserves the executed file plan from the pre-write target state: a newly written file remains `action="create"`, while an existing file remains `action="update"` and reports its backup path. The tool rejects paths outside `projectRoot`, creates a backup when updating an existing view, includes a `WPFDEVTOOLS_BLUEPRINT_SOURCE` header, preserves `WPFDEVTOOLS_SAFE_SLOT` manual-edit markers, and does not run NuGet restore.
 
+When `targetPath` is the existing App.xaml StartupUri and that XAML root is a `Window`, Composer can host a generated non-Window root without library-specific logic. The dry-run preserves the existing Window shell and replaces only its content; a pack-declared window root remains top-level. Other targets remain standalone views and do not claim startup integration. Confirm that the application-XAML operation includes the startup purpose before treating the generated UI as the launched surface.
+
 The dry-run `projectIntegrationPlan` is pack-neutral. Its operations name exact target paths, semantic purposes, current-file preconditions, and proposed SHA-256 values for package references, application resources, startup selection, and pack-declared code-behind base types. It does not expose full existing project-file content through an ungated dry-run. The plan hash binds the reviewed semantic operations to the exact proposed content and current file state.
 
 ## `apply_ui_project_integration`

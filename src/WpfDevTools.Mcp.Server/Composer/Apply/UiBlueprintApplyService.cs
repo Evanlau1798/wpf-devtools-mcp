@@ -40,10 +40,22 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
             behaviorContract,
             bindingRequirements);
         var codeBehind = CodeBehindIntegrationResolver.Resolve(registry, request.BlueprintJson, targetPath);
-        var appliedXaml = AddProjectMainWindowClass(
+        var isWindowRoot = ComposerWindowRootResolver.IsWindowRoot(registry, request.BlueprintJson, render.Xaml);
+        var hosted = ExistingWindowHostComposer.Compose(
             projectRoot,
             targetPath,
             render.Xaml,
+            isWindowRoot,
+            codeBehind is not null);
+        if (!hosted.Success)
+        {
+            return ApplyBlueprintResult.Invalid(request.DryRun, [hosted.Error!]);
+        }
+
+        var appliedXaml = AddProjectMainWindowClass(
+            projectRoot,
+            targetPath,
+            hosted.Content,
             codeBehind,
             errors);
         if (errors.Count > 0)

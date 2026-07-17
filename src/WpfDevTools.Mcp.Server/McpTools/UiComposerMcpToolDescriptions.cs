@@ -214,7 +214,7 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string ApplyUiBlueprint =
         """
-        USE WHEN: You need a dry-run plan or guarded write for generated view XAML.
+        USE WHEN: You need a dry-run or guarded write for generated XAML.
 
         CATEGORY: UI Composer
 
@@ -223,8 +223,8 @@ internal static class UiComposerMcpToolDescriptions
         RESPONSE SUMMARY:
         - Dry-run returns filePlan, resourcePlan, requiredNuGetPackages, viewModelBindingContract, behaviorIntegrationContract, and deterministic pack-neutral projectIntegrationPlan.
         - packageIntegrationGuidance uses static XML best-effort ManagePackageVersionsCentrally detection. It reports inspectionConfidence, inspectedFiles, and inspectionLimitations; mode=unknown omits package snippets. This tool does not edit project or central package files.
-        - Non-dry-run writes require confirmApply=true, stay under projectRoot, write atomically, and return the executed file plan using the pre-write state plus backup paths.
-        - Pack-declared codeBehindBaseType adds x:Class planning. Generated views retain reversible blueprint and safe-slot markers.
+        - Non-dry-run writes need confirmApply=true, are atomic under projectRoot, and return the executed file plan with pre-write state and backups.
+        - Target an existing Window XAML to host a non-Window root. Pack codeBehindBaseType controls x:Class; generated views retain reversible source and safe-slot markers.
 
         REQUEST OPTIONS:
         - Pass blueprintJson as raw JSON or an opaque draftRef, plus the exact reviewed projectRoot and an optional project-relative targetPath.

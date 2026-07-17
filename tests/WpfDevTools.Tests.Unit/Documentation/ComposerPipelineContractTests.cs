@@ -152,6 +152,9 @@ public sealed class ComposerPipelineContractTests
             "projectPackageReference",
             "centralPackageVersion",
             "codeBehindBaseType",
+            "non-Window root",
+            "existing App.xaml StartupUri",
+            "startup purpose",
              "dotnet build",
              "capture_state_snapshot");
         documentation.Should().Contain(
@@ -256,6 +259,9 @@ public sealed class ComposerPipelineContractTests
             "projectPackageReference",
             "centralPackageVersion",
             "codeBehindBaseType",
+            "non-Window root",
+            "existing App.xaml StartupUri",
+            "startup purpose",
              "dotnet build",
              "capture_state_snapshot");
         documentation.Should().Contain(

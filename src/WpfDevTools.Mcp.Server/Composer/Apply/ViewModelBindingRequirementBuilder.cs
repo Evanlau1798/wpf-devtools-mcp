@@ -97,13 +97,19 @@ internal static class ViewModelBindingRequirementBuilder
     {
         path = null;
         var binding = value.Trim();
+        var tokenEnd = "{Binding".Length;
         if (!binding.StartsWith("{Binding", StringComparison.Ordinal)
-            || !binding.EndsWith('}'))
+            || !binding.EndsWith('}')
+            || binding[tokenEnd] is not ('}' or ',') && !char.IsWhiteSpace(binding[tokenEnd]))
         {
             return false;
         }
 
-        var arguments = SplitArguments(binding["{Binding".Length..^1]);
+        if (!TrySplitArguments(binding[tokenEnd..^1], out var arguments))
+        {
+            return false;
+        }
+
         foreach (var argument in arguments)
         {
             var separator = argument.IndexOf('=');
@@ -120,7 +126,7 @@ internal static class ViewModelBindingRequirementBuilder
         return true;
     }
 
-    private static IReadOnlyList<string> SplitArguments(string value)
+    private static bool TrySplitArguments(string value, out IReadOnlyList<string> result)
     {
         var arguments = new List<string>();
         var start = 0;
@@ -147,6 +153,12 @@ internal static class ViewModelBindingRequirementBuilder
 
             braceDepth += character == '{' ? 1 : character == '}' ? -1 : 0;
             bracketDepth += character == '[' ? 1 : character == ']' ? -1 : 0;
+            if (braceDepth < 0 || bracketDepth < 0)
+            {
+                result = [];
+                return false;
+            }
+
             if (character == ',' && braceDepth == 0 && bracketDepth == 0)
             {
                 arguments.Add(value[start..index].Trim());
@@ -154,12 +166,19 @@ internal static class ViewModelBindingRequirementBuilder
             }
         }
 
+        if (quote != '\0' || braceDepth != 0 || bracketDepth != 0)
+        {
+            result = [];
+            return false;
+        }
+
         var final = value[start..].Trim();
         if (final.Length > 0)
         {
             arguments.Add(final);
         }
-        return arguments;
+        result = arguments;
+        return true;
     }
 
     private static string? NormalizePath(string value)

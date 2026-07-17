@@ -117,7 +117,11 @@ public sealed class ComposerViewModelBindingContractTests
                   "primaryPack": "sample",
                   "layout": {
                     "kind": "sample.panel",
-                    "properties": { "dataFeed": "Static instruction" }
+                    "properties": {
+                      "dataFeed": "Static instruction",
+                      "selectionFeed": "{BindingProxy Foo}",
+                      "malformedFeed": "{Binding Path='Unclosed}"
+                    }
                   }
                 }
                 """;
@@ -198,7 +202,7 @@ public sealed class ComposerViewModelBindingContractTests
             {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"sample","version":"1.0.0","scope":"project-local","path":".","enabled":true}
             """);
         File.WriteAllText(Path.Combine(packRoot, "blocks", "panel.block.json"), """
-            {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"sample.panel","displayName":"Panel","description":"Binding panel.","category":"container","properties":{"captionSource":{"type":"string"},"dataFeed":{"type":"binding"},"selectionFeed":{"type":"binding"}},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/panel.xaml.sbn"},"sourceHints":[]}
+            {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"sample.panel","displayName":"Panel","description":"Binding panel.","category":"container","properties":{"captionSource":{"type":"string"},"dataFeed":{"type":"binding"},"selectionFeed":{"type":"binding"},"malformedFeed":{"type":"binding"}},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/panel.xaml.sbn"},"sourceHints":[]}
             """);
         File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "panel.xaml.sbn"),
             "<Grid Tag=\"{{dataFeed}}\" ToolTip=\"{{captionSource}}\" DataContext=\"{{selectionFeed}}\" />");

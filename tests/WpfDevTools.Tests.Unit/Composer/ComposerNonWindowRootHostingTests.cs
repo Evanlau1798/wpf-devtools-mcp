@@ -13,7 +13,7 @@ public sealed class ComposerNonWindowRootHostingTests
     public void ApplyToolDescription_ShouldExplainNonWindowRootHosting()
     {
         UiComposerMcpToolDescriptions.ApplyUiBlueprint.Should()
-            .Contain("Target an existing Window XAML to host a non-Window root");
+            .Contain("Existing Window XAML hosts a non-Window root");
     }
 
     [Fact]

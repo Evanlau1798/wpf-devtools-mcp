@@ -74,5 +74,6 @@ foreach ($filePath in Resolve-ScanFiles -ResolvedRoot $rootFullPath -ExplicitPat
 
 if ($findings.Count -gt 0) {
     $findings | Sort-Object | ForEach-Object { [Console]::Error.WriteLine($_) }
+    [Console]::Error.Flush()
     exit 1
 }

@@ -249,7 +249,9 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
         string xaml,
         CodeBehindIntegrationPlan? codeBehind)
     {
-        if (codeBehind is null || xaml.Contains("x:Class=", StringComparison.Ordinal))
+        var hasExistingCodeBehind = File.Exists(Path.ChangeExtension(targetPath, ".xaml.cs"));
+        if ((!hasExistingCodeBehind && codeBehind is null)
+            || xaml.Contains("x:Class=", StringComparison.Ordinal))
         {
             return xaml;
         }

@@ -79,6 +79,43 @@ public sealed class ComposerPackNeutralCodeBehindTests
         }
     }
 
+    [Fact]
+    public void ApplyBlueprint_ShouldLinkExistingCodeBehindForStandardWindowRoot()
+    {
+        var projectRoot = CreateProjectWithWindowPack("System.Windows.Window");
+        try
+        {
+            var blockPath = Path.Combine(
+                projectRoot,
+                ".wpfdevtools",
+                "packs",
+                "sample",
+                "1.0.0",
+                "blocks",
+                "window.block.json");
+            File.WriteAllText(
+                blockPath,
+                File.ReadAllText(blockPath).Replace(
+                    ",\"codeBehindBaseType\":\"System.Windows.Window\"",
+                    string.Empty,
+                    StringComparison.Ordinal));
+            File.WriteAllText(
+                Path.Combine(projectRoot, "MainWindow.xaml.cs"),
+                "namespace PackNeutralApp; public partial class MainWindow : System.Windows.Window { public MainWindow() => InitializeComponent(); }");
+
+            var result = new UiBlueprintApplyService(CreateRegistry(projectRoot)).Apply(
+                new ApplyBlueprintRequest(Blueprint(), projectRoot, "MainWindow.xaml"));
+
+            result.Success.Should().BeTrue();
+            result.Xaml.Should().Contain("x:Class=\"PackNeutralApp.MainWindow\"");
+            result.FilePlan.Should().NotContain(item => item.Role == "code-behind-integration");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
     private static PackRegistry CreateRegistry(string projectRoot)
         => new(
             ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),

@@ -101,7 +101,8 @@ public sealed partial class SessionManager
             processId,
             timeout,
             cancellationToken,
-            () => CreateDetachedPipeClient(processId, pipeName)).ConfigureAwait(false);
+            () => CreateDetachedPipeClient(processId, pipeName),
+            selectAsActive: true).ConfigureAwait(false);
     }
 
     internal Task<NamedPipeConnectFailure> ConnectInjectedSessionAsync(
@@ -116,14 +117,16 @@ public sealed partial class SessionManager
         int processId,
         TimeSpan timeout,
         CancellationToken cancellationToken,
-        bool preferRootAuthentication = false)
+        bool preferRootAuthentication = false,
+        bool selectAsActive = true)
     {
         return await ConnectExistingHostSessionAsync(
             processId,
             pipeName: null,
             timeout,
             cancellationToken,
-            preferRootAuthentication).ConfigureAwait(false);
+            preferRootAuthentication,
+            selectAsActive).ConfigureAwait(false);
     }
 
     internal async Task<NamedPipeConnectFailure> ConnectExistingHostSessionAsync(
@@ -131,7 +134,8 @@ public sealed partial class SessionManager
         string? pipeName,
         TimeSpan timeout,
         CancellationToken cancellationToken,
-        bool preferRootAuthentication = false)
+        bool preferRootAuthentication = false,
+        bool selectAsActive = true)
     {
         ThrowIfDisposed();
 
@@ -144,7 +148,8 @@ public sealed partial class SessionManager
             pipeName,
             timeout,
             cancellationToken,
-            primaryAuthMode).ConfigureAwait(false);
+            primaryAuthMode,
+            selectAsActive).ConfigureAwait(false);
         if (primaryFailure != NamedPipeConnectFailure.AuthenticationFailed || !_processAuthenticationSecrets.IsEnabled)
         {
             return primaryFailure;
@@ -167,7 +172,8 @@ public sealed partial class SessionManager
             pipeName,
             fallbackTimeout,
             cancellationToken,
-            alternateAuthMode).ConfigureAwait(false);
+            alternateAuthMode,
+            selectAsActive).ConfigureAwait(false);
         return alternateFailure == NamedPipeConnectFailure.Timeout
             ? primaryFailure
             : alternateFailure;
@@ -178,7 +184,8 @@ public sealed partial class SessionManager
         string? pipeName,
         TimeSpan timeout,
         CancellationToken cancellationToken,
-        ExistingHostAuthenticationMode authenticationMode)
+        ExistingHostAuthenticationMode authenticationMode,
+        bool selectAsActive)
     {
         ThrowIfDisposed();
 
@@ -188,14 +195,16 @@ public sealed partial class SessionManager
             cancellationToken,
             () => authenticationMode == ExistingHostAuthenticationMode.ProcessScoped
                 ? CreateProcessScopedPipeClient(processId, pipeName)
-                : CreateRootAuthenticatedPipeClient(processId, pipeName)).ConfigureAwait(false);
+                : CreateRootAuthenticatedPipeClient(processId, pipeName),
+            selectAsActive).ConfigureAwait(false);
     }
 
     private async Task<NamedPipeConnectFailure> ConnectAndAttachSessionAsync(
         int processId,
         TimeSpan timeout,
         CancellationToken cancellationToken,
-        Func<NamedPipeClient> pipeClientFactory)
+        Func<NamedPipeClient> pipeClientFactory,
+        bool selectAsActive)
     {
         NamedPipeClient? detachedPipeClient = null;
         try
@@ -212,7 +221,10 @@ public sealed partial class SessionManager
             cancellationToken.ThrowIfCancellationRequested();
             AttachSession(processId, detachedPipeClient);
             detachedPipeClient = null;
-            SetActiveProcess(processId);
+            if (selectAsActive)
+            {
+                SetActiveProcess(processId);
+            }
             return NamedPipeConnectFailure.None;
         }
         finally

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.Composer.Catalog;
 using WpfDevTools.Mcp.Server.Composer.Packs;
@@ -29,6 +31,27 @@ public sealed class ComposerBlockCatalogTests
         button.SourceHintSummary.Should().Contain("src/Wpf.Ui/Controls/Button/Button.cs");
         button.CompositionSkeleton!.Value.GetProperty("kind").GetString()
             .Should().Be("wpfui.button");
+    }
+
+    [Fact]
+    public void BuiltInBlockCatalog_ShouldExposeCompleteAuthoringContracts()
+    {
+        var items = CreateCatalog().GetCatalog(new BlockCatalogQuery()).Items;
+
+        var missingDescriptions = items
+            .SelectMany(item => item.Properties
+                .Where(property => string.IsNullOrWhiteSpace(property.Value.Description))
+                .Select(property => $"{item.Kind}.properties.{property.Key}"))
+            .Concat(items.SelectMany(item => item.Slots
+                .Where(slot => string.IsNullOrWhiteSpace(slot.Value.Description))
+                .Select(slot => $"{item.Kind}.slots.{slot.Key}")))
+            .ToArray();
+
+        missingDescriptions.Should().BeEmpty(
+            "built-in packs should explain every authoring choice without library-specific guessing");
+
+        FindSingleValueSlotContractIssues().Should().BeEmpty(
+            "slots rendered into single-value WPF surfaces must reject extra children before rendering");
     }
 
     [Fact]
@@ -236,6 +259,44 @@ public sealed class ComposerBlockCatalogTests
     {
         var registry = PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
         return new BlockCatalogService(registry);
+    }
+
+    private static IReadOnlyList<string> FindSingleValueSlotContractIssues()
+    {
+        var issues = new List<string>();
+        var root = TestRepositoryPaths.GetRepoFilePath("packs/builtin");
+        foreach (var blockPath in Directory.EnumerateFiles(root, "*.block.json", SearchOption.AllDirectories))
+        {
+            using var block = JsonDocument.Parse(File.ReadAllText(blockPath));
+            var value = block.RootElement;
+            var kind = value.GetProperty("kind").GetString();
+            var packRoot = Directory.GetParent(Path.GetDirectoryName(blockPath)!)!.FullName;
+            var rendererPath = value.GetProperty("renderer").GetProperty("xamlTemplate").GetString()!;
+            var renderer = File.ReadAllText(Path.Combine(packRoot, rendererPath));
+            var slots = value.GetProperty("slots");
+
+            foreach (var slot in slots.EnumerateObject())
+            {
+                var maxItems = slot.Value.TryGetProperty("maxItems", out var maximum)
+                    ? maximum.GetInt32()
+                    : (int?)null;
+                var token = Regex.Escape($"{{{{slot.{slot.Name}}}}}");
+                var directSingleContent = Regex.IsMatch(
+                        renderer,
+                        $@"<(?:Border|ContentControl)\b[^>]*>\s*{token}\s*</(?:Border|ContentControl)>",
+                        RegexOptions.CultureInvariant)
+                    || Regex.IsMatch(
+                        renderer,
+                        $@"<[\w:]+\.(?:Content|Header|Icon|TitleBar)>\s*{token}\s*</[\w:]+\.(?:Content|Header|Icon|TitleBar)>",
+                        RegexOptions.CultureInvariant);
+                if (directSingleContent && maxItems != 1)
+                {
+                    issues.Add($"{kind}.slots.{slot.Name}");
+                }
+            }
+        }
+
+        return issues;
     }
 
     private static string CreateTempDirectory()

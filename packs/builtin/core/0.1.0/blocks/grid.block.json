@@ -5,14 +5,14 @@
   "description": "Arranges children in a native WPF row-and-column grid.",
   "category": "layout",
   "properties": {
-    "margin": { "type": "string", "default": "0", "format": "thickness" },
-    "horizontalAlignment": { "type": "string", "default": "Stretch", "enum": ["Left", "Center", "Right", "Stretch"] },
-    "verticalAlignment": { "type": "string", "default": "Stretch", "enum": ["Top", "Center", "Bottom", "Stretch"] }
+    "margin": { "type": "string", "description": "Outer WPF Thickness separating the grid from adjacent layout.", "default": "0", "format": "thickness" },
+    "horizontalAlignment": { "type": "string", "description": "Horizontal placement of the grid within its parent.", "default": "Stretch", "enum": ["Left", "Center", "Right", "Stretch"] },
+    "verticalAlignment": { "type": "string", "description": "Vertical placement of the grid within its parent.", "default": "Stretch", "enum": ["Top", "Center", "Bottom", "Stretch"] }
   },
   "slots": {
-    "rows": { "allowedKinds": ["core.rowDefinition"] },
-    "columns": { "allowedKinds": ["core.columnDefinition"] },
-    "children": { "allowedKinds": ["core.gridCell"] }
+    "rows": { "description": "Ordered row definitions used by child row indexes.", "allowedKinds": ["core.rowDefinition"] },
+    "columns": { "description": "Ordered column definitions used by child column indexes.", "allowedKinds": ["core.columnDefinition"] },
+    "children": { "description": "Grid cells placed against the declared rows and columns.", "allowedKinds": ["core.gridCell"] }
   },
   "renderer": { "xamlTemplate": "renderers/xaml/grid.xaml.sbn" },
   "sourceHints": [{ "path": "System.Windows.Controls.Grid", "usage": "native WPF layout" }]

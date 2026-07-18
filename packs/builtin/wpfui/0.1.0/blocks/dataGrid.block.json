@@ -6,17 +6,20 @@
   "category": "data",
   "properties": {
     "itemsSource": {
+      "description": "Binding expression that supplies the row collection.",
       "required": false,
       "type": "binding"
     }
   },
   "slots": {
     "columns": {
+      "description": "Column definitions or templates rendered by the grid.",
       "allowedKinds": [
         "core.template"
       ]
     },
     "emptyState": {
+      "description": "Content shown when the bound row collection is empty.",
       "allowedKinds": [
         "core.text",
         "wpfui.textBlock",

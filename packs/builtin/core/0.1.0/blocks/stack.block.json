@@ -5,7 +5,7 @@
   "description": "Arranges children vertically or horizontally with optional data-driven spacing.",
   "category": "layout",
   "properties": {
-    "orientation": { "type": "string", "default": "Vertical", "enum": ["Vertical", "Horizontal"] },
+    "orientation": { "type": "string", "description": "Direction in which children are arranged.", "default": "Vertical", "enum": ["Vertical", "Horizontal"] },
     "spacing": {
       "type": "string",
       "description": "WPF Thickness applied as an outer Margin to each child. For a horizontal trailing gap of N, use 0,0,N,0; a scalar N applies N on every side, so adjacent children consume 2N.",
@@ -13,9 +13,9 @@
       "default": "0",
       "format": "thickness"
     },
-    "margin": { "type": "string", "default": "0", "format": "thickness" },
-    "horizontalAlignment": { "type": "string", "default": "Stretch", "enum": ["Left", "Center", "Right", "Stretch"] },
-    "verticalAlignment": { "type": "string", "default": "Stretch", "enum": ["Top", "Center", "Bottom", "Stretch"] }
+    "margin": { "type": "string", "description": "Outer WPF Thickness separating the stack from adjacent layout.", "default": "0", "format": "thickness" },
+    "horizontalAlignment": { "type": "string", "description": "Horizontal placement of the stack within its parent.", "default": "Stretch", "enum": ["Left", "Center", "Right", "Stretch"] },
+    "verticalAlignment": { "type": "string", "description": "Vertical placement of the stack within its parent.", "default": "Stretch", "enum": ["Top", "Center", "Bottom", "Stretch"] }
   },
   "slots": {
     "children": {

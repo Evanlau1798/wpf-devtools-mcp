@@ -33,6 +33,7 @@
     },
     "icon": {
       "description": "Optional Symbol Icon rendered before the title.",
+      "maxItems": 1,
       "allowedKinds": [
         "wpfui.symbolIcon"
       ]

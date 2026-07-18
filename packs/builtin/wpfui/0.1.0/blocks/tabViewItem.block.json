@@ -7,6 +7,8 @@
   "properties": {},
   "slots": {
     "content": {
+      "description": "Page content displayed while this tab is selected.",
+      "maxItems": 1,
       "allowedKinds": [
         "core.text",
         "core.stack",
@@ -15,6 +17,8 @@
       ]
     },
     "header": {
+      "description": "Visible label content shown in the tab strip.",
+      "maxItems": 1,
       "allowedKinds": [
         "core.text",
         "wpfui.textBlock"

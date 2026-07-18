@@ -5,9 +5,9 @@
   "description": "Declares one native WPF Grid row with height and size constraints.",
   "category": "layout-definition",
   "properties": {
-    "height": { "type": "string", "default": "*", "format": "gridLength" },
-    "minHeight": { "type": "number", "default": 0, "minimum": 0 },
-    "maxHeight": { "type": "number", "default": 1000000, "minimum": 0 }
+    "height": { "type": "string", "description": "Row height as a WPF GridLength such as Auto, *, 2*, or 120.", "default": "*", "format": "gridLength" },
+    "minHeight": { "type": "number", "description": "Minimum row height in device-independent pixels.", "default": 0, "minimum": 0 },
+    "maxHeight": { "type": "number", "description": "Maximum row height in device-independent pixels.", "default": 1000000, "minimum": 0 }
   },
   "slots": {},
   "renderer": {

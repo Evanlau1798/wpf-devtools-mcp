@@ -51,12 +51,14 @@
   "slots": {
     "content": {
       "description": "Main window body rendered below the optional title bar.",
+      "maxItems": 1,
       "allowedKinds": [
         "*"
       ]
     },
     "titleBar": {
       "description": "Optional WPF UI Title Bar rendered in the window's top row.",
+      "maxItems": 1,
       "allowedKinds": [
         "wpfui.titleBar"
       ]

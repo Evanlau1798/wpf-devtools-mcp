@@ -64,7 +64,6 @@
       },
       "Card": {
         "baseKind": "stackPanel",
-        "contentProperty": "Footer",
         "properties": { "Footer": "object" }
       },
       "DataGrid": {

@@ -6,13 +6,16 @@
   "category": "navigation",
   "properties": {
     "selectedIndex": {
+      "description": "Zero-based index of the initially selected tab.",
       "default": 0,
+      "integer": true,
       "required": false,
       "type": "number"
     }
   },
   "slots": {
     "items": {
+      "description": "Ordered tab items displayed by the tab view.",
       "allowedKinds": [
         "wpfui.tabViewItem"
       ]

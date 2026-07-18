@@ -61,6 +61,7 @@
   "slots": {
     "icon": {
       "description": "Optional Symbol Icon rendered in the Button icon region.",
+      "maxItems": 1,
       "allowedKinds": [
         "wpfui.symbolIcon"
       ]

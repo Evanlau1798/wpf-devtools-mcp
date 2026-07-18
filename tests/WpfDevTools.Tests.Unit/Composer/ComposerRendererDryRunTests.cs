@@ -109,7 +109,7 @@ public sealed class ComposerRendererDryRunTests
     }
 
     [Fact]
-    public void RenderBlueprint_ShouldRenderNavigationViewContentBesideNavigationPane()
+    public void RenderBlueprint_ShouldUseThemeNeutralNavigationViewContentOverlay()
     {
         var renderer = new UiBlueprintRenderer(CreateRegistry());
 
@@ -121,12 +121,11 @@ public sealed class ComposerRendererDryRunTests
             """)));
 
         result.Success.Should().BeTrue();
-        result.Xaml.Should().NotContain("<ui:NavigationView.ContentOverlay>");
-        result.Xaml.Should().Contain("<ColumnDefinition Width=\"400\" />");
-        result.Xaml.Should().Contain("<ui:NavigationView.AutoSuggestBox>");
-        result.Xaml.Should().Contain("<ui:AutoSuggestBox PlaceholderText=\"Search\"");
-        result.Xaml.Should().Contain("<ui:NavigationView Width=\"386\" Margin=\"-12,0,0,0\"");
-        result.Xaml.Should().Contain("<Grid Grid.Column=\"1\" Background=\"#252B33\">");
+        result.Xaml.Should().Contain("<ui:NavigationView PaneDisplayMode=\"Left\"");
+        result.Xaml.Should().Contain("<ui:AutoSuggestBox Visibility=\"Collapsed\" />");
+        result.Xaml.Should().Contain("<ui:NavigationView.ContentOverlay>");
+        result.Xaml.Should().Contain("<Grid><ui:Card");
+        result.Xaml.Should().NotContainAny("PlaceholderText=", "Width=\"386\"", "#252B33", "#36E0A6");
         result.Xaml.Should().Contain("<ui:Card");
     }
 

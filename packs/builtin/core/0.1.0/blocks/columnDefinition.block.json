@@ -5,9 +5,9 @@
   "description": "Declares one native WPF Grid column with width and size constraints.",
   "category": "layout-definition",
   "properties": {
-    "width": { "type": "string", "default": "*", "format": "gridLength" },
-    "minWidth": { "type": "number", "default": 0, "minimum": 0 },
-    "maxWidth": { "type": "number", "default": 1000000, "minimum": 0 }
+    "width": { "type": "string", "description": "Column width as a WPF GridLength such as Auto, *, 2*, or 240.", "default": "*", "format": "gridLength" },
+    "minWidth": { "type": "number", "description": "Minimum column width in device-independent pixels.", "default": 0, "minimum": 0 },
+    "maxWidth": { "type": "number", "description": "Maximum column width in device-independent pixels.", "default": 1000000, "minimum": 0 }
   },
   "slots": {},
   "renderer": {

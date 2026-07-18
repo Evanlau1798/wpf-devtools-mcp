@@ -98,3 +98,26 @@ The committed JSON was compacted as UTF-8 without BOM after replacing machine-lo
 - Assumption: `https://github.com/lepoco/wpfui` is the upstream URL. Reason: WPF UI repository conventions and package metadata point to the public WPF UI project, but this local source folder has no git remote to verify.
 - Assumption: source version `4.3.0` is the best provenance version. Reason: `Directory.Build.props` contains `<Version>4.3.0</Version>` and no local git commit is available.
 - Assumption: a semantic baseline pack is preferable to generating all 87 eligible candidate kinds as shallow blocks. Reason: the user requested reusable/default semantic baseline slot relationships, and the skill cautions against claiming completeness without meaningful semantic modeling.
+
+## Beta 87 Maintenance Commands and Results
+
+On 2026-07-18, the beta.87 maintenance pass completed missing property and slot guidance, corrected structural preview contracts, bounded single-value slots, and replaced the generic NavigationView's fixed demo palette and geometry with the upstream-themed control structure. A collapsed, text-free AutoSuggestBox remains only to satisfy the upstream control template's icon binding without exposing a visible search UI. No library-specific Composer engine code was added.
+
+```text
+python <extension-creator-root>/scripts/normalize_pack.py <temporary-validation-copy>
+exit code: 0
+
+python <extension-creator-root>/scripts/validate_pack.py <temporary-validation-copy> --strict --report <temporary-validation-report>
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/audit_pack_coverage.py <temporary-validation-copy> --source-inventory <generation-workspace>/out/inventory/wpfui.source-inventory.json --report <temporary-coverage-report>
+exit code: 0; valid: true; errors: 0; warnings: 1; warning: `SourceInventoryCandidatesMissing`
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out <temporary-archive>
+exit code: 0; archive entries: 41; root: wpfui/0.1.0/; SHA-256: 91555A6E34E759BB04C397EB7FD59533CE29857EBBB745F453F967919469BB55
+
+python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive <temporary-archive> --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt <existing-required-block-slot-and-kind-gates> --report <temporary-readiness-report>
+exit code: 0; valid: true; errors: 0; warnings: 0
+```
+
+The normalized validation copy passed strict and coverage gates. Packaging the authoritative built-in source twice produced byte-identical archives, and the committed baseline archive has the same SHA-256 shown above plus byte-for-byte entry parity with that source. The creator's `master` and `fix/source-inventory-coverage-audit` branches contain identical semantic validator code for this contract, so no creator repository change was required.

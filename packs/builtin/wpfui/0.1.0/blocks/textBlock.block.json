@@ -6,6 +6,7 @@
   "category": "display",
   "properties": {
     "appearance": {
+      "description": "Theme-aware text emphasis role supplied by WPF UI.",
       "allowedValues": [
         "Primary",
         "Secondary",
@@ -17,32 +18,38 @@
       "type": "string"
     },
     "fontSize": {
+      "description": "Text size in device-independent pixels.",
       "default": 14,
       "maximum": 200,
       "minimum": 1,
       "type": "number"
     },
     "fontWeight": {
+      "description": "WPF font weight used to emphasize the text.",
       "default": "Normal",
       "enum": ["Thin", "ExtraLight", "Light", "Normal", "Medium", "SemiBold", "Bold", "ExtraBold", "Black"],
       "type": "string"
     },
     "margin": {
+      "description": "Outer WPF Thickness separating the text from adjacent content.",
       "default": "0",
       "format": "thickness",
       "type": "string"
     },
     "text": {
+      "description": "Visible text content.",
       "default": "Text",
       "required": false,
       "type": "string"
     },
     "textAlignment": {
+      "description": "Horizontal alignment of text lines within the control.",
       "default": "Left",
       "enum": ["Left", "Center", "Right", "Justify"],
       "type": "string"
     },
     "textWrapping": {
+      "description": "Wrapping behavior when text exceeds the available width.",
       "default": "Wrap",
       "enum": ["NoWrap", "Wrap", "WrapWithOverflow"],
       "type": "string"

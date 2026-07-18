@@ -77,20 +77,24 @@ public sealed class ComposerRealWpfUiRuntimeTests
             var descendants = EnumerateDescendants(window).ToArray();
             var iconBindings = descendants
                 .OfType<WpfUiButton>()
-                .Select(button => BindingOperations.GetBindingExpression(button, WpfUiButton.IconProperty))
-                .Where(binding => binding is not null)
-                .Cast<BindingExpression>()
+                .Select(button => new
+                {
+                    Button = button,
+                    Binding = BindingOperations.GetBindingExpression(button, WpfUiButton.IconProperty)
+                })
+                .Where(item => item.Binding is not null)
                 .ToArray();
             var navigation = descendants.OfType<WpfUiNavigationView>().Should().ContainSingle().Subject;
-            navigation.AutoSuggestBox.Should().NotBeNull();
+            var autoSuggestBox = navigation.AutoSuggestBox;
+            autoSuggestBox.Should().NotBeNull();
+            autoSuggestBox!.Visibility.Should().Be(Visibility.Collapsed);
             var contentCard = descendants.OfType<WpfUiCard>().Should().ContainSingle().Subject;
             ((System.Collections.ICollection)navigation.MenuItems).Count.Should().Be(4);
             ((System.Collections.ICollection)navigation.FooterMenuItems).Count.Should().Be(1);
             descendants.OfType<WpfUiNavigationViewItem>()
                 .Select(item => item.TargetPageTag)
                 .Should().Contain(["overview", "workspace", "activity", "reports", "settings"]);
-            descendants.OfType<WpfUiAutoSuggestBox>().Should().ContainSingle(box =>
-                string.Equals(box.PlaceholderText, "Search", StringComparison.Ordinal));
+            descendants.OfType<WpfUiAutoSuggestBox>().Should().OnlyContain(box => box.Visibility == Visibility.Collapsed);
             var primaryAction = descendants.OfType<WpfUiButton>().Should().ContainSingle(button =>
                 string.Equals(button.Content as string, "Open Incident Log", StringComparison.Ordinal)).Subject;
             primaryAction.IsEnabled.Should().BeTrue();
@@ -106,10 +110,11 @@ public sealed class ComposerRealWpfUiRuntimeTests
 
             AssertImplicitStyleResource<WpfUiNavigationView>(window);
             AssertImplicitStyleResource<WpfUiButton>(window);
-            AssertImplicitStyleResource<WpfUiAutoSuggestBox>(window);
             AssertStyleAnalyzerReportsImplicitWpfUiStyle(primaryAction);
             iconBindings.Should().NotBeEmpty();
-            iconBindings.Select(binding => binding.Status).Should().NotContain(BindingStatus.PathError);
+            iconBindings.Where(item => item.Binding!.Status == BindingStatus.PathError)
+                .Select(item => $"content={item.Button.Content}; path={item.Binding!.ParentBinding.Path?.Path}; data={item.Binding.DataItem?.GetType().FullName}")
+                .Should().BeEmpty("real WPF UI icon bindings should resolve after the window reaches idle");
         }
         finally
         {

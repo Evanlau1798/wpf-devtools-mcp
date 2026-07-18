@@ -6,43 +6,53 @@
   "category": "navigation",
   "properties": {
     "command": {
+      "description": "Binding expression for the command invoked when the item is activated.",
       "default": "{x:Null}",
       "required": false,
       "type": "binding"
     },
     "commandParameter": {
+      "description": "Value passed to the bound command.",
       "default": "",
       "required": false,
       "type": "string"
     },
     "isActive": {
+      "description": "Whether the item is visually marked as the current destination.",
       "default": false,
       "required": false,
       "type": "boolean"
     },
     "isExpanded": {
+      "description": "Whether nested navigation items are expanded.",
       "default": false,
       "required": false,
       "type": "boolean"
     },
     "targetPageTag": {
+      "description": "Stable destination tag used by the application's navigation logic.",
       "required": false,
       "type": "string"
     }
   },
   "slots": {
     "content": {
+      "description": "Visible label content for the navigation item.",
+      "maxItems": 1,
       "allowedKinds": [
         "core.text",
         "wpfui.textBlock"
       ]
     },
     "icon": {
+      "description": "Optional symbol displayed beside the item label.",
+      "maxItems": 1,
       "allowedKinds": [
         "wpfui.symbolIcon"
       ]
     },
     "items": {
+      "description": "Nested navigation items shown when this item is expanded.",
       "allowedKinds": [
         "wpfui.navigationViewItem"
       ]

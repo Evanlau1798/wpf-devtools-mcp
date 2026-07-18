@@ -2,6 +2,7 @@
 
 Reviewed agent feedback reports retained for public documentation.
 
+- [MaterialDesign pack beta.86 Codex E2E](2026-07-18-agent-feedback-materialdesign-pack-beta86-codex-e2e.md)
 - [UI Composer beta.75 Codex E2E](2026-07-17-agent-feedback-composer-beta75-codex-e2e.md)
 - [UI Composer beta.72 Codex E2E](2026-07-16-agent-feedback-composer-beta72-codex-e2e.md)
 - [WPF UI Composer Public Pre-release E2E](2026-07-10-agent-feedback-wpfui-composer-public-prerelease-e2e.md)

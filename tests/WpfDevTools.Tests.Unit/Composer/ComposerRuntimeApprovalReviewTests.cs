@@ -29,8 +29,12 @@ public sealed partial class ComposerGenericPreviewContractTests
             review.PackScope.Should().Be("project-local");
             review.Fingerprint.Should().Be(pack.Fingerprint);
             review.ApprovalToken.Should().Be(expectedToken);
-            review.ApprovalScope.Should().Be("one-preview-call");
+            review.ApprovalScope.Should().Be("content-bound-installed-pack");
+            review.ApprovalSource.Should().Be("none");
             review.Approved.Should().BeFalse();
+            review.RuntimeEligible.Should().BeTrue();
+            review.EligibilityCode.Should().BeNull();
+            review.EligibilityMessage.Should().BeNull();
             review.RuntimeResources.Should().Equal("<sample:Theme />");
             var package = review.PackageClosure.Should().ContainSingle().Which;
             package.Id.Should().Be("Sample.Runtime");
@@ -81,6 +85,65 @@ public sealed partial class ComposerGenericPreviewContractTests
             review.GetProperty("approved").GetBoolean().Should().BeFalse();
             review.GetProperty("packageClosure")[0].GetProperty("contentHash").GetString()
                 .Should().NotBeNullOrWhiteSpace();
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
+    public async Task PreviewBlueprint_WithEnvironmentApprovedRuntimePack_ShouldDescribeEffectiveApproval()
+    {
+        var projectRoot = CreateProjectPack(includePreview: true, baseKind: "contentControl");
+        AddRuntimeMetadata(projectRoot, "sample");
+        var registry = CreateRegistry(projectRoot);
+        var token = UiPreviewRuntimeDependencyPolicy.CreateApprovalToken(
+            registry.ListPacks().Packs.Single(item => item.Id == "sample"));
+        using var trusted = new EnvironmentVariableScope(
+            McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar,
+            token);
+        try
+        {
+            var result = await new UiBlueprintPreviewService(registry).PreviewAsync(
+                new PreviewBlueprintRequest(Blueprint("sample.panel"), RestoreEnabled: false));
+
+            var review = result.RuntimePackApprovalReviews.Should().ContainSingle().Which;
+            review.ApprovalScope.Should().Be("content-bound-installed-pack");
+            review.ApprovalSource.Should().Be("environment-token");
+            review.Approved.Should().BeTrue();
+            review.RuntimeEligible.Should().BeTrue();
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
+    public async Task PreviewBlueprint_WithInvalidRuntimePackage_ShouldExposeIneligibilityBeforeApproval()
+    {
+        using var trusted = new EnvironmentVariableScope(
+            McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar,
+            null);
+        var projectRoot = CreateProjectPack(includePreview: true, baseKind: "contentControl");
+        AddRuntimeMetadata(projectRoot, "sample");
+        SetRuntimePackage(projectRoot, "sample", "1.0.0", contentHash: null);
+        try
+        {
+            var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot)).PreviewAsync(
+                new PreviewBlueprintRequest(Blueprint("sample.panel"), RestoreEnabled: false));
+
+            var review = result.RuntimePackApprovalReviews.Should().ContainSingle().Which;
+            review.RuntimeEligible.Should().BeFalse();
+            review.EligibilityCode.Should().Be("PreviewRuntimePackageNotImmutable");
+            review.EligibilityMessage.Should().Contain("exact [version]");
+            review.ApprovalToken.Should().BeNull();
+            review.Approved.Should().BeFalse();
+            result.Diagnostics.Should().ContainSingle(item =>
+                item.Code == "PreviewRuntimePackageNotImmutable");
+            result.Diagnostics.Should().NotContain(item =>
+                item.Code == "PreviewRuntimeDependenciesNotApproved");
         }
         finally
         {

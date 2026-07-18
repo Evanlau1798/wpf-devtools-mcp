@@ -132,6 +132,7 @@ internal sealed partial class UiPackPreviewContractGenerator(PackRegistry regist
             manifests,
             resourcesByPack,
             runtimePackApprovalTokens);
+        diagnostics.AddRange(runtimeApproval.Errors);
         advisories.AddRange(runtimeApproval.Advisories);
         var approvedRuntimePackIds = runtimeApproval.ApprovedPackIds;
         var packagesByPack = runtimeApproval.PackagesByPack;
@@ -210,7 +211,11 @@ internal sealed partial class UiPackPreviewContractGenerator(PackRegistry regist
 
         if (diagnostics.Count > 0)
         {
-            return new PreviewContractGenerationResult(false, string.Empty, new Dictionary<string, string>(), null, null, diagnostics);
+            return new PreviewContractGenerationResult(false, string.Empty, new Dictionary<string, string>(), null, null, diagnostics)
+            {
+                Advisories = advisories,
+                RuntimePackApprovalReviews = runtimeApproval.Reviews
+            };
         }
 
         var windowRoot = ResolveWindowRoot(renderedXaml, contracts);

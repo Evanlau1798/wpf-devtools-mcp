@@ -65,7 +65,8 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 with
                 {
                     PropertyWarnings = propertyWarnings,
-                    ElementCorrelations = render.ElementCorrelations
+                    ElementCorrelations = render.ElementCorrelations,
+                    RuntimePackApprovalReviews = previewContract.RuntimePackApprovalReviews
                 };
         }
 
@@ -76,7 +77,8 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 with
                 {
                     PropertyWarnings = propertyWarnings,
-                    ElementCorrelations = render.ElementCorrelations
+                    ElementCorrelations = render.ElementCorrelations,
+                    RuntimePackApprovalReviews = previewContract.RuntimePackApprovalReviews
                 };
         }
 

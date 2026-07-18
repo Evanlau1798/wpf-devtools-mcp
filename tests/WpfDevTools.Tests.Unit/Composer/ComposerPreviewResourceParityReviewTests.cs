@@ -241,6 +241,7 @@ public sealed partial class ComposerGenericPreviewContractTests
             result.Success.Should().BeFalse();
             result.Diagnostics.Should().ContainSingle(diagnostic =>
                 diagnostic.Code == "PreviewPackageIdentityConflict");
+            result.RuntimePackApprovalReviews.Should().HaveCount(2);
         }
         finally
         {

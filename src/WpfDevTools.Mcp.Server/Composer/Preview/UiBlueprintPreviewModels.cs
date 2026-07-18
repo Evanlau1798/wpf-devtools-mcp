@@ -147,9 +147,13 @@ internal sealed record PreviewRuntimePackApprovalReview(
     string PackVersion,
     string PackScope,
     string Fingerprint,
-    string ApprovalToken,
+    string? ApprovalToken,
     string ApprovalScope,
+    string ApprovalSource,
     bool Approved,
+    bool RuntimeEligible,
+    string? EligibilityCode,
+    string? EligibilityMessage,
     IReadOnlyList<string> RuntimeResources,
     IReadOnlyList<PreviewRuntimeNuGetPackage> PackageClosure);
 

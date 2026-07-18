@@ -175,6 +175,12 @@ public sealed partial class ComposerGenericPreviewContractTests
             result.Success.Should().BeFalse();
             result.VisualFidelity.Should().Be("not-available");
             result.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "UnsafePreviewResource");
+            var review = result.RuntimePackApprovalReviews.Should().ContainSingle().Which;
+            review.ApprovalSource.Should().Be("environment-token");
+            review.Approved.Should().BeFalse();
+            review.RuntimeEligible.Should().BeFalse();
+            review.EligibilityCode.Should().Be("UnsafePreviewResource");
+            review.ApprovalToken.Should().BeNull();
             Directory.Exists(previewRoot).Should().BeFalse();
         }
         finally

@@ -15,13 +15,19 @@ internal static partial class UiPreviewRuntimeDependencyPolicy
         "^\\[(?<version>[A-Za-z0-9][A-Za-z0-9.+-]*)\\]$",
         RegexOptions.CultureInvariant);
 
-    public static bool IsApproved(
+    public static string GetApprovalSource(
         PackRegistryItem pack,
         IReadOnlyCollection<string>? callApprovalTokens = null)
     {
         if (pack.Scope == PackScope.Builtin)
         {
-            return true;
+            return "built-in";
+        }
+
+        var expected = CreateApprovalToken(pack);
+        if (callApprovalTokens?.Contains(expected, StringComparer.Ordinal) == true)
+        {
+            return "call-token";
         }
 
         var configured = Environment.GetEnvironmentVariable(
@@ -30,9 +36,9 @@ internal static partial class UiPreviewRuntimeDependencyPolicy
                 new[] { ';', ',' },
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             ?? [];
-        var expected = CreateApprovalToken(pack);
         return configuredTokens.Contains(expected, StringComparer.Ordinal)
-               || callApprovalTokens?.Contains(expected, StringComparer.Ordinal) == true;
+            ? "environment-token"
+            : "none";
     }
 
     public static string CreateApprovalToken(PackRegistryItem pack)

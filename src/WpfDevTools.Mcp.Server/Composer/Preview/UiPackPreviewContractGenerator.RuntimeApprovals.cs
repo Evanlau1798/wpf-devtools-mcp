@@ -14,17 +14,28 @@ internal sealed partial class UiPackPreviewContractGenerator
     {
         var approvedPackIds = new HashSet<string>(StringComparer.Ordinal);
         var packagesByPack = new Dictionary<string, IReadOnlyList<PreviewRuntimeNuGetPackage>>(StringComparer.Ordinal);
+        var errors = new List<PreviewDiagnostic>();
         var advisories = new List<PreviewDiagnostic>();
         var reviews = new List<PreviewRuntimePackApprovalReview>();
 
         foreach (var packRef in runtimeCandidates)
         {
             var pack = snapshots[packRef.Id].RegistryItem;
-            var approved = UiPreviewRuntimeDependencyPolicy.IsApproved(pack, callApprovalTokens);
+            var approvalSource = UiPreviewRuntimeDependencyPolicy.GetApprovalSource(pack, callApprovalTokens);
+            var authorized = approvalSource != "none";
             var packagesResolved = UiPreviewRuntimeDependencyPolicy.TryResolvePackages(
                 manifests[packRef.Id].NugetPackages,
                 out var packages,
                 out var packageError);
+            var resourceDiagnostics = UiPreviewRuntimeDependencyPolicy.ValidateResources(
+                resourcesByPack[packRef.Id]);
+            var runtimeEligible = packagesResolved && resourceDiagnostics.Count == 0;
+            var eligibilityCode = !packagesResolved
+                ? "PreviewRuntimePackageNotImmutable"
+                : resourceDiagnostics.FirstOrDefault()?.Code;
+            var eligibilityMessage = !packagesResolved
+                ? packageError
+                : resourceDiagnostics.FirstOrDefault()?.Message;
 
             if (pack.Scope != PackScope.Builtin)
             {
@@ -33,19 +44,15 @@ internal sealed partial class UiPackPreviewContractGenerator
                     packRef.Version,
                     ToScopeName(pack.Scope),
                     pack.Fingerprint,
-                    UiPreviewRuntimeDependencyPolicy.CreateApprovalToken(pack),
-                    "one-preview-call",
-                    approved,
+                    runtimeEligible ? UiPreviewRuntimeDependencyPolicy.CreateApprovalToken(pack) : null,
+                    "content-bound-installed-pack",
+                    approvalSource,
+                    authorized && runtimeEligible,
+                    runtimeEligible,
+                    eligibilityCode,
+                    eligibilityMessage,
                     resourcesByPack[packRef.Id].ToArray(),
                     packagesResolved ? packages : []));
-            }
-
-            if (!approved)
-            {
-                advisories.Add(Diagnostic(
-                    "PreviewRuntimeDependenciesNotApproved",
-                    $"Pack '{packRef.Id}@{packRef.Version}' remains structural. Review runtimePackApprovalReviews, then pass its approvalToken in runtimePackApprovalTokens after enabling {McpServerConfiguration.AllowComposerRuntimeApprovalsEnvVar}, or configure {McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar}."));
-                continue;
             }
 
             if (!packagesResolved)
@@ -54,11 +61,25 @@ internal sealed partial class UiPackPreviewContractGenerator
                 continue;
             }
 
+            if (resourceDiagnostics.Count > 0)
+            {
+                (authorized ? errors : advisories).AddRange(resourceDiagnostics);
+                continue;
+            }
+
+            if (!authorized)
+            {
+                advisories.Add(Diagnostic(
+                    "PreviewRuntimeDependenciesNotApproved",
+                    $"Pack '{packRef.Id}@{packRef.Version}' remains structural. Review runtimePackApprovalReviews, then pass its approvalToken in runtimePackApprovalTokens after enabling {McpServerConfiguration.AllowComposerRuntimeApprovalsEnvVar}, or configure {McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar}."));
+                continue;
+            }
+
             approvedPackIds.Add(packRef.Id);
             packagesByPack[packRef.Id] = packages;
         }
 
-        return new RuntimeApprovalResolution(approvedPackIds, packagesByPack, advisories, reviews);
+        return new RuntimeApprovalResolution(approvedPackIds, packagesByPack, errors, advisories, reviews);
     }
 
     private static string ToScopeName(PackScope scope)
@@ -72,6 +93,7 @@ internal sealed partial class UiPackPreviewContractGenerator
     private sealed record RuntimeApprovalResolution(
         HashSet<string> ApprovedPackIds,
         IReadOnlyDictionary<string, IReadOnlyList<PreviewRuntimeNuGetPackage>> PackagesByPack,
+        IReadOnlyList<PreviewDiagnostic> Errors,
         IReadOnlyList<PreviewDiagnostic> Advisories,
         IReadOnlyList<PreviewRuntimePackApprovalReview> Reviews);
 }

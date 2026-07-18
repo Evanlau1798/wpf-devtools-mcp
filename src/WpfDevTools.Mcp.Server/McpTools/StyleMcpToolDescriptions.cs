@@ -7,7 +7,7 @@ internal static class StyleMcpToolDescriptions
     public const string GetAppliedStyles =
         "Use this tool to inspect applied WPF styles and understand runtime appearance sources.\n\n" +
         StyleMetadata + "Get all applied styles on a WPF element. Returns style type, target type, " +
-        "setters (property, DependencyProperty owner, qualifiedProperty, and value), whether it's an implicit or explicit style, and localResourceReferences when appearance comes from a local resource expression instead of a Style.\n\n" +
+        "Returns style type, setters (property, owner, qualifiedProperty, value), and local resource references.\n\n" +
         "USE WHEN: Element has unexpected appearance; need to understand which styles are applied.\n" +
         "BATCH MODE: Provide `elementIds` to inspect multiple elements in one call. Single-target responses keep the original shape; batch responses return `results` with per-item `elementId` correlation.\n" +
         "COMPACT MODE: Optional `compact=true` returns style summaries without enumerating every setter value.\n" +

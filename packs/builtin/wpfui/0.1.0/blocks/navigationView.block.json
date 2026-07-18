@@ -6,7 +6,7 @@
   "category": "navigation",
   "properties": {
     "paneDisplayMode": {
-      "description": "Navigation pane placement for this persistent desktop shell; the renderer keeps the pane open and omits toggle and search affordances.",
+      "description": "Navigation pane placement for this persistent desktop shell; the renderer keeps the pane open and omits toggle and search affordances. Left keeps labels visible beside icons. LeftFluent uses store-style large icons with titles underneath and intentionally collapses the active title.",
       "default": "Left",
       "enum": ["Left", "LeftMinimal", "LeftFluent", "Top", "Bottom"],
       "required": false,

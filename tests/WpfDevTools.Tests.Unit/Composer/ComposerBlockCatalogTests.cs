@@ -85,6 +85,39 @@ public sealed class ComposerBlockCatalogTests
     }
 
     [Fact]
+    public async Task GetUiBlockCatalogTool_ShouldExplainLeftFluentActiveLabelBehavior()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var result = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["wpfui"],
+                kind: "wpfui.navigationViewItem",
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+            var compactResult = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["wpfui"],
+                kind: "wpfui.navigationViewItem",
+                compact: true,
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+
+            var item = result.StructuredContent!.Value.GetProperty("items")[0];
+            var isActive = item.GetProperty("properties").GetProperty("isActive");
+            isActive.GetProperty("description").GetString().Should().Contain("current destination");
+            isActive.GetProperty("previewWarning").GetString().Should()
+                .ContainAll("LeftFluent", "active label", "Left");
+            compactResult.StructuredContent!.Value.GetProperty("items")[0]
+                .GetProperty("propertyWarnings").GetProperty("isActive").GetString().Should()
+                .Contain("LeftFluent");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public async Task GetUiBlockCatalogTool_ShouldExposeCompactProjection()
     {
         var tempRoot = CreateTempDirectory();
@@ -162,6 +195,7 @@ public sealed class ComposerBlockCatalogTests
     [InlineData("wpfui.navigationView", "items", "wpfui.navigationViewItemSeparator")]
     [InlineData("wpfui.navigationViewItem", "icon", "wpfui.symbolIcon")]
     [InlineData("wpfui.tabView", "items", "wpfui.tabViewItem")]
+    [InlineData("wpfui.tabViewItem", "content", "*")]
     [InlineData("wpfui.fluentWindow", "titleBar", "wpfui.titleBar")]
     public void BlockCatalog_ShouldExposeSlotCompositionRules(string kind, string slot, string allowedKind)
     {

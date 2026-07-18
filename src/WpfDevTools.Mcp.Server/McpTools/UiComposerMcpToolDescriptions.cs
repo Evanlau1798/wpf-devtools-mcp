@@ -277,11 +277,11 @@ internal static class UiComposerMcpToolDescriptions
         REQUEST OPTIONS:
         - blueprintJson accepts raw JSON or an opaque draftRef. Raw JSON must contain schemaVersion wpfdevtools.ui-blueprint.v1.
         - restoreEnabled defaults to true for compile smoke; set false to verify restore-disabled diagnostics.
-        - startHost defaults to false for fast compile smoke; set true for preview host load smoke.
+        - startHost defaults to false for compile smoke; set true for preview host load smoke.
         - includeRuntimeDiagnostics defaults to false; set true with startHost=true after enabling the sensitive-reads policy gate.
         - compactRuntimeDiagnostics is compact by default: XAML and risk-free correlations become counts; failures, risky correlations, and screenshot resource handles remain. False returns full payloads.
         - correlationLookupLimit caps authored elementName and renderer-provided root x:Name queries at 32 (max 64); raise only for lookup-budget.
-        - Screenshot diagnostics require startHost plus sensitive-read and screenshot gates.
+        - Screenshots require startHost, sensitive-read, and screenshot gates.
         - Use screenshotOutputMode="file" for pixel evidence. Preview pixels do not approve final styling.
         - viewportWidth and viewportHeight set preview Window.Width and Window.Height in DIPs; match the target Window dimensions to expose overflow before apply. Screenshot bounds only resize returned pixels.
         - runtimePackApprovalTokens accepts up to 16 reviewed exact-content tokens for this call only; it requires WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true and is never persisted.

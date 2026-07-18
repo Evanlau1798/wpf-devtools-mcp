@@ -10,10 +10,7 @@
       "description": "Page content displayed while this tab is selected.",
       "maxItems": 1,
       "allowedKinds": [
-        "core.text",
-        "core.stack",
-        "core.template",
-        "wpfui.card"
+        "*"
       ]
     },
     "header": {

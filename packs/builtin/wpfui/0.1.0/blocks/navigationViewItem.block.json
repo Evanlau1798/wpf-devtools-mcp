@@ -18,8 +18,9 @@
       "type": "string"
     },
     "isActive": {
-      "description": "Whether the item is visually marked as the current destination.",
+      "description": "Whether the item is visually marked as the current destination. In a LeftFluent navigation pane, WPF UI intentionally emphasizes the active icon and collapses its label.",
       "default": false,
+      "previewWarning": "LeftFluent intentionally collapses the active label. Use paneDisplayMode Left when every navigation label must remain visible.",
       "required": false,
       "type": "boolean"
     },

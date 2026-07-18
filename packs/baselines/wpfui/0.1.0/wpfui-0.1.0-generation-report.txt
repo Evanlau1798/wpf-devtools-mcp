@@ -121,3 +121,29 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 ```
 
 The normalized validation copy passed strict and coverage gates. Packaging the authoritative built-in source twice produced byte-identical archives, and the committed baseline archive has the same SHA-256 shown above plus byte-for-byte entry parity with that source. The creator's `master` and `fix/source-inventory-coverage-audit` branches contain identical semantic validator code for this contract, so no creator repository change was required.
+
+## Beta 89 Maintenance Commands and Results
+
+On 2026-07-19, the beta.89 maintenance pass clarified an upstream WPF UI 4.3.0 layout contract and removed one unnecessary semantic composition restriction. `NavigationViewPaneDisplayMode.LeftFluent` intentionally animates the active item's title height to zero while emphasizing its icon. The pack now exposes that behavior through property descriptions and a `previewWarning`, so Agents can choose `Left` when every label must remain visible instead of reporting the upstream store-style behavior as an unexpected clipping defect. `wpfui.tabViewItem.content` is now intentionally open to any resolved block kind, matching the direct WPF content surface while keeping pack resolution and trust enforcement intact. The real-package regression uses `wpfui.dataGrid` directly to prove a Card wrapper is unnecessary without making the contract library-specific. No Composer engine, schema, renderer, recipe, example, extension-creator code, or library-specific server branch changed.
+
+```text
+python <extension-creator-root>/scripts/normalize_pack.py <temporary-validation-copy>
+exit code: 0
+
+python <extension-creator-root>/scripts/validate_pack.py <temporary-validation-copy> --strict --report <temporary-validation-report>
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/audit_pack_coverage.py <temporary-validation-copy> --baseline <temporary-16-block-baseline> --report <temporary-baseline-coverage-report>
+exit code: 0; valid: true; errors: 0; warnings: 0; blocks: 16; renderers: 16; recipes: 4; examples: 1
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 41; root: wpfui/0.1.0/; SHA-256: 8DFD3DA3E252308F5D698DE81889831D8783A56DABCD5DBBD2A66A6EE0C7DD35
+
+dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --no-build --filter FullyQualifiedName~TabViewItems_ShouldLoadWithoutUnsupportedProperties
+exit code: 0; passed: 1; failed: 0; real WPF UI 4.3.0 DataGrid loaded directly as TabViewItem content
+
+python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt <existing-required-block-slot-and-kind-gates> --required-slot-kind wpfui.tabViewItem.content=* --report <temporary-readiness-report>
+exit code: 0; valid: true; errors: 0; warnings: 0
+```
+
+The existing source-inventory coverage report remains the authoritative candidate-coverage evidence because block, renderer, recipe, example, and upstream source scope did not change. A fresh scan of the same official 4.3.0 tag with the current creator script produced lexical false candidates such as prose words, so it was retained only under `tmp/` and was not allowed to replace the reviewed 87-candidate baseline. The zero-drop baseline audit independently verified all 16 block ids and every count. The creator `master` and `fix/source-inventory-coverage-audit` tips differ by history but have no tree diff, so this unchanged v1 pack contract requires no cross-branch creator update.

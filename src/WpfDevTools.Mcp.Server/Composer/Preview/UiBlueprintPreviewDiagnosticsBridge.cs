@@ -24,6 +24,9 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
         CancellationToken cancellationToken)
     {
         var processId = previewProcess.Id;
+        var previousActiveProcessId = sessionManager.TryGetActiveProcessId(out var activeProcessId)
+            ? activeProcessId
+            : (int?)null;
         var diagnostics = new List<PreviewRuntimeDiagnostic>();
         var policy = McpToolExecutionPolicy.FromEnvironment();
         PreviewRuntimeDiagnostic? screenshotDiagnostic = null;
@@ -122,7 +125,28 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                 sessionManager.DetachScreenshotResource(processId, screenshotId);
             }
 
-            sessionManager.RemoveSession(processId);
+            RemovePreviewSessionAndRestoreActiveProcess(
+                sessionManager,
+                processId,
+                previousActiveProcessId);
+        }
+    }
+
+    internal static void RemovePreviewSessionAndRestoreActiveProcess(
+        SessionManager sessionManager,
+        int previewProcessId,
+        int? previousActiveProcessId)
+    {
+        var previewOwnedSelection = !sessionManager.TryGetActiveProcessId(out var activeProcessId)
+            || activeProcessId == previewProcessId;
+
+        sessionManager.RemoveSession(previewProcessId);
+
+        if (previewOwnedSelection
+            && previousActiveProcessId is int previousProcessId
+            && previousProcessId != previewProcessId)
+        {
+            sessionManager.TryActivateConnectedSession(previousProcessId);
         }
     }
 

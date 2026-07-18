@@ -82,7 +82,10 @@ internal static partial class BlueprintNodePathResolver
                 {
                     if (children[index] is JsonObject child)
                     {
-                        pending.Push((child, $"{current.Path}.slots.{slotName}[{index}]"));
+                        var slotPath = BlueprintCompositionTargetPath.AppendProperty(
+                            current.Path + ".slots",
+                            slotName);
+                        pending.Push((child, $"{slotPath}[{index}]"));
                     }
                 }
             }

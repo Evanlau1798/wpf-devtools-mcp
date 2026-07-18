@@ -19,8 +19,12 @@ public static partial class UiComposerMcpTools
             return BlueprintDraftError(input.Error!);
         }
 
-        var validator = new BlueprintValidationService(CreateRegistry(projectRoot, localAppDataRoot));
+        var registry = CreateRegistry(projectRoot, localAppDataRoot);
+        var validator = new BlueprintValidationService(registry);
         var result = validator.Validate(input.BlueprintJson, targetPath, projectRoot);
+        var compositionMap = result.Success
+            ? new BlueprintCompositionMapBuilder(registry).Build(input.BlueprintJson)
+            : null;
 
         return new
         {
@@ -32,6 +36,7 @@ public static partial class UiComposerMcpTools
             errors = result.Errors,
             warnings = result.Warnings,
             resolution = result.Resolution,
+            compositionMap,
             blueprintSize = new
             {
                 currentCharacters = input.BlueprintJson.Length,

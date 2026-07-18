@@ -359,6 +359,7 @@ public sealed class ComposerBlueprintDraftTests
                 patchedRef,
                 projectRoot,
                 "Views/Draft.xaml",
+                includeGeneratedXaml: true,
                 cancellationToken: CancellationToken.None);
             apply.IsError.Should().BeFalse();
             apply.StructuredContent!.Value.GetProperty("xaml").GetString().Should().Contain("Orientation=\"Horizontal\"");

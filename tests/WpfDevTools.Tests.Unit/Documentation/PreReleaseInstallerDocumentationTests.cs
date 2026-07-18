@@ -12,7 +12,7 @@ public sealed class PreReleaseInstallerDocumentationTests
     private const string PreviewPrereleaseInstallerCommand =
         "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version latest -Prerelease";
     private const string PinnedPrereleaseVersionExample =
-        "$version = 'v1.0.0-beta.87'";
+        "$version = 'v1.0.0-beta.88'";
     private const string PinnedPrereleaseInstallerCommand =
         "& ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease";
     private const string EnglishArm64PreviewWarning =

@@ -1,14 +1,13 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 using WpfDevTools.Mcp.Server.Composer.Catalog;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Mcp.Server.Composer.Blueprints;
 
-internal sealed partial class BlueprintCompositionService(PackRegistry registry)
+internal sealed class BlueprintCompositionService(PackRegistry registry)
 {
     private const int MaxSummaryProperties = 32;
     private const int MaxSummaryValueCharacters = 160;
@@ -249,7 +248,7 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
         return true;
     }
 
-    private static bool TryResolveTarget(
+    private bool TryResolveTarget(
         JsonObject blueprint,
         string targetPath,
         out JsonArray? target,
@@ -280,60 +279,80 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
         }
 
         resolvedTargetPath = resolution.JsonPath;
-        var match = TargetPathPattern().Match(resolvedTargetPath);
-        if (!match.Success)
-        {
-            issue = InvalidPath(targetPath);
-            return false;
-        }
-
-        var slotNames = match.Groups["slot"].Captures.Select(capture => capture.Value).ToArray();
-        var indices = match.Groups["index"].Captures.Select(capture => capture.Value).ToArray();
-        if (indices.Length != slotNames.Length - 1)
+        if (!BlueprintCompositionTargetPath.TryParse(resolvedTargetPath, out var segments)
+            || segments[^1].ChildIndex is not null
+            || segments.Take(segments.Count - 1).Any(segment => segment.ChildIndex is null))
         {
             issue = InvalidPath(targetPath);
             return false;
         }
 
         JsonObject? current = blueprint["layout"] as JsonObject;
-        for (var i = 0; i < slotNames.Length; i++)
+        for (var i = 0; i < segments.Count; i++)
         {
-            var slots = current?["slots"] as JsonObject;
-            var children = slots?[slotNames[i]] as JsonArray;
+            var segment = segments[i];
+            JsonObject? slots = null;
+            JsonArray? children = null;
+            if (current is not null && current.TryGetPropertyValue("slots", out var slotsNode))
+            {
+                if (slotsNode is not JsonObject existingSlots)
+                {
+                    issue = InvalidTargetShape(resolvedTargetPath, "The parent slots value must be a JSON object.");
+                    return false;
+                }
+
+                slots = existingSlots;
+                if (slots.TryGetPropertyValue(segment.SlotName, out var slotNode))
+                {
+                    if (slotNode is not JsonArray existingChildren)
+                    {
+                        issue = InvalidTargetShape(
+                            resolvedTargetPath,
+                            $"Target slot '{segment.SlotName}' must be a JSON array.");
+                        return false;
+                    }
+
+                    children = existingChildren;
+                }
+            }
+
+            if (children is null
+                && i == segments.Count - 1
+                && current is not null
+                && IsDeclaredSlot(current, segment.SlotName))
+            {
+                slots ??= new JsonObject();
+                current["slots"] = slots;
+                children = new JsonArray();
+                slots[segment.SlotName] = children;
+            }
+
             if (children is null)
             {
                 issue = new BlueprintCompositionIssue(
                     resolvedTargetPath,
                     "CompositionTargetNotFound",
-                    $"Target slot '{slotNames[i]}' does not exist at the requested blueprint path.",
-                    "Use an existing slots.<name> path from the current blueprint object.");
+                    $"Target slot '{segment.SlotName}' does not exist at the requested blueprint path.",
+                    "Use a targetPath from validate_ui_blueprint compositionMap.targets.");
                 return false;
             }
 
-            if (i == slotNames.Length - 1)
+            if (i == segments.Count - 1)
             {
                 target = children;
                 targetParent = current;
-                targetSlotName = slotNames[i];
+                targetSlotName = segment.SlotName;
                 return true;
             }
 
-            if (!int.TryParse(
-                    indices[i],
-                    System.Globalization.NumberStyles.None,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    out var index))
-            {
-                issue = InvalidPath(targetPath);
-                return false;
-            }
+            var index = segment.ChildIndex!.Value;
 
             if (index < 0 || index >= children.Count || children[index] is not JsonObject child)
             {
                 issue = new BlueprintCompositionIssue(
                     resolvedTargetPath,
                     "CompositionTargetNotFound",
-                    $"Child index {index} does not identify a block at slot '{slotNames[i]}'.",
+                    $"Child index {index} does not identify a block at slot '{segment.SlotName}'.",
                     "Choose an existing child index before navigating to its nested slot.");
                 return false;
             }
@@ -343,6 +362,16 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
 
         issue = InvalidPath(targetPath);
         return false;
+    }
+
+    private bool IsDeclaredSlot(JsonObject node, string slotName)
+    {
+        var kind = node["kind"]?.GetValue<string>();
+        return kind is not null
+               && new BlockCatalogService(registry)
+                   .GetCatalog(new BlockCatalogQuery(Kind: kind))
+                   .Items.SingleOrDefault() is { } block
+               && block.Slots.ContainsKey(slotName);
     }
 
     private static BlueprintCompositionResult Failure(
@@ -358,10 +387,14 @@ internal sealed partial class BlueprintCompositionService(PackRegistry registry)
             targetPath,
             "InvalidCompositionTargetPath",
             "Target path must identify one slot, with an explicit child index before each nested slot.",
-            "Use $.layout.slots.<slot> or $.layout.slots.<slot>[0].slots.<nestedSlot>.");
+            "Use a targetPath from validate_ui_blueprint compositionMap.targets.");
 
-    [GeneratedRegex("^\\$\\.layout(?:\\.slots\\.(?<slot>[A-Za-z_][A-Za-z0-9_-]*)(?:\\[(?<index>[0-9]+)\\])?)+$", RegexOptions.CultureInvariant)]
-    private static partial Regex TargetPathPattern();
+    private static BlueprintCompositionIssue InvalidTargetShape(string targetPath, string message)
+        => new(
+            targetPath,
+            "CompositionTargetInvalidShape",
+            message,
+            "Repair the existing blueprint slots shape before composing; object slots contain array-valued children.");
 }
 
 internal sealed record BlueprintCompositionResult(

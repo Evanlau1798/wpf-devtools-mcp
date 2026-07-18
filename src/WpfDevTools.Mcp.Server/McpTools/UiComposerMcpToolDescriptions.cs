@@ -102,9 +102,10 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this for live WPF runtime inspection or mutation. Use connect and scene tools for a running target application.
 
         RESPONSE SUMMARY:
-        - Returns success, valid, errorCount, warningCount, errors, warnings, blueprintSize, and diagnostics.
+        - Returns success, valid, errorCount, warningCount, errors, warnings, compositionMap, blueprintSize, and diagnostics.
         - Issues include path/code/repair and allowed values. InvalidBlueprintShape adds observedValueKind/expectedJsonShape; SurfaceThemeContrastRisk flags resource conflicts.
         - Optional node elementName and automationId values are validated for safe syntax, uniqueness, and generated class/member collisions before render.
+        - compositionMap: up to 64 copy-ready slot targets with counts and capacity.
         - blueprintSize reports currentCharacters, maximumCharacters, remainingCharacters, and utilizationPercent for the public blueprintJson limit.
         - valid=false is a validation result, not an MCP transport failure.
 
@@ -222,6 +223,7 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - Dry-run returns filePlan, resourcePlan, requiredNuGetPackages, viewModelBindingContract, behaviorIntegrationContract, targetWindowPlan, and deterministic pack-neutral projectIntegrationPlan.
+        - Apply omits XAML; opt in or call render_ui_blueprint.
         - packageIntegrationGuidance uses static XML best-effort ManagePackageVersionsCentrally detection. It reports inspectionConfidence, inspectedFiles, and inspectionLimitations; mode=unknown omits package snippets. This tool does not edit project or central package files.
         - Non-dry-run writes need confirmApply=true, are atomic under projectRoot, and return the executed file plan with pre-write state and backups.
         - Existing Window XAML hosts a non-Window root; targetWindowPlan reports copied preview dimensions. Pack codeBehindBaseType controls x:Class; reapply keeps one source header and safe-slot envelope.
@@ -277,7 +279,7 @@ internal static class UiComposerMcpToolDescriptions
         - restoreEnabled defaults to true for compile smoke; set false to verify restore-disabled diagnostics.
         - startHost defaults to false for fast compile smoke; set true for preview host load smoke.
         - includeRuntimeDiagnostics defaults to false; set true with startHost=true after enabling the sensitive-reads policy gate.
-        - compactRuntimeDiagnostics is compact by default; failures and screenshot resource handles remain. False returns full payloads.
+        - compactRuntimeDiagnostics is compact by default: XAML and risk-free correlations become counts; failures, risky correlations, and screenshot resource handles remain. False returns full payloads.
         - correlationLookupLimit caps authored elementName and renderer-provided root x:Name queries at 32 (max 64); raise only for lookup-budget.
         - Screenshot diagnostics require startHost plus sensitive-read and screenshot gates.
         - Use screenshotOutputMode="file" for pixel evidence. Preview pixels do not approve final styling.

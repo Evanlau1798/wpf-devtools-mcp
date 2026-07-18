@@ -134,6 +134,13 @@ public static partial class UiComposerMcpTools
                     RuntimePackApprovalTokens: runtimePackApprovalTokens),
                 cancellationToken)
             .ConfigureAwait(false);
+        var compactSuccessfulPayload = compactRuntimeDiagnostics
+            && result.Success
+            && result.Valid
+            && result.BuildSucceeded;
+        var compactElementCorrelations = ShouldCompactElementCorrelations(
+            compactSuccessfulPayload,
+            result.LayoutRiskSummary);
 
         return new
         {
@@ -143,7 +150,9 @@ public static partial class UiComposerMcpTools
             result.BuildSucceeded,
             result.RestoreEnabled,
             result.BuildOutput,
-            result.Xaml,
+            xaml = compactSuccessfulPayload ? null : result.Xaml,
+            generatedXamlOmitted = compactSuccessfulPayload && !string.IsNullOrEmpty(result.Xaml),
+            generatedXamlLength = result.Xaml?.Length ?? 0,
             result.Diagnostics,
             previewHost = BuildPreviewHostPayload(result.PreviewHost, compactRuntimeDiagnostics),
             runtimeDiagnosticsCompacted = compactRuntimeDiagnostics
@@ -153,12 +162,23 @@ public static partial class UiComposerMcpTools
             result.ScreenshotVerificationGuidance,
             result.VisualComparisonChecklist,
             result.PropertyWarnings,
-            result.ElementCorrelations,
+            elementCorrelations = compactElementCorrelations ? [] : result.ElementCorrelations,
+            elementCorrelationsCompacted = compactElementCorrelations && result.ElementCorrelations.Count > 0,
+            elementCorrelationCount = result.ElementCorrelations.Count,
             result.LayoutRiskSummary,
             result.RuntimePackApprovalReviews,
             observability = ComposerObservability.ForPreview(result)
         };
     }
+
+    internal static bool ShouldCompactElementCorrelations(
+        bool compactSuccessfulPayload,
+        PreviewLayoutRiskSummary layoutRiskSummary)
+        => compactSuccessfulPayload
+           && layoutRiskSummary.ClippedElementCount == 0
+           && layoutRiskSummary.UnresolvedCorrelationCount == 0
+           && layoutRiskSummary.UninspectedCorrelationCount == 0
+           && !layoutRiskSummary.InspectionTruncated;
 
     internal static object BuildPreviewHostPayload(
         PreviewHostResult host,

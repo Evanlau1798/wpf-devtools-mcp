@@ -302,6 +302,9 @@ public sealed class ComposerApplyDryRunTests
             var payload = result.StructuredContent!.Value;
             payload.GetProperty("success").GetBoolean().Should().BeTrue();
             payload.GetProperty("dryRun").GetBoolean().Should().BeTrue();
+            payload.GetProperty("generatedXamlOmitted").GetBoolean().Should().BeTrue();
+            payload.GetProperty("generatedXamlLength").GetInt32().Should().BeGreaterThan(0);
+            payload.TryGetProperty("xaml", out _).Should().BeFalse();
             payload.GetProperty("filePlan")[0].GetProperty("wouldWrite").GetBoolean().Should().BeFalse();
             payload.GetProperty("targetWindowPlan").GetProperty("status").GetString()
                 .Should().Be("not-applicable");
@@ -313,6 +316,40 @@ public sealed class ComposerApplyDryRunTests
             bindings.GetProperty("status").GetString().Should().Be("required");
             bindings.GetProperty("requirements")[0].GetProperty("bindingPath")
                 .GetString().Should().Be("ApplyCommand");
+
+            var fullResult = await UiComposerMcpTools.ApplyUiBlueprint(
+                BehaviorBlueprint(),
+                projectRoot,
+                includeGeneratedXaml: true,
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+            fullResult.StructuredContent!.Value.GetProperty("xaml").GetString()
+                .Should().Contain("ApplyCommand");
+            fullResult.StructuredContent.Value.GetProperty("generatedXamlOmitted").GetBoolean()
+                .Should().BeFalse();
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public async Task ApplyUiBlueprintTool_InvalidBlueprint_ShouldNotClaimEmptyXamlWasOmitted()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var result = await UiComposerMcpTools.ApplyUiBlueprint(
+                "{}",
+                Path.Combine(tempRoot, "project"),
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+
+            result.IsError.Should().BeTrue();
+            var payload = result.StructuredContent!.Value;
+            payload.GetProperty("generatedXamlLength").GetInt32().Should().Be(0);
+            payload.GetProperty("generatedXamlOmitted").GetBoolean().Should().BeFalse();
         }
         finally
         {

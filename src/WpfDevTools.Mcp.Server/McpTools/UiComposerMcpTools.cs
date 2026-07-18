@@ -173,6 +173,7 @@ public static partial class UiComposerMcpTools
         [Description("Optional project-root-relative target XAML file path. Defaults to Views/<blueprint name>.xaml. Absolute paths are rejected.")] string? targetPath = null,
         [Description("When true or omitted, returns a dry-run plan without writing files.")] bool dryRun = true,
         [Description("Required explicit confirmation for non-dry-run writes after reviewing the dry-run file plan.")] bool confirmApply = false,
+        [Description("Return full XAML; false by default. Use render_ui_blueprint for review.")] bool includeGeneratedXaml = false,
         [Range(1, UiPreviewProjectFiles.MaximumViewportDimension)]
         [Description("Target Window.Width in DIPs; copy preview viewportWidth.")] int? targetWindowWidth = null,
         [Range(1, UiPreviewProjectFiles.MaximumViewportDimension)]
@@ -186,12 +187,13 @@ public static partial class UiComposerMcpTools
             ("targetPath", targetPath),
             ("dryRun", dryRun),
             ("confirmApply", confirmApply),
+            ("includeGeneratedXaml", includeGeneratedXaml),
             ("targetWindowWidth", targetWindowWidth),
             ("targetWindowHeight", targetWindowHeight),
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(ApplyBlueprint(blueprintJson, projectRoot, targetPath, dryRun, confirmApply, targetWindowWidth, targetWindowHeight, localAppDataRoot)),
+            (_, _) => Task.FromResult<object>(ApplyBlueprint(blueprintJson, projectRoot, targetPath, dryRun, confirmApply, includeGeneratedXaml, targetWindowWidth, targetWindowHeight, localAppDataRoot)),
             args,
             cancellationToken,
             timeoutSeconds: 10);
@@ -206,7 +208,7 @@ public static partial class UiComposerMcpTools
         [Description("Restore before build; false uses --no-restore and reports missing assets.")] bool restoreEnabled = true,
         [Description("Start and stop the temporary preview host after a successful build.")] bool startHost = false,
         [Description("With startHost, returns semantic and layout diagnostics; requires sensitive reads.")] bool includeRuntimeDiagnostics = false,
-        [Description("Compact payloads; failures and screenshot resource handles remain. False returns full diagnostics.")] bool compactRuntimeDiagnostics = true,
+        [Description("Compact XAML/risk-free correlations to counts; keep failures and screenshot resource handles. False returns full.")] bool compactRuntimeDiagnostics = true,
         [Description("With startHost, adds a screenshot; requires sensitive-read and screenshot gates.")] bool includeScreenshotDiagnostics = false,
         [AllowedValues("metadata", "file")]
         [Description("Screenshot output mode used when includeScreenshotDiagnostics=true: 'metadata' (default) or resource-backed 'file'.")] string screenshotOutputMode = "metadata",
@@ -450,6 +452,7 @@ public static partial class UiComposerMcpTools
         string? targetPath,
         bool dryRun,
         bool confirmApply,
+        bool includeGeneratedXaml,
         int? targetWindowWidth,
         int? targetWindowHeight,
         string? localAppDataRoot)
@@ -471,7 +474,9 @@ public static partial class UiComposerMcpTools
             result.DryRun,
             result.RequiresConfirmation,
             result.WouldWriteFiles,
-            result.Xaml,
+            xaml = includeGeneratedXaml ? result.Xaml : null,
+            generatedXamlOmitted = !includeGeneratedXaml && result.Xaml.Length > 0,
+            generatedXamlLength = result.Xaml?.Length ?? 0,
             result.FilePlan,
             result.ResourcePlan,
             result.RequiredNuGetPackages,

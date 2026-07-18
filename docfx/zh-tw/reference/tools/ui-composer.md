@@ -240,7 +240,7 @@ Request options:
 
 - `blueprintJson`: required raw UI blueprint JSON，`schemaVersion` 必須是 `wpfdevtools.ui-blueprint.v1`；也可傳入 opaque `draftRef`。
 - `projectRoot`: required local WPF project root，用於 path planning 與 write allowlist checks。
-- `targetPath`: optional target XAML file path，必須位於 `projectRoot` 內。
+- `targetPath`: optional `projectRoot` 相對路徑，例如 `MainWindow.xaml` 或 `Views/GeneratedView.xaml`。即使指向 `projectRoot` 內，absolute paths 也會被拒絕。
 - `dryRun`: optional boolean，預設為 true。
 - `confirmApply`: optional boolean，non-dry-run 寫入前必須在檢查 dry-run plan 後設為 true。
 - `targetWindowWidth` 與 `targetWindowHeight`: optional target Window dimensions，以 device-independent pixels 表示，每個值範圍為 1 到 8192。需要精確維持 preview 與 final app 尺寸時，請複製已審查的 `preview_ui_blueprint` `viewportWidth` 與 `viewportHeight`；省略任一值會保留該既有尺寸。

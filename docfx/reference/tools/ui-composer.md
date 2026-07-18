@@ -239,7 +239,7 @@ Request options:
 
 - `blueprintJson`: required raw UI blueprint JSON with `schemaVersion` set to `wpfdevtools.ui-blueprint.v1`, or an opaque `draftRef`.
 - `projectRoot`: required local WPF project root used for path planning and write allowlist checks.
-- `targetPath`: optional target XAML file path. It must stay inside `projectRoot`.
+- `targetPath`: optional project-root-relative target XAML file path, such as `MainWindow.xaml` or `Views/GeneratedView.xaml`. Absolute paths are rejected even when they point inside `projectRoot`.
 - `dryRun`: optional boolean that defaults to true.
 - `confirmApply`: optional boolean that must be true for non-dry-run writes after the dry-run plan has been reviewed.
 - `targetWindowWidth` and `targetWindowHeight`: optional target Window dimensions in device-independent pixels, each from 1 to 8192. Copy the reviewed `preview_ui_blueprint` `viewportWidth` and `viewportHeight` when exact preview-to-app sizing matters; omit either value to preserve that existing dimension.

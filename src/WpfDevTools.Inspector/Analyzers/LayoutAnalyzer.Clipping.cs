@@ -314,9 +314,19 @@ public sealed partial class LayoutAnalyzer
                 continue;
             }
 
+            if (child.Visibility != Visibility.Visible || child.Opacity <= 0d)
+            {
+                continue;
+            }
+
             try
             {
                 var childBounds = child.TransformToAncestor(visual).TransformBounds(GetContentBounds(child));
+                if (childBounds.IsEmpty || childBounds.Width <= 0d || childBounds.Height <= 0d)
+                {
+                    continue;
+                }
+
                 bounds = bounds.IsEmpty ? childBounds : Rect.Union(bounds, childBounds);
             }
             catch (InvalidOperationException)

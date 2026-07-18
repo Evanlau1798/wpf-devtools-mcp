@@ -325,6 +325,70 @@ public class LayoutAnalyzerClippingTests
     }
 
     [StaFact]
+    public void GetClippingInfo_WhenTransparentScaledAnimationSurfaceExceedsBounds_ShouldIgnoreIt()
+    {
+        using var finder = new ElementFinder();
+        var analyzer = new LayoutAnalyzer(finder);
+        var templateRoot = new FrameworkElementFactory(typeof(Grid));
+        var visibleSurface = new FrameworkElementFactory(typeof(Border));
+        visibleSurface.SetValue(Border.BackgroundProperty, Brushes.SteelBlue);
+        templateRoot.AppendChild(visibleSurface);
+        var animationSurface = new FrameworkElementFactory(typeof(Border));
+        animationSurface.SetValue(FrameworkElement.WidthProperty, 160d);
+        animationSurface.SetValue(FrameworkElement.HeightProperty, 160d);
+        animationSurface.SetValue(UIElement.OpacityProperty, 0d);
+        animationSurface.SetValue(UIElement.RenderTransformOriginProperty, new Point(0.5, 0.5));
+        animationSurface.SetValue(UIElement.RenderTransformProperty, new ScaleTransform(0d, 0d));
+        templateRoot.AppendChild(animationSurface);
+        var target = new Button
+        {
+            Width = 100,
+            Height = 32,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Template = new ControlTemplate(typeof(Button)) { VisualTree = templateRoot }
+        };
+        var clippingRoot = new Grid
+        {
+            Width = 100,
+            Height = 40,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Clip = new RectangleGeometry(new Rect(0, 0, 100, 40)),
+            Children = { target }
+        };
+        var window = new Window
+        {
+            Width = 200,
+            Height = 80,
+            WindowStyle = WindowStyle.None,
+            ResizeMode = ResizeMode.NoResize,
+            ShowInTaskbar = false,
+            Content = clippingRoot
+        };
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var root = (FrameworkElement)VisualTreeHelper.GetChild(target, 0);
+            var transparentVisual = (FrameworkElement)VisualTreeHelper.GetChild(root, 1);
+            transparentVisual.RenderSize.Height.Should().BeGreaterThan(target.RenderSize.Height);
+            transparentVisual.Opacity.Should().Be(0);
+
+            var result = analyzer.GetClippingInfo(finder.GenerateElementId(target));
+
+            var doc = JsonSerializer.SerializeToElement(result);
+            doc.GetProperty("isClipped").GetBoolean().Should().BeFalse(doc.GetRawText());
+            doc.GetProperty("visibleContentImpact").GetString().Should().Be("none");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
     public void GetClippingInfo_WhenOnlyDesiredSizeExceedsRenderedPixels_ShouldNotReportClipped()
     {
         using var finder = new ElementFinder();

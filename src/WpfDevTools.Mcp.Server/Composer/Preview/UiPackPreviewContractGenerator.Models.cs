@@ -62,6 +62,7 @@ internal sealed record PreviewContractGenerationResult(
     public IReadOnlyList<PreviewRuntimeNuGetPackage> RuntimeNuGetPackages { get; init; } = [];
     public IReadOnlyList<string> RuntimeResources { get; init; } = [];
     public IReadOnlyList<PreviewDiagnostic> Advisories { get; init; } = [];
+    public IReadOnlyList<PreviewRuntimePackApprovalReview> RuntimePackApprovalReviews { get; init; } = [];
 }
 
 internal sealed record ResolvedPreviewContract(

@@ -128,7 +128,7 @@ public static class ServerInstructions
         - WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true opts into element_screenshot at the MCP boundary
         - WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true opts into target UI text, DependencyProperty and binding values, routed-event payloads, tree/scene summaries, and runtime state snapshots such as get_ui_summary, get_visual_tree, get_bindings, and get_state_diff
         - WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true opts into get_datacontext_chain, get_viewmodel, get_commands, modify_viewmodel, and execute_command
-        - WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true allows preview_ui_blueprint to accept reviewed content-bound runtimePackApprovalTokens for one preview call; tokens are not persisted and still require the destructive-tools gate
+        - WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true allows preview_ui_blueprint to accept content-bound runtimePackApprovalTokens from its structured runtimePackApprovalReviews for one preview call; tokens are not persisted and still require the destructive-tools gate
         - Unset or disabled gates return errorCode: SecurityError; invalid boolean gate values return errorCode: InvalidPolicyConfiguration
         - Common gate bundles are listed as `policyProfiles` in `wpf://contracts/response`; use them before asking an operator to enable extra capabilities
 

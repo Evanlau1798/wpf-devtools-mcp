@@ -151,6 +151,7 @@ public static partial class UiComposerMcpTools
             result.PropertyWarnings,
             result.ElementCorrelations,
             result.LayoutRiskSummary,
+            result.RuntimePackApprovalReviews,
             observability = ComposerObservability.ForPreview(result)
         };
     }

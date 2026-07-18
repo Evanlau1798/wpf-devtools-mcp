@@ -178,7 +178,8 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 ElementCorrelations = render.ElementCorrelations,
                 LayoutRiskSummary = layoutRiskSummary,
                 UsesStructuralStubs = previewContract.UsesStructuralStubs,
-                UsesRuntimeDependencies = previewContract.UsesRuntimeDependencies
+                UsesRuntimeDependencies = previewContract.UsesRuntimeDependencies,
+                RuntimePackApprovalReviews = previewContract.RuntimePackApprovalReviews
             };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

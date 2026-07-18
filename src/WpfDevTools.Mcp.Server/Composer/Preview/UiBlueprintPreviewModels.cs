@@ -95,6 +95,8 @@ internal sealed record PreviewBlueprintResult(
 
     public PreviewLayoutRiskSummary LayoutRiskSummary { get; init; } = PreviewLayoutRiskSummary.Empty;
 
+    public IReadOnlyList<PreviewRuntimePackApprovalReview> RuntimePackApprovalReviews { get; init; } = [];
+
     public static PreviewBlueprintResult Invalid(
         bool restoreEnabled,
         string xaml,
@@ -139,6 +141,17 @@ internal sealed record PreviewRuntimeDiagnostic(
 
     public IReadOnlyList<string> TargetElementIds { get; init; } = [];
 }
+
+internal sealed record PreviewRuntimePackApprovalReview(
+    string PackId,
+    string PackVersion,
+    string PackScope,
+    string Fingerprint,
+    string ApprovalToken,
+    string ApprovalScope,
+    bool Approved,
+    IReadOnlyList<string> RuntimeResources,
+    IReadOnlyList<PreviewRuntimeNuGetPackage> PackageClosure);
 
 internal sealed record PreviewLayoutRiskSummary(
     int ClippedElementCount,

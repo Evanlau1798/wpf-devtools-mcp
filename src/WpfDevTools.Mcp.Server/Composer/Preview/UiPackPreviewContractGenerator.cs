@@ -126,31 +126,15 @@ internal sealed partial class UiPackPreviewContractGenerator(PackRegistry regist
             .Where(packRef => manifests[packRef.Id].NugetPackages.Any()
                 || resourcesByPack[packRef.Id].Count > 0)
             .ToArray();
-        var approvedRuntimePackIds = new HashSet<string>(StringComparer.Ordinal);
-        var packagesByPack = new Dictionary<string, IReadOnlyList<PreviewRuntimeNuGetPackage>>(StringComparer.Ordinal);
-        foreach (var packRef in runtimeCandidates)
-        {
-            var pack = snapshots[packRef.Id].RegistryItem;
-            if (!UiPreviewRuntimeDependencyPolicy.IsApproved(pack, runtimePackApprovalTokens))
-            {
-                advisories.Add(Diagnostic(
-                    "PreviewRuntimeDependenciesNotApproved",
-                    $"Pack '{packRef.Id}@{packRef.Version}' remains structural. Review its executable packages and resources, then approve this exact installed content with {McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar} or pass runtimePackApprovalTokens after enabling {McpServerConfiguration.AllowComposerRuntimeApprovalsEnvVar}. Token: {UiPreviewRuntimeDependencyPolicy.CreateApprovalToken(pack)}."));
-                continue;
-            }
-
-            if (!UiPreviewRuntimeDependencyPolicy.TryResolvePackages(
-                    manifests[packRef.Id].NugetPackages,
-                    out var packages,
-                    out var packageError))
-            {
-                advisories.Add(Diagnostic("PreviewRuntimePackageNotImmutable", packageError!));
-                continue;
-            }
-
-            approvedRuntimePackIds.Add(packRef.Id);
-            packagesByPack[packRef.Id] = packages;
-        }
+        var runtimeApproval = ResolveRuntimeApprovals(
+            runtimeCandidates,
+            snapshots,
+            manifests,
+            resourcesByPack,
+            runtimePackApprovalTokens);
+        advisories.AddRange(runtimeApproval.Advisories);
+        var approvedRuntimePackIds = runtimeApproval.ApprovedPackIds;
+        var packagesByPack = runtimeApproval.PackagesByPack;
 
         foreach (var packRef in blueprint.Packs.Where(pack => usedPackIds.Contains(pack.Id)))
         {
@@ -259,7 +243,8 @@ internal sealed partial class UiPackPreviewContractGenerator(PackRegistry regist
             UsesRuntimeDependencies = runtimePackages.Length > 0 || runtimeResources.Length > 0,
             RuntimeNuGetPackages = runtimePackages,
             RuntimeResources = runtimeResources,
-            Advisories = advisories
+            Advisories = advisories,
+            RuntimePackApprovalReviews = runtimeApproval.Reviews
         };
     }
 

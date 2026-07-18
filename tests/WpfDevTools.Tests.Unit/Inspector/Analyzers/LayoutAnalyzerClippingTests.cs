@@ -97,7 +97,7 @@ public class LayoutAnalyzerClippingTests
     {
         using var finder = new ElementFinder();
         var analyzer = new LayoutAnalyzer(finder);
-        var root = new Grid();
+        var root = new Canvas();
         var content = new StackPanel
         {
             Width = 220,
@@ -119,7 +119,7 @@ public class LayoutAnalyzerClippingTests
         {
             window.Show();
             window.UpdateLayout();
-            var elementId = finder.GenerateElementId(root);
+            var elementId = finder.GenerateElementId(content);
 
             var result = analyzer.GetClippingInfo(elementId);
 
@@ -142,7 +142,7 @@ public class LayoutAnalyzerClippingTests
     {
         using var finder = new ElementFinder();
         var analyzer = new LayoutAnalyzer(finder);
-        var root = new Grid();
+        var root = new Canvas();
         var content = new Border
         {
             Width = 220,
@@ -164,7 +164,7 @@ public class LayoutAnalyzerClippingTests
         {
             window.Show();
             window.UpdateLayout();
-            var elementId = finder.GenerateElementId(root);
+            var elementId = finder.GenerateElementId(content);
 
             var result = analyzer.DiagnoseVisibility(elementId);
 
@@ -277,5 +277,51 @@ public class LayoutAnalyzerClippingTests
         overflow.GetProperty("top").GetDouble().Should().Be(0);
         overflow.GetProperty("right").GetDouble().Should().Be(0);
         overflow.GetProperty("bottom").GetDouble().Should().Be(0);
+    }
+
+    [StaFact]
+    public void GetClippingInfo_WhenTemplateDecorationExceedsControlBounds_ShouldUseTargetBounds()
+    {
+        using var finder = new ElementFinder();
+        var analyzer = new LayoutAnalyzer(finder);
+        var oversizedDecoration = new FrameworkElementFactory(typeof(Border));
+        oversizedDecoration.SetValue(FrameworkElement.HeightProperty, 160d);
+        oversizedDecoration.SetValue(Border.BackgroundProperty, Brushes.SteelBlue);
+        var target = new Button
+        {
+            Width = 100,
+            Height = 32,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Template = new ControlTemplate(typeof(Button)) { VisualTree = oversizedDecoration }
+        };
+        var window = new Window
+        {
+            Width = 200,
+            Height = 80,
+            WindowStyle = WindowStyle.None,
+            ResizeMode = ResizeMode.NoResize,
+            ShowInTaskbar = false,
+            Content = new Grid { Children = { target } }
+        };
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var templateRoot = (FrameworkElement)VisualTreeHelper.GetChild(target, 0);
+            Math.Max(templateRoot.DesiredSize.Height, templateRoot.RenderSize.Height)
+                .Should().BeGreaterThan(target.RenderSize.Height);
+
+            var result = analyzer.GetClippingInfo(finder.GenerateElementId(target));
+
+            var doc = JsonSerializer.SerializeToElement(result);
+            doc.GetProperty("isClipped").GetBoolean().Should().BeFalse(doc.GetRawText());
+            doc.GetProperty("visibleContentImpact").GetString().Should().Be("none");
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 }

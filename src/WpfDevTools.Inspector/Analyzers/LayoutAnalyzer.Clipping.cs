@@ -294,21 +294,20 @@ public sealed partial class LayoutAnalyzer
 
     private static Rect GetContentBounds(UIElement element)
     {
-        var bounds = GetElementContentBounds(element);
+        var renderedBounds = new Rect(new Point(0, 0), element.RenderSize);
+        var bounds = element is TextBlock textBlock
+            ? Rect.Union(
+                renderedBounds,
+                new Rect(new Point(0, 0), MeasureTextContent(textBlock)))
+            : renderedBounds;
 
         if (element is not Visual visual)
         {
             return bounds;
         }
 
-        var childCount = VisualTreeHelper.GetChildrenCount(visual);
-        for (var index = 0; index < childCount; index++)
+        foreach (var child in LogicalTreeHelper.GetChildren(element).OfType<UIElement>())
         {
-            if (VisualTreeHelper.GetChild(visual, index) is not UIElement child)
-            {
-                continue;
-            }
-
             try
             {
                 var childBounds = child.TransformToAncestor(visual).TransformBounds(GetContentBounds(child));
@@ -320,18 +319,6 @@ public sealed partial class LayoutAnalyzer
         }
 
         return bounds;
-    }
-
-    private static Rect GetElementContentBounds(UIElement element)
-    {
-        if (element is TextBlock textBlock)
-        {
-            return new Rect(new Point(0, 0), MeasureTextContent(textBlock));
-        }
-
-        var width = Math.Max(element.RenderSize.Width, element.DesiredSize.Width);
-        var height = Math.Max(element.RenderSize.Height, element.DesiredSize.Height);
-        return new Rect(new Point(0, 0), new Size(width, height));
     }
 
     private static Size MeasureTextContent(TextBlock textBlock)

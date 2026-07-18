@@ -263,21 +263,22 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - Returns compile, host, visual, screenshot, warning, and correlation evidence.
-        - visualFidelity is resource-backed, hybrid-resource-backed, structural, or not-available for invalid, build, or host-load failure. Always verify the applied, built, and launched app.
-        - Built-ins are trusted; Project/user packs stay structural. Review runtimePackApprovalReviews: identity/fingerprint, eligibility/error, resources/package hashes, content-bound approval token, source/state. Use an eligible token for one preview call via runtimePackApprovalTokens, or the server process via WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS; enable WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true. Packages need exact [version] and SHA-512 contentHash; restore uses a preview-local NuGet cache and is hash-checked before build.
-        - screenshotVerificationGuidance says to re-read the same resource and verify SHA-256 before regenerating an apparently sparse but semantically complete preview.
+        - visualFidelity is resource-backed, hybrid-resource-backed, structural, or not-available; verify the applied, built, and launched app.
+        - Project/user packs stay structural until approved. runtimePackApprovalReviews supplies identity, fingerprint, eligibility, package hashes, and a content-bound approval token. For one preview call pass an eligible runtimePackApprovalTokens value; for server approval use WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS after enabling WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true. Packages require exact [version] and SHA-512 contentHash; a preview-local NuGet cache is hash-checked before build.
+        - screenshotVerificationGuidance instructs the client to re-read the resource and verify SHA-256 before replacing a sparse but semantically complete preview.
         - visualComparisonChecklist lists final checks for window chrome, icons, control templates, layout and spacing.
-        - propertyWarnings contains pack-defined guidance only for explicitly supplied properties, with the exact blueprint JSON path, block kind, property name, and message.
-        - elementCorrelations maps each renderer root's transient x:Name to its blueprint jsonPath and blockKind. These names are never written into the blueprint or emitted by render/apply.
-        - layoutRiskSummary maps clipping, including Window client viewport overflow, to exact jsonPath/blockKind; unresolved reason is ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-found, or search-incomplete. Recheck the final app.
-        - Compile failures map back to the compiler line/column source-map entry and renderer template path when available; restore/build infrastructure failures stay at $.layout.
+        - propertyWarnings gives pack guidance for supplied properties with exact blueprint JSON path, block kind, property name, and message.
+        - elementCorrelations maps transient x:Name to jsonPath/blockKind; names are never written into the blueprint or render/apply output.
+        - layoutRiskSummary maps clipping, including Window client overflow, to jsonPath/blockKind; unresolved reasons are ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-found, or search-incomplete.
+        - Compile failures map to source line/column and renderer path when available; infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:
         - blueprintJson accepts raw JSON or an opaque draftRef. Raw JSON must contain schemaVersion wpfdevtools.ui-blueprint.v1.
         - restoreEnabled defaults to true for compile smoke; set false to verify restore-disabled diagnostics.
         - startHost defaults to false for fast compile smoke; set true for preview host load smoke.
         - includeRuntimeDiagnostics defaults to false; set true with startHost=true after enabling the sensitive-reads policy gate.
-        - correlationLookupLimit caps exact queries for non-generated correlation names (authored elementName values and renderer-provided root x:Name values) at 32 (max 64). Raise only for lookup-budget; repair other reasons.
+        - compactRuntimeDiagnostics is compact by default; failures and screenshot resource handles remain. False returns full payloads.
+        - correlationLookupLimit caps authored elementName and renderer-provided root x:Name queries at 32 (max 64); raise only for lookup-budget.
         - Screenshot diagnostics require startHost plus sensitive-read and screenshot gates.
         - Use screenshotOutputMode="file" for pixel evidence. Preview pixels do not approve final styling.
         - viewportWidth and viewportHeight set preview Window.Width and Window.Height in DIPs; match the target Window dimensions to expose overflow before apply. Screenshot bounds only resize returned pixels.

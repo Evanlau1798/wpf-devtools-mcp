@@ -1,3 +1,4 @@
+using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Diagnostics;
 using WpfDevTools.Mcp.Server.Composer.Drafts;
@@ -15,6 +16,7 @@ public static partial class UiComposerMcpTools
         bool restoreEnabled,
         bool startHost,
         bool includeRuntimeDiagnostics,
+        bool compactRuntimeDiagnostics,
         bool includeScreenshotDiagnostics,
         string screenshotOutputMode,
         int? screenshotMaxWidth,
@@ -143,7 +145,9 @@ public static partial class UiComposerMcpTools
             result.BuildOutput,
             result.Xaml,
             result.Diagnostics,
-            result.PreviewHost,
+            previewHost = BuildPreviewHostPayload(result.PreviewHost, compactRuntimeDiagnostics),
+            runtimeDiagnosticsCompacted = compactRuntimeDiagnostics
+                && result.PreviewHost.RuntimeDiagnostics is not null,
             result.VisualFidelity,
             result.VisualValidationGuidance,
             result.ScreenshotVerificationGuidance,
@@ -154,5 +158,65 @@ public static partial class UiComposerMcpTools
             result.RuntimePackApprovalReviews,
             observability = ComposerObservability.ForPreview(result)
         };
+    }
+
+    internal static object BuildPreviewHostPayload(
+        PreviewHostResult host,
+        bool compactRuntimeDiagnostics)
+    {
+        if (!compactRuntimeDiagnostics || host.RuntimeDiagnostics is null)
+        {
+            return host;
+        }
+
+        return new
+        {
+            status = host.Status,
+            started = host.Started,
+            viewLoaded = host.ViewLoaded,
+            processId = host.ProcessId,
+            runtimeDiagnosticsCompacted = true,
+            fullPayloadHint = "Set compactRuntimeDiagnostics=false only when full non-screenshot diagnostic payloads are required.",
+            runtimeDiagnostics = host.RuntimeDiagnostics.Select(ToCompactRuntimeDiagnostic).ToArray()
+        };
+    }
+
+    private static object ToCompactRuntimeDiagnostic(PreviewRuntimeDiagnostic diagnostic)
+    {
+        var compact = new Dictionary<string, object?>
+        {
+            ["tool"] = diagnostic.Tool,
+            ["success"] = diagnostic.Success
+        };
+        if (diagnostic.Lookup is not null)
+        {
+            compact["lookup"] = new
+            {
+                query = diagnostic.Lookup.Query,
+                matchMode = diagnostic.Lookup.MatchMode
+            };
+        }
+
+        if (diagnostic.TargetElementIds.Count > 0)
+        {
+            compact["targetElementCount"] = diagnostic.TargetElementIds.Count;
+        }
+
+        if (diagnostic.Payload.ValueKind == JsonValueKind.Object
+            && diagnostic.Payload.TryGetProperty("results", out var results)
+            && results.ValueKind == JsonValueKind.Array)
+        {
+            compact["matchedElementCount"] = results.GetArrayLength();
+        }
+
+        var keepPayload = !diagnostic.Success
+            || string.Equals(diagnostic.Tool, "element_screenshot", StringComparison.Ordinal);
+        compact["payloadOmitted"] = !keepPayload;
+        if (keepPayload)
+        {
+            compact["payload"] = diagnostic.Payload;
+        }
+
+        return compact;
     }
 }

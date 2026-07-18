@@ -150,6 +150,9 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("runtime-match-ambiguous");
         description.Should().Contain("runtime-not-found");
         description.Should().Contain("search-incomplete");
+        description.Should().Contain("compactRuntimeDiagnostics");
+        description.Should().Contain("compact by default");
+        description.Should().Contain("screenshot resource handles");
         var lookupLimitGuidance = description.Split('\n')
             .Single(line => line.Contains("correlationLookupLimit", StringComparison.Ordinal));
         lookupLimitGuidance.Should().Contain("authored elementName")

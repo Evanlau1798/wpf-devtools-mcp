@@ -204,15 +204,16 @@ public static partial class UiComposerMcpTools
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
         [Description("UI blueprint JSON text or an opaque draftRef to compile in a temporary preview project.")] string blueprintJson,
         [Description("Restore before build; false uses --no-restore and reports missing assets.")] bool restoreEnabled = true,
-        [Description("When true, starts the temporary preview host after a successful build, waits for its main window, then terminates it.")] bool startHost = false,
+        [Description("Start and stop the temporary preview host after a successful build.")] bool startHost = false,
         [Description("With startHost, returns semantic and layout diagnostics; requires sensitive reads.")] bool includeRuntimeDiagnostics = false,
+        [Description("Compact payloads; failures and screenshot resource handles remain. False returns full diagnostics.")] bool compactRuntimeDiagnostics = true,
         [Description("With startHost, adds a screenshot; requires sensitive-read and screenshot gates.")] bool includeScreenshotDiagnostics = false,
         [AllowedValues("metadata", "file")]
         [Description("Screenshot output mode used when includeScreenshotDiagnostics=true: 'metadata' (default) or resource-backed 'file'.")] string screenshotOutputMode = "metadata",
         [Range(1, int.MaxValue)]
-        [Description("Optional maximum preview screenshot width. Defaults to 1024 for reliable agent image consumption; pass null for the rendered width.")] int? screenshotMaxWidth = 1024,
+        [Description("Maximum screenshot width; defaults to 1024. Null keeps rendered width.")] int? screenshotMaxWidth = 1024,
         [Range(1, int.MaxValue)]
-        [Description("Optional maximum preview screenshot height. Defaults to 1024 for reliable agent image consumption; pass null for the rendered height.")] int? screenshotMaxHeight = 1024,
+        [Description("Maximum screenshot height; defaults to 1024. Null keeps rendered height.")] int? screenshotMaxHeight = 1024,
         [Range(1, UiPreviewProjectFiles.MaximumViewportDimension)]
         [Description("Preview Window.Width in DIPs; match the target Window dimension to expose overflow.")] int? viewportWidth = null,
         [Range(1, UiPreviewProjectFiles.MaximumViewportDimension)]
@@ -230,6 +231,7 @@ public static partial class UiComposerMcpTools
             ("restoreEnabled", restoreEnabled),
             ("startHost", startHost),
             ("includeRuntimeDiagnostics", includeRuntimeDiagnostics),
+            ("compactRuntimeDiagnostics", compactRuntimeDiagnostics),
             ("includeScreenshotDiagnostics", includeScreenshotDiagnostics),
             ("screenshotOutputMode", screenshotOutputMode),
             ("screenshotMaxWidth", screenshotMaxWidth),
@@ -248,6 +250,7 @@ public static partial class UiComposerMcpTools
                 restoreEnabled,
                 startHost,
                 includeRuntimeDiagnostics,
+                compactRuntimeDiagnostics,
                 includeScreenshotDiagnostics,
                 screenshotOutputMode,
                 screenshotMaxWidth,

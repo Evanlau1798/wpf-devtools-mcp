@@ -280,7 +280,7 @@ public class LayoutAnalyzerClippingTests
     }
 
     [StaFact]
-    public void GetClippingInfo_WhenTemplateDecorationExceedsControlBounds_ShouldUseTargetBounds()
+    public void GetClippingInfo_WhenTemplateVisualActuallyExceedsControlBounds_ShouldReportClipped()
     {
         using var finder = new ElementFinder();
         var analyzer = new LayoutAnalyzer(finder);
@@ -310,14 +310,52 @@ public class LayoutAnalyzerClippingTests
             window.Show();
             window.UpdateLayout();
             var templateRoot = (FrameworkElement)VisualTreeHelper.GetChild(target, 0);
-            Math.Max(templateRoot.DesiredSize.Height, templateRoot.RenderSize.Height)
-                .Should().BeGreaterThan(target.RenderSize.Height);
+            templateRoot.RenderSize.Height.Should().BeGreaterThan(target.RenderSize.Height);
+
+            var result = analyzer.GetClippingInfo(finder.GenerateElementId(target));
+
+            var doc = JsonSerializer.SerializeToElement(result);
+            doc.GetProperty("isClipped").GetBoolean().Should().BeTrue(doc.GetRawText());
+            doc.GetProperty("visibleContentImpact").GetString().Should().Be("not-determined");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void GetClippingInfo_WhenOnlyDesiredSizeExceedsRenderedPixels_ShouldNotReportClipped()
+    {
+        using var finder = new ElementFinder();
+        var analyzer = new LayoutAnalyzer(finder);
+        var target = new Border
+        {
+            Width = 100,
+            Height = 32,
+            Margin = new Thickness(0, 0, 0, 128),
+            Background = Brushes.SteelBlue
+        };
+        var window = new Window
+        {
+            Width = 200,
+            Height = 80,
+            WindowStyle = WindowStyle.None,
+            ResizeMode = ResizeMode.NoResize,
+            ShowInTaskbar = false,
+            Content = new Canvas { Children = { target } }
+        };
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            target.DesiredSize.Height.Should().BeGreaterThan(target.RenderSize.Height);
 
             var result = analyzer.GetClippingInfo(finder.GenerateElementId(target));
 
             var doc = JsonSerializer.SerializeToElement(result);
             doc.GetProperty("isClipped").GetBoolean().Should().BeFalse(doc.GetRawText());
-            doc.GetProperty("visibleContentImpact").GetString().Should().Be("none");
         }
         finally
         {

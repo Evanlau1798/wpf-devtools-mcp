@@ -306,8 +306,14 @@ public sealed partial class LayoutAnalyzer
             return bounds;
         }
 
-        foreach (var child in LogicalTreeHelper.GetChildren(element).OfType<UIElement>())
+        var childCount = VisualTreeHelper.GetChildrenCount(visual);
+        for (var index = 0; index < childCount; index++)
         {
+            if (VisualTreeHelper.GetChild(visual, index) is not UIElement child)
+            {
+                continue;
+            }
+
             try
             {
                 var childBounds = child.TransformToAncestor(visual).TransformBounds(GetContentBounds(child));

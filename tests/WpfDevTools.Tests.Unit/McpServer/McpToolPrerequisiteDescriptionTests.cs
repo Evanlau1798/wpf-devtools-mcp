@@ -153,6 +153,14 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("compactRuntimeDiagnostics");
         description.Should().Contain("compact by default");
         description.Should().Contain("screenshot resource handles");
+        description.Should().ContainAll(
+            "RuntimeStructuralOverflowRisk",
+            "RuntimeClippingDetected",
+            "structural-overflow",
+            "riskClassification=clipping",
+            "advisory",
+            "visibleContentImpact",
+            "requiresVisualConfirmation");
         var lookupLimitGuidance = description.Split('\n')
             .Single(line => line.Contains("correlationLookupLimit", StringComparison.Ordinal));
         lookupLimitGuidance.Should().Contain("authored elementName")

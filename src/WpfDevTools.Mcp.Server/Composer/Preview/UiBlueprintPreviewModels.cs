@@ -209,6 +209,10 @@ internal sealed record PreviewLayoutWarning(
     string ElementName,
     string ElementId,
     string ClippingSource,
+    string RiskClassification,
+    string Severity,
+    string VisibleContentImpact,
+    bool RequiresVisualConfirmation,
     JsonElement OverflowAmount,
     string? SuggestedFix);
 

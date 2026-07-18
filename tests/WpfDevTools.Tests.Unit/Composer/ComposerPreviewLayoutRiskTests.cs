@@ -134,7 +134,7 @@ public sealed class ComposerPreviewLayoutRiskTests
         summary.ReportedWarningCount.Should().Be(1);
         summary.Warnings.Should().ContainSingle().Which.Should().BeEquivalentTo(new
         {
-            Code = "RuntimeClippingDetected",
+            Code = "RuntimeStructuralOverflowRisk",
             JsonPath = "$.layout.slots.actions[2]",
             BlockKind = "nebula.button",
             ElementName = "ActionButton",

@@ -261,21 +261,20 @@ internal static class UiComposerMcpToolDescriptions
 
         CATEGORY: UI Composer
 
-        DO NOT USE: Do not use this to control a real target. It builds an isolated temporary host and does not persist project files.
+        DO NOT USE: For real targets; isolated preview writes no project files.
 
         RESPONSE SUMMARY:
-        - Returns compile, host, visual, screenshot, warning, and correlation evidence.
         - visualFidelity is resource-backed, hybrid-resource-backed, structural, or not-available; verify the applied, built, and launched app.
-        - Project/user packs stay structural until approved. runtimePackApprovalReviews supplies identity, fingerprint, eligibility, package hashes, and a content-bound approval token. For one preview call pass an eligible runtimePackApprovalTokens value; for server approval use WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS after enabling WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true. Packages require exact [version] and SHA-512 contentHash; a preview-local NuGet cache is hash-checked before build.
+        - Project/user packs stay structural until approved. runtimePackApprovalReviews supplies a content-bound approval token and hashes. Use an eligible token for one preview call, or WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS after WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true. Packages need exact [version], SHA-512 contentHash, and a preview-local NuGet cache hash-checked before build.
         - screenshotVerificationGuidance instructs the client to re-read the resource and verify SHA-256 before replacing a sparse but semantically complete preview.
         - visualComparisonChecklist lists final checks for window chrome, icons, control templates, layout and spacing.
         - propertyWarnings gives pack guidance for supplied properties with exact blueprint JSON path, block kind, property name, and message.
         - elementCorrelations maps transient x:Name to jsonPath/blockKind; names are never written into the blueprint or render/apply output.
-        - layoutRiskSummary maps clipping, including Window client overflow, to jsonPath/blockKind; unresolved reasons are ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-found, or search-incomplete.
-        - Compile failures map to source line/column and renderer path when available; infrastructure failures stay at $.layout.
+        - layoutRiskSummary maps clipping (Window client included) to jsonPath/blockKind; unresolved reasons: ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-found, search-incomplete. RuntimeStructuralOverflowRisk uses riskClassification=structural-overflow; other sources use RuntimeClippingDetected with riskClassification=clipping. severity=advisory, visibleContentImpact=not-determined, and requiresVisualConfirmation=true mean pixel loss is unconfirmed.
+        - Compile failures map to line/column and renderer path; infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:
-        - blueprintJson accepts raw JSON or an opaque draftRef. Raw JSON must contain schemaVersion wpfdevtools.ui-blueprint.v1.
+        - blueprintJson accepts raw JSON or an opaque draftRef (wpfdevtools.ui-blueprint.v1).
         - restoreEnabled defaults to true for compile smoke; set false to verify restore-disabled diagnostics.
         - startHost defaults to false for compile smoke; set true for preview host load smoke.
         - includeRuntimeDiagnostics defaults to false; set true with startHost=true after enabling the sensitive-reads policy gate.

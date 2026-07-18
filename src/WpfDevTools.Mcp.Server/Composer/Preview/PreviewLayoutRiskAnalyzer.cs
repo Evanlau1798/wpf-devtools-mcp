@@ -280,13 +280,24 @@ internal static class PreviewLayoutRiskAnalyzer
         var overflow = result.TryGetProperty("overflowAmount", out var overflowAmount)
             ? overflowAmount.Clone()
             : JsonSerializer.SerializeToElement(new { left = 0, top = 0, right = 0, bottom = 0 });
+        var clippingSource = ReadString(result, "clippingSource") ?? "unknown";
+        var visibleContentImpact = ReadString(result, "visibleContentImpact") ?? "not-determined";
+        var isStructuralOverflow = clippingSource.EndsWith("layout-clip", StringComparison.Ordinal);
+        var requiresVisualConfirmation = string.Equals(
+            visibleContentImpact,
+            "not-determined",
+            StringComparison.Ordinal);
         return new PreviewLayoutWarning(
-            "RuntimeClippingDetected",
+            isStructuralOverflow ? "RuntimeStructuralOverflowRisk" : "RuntimeClippingDetected",
             correlation.JsonPath,
             correlation.BlockKind,
             elementName,
             elementId,
-            ReadString(result, "clippingSource") ?? "unknown",
+            clippingSource,
+            isStructuralOverflow ? "structural-overflow" : "clipping",
+            requiresVisualConfirmation ? "advisory" : "warning",
+            visibleContentImpact,
+            requiresVisualConfirmation,
             overflow,
             ReadString(result, "suggestedFix"));
     }

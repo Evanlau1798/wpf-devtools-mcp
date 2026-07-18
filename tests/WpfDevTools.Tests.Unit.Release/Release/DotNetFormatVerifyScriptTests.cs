@@ -75,8 +75,11 @@ public sealed class DotNetFormatVerifyScriptTests
 
             result.ExitCode.Should().Be(7, result.Stdout + result.Stderr);
             File.ReadAllLines(logPath).Should().HaveCount(2);
-            (result.Stdout + Environment.NewLine + result.Stderr)
-                .Should().Contain("failed after 2 attempts");
+            var normalizedOutput = string.Join(
+                ' ',
+                (result.Stdout + Environment.NewLine + result.Stderr)
+                    .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+            normalizedOutput.Should().Contain("failed after 2 attempts");
         }
         finally
         {

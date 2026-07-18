@@ -13,7 +13,7 @@ Parameters:
 - `elementIds` optional batch mode. Use either `elementId` or `elementIds`.
 - `compact` optional. Use `true` for style summaries without full setter payloads.
 
-Output fields include `hasStyle`, `styles`, `setters`, `localResourceReferenceCount`, and `localResourceReferences`. This tool is read-only and does not change runtime state.
+Output fields include `hasStyle`, `styles`, `setters`, `localResourceReferenceCount`, and `localResourceReferences`. Detailed setter entries include `ownerType`, `ownerTypeFullName`, and `qualifiedProperty`, so attached properties are not confused with same-named control properties. This tool is read-only and does not change runtime state.
 
 Example:
 

@@ -76,10 +76,19 @@ public sealed partial class StyleAnalyzer : DispatcherAnalyzerBase
                         baseValueSource = styleSource.BaseValueSource.ToString(),
                         setters = fe.Style.Setters
                             .OfType<Setter>()
-                            .Select(setter => new
+                            .Select(setter =>
                             {
-                                property = setter.Property?.Name,
-                                value = setter.Value?.ToString()
+                                var property = setter.Property;
+                                return new
+                                {
+                                    property = property?.Name,
+                                    ownerType = property?.OwnerType.Name,
+                                    ownerTypeFullName = property?.OwnerType.FullName,
+                                    qualifiedProperty = property is null
+                                        ? null
+                                        : $"{property.OwnerType.FullName}.{property.Name}",
+                                    value = setter.Value?.ToString()
+                                };
                             })
                             .ToArray(),
                         setterCount = fe.Style.Setters.Count,

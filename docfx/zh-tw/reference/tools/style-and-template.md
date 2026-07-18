@@ -13,7 +13,7 @@
 - `elementIds`：可選 batch mode。`elementId` 與 `elementIds` 擇一使用。
 - `compact`：可選。設為 `true` 時只回傳摘要，不展開完整 setter payload。
 
-輸出欄位包含 `hasStyle`、`styles`、`setters`、`localResourceReferenceCount` 與 `localResourceReferences`。此工具為 read-only，不會改變 runtime state。
+輸出欄位包含 `hasStyle`、`styles`、`setters`、`localResourceReferenceCount` 與 `localResourceReferences`。詳細 setter entry 會提供 `ownerType`、`ownerTypeFullName` 與 `qualifiedProperty`，避免把 attached property 誤認為控制項上同名的 property。此工具為 read-only，不會改變 runtime state。
 
 範例：
 

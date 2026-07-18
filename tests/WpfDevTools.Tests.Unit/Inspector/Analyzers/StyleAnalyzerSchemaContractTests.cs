@@ -27,7 +27,12 @@ public class StyleAnalyzerSchemaContractTests
 
         doc.GetProperty("success").GetBoolean().Should().BeTrue();
         doc.GetProperty("styles")[0].GetProperty("styleType").GetString().Should().Be("Explicit");
-        doc.GetProperty("styles")[0].GetProperty("setters")[0].GetProperty("property").GetString().Should().Be("Width");
+        var setter = doc.GetProperty("styles")[0].GetProperty("setters")[0];
+        setter.GetProperty("property").GetString().Should().Be("Width");
+        setter.GetProperty("ownerType").GetString().Should().Be(nameof(FrameworkElement));
+        setter.GetProperty("ownerTypeFullName").GetString().Should().Be(typeof(FrameworkElement).FullName);
+        setter.GetProperty("qualifiedProperty").GetString().Should()
+            .Be($"{typeof(FrameworkElement).FullName}.Width");
     }
 
     [StaFact]

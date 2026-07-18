@@ -83,6 +83,7 @@
           "FooterMenuItems": "objectCollection",
           "IsBackButtonVisible": "string",
           "IsFooterSeparatorVisible": "boolean",
+          "IsPaneOpen": "boolean",
           "IsPaneToggleVisible": "boolean",
           "IsTopSeparatorVisible": "boolean",
           "MenuItems": "objectCollection",

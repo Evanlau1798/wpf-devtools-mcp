@@ -6,7 +6,7 @@
   "category": "navigation",
   "properties": {
     "paneDisplayMode": {
-      "description": "Navigation pane placement mode supported by the WPF UI control.",
+      "description": "Navigation pane placement for this persistent desktop shell; the renderer keeps the pane open and omits toggle and search affordances.",
       "default": "Left",
       "enum": ["Left", "LeftMinimal", "LeftFluent", "Top", "Bottom"],
       "required": false,

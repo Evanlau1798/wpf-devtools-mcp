@@ -121,7 +121,7 @@ public sealed class ComposerRendererDryRunTests
             """)));
 
         result.Success.Should().BeTrue();
-        result.Xaml.Should().Contain("<ui:NavigationView PaneDisplayMode=\"Left\"");
+        result.Xaml.Should().Contain("<ui:NavigationView PaneDisplayMode=\"Left\" IsPaneOpen=\"True\" IsPaneToggleVisible=\"False\"");
         result.Xaml.Should().Contain("<ui:AutoSuggestBox Visibility=\"Collapsed\" />");
         result.Xaml.Should().Contain("<ui:NavigationView.ContentOverlay>");
         result.Xaml.Should().Contain("<Grid><ui:Card");

@@ -1,4 +1,4 @@
-<ui:NavigationView PaneDisplayMode="{{paneDisplayMode}}">
+<ui:NavigationView PaneDisplayMode="{{paneDisplayMode}}" IsPaneOpen="True" IsPaneToggleVisible="False">
   <ui:NavigationView.AutoSuggestBox>
     <ui:AutoSuggestBox Visibility="Collapsed" />
   </ui:NavigationView.AutoSuggestBox>

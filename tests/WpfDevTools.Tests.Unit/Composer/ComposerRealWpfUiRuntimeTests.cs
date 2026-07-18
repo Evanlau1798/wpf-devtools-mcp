@@ -115,6 +115,17 @@ public sealed class ComposerRealWpfUiRuntimeTests
             iconBindings.Where(item => item.Binding!.Status == BindingStatus.PathError)
                 .Select(item => $"content={item.Button.Content}; path={item.Binding!.ParentBinding.Path?.Path}; data={item.Binding.DataItem?.GetType().FullName}")
                 .Should().BeEmpty("real WPF UI icon bindings should resolve after the window reaches idle");
+
+            navigation.IsPaneOpen.Should().BeTrue();
+            navigation.IsPaneToggleVisible.Should().BeFalse();
+            var paneToggle = navigation.Template.FindName("PART_ToggleButton", navigation) as FrameworkElement;
+            paneToggle.Should().NotBeNull();
+            paneToggle!.Visibility.Should().Be(Visibility.Collapsed);
+            var autoSuggestSymbolButton = navigation.Template.FindName(
+                "PART_AutoSuggestBoxSymbolButton",
+                navigation) as FrameworkElement;
+            autoSuggestSymbolButton.Should().NotBeNull();
+            autoSuggestSymbolButton!.IsVisible.Should().BeFalse();
         }
         finally
         {

@@ -241,7 +241,7 @@ public sealed class ComposerPreviewLayoutRiskTests
         summary.UnresolvedCorrelations.Should().ContainEquivalentOf(new
         {
             ElementName = "TargetB",
-            Reason = "runtime-not-found"
+            Reason = "runtime-not-realized", RequiresActiveStateInspection = true
         });
     }
 
@@ -324,7 +324,7 @@ public sealed class ComposerPreviewLayoutRiskTests
             JsonPath = "$.layout.slots.secondary",
             BlockKind = "nebula.item",
             ElementName = "TargetB",
-            Reason = "runtime-not-found"
+            Reason = "runtime-not-realized", RequiresActiveStateInspection = true
         });
     }
 

@@ -148,7 +148,8 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("ambiguous-authored-name");
         description.Should().Contain("lookup-budget");
         description.Should().Contain("runtime-match-ambiguous");
-        description.Should().Contain("runtime-not-found");
+        description.Should().Contain("runtime-not-realized");
+        description.Should().Contain("requiresActiveStateInspection");
         description.Should().Contain("search-incomplete");
         description.Should().Contain("compactRuntimeDiagnostics");
         description.Should().Contain("compact by default");

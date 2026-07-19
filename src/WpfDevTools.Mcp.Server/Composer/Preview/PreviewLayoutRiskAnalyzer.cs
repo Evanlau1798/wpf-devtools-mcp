@@ -57,16 +57,21 @@ internal static class PreviewLayoutRiskAnalyzer
         var hasIncompleteSearch = HasIncompleteSearch(diagnostics);
         var reportedUnresolvedCorrelations = unresolvedCorrelations
             .Take(MaxCoverageDetails)
-            .Select(item => new PreviewUnresolvedCorrelation(
-                item.JsonPath,
-                item.BlockKind,
-                item.ElementName,
-                GetUnresolvedReason(
+            .Select(item =>
+            {
+                var reason = GetUnresolvedReason(
                     item.ElementName,
                     ambiguousCorrelationNames,
                     searchedElementNames,
                     runtimeMatchCounts,
-                    diagnostics)))
+                    diagnostics);
+                return new PreviewUnresolvedCorrelation(
+                    item.JsonPath,
+                    item.BlockKind,
+                    item.ElementName,
+                    reason,
+                    string.Equals(reason, "runtime-not-realized", StringComparison.Ordinal));
+            })
             .ToArray();
         var inspectedElementIds = ReadInspectedElementIds(diagnostics);
         var inspectedTargetCount = inspectedElementIds
@@ -174,7 +179,7 @@ internal static class PreviewLayoutRiskAnalyzer
         }
 
         return HasCompletedLookup(elementName, diagnostics)
-            ? "runtime-not-found"
+            ? "runtime-not-realized"
             : "search-incomplete";
     }
 

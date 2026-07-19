@@ -194,7 +194,8 @@ internal sealed record PreviewUnresolvedCorrelation(
     string JsonPath,
     string BlockKind,
     string ElementName,
-    string Reason);
+    string Reason,
+    bool RequiresActiveStateInspection);
 
 internal sealed record PreviewUninspectedCorrelation(
     string JsonPath,

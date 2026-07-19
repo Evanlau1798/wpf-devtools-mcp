@@ -44,7 +44,8 @@ public sealed class ComposerPreviewLayoutRiskDocumentationTests
             "ambiguous-authored-name",
             "lookup-budget",
             "runtime-match-ambiguous",
-            "runtime-not-found",
+            "runtime-not-realized",
+            "requiresActiveStateInspection",
             "search-incomplete");
     }
 

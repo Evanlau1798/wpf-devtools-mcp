@@ -135,6 +135,10 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("preview-local NuGet cache");
         description.Should().Contain("Project/user packs");
         description.Should().Contain("structural");
+        var approvalGuidance = description.Split('\n')
+            .Single(line => line.Contains("runtimePackApprovalReviews", StringComparison.Ordinal));
+        approvalGuidance.Should().Contain("stay structural until approved")
+            .And.Contain("when eligible");
         description.Should().Contain("applied, built, and launched app");
         description.Should().Contain("visualComparisonChecklist");
         description.Should().Contain("window chrome");

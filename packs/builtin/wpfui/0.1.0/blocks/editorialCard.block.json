@@ -108,7 +108,7 @@
       "xamlItemTemplate": "<Border Margin=\"0,16,0,0\">{{item}}</Border>"
     },
     "media": {
-      "description": "Optional single WPF UI symbol centered over the media background as a deterministic fallback or overlay.",
+      "description": "Optional single WPF UI symbol centered over the media background as a deterministic fallback behind bound media.",
       "allowedKinds": [
         "wpfui.symbolIcon"
       ],

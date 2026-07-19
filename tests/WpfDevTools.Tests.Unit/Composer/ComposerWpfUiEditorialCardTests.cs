@@ -24,6 +24,7 @@ public sealed class ComposerWpfUiEditorialCardTests
         item.Properties["mediaAutomationName"].Required.Should().BeTrue();
         item.Slots["media"].MaxItems.Should().Be(1);
         item.Slots["media"].AllowedKinds.Should().Equal("wpfui.symbolIcon");
+        item.Slots["media"].Description.Should().NotContainEquivalentOf("overlay");
         item.Slots.Keys.Should().Contain(["content", "actions"]);
         item.CompositionSkeleton!.Value.GetProperty("properties")
             .GetProperty("title").GetString().Should().Be("Featured collection");

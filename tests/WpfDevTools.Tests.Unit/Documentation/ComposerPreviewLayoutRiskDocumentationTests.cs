@@ -25,6 +25,10 @@ public sealed class ComposerPreviewLayoutRiskDocumentationTests
             "reportedUnresolvedCorrelationCount",
             "unresolvedCorrelationsTruncated",
             "unresolvedCorrelations",
+            "namescopeOnlyCorrelationCount",
+            "reportedNamescopeOnlyCorrelationCount",
+            "namescopeOnlyCorrelationsTruncated",
+            "namescopeOnlyCorrelations",
             "uninspectedCorrelationCount",
             "reportedUninspectedCorrelationCount",
             "uninspectedCorrelationsTruncated",
@@ -45,6 +49,8 @@ public sealed class ComposerPreviewLayoutRiskDocumentationTests
             "lookup-budget",
             "runtime-match-ambiguous",
             "runtime-not-found",
+            "namescope-only",
+            "inactive",
             "search-incomplete");
     }
 

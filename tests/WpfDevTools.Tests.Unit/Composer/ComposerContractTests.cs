@@ -59,7 +59,7 @@ public sealed class ComposerContractTests
         var blueprint = Load<UiBlueprint>("packs/builtin/wpfui/0.1.0/examples/shell.ui.json", UiComposerSchemaVersions.UiBlueprint);
 
         pack.Id.Should().Be("wpfui");
-        pack.Blocks.Should().HaveCount(16);
+        pack.Blocks.Should().HaveCount(17);
         sourceLock.Sources.Should().ContainSingle().Which.Paths.Should().Equal(
             "src/Wpf.Ui",
             "src/Wpf.Ui/Controls/ControlAppearance.cs",

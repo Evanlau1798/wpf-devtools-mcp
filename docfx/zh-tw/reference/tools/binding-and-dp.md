@@ -22,6 +22,8 @@
 
 當 binding path 已經能解析，但值仍然看起來不合理，例如型別不相容、nullability 衝突、或 converter 造成的問題時，請優先使用 `get_binding_mismatches`。
 
+要把 discovery 結果交給 focused value-chain inspection 時，請將 `get_bindings.bindings[].propertyName` 原樣傳給 `get_binding_value_chain`。即使多個已載入 owner types 註冊了相同名稱，只要該 simple attached-property name 在所選 element 上唯一對應到一個 active binding，工具就能直接解析；若同一 element 上確實存在多個同名 active bindings，才需要使用 owner-qualified property name。
+
 `get_affected_elements` 的設計刻意保守。下列情況會被分流到 `unsupportedElements`，並附帶 `unsupportedReason`，而不是混進支援的候選集合：
 
 - 使用 `ElementName`、`RelativeSource` 或 explicit `Source`

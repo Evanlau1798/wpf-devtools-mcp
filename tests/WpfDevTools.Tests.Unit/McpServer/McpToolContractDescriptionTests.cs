@@ -43,6 +43,7 @@ public sealed class McpToolContractDescriptionTests
             (typeof(MvvmMcpTools), nameof(MvvmMcpTools.ExecuteCommand), "commandName"),
             (typeof(DependencyPropertyMcpTools), nameof(DependencyPropertyMcpTools.GetDpValueSource), "rawBaseValueSource"),
             (typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingValueChain), "LocalDataContext"),
+            (typeof(BindingMcpTools), nameof(BindingMcpTools.GetBindingValueChain), "Copy propertyName from get_bindings"),
             (typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.GetRenderStats), "isWarmedUp"),
             (typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.GetRenderStats), "confidence"),
             (typeof(PerformanceMcpTools), nameof(PerformanceMcpTools.GetRenderStats), "warmUp"),

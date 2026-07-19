@@ -120,7 +120,7 @@ public static class BindingMcpTools
     [Description(BindingMcpToolDescriptions.GetBindingValueChain)]
     public static Task<CallToolResult> GetBindingValueChain(
         SessionManager sessionManager,
-        [Description("DependencyProperty name whose binding value chain should be traced, such as Text.")] string propertyName,
+        [Description("Bound DependencyProperty name, such as Text; copy propertyName from get_bindings.")] string propertyName,
         [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [Description("Optional element ID that owns the bound property. Omit for the root window.")] string? elementId = null,
         CancellationToken cancellationToken = default)

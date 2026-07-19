@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Data;
 using WpfDevTools.Inspector.Utilities;
+using WpfDevTools.Shared.ErrorHandling;
 
 namespace WpfDevTools.Inspector.Analyzers;
 
@@ -20,7 +21,16 @@ public sealed partial class BindingAnalyzer
                 "Provide propertyName to inspect a specific bound DependencyProperty.");
         }
 
-        var dp = FindDependencyProperty(element, propertyName);
+        var dp = ResolveBindingDependencyProperty(element, propertyName, out var ambiguousCandidates);
+        if (ambiguousCandidates != null)
+        {
+            return ToolErrorFactory.Create(
+                ToolErrorCode.InvalidArgument,
+                $"propertyName '{propertyName}' matches multiple active bindings.",
+                "Retry with one owner-qualified property name from errorData.candidates.",
+                new { propertyName, candidates = ambiguousCandidates });
+        }
+
         if (dp == null)
         {
             return ToolErrorFactory.PropertyNotFound(propertyName, element.GetType().Name);
@@ -54,6 +64,38 @@ public sealed partial class BindingAnalyzer
             chainLength = chain.Count,
             chain
         };
+    }
+
+    private static DependencyProperty? ResolveBindingDependencyProperty(
+        DependencyObject element,
+        string propertyName,
+        out string[]? ambiguousCandidates)
+    {
+        ambiguousCandidates = null;
+        var simpleName = propertyName.Trim();
+        if (!simpleName.Contains('.'))
+        {
+            var activeMatches = GetCandidateDependencyProperties(element)
+                .Where(candidate =>
+                    string.Equals(candidate.Name, simpleName, StringComparison.Ordinal)
+                    && BindingOperations.GetBindingExpressionBase(element, candidate) != null)
+                .ToArray();
+            if (activeMatches.Length == 1)
+            {
+                return activeMatches[0];
+            }
+
+            if (activeMatches.Length > 1)
+            {
+                ambiguousCandidates = activeMatches
+                    .Select(candidate => $"{candidate.OwnerType.FullName}.{candidate.Name}")
+                    .OrderBy(candidate => candidate, StringComparer.Ordinal)
+                    .ToArray();
+                return null;
+            }
+        }
+
+        return FindDependencyProperty(element, propertyName);
     }
 
     private static Dictionary<string, object?> BuildBindingDefinitionStep(

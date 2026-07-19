@@ -76,10 +76,9 @@ internal static class BindingMcpToolDescriptions
         "NOTE: sourceId is a numeric trace ID, NOT an elementId. It cannot be used directly as the elementId parameter in other tools.\n\n";
 
     public const string GetBindingValueChain =
-        "Use this tool to trace how a WPF binding resolves from source data to the final runtime value.\n\n" +
-        BindingMetadata + "Get the complete value resolution chain for a binding on a specific property. " +
-        "Shows each step from source to target including converters, fallback values, and StringFormat.\n\n" +
-        "USE WHEN: Binding doesn't error but shows unexpected value; need to trace value transformation.\n" +
+        "Trace one WPF binding from source to final runtime value.\n\n" +
+        BindingMetadata +
+        "USE WHEN: A binding has an unexpected value. Copy propertyName from get_bindings; unique active attached-property names are accepted.\n" +
         "DO NOT USE: Without propertyName - it's required.\n\n" +
         "RESPONSE SUMMARY:\n" +
         "  - success: boolean,\n" +
@@ -87,11 +86,11 @@ internal static class BindingMcpToolDescriptions
         "  - propertyName,\n" +
         "  - chainLength: integer,\n" +
         "  - chain: [{\n" +
-        "    - step: 'Binding'|'LocalDataContext'|'InheritedDataContext'|'ResolvedSource'|'FinalValue',\n" +
+        "    - step: 'Binding'|'BindingInput'|'LocalDataContext'|'InheritedDataContext'|'ResolvedSource'|'FinalValue',\n" +
         "    - value, type\n\n" +
         "NOTE: Null-DataContext cases include explicit LocalDataContext and ancestor InheritedDataContext diagnostics when available.\n\n" +
+        "NOTE: hasBinding=false is a successful no-binding result.\n\n" +
         "ERRORS:\n" +
-        "- \"no binding\" -> property has no binding (check with get_bindings first)\n" +
         "- \"propertyName required\" -> must specify which property to inspect\n\n";
 
     public const string GetDataContextChain =

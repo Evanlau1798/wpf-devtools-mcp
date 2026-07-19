@@ -22,6 +22,8 @@ When the next action is already obvious, capable clients may pass `navigation=fa
 
 Use `get_binding_mismatches` when the binding path resolves but the value still looks wrong because of type mismatches, nullability mismatches, or converter interactions.
 
+For a focused value-chain handoff, pass `get_bindings.bindings[].propertyName` unchanged to `get_binding_value_chain`. A simple attached-property name is accepted when it identifies one active binding on the selected element, even when multiple loaded owner types register that name. If the element itself has multiple active bindings with the same simple name, use an owner-qualified property name instead.
+
 `get_affected_elements` is intentionally conservative:
 
 - elements driven by `ElementName`, `RelativeSource`, or explicit `Source`

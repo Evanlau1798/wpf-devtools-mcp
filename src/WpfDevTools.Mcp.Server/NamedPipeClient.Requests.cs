@@ -20,25 +20,29 @@ public sealed partial class NamedPipeClient
         object? requestParams,
         CancellationToken cancellationToken)
     {
-        using var requestTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        requestTimeoutCts.CancelAfter(_requestTimeout);
-
         var lockAcquired = false;
         try
         {
-            await _pipeSemaphore.WaitAsync(requestTimeoutCts.Token).ConfigureAwait(false);
+            await _pipeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             lockAcquired = true;
 
-            return await SendRequestCoreAsync(method, requestId, requestParams, requestTimeoutCts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException ex) when (requestTimeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-        {
-            if (lockAcquired)
+            using var requestTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            requestTimeoutCts.CancelAfter(_requestTimeout);
+            try
+            {
+                return await SendRequestCoreAsync(
+                    method,
+                    requestId,
+                    requestParams,
+                    requestTimeoutCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException ex) when (
+                requestTimeoutCts.IsCancellationRequested
+                && !cancellationToken.IsCancellationRequested)
             {
                 ResetConnectionState();
+                throw CreateRequestTimeoutException(ex);
             }
-
-            throw CreateRequestTimeoutException(ex);
         }
         finally
         {

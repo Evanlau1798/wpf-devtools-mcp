@@ -207,7 +207,7 @@ public class NamedPipeClientProtocolTests
     }
 
     [Fact]
-    public async Task SendRequestAsync_WhenTimedOutWaitingForPipeSemaphore_ShouldNotResetConnection()
+    public async Task SendRequestAsync_WhenCallerCancelsWhileQueued_ShouldNotResetConnection()
     {
         var processId = global::WpfDevTools.Tests.Unit.TestHelpers.NextSyntheticProcessId();
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
@@ -226,7 +226,7 @@ public class NamedPipeClientProtocolTests
             authManager: null,
             certManager: null,
             enforceHostCompatibilityValidation: false,
-            requestTimeout: TimeSpan.FromMilliseconds(100));
+            requestTimeout: TimeSpan.FromSeconds(5));
         (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
         await serverConnectTask.WaitAsync(TimeSpan.FromSeconds(5));
 
@@ -237,15 +237,16 @@ public class NamedPipeClientProtocolTests
         await semaphore.WaitAsync();
         try
         {
+            using var queuedCancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
             await FluentActions.Invoking(async () => await client.SendRequestAsync(
-                    "ping",
-                    "queued-timeout-id",
-                    new { },
-                    CancellationToken.None))
-                .Should().ThrowAsync<TimeoutException>();
+                "ping",
+                "queued-cancellation-id",
+                new { },
+                queuedCancellation.Token))
+                .Should().ThrowAsync<OperationCanceledException>();
 
             client.IsConnected.Should().BeTrue(
-                "timing out before the request owns the pipe must not reset another request's transport state");
+                "caller cancellation before pipe ownership must not reset another request's transport state");
         }
         finally
         {

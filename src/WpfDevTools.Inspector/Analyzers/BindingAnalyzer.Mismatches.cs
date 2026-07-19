@@ -134,7 +134,7 @@ public sealed partial class BindingAnalyzer
 
         var bindingPath = binding.Path?.Path;
         var sourceRoot = ResolveBindingSourceRoot(element, binding, bindingExpression);
-        var resolvedType = ResolveBoundPropertyType(sourceRoot, binding);
+        var resolvedType = ResolveBoundPropertyType(sourceRoot, binding, bindingExpression);
         var targetType = property.PropertyType;
         var converterName = binding.Converter?.GetType().Name;
 
@@ -174,8 +174,16 @@ public sealed partial class BindingAnalyzer
             severity);
     }
 
-    private (bool Success, Type? Type) ResolveBoundPropertyType(object? sourceRoot, Binding binding)
+    private (bool Success, Type? Type) ResolveBoundPropertyType(
+        object? sourceRoot,
+        Binding binding,
+        BindingExpression bindingExpression)
     {
+        if (bindingExpression.Status == BindingStatus.Active)
+        {
+            return (true, ResolveActiveBindingSourceType(bindingExpression));
+        }
+
         if (sourceRoot == null)
         {
             return (false, null);
@@ -194,7 +202,7 @@ public sealed partial class BindingAnalyzer
             .ToArray();
         foreach (var segment in segments)
         {
-            if (TryResolvePathParameterType(binding.Path!, segment, out var parameterType))
+            if (TryResolvePathParameterType(binding.Path!, segment, currentType, out var parameterType))
             {
                 currentType = parameterType!;
                 continue;
@@ -217,9 +225,37 @@ public sealed partial class BindingAnalyzer
         return (true, currentType);
     }
 
+    private static Type? ResolveActiveBindingSourceType(BindingExpression bindingExpression)
+    {
+        var resolvedSource = bindingExpression.ResolvedSource;
+        var propertyName = bindingExpression.ResolvedSourcePropertyName;
+        if (resolvedSource == null || string.IsNullOrWhiteSpace(propertyName))
+        {
+            return null;
+        }
+
+        var sourceType = resolvedSource.GetType();
+        var property = sourceType.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+        if (property != null)
+        {
+            return property.PropertyType;
+        }
+
+        var descriptor = TypeDescriptor.GetProperties(resolvedSource)[propertyName];
+        if (descriptor != null)
+        {
+            return descriptor.PropertyType;
+        }
+
+        return resolvedSource is DependencyObject dependencyObject
+            ? FindDependencyProperty(dependencyObject, propertyName)?.PropertyType
+            : null;
+    }
+
     private static bool TryResolvePathParameterType(
         PropertyPath propertyPath,
         string segment,
+        Type currentType,
         out Type? parameterType)
     {
         parameterType = null;
@@ -235,9 +271,16 @@ public sealed partial class BindingAnalyzer
 
         parameterType = propertyPath.PathParameters[parameterIndex] switch
         {
-            DependencyProperty dependencyProperty => dependencyProperty.PropertyType,
-            PropertyInfo propertyInfo => propertyInfo.PropertyType,
-            PropertyDescriptor propertyDescriptor => propertyDescriptor.PropertyType,
+            DependencyProperty dependencyProperty
+                when typeof(DependencyObject).IsAssignableFrom(currentType) =>
+                dependencyProperty.PropertyType,
+            PropertyInfo propertyInfo
+                when propertyInfo.GetMethod?.IsStatic == true
+                    || propertyInfo.DeclaringType?.IsAssignableFrom(currentType) == true =>
+                propertyInfo.PropertyType,
+            PropertyDescriptor propertyDescriptor
+                when propertyDescriptor.ComponentType?.IsAssignableFrom(currentType) == true =>
+                propertyDescriptor.PropertyType,
             _ => null
         };
         return parameterType != null;

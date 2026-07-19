@@ -100,6 +100,55 @@ public sealed class BindingMismatchAnalyzerTests
     }
 
     [StaFact]
+    public void GetBindingMismatches_WithResolvedParameterizedIndexerPath_ShouldNotReportMismatch()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var source = new TransformGroup();
+        source.Children.Add(new TranslateTransform());
+        source.Children.Add(new RotateTransform(42));
+        var target = new Button();
+        target.SetBinding(FrameworkElement.WidthProperty, new Binding
+        {
+            Source = source,
+            Path = new PropertyPath(
+                "(0)[1].(1)",
+                TransformGroup.ChildrenProperty,
+                RotateTransform.AngleProperty)
+        });
+        var elementId = finder.GenerateElementId(target);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingMismatches(elementId));
+
+        BindingOperations.GetBindingExpression(target, FrameworkElement.WidthProperty)!.Status
+            .Should().Be(BindingStatus.Active);
+        target.Width.Should().Be(42);
+        result.GetProperty("mismatchCount").GetInt32().Should().Be(0);
+    }
+
+    [StaFact]
+    public void GetBindingMismatches_WithPathParameterFromWrongOwner_ShouldReportPathMismatch()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var target = new TextBox();
+        target.SetBinding(TextBox.TextProperty, new Binding
+        {
+            Mode = BindingMode.OneWay,
+            Source = 42,
+            Path = new PropertyPath("(0)", typeof(string).GetProperty(nameof(string.Length))!)
+        });
+        var elementId = finder.GenerateElementId(target);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingMismatches(elementId));
+
+        BindingOperations.GetBindingExpression(target, TextBox.TextProperty)!.Status
+            .Should().NotBe(BindingStatus.Active);
+        result.GetProperty("mismatches")[0].GetProperty("diagnosis").GetString()
+            .Should().Be("PathMismatch");
+    }
+
+    [StaFact]
     public void GetBindingMismatches_ShouldReportNullableToNonNullableMismatch()
     {
         var finder = new ElementFinder();

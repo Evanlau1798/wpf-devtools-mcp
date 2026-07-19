@@ -64,6 +64,42 @@ public sealed class ComposerWpfUiEditorialCardTests
     }
 
     [Fact]
+    public void Renderer_ShouldNotReserveSpacingForOmittedOptionalSlots()
+    {
+        var result = new UiBlueprintRenderer(CreateRegistry()).Render(new RenderBlueprintRequest(Blueprint("""
+            {
+              "kind": "wpfui.editorialCard",
+              "properties": { "title": "Compact editorial", "mediaAutomationName": "Editorial surface" }
+            }
+            """)));
+
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Xaml.Should().NotContain("Margin=\"0,16")
+            .And.NotContain("Margin=\"0,20");
+    }
+
+    [Fact]
+    public void Renderer_ShouldSpaceMultipleEditorialActions()
+    {
+        var result = new UiBlueprintRenderer(CreateRegistry()).Render(new RenderBlueprintRequest(Blueprint("""
+            {
+              "kind": "wpfui.editorialCard",
+              "properties": { "title": "Actionable editorial", "mediaAutomationName": "Editorial surface" },
+              "slots": {
+                "actions": [
+                  { "kind": "wpfui.button", "properties": { "text": "Explore" } },
+                  { "kind": "wpfui.button", "properties": { "text": "Save" } }
+                ]
+              }
+            }
+            """)));
+
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        (result.Xaml.Split("Margin=\"0,20,12,0\"", StringSplitOptions.None).Length - 1)
+            .Should().Be(2, "spacing belongs to each rendered action rather than an empty slot container");
+    }
+
+    [Fact]
     [Trait("Category", "ComposerCompile")]
     public void Preview_ShouldCompileEditorialFallbackWithoutMediaAsset()
     {

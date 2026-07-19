@@ -289,7 +289,9 @@ public sealed partial class LayoutAnalyzer
 
         return selfSource == "explicit-clip"
             ? "Inspect the target's explicit Clip geometry and confirm that it contains the intended content."
-            : "Increase the target's available layout slot or reduce its desired content size.";
+            : "This structural overflow is not proof of visible pixel loss; confirm affected content " +
+              "with focused descendant checks or a screenshot. If pixels are missing, increase the " +
+              "target's available layout slot or reduce its desired content size.";
     }
 
     private static Rect GetContentBounds(UIElement element)

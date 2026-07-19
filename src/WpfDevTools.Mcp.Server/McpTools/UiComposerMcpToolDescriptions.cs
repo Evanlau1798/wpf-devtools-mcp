@@ -270,7 +270,7 @@ internal static class UiComposerMcpToolDescriptions
         - visualComparisonChecklist lists final checks for window chrome, icons, control templates, layout and spacing.
         - propertyWarnings gives pack guidance for supplied properties with exact blueprint JSON path, block kind, property name, and message.
         - elementCorrelations maps transient x:Name to jsonPath/blockKind; names are never written into the blueprint or render/apply output.
-        - layoutRiskSummary maps clipping (Window client included) to jsonPath/blockKind; unresolved reasons: ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-found, search-incomplete. RuntimeStructuralOverflowRisk uses riskClassification=structural-overflow; other sources use RuntimeClippingDetected with riskClassification=clipping. severity=advisory, visibleContentImpact=not-determined, and requiresVisualConfirmation=true mean pixel loss is unconfirmed.
+        - layoutRiskSummary maps clipping (Window client included) to jsonPath/blockKind; unresolved reasons: ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-found, search-incomplete. RuntimeStructuralOverflowRisk uses riskClassification=structural-overflow and visibleContentRisk=unconfirmed-structural; other unconfirmed sources use RuntimeClippingDetected with riskClassification=clipping and visibleContentRisk=unconfirmed-clipping. When visibleContentImpact=not-determined, these values with severity=advisory and requiresVisualConfirmation=true are evidence prompts, not confirmed pixel-loss findings.
         - Compile failures map to line/column and renderer path; infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:

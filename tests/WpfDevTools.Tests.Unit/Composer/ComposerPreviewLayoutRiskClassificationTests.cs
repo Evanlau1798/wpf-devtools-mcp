@@ -8,13 +8,14 @@ namespace WpfDevTools.Tests.Unit.Composer;
 public sealed class ComposerPreviewLayoutRiskClassificationTests
 {
     [Theory]
-    [InlineData("layout-clip", "RuntimeStructuralOverflowRisk", "structural-overflow")]
-    [InlineData("ancestor-layout-clip", "RuntimeStructuralOverflowRisk", "structural-overflow")]
-    [InlineData("explicit-clip", "RuntimeClippingDetected", "clipping")]
+    [InlineData("layout-clip", "RuntimeStructuralOverflowRisk", "structural-overflow", "unconfirmed-structural")]
+    [InlineData("ancestor-layout-clip", "RuntimeStructuralOverflowRisk", "structural-overflow", "unconfirmed-structural")]
+    [InlineData("explicit-clip", "RuntimeClippingDetected", "clipping", "unconfirmed-clipping")]
     public void Analyze_ShouldClassifyUnconfirmedRuntimeLayoutRisks(
         string clippingSource,
         string expectedCode,
-        string expectedRiskClassification)
+        string expectedRiskClassification,
+        string expectedVisibleContentRisk)
     {
         var diagnostics = new[]
         {
@@ -52,6 +53,7 @@ public sealed class ComposerPreviewLayoutRiskClassificationTests
         warning.Code.Should().Be(expectedCode);
         var payload = JsonSerializer.SerializeToElement(warning);
         payload.GetProperty("RiskClassification").GetString().Should().Be(expectedRiskClassification);
+        payload.GetProperty("VisibleContentRisk").GetString().Should().Be(expectedVisibleContentRisk);
         payload.GetProperty("Severity").GetString().Should().Be("advisory");
         payload.GetProperty("VisibleContentImpact").GetString().Should().Be("not-determined");
         payload.GetProperty("RequiresVisualConfirmation").GetBoolean().Should().BeTrue();

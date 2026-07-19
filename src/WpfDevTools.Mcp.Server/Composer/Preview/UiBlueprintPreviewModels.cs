@@ -210,6 +210,7 @@ internal sealed record PreviewLayoutWarning(
     string ElementId,
     string ClippingSource,
     string RiskClassification,
+    string VisibleContentRisk,
     string Severity,
     string VisibleContentImpact,
     bool RequiresVisualConfirmation,

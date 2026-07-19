@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server;
@@ -31,7 +32,7 @@ public sealed class NamedPipeClientConcurrencyTests
             authManager: null,
             certManager: null,
             enforceHostCompatibilityValidation: false,
-            requestTimeout: TimeSpan.FromMilliseconds(350));
+            requestTimeout: TimeSpan.FromSeconds(1));
         (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
 
         var first = client.SendRequestAsync("first", "first-id", new { }, CancellationToken.None);
@@ -43,6 +44,52 @@ public sealed class NamedPipeClientConcurrencyTests
         responses.Select(response => response.Id).Should().Equal("first-id", "second-id");
         client.IsConnected.Should().BeTrue();
         await serverTask.WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public async Task SendRequestAsync_QueueTimeout_ShouldNotResetConnection()
+    {
+        var processId = TestHelpers.NextSyntheticProcessId();
+        var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+        var serverConnectTask = server.WaitForConnectionAsync();
+        using var client = new NamedPipeClient(
+            processId,
+            pipeName,
+            authManager: null,
+            certManager: null,
+            enforceHostCompatibilityValidation: false,
+            requestTimeout: TimeSpan.FromMilliseconds(150));
+        (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
+        await serverConnectTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+        var semaphoreField = typeof(NamedPipeClient).GetField(
+            "_pipeSemaphore",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var semaphore = (SemaphoreSlim)semaphoreField.GetValue(client)!;
+        await semaphore.WaitAsync();
+        try
+        {
+            using var callerTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            await FluentActions.Invoking(async () => await client.SendRequestAsync(
+                    "queued",
+                    "queued-id",
+                    new { },
+                    callerTimeout.Token))
+                .Should().ThrowAsync<TimeoutException>()
+                .WithMessage("*queue*");
+
+            client.IsConnected.Should().BeTrue();
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
     private static async Task RunServerAsync(
@@ -59,7 +106,7 @@ public sealed class NamedPipeClientConcurrencyTests
                 firstRequestReceived.SetResult();
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(250));
+            await Task.Delay(TimeSpan.FromMilliseconds(600));
             var response = new InspectorResponse
             {
                 Id = request.Id,

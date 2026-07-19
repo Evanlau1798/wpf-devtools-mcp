@@ -23,7 +23,21 @@ public sealed partial class NamedPipeClient
         var lockAcquired = false;
         try
         {
-            await _pipeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using (var queueTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                queueTimeoutCts.CancelAfter(_requestTimeout);
+                try
+                {
+                    await _pipeSemaphore.WaitAsync(queueTimeoutCts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException ex) when (
+                    queueTimeoutCts.IsCancellationRequested
+                    && !cancellationToken.IsCancellationRequested)
+                {
+                    throw CreateQueueTimeoutException(ex);
+                }
+            }
+
             lockAcquired = true;
 
             using var requestTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -58,6 +72,13 @@ public sealed partial class NamedPipeClient
     {
         return new TimeoutException(
             $"Timed out waiting {Math.Ceiling(_requestTimeout.TotalMilliseconds)}ms for an Inspector response.",
+            innerException);
+    }
+
+    private TimeoutException CreateQueueTimeoutException(Exception? innerException = null)
+    {
+        return new TimeoutException(
+            $"Timed out waiting {Math.Ceiling(_requestTimeout.TotalMilliseconds)}ms in the Inspector request queue.",
             innerException);
     }
 

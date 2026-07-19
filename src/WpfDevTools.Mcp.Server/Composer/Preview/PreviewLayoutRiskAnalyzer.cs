@@ -287,6 +287,9 @@ internal static class PreviewLayoutRiskAnalyzer
             visibleContentImpact,
             "not-determined",
             StringComparison.Ordinal);
+        var visibleContentRisk = requiresVisualConfirmation
+            ? isStructuralOverflow ? "unconfirmed-structural" : "unconfirmed-clipping"
+            : visibleContentImpact == "none" ? "none" : "confirmed";
         return new PreviewLayoutWarning(
             isStructuralOverflow ? "RuntimeStructuralOverflowRisk" : "RuntimeClippingDetected",
             correlation.JsonPath,
@@ -295,6 +298,7 @@ internal static class PreviewLayoutRiskAnalyzer
             elementId,
             clippingSource,
             isStructuralOverflow ? "structural-overflow" : "clipping",
+            visibleContentRisk,
             requiresVisualConfirmation ? "advisory" : "warning",
             visibleContentImpact,
             requiresVisualConfirmation,

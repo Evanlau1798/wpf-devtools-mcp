@@ -317,11 +317,41 @@ public class LayoutAnalyzerClippingTests
             var doc = JsonSerializer.SerializeToElement(result);
             doc.GetProperty("isClipped").GetBoolean().Should().BeTrue(doc.GetRawText());
             doc.GetProperty("visibleContentImpact").GetString().Should().Be("not-determined");
+            doc.GetProperty("suggestedFix").GetString().Should().ContainAll(
+                "not proof of visible pixel loss",
+                "confirm affected content");
         }
         finally
         {
             window.Close();
         }
+    }
+
+    [StaFact]
+    public void GetClippingInfo_WithSelfLayoutClip_ShouldRequirePixelConfirmationBeforeLayoutChange()
+    {
+        using var finder = new ElementFinder();
+        var analyzer = new LayoutAnalyzer(finder);
+        var oversizedContent = new FrameworkElementFactory(typeof(Border));
+        oversizedContent.SetValue(FrameworkElement.WidthProperty, 132d);
+        var target = new Button
+        {
+            Height = 32,
+            Template = new ControlTemplate(typeof(Button)) { VisualTree = oversizedContent }
+        };
+        target.ApplyTemplate();
+        target.Measure(new Size(double.PositiveInfinity, 32));
+        target.Arrange(new Rect(0, 0, 100, 32));
+        target.UpdateLayout();
+        VisualTreeHelper.GetClip(target).Should().NotBeNull();
+
+        var result = analyzer.GetClippingInfo(finder.GenerateElementId(target));
+
+        var doc = JsonSerializer.SerializeToElement(result);
+        doc.GetProperty("clippingSource").GetString().Should().Be("layout-clip");
+        doc.GetProperty("suggestedFix").GetString().Should().ContainAll(
+            "not proof of visible pixel loss",
+            "confirm affected content");
     }
 
     [StaFact]

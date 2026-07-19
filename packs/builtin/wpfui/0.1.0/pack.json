@@ -150,6 +150,7 @@
     "wpfui.tabViewItem",
     "wpfui.fluentWindow",
     "wpfui.dataGrid",
+    "wpfui.editorialCard",
     "wpfui.button",
     "wpfui.titleBar",
     "wpfui.toggleSwitch",

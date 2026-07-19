@@ -15,7 +15,7 @@ public sealed class ComposerWpfUiVisualFoundationTests
             .GetCatalog(new BlockCatalogQuery(PackIds: ["wpfui"]))
             .Items;
 
-        items.Should().HaveCount(16);
+        items.Should().HaveCount(17);
         items.Select(item => item.Kind).Should().Contain([
             "wpfui.numberBox",
             "wpfui.progressRing",

@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "wpfui.editorialCard",
+  "displayName": "Editorial Card",
+  "description": "Image-capable horizontal WPF UI Card for a desktop hero, product tile, or curated collection. It remains useful without an image by combining a theme-aware media surface with one pack-owned symbol slot.",
+  "category": "container",
+  "properties": {
+    "description": {
+      "description": "Supporting editorial copy displayed below the title.",
+      "default": "Discover a curated collection.",
+      "type": "string"
+    },
+    "eyebrow": {
+      "description": "Short category or collection label displayed above the title.",
+      "default": "Featured",
+      "type": "string"
+    },
+    "margin": {
+      "description": "Outer spacing around the editorial Card, using WPF Thickness syntax.",
+      "default": "0",
+      "format": "thickness",
+      "type": "string"
+    },
+    "maxWidth": {
+      "description": "Maximum width of the complete horizontal editorial surface in device-independent pixels.",
+      "default": 1000000,
+      "minimum": 0,
+      "type": "number"
+    },
+    "mediaAutomationName": {
+      "description": "Accessible name for the image or fallback media surface.",
+      "default": "Editorial media",
+      "required": true,
+      "type": "string"
+    },
+    "mediaBackground": {
+      "description": "Theme-coordinated WPF brush used behind the optional image and fallback symbol.",
+      "default": "#243247",
+      "type": "string"
+    },
+    "mediaCornerRadius": {
+      "description": "Corner radius applied to the media surface, using WPF CornerRadius syntax.",
+      "default": "12",
+      "type": "string"
+    },
+    "mediaHeight": {
+      "description": "Minimum media-surface height in device-independent pixels.",
+      "default": 300,
+      "maximum": 720,
+      "minimum": 160,
+      "type": "number"
+    },
+    "mediaSource": {
+      "description": "Optional binding expression that resolves to a project-owned ImageSource or URI. Omit it for the deterministic theme-aware symbol fallback; avoid remote sources for offline apps.",
+      "previewWarning": "Preview can prove bound image layout only when the isolated host resolves the same project-owned data. Always verify the final built application.",
+      "type": "binding"
+    },
+    "mediaStretch": {
+      "description": "How the optional image fills the media surface.",
+      "default": "UniformToFill",
+      "enum": [
+        "None",
+        "Fill",
+        "Uniform",
+        "UniformToFill"
+      ],
+      "type": "string"
+    },
+    "mediaWidth": {
+      "description": "Width of the media column in device-independent pixels.",
+      "default": 420,
+      "maximum": 800,
+      "minimum": 160,
+      "type": "number"
+    },
+    "minHeight": {
+      "description": "Minimum height of the complete editorial Card in device-independent pixels.",
+      "default": 300,
+      "minimum": 160,
+      "type": "number"
+    },
+    "padding": {
+      "description": "Inner spacing around the text, custom content, and actions, using WPF Thickness syntax.",
+      "default": "28",
+      "format": "thickness",
+      "type": "string"
+    },
+    "title": {
+      "description": "Primary editorial or product title.",
+      "default": "Featured collection",
+      "required": true,
+      "type": "string"
+    }
+  },
+  "slots": {
+    "actions": {
+      "description": "Optional WPF UI actions displayed in a horizontal row below the editorial content.",
+      "allowedKinds": [
+        "wpfui.button"
+      ]
+    },
+    "content": {
+      "description": "Optional pack-neutral details, metadata, price, status, or supporting controls displayed before the actions.",
+      "allowedKinds": [
+        "*"
+      ]
+    },
+    "media": {
+      "description": "Optional single WPF UI symbol centered over the media background as a deterministic fallback or overlay.",
+      "allowedKinds": [
+        "wpfui.symbolIcon"
+      ],
+      "maxItems": 1
+    }
+  },
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/editorialCard.xaml.sbn"
+  },
+  "validation": {},
+  "sourceHints": [
+    {
+      "path": "src/Wpf.Ui/Controls/Card/Card.cs",
+      "usage": "pack-owned editorial composition built on the WPF UI Card surface"
+    },
+    {
+      "path": "src/Wpf.Ui/Controls/SymbolIcon/SymbolIcon.cs",
+      "usage": "theme-aware fallback media"
+    }
+  ],
+  "authoringRoles": [
+    "hero",
+    "product-tile",
+    "editorial-media"
+  ]
+}

@@ -81,7 +81,7 @@ public sealed class ComposerPackRegistryTests
         var pack = result.Packs.Should().ContainSingle(p => p.Id == "wpfui").Subject;
         pack.Version.Should().Be("0.1.0");
         pack.Scope.Should().Be(PackScope.Builtin);
-        pack.BlockCount.Should().Be(16);
+        pack.BlockCount.Should().Be(17);
         pack.ReadinessValid.Should().BeTrue();
         pack.SourceRepository.Should().Be("https://github.com/lepoco/wpfui");
         pack.Kind.Should().Be("skill-generated-style-pack");
@@ -99,7 +99,7 @@ public sealed class ComposerPackRegistryTests
         pack.BlockKinds.Should().Contain("wpfui.navigationView");
         pack.RecipeCount.Should().Be(4);
         pack.ExampleCount.Should().Be(1);
-        pack.RendererCount.Should().Be(16);
+        pack.RendererCount.Should().Be(17);
     }
 
     [Fact]
@@ -339,7 +339,7 @@ public sealed class ComposerPackRegistryTests
             payload.GetProperty("packs").EnumerateArray()
                 .Should().Contain(pack => pack.GetProperty("id").GetString() == "wpfui"
                     && pack.GetProperty("version").GetString() == "0.1.0"
-                    && pack.GetProperty("blockCount").GetInt32() == 16
+                    && pack.GetProperty("blockCount").GetInt32() == 17
                     && pack.GetProperty("kind").GetString() == "skill-generated-style-pack"
                     && pack.GetProperty("themeTokens").GetProperty("cornerRadius.control").GetString() == "8"
                     && pack.GetProperty("role").GetString() == ComposerPackRoles.Primary

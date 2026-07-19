@@ -44,13 +44,13 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 
 ## Counts
 
-- Blocks: 16
-- Renderers: 16
+- Blocks: 17
+- Renderers: 17
 - Recipes: 4
 - Examples: 1
 - Eligible source candidate kinds: 87
 - Generated from candidates: 15
-- Style-only generated blocks: 1
+- Style-only generated blocks: 2
 - Missing eligible candidates: 72
 - Excluded candidates: 363
 - Coverage ratio: 0.1724
@@ -59,7 +59,7 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 
 Coverage audit passed with one warning: `SourceInventoryCandidatesMissing`.
 
-The generated pack intentionally covers the directly composable reusable baseline: `card`, `navigationView`, `navigationViewItem`, `navigationViewItemSeparator`, `tabView`, `tabViewItem`, `fluentWindow`, and `dataGrid`, plus `button`, `titleBar`, `symbolIcon`, `textBlock`, `numberBox`, `toggleSwitch`, and `progressRing`.
+The generated pack intentionally covers the directly composable reusable baseline: `card`, `editorialCard`, `navigationView`, `navigationViewItem`, `navigationViewItemSeparator`, `tabView`, `tabViewItem`, `fluentWindow`, and `dataGrid`, plus `button`, `titleBar`, `symbolIcon`, `textBlock`, `numberBox`, `toggleSwitch`, and `progressRing`.
 
 `contentDialog` and `snackbar` were intentionally removed after public E2E proved their direct renderer shapes were not valid WPF-UI 4.3.0 layout composition. `ContentDialog` requires host/show behavior for modal semantics, and `Snackbar` has no public parameterless constructor and requires a `SnackbarPresenter`. They can return only with an explicit behavior-integration contract and real-package compile/load evidence.
 
@@ -147,3 +147,26 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 ```
 
 The existing source-inventory coverage report remains the authoritative candidate-coverage evidence because block, renderer, recipe, example, and upstream source scope did not change. A fresh scan of the same official 4.3.0 tag with the current creator script produced lexical false candidates such as prose words, so it was retained only under `tmp/` and was not allowed to replace the reviewed 87-candidate baseline. The zero-drop baseline audit independently verified all 16 block ids and every count. The creator `master` and `fix/source-inventory-coverage-audit` tips differ by history but have no tree diff, so this unchanged v1 pack contract requires no cross-branch creator update.
+
+## Beta 94 Maintenance Commands and Results
+
+On 2026-07-19, the beta.94 maintenance pass responded to public beta.93 Agent feedback that large marketplace scenes remained media-light and required many low-level nodes. The pack now owns an image-capable `wpfui.editorialCard` composite with horizontal desktop layout, accessible media naming, a safe binding-only image source, deterministic theme-surface and symbol fallback, arbitrary supporting content, and WPF UI action slots. Composer engine and schema code contain no WPF UI or editorial-card branch.
+
+```text
+python <extension-creator-root>/scripts/normalize_pack.py <temporary-validation-copy>
+exit code: 0
+
+python <extension-creator-root>/scripts/validate_pack.py <temporary-validation-copy> --strict --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.validation-report.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/audit_pack_coverage.py <temporary-validation-copy> --source-inventory <generation-workspace>/out/inventory/wpfui.source-inventory.json --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.coverage-audit.json
+exit code: 0; valid: true; errors: 0; warnings: 1; blocks: 17; renderers: 17; extra semantic composites: 2; warning: `SourceInventoryCandidatesMissing`
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 43; root: wpfui/0.1.0/; SHA-256: 7DB71DC8DD995DCA874B0A60B33DB27F749756E49F32668AAA7887ADBEBF8A14
+
+python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt <existing-required-block-slot-and-kind-gates> --required-block wpfui.editorialCard --required-slot wpfui.editorialCard.media --required-slot wpfui.editorialCard.content --required-slot wpfui.editorialCard.actions --required-slot-kind wpfui.editorialCard.media=wpfui.symbolIcon --required-slot-kind wpfui.editorialCard.actions=wpfui.button --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+```
+
+The literal `Image.Source` safety gate was retained. `mediaSource` accepts only a binding expression and is omitted when unused, so the fallback path compiles without network or file access. The normalized archive matches every built-in pack file, and real WPF UI preview compilation covers the fallback renderer. The extension-creator `master` and `fix/source-inventory-coverage-audit` commits still have no tree diff. Because no pack schema, validator, generator, or workflow contract changed, neither branch required a creator code update.

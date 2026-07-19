@@ -18,7 +18,7 @@ public sealed class ComposerBlockCatalogTests
 
         var result = catalog.GetCatalog(new BlockCatalogQuery());
 
-        result.Items.Count(item => item.PackId == "wpfui").Should().Be(16);
+        result.Items.Count(item => item.PackId == "wpfui").Should().Be(17);
         var button = result.Items.Single(item => item.Kind == "wpfui.button");
         button.PackId.Should().Be("wpfui");
         button.PackVersion.Should().Be("0.1.0");

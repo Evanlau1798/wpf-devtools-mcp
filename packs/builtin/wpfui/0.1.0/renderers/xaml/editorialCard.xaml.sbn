@@ -1,0 +1,27 @@
+<ui:Card Margin="{{margin}}" MaxWidth="{{maxWidth}}" MinHeight="{{minHeight}}">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="{{mediaWidth}}" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+    <Border Grid.Column="0" MinHeight="{{mediaHeight}}" Background="{{mediaBackground}}" CornerRadius="{{mediaCornerRadius}}" ClipToBounds="True" AutomationProperties.Name="{{mediaAutomationName}}">
+      <Grid>
+        <Image Source="{{mediaSource}}" Stretch="{{mediaStretch}}" AutomationProperties.Name="{{mediaAutomationName}}" />
+        <Viewbox HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="88" MaxHeight="88">
+          {{slot.media}}
+        </Viewbox>
+      </Grid>
+    </Border>
+    <StackPanel Grid.Column="1" Margin="{{padding}}" VerticalAlignment="Center">
+      <ui:TextBlock Text="{{eyebrow}}" Appearance="Secondary" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <ui:TextBlock Text="{{title}}" Appearance="Primary" FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0" />
+      <ui:TextBlock Text="{{description}}" Appearance="Secondary" FontSize="15" FontWeight="Normal" TextWrapping="Wrap" Margin="0,12,0,0" />
+      <StackPanel Margin="0,16,0,0">
+        {{slot.content}}
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+        {{slot.actions}}
+      </StackPanel>
+    </StackPanel>
+  </Grid>
+</ui:Card>

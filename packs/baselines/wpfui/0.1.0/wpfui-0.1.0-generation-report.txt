@@ -163,7 +163,7 @@ python <extension-creator-root>/scripts/audit_pack_coverage.py <temporary-valida
 exit code: 0; valid: true; errors: 0; warnings: 1; blocks: 17; renderers: 17; extra semantic composites: 2; warning: `SourceInventoryCandidatesMissing`
 
 python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
-exit code: 0; archive entries: 43; root: wpfui/0.1.0/; SHA-256: 7DB71DC8DD995DCA874B0A60B33DB27F749756E49F32668AAA7887ADBEBF8A14
+exit code: 0; archive entries: 43; root: wpfui/0.1.0/; SHA-256: CCE2B0B0030138E821CFDDAAE1663C155BA1FA9D57A502B48BFC5C3F0671C512
 
 python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt <existing-required-block-slot-and-kind-gates> --required-block wpfui.editorialCard --required-slot wpfui.editorialCard.media --required-slot wpfui.editorialCard.content --required-slot wpfui.editorialCard.actions --required-slot-kind wpfui.editorialCard.media=wpfui.symbolIcon --required-slot-kind wpfui.editorialCard.actions=wpfui.button --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
 exit code: 0; valid: true; errors: 0; warnings: 0

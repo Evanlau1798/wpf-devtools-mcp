@@ -6,10 +6,10 @@
     </Grid.ColumnDefinitions>
     <Border Grid.Column="0" MinHeight="{{mediaHeight}}" Background="{{mediaBackground}}" CornerRadius="{{mediaCornerRadius}}" ClipToBounds="True" AutomationProperties.Name="{{mediaAutomationName}}">
       <Grid>
-        <Image Source="{{mediaSource}}" Stretch="{{mediaStretch}}" AutomationProperties.Name="{{mediaAutomationName}}" />
         <Viewbox HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="88" MaxHeight="88">
           {{slot.media}}
         </Viewbox>
+        <Image Source="{{mediaSource}}" Stretch="{{mediaStretch}}" AutomationProperties.Name="{{mediaAutomationName}}" />
       </Grid>
     </Border>
     <StackPanel Grid.Column="1" Margin="{{padding}}" VerticalAlignment="Center">

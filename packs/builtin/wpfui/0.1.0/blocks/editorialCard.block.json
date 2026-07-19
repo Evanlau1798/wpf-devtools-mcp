@@ -51,7 +51,7 @@
       "type": "number"
     },
     "mediaSource": {
-      "description": "Optional binding expression that resolves to a project-owned ImageSource or URI. Omit it for the deterministic theme-aware symbol fallback; avoid remote sources for offline apps.",
+      "description": "Optional binding expression that resolves to a project-owned ImageSource or URI. Omit it and populate the media slot for a deterministic theme-aware symbol fallback; avoid remote sources for offline apps.",
       "previewWarning": "Preview can prove bound image layout only when the isolated host resolves the same project-owned data. Always verify the final built application.",
       "type": "binding"
     },

@@ -18,7 +18,9 @@ public sealed class ComposerWpfUiEditorialCardTests
 
         item.Description.Should().ContainEquivalentOf("image-capable");
         item.AuthoringRoles.Should().Contain(["hero", "product-tile", "editorial-media"]);
-        item.Properties["mediaSource"].Description.Should().ContainEquivalentOf("project-owned");
+        item.Properties["mediaSource"].Description.Should()
+            .ContainEquivalentOf("project-owned")
+            .And.ContainEquivalentOf("media slot");
         item.Properties["mediaAutomationName"].Required.Should().BeTrue();
         item.Slots["media"].MaxItems.Should().Be(1);
         item.Slots["media"].AllowedKinds.Should().Equal("wpfui.symbolIcon");
@@ -56,6 +58,9 @@ public sealed class ComposerWpfUiEditorialCardTests
             .And.Contain("<ui:SymbolIcon Symbol=\"Image24\"")
             .And.Contain("<ui:Button")
             .And.Contain("Content=\"Explore\"");
+        result.Xaml.IndexOf("<Viewbox", StringComparison.Ordinal).Should().BeLessThan(
+            result.Xaml.IndexOf("<Image", StringComparison.Ordinal),
+            "a successfully loaded image must cover the fallback symbol instead of being permanently overlaid");
     }
 
     [Fact]

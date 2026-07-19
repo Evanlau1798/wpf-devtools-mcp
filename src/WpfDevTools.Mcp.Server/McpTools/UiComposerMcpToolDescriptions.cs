@@ -265,19 +265,19 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - visualFidelity is resource-backed, hybrid-resource-backed, structural, or not-available; verify the applied, built, and launched app.
-        - Project/user packs stay structural until approved. runtimePackApprovalReviews supplies a content-bound approval token and hashes. Use an eligible token for one preview call, or WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS after WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true. Packages need exact [version], SHA-512 contentHash, and a preview-local NuGet cache hash-checked before build.
-        - screenshotVerificationGuidance instructs the client to re-read the resource and verify SHA-256 before replacing a sparse but semantically complete preview.
-        - visualComparisonChecklist lists final checks for window chrome, icons, control templates, layout and spacing.
-        - propertyWarnings gives pack guidance for supplied properties with exact blueprint JSON path, block kind, property name, and message.
-        - elementCorrelations maps transient x:Name to jsonPath/blockKind; names are never written into the blueprint or render/apply output.
-        - layoutRiskSummary maps clipping (Window client included) to jsonPath/blockKind; unresolved reasons: ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-realized, search-incomplete. runtime-not-realized means valid authored XAML was absent from the active preview state, commonly because content is inactive, deferred, or virtualized; requiresActiveStateInspection=true requests focused inspection in the applied, built final app after activating that state and does not claim the element is missing. RuntimeStructuralOverflowRisk uses riskClassification=structural-overflow and visibleContentRisk=unconfirmed-structural; other unconfirmed sources use RuntimeClippingDetected with riskClassification=clipping and visibleContentRisk=unconfirmed-clipping. When visibleContentImpact=not-determined, these values with severity=advisory and requiresVisualConfirmation=true are evidence prompts, not confirmed pixel-loss findings.
+        - Project/user packs stay structural. runtimePackApprovalReviews returns hashes and a content-bound approval token for one preview call. Eligible tokens require WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true; WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS preapproves packs. Packages require exact [version], SHA-512 contentHash, and a preview-local NuGet cache hash-checked before build.
+        - screenshotVerificationGuidance: re-read the resource and verify SHA-256 before replacing a sparse, semantically complete preview.
+        - visualComparisonChecklist: final window chrome, icons, control templates, layout and spacing checks.
+        - propertyWarnings: supplied-property guidance with exact blueprint JSON path, block kind, property name, and message.
+        - elementCorrelations maps transient x:Name to jsonPath/blockKind; never written into the blueprint or render/apply output.
+        - layoutRiskSummary maps clipping (Window client included) to jsonPath/blockKind. Unresolved reasons: ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-realized, search-incomplete. runtime-not-realized means valid XAML is absent because content may be inactive, deferred, or virtualized; requiresActiveStateInspection=true directs focused inspection in the applied, built final app after activation, not a missing-element claim. RuntimeStructuralOverflowRisk uses riskClassification=structural-overflow and visibleContentRisk=unconfirmed-structural; RuntimeClippingDetected uses riskClassification=clipping and visibleContentRisk=unconfirmed-clipping. With visibleContentImpact=not-determined, severity=advisory and requiresVisualConfirmation=true are evidence prompts, not confirmed pixel loss.
         - Compile failures map to line/column and renderer path; infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:
-        - blueprintJson accepts raw JSON or an opaque draftRef (wpfdevtools.ui-blueprint.v1).
-        - restoreEnabled defaults to true for compile smoke; set false to verify restore-disabled diagnostics.
-        - startHost defaults to false for compile smoke; set true for preview host load smoke.
-        - includeRuntimeDiagnostics defaults to false; set true with startHost=true after enabling the sensitive-reads policy gate.
+        - blueprintJson accepts raw JSON or opaque draftRef (wpfdevtools.ui-blueprint.v1).
+        - restoreEnabled defaults true; false verifies restore-disabled diagnostics.
+        - startHost defaults false; true loads the preview host.
+        - includeRuntimeDiagnostics defaults false; true needs startHost and sensitive reads.
         - compactRuntimeDiagnostics is compact by default: XAML and risk-free correlations become counts; failures, risky correlations, and screenshot resource handles remain. False returns full payloads.
         - correlationLookupLimit caps authored elementName and renderer-provided root x:Name queries at 32 (max 64); raise only for lookup-budget.
         - Screenshots require startHost, sensitive-read, and screenshot gates.

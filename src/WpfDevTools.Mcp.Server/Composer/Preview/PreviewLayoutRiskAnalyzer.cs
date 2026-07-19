@@ -33,17 +33,32 @@ internal static class PreviewLayoutRiskAnalyzer
         var searchedElementNames = correlatedElementNames
             .Where(name => lookupPlan.Any(lookup => MatchesLookup(name, lookup)))
             .ToHashSet(StringComparer.Ordinal);
-        var runtimeMatches = ReadRuntimeMatches(diagnostics, correlatedElementNames).ToArray();
-        var runtimeMatchCounts = runtimeMatches
+        var visualRuntimeMatches = ReadVisualRuntimeMatches(diagnostics, correlatedElementNames).ToArray();
+        var runtimeMatchCounts = visualRuntimeMatches
             .GroupBy(item => item.ElementName, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
-        var resolvedTargets = runtimeMatches
+        var resolvedVisualTargets = visualRuntimeMatches
             .GroupBy(item => item.ElementName, StringComparer.Ordinal)
             .Where(group => group.Count() == 1)
             .Select(group => group.Single())
             .Where(item => !ambiguousCorrelationNames.Contains(item.ElementName))
             .ToArray();
+        var namescopeOnlyTargets = ReadNamescopeMatches(diagnostics, correlatedElementNames)
+            .Where(item => !runtimeMatchCounts.ContainsKey(item.ElementName))
+            .Where(item => searchedElementNames.Contains(item.ElementName)
+                           && HasCompletedLookup(item.ElementName, diagnostics))
+            .GroupBy(item => item.ElementName, StringComparer.Ordinal)
+            .Where(group => group.Count() == 1)
+            .Select(group => group.Single())
+            .Where(item => !ambiguousCorrelationNames.Contains(item.ElementName))
+            .ToArray();
+        var resolvedTargets = resolvedVisualTargets
+            .Concat(namescopeOnlyTargets)
+            .ToArray();
         var resolvedElementIds = resolvedTargets
+            .Select(item => item.ElementId)
+            .ToHashSet(StringComparer.Ordinal);
+        var inspectableElementIds = resolvedVisualTargets
             .Select(item => item.ElementId)
             .ToHashSet(StringComparer.Ordinal);
         var resolvedCorrelationNames = resolvedTargets
@@ -73,13 +88,25 @@ internal static class PreviewLayoutRiskAnalyzer
                     string.Equals(reason, "runtime-not-realized", StringComparison.Ordinal));
             })
             .ToArray();
-        var inspectedElementIds = ReadInspectedElementIds(diagnostics);
-        var inspectedTargetCount = inspectedElementIds
-            .Intersect(resolvedElementIds, StringComparer.Ordinal)
-            .Count();
         var correlationsByElementName = correlations
             .ToLookup(item => item.ElementName, StringComparer.Ordinal);
-        var uninspectedCorrelations = resolvedTargets
+        var namescopeOnlyCorrelations = namescopeOnlyTargets
+            .SelectMany(item => correlationsByElementName[item.ElementName]
+                .Select(correlation => new PreviewNamescopeOnlyCorrelation(
+                    correlation.JsonPath,
+                    correlation.BlockKind,
+                    item.ElementName,
+                    item.ElementId,
+                    "namescope-only")))
+            .ToArray();
+        var reportedNamescopeOnlyCorrelations = namescopeOnlyCorrelations
+            .Take(MaxCoverageDetails)
+            .ToArray();
+        var inspectedElementIds = ReadInspectedElementIds(diagnostics);
+        var inspectedTargetCount = inspectedElementIds
+            .Intersect(inspectableElementIds, StringComparer.Ordinal)
+            .Count();
+        var uninspectedCorrelations = resolvedVisualTargets
             .DistinctBy(item => (item.ElementId, item.ElementName))
             .Where(item => !ambiguousCorrelationNames.Contains(item.ElementName))
             .Where(item => !inspectedElementIds.Contains(item.ElementId))
@@ -125,11 +152,15 @@ internal static class PreviewLayoutRiskAnalyzer
             InspectionTruncated = exactNameLookupTruncated
                                   || hasIncompleteSearch
                                   || unresolvedCorrelations.Length > 0
-                                  || inspectedTargetCount < resolvedElementIds.Count,
+                                  || inspectedTargetCount < inspectableElementIds.Count,
             UnresolvedCorrelationCount = unresolvedCorrelations.Length,
             ReportedUnresolvedCorrelationCount = reportedUnresolvedCorrelations.Length,
             UnresolvedCorrelationsTruncated = unresolvedCorrelations.Length > reportedUnresolvedCorrelations.Length,
             UnresolvedCorrelations = reportedUnresolvedCorrelations,
+            NamescopeOnlyCorrelationCount = namescopeOnlyCorrelations.Length,
+            ReportedNamescopeOnlyCorrelationCount = reportedNamescopeOnlyCorrelations.Length,
+            NamescopeOnlyCorrelationsTruncated = namescopeOnlyCorrelations.Length > reportedNamescopeOnlyCorrelations.Length,
+            NamescopeOnlyCorrelations = reportedNamescopeOnlyCorrelations,
             UninspectedCorrelationCount = uninspectedCorrelations.Length,
             ReportedUninspectedCorrelationCount = reportedUninspectedCorrelations.Length,
             UninspectedCorrelationsTruncated = uninspectedCorrelations.Length > reportedUninspectedCorrelations.Length,
@@ -137,7 +168,7 @@ internal static class PreviewLayoutRiskAnalyzer
         };
     }
 
-    private static IEnumerable<(string ElementId, string ElementName)> ReadRuntimeMatches(
+    private static IEnumerable<(string ElementId, string ElementName)> ReadVisualRuntimeMatches(
         IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics,
         IReadOnlySet<string> correlatedElementNames)
         => diagnostics
@@ -149,6 +180,20 @@ internal static class PreviewLayoutRiskAnalyzer
             .Select(result => (
                 ElementId: result.GetProperty("elementId").GetString()!,
                 ElementName: result.GetProperty("elementName").GetString()!))
+            .Distinct();
+
+    private static IEnumerable<(string ElementId, string ElementName)> ReadNamescopeMatches(
+        IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics,
+        IReadOnlySet<string> correlatedElementNames)
+        => diagnostics
+            .Where(diagnostic => diagnostic.Tool == "get_namescope" && diagnostic.Success)
+            .SelectMany(diagnostic => ReadArray(diagnostic.Payload, "namedElements"))
+            .Where(result => TryReadString(result, "elementId", out _)
+                             && TryReadString(result, "name", out var elementName)
+                             && correlatedElementNames.Contains(elementName))
+            .Select(result => (
+                ElementId: result.GetProperty("elementId").GetString()!,
+                ElementName: result.GetProperty("name").GetString()!))
             .Distinct();
 
     private static bool MatchesLookup(string elementName, PreviewCorrelationLookup lookup)

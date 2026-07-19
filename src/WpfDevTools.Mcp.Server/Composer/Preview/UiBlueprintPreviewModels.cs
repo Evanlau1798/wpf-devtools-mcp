@@ -179,6 +179,14 @@ internal sealed record PreviewLayoutRiskSummary(
 
     public IReadOnlyList<PreviewUnresolvedCorrelation> UnresolvedCorrelations { get; init; } = [];
 
+    public int NamescopeOnlyCorrelationCount { get; init; }
+
+    public int ReportedNamescopeOnlyCorrelationCount { get; init; }
+
+    public bool NamescopeOnlyCorrelationsTruncated { get; init; }
+
+    public IReadOnlyList<PreviewNamescopeOnlyCorrelation> NamescopeOnlyCorrelations { get; init; } = [];
+
     public int UninspectedCorrelationCount { get; init; }
 
     public int ReportedUninspectedCorrelationCount { get; init; }
@@ -196,6 +204,13 @@ internal sealed record PreviewUnresolvedCorrelation(
     string ElementName,
     string Reason,
     bool RequiresActiveStateInspection);
+
+internal sealed record PreviewNamescopeOnlyCorrelation(
+    string JsonPath,
+    string BlockKind,
+    string ElementName,
+    string ElementId,
+    string Reason);
 
 internal sealed record PreviewUninspectedCorrelation(
     string JsonPath,

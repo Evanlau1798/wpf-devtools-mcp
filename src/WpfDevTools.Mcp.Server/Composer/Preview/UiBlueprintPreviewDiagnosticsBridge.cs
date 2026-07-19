@@ -51,6 +51,19 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                     ct),
                 cancellationToken).ConfigureAwait(false));
 
+            if (RequiresNameScopeDiagnostics(elementCorrelations))
+            {
+                diagnostics.Add(await RunGatedAsync(
+                    policy,
+                    "get_namescope",
+                    ct => new GenericPipeTool(
+                            sessionManager,
+                            "get_namescope",
+                            GenericPipeTool.ExtractNameScopeParams)
+                        .ExecuteAsync(ToolCallHelper.BuildJsonArgs(("processId", processId)), ct),
+                    cancellationToken).ConfigureAwait(false));
+            }
+
             var lookupDiagnostics = new List<PreviewRuntimeDiagnostic>();
             foreach (var lookup in BuildCorrelationLookupPlan(elementCorrelations, correlationLookupLimit))
             {
@@ -145,6 +158,10 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
             .Select(name => new PreviewCorrelationLookup(name, "exact")));
         return plan;
     }
+
+    internal static bool RequiresNameScopeDiagnostics(
+        IReadOnlyList<RenderElementCorrelation> elementCorrelations)
+        => elementCorrelations.Count > 0;
 
     internal static IReadOnlyList<string> BuildClippingTargetIds(
         IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics,

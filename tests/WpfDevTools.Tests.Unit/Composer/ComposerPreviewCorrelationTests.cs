@@ -119,6 +119,12 @@ public sealed class ComposerPreviewCorrelationTests
         }
     }
 
+    [Fact]
+    public void NameScopeDiagnostics_ShouldBeSkippedWhenNoCorrelationsExist()
+    {
+        UiBlueprintPreviewDiagnosticsBridge.RequiresNameScopeDiagnostics([]).Should().BeFalse();
+    }
+
     private static PackRegistry CreateRegistry()
         => PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
 

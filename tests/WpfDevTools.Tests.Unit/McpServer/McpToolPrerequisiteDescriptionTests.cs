@@ -158,6 +158,9 @@ public sealed class McpToolPrerequisiteDescriptionTests
         var runtimeNotRealizedGuidance = description.Split('\n')
             .Single(line => line.Contains("runtime-not-realized means", StringComparison.Ordinal));
         runtimeNotRealizedGuidance.Should().Contain("applied, built final app");
+        description.Should().Contain("namescopeOnlyCorrelationCount");
+        description.Should().Contain("namescope-only");
+        description.Should().Contain("inactive or lazy content");
         description.Should().Contain("compactRuntimeDiagnostics");
         description.Should().Contain("compact by default");
         description.Should().Contain("screenshot resource handles");

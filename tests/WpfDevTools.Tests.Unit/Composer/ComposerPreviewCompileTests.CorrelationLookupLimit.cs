@@ -32,6 +32,13 @@ public sealed partial class ComposerPreviewCompileTests
         summary.GetProperty("inspectedTargetCount").GetInt32().Should().Be(34);
         summary.GetProperty("inspectionTruncated").GetBoolean().Should().BeFalse();
         summary.GetProperty("unresolvedCorrelationCount").GetInt32().Should().Be(0);
+        summary.GetProperty("namescopeOnlyCorrelationCount").GetInt32().Should().Be(0);
+        result.StructuredContent.Value.GetProperty("previewHost")
+            .GetProperty("runtimeDiagnostics")
+            .EnumerateArray()
+            .Should()
+            .Contain(diagnostic => diagnostic.GetProperty("tool").GetString() == "get_namescope"
+                                   && diagnostic.GetProperty("success").GetBoolean());
     }
 
     private static string CorrelationLookupBlueprint()

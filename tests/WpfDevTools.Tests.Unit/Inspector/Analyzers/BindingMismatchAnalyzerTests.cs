@@ -78,6 +78,28 @@ public sealed class BindingMismatchAnalyzerTests
     }
 
     [StaFact]
+    public void GetBindingMismatches_WithDependencyPropertyPathParameter_ShouldNotReportMismatch()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new BindingAnalyzer(finder);
+        var source = new ScrollViewer();
+        source.SetValue(ScrollViewer.CanContentScrollProperty, true);
+        var target = new Button();
+        target.SetBinding(UIElement.IsEnabledProperty, new Binding
+        {
+            Source = source,
+            Path = new PropertyPath("(0)", ScrollViewer.CanContentScrollProperty)
+        });
+        var elementId = finder.GenerateElementId(target);
+
+        var result = JsonSerializer.SerializeToElement(analyzer.GetBindingMismatches(elementId));
+
+        BindingOperations.GetBindingExpression(target, UIElement.IsEnabledProperty)!.Status
+            .Should().Be(BindingStatus.Active);
+        result.GetProperty("mismatchCount").GetInt32().Should().Be(0);
+    }
+
+    [StaFact]
     public void GetBindingMismatches_ShouldReportNullableToNonNullableMismatch()
     {
         var finder = new ElementFinder();

@@ -134,7 +134,7 @@ public sealed partial class BindingAnalyzer
 
         var bindingPath = binding.Path?.Path;
         var sourceRoot = ResolveBindingSourceRoot(element, binding, bindingExpression);
-        var resolvedType = ResolveBoundPropertyType(sourceRoot, bindingPath);
+        var resolvedType = ResolveBoundPropertyType(sourceRoot, binding);
         var targetType = property.PropertyType;
         var converterName = binding.Converter?.GetType().Name;
 
@@ -174,14 +174,14 @@ public sealed partial class BindingAnalyzer
             severity);
     }
 
-    private (bool Success, Type? Type) ResolveBoundPropertyType(object? sourceRoot, string? bindingPath)
+    private (bool Success, Type? Type) ResolveBoundPropertyType(object? sourceRoot, Binding binding)
     {
         if (sourceRoot == null)
         {
             return (false, null);
         }
 
-        var resolvedBindingPath = bindingPath;
+        var resolvedBindingPath = binding.Path?.Path;
         if (string.IsNullOrWhiteSpace(resolvedBindingPath))
         {
             return (true, sourceRoot.GetType());
@@ -194,6 +194,12 @@ public sealed partial class BindingAnalyzer
             .ToArray();
         foreach (var segment in segments)
         {
+            if (TryResolvePathParameterType(binding.Path!, segment, out var parameterType))
+            {
+                currentType = parameterType!;
+                continue;
+            }
+
             if (segment.Contains('[') || segment.Contains('('))
             {
                 return (false, null);
@@ -209,6 +215,32 @@ public sealed partial class BindingAnalyzer
         }
 
         return (true, currentType);
+    }
+
+    private static bool TryResolvePathParameterType(
+        PropertyPath propertyPath,
+        string segment,
+        out Type? parameterType)
+    {
+        parameterType = null;
+        if (segment.Length < 3
+            || segment[0] != '('
+            || segment[segment.Length - 1] != ')'
+            || !int.TryParse(segment.Substring(1, segment.Length - 2), out var parameterIndex)
+            || parameterIndex < 0
+            || parameterIndex >= propertyPath.PathParameters.Count)
+        {
+            return false;
+        }
+
+        parameterType = propertyPath.PathParameters[parameterIndex] switch
+        {
+            DependencyProperty dependencyProperty => dependencyProperty.PropertyType,
+            PropertyInfo propertyInfo => propertyInfo.PropertyType,
+            PropertyDescriptor propertyDescriptor => propertyDescriptor.PropertyType,
+            _ => null
+        };
+        return parameterType != null;
     }
 
     private object? ResolveBindingSourceRoot(

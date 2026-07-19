@@ -274,7 +274,7 @@ internal static class UiComposerMcpToolDescriptions
         - Compile failures map to line/column and renderer path; infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:
-        - blueprintJson accepts raw JSON or opaque draftRef (wpfdevtools.ui-blueprint.v1).
+        - blueprintJson accepts raw JSON or an opaque draftRef (wpfdevtools.ui-blueprint.v1).
         - restoreEnabled defaults true; false verifies restore-disabled diagnostics.
         - startHost defaults false; true loads the preview host.
         - includeRuntimeDiagnostics defaults false; true needs startHost and sensitive reads.

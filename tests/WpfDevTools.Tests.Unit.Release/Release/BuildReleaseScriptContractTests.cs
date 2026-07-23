@@ -172,5 +172,9 @@ public sealed partial class ReleasePackagingContractTests
             .Should().BeLessThan(architectureLoop);
         script.LastIndexOf("'build', $inspectorSdkProject", StringComparison.Ordinal)
             .Should().BeLessThan(architectureLoop);
+        script.Split("'build', $inspectorProject", StringSplitOptions.None).Length
+            .Should().Be(3, "the Inspector should build exactly once for each of its two target frameworks");
+        script.Split("'build', $inspectorSdkProject", StringSplitOptions.None).Length
+            .Should().Be(2, "the Inspector SDK should build exactly once");
     }
 }

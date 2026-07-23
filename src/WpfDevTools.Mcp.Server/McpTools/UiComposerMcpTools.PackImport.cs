@@ -32,30 +32,37 @@ public static partial class UiComposerMcpTools
             ("allowOverwrite", allowOverwrite));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult(ImportPack(
+            (_, token) => ImportPackAsync(
                 archivePath,
                 projectRoot,
                 dryRun,
                 confirmImport,
                 reviewedArchiveSha256,
-                allowOverwrite)),
+                allowOverwrite,
+                token),
             args,
             cancellationToken,
             timeoutSeconds: 30);
     }
 
-    private static object ImportPack(
+    private static async Task<object> ImportPackAsync(
         string archivePath,
         string projectRoot,
         bool dryRun,
         bool confirmImport,
         string? reviewedArchiveSha256,
-        bool allowOverwrite)
+        bool allowOverwrite,
+        CancellationToken cancellationToken)
     {
         var normalizedProjectRoot = NormalizeImportProjectRoot(projectRoot);
         var normalizedArchivePath = NormalizeArchivePath(archivePath);
         var destinationRoot = ComposerPackPaths.ProjectLocalRoot(normalizedProjectRoot);
-        var plan = PackImportService.CreateDryRunPlan(normalizedArchivePath, destinationRoot);
+        var plan = await PackImportService.CreateDryRunPlanAsync(
+                normalizedArchivePath,
+                destinationRoot,
+                limits: null,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
 
         if (dryRun)
         {
@@ -120,12 +127,15 @@ public static partial class UiComposerMcpTools
 
         try
         {
-            var imported = PackImportService.Import(
-                normalizedArchivePath,
-                destinationRoot,
-                "project-local",
-                reviewedArchiveSha256,
-                allowOverwrite);
+            var imported = await PackImportService.ImportAsync(
+                    normalizedArchivePath,
+                    destinationRoot,
+                    "project-local",
+                    reviewedArchiveSha256,
+                    allowOverwrite,
+                    limits: null,
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
             return ToImportPayload(imported, destinationRoot, imported: true, requiresConfirmation: false);
         }
         catch (PackImportPlanChangedException)

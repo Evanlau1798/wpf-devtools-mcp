@@ -41,7 +41,7 @@ internal static class UiComposerMcpToolDescriptions
         RESPONSE SUMMARY:
         - Returns the pack identity, hash, confined file plan, and import state.
 
-        SAFETY: Defaults to dry-run. Writes require its reviewed archiveSha256, confirmation, project-write policy, and an allowlisted root; replacement is opt-in.
+        SAFETY: Defaults to dry-run. Compressed input is capped at 64 MiB and hashing observes cancellation. Writes require its reviewed archiveSha256, confirmation, project-write policy, and an allowlisted root; replacement is opt-in.
 
         EXAMPLES:
         """ + CanonicalExamples;

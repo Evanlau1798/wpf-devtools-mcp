@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using System.Security.Cryptography;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 using WpfDevTools.Mcp.Server.Composer.Diagnostics;
@@ -13,14 +12,51 @@ internal static class PackImportService
         string destinationRoot,
         PackImportLimits? limits = null)
     {
+        var activeLimits = limits ?? PackImportLimits.Default;
         using var archiveStream = OpenArchive(archivePath);
-        var archiveSha256 = ComputeSha256(archiveStream);
+        var archiveSha256 = PackArchiveInput.ComputeSha256(archiveStream, activeLimits);
         using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read, leaveOpen: true);
         return CreatePlan(
             archive,
             destinationRoot,
             dryRun: true,
-            limits ?? PackImportLimits.Default,
+            activeLimits,
+            archiveSha256);
+    }
+    public static async Task<PackImportPlan> CreateDryRunPlanAsync(
+        string archivePath,
+        string destinationRoot,
+        PackImportLimits? limits,
+        CancellationToken cancellationToken)
+    {
+        await using var archiveStream = OpenArchive(archivePath, asynchronous: true);
+        return await CreateDryRunPlanAsync(
+                archiveStream,
+                destinationRoot,
+                limits,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public static async Task<PackImportPlan> CreateDryRunPlanAsync(
+        Stream archiveStream,
+        string destinationRoot,
+        PackImportLimits? limits,
+        CancellationToken cancellationToken)
+    {
+        var activeLimits = limits ?? PackImportLimits.Default;
+        var archiveSha256 = await PackArchiveInput.ComputeSha256Async(
+                archiveStream,
+                activeLimits,
+                cancellationToken)
+            .ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read, leaveOpen: true);
+        return CreatePlan(
+            archive,
+            destinationRoot,
+            dryRun: true,
+            activeLimits,
             archiveSha256);
     }
 
@@ -42,6 +78,33 @@ internal static class PackImportService
             limits);
     }
 
+    public static async Task<PackImportPlan> ImportAsync(
+        string archivePath,
+        string destinationRoot,
+        string sourceScope,
+        string reviewedArchiveSha256,
+        bool allowOverwrite,
+        PackImportLimits? limits,
+        CancellationToken cancellationToken)
+    {
+        var activeLimits = limits ?? PackImportLimits.Default;
+        await using var archiveStream = OpenArchive(archivePath, asynchronous: true);
+        var archiveSha256 = await PackArchiveInput.ComputeSha256Async(
+                archiveStream,
+                activeLimits,
+                cancellationToken)
+            .ConfigureAwait(false);
+        return ImportHashedArchive(
+            archiveStream,
+            destinationRoot,
+            sourceScope,
+            reviewedArchiveSha256,
+            allowOverwrite,
+            activeLimits,
+            archiveSha256,
+            cancellationToken);
+    }
+
     public static PackImportPlan Import(
         Stream archiveStream,
         string destinationRoot,
@@ -51,7 +114,29 @@ internal static class PackImportService
         PackImportLimits? limits = null)
     {
         var activeLimits = limits ?? PackImportLimits.Default;
-        var archiveSha256 = ComputeSha256(archiveStream);
+        var archiveSha256 = PackArchiveInput.ComputeSha256(archiveStream, activeLimits);
+        return ImportHashedArchive(
+            archiveStream,
+            destinationRoot,
+            sourceScope,
+            reviewedArchiveSha256,
+            allowOverwrite,
+            activeLimits,
+            archiveSha256,
+            CancellationToken.None);
+    }
+
+    private static PackImportPlan ImportHashedArchive(
+        Stream archiveStream,
+        string destinationRoot,
+        string sourceScope,
+        string reviewedArchiveSha256,
+        bool allowOverwrite,
+        PackImportLimits activeLimits,
+        string archiveSha256,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read, leaveOpen: true);
         var plan = CreatePlan(archive, destinationRoot, dryRun: false, activeLimits, archiveSha256);
         if (!string.Equals(
@@ -76,7 +161,13 @@ internal static class PackImportService
         try
         {
             Directory.CreateDirectory(stagingPackRoot);
-            ExtractArchive(archive, $"{plan.PackId}/{plan.Version}", stagingPackRoot, activeLimits);
+            ExtractArchive(
+                archive,
+                $"{plan.PackId}/{plan.Version}",
+                stagingPackRoot,
+                activeLimits,
+                cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             WriteInstallManifest(stagingPackRoot, destination, plan, sourceScope);
             ComposerPackLoader.LoadUncachedForValidation(stagingPackRoot);
 
@@ -268,7 +359,8 @@ internal static class PackImportService
         ZipArchive archive,
         string prefix,
         string destination,
-        PackImportLimits limits)
+        PackImportLimits limits,
+        CancellationToken cancellationToken)
     {
         var files = archive.Entries
             .Where(entry => !entry.FullName.EndsWith("/", StringComparison.Ordinal))
@@ -277,6 +369,7 @@ internal static class PackImportService
 
         foreach (var entry in files)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             RejectUnsupportedEntryType(entry);
             var relativePath = GetRelativeArchivePath(entry.FullName, prefix, limits);
             var targetPath = GetSafeTargetPath(destination, relativePath, entry.FullName);
@@ -366,28 +459,22 @@ internal static class PackImportService
         }
     }
 
-    private static FileStream OpenArchive(string archivePath)
-        => new(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-    private static string ComputeSha256(Stream archiveStream)
-    {
-        if (!archiveStream.CanRead || !archiveStream.CanSeek)
-        {
-            throw new ArgumentException("Archive stream must be readable and seekable.", nameof(archiveStream));
-        }
-
-        archiveStream.Position = 0;
-        var digest = Convert.ToHexString(SHA256.HashData(archiveStream)).ToLowerInvariant();
-        archiveStream.Position = 0;
-        return digest;
-    }
+    private static FileStream OpenArchive(string archivePath, bool asynchronous = false)
+        => new(
+            archivePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 81920,
+            asynchronous ? FileOptions.Asynchronous | FileOptions.SequentialScan : FileOptions.SequentialScan);
 }
 
 internal sealed record PackImportLimits(
     int MaxFileCount = 1000,
     long MaxEntryBytes = 10L * 1024 * 1024,
     long MaxTotalBytes = 50L * 1024 * 1024,
-    int MaxEntryPathLength = 240)
+    int MaxEntryPathLength = 240,
+    long MaxArchiveBytes = 64L * 1024 * 1024)
 {
     public static PackImportLimits Default { get; } = new();
 }

@@ -65,7 +65,7 @@ Request options:
 - `confirmImport`: must be `true` when `dryRun=false`.
 - `allowOverwrite`: defaults to `false`; enable only for a reviewed replacement of the same pack id and version.
 
-Non-dry-run imports also require `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`, `WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`, and an exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match. The importer reuses one open archive handle for review binding and extraction, rejects unsafe archive entries, invalid pack contracts, destination reparse points, and writes outside the project-local registry. It never edits project files, package references, resources, XAML, code-behind, or ViewModels.
+Non-dry-run imports also require `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`, `WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`, and an exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match. Compressed archives are capped at 64 MiB before hashing; hashing uses cancellable asynchronous I/O. The importer reuses one open archive handle for review binding and extraction, rejects unsafe archive entries, invalid pack contracts, destination reparse points, and writes outside the project-local registry. It never edits project files, package references, resources, XAML, code-behind, or ViewModels.
 
 ## `get_ui_block_catalog`
 

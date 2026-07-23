@@ -65,7 +65,7 @@ Request options:
 - `confirmImport`: `dryRun=false` 時必須為 `true`。
 - `allowOverwrite`: 預設為 `false`；只有在審查相同 pack id/version 的 replacement 後才啟用。
 
-Non-dry-run import 還需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，以及 exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match。Importer 會使用同一個已開啟的 archive handle 綁定審查與 extraction，並拒絕 unsafe archive entries、invalid pack contracts、destination reparse points，以及 project-local registry 以外的 writes；它不會修改 project files、package references、resources、XAML、code-behind 或 ViewModels。
+Non-dry-run import 還需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，以及 exact `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` match。Compressed archive 在 hashing 前以 64 MiB 為上限，hashing 使用可取消的 asynchronous I/O。Importer 會使用同一個已開啟的 archive handle 綁定審查與 extraction，並拒絕 unsafe archive entries、invalid pack contracts、destination reparse points，以及 project-local registry 以外的 writes；它不會修改 project files、package references、resources、XAML、code-behind 或 ViewModels。
 
 ## `get_ui_block_catalog`
 

@@ -11,10 +11,19 @@ public sealed class BuiltinComposerPackSecurityScriptTests
     {
         var repoRoot = Path.GetDirectoryName(TestRepositoryPaths.GetRepoFilePath("WpfDevTools.sln"))!;
         var result = RunScript(repoRoot);
+        var expectedPacks = Directory
+            .EnumerateFiles(Path.Combine(repoRoot, "packs", "builtin"), "pack.json", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(Path.Combine(repoRoot, "packs", "builtin"), Path.GetDirectoryName(path)!))
+            .Select(path => path.Replace(Path.DirectorySeparatorChar, '/'))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
 
         result.ExitCode.Should().Be(0, result.Output);
-        result.Output.Should().Contain("core/0.1.0");
-        result.Output.Should().Contain("wpfui/0.1.0");
+        expectedPacks.Should().NotBeEmpty("the repository should ship at least one built-in Composer pack");
+        foreach (var pack in expectedPacks)
+        {
+            result.Output.Should().Contain(pack);
+        }
     }
 
     [Fact]

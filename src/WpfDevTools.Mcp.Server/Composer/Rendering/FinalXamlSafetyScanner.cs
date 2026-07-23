@@ -42,6 +42,11 @@ internal static partial class FinalXamlSafetyScanner
     [GeneratedRegex(@"\{\s*(?<prefix>[A-Za-z_][A-Za-z0-9_.-]*):Static(?:Extension)?\b", RegexOptions.CultureInvariant)]
     private static partial Regex StaticExtensionPattern();
 
+    [GeneratedRegex(
+        @"(?:^|,)\s*(?:FallbackValue|TargetNullValue)\s*=\s*(?<value>'[^']*'|""[^""]*""|[^,}]*)",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex BindingUriFallbackPattern();
+
     public static IReadOnlyList<BlueprintValidationIssue> Scan(string xaml)
     {
         XDocument document;
@@ -172,17 +177,27 @@ internal static partial class FinalXamlSafetyScanner
     {
         var trimmed = value.Trim();
         return string.IsNullOrEmpty(trimmed)
-            || trimmed.StartsWith("{Binding", StringComparison.Ordinal)
+            || (trimmed.StartsWith("{Binding", StringComparison.Ordinal)
+                && !HasUnsafeBindingUriFallback(trimmed))
             || trimmed.StartsWith("{StaticResource", StringComparison.Ordinal)
             || trimmed.StartsWith("{DynamicResource", StringComparison.Ordinal)
             || PreviewResourcePolicy.IsApplicationLocalPackSource(trimmed);
     }
 
+    private static bool HasUnsafeBindingUriFallback(string binding)
+        => BindingUriFallbackPattern()
+            .Matches(binding)
+            .Select(match => match.Groups["value"].Value.Trim().Trim('\'', '"'))
+            .Any(value => !string.IsNullOrEmpty(value)
+                && !value.StartsWith("{StaticResource", StringComparison.Ordinal)
+                && !value.StartsWith("{DynamicResource", StringComparison.Ordinal)
+                && !PreviewResourcePolicy.IsApplicationLocalPackSource(value));
+
     private static BlueprintValidationIssue UnsafeUriIssue(string member)
         => Issue(
             "UnsafePreviewUri",
             $"Generated XAML must not assign a non-local literal URI to {member}.",
-            "Use a binding, resource reference, or application-local pack URI that cannot initiate external preview-host I/O.");
+            "Use a binding without literal URI fallbacks, a trusted resource reference, or an application-local pack URI.");
 
     private static BlueprintValidationIssue Issue(
         string code,

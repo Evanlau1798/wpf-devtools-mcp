@@ -122,6 +122,26 @@ public sealed class ComposerRendererSafetyTests
         }
     }
 
+    [Theory]
+    [InlineData("<Image Source=\"{Binding Missing, FallbackValue=https://controlled.invalid/image.png}\" />")]
+    [InlineData("<Hyperlink NavigateUri=\"{Binding Missing, TargetNullValue=file:///C:/private.xaml}\" />")]
+    [InlineData("<Frame Source=\"{Binding Missing, FallbackValue=\\\\controlled.invalid\\share\\page.xaml}\" />")]
+    public void RenderBlueprint_ShouldRejectBindingUriFallbacks(string rendererTemplate)
+    {
+        var projectRoot = CreateTempProjectWithSafetyPack(rendererTemplate);
+        try
+        {
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot))
+                .Render(new RenderBlueprintRequest(Blueprint()));
+
+            result.Errors.Should().Contain(issue => issue.Code == "UnsafePreviewUri");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
     [Fact]
     public void RenderBlueprint_ShouldAllowConstrainedAncestorBinding()
     {

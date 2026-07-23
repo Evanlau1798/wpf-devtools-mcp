@@ -157,12 +157,17 @@ internal sealed class McpToolExecutionPolicy
         }
 
         return string.Equals(toolName, "batch_mutate", StringComparison.Ordinal)
-            && (TryGetObjectArgument(arguments, "captureSnapshot", out _)
+            && (HasEffectiveBatchSnapshot(arguments)
                 || BatchMutateReturnsSensitiveRead(arguments))
             || string.Equals(toolName, "preview_ui_blueprint", StringComparison.Ordinal)
             && (IsEnabledArgument(arguments, "includeRuntimeDiagnostics")
                 || IsEnabledArgument(arguments, "includeScreenshotDiagnostics"));
     }
+
+    private static bool HasEffectiveBatchSnapshot(IDictionary<string, JsonElement>? arguments)
+        => (arguments?.TryGetValue("captureSnapshot", out var captureSnapshot) == true
+            && captureSnapshot.ValueKind == JsonValueKind.True)
+           || TryGetObjectArgument(arguments, "captureSnapshot", out _);
 
     private static bool RequiresScreenshot(
         string toolName,

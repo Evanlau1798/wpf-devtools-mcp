@@ -13,4 +13,8 @@
     <ProjectReference Include="..\..\src\WpfDevTools.Shared\WpfDevTools.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" PrivateAssets="all" />
+  </ItemGroup>
+
 </Project>

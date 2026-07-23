@@ -101,6 +101,44 @@ public sealed class FrameworkProvidedPackageReferenceTests
             $"{packageName} has no net8-era stable NuGet package and should only be pinned for .NET Framework compatibility");
     }
 
+    [Fact]
+    public void Net48Projects_ShouldReferencePortableFrameworkAssemblies()
+    {
+        const string packageName = "Microsoft.NETFramework.ReferenceAssemblies";
+        var packageVersion = LoadProject("Directory.Packages.props")
+            .Descendants("PackageVersion")
+            .Single(element => element.Attribute("Include")?.Value == packageName);
+
+        packageVersion.Attribute("Version")?.Value.Should().Be("1.0.3");
+        packageVersion.Attribute("Condition")?.Value.Should().Be("'$(TargetFramework)' == 'net48'");
+
+        var repoRoot = Path.GetDirectoryName(TestRepositoryPaths.GetRepoFilePath("WpfDevTools.sln"))!;
+        var net48Projects = new[] { "src", "tests" }
+            .SelectMany(directory => Directory.EnumerateFiles(
+                Path.Combine(repoRoot, directory),
+                "*.csproj",
+                SearchOption.AllDirectories))
+            .Where(path => LoadProjectFile(path)
+                .Descendants()
+                .Where(element => element.Name.LocalName is "TargetFramework" or "TargetFrameworks")
+                .Any(element => element.Value.Split(';').Contains("net48", StringComparer.OrdinalIgnoreCase)))
+            .ToArray();
+
+        net48Projects.Should().NotBeEmpty();
+        foreach (var projectPath in net48Projects)
+        {
+            var reference = LoadProjectFile(projectPath)
+                .Descendants("PackageReference")
+                .Single(element => element.Attribute("Include")?.Value == packageName);
+
+            reference.Attribute("PrivateAssets")?.Value.Should().BeEquivalentTo("all");
+            reference.Parent?.Attribute("Condition")?.Value.Should().Be("'$(TargetFramework)' == 'net48'");
+        }
+    }
+
     private static XDocument LoadProject(string relativePath)
         => XDocument.Load(TestRepositoryPaths.GetRepoFilePath(relativePath));
+
+    private static XDocument LoadProjectFile(string path)
+        => XDocument.Load(path);
 }

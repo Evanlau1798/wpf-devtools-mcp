@@ -35,6 +35,7 @@
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <!-- Only needed for .NET Framework 4.8; built into .NET 8.0 -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" PrivateAssets="all" />
     <PackageReference Include="System.IO.Pipes.AccessControl" />
   </ItemGroup>
 

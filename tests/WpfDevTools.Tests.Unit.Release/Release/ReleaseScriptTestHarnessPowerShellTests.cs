@@ -6,6 +6,15 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class ReleaseScriptTestHarnessPowerShellTests
 {
     [Fact]
+    public void PackagedRuntimeFailureModes_ShouldRunWithoutCompetingPowerShellCollections()
+    {
+        var attribute = typeof(PackagedServerRuntimeFailureModeTests).CustomAttributes
+            .Single(candidate => candidate.AttributeType == typeof(CollectionAttribute));
+
+        attribute.ConstructorArguments.Single().Value.Should().Be("ProcessEnvironment");
+    }
+
+    [Fact]
     public void ResolveTimeout_ShouldHonorOrExplicitlySkipSandboxTimeoutScale()
     {
         var previousScale = Environment.GetEnvironmentVariable("WPFDEVTOOLS_TEST_TIMEOUT_SCALE");

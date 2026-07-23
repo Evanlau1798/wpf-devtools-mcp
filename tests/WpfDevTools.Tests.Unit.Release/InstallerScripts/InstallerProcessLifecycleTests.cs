@@ -51,7 +51,7 @@ public sealed class InstallerProcessLifecycleTests
 
             var act = () => ReleaseScriptTestHarness.RunPowerShellCommand(
                 command,
-                timeout: TimeSpan.FromSeconds(10),
+                timeout: TimeSpan.FromSeconds(15),
                 applyTimeoutScale: false);
 
             act.Should().Throw<TimeoutException>();

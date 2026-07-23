@@ -266,7 +266,7 @@ jobs:
             trxPath = $trxPath
           }
           checks = @(
-            'wpfui-0.1.0-baseline-import'
+            'builtin-pack-security-contract'
             'pack-registry-load'
             'pack-import-security'
             'archive-path-traversal'

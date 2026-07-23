@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "wpfdevtools.builtin-pack-baseline-policy.v1",
+  "baselineExemptions": [
+    {
+      "id": "core",
+      "version": "0.1.0",
+      "reason": "Foundational hand-authored WPF layout primitives are covered by the core pack contract tests."
+    }
+  ]
+}

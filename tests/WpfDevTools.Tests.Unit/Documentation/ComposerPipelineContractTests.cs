@@ -10,6 +10,7 @@ public sealed class ComposerPipelineContractTests
     {
         var securityWorkflow = ReadRepoFile(".github/workflows/security-scan.yml");
         var codeQlWorkflow = ReadRepoFile(".github/workflows/codeql.yml");
+        var ciWorkflow = ReadRepoFile(".github/workflows/ci-cd.yml");
         var buildProps = ReadRepoFile("Directory.Build.props");
 
         securityWorkflow.Should().Contain("dotnet restore");
@@ -24,18 +25,20 @@ public sealed class ComposerPipelineContractTests
         codeQlWorkflow.Should().Contain("dotnet build WpfDevTools.sln");
         codeQlWorkflow.Should().Contain("src/WpfDevTools.Bootstrapper");
 
-        securityWorkflow.Should().Contain("Run Composer pack fixture policy scan");
-        securityWorkflow.Should().Contain("packs/builtin/wpfui/0.1.0/source.lock.json");
-        securityWorkflow.Should().Contain("packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip");
-        securityWorkflow.Should().Contain("$allowedLicenses = @('MIT')");
-        securityWorkflow.Should().Contain("Get-NormalizedTextSha256");
-        securityWorkflow.Should().Contain("[System.IO.Compression.ZipFile]::OpenRead($baselineArchivePath)");
-        securityWorkflow.Should().Contain("[System.Security.Cryptography.SHA256]::Create()");
-        securityWorkflow.Should().Contain("localPath");
-        securityWorkflow.Should().Contain("$localPath.StartsWith('/')");
-        securityWorkflow.Should().Contain("Composer pack source uses a local absolute path");
-        securityWorkflow.Should().Contain("Composer pack fixture file set does not match the reviewed baseline archive.");
-        securityWorkflow.Should().Contain("Composer pack fixture file hash mismatch");
+        securityWorkflow.Should().Contain("Run built-in Composer pack security scan");
+        securityWorkflow.Should().Contain("Test-BuiltinComposerPackSecurity.ps1");
+        securityWorkflow.Should().NotContain("packs/builtin/wpfui/",
+            "the security gate must enumerate every built-in pack");
+        var packSecurityScript = ReadRepoFile("scripts/tools/security/Test-BuiltinComposerPackSecurity.ps1");
+        packSecurityScript.Should().Contain(@"packs\builtin");
+        packSecurityScript.Should().Contain("builtin-pack-policy.json");
+        packSecurityScript.Should().Contain("Get-NormalizedTextSha256");
+        packSecurityScript.Should().Contain("[System.IO.Compression.ZipFile]::OpenRead($baselineArchivePath)");
+        packSecurityScript.Should().Contain("[System.Security.Cryptography.SHA256]::Create()");
+        packSecurityScript.Should().Contain("Composer built-in pack file set does not match its reviewed baseline archive.");
+        packSecurityScript.Should().Contain("Composer built-in pack file hash mismatch");
+        ciWorkflow.Should().Contain("'builtin-pack-security-contract'");
+        ciWorkflow.Should().NotContain("'wpfui-0.1.0-baseline-import'");
     }
 
     [Fact]

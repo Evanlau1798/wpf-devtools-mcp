@@ -289,6 +289,22 @@ public sealed partial class SandboxCiScriptContractTests
                 "Debug and Release configurations provide independent evidence and should not force costly reruns after cancellation");
     }
 
+    [Fact]
+    public void ValidationWorkflows_ShouldCancelSupersededPushAndPullRequestRuns()
+    {
+        foreach (var fileName in new[] { "ci-cd.yml", "security-scan.yml", "codeql.yml" })
+        {
+            var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", fileName));
+
+            workflow.Should().Contain("group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}");
+            workflow.Should().Contain("cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}");
+        }
+
+        var releaseWorkflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "release.yml"));
+        releaseWorkflow.Should().NotContain("cancel-in-progress:",
+            "release publishing must not be cancelled after it starts");
+    }
+
     private static string GetWorkflowStep(string workflow, string name)
     {
         var start = workflow.IndexOf($"      - name: {name}", StringComparison.Ordinal);

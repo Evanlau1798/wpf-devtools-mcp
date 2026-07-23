@@ -78,6 +78,48 @@ public sealed class ComposerRendererSafetyTests
         }
     }
 
+    [Theory]
+    [InlineData("<ImageBrush ImageSource=\"https://controlled.invalid/image.png\" />")]
+    [InlineData("<ImageDrawing ImageSource=\"file:///C:/private.png\" />")]
+    [InlineData("<Window Icon=\"\\\\controlled.invalid\\share\\icon.ico\" />")]
+    [InlineData("<Hyperlink NavigateUri=\"https://controlled.invalid/\" />")]
+    [InlineData("<ImageBrush><ImageBrush.ImageSource>file:///C:/private.png</ImageBrush.ImageSource></ImageBrush>")]
+    public void RenderBlueprint_ShouldRejectLiteralUrisOnWpfUriConsumingMembers(string rendererTemplate)
+    {
+        var projectRoot = CreateTempProjectWithSafetyPack(rendererTemplate);
+        try
+        {
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot))
+                .Render(new RenderBlueprintRequest(Blueprint()));
+
+            result.Success.Should().BeFalse();
+            result.Errors.Should().Contain(issue => issue.Code == "UnsafePreviewUri");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
+    public void RenderBlueprint_ShouldAllowApplicationLocalPackUrisOnWpfUriConsumingMembers()
+    {
+        const string rendererTemplate =
+            "<ImageBrush ImageSource=\"pack://application:,,,/Safe;component/Assets/image.png\" />";
+        var projectRoot = CreateTempProjectWithSafetyPack(rendererTemplate);
+        try
+        {
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot))
+                .Render(new RenderBlueprintRequest(Blueprint()));
+
+            result.Success.Should().BeTrue();
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
     [Fact]
     public void RenderBlueprint_ShouldAllowConstrainedAncestorBinding()
     {

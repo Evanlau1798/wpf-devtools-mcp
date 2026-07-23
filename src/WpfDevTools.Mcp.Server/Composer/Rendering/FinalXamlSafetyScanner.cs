@@ -21,6 +21,22 @@ internal static partial class FinalXamlSafetyScanner
         "TypeArguments"
     };
 
+    private static readonly HashSet<string> UriConsumingMembers = new(StringComparer.Ordinal)
+    {
+        "Application.StartupUri",
+        "BitmapImage.UriSource",
+        "Frame.Source",
+        "Hyperlink.NavigateUri",
+        "Image.Source",
+        "ImageBrush.ImageSource",
+        "ImageDrawing.ImageSource",
+        "MediaElement.Source",
+        "NavigationWindow.Source",
+        "SoundPlayerAction.Source",
+        "WebBrowser.Source",
+        "Window.Icon"
+    };
+
     [GeneratedRegex(@"\{\s*(?<prefix>[A-Za-z_][A-Za-z0-9_.-]*):Static\b", RegexOptions.CultureInvariant)]
     private static partial Regex StaticExtensionPattern();
 
@@ -64,11 +80,13 @@ internal static partial class FinalXamlSafetyScanner
         foreach (var element in document.Root.DescendantsAndSelf())
         {
             AddUnsafeDirectiveIssue(element.Name, issues);
+            AddUnsafeUriElementIssue(element, issues);
 
             foreach (var attribute in element.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration))
             {
                 AddUnsafeDirectiveIssue(attribute.Name, issues);
                 AddUnsafeStaticExtensionIssue(element, attribute.Value, issues);
+                AddUnsafeUriAttributeIssue(element, attribute, issues);
             }
 
             foreach (var text in element.Nodes().OfType<XText>())
@@ -116,6 +134,53 @@ internal static partial class FinalXamlSafetyScanner
             }
         }
     }
+
+    private static void AddUnsafeUriElementIssue(
+        XElement element,
+        ICollection<BlueprintValidationIssue> issues)
+    {
+        if (element.HasElements
+            || !UriConsumingMembers.Contains(element.Name.LocalName)
+            || IsSafeNonLiteralOrApplicationResource(element.Value))
+        {
+            return;
+        }
+
+        issues.Add(UnsafeUriIssue(element.Name.LocalName));
+    }
+
+    private static void AddUnsafeUriAttributeIssue(
+        XElement element,
+        XAttribute attribute,
+        ICollection<BlueprintValidationIssue> issues)
+    {
+        var member = attribute.Name.LocalName.Contains('.', StringComparison.Ordinal)
+            ? attribute.Name.LocalName
+            : element.Name.LocalName + "." + attribute.Name.LocalName;
+        if (!UriConsumingMembers.Contains(member)
+            || IsSafeNonLiteralOrApplicationResource(attribute.Value))
+        {
+            return;
+        }
+
+        issues.Add(UnsafeUriIssue(member));
+    }
+
+    private static bool IsSafeNonLiteralOrApplicationResource(string value)
+    {
+        var trimmed = value.Trim();
+        return string.IsNullOrEmpty(trimmed)
+            || trimmed.StartsWith("{Binding", StringComparison.Ordinal)
+            || trimmed.StartsWith("{StaticResource", StringComparison.Ordinal)
+            || trimmed.StartsWith("{DynamicResource", StringComparison.Ordinal)
+            || PreviewResourcePolicy.IsApplicationLocalPackSource(trimmed);
+    }
+
+    private static BlueprintValidationIssue UnsafeUriIssue(string member)
+        => Issue(
+            "UnsafePreviewUri",
+            $"Generated XAML must not assign a non-local literal URI to {member}.",
+            "Use a binding, resource reference, or application-local pack URI that cannot initiate external preview-host I/O.");
 
     private static BlueprintValidationIssue Issue(
         string code,

@@ -319,6 +319,12 @@ public sealed partial class SandboxCiScriptContractTests
             foreach (System.Text.RegularExpressions.Match setupStep in setupSteps)
             {
                 var body = setupStep.Groups["body"].Value;
+                var bodyLines = body.Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n');
+                var usesLine = bodyLines.Single(line => line.TrimStart().StartsWith("uses: actions/setup-dotnet@", StringComparison.Ordinal));
+                var withLine = bodyLines.Single(line => line.Trim().Equals("with:", StringComparison.Ordinal));
+                (withLine.Length - withLine.TrimStart().Length).Should().Be(
+                    usesLine.Length - usesLine.TrimStart().Length,
+                    $"{fileName} should nest setup-dotnet inputs under the action step");
                 body.Should().Contain("cache: true");
                 body.Should().Contain("cache-dependency-path: |");
                 body.Should().Contain("**/packages*.lock.json");

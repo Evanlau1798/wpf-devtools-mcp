@@ -33,7 +33,7 @@ public sealed class LiveTestProcessCleanupBehaviorTests
             });
 
             parent.Should().NotBeNull();
-            childId = WaitForChildId(childIdPath);
+            childId = WaitForChildId(childIdPath, parent!);
             TryGetProcess(childId, out _).Should().BeTrue();
 
             LiveTestProcessCleanup.StopAndDispose(parent, timeoutMilliseconds: 5000);
@@ -56,14 +56,20 @@ public sealed class LiveTestProcessCleanupBehaviorTests
         }
     }
 
-    private static int WaitForChildId(string childIdPath)
+    private static int WaitForChildId(string childIdPath, Process parent)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(10);
+        var deadline = DateTime.UtcNow.AddSeconds(15);
         while (DateTime.UtcNow < deadline)
         {
             if (File.Exists(childIdPath) && int.TryParse(File.ReadAllText(childIdPath), out var childId))
             {
                 return childId;
+            }
+
+            if (parent.HasExited)
+            {
+                throw new InvalidOperationException(
+                    $"Parent process exited with code {parent.ExitCode} before publishing the child process id.");
             }
 
             Thread.Sleep(100);

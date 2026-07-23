@@ -15,9 +15,10 @@ public sealed class ComposerWpfUiVisualFoundationTests
             .GetCatalog(new BlockCatalogQuery(PackIds: ["wpfui"]))
             .Items;
 
-        items.Should().HaveCount(17);
+        items.Should().HaveCount(18);
         items.Select(item => item.Kind).Should().Contain([
             "wpfui.numberBox",
+            "wpfui.progressBar",
             "wpfui.progressRing",
             "wpfui.toggleSwitch"
         ]);
@@ -51,6 +52,7 @@ public sealed class ComposerWpfUiVisualFoundationTests
     [InlineData("wpfui.card")]
     [InlineData("wpfui.fluentWindow")]
     [InlineData("wpfui.numberBox")]
+    [InlineData("wpfui.progressBar")]
     [InlineData("wpfui.progressRing")]
     [InlineData("wpfui.symbolIcon")]
     [InlineData("wpfui.titleBar")]
@@ -116,6 +118,7 @@ public sealed class ComposerWpfUiVisualFoundationTests
               "slots": { "children": [
                 { "kind": "wpfui.numberBox", "properties": { "value": 42, "minimum": 0, "maximum": 100, "smallChange": 5 } },
                 { "kind": "wpfui.toggleSwitch", "properties": { "isChecked": true, "offContent": "Off", "onContent": "On", "labelPosition": "Right" } },
+                { "kind": "wpfui.progressBar", "properties": { "value": 65, "minimum": 0, "maximum": 100, "isIndeterminate": false, "orientation": "Horizontal", "width": 240, "height": 4 } },
                 { "kind": "wpfui.progressRing", "properties": { "progress": 65, "isIndeterminate": false, "size": 32 } }
               ] }
             }
@@ -124,6 +127,7 @@ public sealed class ComposerWpfUiVisualFoundationTests
         result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
         result.Xaml.Should().Contain("<ui:NumberBox Value=\"42\" Minimum=\"0\" Maximum=\"100\" SmallChange=\"5\"")
             .And.Contain("<ui:ToggleSwitch IsChecked=\"true\" OffContent=\"Off\" OnContent=\"On\" LabelPosition=\"Right\"")
+            .And.Contain("<ProgressBar Value=\"65\" Minimum=\"0\" Maximum=\"100\" IsIndeterminate=\"false\" Orientation=\"Horizontal\" Width=\"240\" Height=\"4\"")
             .And.Contain("<ui:ProgressRing Progress=\"65\" IsIndeterminate=\"false\" Width=\"32\" Height=\"32\"");
     }
 

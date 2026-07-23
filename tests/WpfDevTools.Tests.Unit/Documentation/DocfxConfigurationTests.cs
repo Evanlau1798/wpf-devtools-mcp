@@ -79,6 +79,7 @@ public sealed class DocfxConfigurationTests
             "core.grid",
             "wpfui.numberBox",
             "wpfui.toggleSwitch",
+            "wpfui.progressBar",
             "wpfui.progressRing",
             "xamlItemTemplate",
             "PreviewContractMissing",

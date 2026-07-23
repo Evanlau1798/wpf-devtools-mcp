@@ -145,6 +145,7 @@
     "wpfui.navigationViewItem",
     "wpfui.navigationViewItemSeparator",
     "wpfui.numberBox",
+    "wpfui.progressBar",
     "wpfui.progressRing",
     "wpfui.tabView",
     "wpfui.tabViewItem",

@@ -44,13 +44,13 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 
 ## Counts
 
-- Blocks: 17
-- Renderers: 17
+- Blocks: 18
+- Renderers: 18
 - Recipes: 4
 - Examples: 1
 - Eligible source candidate kinds: 87
 - Generated from candidates: 15
-- Style-only generated blocks: 2
+- Style-only generated blocks: 3
 - Missing eligible candidates: 72
 - Excluded candidates: 363
 - Coverage ratio: 0.1724
@@ -59,7 +59,7 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 
 Coverage audit passed with one warning: `SourceInventoryCandidatesMissing`.
 
-The generated pack intentionally covers the directly composable reusable baseline: `card`, `editorialCard`, `navigationView`, `navigationViewItem`, `navigationViewItemSeparator`, `tabView`, `tabViewItem`, `fluentWindow`, and `dataGrid`, plus `button`, `titleBar`, `symbolIcon`, `textBlock`, `numberBox`, `toggleSwitch`, and `progressRing`.
+The generated pack intentionally covers the directly composable reusable baseline: `card`, `editorialCard`, `navigationView`, `navigationViewItem`, `navigationViewItemSeparator`, `tabView`, `tabViewItem`, `fluentWindow`, and `dataGrid`, plus `button`, `titleBar`, `symbolIcon`, `textBlock`, `numberBox`, `toggleSwitch`, `progressBar`, and `progressRing`.
 
 `contentDialog` and `snackbar` were intentionally removed after public E2E proved their direct renderer shapes were not valid WPF-UI 4.3.0 layout composition. `ContentDialog` requires host/show behavior for modal semantics, and `Snackbar` has no public parameterless constructor and requires a `SnackbarPresenter`. They can return only with an explicit behavior-integration contract and real-package compile/load evidence.
 
@@ -170,3 +170,26 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 ```
 
 The literal `Image.Source` safety gate was retained. `mediaSource` accepts only a binding expression and is omitted when unused, so the fallback path compiles without network or file access. Pack-owned `xamlItemTemplate` wrappers apply spacing only to rendered optional content and actions, including deterministic separation between adjacent buttons. The normalized archive matches every built-in pack file, and real WPF UI preview compilation covers the fallback renderer. The extension-creator `master` and `fix/source-inventory-coverage-audit` commits still have no tree diff. Because no pack schema, validator, generator, or workflow contract changed, neither branch required a creator code update.
+
+## ProgressBar Maintenance Commands and Results
+
+On 2026-07-24, repeated public E2E outputs showed that Agents could discover only the circular `wpfui.progressRing` for progress feedback. WPF UI 4.3.0 also provides an implicit style for the native WPF `ProgressBar`, so the pack now exposes that existing upstream surface as `wpfui.progressBar`. The linear block is intended for known completion, sequences, and comparable values; the ring remains available for compact standalone activity. Composer engine and schemas remain pack-neutral.
+
+```text
+python <extension-creator-root>/scripts/validate_pack.py packs/builtin/wpfui/0.1.0 --strict --report <temporary-validation-report>
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/audit_pack_coverage.py packs/builtin/wpfui/0.1.0 --source-inventory <reviewed-87-candidate-inventory> --report <temporary-coverage-report>
+exit code: 0; valid: true; errors: 0; warnings: 1; blocks: 18; renderers: 18; style-only generated blocks: 3; warning: `SourceInventoryCandidatesMissing`
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 45; root: wpfui/0.1.0/; SHA-256: B858CD09E15FB40748794C585ADB1A5A39CD486F7826B4181CF48B985A7D3E6C
+
+dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --no-build --filter "FullyQualifiedName~ComposerWpfUiVisualFoundationTests|FullyQualifiedName~ComposerRealWpfUiRuntimeTests"
+exit code: 0; generated native ProgressBar loaded with the real WPF UI 4.3.0 implicit style
+
+python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt <existing-required-block-slot-and-kind-gates> --required-block wpfui.progressBar --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+```
+
+The source inventory records public CLR control candidates; `ProgressBar` is a native WPF control styled by WPF UI XAML, so it is intentionally counted as the third style-only block. The current extension-creator `master` already contains the synchronized `fix/source-inventory-coverage-audit` tree, and this addition changes no pack schema or generator contract; no creator repository modification is required.

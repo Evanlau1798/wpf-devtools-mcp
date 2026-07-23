@@ -1,0 +1,1 @@
+<ProgressBar Value="{{value}}" Minimum="{{minimum}}" Maximum="{{maximum}}" IsIndeterminate="{{isIndeterminate}}" Orientation="{{orientation}}" Width="{{width}}" Height="{{height}}" Margin="{{margin}}" />

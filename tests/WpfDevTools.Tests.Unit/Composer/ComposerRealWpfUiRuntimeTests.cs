@@ -153,6 +153,7 @@ public sealed class ComposerRealWpfUiRuntimeTests
                   "slots": { "children": [
                     { "kind": "wpfui.numberBox", "properties": { "value": 42, "minimum": 0, "maximum": 100, "smallChange": 5 } },
                     { "kind": "wpfui.toggleSwitch", "properties": { "isChecked": true, "offContent": "Off", "onContent": "On", "labelPosition": "Right" } },
+                    { "kind": "wpfui.progressBar", "properties": { "value": 65, "isIndeterminate": false, "width": 240 } },
                     { "kind": "wpfui.progressRing", "properties": { "progress": 65, "isIndeterminate": false, "size": 32 } }
                   ] }
                 }] }
@@ -168,7 +169,9 @@ public sealed class ComposerRealWpfUiRuntimeTests
 
         descendants.OfType<WpfUiNumberBox>().Should().ContainSingle(box => box.Value == 42);
         descendants.OfType<WpfUiToggleSwitch>().Should().ContainSingle(toggle => toggle.IsChecked == true);
+        descendants.OfType<ProgressBar>().Should().ContainSingle(bar => bar.Value == 65 && bar.Width == 240);
         descendants.OfType<WpfUiProgressRing>().Should().ContainSingle(ring => ring.Progress == 65);
+        AssertImplicitStyleResource<ProgressBar>(window);
     }
 
     [StaFact]

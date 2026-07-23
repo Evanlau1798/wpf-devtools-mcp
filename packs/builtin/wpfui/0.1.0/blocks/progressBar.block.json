@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "wpfui.progressBar",
+  "displayName": "Progress Bar",
+  "description": "Linear progress feedback for known completion, sequences, and values that benefit from visual comparison.",
+  "category": "feedback",
+  "properties": {
+    "height": {
+      "description": "Rendered height of the Progress Bar in device-independent pixels.",
+      "default": 4,
+      "minimum": 1,
+      "type": "number"
+    },
+    "isIndeterminate": {
+      "description": "Shows continuous activity when true; set false to display the current value.",
+      "default": false,
+      "type": "boolean"
+    },
+    "margin": {
+      "description": "Outer spacing around the Progress Bar, using WPF Thickness syntax.",
+      "default": "0",
+      "format": "thickness",
+      "type": "string"
+    },
+    "maximum": {
+      "description": "Upper bound used to calculate the displayed progress.",
+      "default": 100,
+      "type": "number"
+    },
+    "minimum": {
+      "description": "Lower bound used to calculate the displayed progress.",
+      "default": 0,
+      "type": "number"
+    },
+    "orientation": {
+      "description": "Direction in which progress fills.",
+      "allowedValues": [
+        "Horizontal",
+        "Vertical"
+      ],
+      "default": "Horizontal",
+      "type": "string"
+    },
+    "value": {
+      "description": "Current progress value between minimum and maximum.",
+      "default": 0,
+      "type": "number"
+    },
+    "width": {
+      "description": "Rendered width of the Progress Bar in device-independent pixels.",
+      "default": 240,
+      "minimum": 1,
+      "type": "number"
+    }
+  },
+  "slots": {},
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/progressBar.xaml.sbn"
+  },
+  "sourceHints": [
+    {
+      "path": "src/Wpf.Ui/Controls/ProgressBar/ProgressBar.xaml",
+      "usage": "semantic extraction from the implicit WPF UI ProgressBar style"
+    }
+  ]
+}

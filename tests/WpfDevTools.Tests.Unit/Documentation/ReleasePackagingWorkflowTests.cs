@@ -226,16 +226,12 @@ public class ReleasePackagingWorkflowTests
     }
 
     [Fact]
-    public void CiWorkflow_ShouldSerializeDotNetBuildsToAvoidSharedObjLocks()
+    public void CiWorkflow_ShouldUseParallelDotNetBuilds()
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
 
-        content.Should().Contain("dotnet build --configuration ${{ matrix.configuration }} --no-restore -m:1",
-            "solution-level CI builds can compile shared project references for multiple target frameworks into the same obj path on hosted runners");
-        content.Should().Contain("dotnet build --configuration Release -p:Platform=ARM64 -m:1",
-            "the ARM64 solution build should use the same deterministic build scheduling policy");
-        content.Should().Contain("dotnet build tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj -c Debug --no-restore -m:1",
-            "coverage builds should avoid parallel shared project-reference compilation before running tests");
+        content.Should().NotContain("-m:1",
+            "the project graph no longer creates duplicate target-framework builds, so hosted builds should use MSBuild parallelism");
     }
 
     [Fact]

@@ -45,13 +45,13 @@
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
     <ProjectReference Update="..\WpfDevTools.Shared\WpfDevTools.Shared.csproj">
-      <SetTargetFramework>TargetFramework=net8.0;NoWarn=NU1900;WarningsNotAsErrors=NU1900</SetTargetFramework>
+      <SetTargetFramework>TargetFramework=net8.0</SetTargetFramework>
     </ProjectReference>
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <ProjectReference Update="..\WpfDevTools.Shared\WpfDevTools.Shared.csproj">
-      <SetTargetFramework>TargetFramework=net48;NoWarn=NU1900;WarningsNotAsErrors=NU1900</SetTargetFramework>
+      <SetTargetFramework>TargetFramework=net48</SetTargetFramework>
     </ProjectReference>
   </ItemGroup>
 

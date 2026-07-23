@@ -51,6 +51,26 @@ public class BuildConfigurationTests
     }
 
     [Fact]
+    public void ProjectReferences_ShouldNotCreateDuplicateBuildInstancesWithWarningProperties()
+    {
+        var repoRoot = Path.GetDirectoryName(GetRepoFilePath("WpfDevTools.sln"))!;
+        var targetFrameworkSelections = new[] { "src", "tests" }
+            .SelectMany(directory => Directory.EnumerateFiles(
+                Path.Combine(repoRoot, directory),
+                "*.csproj",
+                SearchOption.AllDirectories))
+            .SelectMany(path => System.Xml.Linq.XDocument.Load(path).Descendants("SetTargetFramework"))
+            .Select(element => element.Value)
+            .ToArray();
+
+        targetFrameworkSelections.Should().NotBeEmpty();
+        targetFrameworkSelections.Should().OnlyContain(
+            value => value.StartsWith("TargetFramework=", StringComparison.Ordinal)
+                && !value.Contains(';'),
+            "extra global properties create duplicate project instances that race on the same obj/bin outputs");
+    }
+
+    [Fact]
     public void ContributingGuide_ShouldRecommendBuildThenNoBuildTestWorkflow()
     {
         var content = File.ReadAllText(GetRepoFilePath("CONTRIBUTING.md"));

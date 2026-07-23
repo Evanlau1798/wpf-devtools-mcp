@@ -399,7 +399,6 @@ function Invoke-HostedWindowsX64Verification {
                     'build',
                     '--configuration', $configuration,
                     '--no-restore',
-                    '-m:1',
                     "-p:Platform=$platform",
                     '-nodeReuse:false',
                     '-p:UseSharedCompilation=false'

@@ -5,8 +5,8 @@ function Invoke-HostedArm64Build {
         'build',
         '--configuration',
         'Release',
+        '--no-restore',
         '-p:Platform=ARM64',
-        '-m:1',
         '-nodeReuse:false',
         '-p:UseSharedCompilation=false'
     )
@@ -47,7 +47,6 @@ function Invoke-HostedCoverageVerification {
         'tests\WpfDevTools.Tests.Unit\WpfDevTools.Tests.Unit.csproj',
         '-c', 'Debug',
         '--no-restore',
-        '-m:1',
         '-nodeReuse:false',
         '-p:UseSharedCompilation=false'
     )
@@ -113,7 +112,6 @@ function Invoke-HostedWindowsX64FastVerification {
             'build',
             '--configuration', 'Debug',
             '--no-restore',
-            '-m:1',
             '-p:Platform=x64',
             '-nodeReuse:false',
             '-p:UseSharedCompilation=false'

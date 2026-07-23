@@ -10,14 +10,16 @@ internal static partial class ReleasePackagingTestHarness
 
     private static (int ExitCode, string Stdout, string Stderr) RunProcess(
         ProcessStartInfo startInfo,
-        TimeSpan? timeout)
+        TimeSpan? timeout,
+        bool scaleTimeout)
     {
         using var process = new Process { StartInfo = startInfo };
         process.Start();
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();
-        var effectiveTimeout = ScaleTimeout(timeout ?? DefaultProcessTimeout);
+        var requestedTimeout = timeout ?? DefaultProcessTimeout;
+        var effectiveTimeout = scaleTimeout ? ScaleTimeout(requestedTimeout) : requestedTimeout;
         var timeoutMilliseconds = effectiveTimeout.TotalMilliseconds > int.MaxValue
             ? int.MaxValue
             : (int)Math.Ceiling(effectiveTimeout.TotalMilliseconds);

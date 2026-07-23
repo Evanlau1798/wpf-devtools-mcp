@@ -361,7 +361,8 @@ public sealed class ReleasePackagingTestHarnessIntegrationTests
                     "-GrandchildPidPath", grandchildPidPath,
                     "-ChildScriptPath", childScriptPath
                 ],
-                timeout: TimeSpan.FromSeconds(10));
+                timeout: TimeSpan.FromSeconds(10),
+                scaleTimeout: false);
 
             act.Should().Throw<TimeoutException>();
             ConditionWaiter.WaitUntil(

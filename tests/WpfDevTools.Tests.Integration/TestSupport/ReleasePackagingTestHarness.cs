@@ -31,7 +31,8 @@ internal static partial class ReleasePackagingTestHarness
         string scriptPath,
         IEnumerable<string> arguments,
         IReadOnlyDictionary<string, string?>? environmentOverrides = null,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        bool scaleTimeout = true)
     {
         var argumentList = arguments.ToList();
         var canReuseSharedEnvironmentRoot = string.Equals(Path.GetFileName(scriptPath), "online-installer.ps1", StringComparison.OrdinalIgnoreCase);
@@ -106,7 +107,7 @@ internal static partial class ReleasePackagingTestHarness
 
         try
         {
-            return RunProcess(startInfo, timeout);
+            return RunProcess(startInfo, timeout, scaleTimeout);
         }
         finally
         {
@@ -258,7 +259,7 @@ internal static partial class ReleasePackagingTestHarness
 
         try
         {
-            return RunProcess(startInfo, timeout);
+            return RunProcess(startInfo, timeout, scaleTimeout: true);
         }
         finally
         {

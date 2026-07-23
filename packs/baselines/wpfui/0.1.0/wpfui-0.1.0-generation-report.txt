@@ -183,7 +183,7 @@ python <extension-creator-root>/scripts/audit_pack_coverage.py packs/builtin/wpf
 exit code: 0; valid: true; errors: 0; warnings: 1; blocks: 18; renderers: 18; style-only generated blocks: 3; warning: `SourceInventoryCandidatesMissing`
 
 python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
-exit code: 0; archive entries: 45; root: wpfui/0.1.0/; SHA-256: B858CD09E15FB40748794C585ADB1A5A39CD486F7826B4181CF48B985A7D3E6C
+exit code: 0; archive entries: 45; root: wpfui/0.1.0/; SHA-256: 00199B7DF37131713F7D7FEE0F38D7AF57EAD8B21EDA963CFBEBF1E57877B159
 
 dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --no-build --filter "FullyQualifiedName~ComposerWpfUiVisualFoundationTests|FullyQualifiedName~ComposerRealWpfUiRuntimeTests"
 exit code: 0; generated native ProgressBar loaded with the real WPF UI 4.3.0 implicit style
@@ -192,4 +192,4 @@ python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wp
 exit code: 0; valid: true; errors: 0; warnings: 0
 ```
 
-The source inventory records public CLR control candidates; `ProgressBar` is a native WPF control styled by WPF UI XAML, so it is intentionally counted as the third style-only block. The current extension-creator `master` already contains the synchronized `fix/source-inventory-coverage-audit` tree, and this addition changes no pack schema or generator contract; no creator repository modification is required.
+The source inventory records public CLR control candidates; `ProgressBar` is a native WPF control styled by WPF UI XAML, so it is intentionally counted as the third style-only block. The block exposes only horizontal orientation because its 240-by-4 default geometry is intentionally linear; a future vertical variant must provide matching pack-owned geometry and runtime layout coverage rather than silently rotating these defaults. The current extension-creator `master` already contains the synchronized `fix/source-inventory-coverage-audit` tree, and this addition changes no pack schema or generator contract; no creator repository modification is required.

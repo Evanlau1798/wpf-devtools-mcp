@@ -27,6 +27,8 @@ public sealed class ComposerWpfUiVisualFoundationTests
         fontSize.Maximum.Should().Be(200);
         var margin = items.Single(item => item.Kind == "wpfui.button").Properties["margin"];
         margin.Format.Should().Be("thickness");
+        var progressBarOrientation = items.Single(item => item.Kind == "wpfui.progressBar").Properties["orientation"];
+        progressBarOrientation.AllowedValues.Should().Equal("Horizontal");
     }
 
     [Fact]

@@ -165,13 +165,27 @@ public sealed class ComposerRealWpfUiRuntimeTests
         render.Success.Should().BeTrue(string.Join(Environment.NewLine, render.Errors.Select(error => error.Message)));
         var window = (WpfUiFluentWindow)XamlReader.Parse(render.Xaml);
         AddWpfUiResourcesFromPlan(window, render.RequiredResources);
-        var descendants = EnumerateDescendants(window).ToArray();
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var descendants = EnumerateDescendants(window).ToArray();
 
-        descendants.OfType<WpfUiNumberBox>().Should().ContainSingle(box => box.Value == 42);
-        descendants.OfType<WpfUiToggleSwitch>().Should().ContainSingle(toggle => toggle.IsChecked == true);
-        descendants.OfType<ProgressBar>().Should().ContainSingle(bar => bar.Value == 65 && bar.Width == 240);
-        descendants.OfType<WpfUiProgressRing>().Should().ContainSingle(ring => ring.Progress == 65);
-        AssertImplicitStyleResource<ProgressBar>(window);
+            descendants.OfType<WpfUiNumberBox>().Should().ContainSingle(box => box.Value == 42);
+            descendants.OfType<WpfUiToggleSwitch>().Should().ContainSingle(toggle => toggle.IsChecked == true);
+            var progressBar = descendants.OfType<ProgressBar>().Should()
+                .ContainSingle(bar => bar.Value == 65 && bar.Width == 240)
+                .Subject;
+            descendants.OfType<WpfUiProgressRing>().Should().ContainSingle(ring => ring.Progress == 65);
+            AssertImplicitStyleResource<ProgressBar>(window);
+            progressBar.Style.Should().BeSameAs(window.FindResource(typeof(ProgressBar)));
+            progressBar.IsVisible.Should().BeTrue();
+            progressBar.ActualWidth.Should().BeGreaterThan(progressBar.ActualHeight);
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     [StaFact]

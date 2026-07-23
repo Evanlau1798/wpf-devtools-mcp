@@ -35,8 +35,7 @@
     "orientation": {
       "description": "Direction in which progress fills.",
       "allowedValues": [
-        "Horizontal",
-        "Vertical"
+        "Horizontal"
       ],
       "default": "Horizontal",
       "type": "string"

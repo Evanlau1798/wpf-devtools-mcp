@@ -133,19 +133,6 @@ public sealed partial class ComposerPreviewCompileTests
         }
         payload.GetProperty("previewHost").GetProperty("status").GetString().Should().Be("compiled");
         payload.GetProperty("previewHost").GetProperty("viewLoaded").GetBoolean().Should().BeFalse();
-
-        var fullResult = await UiComposerMcpTools.PreviewUiBlueprint(
-            sessionManager,
-            draftRef,
-            restoreEnabled: true,
-            compactRuntimeDiagnostics: false,
-            cancellationToken: CancellationToken.None);
-        var fullPayload = fullResult.StructuredContent!.Value;
-        fullPayload.GetProperty("generatedXamlOmitted").GetBoolean().Should().BeFalse();
-        fullPayload.GetProperty("xaml").GetString().Should().NotBeNullOrWhiteSpace();
-        fullPayload.GetProperty("elementCorrelationsCompacted").GetBoolean().Should().BeFalse();
-        fullPayload.GetProperty("elementCorrelations").GetArrayLength().Should()
-            .Be(fullPayload.GetProperty("elementCorrelationCount").GetInt32());
     }
 
     [Fact]

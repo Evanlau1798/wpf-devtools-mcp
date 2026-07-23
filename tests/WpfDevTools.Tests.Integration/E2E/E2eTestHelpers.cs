@@ -225,7 +225,7 @@ public static partial class E2eTestHelpers
         TimeSpan timeout)
     {
         return ConditionWaiter.WaitForAsync(
-            () => client.CallToolAsync(
+            cancellationToken => client.CallToolAsync(
                 "get_dp_value_source",
                 new
                 {
@@ -236,7 +236,8 @@ public static partial class E2eTestHelpers
                     settleBindings = true,
                     navigation = false
                 },
-                timeoutMs: 10000),
+                timeoutMs: 10000,
+                ct: cancellationToken),
             result => ToolSucceeded(result) &&
                 string.Equals(GetDpCurrentValue(result), expectedValue, StringComparison.Ordinal),
             timeout,
@@ -249,13 +250,14 @@ public static partial class E2eTestHelpers
         TimeSpan timeout)
     {
         return await ConditionWaiter.WaitForAsync(
-            () => client.CallToolAsync(
+            cancellationToken => client.CallToolAsync(
                 "trace_routed_events",
                 new
                 {
                     processId,
                     mode = "get"
-                }),
+                },
+                ct: cancellationToken),
             result => result.GetProperty("eventCount").GetInt32() > 0,
             timeout,
             "Timed out waiting for trace_routed_events(mode='get') to observe a routed event.");

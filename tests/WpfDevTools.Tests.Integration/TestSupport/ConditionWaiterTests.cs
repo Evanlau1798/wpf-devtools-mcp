@@ -6,6 +6,23 @@ namespace WpfDevTools.Tests.Integration.TestSupport;
 public sealed class ConditionWaiterTests
 {
     [Fact]
+    public async Task WaitForAsync_WhenNonCooperativeActionSucceedsAfterDeadline_ShouldRejectLateResult()
+    {
+        var act = () => ConditionWaiter.WaitForAsync(
+            async _ =>
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(100));
+                return true;
+            },
+            result => result,
+            TimeSpan.FromMilliseconds(20),
+            "The condition missed its deadline.");
+
+        await act.Should().ThrowAsync<TimeoutException>()
+            .WithMessage("The condition missed its deadline.*");
+    }
+
+    [Fact]
     public async Task WaitForAsync_WhenActionExceedsDeadline_ShouldCancelActionAndThrowPromptly()
     {
         var cancellationObserved = false;

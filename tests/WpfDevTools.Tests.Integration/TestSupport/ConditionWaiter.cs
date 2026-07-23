@@ -47,12 +47,14 @@ internal static class ConditionWaiter
         try
         {
             lastResult = await action(timeoutSource.Token).ConfigureAwait(false);
+            timeoutSource.Token.ThrowIfCancellationRequested();
             hasResult = true;
 
             while (!condition(lastResult))
             {
                 await Task.Delay(interval, timeoutSource.Token).ConfigureAwait(false);
                 lastResult = await action(timeoutSource.Token).ConfigureAwait(false);
+                timeoutSource.Token.ThrowIfCancellationRequested();
             }
 
             return lastResult;

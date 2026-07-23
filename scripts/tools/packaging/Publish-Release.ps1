@@ -64,6 +64,27 @@ Assert-ArchitectureToolchainAvailable `
     -ResolvedMsBuildPath $msbuildPath `
     -WindowsSdkDirectory $windowsSdkDirectory `
     -WindowsSdkVersion $windowsSdkVersion
+
+if (-not $SkipBuild) {
+    Invoke-Step -FilePath 'dotnet' -Arguments @(
+        'build', $inspectorProject,
+        '-c', $Configuration,
+        '-f', 'net8.0-windows'
+    )
+    Invoke-Step -FilePath 'dotnet' -Arguments @(
+        'build', $inspectorSdkProject,
+        '-c', $Configuration,
+        '-f', 'net8.0-windows',
+        '-p:GeneratePackageOnBuild=false'
+    )
+}
+
+Invoke-Step -FilePath 'dotnet' -Arguments @(
+    'build', $inspectorProject,
+    '-c', $Configuration,
+    '-f', 'net48'
+)
+
 foreach ($architecture in $resolvedArchitectures) {
     $runtimeId = Get-RuntimeId -Architecture $architecture
     $bootstrapperPlatform = Get-BootstrapperPlatform -Architecture $architecture
@@ -96,26 +117,6 @@ foreach ($architecture in $resolvedArchitectures) {
                 '-o', $binDir
             )
         }
-
-        if (-not $SkipBuild) {
-            Invoke-Step -FilePath 'dotnet' -Arguments @(
-                'build', $inspectorProject,
-                '-c', $Configuration,
-                '-f', 'net8.0-windows'
-            )
-            Invoke-Step -FilePath 'dotnet' -Arguments @(
-                'build', $inspectorSdkProject,
-                '-c', $Configuration,
-                '-f', 'net8.0-windows',
-                '-p:GeneratePackageOnBuild=false'
-            )
-        }
-
-        Invoke-Step -FilePath 'dotnet' -Arguments @(
-            'build', $inspectorProject,
-            '-c', $Configuration,
-            '-f', 'net48'
-        )
 
         $bootstrapperBuildArguments = @(
             $bootstrapperProject,

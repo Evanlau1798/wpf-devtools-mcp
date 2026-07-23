@@ -308,7 +308,7 @@ public sealed partial class SandboxCiScriptContractTests
     [Fact]
     public void DotNetWorkflowSetup_ShouldCacheAllLockedDependencies()
     {
-        foreach (var fileName in new[] { "ci-cd.yml", "docs-pages.yml", "security-scan.yml", "codeql.yml" })
+        foreach (var fileName in new[] { "ci-cd.yml", "docs-pages.yml", "security-scan.yml", "codeql.yml", "release.yml" })
         {
             var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", fileName));
             var setupSteps = System.Text.RegularExpressions.Regex.Matches(
@@ -333,6 +333,24 @@ public sealed partial class SandboxCiScriptContractTests
                 body.Should().Contain(".config/dotnet-tools.json");
             }
         }
+    }
+
+    [Fact]
+    public void DocumentationAndPackageBuilds_AfterLockedRestore_ShouldUseNoRestore()
+    {
+        foreach (var fileName in new[] { "ci-cd.yml", "docs-pages.yml", "release.yml" })
+        {
+            var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", fileName));
+
+            workflow.Should().Contain(
+                "dotnet build src/WpfDevTools.Shared/WpfDevTools.Shared.csproj -c Debug -f net8.0 --no-restore");
+            workflow.Should().Contain(
+                "dotnet build src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj -c Debug -f net8.0-windows --no-restore");
+        }
+
+        var ciWorkflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
+        ciWorkflow.Should().Contain(
+            "dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --configuration Release --no-restore");
     }
 
     private static string GetWorkflowStep(string workflow, string name)

@@ -92,10 +92,10 @@ jobs:
         run: dotnet restore WpfDevTools.sln --locked-mode
 
       - name: Build shared assembly for API docs
-        run: dotnet build src/WpfDevTools.Shared/WpfDevTools.Shared.csproj -c Debug -f net8.0
+        run: dotnet build src/WpfDevTools.Shared/WpfDevTools.Shared.csproj -c Debug -f net8.0 --no-restore
 
       - name: Build SDK assembly for API docs
-        run: dotnet build src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj -c Debug -f net8.0-windows
+        run: dotnet build src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj -c Debug -f net8.0-windows --no-restore
 
       - name: Build DocFX site
         run: dotnet tool run docfx docfx/docfx.json

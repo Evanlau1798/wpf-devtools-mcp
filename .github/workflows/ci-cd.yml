@@ -40,10 +40,10 @@ jobs:
       run: dotnet restore WpfDevTools.sln --locked-mode
 
     - name: Build shared assembly for API docs
-      run: dotnet build src/WpfDevTools.Shared/WpfDevTools.Shared.csproj -c Debug -f net8.0
+      run: dotnet build src/WpfDevTools.Shared/WpfDevTools.Shared.csproj -c Debug -f net8.0 --no-restore
 
     - name: Build SDK assembly for API docs
-      run: dotnet build src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj -c Debug -f net8.0-windows
+      run: dotnet build src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj -c Debug -f net8.0-windows --no-restore
 
     - name: Build DocFX site
       run: dotnet tool run docfx docfx/docfx.json
@@ -821,7 +821,7 @@ jobs:
       run: dotnet restore --locked-mode
 
     - name: Build SDK package
-      run: dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --configuration Release --output ./nupkg -p:GeneratePackageOnBuild=false
+      run: dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --configuration Release --no-restore --output ./nupkg -p:GeneratePackageOnBuild=false
 
     - name: Upload NuGet package
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

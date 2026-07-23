@@ -378,6 +378,33 @@ public sealed class ComposerPackLoaderCacheTests
         }
     }
 
+    [Fact]
+    public void Load_ShouldRejectRendererFilesOutsideCanonicalFingerprintContract()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = CreateMinimalPack(tempRoot);
+            var canonicalPath = Path.Combine(packRoot, "renderers", "xaml", "text.xaml.sbn");
+            var untrackedPath = Path.Combine(packRoot, "renderers", "xaml", "text.template");
+            File.Move(canonicalPath, untrackedPath);
+            File.WriteAllText(
+                Path.Combine(packRoot, "blocks", "text.block.json"),
+                """
+                {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"sample.text","displayName":"Text","category":"text","properties":{},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/text.template"},"sourceHints":[]}
+                """);
+
+            var action = () => ComposerPackLoader.LoadUncachedForValidation(packRoot);
+
+            action.Should().Throw<InvalidDataException>()
+                .WithMessage("*canonical renderers/xaml/*.xaml.sbn*");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
     private static string CreateMinimalPack(string root, string packId = "sample")
     {
         var packRoot = Path.Combine(root, packId, "1.0.0");

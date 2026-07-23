@@ -297,6 +297,22 @@ internal static class ComposerPackLoader
             throw new InvalidDataException(
                 $"Renderer template for block '{block.Kind}' escapes pack root: {template}.");
         }
+
+        var pathParts = template.Split('/');
+        if (template.Contains('\\', StringComparison.Ordinal)
+            || !template.StartsWith("renderers/xaml/", StringComparison.Ordinal)
+            || !template.EndsWith(".xaml.sbn", StringComparison.Ordinal)
+            || pathParts.Any(part => string.IsNullOrWhiteSpace(part) || part is "." or ".."))
+        {
+            throw new InvalidDataException(
+                $"Renderer template for block '{block.Kind}' must use the canonical renderers/xaml/**/*.xaml.sbn contract.");
+        }
+
+        if (!File.Exists(fullTemplatePath))
+        {
+            throw new InvalidDataException(
+                $"Renderer template for block '{block.Kind}' is missing: {template}.");
+        }
     }
 
     private static void ValidateCodeBehindBaseType(UiBlockDefinition block)

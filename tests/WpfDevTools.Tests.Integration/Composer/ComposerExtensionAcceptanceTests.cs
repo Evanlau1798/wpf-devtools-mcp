@@ -16,99 +16,83 @@ using WpfDevTools.Tests.Integration.TestSupport;
 
 namespace WpfDevTools.Tests.Integration.Composer;
 
-[CollectionDefinition("ComposerAcceptance", DisableParallelization = true)]
-public sealed class ComposerAcceptanceCollection;
+[CollectionDefinition("ComposerExtension", DisableParallelization = true)]
+public sealed class ComposerExtensionCollection;
 
-[Collection("ComposerAcceptance")]
-[Trait("Category", "ComposerAcceptance")]
-public sealed class ComposerThirdPartyAcceptanceTests
+[Collection("ComposerExtension")]
+public sealed class ComposerExtensionAcceptanceTests
 {
     [Fact]
-    public async Task RealExtensionPacks_ShouldBuildMaterialConsumerRuntimeAndMahAppsCustomWindow()
+    public async Task SyntheticExtensionPack_ShouldBuildLaunchAndSupportMcpInteraction()
     {
-        string? materialRoot = null;
-        string? mahAppsRoot = null;
+        string? projectRoot = null;
         Process? consumer = null;
         try
         {
-            materialRoot = ComposerRealPackFixture.CreateProject(
-                "materialdesign",
-                "5.3.2",
-                "MaterialDesignConsumer",
-                "<PackageReference Include=\"MaterialDesignThemes\" Version=\"5.3.2\" />");
-            var materialApply = ApplyConfirmed(
-                materialRoot,
-                ComposerRealPackFixture.MaterialDesignBlueprint,
+            projectRoot = ComposerSyntheticPackFixture.CreateProject();
+            var apply = ApplyConfirmed(
+                projectRoot,
+                ComposerSyntheticPackFixture.Blueprint,
                 "MainWindow.xaml");
-            materialApply.RequiredNuGetPackages.Should().ContainSingle(package =>
-                package.Id == "MaterialDesignThemes" && package.VersionRange == "[5.3.2]");
-            materialApply.BehaviorIntegrationContract.Interactions.Should().ContainSingle(interaction =>
-                interaction.CommandPath == "OpenWorkspaceCommand"
-                && interaction.CommandParameter == "material-532");
-            ComposerRealPackFixture.WriteApplication(
-                materialRoot,
-                "MaterialDesignConsumer",
-                "MainWindow",
-                materialApply.ResourcePlan,
-                inspectorEnabled: true);
-            File.ReadAllText(Path.Combine(materialRoot, "App.xaml"))
-                .Should().Contain("x:Key=\"ExistingBrush\"");
-            await AssertBuildAsync(materialRoot);
+
+            apply.RequiredNuGetPackages.Should().ContainSingle(package =>
+                package.Id == "System.Threading.Channels" && package.VersionRange == "[8.0.0]");
+            apply.BehaviorIntegrationContract.Interactions.Should().ContainSingle(interaction =>
+                interaction.CommandPath == "RunExtensionCommand"
+                && interaction.CommandParameter == "neutral-payload");
+            apply.Xaml.Should().Contain("<synthetic:ExtensionWindow");
+            apply.FilePlan.Should().Contain(item =>
+                item.Role == "code-behind-integration"
+                && item.Action.Contains(
+                    "SyntheticExtension.Controls.ExtensionWindow",
+                    StringComparison.Ordinal));
+
+            File.ReadAllText(Path.Combine(projectRoot, "App.xaml"))
+                .Should().Contain("x:Key=\"ExistingBrush\"")
+                .And.Contain("SyntheticTheme.xaml");
+            File.ReadAllText(Path.Combine(projectRoot, "SyntheticConsumer.csproj"))
+                .Should().Contain("PackageReference Include=\"System.Threading.Channels\"");
+            File.ReadAllText(Path.Combine(projectRoot, "MainWindow.xaml.cs"))
+                .Should().Contain("SyntheticExtension.Controls")
+                .And.Contain(
+                    "MainWindow : SyntheticExtension.Controls.ExtensionWindow");
+            await AssertBuildAsync(projectRoot);
 
             var authSecret = CreateAuthSecret();
-            var certificateDirectory = Path.Combine(materialRoot, ".mcp-certificates");
-            WriteInspectorOptions(materialRoot, authSecret, certificateDirectory);
-            consumer = LaunchConsumer(materialRoot, "MaterialDesignConsumer");
+            var certificateDirectory = Path.Combine(projectRoot, ".mcp-certificates");
+            WriteInspectorOptions(projectRoot, authSecret, certificateDirectory);
+            consumer = LaunchConsumer(projectRoot);
             await WaitForWindowAsync(consumer);
-            await WaitForInspectorAsync(materialRoot);
-            await AssertMaterialRuntimeOverStdioAsync(
+            await WaitForInspectorAsync(projectRoot);
+            await AssertRuntimeOverStdioAsync(
                 consumer,
-                materialRoot,
+                projectRoot,
                 authSecret,
                 certificateDirectory);
-            LiveTestProcessCleanup.StopAndDispose(consumer);
-            consumer = null;
-
-            mahAppsRoot = ComposerRealPackFixture.CreateProject(
-                "mahapps",
-                "2.4.11",
-                "MahAppsConsumer",
-                "<PackageReference Include=\"MahApps.Metro\" Version=\"2.4.11\" />");
-            var mahAppsApply = ApplyConfirmed(
-                mahAppsRoot,
-                ComposerRealPackFixture.MahAppsBlueprint,
-                "OperationsWindow.xaml");
-            mahAppsApply.Xaml.Should().Contain("<mah:MetroWindow");
-            mahAppsApply.FilePlan.Should().Contain(item =>
-                item.Role == "code-behind-integration"
-                && item.Action.Contains("MahApps.Metro.Controls.MetroWindow", StringComparison.Ordinal));
-            ComposerRealPackFixture.WriteApplication(
-                mahAppsRoot,
-                "MahAppsConsumer",
-                "OperationsWindow",
-                mahAppsApply.ResourcePlan,
-                inspectorEnabled: false);
-            await AssertBuildAsync(mahAppsRoot);
         }
         finally
         {
             LiveTestProcessCleanup.StopAndDispose(consumer);
-            DeleteProjectRoot(materialRoot);
-            DeleteProjectRoot(mahAppsRoot);
+            DeleteProjectRoot(projectRoot);
         }
     }
 
-    private static ApplyBlueprintResult ApplyConfirmed(string projectRoot, string blueprint, string targetPath)
+    private static ApplyBlueprintResult ApplyConfirmed(
+        string projectRoot,
+        string blueprint,
+        string targetPath)
     {
         var registry = new PackRegistry(
             ComposerPackPaths.BuiltinRoot(ReleasePackagingTestHarness.GetRepoFilePath(".")),
             ComposerPackPaths.ProjectLocalRoot(projectRoot));
         var validation = new BlueprintValidationService(registry).Validate(blueprint);
-        validation.Success.Should().BeTrue(string.Join(Environment.NewLine,
+        validation.Success.Should().BeTrue(string.Join(
+            Environment.NewLine,
             validation.Errors.Select(error => error.Message)));
         var render = new UiBlueprintRenderer(registry).Render(
             new RenderBlueprintRequest(blueprint, ProjectRoot: projectRoot));
-        render.Success.Should().BeTrue(string.Join(Environment.NewLine,
+        render.Success.Should().BeTrue(string.Join(
+            Environment.NewLine,
             render.Errors.Select(error => error.Message)));
 
         using var allowedRoot = new EnvironmentVariableScope(
@@ -117,9 +101,44 @@ public sealed class ComposerThirdPartyAcceptanceTests
         using var projectWrites = new EnvironmentVariableScope(
             McpServerConfiguration.AllowProjectWritesEnvVar,
             "true");
-        var apply = new UiBlueprintApplyService(registry).Apply(
-            new ApplyBlueprintRequest(blueprint, projectRoot, targetPath, DryRun: false, ConfirmApply: true));
-        apply.Success.Should().BeTrue(string.Join(Environment.NewLine,
+        var applyService = new UiBlueprintApplyService(registry);
+        var dryRun = applyService.Apply(
+            new ApplyBlueprintRequest(
+                blueprint,
+                projectRoot,
+                targetPath,
+                DryRun: true));
+        dryRun.Success.Should().BeTrue(string.Join(
+            Environment.NewLine,
+            dryRun.Errors
+                .Concat(dryRun.ProjectIntegrationPlan.Errors)
+                .Select(error => $"{error.Code}: {error.Message}")));
+        dryRun.ProjectIntegrationPlan.Ready.Should().BeTrue(string.Join(
+            Environment.NewLine,
+            dryRun.ProjectIntegrationPlan.Errors.Select(
+                error => $"{error.Code}: {error.Message}")));
+
+        var integration = new UiBlueprintProjectIntegrationService(registry).Apply(
+            new ProjectIntegrationRequest(
+                blueprint,
+                projectRoot,
+                targetPath,
+                dryRun.ProjectIntegrationPlan.PlanHash,
+                ConfirmIntegration: true));
+        integration.Success.Should().BeTrue(string.Join(
+            Environment.NewLine,
+            integration.Errors.Select(error => $"{error.Code}: {error.Message}")));
+        integration.Applied.Should().BeTrue();
+
+        var apply = applyService.Apply(
+            new ApplyBlueprintRequest(
+                blueprint,
+                projectRoot,
+                targetPath,
+                DryRun: false,
+                ConfirmApply: true));
+        apply.Success.Should().BeTrue(string.Join(
+            Environment.NewLine,
             apply.Errors.Select(error => $"{error.Code}: {error.Message}")));
         apply.DryRun.Should().BeFalse();
         apply.WouldWriteFiles.Should().BeTrue();
@@ -129,13 +148,13 @@ public sealed class ComposerThirdPartyAcceptanceTests
 
     private static async Task AssertBuildAsync(string projectRoot)
     {
-        var restore = await ComposerRealPackFixture.RunDotNetAsync(
+        var restore = await ComposerSyntheticPackFixture.RunDotNetAsync(
             projectRoot,
             "restore",
             noRestore: false,
             TimeSpan.FromMinutes(3));
         restore.ExitCode.Should().Be(0, restore.Output);
-        var build = await ComposerRealPackFixture.RunDotNetAsync(
+        var build = await ComposerSyntheticPackFixture.RunDotNetAsync(
             projectRoot,
             "build",
             noRestore: true,
@@ -143,9 +162,9 @@ public sealed class ComposerThirdPartyAcceptanceTests
         build.ExitCode.Should().Be(0, build.Output);
     }
 
-    private static Process LaunchConsumer(string projectRoot, string projectName)
+    private static Process LaunchConsumer(string projectRoot)
     {
-        var executable = GetConsumerExecutable(projectRoot, projectName);
+        var executable = GetConsumerExecutable(projectRoot);
         File.Exists(executable).Should().BeTrue();
         return Process.Start(new ProcessStartInfo
         {
@@ -155,15 +174,20 @@ public sealed class ComposerThirdPartyAcceptanceTests
         }) ?? throw new InvalidOperationException("consumer process did not start");
     }
 
-    private static string GetConsumerExecutable(string projectRoot, string projectName)
-        => Path.Combine(projectRoot, "bin", "Debug", "net8.0-windows", projectName + ".exe");
+    private static string GetConsumerExecutable(string projectRoot)
+        => Path.Combine(
+            projectRoot,
+            "bin",
+            "Debug",
+            "net8.0-windows",
+            "SyntheticConsumer.exe");
 
     private static Task WaitForWindowAsync(Process process)
         => ConditionWaiter.WaitForAsync(
             () => Task.FromResult(RefreshAndHasWindow(process)),
             ready => ready,
             TimeSpan.FromSeconds(30),
-            "Material consumer did not expose a visible main window.");
+            "Synthetic extension consumer did not expose a visible main window.");
 
     private static bool RefreshAndHasWindow(Process process)
     {
@@ -192,16 +216,20 @@ public sealed class ComposerThirdPartyAcceptanceTests
 
     private static Task WaitForInspectorAsync(string projectRoot)
     {
-        var outputRoot = Path.Combine(projectRoot, "bin", "Debug", "net8.0-windows");
-        var readyPath = Path.Combine(outputRoot, "inspector-ready.txt");
+        var readyPath = Path.Combine(
+            projectRoot,
+            "bin",
+            "Debug",
+            "net8.0-windows",
+            "inspector-ready.txt");
         return ConditionWaiter.WaitForAsync(
             () => Task.FromResult(File.Exists(readyPath)),
             ready => ready,
             TimeSpan.FromSeconds(30),
-            "Material consumer Inspector SDK did not become ready.");
+            "Synthetic extension consumer Inspector SDK did not become ready.");
     }
 
-    private static async Task AssertMaterialRuntimeOverStdioAsync(
+    private static async Task AssertRuntimeOverStdioAsync(
         Process process,
         string projectRoot,
         string authSecret,
@@ -213,13 +241,14 @@ public sealed class ComposerThirdPartyAcceptanceTests
             "WpfDevTools.Mcp.Server",
             "net8.0",
             "WpfDevTools.Mcp.Server.exe");
-        serverExecutable.Should().NotBeNull("the integration build must produce the actual MCP server executable");
+        serverExecutable.Should().NotBeNull(
+            "the integration build must produce the actual MCP server executable");
 
         using var client = new McpStdioClient();
         var initialize = await client.StartAsync(
             serverExecutable!,
             McpE2eFixture.CreateServerEnvironment(
-                GetConsumerExecutable(projectRoot, "MaterialDesignConsumer"),
+                GetConsumerExecutable(projectRoot),
                 authSecret,
                 certificateDirectory));
         initialize.TryGetProperty("result", out _).Should().BeTrue(initialize.GetRawText());
@@ -235,12 +264,12 @@ public sealed class ComposerThirdPartyAcceptanceTests
         connect.GetProperty("success").GetBoolean().Should().BeTrue(connect.GetRawText());
 
         var summary = await ReadSummaryAsync(client, processId);
-        summary.GetRawText().Should().Contain("Material workspace").And.Contain("Ready");
+        summary.GetRawText().Should().Contain("Extension workspace").And.Contain("Ready");
 
         var find = await client.CallToolAsync("find_elements", new
         {
             processId,
-            query = "Open workspace",
+            query = "Run extension action",
             matchMode = "contains",
             maxResults = 20
         });
@@ -256,13 +285,17 @@ public sealed class ComposerThirdPartyAcceptanceTests
         readiness.GetProperty("success").GetBoolean().Should().BeTrue(readiness.GetRawText());
         readiness.GetProperty("isReady").GetBoolean().Should().BeTrue(readiness.GetRawText());
 
-        var click = await client.CallToolAsync("click_element", new { processId, elementId = buttonId });
+        var click = await client.CallToolAsync(
+            "click_element",
+            new { processId, elementId = buttonId });
         click.GetProperty("success").GetBoolean().Should().BeTrue(click.GetRawText());
         await ConditionWaiter.WaitForAsync(
             () => ReadSummaryAsync(client, processId),
-            current => current.GetRawText().Contains("Workspace opened: material-532", StringComparison.Ordinal),
+            current => current.GetRawText().Contains(
+                "Extension action completed: neutral-payload",
+                StringComparison.Ordinal),
             TimeSpan.FromSeconds(10),
-            "Command-bound Material action did not update the visible status.");
+            "Command-bound synthetic extension action did not update the visible status.");
     }
 
     private static Task<JsonElement> ReadSummaryAsync(McpStdioClient client, int processId)

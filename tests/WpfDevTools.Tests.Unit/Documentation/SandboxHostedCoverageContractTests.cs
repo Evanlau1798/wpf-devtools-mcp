@@ -18,12 +18,12 @@ public sealed class SandboxHostedCoverageContractTests
             "hosted local CI should fail coverage hangs with VSTest diagnostics like GitHub CI");
         coverageScripts.Should().Contain("'--logger', 'trx;LogFileName=coverage-debug.trx'");
         coverageScripts.Should().Contain("(Join-Path $ResultsRoot 'coverage')");
-        coverageScripts.Should().Contain("'--filter', 'FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation&Category!=ComposerCompile&Category!=ComposerRuntime&Category!=ComposerAcceptance'",
+        coverageScripts.Should().Contain("'--filter', 'FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation&Category!=ComposerCompile&Category!=ComposerRuntime'",
             "the local hosted coverage lane should not rerun release, documentation, or expensive Composer capabilities");
         coverageScripts.Should().NotContain("FullyQualifiedName!~ComposerPreview");
         hosted.Should().Contain("-Filter $composerCapabilityExclusionFilter");
         hosted.Should().Contain("Invoke-HostedComposerCapabilityTests");
-        extras.Should().Contain("$composerCapabilityExclusionFilter = 'Category!=ComposerCompile&Category!=ComposerRuntime&Category!=ComposerAcceptance'");
+        extras.Should().Contain("$composerCapabilityExclusionFilter = 'Category!=ComposerCompile&Category!=ComposerRuntime'");
         extras.Should().Contain("'Category=ComposerCompile|Category=ComposerRuntime'");
         managed.Should().Contain("[string]$Filter = ''");
     }

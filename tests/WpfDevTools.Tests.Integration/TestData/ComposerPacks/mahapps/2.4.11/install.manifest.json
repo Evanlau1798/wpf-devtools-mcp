@@ -1,8 +1,0 @@
-{
-  "schemaVersion": "wpfdevtools.pack-install-manifest.v1",
-  "id": "mahapps",
-  "version": "2.4.11",
-  "scope": "project-local",
-  "path": ".",
-  "enabled": true
-}

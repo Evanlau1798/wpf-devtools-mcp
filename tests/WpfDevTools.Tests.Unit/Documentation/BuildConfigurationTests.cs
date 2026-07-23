@@ -80,8 +80,7 @@ public class BuildConfigurationTests
         coverageTestStep.Should().Contain("--no-build");
         coverageTestStep.Should().Contain("--settings coverlet.runsettings");
         coverageTestStep.Should().Contain("Category!=ComposerCompile")
-            .And.Contain("Category!=ComposerRuntime")
-            .And.Contain("Category!=ComposerAcceptance",
+            .And.Contain("Category!=ComposerRuntime",
                 "capability traits should route expensive Composer tests without class-name denylists");
         coverageTestStep.Should().NotContain("FullyQualifiedName!~ComposerPreview");
         coverageTestStep.Should().Contain("FullyQualifiedName!~WpfDevTools.Tests.Unit.Release");
@@ -94,7 +93,6 @@ public class BuildConfigurationTests
         var content = string.Join('\n', lines);
         var integrationTestStep = GetNamedStepBlock(lines, "Run integration tests");
         var composerTestStep = GetNamedStepBlock(lines, "Run Composer compile and runtime tests");
-        var composerAcceptanceStep = GetNamedStepBlock(lines, "Run Composer acceptance tests");
         var releaseUnitTestStep = GetNamedStepBlock(lines, "Run release unit tests");
 
         content.Should().NotContain("name: Run unit tests",
@@ -106,8 +104,9 @@ public class BuildConfigurationTests
             "the broad solution-level test command should be replaced by project-specific lanes");
         string.Join('\n', composerTestStep).Should().Contain("Category=ComposerCompile|Category=ComposerRuntime",
             "the dedicated Release Composer lane should own external-build and runtime tests");
-        string.Join('\n', composerAcceptanceStep).Should().Contain("--filter Category=ComposerAcceptance",
-            "real consumer acceptance should run once in the integration lane");
+        content.Should().NotContain("Run Composer acceptance tests")
+            .And.NotContain("Category=ComposerAcceptance",
+                "neutral extension acceptance belongs to the existing integration invocation");
         string.Join('\n', releaseUnitTestStep).Should().Contain("-IncludeReleaseUnit",
             "release-specific tests should remain owned by the sharded release lane");
         integrationTestStep.Should().Contain("      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'",

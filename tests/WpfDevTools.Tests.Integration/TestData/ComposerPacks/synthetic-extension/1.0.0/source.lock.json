@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "wpfdevtools.source-lock.v1",
+  "generatedAt": "2026-07-23T00:00:00Z",
+  "generatorSkill": "test-fixture",
+  "sources": [
+    {
+      "kind": "synthetic-test-fixture",
+      "name": "Synthetic Extension",
+      "url": "https://example.com/synthetic-extension",
+      "version": "1.0.0",
+      "commit": "0000000000000000000000000000000000000000",
+      "license": "test-only",
+      "paths": [
+        "ExtensionWindow.cs",
+        "SyntheticTheme.xaml"
+      ],
+      "usage": "neutral extension contract for package, resource, namespace, and custom-root integration"
+    }
+  ],
+  "transformPolicy": {
+    "copyLargeXamlFiles": false,
+    "copyWholeScreens": false,
+    "extractSemanticPatternsOnly": true,
+    "includeInternalControls": false
+  }
+}

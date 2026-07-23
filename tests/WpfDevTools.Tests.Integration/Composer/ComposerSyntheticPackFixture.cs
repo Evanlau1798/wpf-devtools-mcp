@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -7,96 +6,120 @@ using System.Security;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using WpfDevTools.Mcp.Server.Composer.Apply;
 using WpfDevTools.Tests.Integration.TestSupport;
 
 namespace WpfDevTools.Tests.Integration.Composer;
 
-internal static class ComposerRealPackFixture
+internal static class ComposerSyntheticPackFixture
 {
-    internal const string MaterialDesignBlueprint = """
+    internal const string Blueprint = """
         {
           "schemaVersion":"wpfdevtools.ui-blueprint.v1",
-          "name":"MaterialDesignConsumer",
+          "name":"SyntheticConsumer",
           "packs":[
             {"id":"core","version":"0.1.0","required":true,"role":"layout-pack"},
-            {"id":"materialdesign","version":"5.3.2","required":true,"role":"primary"}
+            {"id":"synthetic","version":"1.0.0","required":true,"role":"primary"}
           ],
-          "primaryPack":"materialdesign",
+          "primaryPack":"synthetic",
           "layout":{
-            "kind":"materialdesign.window",
-            "properties":{"title":"Material acceptance","width":880,"height":560},
+            "kind":"synthetic.window",
+            "properties":{"title":"Extension acceptance","width":880,"height":560},
             "slots":{"content":[{
               "kind":"core.stack",
               "properties":{"margin":"24","spacing":"0,0,0,12"},
-              "slots":{"children":[{
-                "kind":"materialdesign.card",
-                "slots":{"content":[{
-                  "kind":"core.stack",
-                  "slots":{"children":[
-                    {"kind":"core.text","properties":{"text":"Material workspace","fontSize":24,"fontWeight":"SemiBold"}},
-                    {"kind":"core.text","properties":{"text":"{Binding Status}"}},
-                    {"kind":"materialdesign.action","properties":{"execute":"{Binding OpenWorkspaceCommand}","payload":"material-532","caption":"Open workspace"}}
-                  ]}
-                }]}
-              }]}
+              "slots":{"children":[
+                {"kind":"core.text","properties":{"text":"Extension workspace","fontSize":24,"fontWeight":"SemiBold"}},
+                {"kind":"core.text","properties":{"text":"{Binding Status}"}},
+                {"kind":"synthetic.action","properties":{"execute":"{Binding RunExtensionCommand}","payload":"neutral-payload","caption":"Run extension action"}}
+              ]}
             }]}
           }
         }
         """;
 
-    internal const string MahAppsBlueprint = """
-        {
-          "schemaVersion":"wpfdevtools.ui-blueprint.v1",
-          "name":"MahAppsConsumer",
-          "packs":[{"id":"mahapps","version":"2.4.11","required":true,"role":"primary"}],
-          "primaryPack":"mahapps",
-          "layout":{"kind":"mahapps.window","properties":{"title":"Operations","width":880,"height":560}}
-        }
-        """;
-
-    internal static string CreateProject(string packId, string version, string projectName, string packageReference)
+    internal static string CreateProject()
     {
-        var root = Path.Combine(ReleasePackagingTestHarness.CreateTempDirectory(), projectName);
-        var source = ReleasePackagingTestHarness.GetRepoFilePath(
-            Path.Combine("tests", "WpfDevTools.Tests.Integration", "TestData", "ComposerPacks", packId, version));
-        CopyDirectory(source, Path.Combine(root, ".wpfdevtools", "packs", packId, version));
+        var root = Path.Combine(
+            ReleasePackagingTestHarness.CreateTempDirectory(),
+            "SyntheticConsumer");
+        var source = ReleasePackagingTestHarness.GetRepoFilePath(Path.Combine(
+            "tests",
+            "WpfDevTools.Tests.Integration",
+            "TestData",
+            "ComposerPacks",
+            "synthetic-extension",
+            "1.0.0"));
+        CopyDirectory(
+            source,
+            Path.Combine(
+                root,
+                ".wpfdevtools",
+                "packs",
+                "synthetic",
+                "1.0.0"));
         Directory.CreateDirectory(root);
-        var sdkProject = SecurityElement.Escape(ReleasePackagingTestHarness.GetRepoFilePath(
-            "src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj"))!;
-        var sdkReference = packId == "materialdesign"
-            ? $"<ProjectReference Include=\"{sdkProject}\" />"
-            : string.Empty;
+        var sdkProject = SecurityElement.Escape(
+            ReleasePackagingTestHarness.GetRepoFilePath(
+                "src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj"))!;
         File.WriteAllText(
-            Path.Combine(root, projectName + ".csproj"),
+            Path.Combine(root, "SyntheticConsumer.csproj"),
             $$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <OutputType>WinExe</OutputType>
                 <TargetFramework>net8.0-windows</TargetFramework>
                 <UseWPF>true</UseWPF>
-                <RootNamespace>{{projectName}}</RootNamespace>
+                <RootNamespace>SyntheticConsumer</RootNamespace>
                 <Nullable>enable</Nullable>
                 <ImplicitUsings>enable</ImplicitUsings>
                 <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
               </PropertyGroup>
               <ItemGroup>
-                {{packageReference}}
-                {{sdkReference}}
+                <ProjectReference Include="{{sdkProject}}" />
               </ItemGroup>
             </Project>
             """,
             Encoding.UTF8);
+        File.WriteAllText(
+            Path.Combine(root, "Directory.Packages.props"),
+            """
+            <Project>
+              <PropertyGroup>
+                <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+              </PropertyGroup>
+            </Project>
+            """,
+            Encoding.UTF8);
+        File.WriteAllText(
+            Path.Combine(root, "SyntheticTheme.xaml"),
+            """
+            <ResourceDictionary
+                xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+              <Style x:Key="SyntheticActionStyle" TargetType="Button">
+                <Setter Property="Padding" Value="12,6" />
+              </Style>
+            </ResourceDictionary>
+            """,
+            Encoding.UTF8);
+        File.WriteAllText(
+            Path.Combine(root, "ExtensionWindow.cs"),
+            """
+            using System.Windows;
+
+            namespace SyntheticExtension.Controls;
+
+            public class ExtensionWindow : Window;
+            """,
+            Encoding.UTF8);
+        WriteApplicationShell(root);
+        WriteWindowCode(root, "SyntheticConsumer", "MainWindow");
         return root;
     }
 
-    internal static void WriteApplication(
-        string projectRoot,
-        string projectName,
-        string windowName,
-        IReadOnlyList<string> resources,
-        bool inspectorEnabled)
+    private static void WriteApplicationShell(string projectRoot)
     {
+        const string projectName = "SyntheticConsumer";
         var appPath = Path.Combine(projectRoot, "App.xaml");
         File.WriteAllText(
             appPath,
@@ -108,38 +131,10 @@ internal static class ComposerRealPackFixture
             </Application>
             """,
             Encoding.UTF8);
-        var namespaces = inspectorEnabled
-            ? new Dictionary<string, string> { ["materialDesign"] = "http://materialdesigninxaml.net/winfx/xaml/themes" }
-            : new Dictionary<string, string> { ["mah"] = "http://metro.mahapps.com/winfx/xaml/controls" };
-        var patch = ProjectIntegrationXmlPatcher.PatchApplication(
-            appPath,
-            projectRoot,
-            Path.Combine(projectRoot, windowName + ".xaml"),
-            resources,
-            namespaces,
-            setStartup: true);
-        if (!patch.Success)
-        {
-            throw new InvalidOperationException(patch.Error?.Message ?? "Application integration failed.");
-        }
-
-        File.WriteAllText(appPath, patch.Content, Encoding.UTF8);
         File.WriteAllText(
             Path.Combine(projectRoot, "App.xaml.cs"),
             $"using System.Windows; namespace {projectName}; public partial class App : Application {{ }}",
             Encoding.UTF8);
-
-        if (inspectorEnabled)
-        {
-            WriteMaterialWindowCode(projectRoot, projectName, windowName);
-        }
-        else
-        {
-            File.WriteAllText(
-                Path.Combine(projectRoot, windowName + ".xaml.cs"),
-                $"using MahApps.Metro.Controls; namespace {projectName}; public partial class {windowName} : MetroWindow {{ public {windowName}() => InitializeComponent(); }}",
-                Encoding.UTF8);
-        }
     }
 
     internal static async Task<(int ExitCode, string Output)> RunDotNetAsync(
@@ -168,7 +163,8 @@ internal static class ComposerRealPackFixture
         startInfo.ArgumentList.Add("--verbosity");
         startInfo.ArgumentList.Add("minimal");
 
-        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("dotnet process did not start");
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("dotnet process did not start");
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
         using var cancellation = new CancellationTokenSource(timeout);
@@ -185,15 +181,18 @@ internal static class ComposerRealPackFixture
         return (process.ExitCode, await stdout + Environment.NewLine + await stderr);
     }
 
-    private static void WriteMaterialWindowCode(string projectRoot, string projectName, string windowName)
+    private static void WriteWindowCode(
+        string projectRoot,
+        string projectName,
+        string windowName)
     {
         File.WriteAllText(
             Path.Combine(projectRoot, windowName + ".xaml.cs"),
             $$"""
             using System.ComponentModel;
             using System.IO;
-            using System.Windows;
             using System.Windows.Input;
+            using System.Windows;
             using WpfDevTools.Inspector.Sdk;
 
             namespace {{projectName}};
@@ -203,7 +202,7 @@ internal static class ComposerRealPackFixture
                 public {{windowName}}()
                 {
                     InitializeComponent();
-                    DataContext = new WorkspaceViewModel();
+                    DataContext = new ExtensionViewModel();
                     _ = Task.Run(InitializeInspectorWhenReady);
                 }
 
@@ -221,7 +220,9 @@ internal static class ComposerRealPackFixture
                                 AuthenticationSecretBase64 = lines[0],
                                 CertificateDirectory = lines[1]
                             }));
-                            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "inspector-ready.txt"), "ready");
+                            File.WriteAllText(
+                                Path.Combine(AppContext.BaseDirectory, "inspector-ready.txt"),
+                                "ready");
                             return;
                         }
                         Thread.Sleep(100);
@@ -229,16 +230,28 @@ internal static class ComposerRealPackFixture
                 }
             }
 
-            public sealed class WorkspaceViewModel : INotifyPropertyChanged
+            public sealed class ExtensionViewModel : INotifyPropertyChanged
             {
                 private string _status = "Ready";
-                public WorkspaceViewModel() => OpenWorkspaceCommand = new RelayCommand(parameter => Status = "Workspace opened: " + parameter);
-                public ICommand OpenWorkspaceCommand { get; }
+
+                public ExtensionViewModel()
+                    => RunExtensionCommand = new RelayCommand(
+                        parameter => Status = "Extension action completed: " + parameter);
+
+                public ICommand RunExtensionCommand { get; }
+
                 public string Status
                 {
                     get => _status;
-                    private set { _status = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Status))); }
+                    private set
+                    {
+                        _status = value;
+                        PropertyChanged?.Invoke(
+                            this,
+                            new PropertyChangedEventArgs(nameof(Status)));
+                    }
                 }
+
                 public event PropertyChangedEventHandler? PropertyChanged;
             }
 
@@ -255,13 +268,23 @@ internal static class ComposerRealPackFixture
     private static void CopyDirectory(string source, string destination)
     {
         Directory.CreateDirectory(destination);
-        foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
+        foreach (var directory in Directory.EnumerateDirectories(
+                     source,
+                     "*",
+                     SearchOption.AllDirectories))
         {
-            Directory.CreateDirectory(Path.Combine(destination, Path.GetRelativePath(source, directory)));
+            Directory.CreateDirectory(
+                Path.Combine(destination, Path.GetRelativePath(source, directory)));
         }
-        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+
+        foreach (var file in Directory.EnumerateFiles(
+                     source,
+                     "*",
+                     SearchOption.AllDirectories))
         {
-            File.Copy(file, Path.Combine(destination, Path.GetRelativePath(source, file)));
+            File.Copy(
+                file,
+                Path.Combine(destination, Path.GetRelativePath(source, file)));
         }
     }
 }

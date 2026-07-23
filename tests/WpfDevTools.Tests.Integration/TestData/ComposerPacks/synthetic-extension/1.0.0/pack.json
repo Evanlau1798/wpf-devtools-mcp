@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "wpfdevtools.ui-pack.v1",
+  "id": "synthetic",
+  "kind": "style-pack",
+  "displayName": "Synthetic Extension",
+  "version": "1.0.0",
+  "source": {
+    "generatorSkill": "test-fixture",
+    "license": "test-only",
+    "lockFile": "source.lock.json",
+    "upstream": "https://example.com/synthetic-extension"
+  },
+  "nugetPackages": [
+    { "id": "System.Threading.Channels", "versionRange": "[8.0.0]" }
+  ],
+  "xmlNamespaces": {
+    "synthetic": "clr-namespace:SyntheticExtension.Controls"
+  },
+  "resourceSetup": {
+    "applicationMergedDictionaries": [
+      "<ResourceDictionary Source=\"/SyntheticConsumer;component/SyntheticTheme.xaml\" />"
+    ]
+  },
+  "preview": {
+    "namespaceUri": "clr-namespace:SyntheticExtension.Controls",
+    "clrNamespace": "SyntheticExtension.Controls",
+    "types": {
+      "ExtensionWindow": { "baseKind": "window", "properties": {} }
+    }
+  },
+  "blocks": [
+    "synthetic.window",
+    "synthetic.action"
+  ],
+  "recipes": [],
+  "compatibility": { "wpfDevToolsComposer": ">=0.1.0" }
+}

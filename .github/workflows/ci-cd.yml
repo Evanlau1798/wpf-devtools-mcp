@@ -150,12 +150,7 @@ jobs:
     - name: Run integration tests
       if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
       timeout-minutes: 20
-      run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --filter Category!=ComposerAcceptance --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=integration-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/integration
-
-    - name: Run Composer acceptance tests
-      if: matrix.configuration == 'Debug' && matrix.platform == 'x64'
-      timeout-minutes: 10
-      run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --filter Category=ComposerAcceptance --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=composer-acceptance-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/composer-acceptance
+      run: dotnet test tests/WpfDevTools.Tests.Integration/WpfDevTools.Tests.Integration.csproj --configuration ${{ matrix.configuration }} --no-build --verbosity normal --blame-hang-timeout 10m --logger "trx;LogFileName=integration-${{ matrix.configuration }}-${{ matrix.platform }}.trx" --results-directory ./TestResults/${{ matrix.configuration }}/integration
 
     - name: Upload test diagnostics
       if: failure() || cancelled()
@@ -738,7 +733,7 @@ jobs:
         --blame-hang-timeout 10m
         --logger "trx;LogFileName=coverage-debug.trx"
         --results-directory ./TestResults/coverage
-        --filter "FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&Category!=ComposerCompile&Category!=ComposerRuntime&Category!=ComposerAcceptance"
+        --filter "FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&Category!=ComposerCompile&Category!=ComposerRuntime"
         -nodeReuse:false
         -p:UseSharedCompilation=false
 

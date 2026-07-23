@@ -1,1 +1,0 @@
-<mah:MetroWindow Title="{{title}}" Width="{{width}}" Height="{{height}}">{{slot.content}}</mah:MetroWindow>

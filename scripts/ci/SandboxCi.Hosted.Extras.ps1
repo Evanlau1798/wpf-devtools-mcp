@@ -62,7 +62,7 @@ function Invoke-HostedCoverageVerification {
         '--blame-hang-timeout', '10m',
         '--logger', 'trx;LogFileName=coverage-debug.trx',
         '--results-directory', (Join-Path $ResultsRoot 'coverage'),
-        '--filter', 'FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation&Category!=ComposerCompile&Category!=ComposerRuntime&Category!=ComposerAcceptance',
+        '--filter', 'FullyQualifiedName!~WpfDevTools.Tests.Unit.Release&FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation&Category!=ComposerCompile&Category!=ComposerRuntime',
         '-nodeReuse:false',
         '-p:UseSharedCompilation=false'
     ) -TimeoutSeconds 3600 -OutputRoot $OutputRoot -Timestamp $Timestamp
@@ -95,7 +95,7 @@ function Invoke-HostedWindowsX64FastVerification {
 
     $previousTimeoutScale = $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE
     $hostedManagedMaxParallelLanes = [Math]::Min($MaxParallelLanes, 4)
-    $composerCapabilityExclusionFilter = 'Category!=ComposerCompile&Category!=ComposerRuntime&Category!=ComposerAcceptance'
+    $composerCapabilityExclusionFilter = 'Category!=ComposerCompile&Category!=ComposerRuntime'
     $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'
     try {
         Invoke-External 'dotnet restore --locked-mode' $DotNetPath @('restore', '--locked-mode', '-p:NuGetAudit=true')

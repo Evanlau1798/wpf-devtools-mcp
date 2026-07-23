@@ -63,7 +63,7 @@ public sealed class ComposerPipelineContractTests
         uploadReleaseAssetsJob.Should().Contain("Upload staged assets to GitHub Release");
         releaseWorkflow.Should().Contain("Upload staged assets to GitHub Release");
         ciWorkflow.Should().Contain("Category=ComposerCompile|Category=ComposerRuntime");
-        ciWorkflow.Should().Contain("Category=ComposerAcceptance");
+        ciWorkflow.Should().NotContain("Category=ComposerAcceptance");
         ciWorkflow.Should().NotContain("FullyQualifiedName!~ComposerPreview",
             "Composer lanes should be selected by capabilities instead of test class names");
         ciWorkflow.Should().NotContain("FullyQualifiedName!~WpfDevTools.Tests.Unit.Documentation",
@@ -185,8 +185,9 @@ public sealed class ComposerPipelineContractTests
             .Should().Contain("[Trait(\"Category\", \"ComposerCompile\")]");
         ReadRepoFile("tests/WpfDevTools.Tests.Unit/Composer/ComposerPreviewRecipeRuntimeTests.cs")
             .Should().Contain("[Trait(\"Category\", \"ComposerRuntime\")]");
-        ReadRepoFile("tests/WpfDevTools.Tests.Integration/Composer/ComposerThirdPartyAcceptanceTests.cs")
-            .Should().Contain("[Trait(\"Category\", \"ComposerAcceptance\")]");
+        ReadRepoFile("tests/WpfDevTools.Tests.Integration/Composer/ComposerExtensionAcceptanceTests.cs")
+            .Should().Contain("SyntheticExtensionPack_ShouldBuildLaunchAndSupportMcpInteraction")
+            .And.NotContain("[Trait(\"Category\", \"ComposerAcceptance\")]");
     }
 
     [Fact]

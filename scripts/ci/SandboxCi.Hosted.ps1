@@ -376,7 +376,7 @@ function Invoke-HostedWindowsX64Verification {
 
     $previousTimeoutScale = $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE
     $hostedManagedMaxParallelLanes = [Math]::Min($MaxParallelLanes, 4)
-    $composerCapabilityExclusionFilter = 'Category!=ComposerCompile&Category!=ComposerRuntime&Category!=ComposerAcceptance'
+    $composerCapabilityExclusionFilter = 'Category!=ComposerCompile&Category!=ComposerRuntime'
     $env:WPFDEVTOOLS_TEST_TIMEOUT_SCALE = '4'
     try {
         Invoke-External 'dotnet restore --locked-mode' $DotNetPath @('restore', '--locked-mode', '-p:NuGetAudit=true')

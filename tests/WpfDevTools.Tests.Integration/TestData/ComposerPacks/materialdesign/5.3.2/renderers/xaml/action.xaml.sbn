@@ -1,1 +1,0 @@
-<Button Content="{{caption}}" Command="{{execute}}" CommandParameter="{{payload}}" Style="{DynamicResource MaterialDesignFilledButton}" />

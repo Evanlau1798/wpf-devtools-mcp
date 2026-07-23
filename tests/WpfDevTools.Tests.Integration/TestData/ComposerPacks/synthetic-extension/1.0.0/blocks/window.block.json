@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "synthetic.window",
+  "displayName": "Extension Window",
+  "description": "Neutral custom Window subclass integration proof.",
+  "category": "window",
+  "properties": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "default": "Extension app"
+    },
+    "width": {
+      "type": "number",
+      "default": 880,
+      "minimum": 320
+    },
+    "height": {
+      "type": "number",
+      "default": 560,
+      "minimum": 240
+    }
+  },
+  "slots": {
+    "content": { "allowedKinds": ["*"] }
+  },
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/window.xaml.sbn",
+    "codeBehindBaseType": "SyntheticExtension.Controls.ExtensionWindow"
+  },
+  "sourceHints": [
+    {
+      "path": "ExtensionWindow.cs",
+      "usage": "synthetic custom Window subclass"
+    }
+  ]
+}

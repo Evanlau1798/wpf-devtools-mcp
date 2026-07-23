@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "synthetic.action",
+  "displayName": "Extension Action",
+  "description": "Neutral command-bound action using a pack-declared resource.",
+  "category": "interaction",
+  "properties": {
+    "execute": {
+      "type": "binding",
+      "required": true
+    },
+    "payload": {
+      "type": "string"
+    },
+    "caption": {
+      "type": "string",
+      "required": true
+    }
+  },
+  "slots": {},
+  "interaction": {
+    "kind": "action",
+    "commandProperty": "execute",
+    "commandParameterProperty": "payload",
+    "labelProperty": "caption"
+  },
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/action.xaml.sbn"
+  },
+  "sourceHints": [
+    {
+      "path": "SyntheticTheme.xaml",
+      "usage": "synthetic action style"
+    }
+  ]
+}

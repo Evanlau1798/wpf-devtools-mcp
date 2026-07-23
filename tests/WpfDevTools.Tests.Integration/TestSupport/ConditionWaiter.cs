@@ -39,6 +39,7 @@ internal static class ConditionWaiter
         string failureMessage,
         TimeSpan? pollInterval = null)
     {
+        var stopwatch = Stopwatch.StartNew();
         using var timeoutSource = new CancellationTokenSource(timeout);
         var interval = pollInterval ?? DefaultPollInterval;
         T? lastResult = default;
@@ -47,6 +48,11 @@ internal static class ConditionWaiter
         try
         {
             lastResult = await action(timeoutSource.Token).ConfigureAwait(false);
+            if (timeout != Timeout.InfiniteTimeSpan && stopwatch.Elapsed >= timeout)
+            {
+                throw new TimeoutException($"{failureMessage} Last observed result: {FormatResult(lastResult)}");
+            }
+
             timeoutSource.Token.ThrowIfCancellationRequested();
             hasResult = true;
 
@@ -54,6 +60,11 @@ internal static class ConditionWaiter
             {
                 await Task.Delay(interval, timeoutSource.Token).ConfigureAwait(false);
                 lastResult = await action(timeoutSource.Token).ConfigureAwait(false);
+                if (timeout != Timeout.InfiniteTimeSpan && stopwatch.Elapsed >= timeout)
+                {
+                    throw new TimeoutException($"{failureMessage} Last observed result: {FormatResult(lastResult)}");
+                }
+
                 timeoutSource.Token.ThrowIfCancellationRequested();
             }
 

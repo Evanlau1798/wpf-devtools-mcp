@@ -265,7 +265,7 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - visualFidelity is resource-backed, hybrid-resource-backed, structural, or not-available; verify the applied, built, and launched app.
-        - Project/user packs stay structural until approved. runtimePackApprovalReviews returns hashes and, when eligible, a content-bound approval token for one preview call. Eligible tokens require WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true; WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS preapproves packs. Packages require exact [version], SHA-512 contentHash, and a preview-local NuGet cache hash-checked before build.
+        - Project/user packs stay structural until an operator approves them. runtimePackApprovalReviews returns hashes and, when eligible, a content-bound approval token. Configure reviewed tokens in WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS before starting or restarting the server. Packages require exact [version], SHA-512 contentHash, and a preview-local NuGet cache hash-checked before build.
         - screenshotVerificationGuidance: re-read the resource and verify SHA-256 before replacing a sparse, semantically complete preview.
         - visualComparisonChecklist: final window chrome, icons, control templates, layout and spacing checks.
         - propertyWarnings: supplied-property guidance with exact blueprint JSON path, block kind, property name, and message.
@@ -283,7 +283,6 @@ internal static class UiComposerMcpToolDescriptions
         - Screenshots require startHost, sensitive-read, and screenshot gates.
         - Use screenshotOutputMode="file" for pixel evidence. Preview pixels do not approve final styling.
         - viewportWidth and viewportHeight set preview Window.Width and Window.Height in DIPs; match the target Window dimensions to expose overflow before apply. Screenshot bounds only resize returned pixels.
-        - runtimePackApprovalTokens accepts up to 16 reviewed exact-content tokens for this call only; it requires WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true and is never persisted.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
 

@@ -9,8 +9,7 @@ internal sealed partial class UiPackPreviewContractGenerator
         IReadOnlyList<ComposerPackReference> runtimeCandidates,
         IReadOnlyDictionary<string, UiPreviewPackSnapshot> snapshots,
         IReadOnlyDictionary<string, UiPackManifest> manifests,
-        IReadOnlyDictionary<string, IReadOnlyList<string>> resourcesByPack,
-        IReadOnlyCollection<string>? callApprovalTokens)
+        IReadOnlyDictionary<string, IReadOnlyList<string>> resourcesByPack)
     {
         var approvedPackIds = new HashSet<string>(StringComparer.Ordinal);
         var packagesByPack = new Dictionary<string, IReadOnlyList<PreviewRuntimeNuGetPackage>>(StringComparer.Ordinal);
@@ -21,7 +20,7 @@ internal sealed partial class UiPackPreviewContractGenerator
         foreach (var packRef in runtimeCandidates)
         {
             var pack = snapshots[packRef.Id].RegistryItem;
-            var approvalSource = UiPreviewRuntimeDependencyPolicy.GetApprovalSource(pack, callApprovalTokens);
+            var approvalSource = UiPreviewRuntimeDependencyPolicy.GetApprovalSource(pack);
             var authorized = approvalSource != "none";
             var packagesResolved = UiPreviewRuntimeDependencyPolicy.TryResolvePackages(
                 manifests[packRef.Id].NugetPackages,
@@ -71,7 +70,7 @@ internal sealed partial class UiPackPreviewContractGenerator
             {
                 advisories.Add(Diagnostic(
                     "PreviewRuntimeDependenciesNotApproved",
-                    $"Pack '{packRef.Id}@{packRef.Version}' remains structural. Review runtimePackApprovalReviews, then pass its approvalToken in runtimePackApprovalTokens after enabling {McpServerConfiguration.AllowComposerRuntimeApprovalsEnvVar}, or configure {McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar}."));
+                    $"Pack '{packRef.Id}@{packRef.Version}' remains structural. Review runtimePackApprovalReviews, then configure its approvalToken in {McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar} before starting or restarting the MCP server."));
                 continue;
             }
 

@@ -57,39 +57,6 @@ public sealed class McpToolExecutionPolicyPreviewDiagnosticsTests
             .IsAllowed.Should().BeTrue();
     }
 
-    [Fact]
-    public void EvaluateToolCall_WhenCallScopedRuntimeApprovalGateIsDisabled_ShouldDeny()
-    {
-        var policy = McpToolExecutionPolicy.FromConfiguredValues(
-            allowDestructiveTools: "true",
-            allowScreenshots: "true",
-            allowViewModelInspection: "true",
-            allowComposerRuntimeApprovals: "false");
-
-        var decision = policy.EvaluateToolCall(
-            "preview_ui_blueprint",
-            ToArguments("{\"runtimePackApprovalTokens\":[\"sample@1.0.0#token\"]}"));
-
-        decision.IsAllowed.Should().BeFalse();
-        decision.ErrorCode.Should().Be("SecurityError");
-        decision.PolicyCategory.Should().Be("composer-runtime-approvals");
-    }
-
-    [Fact]
-    public void EvaluateToolCall_WhenCallScopedRuntimeApprovalGateIsEnabled_ShouldAllow()
-    {
-        var policy = McpToolExecutionPolicy.FromConfiguredValues(
-            allowDestructiveTools: "true",
-            allowScreenshots: "true",
-            allowViewModelInspection: "true",
-            allowComposerRuntimeApprovals: "true");
-
-        policy.EvaluateToolCall(
-                "preview_ui_blueprint",
-                ToArguments("{\"runtimePackApprovalTokens\":[\"sample@1.0.0#token\"]}"))
-            .IsAllowed.Should().BeTrue();
-    }
-
     private static Dictionary<string, JsonElement> ToArguments(string argumentsJson)
     {
         using var document = JsonDocument.Parse(argumentsJson);

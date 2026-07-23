@@ -47,10 +47,10 @@
 - 用途：啟用或停用 ViewModel inspection tool。
 - 備註：boolean 值同上；未設定、無效或 false 會擋下 `get_viewmodel`、`get_commands`、`get_datacontext_chain`、`modify_viewmodel` 與 `execute_command`。當 `capture_state_snapshot` 要求 `viewModelPropertyNames`、`batch_mutate` capture 或 mutate ViewModel state，或 `wait_for_dp_change_after_mutation` 的 trigger mutation 使用 ViewModel tool 時，也會套用同一 gate。
 
-### WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS
+### WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS
 
-- 用途：允許 `preview_ui_blueprint` 接受已審查的 `runtimePackApprovalTokens`。
-- 備註：每個 content-bound token 只會在一次 preview call 中核准精確的 pack root、id、version 與 fingerprint，不會持久化；preview 仍需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`。
+- 用途：核准已審查的第三方 Composer runtime dependencies 供 preview 使用。
+- 備註：將 `runtimePackApprovalReviews` 回傳的 eligible content-bound token 寫入可信任且由 operator 控制的 server 設定，再啟動或重新啟動 server。每個 token 都綁定精確的 pack root、id、version 與 fingerprint；MCP caller 無法在 tool call 中核准 dependency。Preview 仍需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`。
 
 ### WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE
 

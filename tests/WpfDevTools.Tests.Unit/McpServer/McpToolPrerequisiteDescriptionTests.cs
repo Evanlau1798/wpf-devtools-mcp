@@ -124,9 +124,9 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("resource-backed, hybrid-resource-backed, structural, or not-available");
         description.Should().Contain("hash-checked before build");
         description.Should().Contain(McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar);
-        description.Should().Contain(McpServerConfiguration.AllowComposerRuntimeApprovalsEnvVar);
         description.Should().Contain("content-bound approval token");
-        description.Should().Contain("one preview call");
+        description.Should().Contain("operator approves");
+        description.Should().NotContain("runtimePackApprovalTokens");
         description.Should().Contain("viewportWidth");
         description.Should().Contain("viewportHeight");
         description.Should().Contain("Window client");
@@ -137,7 +137,7 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("structural");
         var approvalGuidance = description.Split('\n')
             .Single(line => line.Contains("runtimePackApprovalReviews", StringComparison.Ordinal));
-        approvalGuidance.Should().Contain("stay structural until approved")
+        approvalGuidance.Should().Contain("stay structural until an operator approves")
             .And.Contain("when eligible");
         description.Should().Contain("applied, built, and launched app");
         description.Should().Contain("visualComparisonChecklist");

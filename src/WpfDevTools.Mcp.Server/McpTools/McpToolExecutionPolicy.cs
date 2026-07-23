@@ -22,20 +22,17 @@ internal sealed class McpToolExecutionPolicy
     private readonly PolicyGate _screenshots;
     private readonly PolicyGate _sensitiveReads;
     private readonly PolicyGate _viewModelInspection;
-    private readonly PolicyGate _composerRuntimeApprovals;
 
     private McpToolExecutionPolicy(
         PolicyGate destructiveTools,
         PolicyGate screenshots,
         PolicyGate sensitiveReads,
-        PolicyGate viewModelInspection,
-        PolicyGate composerRuntimeApprovals)
+        PolicyGate viewModelInspection)
     {
         _destructiveTools = destructiveTools;
         _screenshots = screenshots;
         _sensitiveReads = sensitiveReads;
         _viewModelInspection = viewModelInspection;
-        _composerRuntimeApprovals = composerRuntimeApprovals;
     }
 
     internal static McpToolExecutionPolicy FromEnvironment()
@@ -43,21 +40,18 @@ internal sealed class McpToolExecutionPolicy
             allowDestructiveTools: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowDestructiveToolsEnvVar),
             allowScreenshots: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowScreenshotsEnvVar),
             allowViewModelInspection: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowViewModelInspectionEnvVar),
-            allowSensitiveReads: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowSensitiveReadsEnvVar),
-            allowComposerRuntimeApprovals: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowComposerRuntimeApprovalsEnvVar));
+            allowSensitiveReads: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowSensitiveReadsEnvVar));
 
     internal static McpToolExecutionPolicy FromConfiguredValues(
         string? allowDestructiveTools,
         string? allowScreenshots,
         string? allowViewModelInspection,
-        string? allowSensitiveReads = null,
-        string? allowComposerRuntimeApprovals = null)
+        string? allowSensitiveReads = null)
         => new(
             PolicyGate.Parse(McpServerConfiguration.AllowDestructiveToolsEnvVar, allowDestructiveTools),
             PolicyGate.Parse(McpServerConfiguration.AllowScreenshotsEnvVar, allowScreenshots),
             PolicyGate.Parse(McpServerConfiguration.AllowSensitiveReadsEnvVar, allowSensitiveReads),
-            PolicyGate.Parse(McpServerConfiguration.AllowViewModelInspectionEnvVar, allowViewModelInspection),
-            PolicyGate.Parse(McpServerConfiguration.AllowComposerRuntimeApprovalsEnvVar, allowComposerRuntimeApprovals));
+            PolicyGate.Parse(McpServerConfiguration.AllowViewModelInspectionEnvVar, allowViewModelInspection));
 
     internal McpToolPolicyDecision EvaluateToolCall(string? toolName)
         => EvaluateToolCall(toolName, arguments: null);
@@ -123,29 +117,8 @@ internal sealed class McpToolExecutionPolicy
             }
         }
 
-        if (RequiresComposerRuntimeApproval(toolName, arguments))
-        {
-            var decision = EvaluateGate(
-                _composerRuntimeApprovals,
-                toolName,
-                policyCategory: McpToolPolicyTags.ComposerRuntimeApprovals,
-                capabilityDescription: "approve content-bound third-party packages and resources for one preview call");
-            if (!decision.IsAllowed)
-            {
-                return decision;
-            }
-        }
-
         return McpToolPolicyDecision.Allowed;
     }
-
-    private static bool RequiresComposerRuntimeApproval(
-        string toolName,
-        IDictionary<string, JsonElement>? arguments)
-        => string.Equals(toolName, "preview_ui_blueprint", StringComparison.Ordinal)
-           && arguments?.TryGetValue("runtimePackApprovalTokens", out var tokens) == true
-           && tokens.ValueKind != JsonValueKind.Null
-           && (tokens.ValueKind != JsonValueKind.Array || tokens.GetArrayLength() > 0);
 
     private static bool RequiresSensitiveRead(
         string toolName,

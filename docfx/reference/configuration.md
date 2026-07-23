@@ -47,10 +47,10 @@
 - Purpose: Enables or disables ViewModel inspection tools.
 - Notes: Uses the same boolean values as above. Unset, invalid, or false values block `get_viewmodel`, `get_commands`, `get_datacontext_chain`, `modify_viewmodel`, and `execute_command`. The same gate applies when `capture_state_snapshot` requests `viewModelPropertyNames`, when `batch_mutate` captures or mutates ViewModel state, and when `wait_for_dp_change_after_mutation` uses a ViewModel mutation trigger.
 
-### WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS
+### WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS
 
-- Purpose: Allows `preview_ui_blueprint` to accept reviewed `runtimePackApprovalTokens`.
-- Notes: Each content-bound token authorizes only the exact pack root, id, version, and fingerprint for one preview call. Tokens are not persisted. The preview still requires `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`.
+- Purpose: Approves reviewed third-party Composer runtime dependencies for preview.
+- Notes: Copy an eligible content-bound token from `runtimePackApprovalReviews` into trusted operator-controlled server configuration, then start or restart the server. Each token binds the exact pack root, id, version, and fingerprint. MCP callers cannot approve dependencies in a tool call. Preview still requires `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`.
 
 ### WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE
 

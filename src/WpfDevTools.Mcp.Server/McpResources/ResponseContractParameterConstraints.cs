@@ -47,7 +47,6 @@ internal static class ResponseContractParameterConstraints
             Integer("preview_ui_blueprint", "screenshotMaxHeight", defaultValue: 1024, minimum: 1, maximum: int.MaxValue),
             Integer("preview_ui_blueprint", "viewportWidth", defaultValue: null, minimum: 1, maximum: UiPreviewProjectFiles.MaximumViewportDimension),
             Integer("preview_ui_blueprint", "viewportHeight", defaultValue: null, minimum: 1, maximum: UiPreviewProjectFiles.MaximumViewportDimension),
-            Array("preview_ui_blueprint", "runtimePackApprovalTokens", maxItems: UiPreviewRuntimeDependencyPolicy.MaximumCallApprovalTokens),
             Integer("element_screenshot", "maxWidth", defaultValue: null, minimum: 1, maximum: int.MaxValue),
             Integer("element_screenshot", "maxHeight", defaultValue: null, minimum: 1, maximum: int.MaxValue)
         };

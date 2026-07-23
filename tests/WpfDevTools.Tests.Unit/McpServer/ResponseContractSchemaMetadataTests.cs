@@ -73,11 +73,9 @@ public sealed class ResponseContractSchemaMetadataTests
 
         AssertArrayConstraint(constraints, "capture_state_snapshot", "propertyNames", 100);
         AssertArrayConstraint(constraints, "capture_state_snapshot", "viewModelPropertyNames", 100);
-        AssertArrayConstraint(
-            constraints,
-            "preview_ui_blueprint",
-            "runtimePackApprovalTokens",
-            UiPreviewRuntimeDependencyPolicy.MaximumCallApprovalTokens);
+        constraints.EnumerateArray().Should().NotContain(item =>
+            item.GetProperty("tool").GetString() == "preview_ui_blueprint"
+            && item.GetProperty("parameter").GetString() == "runtimePackApprovalTokens");
         AssertStringConstraint(constraints, "capture_state_snapshot", "propertyNames[]", 256);
         AssertStringConstraint(constraints, "capture_state_snapshot", "viewModelPropertyNames[]", 256);
     }

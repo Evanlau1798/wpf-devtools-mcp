@@ -43,7 +43,6 @@ public sealed partial class ComposerGenericPreviewContractTests
             var result = new UiPackPreviewContractGenerator(registry).Generate(
                 Blueprint("sample.panel"),
                 "<sample:Panel xmlns:sample=\"urn:sample\" />",
-                runtimePackApprovalTokens: null,
                 renderedPackFingerprints: new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["sample"] = renderedFingerprint
@@ -85,69 +84,6 @@ public sealed partial class ComposerGenericPreviewContractTests
             File.ReadAllText(Path.Combine(previewRoot, "App.xaml"))
                 .Should().NotContain("sample:Theme");
             File.Exists(Path.Combine(previewRoot, "PackPreviewStubs.cs")).Should().BeTrue();
-        }
-        finally
-        {
-            DeleteDirectory(projectRoot);
-            DeleteDirectory(previewRoot);
-        }
-    }
-
-    [Fact]
-    public async Task PreviewBlueprint_WithMatchingCallApproval_ShouldUseRuntimeDependencies()
-    {
-        using var trusted = new EnvironmentVariableScope(TrustedRuntimePacksEnvironmentVariable, null);
-        var projectRoot = CreateProjectPack(includePreview: true, baseKind: "contentControl");
-        var previewRoot = CreateTempDirectory();
-        AddRuntimeMetadata(projectRoot, "sample");
-        var registry = CreateRegistry(projectRoot);
-        var token = UiPreviewRuntimeDependencyPolicy.CreateApprovalToken(
-            registry.ListPacks().Packs.Single(pack => pack.Id == "sample"));
-        try
-        {
-            var result = await new UiBlueprintPreviewService(registry).PreviewAsync(
-                new PreviewBlueprintRequest(
-                    Blueprint("sample.panel"),
-                    RestoreEnabled: false,
-                    TemporaryRoot: previewRoot,
-                    KeepArtifacts: true,
-                    RuntimePackApprovalTokens: [token]));
-
-            result.Diagnostics.Should().NotContain(diagnostic =>
-                diagnostic.Code == "PreviewRuntimeDependenciesNotApproved");
-            File.ReadAllText(Path.Combine(previewRoot, "PreviewHost.csproj"))
-                .Should().Contain("Sample.Runtime");
-            File.ReadAllText(Path.Combine(previewRoot, "App.xaml"))
-                .Should().Contain("sample:Theme");
-        }
-        finally
-        {
-            DeleteDirectory(projectRoot);
-            DeleteDirectory(previewRoot);
-        }
-    }
-
-    [Fact]
-    public async Task PreviewBlueprint_WithMismatchedCallApproval_ShouldRemainStructural()
-    {
-        using var trusted = new EnvironmentVariableScope(TrustedRuntimePacksEnvironmentVariable, null);
-        var projectRoot = CreateProjectPack(includePreview: true, baseKind: "contentControl");
-        var previewRoot = CreateTempDirectory();
-        AddRuntimeMetadata(projectRoot, "sample");
-        try
-        {
-            var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot)).PreviewAsync(
-                new PreviewBlueprintRequest(
-                    Blueprint("sample.panel"),
-                    RestoreEnabled: false,
-                    TemporaryRoot: previewRoot,
-                    KeepArtifacts: true,
-                    RuntimePackApprovalTokens: ["sample@1.0.0#" + new string('0', 64)]));
-
-            result.Diagnostics.Should().Contain(diagnostic =>
-                diagnostic.Code == "PreviewRuntimeDependenciesNotApproved");
-            File.ReadAllText(Path.Combine(previewRoot, "PreviewHost.csproj"))
-                .Should().NotContain("Sample.Runtime");
         }
         finally
         {

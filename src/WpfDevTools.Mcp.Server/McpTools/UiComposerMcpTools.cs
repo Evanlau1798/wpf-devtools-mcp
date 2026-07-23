@@ -220,8 +220,6 @@ public static partial class UiComposerMcpTools
         [Description("Preview Window.Width in DIPs; match the target Window dimension to expose overflow.")] int? viewportWidth = null,
         [Range(1, UiPreviewProjectFiles.MaximumViewportDimension)]
         [Description("Preview Window.Height in DIPs; match the target Window dimension to expose overflow.")] int? viewportHeight = null,
-        [MaxLength(UiPreviewRuntimeDependencyPolicy.MaximumCallApprovalTokens)]
-        [Description("Reviewed one-call content tokens; requires WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true.")] string[]? runtimePackApprovalTokens = null,
         [Range(1, UiBlueprintPreviewDiagnosticsBridge.MaximumNameLookupLimit)]
         [Description("Inspects up to 32 non-generated correlation names (authored elementName values and renderer-provided root x:Name values); raise to 64 only for layoutRiskSummary lookup-budget truncation.")] int correlationLookupLimit = UiBlueprintPreviewDiagnosticsBridge.ExistingNameLookupLimit,
         [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
@@ -240,7 +238,6 @@ public static partial class UiComposerMcpTools
             ("screenshotMaxHeight", screenshotMaxHeight),
             ("viewportWidth", viewportWidth),
             ("viewportHeight", viewportHeight),
-            ("runtimePackApprovalTokens", runtimePackApprovalTokens),
             ("correlationLookupLimit", correlationLookupLimit),
             ("projectRoot", projectRoot),
             ("localAppDataRoot", localAppDataRoot));
@@ -259,7 +256,6 @@ public static partial class UiComposerMcpTools
                 screenshotMaxHeight,
                 viewportWidth,
                 viewportHeight,
-                runtimePackApprovalTokens,
                 correlationLookupLimit,
                 projectRoot,
                 localAppDataRoot,

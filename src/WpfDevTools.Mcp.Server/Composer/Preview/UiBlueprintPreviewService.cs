@@ -57,7 +57,6 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
         var previewContract = new UiPackPreviewContractGenerator(registry).Generate(
             request.BlueprintJson,
             render.Xaml,
-            request.RuntimePackApprovalTokens,
             render.PackFingerprints);
         if (!previewContract.Success)
         {

@@ -76,8 +76,8 @@ public sealed class McpToolInputConstraintTests
         AssertIntegerConstraint(previewSchema, "screenshotMaxHeight", minimum: 1, maximum: int.MaxValue);
         AssertIntegerConstraint(previewSchema, "viewportWidth", minimum: 1, maximum: UiPreviewProjectFiles.MaximumViewportDimension);
         AssertIntegerConstraint(previewSchema, "viewportHeight", minimum: 1, maximum: UiPreviewProjectFiles.MaximumViewportDimension);
-        previewSchema.GetProperty("properties").GetProperty("runtimePackApprovalTokens")
-            .GetProperty("maxItems").GetInt32().Should().Be(UiPreviewRuntimeDependencyPolicy.MaximumCallApprovalTokens);
+        previewSchema.GetProperty("properties").TryGetProperty("runtimePackApprovalTokens", out _)
+            .Should().BeFalse();
     }
 
     private static void AssertTreeConstraints(JsonElement schema)

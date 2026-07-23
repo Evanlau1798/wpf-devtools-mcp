@@ -23,22 +23,11 @@ public static partial class UiComposerMcpTools
         int? screenshotMaxHeight,
         int? viewportWidth,
         int? viewportHeight,
-        string[]? runtimePackApprovalTokens,
         int correlationLookupLimit,
         string? projectRoot,
         string? localAppDataRoot,
         CancellationToken cancellationToken)
     {
-        if (runtimePackApprovalTokens is { Length: > UiPreviewRuntimeDependencyPolicy.MaximumCallApprovalTokens })
-        {
-            return BatchItemLimits.CreateInvalidArgumentError(
-                "runtimePackApprovalTokens",
-                runtimePackApprovalTokens.Length,
-                UiPreviewRuntimeDependencyPolicy.MaximumCallApprovalTokens,
-                $"runtimePackApprovalTokens accepts at most {UiPreviewRuntimeDependencyPolicy.MaximumCallApprovalTokens} items.",
-                "Pass only exact-content tokens for packs used by this preview call.");
-        }
-
         var input = BlueprintInputResolver.Resolve(blueprintJson);
         if (!input.Success)
         {
@@ -130,8 +119,7 @@ public static partial class UiComposerMcpTools
                     ScreenshotMaxHeight: resolvedScreenshotMaxHeight,
                     CorrelationLookupLimit: resolvedCorrelationLookupLimit!.Value,
                     ViewportWidth: resolvedViewportWidth,
-                    ViewportHeight: resolvedViewportHeight,
-                    RuntimePackApprovalTokens: runtimePackApprovalTokens),
+                    ViewportHeight: resolvedViewportHeight),
                 cancellationToken)
             .ConfigureAwait(false);
         var compactSuccessfulPayload = compactRuntimeDiagnostics

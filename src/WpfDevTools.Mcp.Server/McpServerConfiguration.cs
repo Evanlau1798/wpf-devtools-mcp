@@ -16,7 +16,6 @@ public static class McpServerConfiguration
     public const string AllowedProjectRootsEnvVar = "WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS";
     public const string ComposerTelemetryDisabledEnvVar = "WPFDEVTOOLS_COMPOSER_TELEMETRY_DISABLED";
     public const string ComposerTrustedRuntimePacksEnvVar = "WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS";
-    public const string AllowComposerRuntimeApprovalsEnvVar = "WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS";
     public const string SkipExistingHostReuseEnvVar = "WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE";
     public const string RateLimitRequestsPerMinuteEnvVar = "WPFDEVTOOLS_RATE_LIMIT_RPM";
     public const string TextFallbackModeEnvVar = "WPFDEVTOOLS_TEXT_FALLBACK_MODE";

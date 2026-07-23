@@ -19,7 +19,6 @@ internal static class McpToolPolicyTags
     internal const string SensitiveReads = "sensitive-reads";
     internal const string Screenshots = "screenshots";
     internal const string ViewModelInspection = "viewmodel-inspection";
-    internal const string ComposerRuntimeApprovals = "composer-runtime-approvals";
 }
 
 internal sealed record McpToolCapabilityEntry(

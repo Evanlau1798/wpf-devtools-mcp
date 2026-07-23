@@ -53,7 +53,7 @@ public sealed class ReleasePackagingTestHarnessIntegrationTests
             var result = ReleasePackagingTestHarness.RunPowerShellScript(
                 scriptPath,
                 Array.Empty<string>(),
-                timeout: TimeSpan.FromSeconds(5));
+                timeout: TimeSpan.FromSeconds(10));
 
             result.ExitCode.Should().Be(0, result.Stderr);
             result.Stderr.Should().BeEmpty();

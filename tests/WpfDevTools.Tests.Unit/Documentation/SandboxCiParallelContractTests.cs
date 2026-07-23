@@ -337,7 +337,7 @@ public sealed partial class SandboxCiScriptContractTests
     }
 
     [Fact]
-    public void SandboxManagedScript_ReleaseUnitEightShardFilters_ShouldCoverEveryClassOnceAndPrioritizeLongestGroups()
+    public void SandboxManagedScript_ReleaseUnitEightShardFilters_ShouldCoverEveryClassOnceAndSeparateLongestClasses()
     {
         var managed = ReadScript(Path.Combine(RepoRoot, "scripts", "ci"), "SandboxCi.Managed.ps1");
         var filters = ExtractReleaseEightShardFilters(managed);
@@ -345,22 +345,24 @@ public sealed partial class SandboxCiScriptContractTests
 
         filters.Should().HaveCount(8);
         testClasses.Should().NotBeEmpty();
-        string[] priorityMarkers =
+        filters.Should().OnlyContain(filter => !filter.Contains("FullyQualifiedName!~", StringComparison.Ordinal),
+            "explicit shard membership is easier to audit than a large negative catch-all");
+        string[] longestClasses =
         [
-            "FullyQualifiedName!~",
-            "InstallerScriptTests",
-            "InstallerFullUninstallTests",
-            "InstallerCursorClientUninstallTests",
-            "InstallerTuiRuntimeTests",
-            "InstallerIdeRegistrationShimBackedTests",
-            "InstallerInteractiveUiScriptTests",
-            "PackagedServerRuntimeSmokeScriptTests"
+            "StandaloneInstallerLiveRegistrationOwnershipTests",
+            "InstallerFullUninstallRootCleanupTests",
+            "StandaloneInstallerRegressionBootstrapTests"
         ];
-        for (var index = 0; index < priorityMarkers.Length; index++)
-        {
-            filters[index].Should().Contain(priorityMarkers[index],
-                $"release-unit shard {index + 1} should preserve the measured longest-first priority order");
-        }
+        var longestClassShards = longestClasses
+            .Select(className => Array.FindIndex(
+                filters,
+                filter => FilterMatchesFullyQualifiedName(
+                    filter,
+                    $"WpfDevTools.Tests.Unit.Release.{className}.SyntheticTest")))
+            .ToArray();
+        longestClassShards.Should().NotContain(-1);
+        longestClassShards.Should().OnlyHaveUniqueItems(
+            "the three longest release classes must not serialize behind one another");
 
         foreach (var fullyQualifiedClassName in testClasses)
         {

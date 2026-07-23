@@ -180,8 +180,8 @@ public sealed class ComposerPreviewDiagnosticSourceTests
             {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"compilemap.goodChild","displayName":"Good Child","category":"test","properties":{},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/goodChild.xaml.sbn"},"sourceHints":[]}
             """);
         File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "host.xaml.sbn"), "<Grid>{{ slot.content }}</Grid>");
-        File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "badChild.xaml.sbn"), "<TextBlock></NotTextBlock>");
-        File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "brokenHost.xaml.sbn"), "<Grid>{{ slot.content }}</BrokenGrid>");
+        File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "badChild.xaml.sbn"), "<TextBlock UnknownCompileProperty=\"true\" />");
+        File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "brokenHost.xaml.sbn"), "<Grid UnknownCompileProperty=\"true\">{{ slot.content }}</Grid>");
         File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "goodChild.xaml.sbn"), "<TextBlock />");
         return projectRoot;
     }

@@ -72,6 +72,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         var resolvedSourceMap = ResolveSourceMap(rendererXaml, sourceMap);
         errors.AddRange(XamlSafetyScanner.Scan(rendererXaml, resolvedSourceMap, context.RequiredResources));
         var xaml = AddRootXmlNamespaces(rendererXaml, context.XmlNamespaces);
+        errors.AddRange(FinalXamlSafetyScanner.Scan(xaml));
         GeneratedClassMemberCollisionValidator.AddRenderedIssues(blueprint, context.Blocks, targetPath, xaml, errors);
         AddRenderedNameCollisionIssues(rendererXaml, xaml, resolvedSourceMap, context.Blocks, errors);
         var filePlan = new RenderFilePlan(targetPath, WouldWriteFiles: false);

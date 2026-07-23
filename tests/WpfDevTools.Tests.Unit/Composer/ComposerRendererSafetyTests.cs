@@ -54,6 +54,30 @@ public sealed class ComposerRendererSafetyTests
         }
     }
 
+    [Theory]
+    [InlineData("<Grid><evil:Code>void Run() { }</evil:Code></Grid>", "UnsafeXamlDirective")]
+    [InlineData("<TextBlock Text=\"{evil:Static Grid.Tag}\" />", "UnsafeXamlMarkupExtension")]
+    public void RenderBlueprint_ShouldRejectAliasedXamlLanguageExecution(
+        string rendererTemplate,
+        string expectedCode)
+    {
+        var projectRoot = CreateTempProjectWithSafetyPack(
+            rendererTemplate,
+            """{"evil":"http://schemas.microsoft.com/winfx/2006/xaml"}""");
+        try
+        {
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot))
+                .Render(new RenderBlueprintRequest(Blueprint()));
+
+            result.Success.Should().BeFalse();
+            result.Errors.Should().Contain(issue => issue.Code == expectedCode);
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
     [Fact]
     public void RenderBlueprint_ShouldAllowConstrainedAncestorBinding()
     {
@@ -156,7 +180,9 @@ public sealed class ComposerRendererSafetyTests
             }
             """;
 
-    private static string CreateTempProjectWithSafetyPack(string rendererTemplate)
+    private static string CreateTempProjectWithSafetyPack(
+        string rendererTemplate,
+        string xmlNamespacesJson = "{}")
     {
         var projectRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-renderer-safety-" + Guid.NewGuid().ToString("N"));
         var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", "safety", "1.0.0");
@@ -168,9 +194,10 @@ public sealed class ComposerRendererSafetyTests
         File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"), """
             {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"safety","version":"1.0.0","scope":"project-local","path":".","enabled":true}
             """);
-        File.WriteAllText(Path.Combine(packRoot, "pack.json"), """
-            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"safety","displayName":"Safety Pack","version":"1.0.0","blocks":["safety.demo"],"recipes":[],"resourceSetup":{"applicationMergedDictionaries":["pack://application:,,,/Safe;component/Safe.xaml"]}}
-            """);
+        var manifest = """
+            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"safety","displayName":"Safety Pack","version":"1.0.0","blocks":["safety.demo"],"recipes":[],"xmlNamespaces":XML_NAMESPACES,"resourceSetup":{"applicationMergedDictionaries":["pack://application:,,,/Safe;component/Safe.xaml"]}}
+            """.Replace("XML_NAMESPACES", xmlNamespacesJson, StringComparison.Ordinal);
+        File.WriteAllText(Path.Combine(packRoot, "pack.json"), manifest);
         File.WriteAllText(Path.Combine(packRoot, "source.lock.json"), """
             {"schemaVersion":"wpfdevtools.source-lock.v1","sources":[],"transformPolicy":{}}
             """);

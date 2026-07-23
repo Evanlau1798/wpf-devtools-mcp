@@ -9,6 +9,7 @@ function New-SmokeTargetCleanupFailureMessage {
 }
 
 function Start-SmokeTarget {
+    param([int]$GracefulCloseMilliseconds = 5000, [int]$ForceExitMilliseconds = 5000, [int]$CleanupDeadlineMilliseconds = 15000, [int]$CleanupSettleMilliseconds = 500, [int]$CleanupPollMilliseconds = 100)
     if ([string]::IsNullOrWhiteSpace($SmokeTargetPath)) {
         return $null
     }
@@ -56,7 +57,7 @@ function Start-SmokeTarget {
     catch {
         $startupFailure = $_.Exception.Message
         try {
-            Stop-SmokeTarget -Process $process -KnownSnapshots $startupSnapshots
+            Stop-SmokeTarget -Process $process -KnownSnapshots $startupSnapshots -GracefulCloseMilliseconds $GracefulCloseMilliseconds -ForceExitMilliseconds $ForceExitMilliseconds -CleanupDeadlineMilliseconds $CleanupDeadlineMilliseconds -CleanupSettleMilliseconds $CleanupSettleMilliseconds -CleanupPollMilliseconds $CleanupPollMilliseconds
         }
         catch {
             throw (New-SmokeTargetCleanupFailureMessage -StartupFailure $startupFailure -CleanupFailure $_.Exception.Message)
@@ -386,8 +387,8 @@ function Stop-ExistingProcessSnapshots {
 }
 
 function Stop-ProcessSnapshots {
-    param([object[]]$Snapshots, [object[]]$ScanRoots = @())
-    $script:LastProcessSnapshotStopFailure = ''; $deadline = [DateTime]::UtcNow.AddSeconds(15); $settleSinceUtc = $null; $lastLiveKey = ''
+    param([object[]]$Snapshots, [object[]]$ScanRoots = @(), [int]$DeadlineMilliseconds = 15000, [int]$SettleMilliseconds = 500, [int]$PollMilliseconds = 100)
+    $script:LastProcessSnapshotStopFailure = ''; $deadline = [DateTime]::UtcNow.AddMilliseconds($DeadlineMilliseconds); $settleSinceUtc = $null; $lastLiveKey = ''
     do {
         $Snapshots = @(Expand-ProcessSnapshots -Snapshots $Snapshots -ScanRoots $ScanRoots)
         Stop-ExistingProcessSnapshots -Snapshots $Snapshots
@@ -395,10 +396,10 @@ function Stop-ProcessSnapshots {
         $liveSnapshots = @($Snapshots | Where-Object { Test-ProcessSnapshotExists -Snapshot $_ }); $liveKey = (($liveSnapshots | Sort-Object ProcessId, CreationDateUtcTicks | ForEach-Object { Get-ProcessSnapshotKey -Snapshot $_ }) -join '|')
         if ($liveSnapshots.Count -eq 0 -and @($ScanRoots).Count -eq 0) { return }
         if ($liveSnapshots.Count -eq 0) {
-            if ($null -eq $settleSinceUtc) { $settleSinceUtc = [DateTime]::UtcNow } elseif ([DateTime]::UtcNow -ge $settleSinceUtc.AddMilliseconds(500)) { return }
+            if ($null -eq $settleSinceUtc) { $settleSinceUtc = [DateTime]::UtcNow } elseif ([DateTime]::UtcNow -ge $settleSinceUtc.AddMilliseconds($SettleMilliseconds)) { return }
         }
         else { $settleSinceUtc = $null; $lastLiveKey = $liveKey }
-        Start-Sleep -Milliseconds 100
+        Start-Sleep -Milliseconds $PollMilliseconds
     } while ([DateTime]::UtcNow -lt $deadline)
 
     $remaining = @($Snapshots | Where-Object { Test-ProcessSnapshotExists -Snapshot $_ } | ForEach-Object { $_.ProcessId })
@@ -408,10 +409,7 @@ function Stop-ProcessSnapshots {
 }
 
 function Stop-SmokeTarget {
-    param(
-        [System.Diagnostics.Process]$Process,
-        [object[]]$KnownSnapshots = @()
-    )
+    param([System.Diagnostics.Process]$Process, [object[]]$KnownSnapshots = @(), [int]$GracefulCloseMilliseconds = 5000, [int]$ForceExitMilliseconds = 5000, [int]$CleanupDeadlineMilliseconds = 15000, [int]$CleanupSettleMilliseconds = 500, [int]$CleanupPollMilliseconds = 100)
 
     if ($null -eq $Process) {
         return
@@ -443,7 +441,7 @@ function Stop-SmokeTarget {
                 $descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))
                 $gracefulCloseRequested = $Process.CloseMainWindow()
                 if ($gracefulCloseRequested) {
-                    $deadline = [DateTime]::UtcNow.AddSeconds(5)
+                    $deadline = [DateTime]::UtcNow.AddMilliseconds($GracefulCloseMilliseconds)
                     while (-not $Process.HasExited -and [DateTime]::UtcNow -lt $deadline) {
                         $descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))
                         Start-Sleep -Milliseconds 100
@@ -454,7 +452,7 @@ function Stop-SmokeTarget {
                 if (-not $Process.HasExited) {
                     $descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))
                     & taskkill.exe /F /T /PID $processId 2>$null | Out-Null; if (-not $Process.HasExited) { $Process.Kill() }
-                    if (-not $Process.WaitForExit(5000)) {
+                    if (-not $Process.WaitForExit($ForceExitMilliseconds)) {
                         throw "Smoke target did not exit after force kill: $processId"
                     }
                 }
@@ -471,7 +469,10 @@ function Stop-SmokeTarget {
             }
 
             try {
-                Stop-ProcessSnapshots -Snapshots @(@($rootSnapshot) + @($descendantSnapshots)) -ScanRoots @($rootSnapshot)
+                Stop-ProcessSnapshots -Snapshots @(@($rootSnapshot) + @($descendantSnapshots)) -ScanRoots @($rootSnapshot) `
+                    -DeadlineMilliseconds $CleanupDeadlineMilliseconds `
+                    -SettleMilliseconds $CleanupSettleMilliseconds `
+                    -PollMilliseconds $CleanupPollMilliseconds
             }
             catch {
                 $descendantCleanupFailure = $_.Exception.Message

@@ -28,7 +28,12 @@ public sealed partial class SandboxCiScriptContractTests
             $SmokeTargetPath = '{{EscapePowerShellPath(smokeTargetPath)}}'
             $SmokeTargetStartupTimeoutSeconds = 1
             try {
-                Start-SmokeTarget | Out-Null
+                Start-SmokeTarget `
+                    -GracefulCloseMilliseconds 100 `
+                    -ForceExitMilliseconds 2000 `
+                    -CleanupDeadlineMilliseconds 2000 `
+                    -CleanupSettleMilliseconds 100 `
+                    -CleanupPollMilliseconds 20 | Out-Null
                 throw 'Start-SmokeTarget unexpectedly returned.'
             }
             catch {
@@ -122,9 +127,18 @@ public sealed partial class SandboxCiScriptContractTests
         stopBlock.Should().Contain("if ($gracefulCloseRequested) {");
         stopBlock.Should().NotContain("$Process.CloseMainWindow() | Out-Null");
         stopBlock.Should().Contain("$descendantSnapshots += @(Get-DescendantProcessSnapshots -ParentProcessId $processId -CreationStartUtcTicks (Get-ProcessSnapshotStartCutoff -Snapshot $rootSnapshot))");
-        stopBlock.Should().Contain("if (-not $Process.WaitForExit(5000))");
+        stopBlock.Should().Contain("[int]$GracefulCloseMilliseconds = 5000");
+        stopBlock.Should().Contain("[int]$ForceExitMilliseconds = 5000");
+        stopBlock.Should().Contain("AddMilliseconds($GracefulCloseMilliseconds)");
+        stopBlock.Should().Contain("if (-not $Process.WaitForExit($ForceExitMilliseconds))");
         stopBlock.Should().Contain("Smoke target did not exit after force kill");
-        stopBlock.Should().Contain("Stop-ProcessSnapshots -Snapshots @(@($rootSnapshot) + @($descendantSnapshots)) -ScanRoots @($rootSnapshot)");
+        stopBlock.Should().Contain("[int]$CleanupDeadlineMilliseconds = 15000");
+        stopBlock.Should().Contain("[int]$CleanupSettleMilliseconds = 500");
+        stopBlock.Should().Contain("[int]$CleanupPollMilliseconds = 100");
+        stopBlock.Should().Contain("Stop-ProcessSnapshots -Snapshots");
+        stopBlock.Should().Contain("-DeadlineMilliseconds $CleanupDeadlineMilliseconds");
+        stopBlock.Should().Contain("-SettleMilliseconds $CleanupSettleMilliseconds");
+        stopBlock.Should().Contain("-PollMilliseconds $CleanupPollMilliseconds");
     }
 
     [Fact]

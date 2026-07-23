@@ -22,7 +22,7 @@ public sealed partial class SandboxCiScriptContractTests
                     param([int]$ParentProcessId, [long]$CreationCutoffUtcTicks = [long]::MaxValue, [int[]]$VisitedProcessIds = @())
                     if ($ParentProcessId -ne 111) { return @() }
                     $script:scanCalls++
-                    if ($script:scanCalls -eq 1) { Start-Sleep -Milliseconds 1200 }
+                    if ($script:scanCalls -eq 1) { Start-Sleep -Milliseconds 100 }
                     if ($script:scanCalls -lt 3) { return @() }
                     return [pscustomobject]@{ ProcessId = 424242; CreationDateUtcTicks = 1; DescendantCutoffUtcTicks = [DateTime]::UtcNow.Ticks }
                 }
@@ -38,7 +38,12 @@ public sealed partial class SandboxCiScriptContractTests
                 }
 
                 $root = [pscustomobject]@{ ProcessId = 111; CreationDateUtcTicks = 1; DescendantCutoffUtcTicks = [DateTime]::UtcNow.Ticks }
-                Stop-ProcessSnapshots -Snapshots @() -ScanRoots @($root)
+                Stop-ProcessSnapshots `
+                    -Snapshots @() `
+                    -ScanRoots @($root) `
+                    -DeadlineMilliseconds 2000 `
+                    -SettleMilliseconds 50 `
+                    -PollMilliseconds 10
                 if ($script:scanCalls -lt 3) { throw "Expected scan root settling, observed $script:scanCalls scan(s)." }
                 if ($script:stoppedIds -notcontains 424242) { throw 'Delayed descendant was not stopped.' }
             }
@@ -87,7 +92,7 @@ public sealed partial class SandboxCiScriptContractTests
                 }
                 function Stop-ExistingProcessSnapshots {
                     param([object[]]$Snapshots)
-                    if ($script:stoppedIds.Count -eq 0) { Start-Sleep -Milliseconds 1200 }
+                    if ($script:stoppedIds.Count -eq 0) { Start-Sleep -Milliseconds 100 }
                     foreach ($snapshot in $Snapshots) { $script:stoppedIds += [int]$snapshot.ProcessId }
                 }
                 function Test-ProcessSnapshotExists {
@@ -96,7 +101,12 @@ public sealed partial class SandboxCiScriptContractTests
                 }
 
                 $root = [pscustomobject]@{ ProcessId = 111; CreationDateUtcTicks = 1; DescendantCutoffUtcTicks = [DateTime]::UtcNow.Ticks }
-                Stop-ProcessSnapshots -Snapshots @() -ScanRoots @($root)
+                Stop-ProcessSnapshots `
+                    -Snapshots @() `
+                    -ScanRoots @($root) `
+                    -DeadlineMilliseconds 2000 `
+                    -SettleMilliseconds 50 `
+                    -PollMilliseconds 10
                 if ($script:scanCalls -lt 3) { throw "Expected cleanup to rescan after slow stop, observed $script:scanCalls scan(s)." }
                 if ($script:stoppedIds -notcontains 424243) { throw 'Post-cleanup descendant was not stopped.' }
             }

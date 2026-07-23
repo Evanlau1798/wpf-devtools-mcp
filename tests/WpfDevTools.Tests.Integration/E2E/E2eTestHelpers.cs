@@ -149,9 +149,12 @@ public static partial class E2eTestHelpers
     }
 
     public static async Task<string?> FindElementByNameAsync(
-        McpStdioClient client, int processId, string elementName)
+        McpStdioClient client,
+        int processId,
+        string elementName,
+        CancellationToken cancellationToken = default)
         => await FindElementByNameAsync(
-            (toolName, arguments) => client.CallToolAsync(toolName, arguments),
+            (toolName, arguments) => client.CallToolAsync(toolName, arguments, ct: cancellationToken),
             processId,
             elementName);
 
@@ -197,7 +200,11 @@ public static partial class E2eTestHelpers
         try
         {
             return await ConditionWaiter.WaitForAsync(
-                () => FindElementByNameAsync(client, processId, elementName),
+                cancellationToken => FindElementByNameAsync(
+                    client,
+                    processId,
+                    elementName,
+                    cancellationToken),
                 elementId => !string.IsNullOrWhiteSpace(elementId),
                 timeout ?? TimeSpan.FromSeconds(1),
                 $"Element '{elementName}' was not found.",

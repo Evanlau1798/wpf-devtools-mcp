@@ -32,6 +32,38 @@ internal static class ConditionWaiter
         return lastResult;
     }
 
+    public static async Task<T> WaitForAsync<T>(
+        Func<CancellationToken, Task<T>> action,
+        Func<T, bool> condition,
+        TimeSpan timeout,
+        string failureMessage,
+        TimeSpan? pollInterval = null)
+    {
+        using var timeoutSource = new CancellationTokenSource(timeout);
+        var interval = pollInterval ?? DefaultPollInterval;
+        T? lastResult = default;
+        var hasResult = false;
+
+        try
+        {
+            lastResult = await action(timeoutSource.Token).ConfigureAwait(false);
+            hasResult = true;
+
+            while (!condition(lastResult))
+            {
+                await Task.Delay(interval, timeoutSource.Token).ConfigureAwait(false);
+                lastResult = await action(timeoutSource.Token).ConfigureAwait(false);
+            }
+
+            return lastResult;
+        }
+        catch (OperationCanceledException) when (timeoutSource.IsCancellationRequested)
+        {
+            var lastObserved = hasResult ? $" Last observed result: {FormatResult(lastResult)}" : string.Empty;
+            throw new TimeoutException(failureMessage + lastObserved);
+        }
+    }
+
     public static void WaitUntil(
         Func<bool> condition,
         TimeSpan timeout,

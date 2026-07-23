@@ -239,7 +239,7 @@ public class ReleasePackagingWorkflowTests
     {
         var content = File.ReadAllText(GetRepoFilePath(".github/workflows/ci-cd.yml"));
 
-        content.Should().Contain("dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --configuration Release --output ./nupkg -p:GeneratePackageOnBuild=false",
+        content.Should().Contain("dotnet pack src/WpfDevTools.Inspector.Sdk/WpfDevTools.Inspector.Sdk.csproj --configuration Release --no-restore --output ./nupkg -p:GeneratePackageOnBuild=false",
             "direct dotnet pack already runs the pack target, so GeneratePackageOnBuild must be disabled to avoid looking for the package artifact before the build output exists");
     }
 

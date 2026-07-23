@@ -6,6 +6,18 @@ namespace WpfDevTools.Tests.Unit.Integration.E2E;
 public sealed class McpStdioClientTimeoutPathContractTests
 {
     [Fact]
+    public void InitializeNotification_ShouldHaveAnIndependentWriteDeadline()
+    {
+        var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(
+            "tests/WpfDevTools.Tests.Integration/E2E/McpStdioClient.cs"));
+
+        content.Should().Contain(
+            "SendNotificationAsync(\"notifications/initialized\", timeoutMs: 30000, ct)");
+        content.Should().Contain(
+            "SendNotificationAsync(string method, int timeoutMs, CancellationToken ct)");
+    }
+
+    [Fact]
     public void SendRequestAsync_ShouldApplyItsDeadlineBeforeWritingToTheServer()
     {
         var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(

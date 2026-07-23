@@ -110,7 +110,7 @@ public sealed partial class McpStdioClient : IDisposable
             clientInfo = new { name = "e2e-integration-test", version = "1.0.0" }
         }, timeoutMs: 30000, ct);
 
-        await SendNotificationAsync("notifications/initialized", ct);
+        await SendNotificationAsync("notifications/initialized", timeoutMs: 30000, ct);
 
         return initResult;
     }
@@ -272,9 +272,22 @@ public sealed partial class McpStdioClient : IDisposable
             $"Server state: {serverState}. Stderr tail: {TruncateStderr(500)}");
     }
 
-    private async Task SendNotificationAsync(string method, CancellationToken ct = default)
+    private async Task SendNotificationAsync(string method, int timeoutMs, CancellationToken ct)
     {
-        await SendJsonLineAsync(new { jsonrpc = "2.0", method, @params = new { } }, ct);
+        using var timeoutCts = new CancellationTokenSource(timeoutMs);
+        using var notificationCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+        try
+        {
+            await SendJsonLineAsync(
+                new { jsonrpc = "2.0", method, @params = new { } },
+                notificationCts.Token);
+        }
+        catch (OperationCanceledException) when (notificationCts.IsCancellationRequested)
+        {
+            ct.ThrowIfCancellationRequested();
+            throw new TimeoutException(
+                $"Timed out ({timeoutMs}ms) sending notification '{method}'.");
+        }
     }
 
     /// <summary>

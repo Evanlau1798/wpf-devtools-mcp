@@ -290,7 +290,7 @@ public sealed class ComposerExtensionAcceptanceTests
             new { processId, elementId = buttonId });
         click.GetProperty("success").GetBoolean().Should().BeTrue(click.GetRawText());
         await ConditionWaiter.WaitForAsync(
-            () => ReadSummaryAsync(client, processId),
+            cancellationToken => ReadSummaryAsync(client, processId, cancellationToken),
             current => current.GetRawText().Contains(
                 "Extension action completed: neutral-payload",
                 StringComparison.Ordinal),
@@ -298,8 +298,14 @@ public sealed class ComposerExtensionAcceptanceTests
             "Command-bound synthetic extension action did not update the visible status.");
     }
 
-    private static Task<JsonElement> ReadSummaryAsync(McpStdioClient client, int processId)
-        => client.CallToolAsync("get_ui_summary", new { processId, depthMode = "semantic" });
+    private static Task<JsonElement> ReadSummaryAsync(
+        McpStdioClient client,
+        int processId,
+        CancellationToken cancellationToken = default)
+        => client.CallToolAsync(
+            "get_ui_summary",
+            new { processId, depthMode = "semantic" },
+            ct: cancellationToken);
 
     private static void DeleteProjectRoot(string? projectRoot)
     {

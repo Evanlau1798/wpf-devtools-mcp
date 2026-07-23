@@ -65,10 +65,11 @@ public sealed class PerformanceE2eTests : SharedStateMcpE2eTestBase
             timeoutMs: 10000);
 
         var result = await ConditionWaiter.WaitForAsync(
-            () => _fixture.Client.CallToolAsync(
+            cancellationToken => _fixture.Client.CallToolAsync(
                 "get_render_stats",
                 new { processId = _fixture.TestAppProcessId },
-                timeoutMs: 10000),
+                timeoutMs: 10000,
+                ct: cancellationToken),
             payload => payload.GetProperty("totalFrames").GetInt32() > 0,
             TimeSpan.FromSeconds(5),
             "Timed out waiting for get_render_stats to report warmed-up frame data on a follow-up call.");

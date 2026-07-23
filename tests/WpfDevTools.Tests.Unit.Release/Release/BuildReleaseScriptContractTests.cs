@@ -170,5 +170,7 @@ public sealed partial class ReleasePackagingContractTests
             .Should().BeLessThan(architectureLoop);
         script.IndexOf("'build', $inspectorSdkProject", StringComparison.Ordinal)
             .Should().BeLessThan(architectureLoop);
+        script.LastIndexOf("'build', $inspectorSdkProject", StringComparison.Ordinal)
+            .Should().BeLessThan(architectureLoop);
     }
 }

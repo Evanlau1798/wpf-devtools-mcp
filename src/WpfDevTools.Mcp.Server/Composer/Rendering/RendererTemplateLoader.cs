@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using WpfDevTools.Mcp.Server.Composer.Apply;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 using WpfDevTools.Mcp.Server.Composer.Packs;
@@ -69,7 +70,23 @@ internal sealed class RendererTemplateLoader(PackRegistry registry)
             return new RendererTemplateLoadResult(false, null, errors, false);
         }
 
-        var content = File.ReadAllText(templatePath);
+        using var templateStream = new FileStream(
+            templatePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read);
+        if (ProjectWritePolicy.FindReparsePoint(pack.RootPath, templatePath) is not null)
+        {
+            errors.Add(Issue(
+                "$",
+                "RendererTemplateUsesReparsePoint",
+                $"Renderer template for block '{blockKind}' uses a reparse point.",
+                "Replace linked pack content with ordinary files under the installed pack root."));
+            return new RendererTemplateLoadResult(false, null, errors, false);
+        }
+
+        using var reader = new StreamReader(templateStream);
+        var content = reader.ReadToEnd();
         if (!string.Equals(
                 loadedResult.Fingerprint,
                 ComposerPackLoader.GetFingerprint(pack.RootPath),

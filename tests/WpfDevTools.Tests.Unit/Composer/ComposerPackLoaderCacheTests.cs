@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
@@ -401,6 +402,45 @@ public sealed class ComposerPackLoaderCacheTests
         }
         finally
         {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
+    public void Load_ShouldRejectRendererDirectoriesThatAreReparsePoints()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = CreateMinimalPack(tempRoot);
+            var rendererRoot = Path.Combine(packRoot, "renderers", "xaml");
+            var externalRoot = Path.Combine(tempRoot, "external-renderers");
+            Directory.Delete(rendererRoot, recursive: true);
+            Directory.CreateDirectory(externalRoot);
+            File.WriteAllText(Path.Combine(externalRoot, "text.xaml.sbn"), "<TextBlock Text=\"outside\" />");
+            using var process = Process.Start(new ProcessStartInfo(
+                "cmd.exe",
+                $"""/d /c mklink /J "{rendererRoot}" "{externalRoot}" """)
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false
+            });
+            process.Should().NotBeNull();
+            process!.WaitForExit();
+            process.ExitCode.Should().Be(0);
+            var action = () => ComposerPackLoader.LoadWithFingerprint(packRoot);
+            action.Should().Throw<InvalidDataException>()
+                .WithMessage("*reparse point*");
+        }
+        finally
+        {
+            var rendererRoot = Path.Combine(tempRoot, "sample", "1.0.0", "renderers", "xaml");
+            if (Directory.Exists(rendererRoot)
+                && File.GetAttributes(rendererRoot).HasFlag(FileAttributes.ReparsePoint))
+            {
+                Directory.Delete(rendererRoot);
+            }
+            ComposerPackLoader.ClearCacheForTests();
             DeleteDirectory(tempRoot);
         }
     }

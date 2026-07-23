@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
+using WpfDevTools.Mcp.Server.Composer.Apply;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 
 namespace WpfDevTools.Mcp.Server.Composer.Packs;
@@ -213,6 +214,7 @@ internal static class ComposerPackLoader
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         foreach (var file in EnumeratePackFiles(root))
         {
+            RejectReparsePoint(root, file);
             var fileInfo = new FileInfo(file);
             AppendLengthPrefixed(hash, Encoding.UTF8.GetBytes(Path.GetRelativePath(root, file).Replace('\\', '/')));
             AppendInt64(hash, fileInfo.Length);
@@ -226,6 +228,15 @@ internal static class ComposerPackLoader
         }
 
         return Convert.ToHexString(hash.GetHashAndReset());
+    }
+
+    private static void RejectReparsePoint(string root, string candidate)
+    {
+        if (ProjectWritePolicy.FindReparsePoint(root, candidate) is { } reparsePoint)
+        {
+            throw new InvalidDataException(
+                $"Pack content path uses a reparse point and cannot be loaded: {Path.GetRelativePath(root, reparsePoint)}.");
+        }
     }
 
     private static IEnumerable<string> EnumeratePackFiles(string root)

@@ -110,7 +110,7 @@ public sealed partial class McpStdioClient : IDisposable
             clientInfo = new { name = "e2e-integration-test", version = "1.0.0" }
         }, timeoutMs: 30000, ct);
 
-        await SendNotificationAsync("notifications/initialized");
+        await SendNotificationAsync("notifications/initialized", ct);
 
         return initResult;
     }
@@ -216,10 +216,20 @@ public sealed partial class McpStdioClient : IDisposable
             ? (object)new { jsonrpc = "2.0", id, method, @params = parameters }
             : new { jsonrpc = "2.0", id, method };
 
+        using var timeoutCts = new CancellationTokenSource(timeoutMs);
+        using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+
         try
         {
-            await SendJsonLineAsync(payload);
+            await SendJsonLineAsync(payload, requestCts.Token);
             dispatched?.TrySetResult(true);
+        }
+        catch (OperationCanceledException) when (requestCts.IsCancellationRequested)
+        {
+            var exception = CreateRequestDeadlineException(method, id, timeoutMs, ct);
+            dispatched?.TrySetException(exception);
+            _pendingResponses.TryRemove(id, out _);
+            throw exception;
         }
         catch (Exception ex)
         {
@@ -228,51 +238,58 @@ public sealed partial class McpStdioClient : IDisposable
             throw;
         }
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(timeoutMs);
-
-        var completed = await Task.WhenAny(responseTcs.Task, Task.Delay(Timeout.Infinite, cts.Token));
+        var completed = await Task.WhenAny(
+            responseTcs.Task,
+            Task.Delay(Timeout.Infinite, requestCts.Token));
         if (completed == responseTcs.Task)
         {
             return await responseTcs.Task;
         }
 
         _pendingResponses.TryRemove(id, out _);
+        throw CreateRequestDeadlineException(method, id, timeoutMs, ct);
+    }
 
-        if (ct.IsCancellationRequested)
+    private Exception CreateRequestDeadlineException(
+        string method,
+        int id,
+        int timeoutMs,
+        CancellationToken callerToken)
+    {
+        if (callerToken.IsCancellationRequested)
         {
-            throw new OperationCanceledException(
+            return new OperationCanceledException(
                 $"Canceled waiting for response to '{method}' (id={id}).",
-                ct);
+                callerToken);
         }
 
         var serverState = _serverProcess?.HasExited == true
             ? $"exited with code {_serverProcess.ExitCode}"
             : "running";
 
-        throw new TimeoutException(
+        return new TimeoutException(
             $"Timed out ({timeoutMs}ms) waiting for response to '{method}' (id={id}). " +
             $"Server state: {serverState}. Stderr tail: {TruncateStderr(500)}");
     }
 
-    private async Task SendNotificationAsync(string method)
+    private async Task SendNotificationAsync(string method, CancellationToken ct = default)
     {
-        await SendJsonLineAsync(new { jsonrpc = "2.0", method, @params = new { } });
+        await SendJsonLineAsync(new { jsonrpc = "2.0", method, @params = new { } }, ct);
     }
 
     /// <summary>
     /// Send a JSON message as a single line followed by newline (NDJSON format).
     /// </summary>
-    private async Task SendJsonLineAsync(object payload)
+    private async Task SendJsonLineAsync(object payload, CancellationToken ct = default)
     {
         EnsureRunning();
 
         var json = JsonSerializer.Serialize(payload);
-        await _writeLock.WaitAsync();
+        await _writeLock.WaitAsync(ct);
         try
         {
-            await _serverProcess!.StandardInput.WriteLineAsync(json);
-            await _serverProcess.StandardInput.FlushAsync();
+            await _serverProcess!.StandardInput.WriteLineAsync(json.AsMemory(), ct);
+            await _serverProcess.StandardInput.FlushAsync(ct);
         }
         finally
         {

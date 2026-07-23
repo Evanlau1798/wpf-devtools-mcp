@@ -6,6 +6,20 @@ namespace WpfDevTools.Tests.Unit.Integration.E2E;
 public sealed class McpStdioClientTimeoutPathContractTests
 {
     [Fact]
+    public void SendRequestAsync_ShouldApplyItsDeadlineBeforeWritingToTheServer()
+    {
+        var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(
+            "tests/WpfDevTools.Tests.Integration/E2E/McpStdioClient.cs"));
+
+        content.IndexOf("CancellationTokenSource.CreateLinkedTokenSource", StringComparison.Ordinal)
+            .Should().BeLessThan(content.IndexOf("await SendJsonLineAsync(payload", StringComparison.Ordinal));
+        content.Should().Contain("await SendJsonLineAsync(payload, requestCts.Token)");
+        content.Should().Contain("await _writeLock.WaitAsync(ct)");
+        content.Should().Contain("WriteLineAsync(json.AsMemory(), ct)");
+        content.Should().Contain("FlushAsync(ct)");
+    }
+
+    [Fact]
     public void SendRequestAsync_ShouldNotKeepUnreachableFallbackTimeoutThrow()
     {
         var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(

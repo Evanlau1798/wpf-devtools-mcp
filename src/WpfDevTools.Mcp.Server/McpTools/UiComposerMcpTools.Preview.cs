@@ -122,6 +122,18 @@ public static partial class UiComposerMcpTools
                     ViewportHeight: resolvedViewportHeight),
                 cancellationToken)
             .ConfigureAwait(false);
+
+        return BuildPreviewToolPayload(
+            result,
+            input.IsDraft ? input.DraftRef : null,
+            compactRuntimeDiagnostics);
+    }
+
+    internal static object BuildPreviewToolPayload(
+        PreviewBlueprintResult result,
+        string? blueprintDraftRef,
+        bool compactRuntimeDiagnostics)
+    {
         var compactSuccessfulPayload = compactRuntimeDiagnostics
             && result.Success
             && result.Valid
@@ -134,7 +146,7 @@ public static partial class UiComposerMcpTools
         {
             result.Success,
             result.Valid,
-            blueprintDraftRef = input.IsDraft ? input.DraftRef : null,
+            blueprintDraftRef,
             result.BuildSucceeded,
             result.RestoreEnabled,
             result.BuildOutput,

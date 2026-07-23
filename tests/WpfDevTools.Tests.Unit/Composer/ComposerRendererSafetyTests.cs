@@ -57,6 +57,8 @@ public sealed class ComposerRendererSafetyTests
     [Theory]
     [InlineData("<Grid><evil:Code>void Run() { }</evil:Code></Grid>", "UnsafeXamlDirective")]
     [InlineData("<TextBlock Text=\"{evil:Static Grid.Tag}\" />", "UnsafeXamlMarkupExtension")]
+    [InlineData("<TextBlock Text=\"{evil:StaticExtension Grid.Tag}\" />", "UnsafeXamlMarkupExtension")]
+    [InlineData("<Grid><evil:Static Member=\"Grid.Tag\" /></Grid>", "UnsafeXamlDirective")]
     public void RenderBlueprint_ShouldRejectAliasedXamlLanguageExecution(
         string rendererTemplate,
         string expectedCode)

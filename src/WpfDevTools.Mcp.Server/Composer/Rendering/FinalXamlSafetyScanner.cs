@@ -17,6 +17,8 @@ internal static partial class FinalXamlSafetyScanner
         "Code",
         "FactoryMethod",
         "Members",
+        "Static",
+        "StaticExtension",
         "Subclass",
         "TypeArguments"
     };
@@ -37,7 +39,7 @@ internal static partial class FinalXamlSafetyScanner
         "Window.Icon"
     };
 
-    [GeneratedRegex(@"\{\s*(?<prefix>[A-Za-z_][A-Za-z0-9_.-]*):Static\b", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\{\s*(?<prefix>[A-Za-z_][A-Za-z0-9_.-]*):Static(?:Extension)?\b", RegexOptions.CultureInvariant)]
     private static partial Regex StaticExtensionPattern();
 
     public static IReadOnlyList<BlueprintValidationIssue> Scan(string xaml)

@@ -305,6 +305,30 @@ public sealed partial class SandboxCiScriptContractTests
             "release publishing must not be cancelled after it starts");
     }
 
+    [Fact]
+    public void DotNetWorkflowSetup_ShouldCacheAllLockedDependencies()
+    {
+        foreach (var fileName in new[] { "ci-cd.yml", "docs-pages.yml", "security-scan.yml", "codeql.yml" })
+        {
+            var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", fileName));
+            var setupSteps = System.Text.RegularExpressions.Regex.Matches(
+                workflow,
+                @"(?ms)^[ \t]+- name: Setup \.NET[ \t]*\r?\n(?<body>.*?)(?=^[ \t]+- name:|\z)");
+
+            setupSteps.Should().NotBeEmpty($"{fileName} should configure the .NET SDK");
+            foreach (System.Text.RegularExpressions.Match setupStep in setupSteps)
+            {
+                var body = setupStep.Groups["body"].Value;
+                body.Should().Contain("cache: true");
+                body.Should().Contain("cache-dependency-path: |");
+                body.Should().Contain("**/packages*.lock.json");
+                body.Should().Contain("Directory.Packages.props");
+                body.Should().Contain("NuGet.config");
+                body.Should().Contain(".config/dotnet-tools.json");
+            }
+        }
+    }
+
     private static string GetWorkflowStep(string workflow, string name)
     {
         var start = workflow.IndexOf($"      - name: {name}", StringComparison.Ordinal);

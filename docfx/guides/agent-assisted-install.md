@@ -63,7 +63,7 @@ The default online installer path does not need the agent to download release ar
 Pinned public pre-release after explicit user approval:
 
 ```powershell
-$version = 'v1.0.0-beta.95'
+$version = 'v1.0.0-beta.96'
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 

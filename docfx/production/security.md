@@ -55,7 +55,7 @@ Use the smallest gate set that matches the diagnostic task. For example, scene-l
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` opts into `element_screenshot` at the MCP boundary.
 - `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` opts into target UI text, DependencyProperty and binding values, routed-event payloads, tree/scene summaries, and runtime state snapshots. This is the per-session diagnostic profile gate for read-heavy tools such as `get_ui_summary`, `get_visual_tree`, `get_bindings`, and `get_state_diff`.
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` opts into `get_viewmodel`, `get_commands`, `get_datacontext_chain`, `modify_viewmodel`, and `execute_command`. The same gate applies when `capture_state_snapshot` requests `viewModelPropertyNames`, when `batch_mutate` captures or mutates ViewModel state, and when `wait_for_dp_change_after_mutation` uses a ViewModel mutation trigger.
-- `WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS` accepts reviewed content-bound tokens only from operator-controlled server-start configuration. Each token binds the exact pack root, id, version, and fingerprint. MCP callers cannot approve runtime dependencies in a tool call, and preview still requires `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`.
+- `WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true` lets `preview_ui_blueprint` accept an exact reviewed content-bound token for one request. `WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS` remains the operator-controlled server-start option. Each token binds the exact pack root, id, version, and fingerprint; preview still requires `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`.
 - Unset, false, or invalid boolean gates fail closed for the affected category.
 
 ### MCP JSON-RPC envelope boundary

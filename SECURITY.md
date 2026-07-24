@@ -41,7 +41,7 @@ The MCP client is untrusted by default. Tool descriptions, annotations, and prom
 - `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS=true` opts into `element_screenshot` at the MCP boundary.
 - `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` opts into target UI text, DependencyProperty and binding values, routed-event payloads, tree/scene summaries, and runtime state snapshots. This is the per-session diagnostic profile gate for read-heavy tools such as `get_ui_summary`, `get_visual_tree`, `get_bindings`, and `get_state_diff`.
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` opts into `get_viewmodel`, `get_commands`, `modify_viewmodel`, and `execute_command`.
-- `WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS` is operator-controlled server-start configuration for reviewed content-bound Composer runtime tokens. MCP callers cannot approve third-party runtime dependencies in a tool call; preview still requires the destructive-tools gate.
+- `WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true` lets `preview_ui_blueprint` accept an exact reviewed content-bound token for one request. `WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS` remains the operator-controlled server-start option; preview still requires the destructive-tools gate.
 - When these boolean gates are unset or false, the affected category fails closed with `errorCode: SecurityError`; malformed boolean values fail closed with `errorCode: InvalidPolicyConfiguration`.
 
 ### 1.7 MCP JSON-RPC envelope boundary
@@ -102,6 +102,7 @@ Remove-Item -LiteralPath "$env:APPDATA\WpfDevTools\certs" -Recurse -Force
 | `WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS` | Enables or disables screenshot capture | Set `true` only when target UI pixels are allowed to leave the target process |
 | `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS` | Enables or disables sensitive runtime read tools | Set `true` only when target UI text, DependencyProperty values, binding data, event payloads, tree/scene summaries, and state snapshots may leave the target process |
 | `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION` | Enables or disables ViewModel inspection tools | Set `true` only when ViewModel property values may be inspected or commands executed |
+| `WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS` | Enables request-scoped Composer runtime approvals | Set `true` only when the MCP client may submit an exact reviewed token from `runtimePackApprovalReviews` to one `preview_ui_blueprint` request |
 | `WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS` | Approves exact Composer runtime pack content | Set only from trusted operator-controlled server configuration after reviewing the token returned by `runtimePackApprovalReviews`; restart the server after changing it |
 
 This table lists the security-relevant `WPFDEVTOOLS_*` environment variables for transport, certificate, and raw-injection policy.

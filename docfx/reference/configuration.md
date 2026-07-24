@@ -50,7 +50,12 @@
 ### WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS
 
 - Purpose: Approves reviewed third-party Composer runtime dependencies for preview.
-- Notes: Copy an eligible content-bound token from `runtimePackApprovalReviews` into trusted operator-controlled server configuration, then start or restart the server. Each token binds the exact pack root, id, version, and fingerprint. MCP callers cannot approve dependencies in a tool call. Preview still requires `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`.
+- Notes: Copy an eligible content-bound token from `runtimePackApprovalReviews` into trusted operator-controlled server configuration, then start or restart the server. Each token binds the exact pack root, id, version, and fingerprint. Preview still requires `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`.
+
+### WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS
+
+- Purpose: Enables request-scoped third-party Composer runtime approval.
+- Notes: Set `true` only when the MCP client may review `runtimePackApprovalReviews` and retry `preview_ui_blueprint` with the exact token in `runtimePackApprovalTokens`. The token applies only to that request and does not change server configuration.
 
 ### WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE
 

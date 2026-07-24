@@ -124,9 +124,10 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("resource-backed, hybrid-resource-backed, structural, or not-available");
         description.Should().Contain("hash-checked before build");
         description.Should().Contain(McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar);
+        description.Should().Contain(McpServerConfiguration.AllowComposerRuntimeApprovalsEnvVar);
         description.Should().Contain("content-bound approval token");
         description.Should().Contain("operator approves");
-        description.Should().NotContain("runtimePackApprovalTokens");
+        description.Should().Contain("runtimePackApprovalTokens");
         description.Should().Contain("viewportWidth");
         description.Should().Contain("viewportHeight");
         description.Should().Contain("Window client");

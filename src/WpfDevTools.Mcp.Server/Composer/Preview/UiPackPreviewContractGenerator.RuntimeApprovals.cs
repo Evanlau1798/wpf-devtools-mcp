@@ -9,7 +9,8 @@ internal sealed partial class UiPackPreviewContractGenerator
         IReadOnlyList<ComposerPackReference> runtimeCandidates,
         IReadOnlyDictionary<string, UiPreviewPackSnapshot> snapshots,
         IReadOnlyDictionary<string, UiPackManifest> manifests,
-        IReadOnlyDictionary<string, IReadOnlyList<string>> resourcesByPack)
+        IReadOnlyDictionary<string, IReadOnlyList<string>> resourcesByPack,
+        IReadOnlyList<string>? requestApprovalTokens)
     {
         var approvedPackIds = new HashSet<string>(StringComparer.Ordinal);
         var packagesByPack = new Dictionary<string, IReadOnlyList<PreviewRuntimeNuGetPackage>>(StringComparer.Ordinal);
@@ -20,7 +21,7 @@ internal sealed partial class UiPackPreviewContractGenerator
         foreach (var packRef in runtimeCandidates)
         {
             var pack = snapshots[packRef.Id].RegistryItem;
-            var approvalSource = UiPreviewRuntimeDependencyPolicy.GetApprovalSource(pack);
+            var approvalSource = UiPreviewRuntimeDependencyPolicy.GetApprovalSource(pack, requestApprovalTokens);
             var authorized = approvalSource != "none";
             var packagesResolved = UiPreviewRuntimeDependencyPolicy.TryResolvePackages(
                 manifests[packRef.Id].NugetPackages,
@@ -70,7 +71,7 @@ internal sealed partial class UiPackPreviewContractGenerator
             {
                 advisories.Add(Diagnostic(
                     "PreviewRuntimeDependenciesNotApproved",
-                    $"Pack '{packRef.Id}@{packRef.Version}' remains structural. Review runtimePackApprovalReviews, then configure its approvalToken in {McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar} before starting or restarting the MCP server."));
+                    $"Pack '{packRef.Id}@{packRef.Version}' remains structural. Review runtimePackApprovalReviews, then retry with its approvalToken in runtimePackApprovalTokens or configure {McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar}."));
                 continue;
             }
 

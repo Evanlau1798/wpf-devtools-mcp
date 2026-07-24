@@ -287,6 +287,31 @@ public sealed class McpToolExecutionPolicyTests
     }
 
     [Theory]
+    [InlineData(null, false, "SecurityError")]
+    [InlineData("false", false, "SecurityError")]
+    [InlineData("invalid", false, "InvalidPolicyConfiguration")]
+    [InlineData("true", true, null)]
+    public void EvaluateToolCall_WithRuntimeApprovalToken_ShouldHonorDedicatedGate(
+        string? configuredValue,
+        bool expectedAllowed,
+        string? expectedErrorCode)
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "true",
+            allowScreenshots: null,
+            allowViewModelInspection: null,
+            allowComposerRuntimeApprovals: configuredValue);
+        using var document = JsonDocument.Parse("""{"runtimePackApprovalTokens":["sample@1.0.0#ABC"]}""");
+        var arguments = document.RootElement.EnumerateObject()
+            .ToDictionary(property => property.Name, property => property.Value);
+
+        var decision = policy.EvaluateToolCall("preview_ui_blueprint", arguments);
+
+        decision.IsAllowed.Should().Be(expectedAllowed);
+        decision.ErrorCode.Should().Be(expectedErrorCode);
+    }
+
+    [Theory]
     [InlineData("batch_mutate", "{\"mutations\":[{\"tool\":\"modify_viewmodel\",\"args\":{\"propertyName\":\"Name\",\"value\":\"Alice\"}}]}")]
     [InlineData("batch_mutate", "{\"mutations\":[{\"tool\":\"execute_command\",\"args\":{\"commandName\":\"Save\"}}]}")]
     [InlineData("batch_mutate", "{\"mutations\":\"[{\\\"tool\\\":\\\"modify_viewmodel\\\",\\\"args\\\":{\\\"propertyName\\\":\\\"Name\\\",\\\"value\\\":\\\"Alice\\\"}}]\"}")]

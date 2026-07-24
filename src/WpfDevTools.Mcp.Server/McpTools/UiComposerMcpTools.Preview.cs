@@ -23,6 +23,7 @@ public static partial class UiComposerMcpTools
         int? screenshotMaxHeight,
         int? viewportWidth,
         int? viewportHeight,
+        string[]? runtimePackApprovalTokens,
         int correlationLookupLimit,
         string? projectRoot,
         string? localAppDataRoot,
@@ -119,7 +120,8 @@ public static partial class UiComposerMcpTools
                     ScreenshotMaxHeight: resolvedScreenshotMaxHeight,
                     CorrelationLookupLimit: resolvedCorrelationLookupLimit!.Value,
                     ViewportWidth: resolvedViewportWidth,
-                    ViewportHeight: resolvedViewportHeight),
+                    ViewportHeight: resolvedViewportHeight,
+                    RuntimePackApprovalTokens: runtimePackApprovalTokens ?? []),
                 cancellationToken)
             .ConfigureAwait(false);
 

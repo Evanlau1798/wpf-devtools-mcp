@@ -69,7 +69,8 @@ internal sealed partial class UiPackPreviewContractGenerator(PackRegistry regist
     public PreviewContractGenerationResult Generate(
         string blueprintJson,
         string renderedXaml,
-        IReadOnlyDictionary<string, string>? renderedPackFingerprints = null)
+        IReadOnlyDictionary<string, string>? renderedPackFingerprints = null,
+        IReadOnlyList<string>? runtimePackApprovalTokens = null)
     {
         var blueprint = ComposerJsonLoader.Parse<UiBlueprint>(blueprintJson, "<inline-blueprint>", UiComposerSchemaVersions.UiBlueprint);
         var usedPackIds = CollectUsedPackIds(blueprint.Layout, blueprint.Packs.Select(pack => pack.Id).ToArray());
@@ -129,7 +130,8 @@ internal sealed partial class UiPackPreviewContractGenerator(PackRegistry regist
             runtimeCandidates,
             snapshots,
             manifests,
-            resourcesByPack);
+            resourcesByPack,
+            runtimePackApprovalTokens);
         diagnostics.AddRange(runtimeApproval.Errors);
         advisories.AddRange(runtimeApproval.Advisories);
         var approvedRuntimePackIds = runtimeApproval.ApprovedPackIds;

@@ -121,6 +121,44 @@ public sealed partial class ComposerGenericPreviewContractTests
     }
 
     [Fact]
+    public async Task PreviewBlueprint_WithMatchingRequestApprovalToken_ShouldApproveOnlyThatRequest()
+    {
+        using var trusted = new EnvironmentVariableScope(
+            McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar,
+            null);
+        var projectRoot = CreateProjectPack(includePreview: true, baseKind: "contentControl");
+        AddRuntimeMetadata(projectRoot, "sample");
+        var registry = CreateRegistry(projectRoot);
+        var token = UiPreviewRuntimeDependencyPolicy.CreateApprovalToken(
+            registry.ListPacks().Packs.Single(item => item.Id == "sample"));
+        try
+        {
+            var result = await new UiBlueprintPreviewService(registry).PreviewAsync(
+                new PreviewBlueprintRequest(
+                    Blueprint("sample.panel"),
+                    RestoreEnabled: false,
+                    RuntimePackApprovalTokens: [token]));
+
+            var review = result.RuntimePackApprovalReviews.Should().ContainSingle().Which;
+            review.ApprovalSource.Should().Be("request-token");
+            review.Approved.Should().BeTrue();
+            result.UsesRuntimeDependencies.Should().BeTrue();
+
+            var nextRequest = await new UiBlueprintPreviewService(registry).PreviewAsync(
+                new PreviewBlueprintRequest(
+                    Blueprint("sample.panel"),
+                    RestoreEnabled: false,
+                    RuntimePackApprovalTokens: ["sample@1.0.0#WRONG"]));
+            nextRequest.RuntimePackApprovalReviews.Should().ContainSingle()
+                .Which.Approved.Should().BeFalse();
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
     public async Task PreviewBlueprint_WithInvalidRuntimePackage_ShouldExposeIneligibilityBeforeApproval()
     {
         using var trusted = new EnvironmentVariableScope(

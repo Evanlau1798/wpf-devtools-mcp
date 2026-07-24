@@ -50,7 +50,12 @@
 ### WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS
 
 - 用途：核准已審查的第三方 Composer runtime dependencies 供 preview 使用。
-- 備註：將 `runtimePackApprovalReviews` 回傳的 eligible content-bound token 寫入可信任且由 operator 控制的 server 設定，再啟動或重新啟動 server。每個 token 都綁定精確的 pack root、id、version 與 fingerprint；MCP caller 無法在 tool call 中核准 dependency。Preview 仍需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`。
+- 備註：將 `runtimePackApprovalReviews` 回傳的 eligible content-bound token 寫入可信任且由 operator 控制的 server 設定，再啟動或重新啟動 server。每個 token 都綁定精確的 pack root、id、version 與 fingerprint。Preview 仍需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`。
+
+### WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS
+
+- 用途：啟用單次 request 的第三方 Composer runtime approval。
+- 備註：只有在 MCP client 可審查 `runtimePackApprovalReviews`，並以精確 token 放入 `runtimePackApprovalTokens` 重試 `preview_ui_blueprint` 時才設為 `true`。Token 只套用於該 request，不會修改 server 設定。
 
 ### WPFDEVTOOLS_MCP_SKIP_EXISTING_HOST_REUSE
 

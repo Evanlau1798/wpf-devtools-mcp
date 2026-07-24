@@ -268,8 +268,7 @@ public class McpToolContractConsistencyTests
         AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "screenshotMaxHeight", typeof(int?), 1024);
         AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "viewportWidth", typeof(int?), null);
         AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "viewportHeight", typeof(int?), null);
-        typeof(UiComposerMcpTools).GetMethod(nameof(UiComposerMcpTools.PreviewUiBlueprint))!
-            .GetParameters().Should().NotContain(parameter => parameter.Name == "runtimePackApprovalTokens");
+        AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "runtimePackApprovalTokens", typeof(string[]), null);
         AssertOptionalParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "correlationLookupLimit", typeof(int), 32);
         var lookupLimit = GetParameter(typeof(UiComposerMcpTools), nameof(UiComposerMcpTools.PreviewUiBlueprint), "correlationLookupLimit");
         lookupLimit.GetCustomAttribute<DescriptionAttribute>()!.Description.Should()

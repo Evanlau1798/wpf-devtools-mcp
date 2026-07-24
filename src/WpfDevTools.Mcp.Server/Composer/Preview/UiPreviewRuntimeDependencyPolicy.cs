@@ -13,7 +13,9 @@ internal static partial class UiPreviewRuntimeDependencyPolicy
         "^\\[(?<version>[A-Za-z0-9][A-Za-z0-9.+-]*)\\]$",
         RegexOptions.CultureInvariant);
 
-    public static string GetApprovalSource(PackRegistryItem pack)
+    public static string GetApprovalSource(
+        PackRegistryItem pack,
+        IReadOnlyList<string>? requestApprovalTokens = null)
     {
         if (pack.Scope == PackScope.Builtin)
         {
@@ -21,6 +23,11 @@ internal static partial class UiPreviewRuntimeDependencyPolicy
         }
 
         var expected = CreateApprovalToken(pack);
+        if (requestApprovalTokens?.Contains(expected, StringComparer.Ordinal) == true)
+        {
+            return "request-token";
+        }
+
         var configured = Environment.GetEnvironmentVariable(
             McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar);
         var configuredTokens = configured?.Split(

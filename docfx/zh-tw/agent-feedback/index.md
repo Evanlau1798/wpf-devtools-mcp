@@ -2,6 +2,8 @@
 
 經審查後保留於公開文件的 Agent 回饋報告。
 
+- [Material Extension Pack Store beta.98 Codex 端對端測試](2026-07-24-agent-feedback-material-store-beta98-rerun-codex-e2e.md)
+- [WPF UI Store beta.98 Codex 端對端測試](2026-07-24-agent-feedback-wpfui-store-beta98-rerun-codex-e2e.md)
 - [MaterialDesign pack beta.86 Codex 端對端測試](2026-07-18-agent-feedback-materialdesign-pack-beta86-codex-e2e.md)
 - [UI Composer beta.75 Codex 端對端測試](2026-07-17-agent-feedback-composer-beta75-codex-e2e.md)
 - [UI Composer beta.72 Codex 端對端測試](2026-07-16-agent-feedback-composer-beta72-codex-e2e.md)

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Xml.Linq;
 using FluentAssertions;
 
@@ -154,6 +155,31 @@ public class NuGetPolicyTests
     }
 
     [Fact]
+    public void RuntimeSpecificNuGetLockFiles_ShouldPreserveDefaultDirectDependencies()
+    {
+        foreach (var projectPath in ProjectFiles)
+        {
+            var projectDirectory = Path.GetDirectoryName(projectPath)!;
+            var baseline = ReadDirectPackageIds(Path.Combine(projectDirectory, "packages.lock.json"));
+
+            foreach (var runtimeId in new[] { "win-x64", "win-x86", "win-arm64" })
+            {
+                var lockFilePath = Path.Combine(projectDirectory, $"packages.{runtimeId}.lock.json");
+                var runtimePackages = ReadDirectPackageIds(lockFilePath);
+
+                foreach (var target in baseline)
+                {
+                    runtimePackages.Should().ContainKey(
+                        target.Key,
+                        $"{lockFilePath} should cover every target from packages.lock.json");
+                    runtimePackages[target.Key].IsSupersetOf(target.Value).Should().BeTrue(
+                        $"{lockFilePath} should preserve direct dependencies for {target.Key}");
+                }
+            }
+        }
+    }
+
+    [Fact]
     public void GitHubWorkflows_ShouldUseLockedModeForProjectRestore()
     {
         var restoreLines = Directory.GetFiles(GetRepoFilePath(".github/workflows"), "*.yml")
@@ -185,6 +211,23 @@ public class NuGetPolicyTests
         => document.Descendants(propertyName)
             .Select(element => element.Value)
             .ToArray();
+
+    private static Dictionary<string, HashSet<string>> ReadDirectPackageIds(string relativePath)
+    {
+        var path = GetRepoFilePath(relativePath);
+        File.Exists(path).Should().BeTrue($"{relativePath} should exist");
+
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        return document.RootElement.GetProperty("dependencies")
+            .EnumerateObject()
+            .ToDictionary(
+                target => target.Name,
+                target => target.Value.EnumerateObject()
+                    .Where(package => package.Value.GetProperty("type").GetString() == "Direct")
+                    .Select(package => package.Name)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase),
+                StringComparer.Ordinal);
+    }
 
     private static bool ContainsWarningCode(string propertyValue, string warningCode)
         => propertyValue.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

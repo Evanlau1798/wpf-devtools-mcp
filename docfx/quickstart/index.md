@@ -45,7 +45,7 @@ ARM64 archives may be published as preview assets, but they are not guaranteed s
 ## Install a pinned pre-release only when needed
 
 ```powershell
-$version = 'v1.0.0-beta.97'
+$version = 'v1.0.0-beta.98'
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 

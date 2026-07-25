@@ -45,7 +45,7 @@ ARM64 發行檔可作為 preview asset 提供，但目前不保證穩定性，�
 ## 只有需要時才安裝指定 pre-release
 
 ```powershell
-$version = 'v1.0.0-beta.98'
+$version = 'v1.0.0-beta.99'
 & ([scriptblock]::Create((irm https://installer.wpf-mcptools.evanlau1798.com))) -Version $version -Prerelease
 ```
 

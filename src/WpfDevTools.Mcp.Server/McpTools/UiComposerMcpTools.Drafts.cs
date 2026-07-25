@@ -34,7 +34,7 @@ public static partial class UiComposerMcpTools
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
         [Description("Optional JSON Merge Patch object. Use this mode for object-wide changes; arrays and scalars replace their target value.")] string? patchJson = null,
         [StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
-        [Description("Set/remove target: $.layout.properties[\"accent.color\"] or @Panel.properties.text; @Panel selects the whole node. Do not combine with patchJson.")] string? jsonPath = null,
+        [Description("Set/remove target: $.layout.properties[\"accent.color\"], @Panel (whole node), or @Panel.properties.text. No patchJson.")] string? jsonPath = null,
         [Description("JSON value for jsonPath set mode. Omit only when remove=true.")] JsonElement? value = null,
         [Description("When true, removes the exact jsonPath target. Omit value and patchJson.")] bool remove = false,
         [MinLength(1), MaxLength(BlueprintDraftPathOperation.MaxOperations)]

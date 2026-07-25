@@ -70,12 +70,12 @@ public sealed class ComposerDraftToolDescriptionTests
         description.Should().Contain("16 ordered atomic operations");
         description.Should().Contain("changeSummary");
         description.Should().Contain("operationIndex");
-        description.Should().Contain("Do not combine patchJson, jsonPath, or operations");
+        description.Should().Contain("Mutation modes are exclusive");
         method.GetParameters().Single(parameter => parameter.Name == "jsonPath")
             .GetCustomAttribute<DescriptionAttribute>()!.Description
             .Should().Contain("$.layout.properties[\"accent.color\"]")
             .And.Contain("@Panel.properties.text")
-            .And.Contain("@Panel selects the whole node");
+            .And.Contain("@Panel (whole node)");
         method.GetParameters().Single(parameter => parameter.Name == "operations")
             .GetCustomAttribute<DescriptionAttribute>()!.Description
             .Should().Contain("16").And.Contain("atomic");

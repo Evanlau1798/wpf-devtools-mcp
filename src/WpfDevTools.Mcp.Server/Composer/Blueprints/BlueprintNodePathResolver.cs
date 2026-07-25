@@ -18,8 +18,8 @@ internal static partial class BlueprintNodePathResolver
         {
             return BlueprintNodePathResolution.Invalid(
                 "InvalidElementAlias",
-                "An element alias must contain a safe elementName followed by a relative property path.",
-                "Use @ElementName.slots.content or @ElementName.properties.text.");
+                "An element alias must contain a safe elementName, optionally followed by a relative property path.",
+                "Use @ElementName for the whole node, @ElementName.slots.content, or @ElementName.properties.text.");
         }
 
         var elementName = match.Groups["name"].Value;
@@ -92,7 +92,7 @@ internal static partial class BlueprintNodePathResolver
         }
     }
 
-    [GeneratedRegex("^@(?<name>[A-Za-z_][A-Za-z0-9_]*)(?<suffix>\\..+)$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^@(?<name>[A-Za-z_][A-Za-z0-9_]*)(?<suffix>\\..+)?$", RegexOptions.CultureInvariant)]
     private static partial Regex AliasPattern();
 }
 

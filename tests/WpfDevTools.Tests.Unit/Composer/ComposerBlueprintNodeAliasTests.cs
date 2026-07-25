@@ -74,6 +74,50 @@ public sealed class ComposerBlueprintNodeAliasTests
             .GetProperty("code").GetString().Should().Be("BlueprintDraftElementAmbiguous");
     }
 
+    [Fact]
+    public async Task PatchUiBlueprintDraft_ShouldResolveBareAliasForWholeNodeReplacementAndRemoval()
+    {
+        var created = await UiComposerMcpTools.CreateUiBlueprintDraft(
+            """
+            {"layout":{"kind":"sample.stack","slots":{"children":[
+              {"kind":"sample.text","elementName":"ReplaceMe","properties":{"text":"old"}},
+              {"kind":"sample.text","elementName":"RemoveMe","properties":{"text":"remove"}}
+            ]}}}
+            """,
+            CancellationToken.None);
+        var sourceRef = created.StructuredContent!.Value.GetProperty("draftRef").GetString()!;
+        using var replacement = JsonDocument.Parse(
+            """{"kind":"sample.text","elementName":"Replacement","properties":{"text":"new"}}""");
+
+        var replaced = await UiComposerMcpTools.PatchUiBlueprintDraft(
+            sourceRef,
+            jsonPath: "@ReplaceMe",
+            value: replacement.RootElement,
+            cancellationToken: CancellationToken.None);
+
+        replaced.IsError.Should().BeFalse();
+        var replacedPayload = replaced.StructuredContent!.Value;
+        var replacementChanges = replacedPayload.GetProperty("changeSummary").GetProperty("changes")
+            .EnumerateArray().ToArray();
+        replacementChanges.Select(change => change.GetProperty("jsonPath").GetString())
+            .Should().Contain("$.layout.slots.children[0].elementName");
+        replacementChanges.Should().OnlyContain(
+            change => change.GetProperty("changeType").GetString() == "modified");
+
+        var removed = await UiComposerMcpTools.PatchUiBlueprintDraft(
+            replacedPayload.GetProperty("draftRef").GetString()!,
+            jsonPath: "@RemoveMe",
+            remove: true,
+            cancellationToken: CancellationToken.None);
+
+        removed.IsError.Should().BeFalse();
+        var removalChange = removed.StructuredContent!.Value
+            .GetProperty("changeSummary").GetProperty("changes")[0];
+        removalChange.GetProperty("jsonPath").GetString()
+            .Should().Be("$.layout.slots.children[1]");
+        removalChange.GetProperty("changeType").GetString().Should().Be("removed");
+    }
+
     private static string Blueprint(string elementName)
         => JsonSerializer.Serialize(new
         {

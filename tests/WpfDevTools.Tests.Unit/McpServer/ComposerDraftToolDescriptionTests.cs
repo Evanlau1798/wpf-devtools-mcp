@@ -74,7 +74,8 @@ public sealed class ComposerDraftToolDescriptionTests
         method.GetParameters().Single(parameter => parameter.Name == "jsonPath")
             .GetCustomAttribute<DescriptionAttribute>()!.Description
             .Should().Contain("$.layout.properties[\"accent.color\"]")
-            .And.Contain("@Panel.properties.text");
+            .And.Contain("@Panel.properties.text")
+            .And.Contain("@Panel selects the whole node");
         method.GetParameters().Single(parameter => parameter.Name == "operations")
             .GetCustomAttribute<DescriptionAttribute>()!.Description
             .Should().Contain("16").And.Contain("atomic");

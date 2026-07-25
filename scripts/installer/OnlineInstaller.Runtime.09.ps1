@@ -1,3 +1,8 @@
+function Resolve-TuiHelperDownloadBaseUri {
+    $override = Get-TuiHelperOverrideDownloadBaseUri
+    if (-not [string]::IsNullOrWhiteSpace($override)) { return $override }
+    return "https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/$script:InstallerHelperRepositoryRelativePath"
+}
 function Get-ComputedInstallerHelperRecordCacheKey {
     param(
         [Parameter(Mandatory)] [hashtable]$RecordMap,

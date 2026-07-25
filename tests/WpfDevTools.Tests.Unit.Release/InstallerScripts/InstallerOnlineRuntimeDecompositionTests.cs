@@ -34,4 +34,32 @@ public sealed class InstallerOnlineRuntimeDecompositionTests
             entry.Should().Contain(Path.GetFileName(runtimeFile));
         }
     }
+
+    [Fact]
+    public void OnlineInstallerRuntime_ShouldIncludeTuiHelperDownloadBaseUriResolver()
+    {
+        var entryPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
+        var helperRoot = ReleaseScriptTestHarness.GetRepoFilePath("scripts/installer");
+        var runtime = string.Join(
+            Environment.NewLine,
+            Directory.GetFiles(helperRoot, "OnlineInstaller.Runtime.*.ps1")
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .Select(File.ReadAllText));
+
+        runtime.Should().Contain(
+            "function Resolve-TuiHelperDownloadBaseUri",
+            "a fresh online-installer process must be able to bootstrap helpers for uninstall actions");
+
+        var command = $$"""
+{{OnlineInstallerScriptTestHarness.BuildDefinitionOnlyPrelude(
+    "-Action full-uninstall -Version latest -Architecture x64 -Client other",
+    entryPath)}}
+Resolve-TuiHelperDownloadBaseUri
+""";
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+        result.ExitCode.Should().Be(0, result.Stderr);
+        result.Stdout.Trim().Should().Be(
+            "https://raw.githubusercontent.com/Evanlau1798/wpf-devtools-mcp/master/scripts/installer");
+    }
 }

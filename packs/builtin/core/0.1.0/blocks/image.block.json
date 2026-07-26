@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "core.image",
+  "displayName": "Image",
+  "description": "Displays a project-owned WPF Resource image from an application-local pack URI or a simple binding.",
+  "category": "display",
+  "authoringRoles": ["image", "media", "thumbnail"],
+  "properties": {
+    "source": {
+      "type": "string",
+      "description": "Required project-owned image source. Declare a literal file as a WPF Resource and use its application-local pack URI, or provide a simple binding. External, file-system, UNC, and traversal URIs are rejected.",
+      "required": true,
+      "previewWarning": "The isolated preview may not resolve a target-project resource. Verify the final built application."
+    },
+    "automationName": {
+      "type": "string",
+      "description": "Required accessible description of the image content.",
+      "required": true
+    },
+    "stretch": {
+      "type": "string",
+      "description": "How the image fills its allocated bounds.",
+      "default": "UniformToFill",
+      "enum": ["None", "Fill", "Uniform", "UniformToFill"]
+    },
+    "width": {
+      "type": "number",
+      "description": "Optional rendered width in device-independent pixels.",
+      "minimum": 0
+    },
+    "height": {
+      "type": "number",
+      "description": "Optional rendered height in device-independent pixels.",
+      "minimum": 0
+    },
+    "maxWidth": {
+      "type": "number",
+      "description": "Optional maximum rendered width in device-independent pixels.",
+      "minimum": 0
+    },
+    "maxHeight": {
+      "type": "number",
+      "description": "Optional maximum rendered height in device-independent pixels.",
+      "minimum": 0
+    },
+    "margin": {
+      "type": "string",
+      "description": "Outer WPF Thickness separating the image from adjacent content.",
+      "default": "0",
+      "format": "thickness"
+    },
+    "opacity": {
+      "type": "number",
+      "description": "Image opacity from fully transparent to fully opaque.",
+      "default": 1,
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "slots": {},
+  "renderer": { "xamlTemplate": "renderers/xaml/image.xaml.sbn" },
+  "sourceHints": [{ "path": "System.Windows.Controls.Image", "usage": "native WPF project-owned image" }]
+}

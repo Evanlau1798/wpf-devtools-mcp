@@ -1,0 +1,1 @@
+<Image Source="{{source}}" AutomationProperties.Name="{{automationName}}" Width="{{width}}" Height="{{height}}" MaxWidth="{{maxWidth}}" MaxHeight="{{maxHeight}}" Stretch="{{stretch}}" Margin="{{margin}}" Opacity="{{opacity}}" RenderOptions.BitmapScalingMode="HighQuality" />

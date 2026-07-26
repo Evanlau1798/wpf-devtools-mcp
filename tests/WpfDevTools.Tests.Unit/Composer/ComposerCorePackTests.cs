@@ -2,6 +2,7 @@ using FluentAssertions;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Packs;
+using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
 using WpfDevTools.Tests.Unit.TestSupport;
 
@@ -22,6 +23,7 @@ public sealed class ComposerCorePackTests
             "core.columnDefinition",
             "core.grid",
             "core.gridCell",
+            "core.image",
             "core.rowDefinition",
             "core.stack",
             "core.template",
@@ -190,6 +192,71 @@ public sealed class ComposerCorePackTests
         explicitColor.Xaml.Should().Contain("Foreground=\"#123456\"");
         explicitEmptyText.Success.Should().BeTrue(explicitEmptyText.Errors.FirstOrDefault()?.Message);
         explicitEmptyText.Xaml.Should().Contain("Text=\"\"");
+    }
+
+    [Fact]
+    public void CoreImage_ShouldRenderOnlyApplicationLocalResources()
+    {
+        var renderer = new UiBlueprintRenderer(CreateRegistry());
+        var local = renderer.Render(new RenderBlueprintRequest(Blueprint(
+            """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
+            "core",
+            """
+            {
+              "kind": "core.image",
+              "properties": {
+                "source": "/Assets/hero.png",
+                "automationName": "Original hero artwork",
+                "stretch": "UniformToFill",
+                "width": 640,
+                "height": 360
+              }
+            }
+            """)));
+        var remote = renderer.Render(new RenderBlueprintRequest(Blueprint(
+            """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
+            "core",
+            """
+            {
+              "kind": "core.image",
+              "properties": {
+                "source": "https://controlled.invalid/hero.png",
+                "automationName": "Remote artwork"
+              }
+            }
+            """)));
+
+        local.Success.Should().BeTrue(local.Errors.FirstOrDefault()?.Message);
+        local.Xaml.Should().Contain(
+            "<Image Source=\"/Assets/hero.png\" AutomationProperties.Name=\"Original hero artwork\"")
+            .And.Contain("Width=\"640\" Height=\"360\"")
+            .And.Contain("Stretch=\"UniformToFill\"");
+        remote.Success.Should().BeFalse();
+        remote.Errors.Should().Contain(issue => issue.Code == "UnsafePreviewUri");
+    }
+
+    [Fact]
+    [Trait("Category", "ComposerCompile")]
+    public void CoreImage_ShouldCompileInPreviewWithBinding()
+    {
+        var blueprint = Blueprint(
+            """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
+            "core",
+            """
+            {
+              "kind": "core.image",
+              "properties": {
+                "source": "{Binding HeroImage}",
+                "automationName": "Bound hero artwork"
+              }
+            }
+            """);
+
+        var result = new UiBlueprintPreviewService(CreateRegistry())
+            .Preview(new PreviewBlueprintRequest(blueprint, RestoreEnabled: true));
+
+        result.Success.Should().BeTrue(string.Join(" | ", result.Diagnostics.Select(item => item.Message)));
+        result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
     }
 
     [Fact]

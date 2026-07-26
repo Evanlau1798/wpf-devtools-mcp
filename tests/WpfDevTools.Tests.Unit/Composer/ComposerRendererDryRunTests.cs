@@ -109,6 +109,26 @@ public sealed class ComposerRendererDryRunTests
     }
 
     [Fact]
+    public void RenderBlueprint_ShouldAcceptNumericLayoutLengths()
+    {
+        var renderer = new UiBlueprintRenderer(CreateRegistry());
+
+        var result = renderer.Render(new RenderBlueprintRequest(Blueprint("""
+            {
+              "kind": "core.stack",
+              "properties": { "spacing": 6, "margin": 12 },
+              "slots": {
+                "children": [{ "kind": "core.text", "properties": { "text": "Ready" } }]
+              }
+            }
+            """)));
+
+        result.Success.Should().BeTrue();
+        result.Xaml.Should().Contain("<StackPanel Orientation=\"Vertical\" Margin=\"12\"");
+        result.Xaml.Should().Contain("<Border Margin=\"6\">");
+    }
+
+    [Fact]
     public void RenderBlueprint_ShouldUseThemeNeutralNavigationViewContentOverlay()
     {
         var renderer = new UiBlueprintRenderer(CreateRegistry());

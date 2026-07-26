@@ -8,7 +8,7 @@ internal static class UiBlockPropertyValueRules
 {
     internal static bool IsValid(JsonElement value, UiBlockProperty property)
     {
-        if (!MatchesType(value, property.Type))
+        if (!MatchesType(value, property.Type, property.Format))
         {
             return false;
         }
@@ -24,8 +24,7 @@ internal static class UiBlockPropertyValueRules
         }
 
         if (!string.IsNullOrWhiteSpace(property.Format)
-            && value.ValueKind == JsonValueKind.String
-            && !MatchesFormat(value.GetString() ?? string.Empty, property.Format))
+            && !MatchesFormat(value, property.Format))
         {
             return false;
         }
@@ -36,13 +35,25 @@ internal static class UiBlockPropertyValueRules
             || allowedValues.Contains(value.GetString() ?? string.Empty, StringComparer.Ordinal);
     }
 
-    internal static bool MatchesType(JsonElement value, string type)
+    internal static bool MatchesType(JsonElement value, string type, string? format = null)
         => type switch
         {
-            "binding" or "string" => value.ValueKind == JsonValueKind.String,
+            "binding" => value.ValueKind == JsonValueKind.String,
+            "string" => value.ValueKind == JsonValueKind.String
+                || value.ValueKind == JsonValueKind.Number
+                && string.Equals(format, "thickness", StringComparison.Ordinal),
             "boolean" or "bool" => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
             "number" => value.ValueKind == JsonValueKind.Number,
             "object" => value.ValueKind == JsonValueKind.Object,
+            _ => false
+        };
+
+    internal static bool MatchesFormat(JsonElement value, string format)
+        => value.ValueKind switch
+        {
+            JsonValueKind.String => MatchesFormat(value.GetString() ?? string.Empty, format),
+            JsonValueKind.Number => string.Equals(format, "thickness", StringComparison.Ordinal)
+                && value.TryGetDouble(out _),
             _ => false
         };
 

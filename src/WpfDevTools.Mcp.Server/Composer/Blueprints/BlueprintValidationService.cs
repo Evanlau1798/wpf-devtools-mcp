@@ -345,7 +345,7 @@ internal sealed partial class BlueprintValidationService(PackRegistry registry)
                 continue;
             }
 
-            if (!UiBlockPropertyValueRules.MatchesType(value, property.Type))
+            if (!UiBlockPropertyValueRules.MatchesType(value, property.Type, property.Format))
             {
                 errors.Add(Issue($"{path}.properties.{name}", "PropertyTypeMismatch", $"Property '{name}' must be type '{property.Type}'.", $"Set property '{name}' to a JSON value compatible with '{property.Type}'."));
                 continue;
@@ -443,8 +443,7 @@ internal sealed partial class BlueprintValidationService(PackRegistry registry)
         }
 
         if (!string.IsNullOrWhiteSpace(property.Format)
-            && value.ValueKind == JsonValueKind.String
-            && !UiBlockPropertyValueRules.MatchesFormat(value.GetString() ?? string.Empty, property.Format))
+            && !UiBlockPropertyValueRules.MatchesFormat(value, property.Format))
         {
             errors.Add(Issue($"{path}.properties.{name}", "PropertyFormatMismatch", $"Property '{name}' must use format '{property.Format}'.", $"Set property '{name}' to a valid {property.Format} value."));
         }

@@ -316,7 +316,18 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
             "MainWindow");
         if (!hasExistingCodeBehind)
         {
-            return $"{ResolveRootNamespace(projectRoot)}.{className}";
+            var namespaceName = ResolveRootNamespace(projectRoot);
+            if (string.Equals(namespaceName[(namespaceName.LastIndexOf('.') + 1)..], className, StringComparison.Ordinal))
+            {
+                var qualifier = ComposerCSharpIdentifier.Create(
+                    Path.GetFileName(Path.GetDirectoryName(targetPath)) ?? string.Empty,
+                    "Generated");
+                namespaceName += "." + (string.Equals(qualifier, className, StringComparison.Ordinal)
+                    ? qualifier + "Views"
+                    : qualifier);
+            }
+
+            return $"{namespaceName}.{className}";
         }
 
         var resolution = ExistingCodeBehindClassResolver.Resolve(codeBehindPath, className);

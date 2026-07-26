@@ -205,8 +205,12 @@ public sealed class ComposerApplyDryRunTests
         }
     }
 
-    [Fact]
-    public void ApplyBlueprint_ShouldAddXClassForProjectMainWindowFluentWindow()
+    [Theory]
+    [InlineData("MainWindow.xaml", "ComposerGeneratedApp.MainWindow")]
+    [InlineData(@"Views\ComposerGeneratedApp.xaml", "ComposerGeneratedApp.Views.ComposerGeneratedApp")]
+    public void ApplyBlueprint_ShouldAddUnambiguousXClassForProjectMainWindowFluentWindow(
+        string targetPath,
+        string expectedClass)
     {
         var tempRoot = CreateTempDirectory();
         try
@@ -232,17 +236,17 @@ public sealed class ComposerApplyDryRunTests
             var result = service.Apply(new ApplyBlueprintRequest(
                 FluentWindowBlueprint(),
                 projectRoot,
-                "MainWindow.xaml",
+                targetPath,
                 DryRun: false,
                 ConfirmApply: true));
 
             result.Success.Should().BeTrue();
-            result.Xaml.Should().Contain("x:Class=\"ComposerGeneratedApp.MainWindow\"");
-            File.ReadAllText(Path.Combine(projectRoot, "MainWindow.xaml"))
-                .Should().Contain("x:Class=\"ComposerGeneratedApp.MainWindow\"");
+            result.Xaml.Should().Contain($"x:Class=\"{expectedClass}\"");
+            File.ReadAllText(Path.Combine(projectRoot, targetPath))
+                .Should().Contain($"x:Class=\"{expectedClass}\"");
             result.FilePlan.Should().Contain(item =>
                 item.Role == "code-behind-integration"
-                && item.TargetPath == Path.Combine(projectRoot, "MainWindow.xaml.cs")
+                && item.TargetPath == Path.ChangeExtension(Path.Combine(projectRoot, targetPath), ".xaml.cs")
                 && item.Action.Contains("Wpf.Ui.Controls.FluentWindow", StringComparison.Ordinal));
         }
         finally

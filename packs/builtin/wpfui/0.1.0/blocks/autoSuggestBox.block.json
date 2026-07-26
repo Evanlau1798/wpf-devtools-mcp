@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "wpfui.autoSuggestBox",
+  "displayName": "Auto Suggest Box",
+  "description": "Search input with placeholder text, optional leading icon, and WPF UI suggestion affordances.",
+  "category": "input",
+  "properties": {
+    "clearButtonEnabled": {
+      "description": "Shows the clear button while the search input is focused.",
+      "default": true,
+      "type": "boolean"
+    },
+    "margin": {
+      "description": "Outer spacing around the search input, using WPF Thickness syntax.",
+      "default": "0",
+      "format": "thickness",
+      "type": "string"
+    },
+    "maxSuggestionListHeight": {
+      "description": "Maximum height of the suggestion drop-down in device-independent pixels.",
+      "default": 320,
+      "minimum": 0,
+      "type": "number"
+    },
+    "minWidth": {
+      "description": "Minimum rendered width of the search input in device-independent pixels.",
+      "default": 240,
+      "minimum": 0,
+      "type": "number"
+    },
+    "placeholderText": {
+      "description": "Hint shown while the search input is empty.",
+      "default": "Search",
+      "type": "string"
+    },
+    "text": {
+      "description": "Current editable search text.",
+      "default": "",
+      "type": "string"
+    }
+  },
+  "slots": {
+    "icon": {
+      "description": "Optional WPF UI symbol displayed before the search text.",
+      "allowedKinds": [
+        "wpfui.symbolIcon"
+      ],
+      "maxItems": 1
+    }
+  },
+  "renderer": {
+    "xamlTemplate": "renderers/xaml/autoSuggestBox.xaml.sbn"
+  },
+  "sourceHints": [
+    {
+      "path": "src/Wpf.Ui/Controls/AutoSuggestBox/AutoSuggestBox.cs",
+      "usage": "semantic extraction"
+    }
+  ]
+}

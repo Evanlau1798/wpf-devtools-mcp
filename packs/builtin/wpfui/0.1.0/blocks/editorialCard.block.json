@@ -51,9 +51,9 @@
       "type": "number"
     },
     "mediaSource": {
-      "description": "Optional binding expression that resolves to a project-owned ImageSource or URI. Omit it and populate the media slot for a deterministic theme-aware symbol fallback; avoid remote sources for offline apps.",
-      "previewWarning": "Preview can prove bound image layout only when the isolated host resolves the same project-owned data. Always verify the final built application.",
-      "type": "binding"
+      "description": "Optional project-owned application-local pack URI or binding expression for the media image. Omit it and populate the media slot for a deterministic theme-aware symbol fallback; external and file-system URIs are rejected.",
+      "previewWarning": "Preview can prove image layout only when the isolated host resolves the same project-owned resource or binding. Always verify the final built application.",
+      "type": "string"
     },
     "mediaStretch": {
       "description": "How the optional image fills the media surface.",

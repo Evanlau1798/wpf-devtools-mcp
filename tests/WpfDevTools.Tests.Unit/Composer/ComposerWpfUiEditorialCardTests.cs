@@ -21,6 +21,7 @@ public sealed class ComposerWpfUiEditorialCardTests
         item.Properties["mediaSource"].Description.Should()
             .ContainEquivalentOf("project-owned")
             .And.ContainEquivalentOf("media slot");
+        item.Properties["mediaSource"].Type.Should().Be("string");
         item.Properties["mediaAutomationName"].Required.Should().BeTrue();
         item.Slots["media"].MaxItems.Should().Be(1);
         item.Slots["media"].AllowedKinds.Should().Equal("wpfui.symbolIcon");
@@ -28,6 +29,25 @@ public sealed class ComposerWpfUiEditorialCardTests
         item.Slots.Keys.Should().Contain(["content", "actions"]);
         item.CompositionSkeleton!.Value.GetProperty("properties")
             .GetProperty("title").GetString().Should().Be("Featured collection");
+    }
+
+    [Fact]
+    public void Renderer_ShouldAllowApplicationLocalEditorialMedia()
+    {
+        var result = new UiBlueprintRenderer(CreateRegistry()).Render(new RenderBlueprintRequest(Blueprint("""
+            {
+              "kind": "wpfui.editorialCard",
+              "properties": {
+                "title": "Local artwork",
+                "mediaSource": "pack://application:,,,/ComposerGeneratedApp;component/Assets/hero.png",
+                "mediaAutomationName": "Original local artwork"
+              }
+            }
+            """)));
+
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Xaml.Should().Contain(
+            "Source=\"pack://application:,,,/ComposerGeneratedApp;component/Assets/hero.png\"");
     }
 
     [Fact]

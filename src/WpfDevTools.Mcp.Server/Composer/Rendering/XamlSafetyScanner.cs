@@ -245,6 +245,7 @@ internal static class XamlSafetyScanner
 
     private static bool IsUnsafePreviewUriAttribute(string tagLocalName, string attributeLocalName, string value)
         => !value.TrimStart().StartsWith("{Binding", StringComparison.Ordinal)
+            && !PreviewResourcePolicy.IsApplicationLocalPackSource(value)
             && ((string.Equals(tagLocalName, "Image", StringComparison.Ordinal)
                     && string.Equals(attributeLocalName, "Source", StringComparison.Ordinal))
                 || (string.Equals(tagLocalName, "BitmapImage", StringComparison.Ordinal)
@@ -252,6 +253,7 @@ internal static class XamlSafetyScanner
 
     private static bool IsUnsafePreviewUriPropertyElement(string localName, string value)
         => !value.TrimStart().StartsWith("{Binding", StringComparison.Ordinal)
+            && !PreviewResourcePolicy.IsApplicationLocalPackSource(value)
             && (string.Equals(localName, "Image.Source", StringComparison.Ordinal)
                 || string.Equals(localName, "BitmapImage.UriSource", StringComparison.Ordinal));
 

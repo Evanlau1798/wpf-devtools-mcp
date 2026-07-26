@@ -54,9 +54,14 @@
     "clrNamespace": "Wpf.Ui.Controls",
     "types": {
       "AutoSuggestBox": {
-        "baseKind": "contentControl",
-        "contentProperty": "PlaceholderText",
-        "properties": { "PlaceholderText": "string" }
+        "baseKind": "itemsControl",
+        "properties": {
+          "ClearButtonEnabled": "boolean",
+          "Icon": "object",
+          "MaxSuggestionListHeight": "double",
+          "PlaceholderText": "string",
+          "Text": "string"
+        }
       },
       "Button": {
         "baseKind": "button",
@@ -139,6 +144,7 @@
     }
   },
   "blocks": [
+    "wpfui.autoSuggestBox",
     "wpfui.card",
     "wpfui.navigationView",
     "wpfui.navigationViewDemo",

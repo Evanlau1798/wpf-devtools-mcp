@@ -123,6 +123,27 @@ public sealed class ComposerRendererSafetyTests
     }
 
     [Theory]
+    [InlineData("<Image Source=\"pack://application:,,,/Safe;component/Assets/image.png\" />")]
+    [InlineData("<Image><Image.Source>pack://application:,,,/Safe;component/Assets/image.png</Image.Source></Image>")]
+    [InlineData("<BitmapImage UriSource=\"pack://application:,,,/Safe;component/Assets/image.png\" />")]
+    [InlineData("<BitmapImage><BitmapImage.UriSource>pack://application:,,,/Safe;component/Assets/image.png</BitmapImage.UriSource></BitmapImage>")]
+    public void RenderBlueprint_ShouldAllowApplicationLocalPackUriOnImageSource(string rendererTemplate)
+    {
+        var projectRoot = CreateTempProjectWithSafetyPack(rendererTemplate);
+        try
+        {
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot))
+                .Render(new RenderBlueprintRequest(Blueprint()));
+
+            result.Success.Should().BeTrue();
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Theory]
     [InlineData("<Image Source=\"{Binding Missing, FallbackValue=https://controlled.invalid/image.png}\" />")]
     [InlineData("<Hyperlink NavigateUri=\"{Binding Missing, TargetNullValue=file:///C:/private.xaml}\" />")]
     [InlineData("<Frame Source=\"{Binding Missing, FallbackValue=\\\\controlled.invalid\\share\\page.xaml}\" />")]

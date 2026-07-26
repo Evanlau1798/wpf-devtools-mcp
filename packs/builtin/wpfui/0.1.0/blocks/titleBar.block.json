@@ -26,17 +26,18 @@
   },
   "slots": {
     "actions": {
-      "description": "Action buttons rendered horizontally in the trailing content region.",
+      "description": "Search and action controls rendered horizontally in the trailing content region.",
       "allowedKinds": [
-        "wpfui.button"
+        "wpfui.button",
+        "wpfui.autoSuggestBox"
       ]
     },
     "icon": {
       "description": "Optional Symbol Icon rendered before the title.",
-      "maxItems": 1,
       "allowedKinds": [
         "wpfui.symbolIcon"
-      ]
+      ],
+      "maxItems": 1
     }
   },
   "renderer": {

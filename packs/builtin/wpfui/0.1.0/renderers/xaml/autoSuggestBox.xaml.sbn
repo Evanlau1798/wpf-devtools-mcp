@@ -1,0 +1,3 @@
+<ui:AutoSuggestBox Text="{{text}}" PlaceholderText="{{placeholderText}}" MinWidth="{{minWidth}}" Margin="{{margin}}" ClearButtonEnabled="{{clearButtonEnabled}}" MaxSuggestionListHeight="{{maxSuggestionListHeight}}">
+  <ui:AutoSuggestBox.Icon>{{slot.icon}}</ui:AutoSuggestBox.Icon>
+</ui:AutoSuggestBox>

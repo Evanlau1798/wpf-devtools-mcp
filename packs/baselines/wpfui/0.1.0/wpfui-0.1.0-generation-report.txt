@@ -44,26 +44,26 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 
 ## Counts
 
-- Blocks: 18
-- Renderers: 18
+- Blocks: 19
+- Renderers: 19
 - Recipes: 4
 - Examples: 1
 - Eligible source candidate kinds: 87
-- Generated from candidates: 15
+- Generated from candidates: 16
 - Style-only generated blocks: 3
-- Missing eligible candidates: 72
+- Missing eligible candidates: 71
 - Excluded candidates: 363
-- Coverage ratio: 0.1724
+- Coverage ratio: 0.1839
 
 ## Coverage Audit Summary
 
 Coverage audit passed with one warning: `SourceInventoryCandidatesMissing`.
 
-The generated pack intentionally covers the directly composable reusable baseline: `card`, `editorialCard`, `navigationView`, `navigationViewItem`, `navigationViewItemSeparator`, `tabView`, `tabViewItem`, `fluentWindow`, and `dataGrid`, plus `button`, `titleBar`, `symbolIcon`, `textBlock`, `numberBox`, `toggleSwitch`, `progressBar`, and `progressRing`.
+The generated pack intentionally covers the directly composable reusable baseline: `autoSuggestBox`, `card`, `editorialCard`, `navigationView`, `navigationViewItem`, `navigationViewItemSeparator`, `tabView`, `tabViewItem`, `fluentWindow`, and `dataGrid`, plus `button`, `titleBar`, `symbolIcon`, `textBlock`, `numberBox`, `toggleSwitch`, `progressBar`, and `progressRing`.
 
 `contentDialog` and `snackbar` were intentionally removed after public E2E proved their direct renderer shapes were not valid WPF-UI 4.3.0 layout composition. `ContentDialog` requires host/show behavior for modal semantics, and `Snackbar` has no public parameterless constructor and requires a `SnackbarPresenter`. They can return only with an explicit behavior-integration contract and real-package compile/load evidence.
 
-Known missing candidates include additional controls and gallery/sample surfaces such as `autoSuggestBox`, `breadcrumbBar`, `infoBar`, `listView`, `passwordBox`, `treeViewItem`, and several sample pages. These are not modeled in this stability-test pack.
+Known missing candidates include additional controls and gallery/sample surfaces such as `breadcrumbBar`, `infoBar`, `listView`, `passwordBox`, `treeViewItem`, and several sample pages. These are not modeled in this stability-test pack.
 
 ## Release Readiness Summary
 
@@ -193,3 +193,36 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 ```
 
 The source inventory records public CLR control candidates; `ProgressBar` is a native WPF control styled by WPF UI XAML, so it is intentionally counted as the third style-only block. The block exposes only horizontal orientation because its 240-by-4 default geometry is intentionally linear; a future vertical variant must provide matching pack-owned geometry and runtime layout coverage rather than silently rotating these defaults. The current extension-creator `master` already contains the synchronized `fix/source-inventory-coverage-audit` tree, and this addition changes no pack schema or generator contract; no creator repository modification is required.
+
+## Media and Search Maintenance Commands and Results
+
+On 2026-07-26, public beta.104 E2E showed two remaining pack-level composition
+gaps: title-bar actions could not contain a real search input, and the
+image-capable editorial card accepted only a binding even when the application
+owned a safe packaged image. The pack now exposes the directly constructible
+WPF UI 4.3.0 `AutoSuggestBox`, allows it in title-bar actions, and accepts either
+an application-local pack URI or a binding for editorial media. Composer's
+generic XAML safety policy permits only application-local pack image URIs;
+external and file-system sources remain rejected. No store-specific renderer,
+Composer branch, schema change, or extension-creator change was added.
+
+```text
+dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --no-build --filter "<WPF UI search, editorial, baseline, registry, catalog, contract, and image URI safety tests>"
+exit code: 0; passed: 113; failed: 0
+
+python <extension-creator-root>/scripts/validate_pack.py packs/builtin/wpfui/0.1.0 --strict --report <temporary-validation-report>
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/audit_pack_coverage.py packs/builtin/wpfui/0.1.0 --source-inventory <reviewed-87-candidate-inventory> --report <temporary-coverage-report>
+exit code: 0; valid: true; errors: 0; warnings: 1; blocks: 19; renderers: 19; generated from candidates: 16; missing eligible candidates: 71; extra semantic/style blocks: 3; warning: `SourceInventoryCandidatesMissing`
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: E4F6B569D3B79A4B979973FD71F4CE3E6D2256A53CC2100F647AE7B6A59F417C; repeated package hash identical
+
+python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt <existing-required-block-slot-and-kind-gates> --required-block wpfui.autoSuggestBox --required-slot wpfui.titleBar.actions --required-slot-kind wpfui.titleBar.actions=wpfui.autoSuggestBox --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+```
+
+The reviewed 87-candidate source baseline remains authoritative. Adding
+`wpfui.autoSuggestBox` reduces the known missing eligible candidates from 72 to
+71 without removing any existing block, renderer, recipe, or example.

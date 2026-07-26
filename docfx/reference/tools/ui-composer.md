@@ -79,7 +79,7 @@ Request options:
 - `composableOnly`: when true, returns only blocks with an available renderer template.
 - `kind`: optional exact pack-qualified block kind for single-block detail.
 - `includeRecipes`: when true, also returns recipe catalog entries for use with `expand_ui_recipe`.
-- `compact`: when true, returns the brief discovery projection with identity, the pack-authored block description, category, property names and preview warnings, slot bounds, renderer availability, `compositionSkeleton`, and pack-defined `authoringRoles`. An omitted `maxItems` remains unbounded.
+- `compact`: when true, returns the brief discovery projection with identity, the pack-authored block description, category, property names, required or numeric-bounded `propertyContracts`, preview warnings, slot bounds, renderer availability, `compositionSkeleton`, and pack-defined `authoringRoles`. Each compact property contract preserves its type, required flag, bounded allowed-value sample/count, numeric bounds, integer flag, and format. An omitted `maximum` or `maxItems` remains unbounded.
 - `allowedValueQuery`: optional case-insensitive substring search over allowed string values. Use it with an exact `kind` and `compact=false`; the query is limited to 128 characters.
 
 Catalog entries include source hint paths only. They do not copy third-party source code into tool output.

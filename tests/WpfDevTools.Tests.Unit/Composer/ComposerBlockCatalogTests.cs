@@ -239,6 +239,13 @@ public sealed class ComposerBlockCatalogTests
                 projectRoot: projectRoot,
                 localAppDataRoot: tempRoot,
                 cancellationToken: CancellationToken.None);
+            var compactResult = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["sample"],
+                kind: "sample.panel",
+                compact: true,
+                projectRoot: projectRoot,
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
 
             result.IsError.Should().BeFalse();
             var payload = result.StructuredContent!.Value;
@@ -256,6 +263,14 @@ public sealed class ComposerBlockCatalogTests
             skeleton.GetProperty("properties").GetProperty("settings").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Object);
             skeleton.GetProperty("properties").GetProperty("mode").GetString().Should().Be("compact");
             skeleton.GetProperty("slots").GetProperty("content").GetArrayLength().Should().Be(0);
+            var compactContracts = compactResult.StructuredContent!.Value.GetProperty("items")[0]
+                .GetProperty("propertyContracts");
+            compactContracts.GetProperty("title").GetProperty("required").GetBoolean().Should().BeTrue();
+            compactContracts.GetProperty("mode").GetProperty("allowedValues").EnumerateArray()
+                .Select(value => value.GetString()).Should().Contain(["compact", "wide"]);
+            compactContracts.GetProperty("offset").GetProperty("maximum").GetDouble().Should().Be(-1);
+            compactContracts.GetProperty("offset").GetProperty("integer").GetBoolean().Should().BeTrue();
+            compactContracts.GetProperty("rowHeight").GetProperty("format").GetString().Should().Be("gridLength");
 
             var blueprintJson = System.Text.Json.JsonSerializer.Serialize(new
             {

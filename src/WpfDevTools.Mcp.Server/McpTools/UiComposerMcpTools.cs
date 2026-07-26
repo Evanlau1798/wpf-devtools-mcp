@@ -45,7 +45,7 @@ public static partial class UiComposerMcpTools
         [Description("Return only blocks with renderer templates.")] bool composableOnly = false,
         [Description("Optional exact pack-qualified block kind.")] string? kind = null,
         [Description("Include recipes from the same pack scope.")] bool includeRecipes = false,
-        [Description("Return brief descriptions, property names/warnings, slot bounds, skeletons, and roles; use false with exact kind for full contracts.")] bool compact = false,
+        [Description("Return brief descriptions, required/bounded property contracts, warnings, slot bounds, skeletons, and roles; use false with exact kind for full contracts.")] bool compact = false,
         [StringLength(128)]
         [Description("Case-insensitive allowed-value substring search; use with exact kind. Max 128 characters.")] string? allowedValueQuery = null,
         [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
@@ -332,33 +332,6 @@ public static partial class UiComposerMcpTools
             observability = ComposerObservability.ForCatalog(result.Diagnostics)
         };
     }
-
-    private static object ToCompactCatalogItem(BlockCatalogItem item)
-        => new
-        {
-            item.PackId,
-            item.PackVersion,
-            item.Kind,
-            item.DisplayName,
-            item.Description,
-            item.Category,
-            propertyNames = item.Properties.Keys.Order(StringComparer.Ordinal).ToArray(),
-            propertyWarnings = item.Properties
-                .Where(pair => !string.IsNullOrWhiteSpace(pair.Value.PreviewWarning))
-                .ToDictionary(pair => pair.Key, pair => pair.Value.PreviewWarning, StringComparer.Ordinal),
-            slots = item.Slots.ToDictionary(
-                pair => pair.Key,
-                pair => new
-                {
-                    pair.Value.AllowedKinds,
-                    pair.Value.MinItems,
-                    pair.Value.MaxItems
-                },
-                StringComparer.Ordinal),
-            item.RendererAvailable,
-            item.CompositionSkeleton,
-            item.AuthoringRoles
-        };
 
     private static object ExpandRecipe(
         string recipeId,

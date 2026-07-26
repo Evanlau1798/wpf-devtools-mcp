@@ -17,7 +17,7 @@ public static partial class UiComposerMcpTools
     [Description(UiComposerMcpToolDescriptions.CreateUiBlueprintDraft)]
     public static Task<CallToolResult> CreateUiBlueprintDraft(
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
-        [Description("Blueprint root with schemaVersion, name, packs, primaryPack, and layout. Node elementName values publish @ElementName aliases.")] string blueprintJson,
+        [Description("Blueprint root: schemaVersion, name, packs, primaryPack, layout. Node elementName publishes @ElementName.")] string blueprintJson,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(("blueprintJson", blueprintJson));

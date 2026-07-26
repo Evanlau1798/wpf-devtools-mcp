@@ -45,7 +45,7 @@ public static partial class UiComposerMcpTools
         [Description("Return only blocks with renderer templates.")] bool composableOnly = false,
         [Description("Optional exact pack-qualified block kind.")] string? kind = null,
         [Description("Include recipes from the same pack scope.")] bool includeRecipes = false,
-        [Description("Return brief descriptions, required/bounded property contracts, warnings, slot bounds, skeletons, and roles; use false with exact kind for full contracts.")] bool compact = false,
+        [Description("Compact discovery with required/bounded property contracts; false returns full exact-kind details.")] bool compact = false,
         [StringLength(128)]
         [Description("Case-insensitive allowed-value substring search; use with exact kind. Max 128 characters.")] string? allowedValueQuery = null,
         [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,

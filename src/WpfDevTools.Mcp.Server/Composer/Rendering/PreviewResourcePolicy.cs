@@ -9,9 +9,12 @@ internal static class PreviewResourcePolicy
     public static bool IsApplicationLocalPackSource(string source)
     {
         var value = source.Trim();
-        var component = value.IndexOf(";component/", StringComparison.OrdinalIgnoreCase);
-        return value.StartsWith(ApplicationPackPrefix, StringComparison.OrdinalIgnoreCase)
-            && component > ApplicationPackPrefix.Length
+        var path = value.StartsWith(ApplicationPackPrefix, StringComparison.OrdinalIgnoreCase)
+            ? value[ApplicationPackPrefix.Length..]
+            : value.StartsWith("/", StringComparison.Ordinal) ? value[1..] : string.Empty;
+        return path.Length > 0
+            && !path.StartsWith("/", StringComparison.Ordinal)
+            && !path.Contains(':')
             && !value.Contains("..", StringComparison.Ordinal)
             && !value.Contains('\\')
             && !value.Contains('?')

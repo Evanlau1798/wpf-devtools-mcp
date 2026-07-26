@@ -22,6 +22,7 @@ public sealed class ComposerRendererSafetyTests
     [InlineData("<Frame Source=\"https://controlled.invalid/\" />", "UnsafePreviewIoObject")]
     [InlineData("<MediaElement Source=\"https://controlled.invalid/media.mp4\" />", "UnsafePreviewIoObject")]
     [InlineData("<Image Source=\"https://controlled.invalid/image.png\" />", "UnsafePreviewUri")]
+    [InlineData("<Image Source=\"//controlled.invalid/image.png\" />", "UnsafePreviewUri")]
     [InlineData("<BitmapImage UriSource=\"file:///C:/private.png\" />", "UnsafePreviewUri")]
     [InlineData("<Image><Image.Source>file:///C:/private.png</Image.Source></Image>", "UnsafePreviewUri")]
     [InlineData("<BitmapImage><BitmapImage.UriSource>https://controlled.invalid/image.png</BitmapImage.UriSource></BitmapImage>", "UnsafePreviewUri")]
@@ -123,6 +124,8 @@ public sealed class ComposerRendererSafetyTests
     }
 
     [Theory]
+    [InlineData("<Image Source=\"/Assets/image.png\" />")]
+    [InlineData("<Image Source=\"pack://application:,,,/Assets/image.png\" />")]
     [InlineData("<Image Source=\"pack://application:,,,/Safe;component/Assets/image.png\" />")]
     [InlineData("<Image><Image.Source>pack://application:,,,/Safe;component/Assets/image.png</Image.Source></Image>")]
     [InlineData("<BitmapImage UriSource=\"pack://application:,,,/Safe;component/Assets/image.png\" />")]

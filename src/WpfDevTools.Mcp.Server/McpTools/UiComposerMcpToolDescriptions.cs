@@ -12,7 +12,7 @@ internal static class UiComposerMcpToolDescriptions
 
         CATEGORY: UI Composer
 
-        RETURNS: An immutable, bounded, process-local, temporary draftRef plus retention metadata; no blueprintJson echo.
+        RETURNS: An immutable, bounded, process-local draftRef, copy-ready node aliasInventory, and retention metadata; no blueprintJson echo.
 
         EXAMPLES:
         """ + CanonicalExamples;

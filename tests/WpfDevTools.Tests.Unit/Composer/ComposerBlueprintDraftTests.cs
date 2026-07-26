@@ -209,6 +209,9 @@ public sealed class ComposerBlueprintDraftTests
         var created = await UiComposerMcpTools.CreateUiBlueprintDraft(
             Blueprint(),
             CancellationToken.None);
+        var aliases = created.StructuredContent!.Value.GetProperty("aliasInventory");
+        aliases.GetProperty("count").GetInt32().Should().Be(1);
+        aliases.GetProperty("aliases")[0].GetString().Should().Be("@RootStack");
         var originalRef = created.StructuredContent!.Value.GetProperty("draftRef").GetString()!;
         using var value = JsonDocument.Parse("\"Horizontal\"");
 
@@ -228,6 +231,33 @@ public sealed class ComposerBlueprintDraftTests
         summary.GetProperty("changes")[0].GetProperty("jsonPath").GetString()
             .Should().Be("$.layout.properties.orientation");
         summary.GetProperty("changes")[0].TryGetProperty("operationIndex", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CreateDraft_ShouldBoundAliasInventory()
+    {
+        var blueprint = JsonSerializer.Serialize(new
+        {
+            layout = new
+            {
+                kind = "core.stack",
+                elementName = "not valid",
+                slots = new
+                {
+                    children = Enumerable.Range(0, 65).Select(index =>
+                        new { kind = "core.text", elementName = $"Item{index}" })
+                }
+            }
+        });
+        var created = await UiComposerMcpTools.CreateUiBlueprintDraft(
+            blueprint,
+            CancellationToken.None);
+
+        var inventory = created.StructuredContent!.Value.GetProperty("aliasInventory");
+        inventory.GetProperty("count").GetInt32().Should().Be(65);
+        inventory.GetProperty("reportedCount").GetInt32().Should().Be(64);
+        inventory.GetProperty("truncated").GetBoolean().Should().BeTrue();
+        inventory.GetProperty("aliases").GetArrayLength().Should().Be(64);
     }
 
     [Fact]
@@ -448,8 +478,10 @@ public sealed class ComposerBlueprintDraftTests
                {"id":"wpfui","version":"0.1.0","required":true,"role":"primary"}
              ],
              "primaryPack":"wpfui",
+             "metadata":{"elementName":"MetadataOnly"},
              "layout":{
                "kind":"core.stack",
+               "elementName":"RootStack",
                "properties":{"orientation":"Vertical"},
                "slots":{"children":[{"kind":"wpfui.button","properties":{"text":"Draft action"}}]}
              }

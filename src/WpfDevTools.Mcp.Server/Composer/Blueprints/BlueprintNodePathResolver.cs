@@ -6,6 +6,22 @@ namespace WpfDevTools.Mcp.Server.Composer.Blueprints;
 
 internal static partial class BlueprintNodePathResolver
 {
+    public static IEnumerable<string> EnumerateAliases(JsonObject blueprint)
+    {
+        foreach (var candidate in EnumerateNodes(blueprint))
+        {
+            if (candidate.Node["elementName"] is JsonValue value
+                && value.TryGetValue<string>(out var elementName))
+            {
+                var alias = "@" + elementName;
+                if (AliasPattern().IsMatch(alias))
+                {
+                    yield return alias;
+                }
+            }
+        }
+    }
+
     public static BlueprintNodePathResolution Resolve(JsonObject blueprint, string requestedPath)
     {
         if (!requestedPath.StartsWith('@'))

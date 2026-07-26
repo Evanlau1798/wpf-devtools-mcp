@@ -1,8 +1,10 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Drafts;
 using WpfDevTools.Mcp.Server.Tools;
 using WpfDevTools.Shared.Validation;
@@ -15,7 +17,7 @@ public static partial class UiComposerMcpTools
     [Description(UiComposerMcpToolDescriptions.CreateUiBlueprintDraft)]
     public static Task<CallToolResult> CreateUiBlueprintDraft(
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
-        [Description("Blueprint root with schemaVersion, name, packs, primaryPack, and layout.")] string blueprintJson,
+        [Description("Blueprint root with schemaVersion, name, packs, primaryPack, and layout. Node elementName values publish @ElementName aliases.")] string blueprintJson,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(("blueprintJson", blueprintJson));
@@ -169,6 +171,7 @@ public static partial class UiComposerMcpTools
                 result.CharacterCount,
                 result.ExpiresAt,
                 changeSummary = result.ChangeSummary,
+                aliasInventory = CreateAliasInventory(result.DraftRef),
                 immutable = true,
                 retention = new
                 {
@@ -179,6 +182,20 @@ public static partial class UiComposerMcpTools
                 }
             }
             : BlueprintDraftError(result.Error!);
+
+    private static object CreateAliasInventory(string draftRef)
+    {
+        const int maxReportedAliases = 64;
+        var blueprint = JsonNode.Parse(BlueprintInputResolver.Store.Resolve(draftRef).BlueprintJson)!.AsObject();
+        var aliases = BlueprintNodePathResolver.EnumerateAliases(blueprint).ToArray();
+        return new
+        {
+            count = aliases.Length,
+            reportedCount = Math.Min(aliases.Length, maxReportedAliases),
+            truncated = aliases.Length > maxReportedAliases,
+            aliases = aliases.Take(maxReportedAliases).ToArray()
+        };
+    }
 
     private static object BlueprintDraftError(
         BlueprintDraftIssue issue,

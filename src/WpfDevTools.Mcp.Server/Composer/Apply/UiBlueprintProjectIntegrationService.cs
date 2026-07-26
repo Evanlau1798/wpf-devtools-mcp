@@ -9,6 +9,7 @@ internal sealed class UiBlueprintProjectIntegrationService(PackRegistry registry
     [
         "package-reference",
         "central-package-version",
+        "project-resource",
         "application-xaml",
         "code-behind-base-type"
     ];

@@ -21,7 +21,7 @@ Composer 目前支援下列 v1 contracts；`schemaVersion` 缺失或不同時會
 ## 資料驅動的視覺基礎
 
 - Native WPF layout 與 media 由明確的 `core@0.1.0` pack 提供，並使用 `role="layout-pack"`。請使用 `core.stack`、`core.grid`、`core.rowDefinition`、`core.columnDefinition`、`core.gridCell`、`core.border`、`core.image`、`core.text` 與 `core.template` 等 qualified kinds。
-- `core.image` 透過 application-local pack URI 或 simple binding 顯示專案擁有的 WPF Resource。它要求可存取性的 automation name，並拒絕外部、檔案系統、UNC 與 traversal URI。
+- `core.image` 透過 application-local pack URI 或 simple binding 顯示專案擁有的圖片。使用 literal file 時請先建立檔案；經審查的 `projectIntegrationPlan` 與 `apply_ui_project_integration` 流程會把它宣告為 WPF Resource。此 block 要求可存取性的 automation name，並拒絕外部、檔案系統、UNC 與 traversal URI。
 - `core.grid` 支援真實 rows、columns、grid cells、spanning、alignment 與 WPF `gridLength`。Layout 行為來自 pack data，不是 engine primitive 或 WPF UI 特例。
 - Built-in WPF UI visual set 包含 `wpfui.autoSuggestBox`、`wpfui.numberBox`、`wpfui.toggleSwitch`、`wpfui.progressBar`、`wpfui.progressRing`，也提供可設定的 typography、margin、padding、alignment、width 與 window content constraints。Title bar actions 可放入搜尋框或按鈕。對於有界進度、階段流程或並列比較，請使用線性的 `progressBar`；若只需在緊湊空間表示持續活動，不需要長軌道，則使用 `progressRing`。
 - Pack 自有的 `wpfui.editorialCard` block 提供含媒體、文案、任意內容與操作 slots 的橫向 editorial surface。其 optional `mediaSource` 可使用專案自有的 application-local pack URI 或 WPF binding；外部與檔案系統 URI 仍會被阻擋。不設定它並填入 optional media slot，即可建立具 accessibility 資訊的 symbol fallback。這仍是 pack data，具有 no Composer engine special case 的特性，因此第三方 pack 可用自己的 contracts 與 renderers 提供同等媒體模式。
@@ -262,7 +262,7 @@ Dry-run 的 `projectIntegrationPlan` 保持 pack-neutral。Operations 會列出 
 
 此 destructive tool 需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`、`WPFDEVTOOLS_MCP_ALLOW_PROJECT_WRITES=true`，且 `WPFDEVTOOLS_MCP_ALLOWED_PROJECT_ROOTS` 必須 exact match。它會在寫入前立即重新產生 plan；pack、blueprint、target 或 project file 只要有任何變更，就會回傳 `IntegrationPlanChanged`，且不會寫入。
 
-只允許 plan-generated package-reference、central-package-version、application-XAML 與 code-behind-base-type operations。Package IDs、XAML namespaces、resources 與 base types 全部來自 selected packs，engine 不包含 control-library branch。既有檔案會使用 atomic replacement，每個 returned change 都會記錄 `backupPath` 與 `rollbackAction`。後續 operation 失敗時會 rollback 先前變更，response 也會回報 rollback 是否完成。
+只允許 plan-generated package-reference、central-package-version、project-resource、application-XAML 與 code-behind-base-type operations。Project-resource operation 可把 rendered XAML 所引用、已存在且由專案擁有的 application-local 圖片宣告為 WPF Resource。Package IDs、XAML namespaces、application dictionaries 與 base types 全部來自 selected packs，engine 不包含 control-library branch。既有檔案會使用 atomic replacement，每個 returned change 都會記錄 `backupPath` 與 `rollbackAction`。後續 operation 失敗時會 rollback 先前變更，response 也會回報 rollback 是否完成。
 
 ## 從 apply 到可執行應用程式
 

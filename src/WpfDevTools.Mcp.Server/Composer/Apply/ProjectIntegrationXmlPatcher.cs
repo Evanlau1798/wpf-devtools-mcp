@@ -6,10 +6,11 @@ namespace WpfDevTools.Mcp.Server.Composer.Apply;
 
 internal static class ProjectIntegrationXmlPatcher
 {
-    public static ProjectContentPatchResult PatchProjectPackages(
+    public static ProjectContentPatchResult PatchProject(
         string path,
         IReadOnlyList<RequiredNuGetPackage> packages,
-        bool central)
+        bool central,
+        IReadOnlyList<string> resourcePaths)
         => PatchXml(path, document =>
         {
             var root = document.Root ?? throw new XmlException("Project XML has no root element.");
@@ -33,6 +34,22 @@ internal static class ProjectIntegrationXmlPatcher
                 {
                     reference.SetAttributeValue("Version", package.VersionRange);
                 }
+            }
+            foreach (var path in resourcePaths)
+            {
+                var include = path.Replace('/', Path.DirectorySeparatorChar);
+                if (root.Descendants().Any(element =>
+                        element.Name.LocalName == "Resource"
+                        && string.Equals(
+                            (string?)element.Attribute("Include") ?? (string?)element.Attribute("Update"),
+                            include,
+                            StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                FindOrCreateUnconditionalItemGroup(root, "Resource").Add(
+                    new XElement(root.Name.Namespace + "Resource", new XAttribute("Include", include)));
             }
         });
 

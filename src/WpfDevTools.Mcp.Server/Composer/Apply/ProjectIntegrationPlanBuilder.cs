@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Xml;
 using System.Xml.Linq;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 using WpfDevTools.Mcp.Server.Composer.Packs;
@@ -22,7 +23,8 @@ internal static class ProjectIntegrationPlanBuilder
     {
         var errors = new List<ApplyBlueprintIssue>();
         var operations = new List<ProjectIntegrationOperation>();
-        AddPackageOperations(projectRoot, packages, operations, errors);
+        var projectResources = ResolveProjectImageResources(projectRoot, appliedXaml, errors);
+        AddPackageOperations(projectRoot, packages, projectResources, operations, errors);
         AddApplicationOperation(
             registry,
             blueprintJson,
@@ -44,10 +46,11 @@ internal static class ProjectIntegrationPlanBuilder
     private static void AddPackageOperations(
         string projectRoot,
         IReadOnlyList<RequiredNuGetPackage> packages,
+        IReadOnlyList<string> projectResources,
         List<ProjectIntegrationOperation> operations,
         List<ApplyBlueprintIssue> errors)
     {
-        if (packages.Count == 0)
+        if (packages.Count == 0 && projectResources.Count == 0)
         {
             return;
         }
@@ -57,7 +60,7 @@ internal static class ProjectIntegrationPlanBuilder
         {
             errors.Add(Issue(
                 "IntegrationProjectFileMissing",
-                "A machine-applicable package patch requires one inspectable project file.",
+                "A machine-applicable project patch requires one inspectable project file.",
                 "Add or select a WPF project file under projectRoot, then rerun the dry-run plan."));
             return;
         }
@@ -65,17 +68,31 @@ internal static class ProjectIntegrationPlanBuilder
         var projectPath = ResolveInsideRoot(projectRoot, guidance.ProjectFile, "project file", errors);
         if (projectPath is not null)
         {
+            var purposes = packages.Count == 0 ? new List<string>() : ["packages"];
+            if (projectResources.Count > 0)
+            {
+                purposes.Add("project-resource");
+            }
+
             AddPatchedOperation(
-                "package-reference",
+                packages.Count > 0 ? "package-reference" : "project-resource",
                 projectPath,
-                ["packages"],
-                ProjectIntegrationXmlPatcher.PatchProjectPackages(projectPath, packages, guidance.Mode == "central"),
-                "Add pack-declared PackageReference items using the inspected package-management mode.",
+                purposes,
+                ProjectIntegrationXmlPatcher.PatchProject(
+                    projectPath,
+                    packages,
+                    guidance.Mode == "central",
+                    projectResources),
+                packages.Count > 0 && projectResources.Count > 0
+                    ? "Add pack-declared PackageReference items and project-owned WPF Resource images."
+                    : packages.Count > 0
+                        ? "Add pack-declared PackageReference items using the inspected package-management mode."
+                        : "Declare project-owned application-local images as WPF Resource items.",
                 operations,
                 errors);
         }
 
-        if (guidance.Mode != "central")
+        if (packages.Count == 0 || guidance.Mode != "central")
         {
             return;
         }
@@ -152,6 +169,135 @@ internal static class ProjectIntegrationPlanBuilder
             operations,
             errors);
     }
+
+    private static IReadOnlyList<string> ResolveProjectImageResources(
+        string projectRoot,
+        string appliedXaml,
+        List<ApplyBlueprintIssue> errors)
+    {
+        var guidance = PackageIntegrationPlanner.Create(projectRoot, []);
+        if (string.IsNullOrWhiteSpace(guidance.ProjectFile))
+        {
+            return [];
+        }
+
+        var projectPath = ResolveInsideRoot(projectRoot, guidance.ProjectFile, "project file", errors);
+        if (projectPath is null)
+        {
+            return [];
+        }
+
+        return ResolveProjectImageResources(
+            projectRoot,
+            ResolveAssemblyName(projectPath),
+            appliedXaml,
+            errors);
+    }
+
+    private static IReadOnlyList<string> ResolveProjectImageResources(
+        string projectRoot,
+        string assemblyName,
+        string appliedXaml,
+        List<ApplyBlueprintIssue> errors)
+    {
+        XDocument document;
+        try
+        {
+            document = XDocument.Parse(appliedXaml);
+        }
+        catch (System.Xml.XmlException)
+        {
+            return [];
+        }
+
+        var resources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var attribute in document.Descendants().Attributes().Where(IsImageSourceAttribute))
+        {
+            var source = attribute.Value.Trim();
+            if (!PreviewResourcePolicy.IsApplicationLocalPackSource(source))
+            {
+                continue;
+            }
+
+            var relative = source.StartsWith("pack://application:,,,/", StringComparison.OrdinalIgnoreCase)
+                ? source["pack://application:,,,/".Length..]
+                : source.TrimStart('/');
+            var component = relative.IndexOf(";component/", StringComparison.OrdinalIgnoreCase);
+            if (component >= 0)
+            {
+                if (!string.Equals(relative[..component], assemblyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                relative = relative[(component + ";component/".Length)..];
+            }
+
+            try
+            {
+                relative = Uri.UnescapeDataString(relative).Replace('/', Path.DirectorySeparatorChar);
+                var fullPath = Path.GetFullPath(Path.Combine(projectRoot, relative));
+                if (!ProjectWritePolicy.IsPathUnderRoot(projectRoot, fullPath))
+                {
+                    errors.Add(Issue(
+                        "ProjectImageResourceOutsideRoot",
+                        "An application-local image resolves outside projectRoot.",
+                        "Use a project-owned image path below the reviewed projectRoot."));
+                    continue;
+                }
+
+                if (!File.Exists(fullPath))
+                {
+                    errors.Add(Issue(
+                        "ProjectImageResourceMissing",
+                        $"Application-local image does not exist: {relative}.",
+                        "Create the project-owned image before reviewing project integration."));
+                    continue;
+                }
+
+                resources.Add(Path.GetRelativePath(projectRoot, fullPath));
+            }
+            catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or UriFormatException)
+            {
+                errors.Add(Issue(
+                    "ProjectImageResourceInvalid",
+                    $"Application-local image path is invalid: {ex.Message}",
+                    "Use a valid application-local pack URI for a project-owned image."));
+            }
+        }
+
+        return resources.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    private static string ResolveAssemblyName(string projectPath)
+    {
+        var fallback = Path.GetFileNameWithoutExtension(projectPath);
+        try
+        {
+            using var reader = XmlReader.Create(projectPath, new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null
+            });
+            var configured = XDocument.Load(reader).Descendants()
+                .FirstOrDefault(element => element.Name.LocalName == "AssemblyName")
+                ?.Value.Trim();
+            return string.IsNullOrWhiteSpace(configured) ? fallback : configured;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or XmlException)
+        {
+            return fallback;
+        }
+    }
+
+    private static bool IsImageSourceAttribute(XAttribute attribute)
+        => attribute.Name.LocalName switch
+        {
+            "ImageSource" => true,
+            "Source" => attribute.Parent?.Name.LocalName == "Image",
+            "UriSource" => attribute.Parent?.Name.LocalName == "BitmapImage",
+            _ => false
+        };
 
     private static void AddCodeBehindOperation(
         string appliedXaml,

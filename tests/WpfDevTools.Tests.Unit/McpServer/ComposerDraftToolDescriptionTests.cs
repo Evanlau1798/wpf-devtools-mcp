@@ -29,7 +29,9 @@ public sealed class ComposerDraftToolDescriptionTests
             .GetParameters().Single(parameter => parameter.Name == "blueprintJson")
             .GetCustomAttribute<DescriptionAttribute>()!.Description;
 
-        description.Should().ContainAll("schemaVersion", "name", "packs", "primaryPack", "layout");
+        description.Should()
+            .Contain("schemaVersion wpfdevtools.ui-blueprint.v1")
+            .And.ContainAll("name", "packs", "primaryPack", "layout");
     }
 
     [Fact]

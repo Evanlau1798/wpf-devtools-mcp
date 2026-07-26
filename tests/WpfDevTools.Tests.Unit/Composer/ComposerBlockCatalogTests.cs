@@ -90,6 +90,11 @@ public sealed class ComposerBlockCatalogTests
         var tempRoot = CreateTempDirectory();
         try
         {
+            var navigationResult = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["wpfui"],
+                kind: "wpfui.navigationView",
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
             var result = await UiComposerMcpTools.GetUiBlockCatalog(
                 packIds: ["wpfui"],
                 kind: "wpfui.navigationViewItem",
@@ -102,6 +107,10 @@ public sealed class ComposerBlockCatalogTests
                 localAppDataRoot: tempRoot,
                 cancellationToken: CancellationToken.None);
 
+            var paneDisplayMode = navigationResult.StructuredContent!.Value.GetProperty("items")[0]
+                .GetProperty("properties").GetProperty("paneDisplayMode");
+            paneDisplayMode.GetProperty("description").GetString().Should()
+                .ContainAll("Left", "LeftMinimal", "LeftFluent", "Top", "Bottom");
             var item = result.StructuredContent!.Value.GetProperty("items")[0];
             var isActive = item.GetProperty("properties").GetProperty("isActive");
             isActive.GetProperty("description").GetString().Should().Contain("current destination");

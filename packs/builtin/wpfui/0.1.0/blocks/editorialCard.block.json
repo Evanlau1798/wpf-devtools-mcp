@@ -51,8 +51,8 @@
       "type": "number"
     },
     "mediaSource": {
-      "description": "Optional project-owned application-local pack URI or binding expression for the media image. Omit it and populate the media slot for a deterministic theme-aware symbol fallback; external and file-system URIs are rejected.",
-      "previewWarning": "Preview can prove image layout only when the isolated host resolves the same project-owned resource or binding. Always verify the final built application.",
+      "description": "Optional project-owned media image. Declare a literal file as a WPF Resource and use its application-local pack URI, or provide a binding expression. Omit it and populate the media slot for a deterministic theme-aware symbol fallback; external and file-system URIs are rejected.",
+      "previewWarning": "The isolated preview may show the fallback when it cannot resolve a target-project resource or binding. Always verify the final built application.",
       "type": "string"
     },
     "mediaStretch": {

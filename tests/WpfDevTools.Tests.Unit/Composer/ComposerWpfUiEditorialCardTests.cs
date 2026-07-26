@@ -20,7 +20,12 @@ public sealed class ComposerWpfUiEditorialCardTests
         item.AuthoringRoles.Should().Contain(["hero", "product-tile", "editorial-media"]);
         item.Properties["mediaSource"].Description.Should()
             .ContainEquivalentOf("project-owned")
-            .And.ContainEquivalentOf("media slot");
+            .And.ContainEquivalentOf("media slot")
+            .And.ContainEquivalentOf("WPF Resource");
+        item.Properties["mediaSource"].PreviewWarning.Should()
+            .ContainEquivalentOf("isolated preview")
+            .And.ContainEquivalentOf("fallback")
+            .And.ContainEquivalentOf("final built application");
         item.Properties["mediaSource"].Type.Should().Be("string");
         item.Properties["mediaAutomationName"].Required.Should().BeTrue();
         item.Slots["media"].MaxItems.Should().Be(1);

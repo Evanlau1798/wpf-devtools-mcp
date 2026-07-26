@@ -226,3 +226,34 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 The reviewed 87-candidate source baseline remains authoritative. Adding
 `wpfui.autoSuggestBox` reduces the known missing eligible candidates from 72 to
 71 without removing any existing block, renderer, recipe, or example.
+
+## Beta 108 Authoring Guidance Maintenance
+
+On 2026-07-26, the reference-grounded beta.107 E2E passed at 9.6/10 but exposed
+two avoidable catalog-reading pauses. The `wpfui.editorialCard.mediaSource`
+contract now states that a literal target-project image must be declared as a
+WPF Resource and that the isolated preview may show the fallback even when the
+final built app resolves that resource. The `wpfui.navigationView`
+`paneDisplayMode` contract now distinguishes all five advertised modes. These
+are inert pack metadata clarifications; no renderer, schema, Composer engine, or
+extension-creator behavior changed.
+
+```text
+dotnet test tests/WpfDevTools.Tests.Unit/WpfDevTools.Tests.Unit.csproj --no-build --filter "<editorial media and navigation-mode catalog tests>"
+exit code: 0; passed: 2; failed: 0
+
+python <extension-creator-root>/scripts/validate_pack.py packs/builtin/wpfui/0.1.0 --strict --report <temporary-validation-report>
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/audit_pack_coverage.py packs/builtin/wpfui/0.1.0 --report <temporary-coverage-report>
+exit code: 0; valid: true; errors: 0; warnings: 0; blocks: 19; renderers: 19
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: C7095CA24DDE2834EE45ED09F6FD2FE5ED689BAE615FBFC44A9E903D0AAC7141
+
+python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt <existing-required-block-slot-and-kind-gates> --report <temporary-readiness-report>
+exit code: 0; valid: true; errors: 0; warnings: 0
+```
+
+The reviewed source-inventory report remains authoritative because this pass
+changed neither source coverage nor generated surface counts.

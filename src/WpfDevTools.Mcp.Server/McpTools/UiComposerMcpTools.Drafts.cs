@@ -15,7 +15,7 @@ public static partial class UiComposerMcpTools
     [Description(UiComposerMcpToolDescriptions.CreateUiBlueprintDraft)]
     public static Task<CallToolResult> CreateUiBlueprintDraft(
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
-        [Description("UI blueprint JSON object to retain in the bounded process-local draft store.")] string blueprintJson,
+        [Description("Blueprint root with schemaVersion, name, packs, primaryPack, and layout.")] string blueprintJson,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(("blueprintJson", blueprintJson));

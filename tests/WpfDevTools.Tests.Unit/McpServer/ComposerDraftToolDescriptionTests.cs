@@ -22,6 +22,17 @@ public sealed class ComposerDraftToolDescriptionTests
     ];
 
     [Fact]
+    public void CreateDraftParameter_ShouldExposeRequiredBlueprintEnvelope()
+    {
+        var description = typeof(UiComposerMcpTools)
+            .GetMethod(nameof(UiComposerMcpTools.CreateUiBlueprintDraft))!
+            .GetParameters().Single(parameter => parameter.Name == "blueprintJson")
+            .GetCustomAttribute<DescriptionAttribute>()!.Description;
+
+        description.Should().ContainAll("schemaVersion", "name", "packs", "primaryPack", "layout");
+    }
+
+    [Fact]
     public void DownstreamComposerDescriptions_ShouldAdvertiseDraftReferencesConsistently()
     {
         var descriptions = typeof(UiComposerMcpTools)

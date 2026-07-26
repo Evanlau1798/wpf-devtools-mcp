@@ -341,9 +341,9 @@ public sealed class ComposerProjectIntegrationTests
     }
 
     [Theory]
-    [InlineData("/Assets/hero.png")]
-    [InlineData("pack://application:,,,/Nebula.Media;component/Assets/hero.png")]
-    public void ProjectIntegration_ShouldDeclareApplicationLocalImageAsWpfResource(string source)
+    [InlineData("/Assets/hero.png", false)]
+    [InlineData("pack://application:,,,/Nebula.Media;component/Assets/hero.png", true)]
+    public void ProjectIntegration_ShouldDeclareApplicationLocalImageAsWpfResource(string source, bool includePackage)
     {
         var root = CreateFixture();
         using var writes = new EnvironmentVariableScope(McpServerConfiguration.AllowProjectWritesEnvVar, "true");
@@ -360,21 +360,23 @@ public sealed class ComposerProjectIntegrationTests
                 {
                   "schemaVersion":"wpfdevtools.ui-blueprint.v1",
                   "name":"MainWindow",
-                  "packs":[{"id":"nebula","version":"1.0.0","required":true,"role":"primary"},{"id":"core","version":"0.1.0","required":true,"role":"layout-pack"}],
-                  "primaryPack":"nebula",
+                  "packs":PACKS,
+                  "primaryPack":"PRIMARY",
                   "layout":{"kind":"core.image","properties":{
                     "source":"IMAGE_SOURCE",
                     "automationName":"Original hero artwork"
                   }}
                 }
-                """.Replace("IMAGE_SOURCE", source);
+                """.Replace("IMAGE_SOURCE", source)
+                    .Replace("PACKS", includePackage ? """[{"id":"nebula","version":"1.0.0","required":true,"role":"primary"},{"id":"core","version":"0.1.0","required":true,"role":"layout-pack"}]""" : """[{"id":"core","version":"0.1.0","required":true,"role":"primary"}]""")
+                    .Replace("PRIMARY", includePackage ? "nebula" : "core");
             var registry = CreateRegistry(root);
             var dryRun = new UiBlueprintApplyService(registry).Apply(
                 new ApplyBlueprintRequest(blueprint, root, "MainWindow.xaml"));
             var resourceOperation = dryRun.ProjectIntegrationPlan.Operations
                 .Single(operation => operation.Purposes.Contains("project-resource"));
 
-            resourceOperation.Role.Should().Be("package-reference");
+            resourceOperation.Role.Should().Be(includePackage ? "package-reference" : "project-resource");
             resourceOperation.TargetPath.Should().Be(Path.Combine(root, "NebulaApp.csproj"));
             resourceOperation.Purposes.Should().Contain("project-resource");
             resourceOperation.ProposedContent.Should()
@@ -389,9 +391,9 @@ public sealed class ComposerProjectIntegrationTests
                     ConfirmIntegration: true));
 
             applied.Success.Should().BeTrue(applied.Errors.FirstOrDefault()?.Message);
-            File.ReadAllText(Path.Combine(root, "NebulaApp.csproj"))
-                .Should().Contain("Resource Include=\"Assets\\hero.png\"")
-                .And.Contain("PackageReference Include=\"Nebula.Controls\"");
+            var projectContent = File.ReadAllText(Path.Combine(root, "NebulaApp.csproj"));
+            projectContent.Should().Contain("Resource Include=\"Assets\\hero.png\"");
+            if (includePackage) projectContent.Should().Contain("PackageReference Include=\"Nebula.Controls\"");
         }
         finally
         {

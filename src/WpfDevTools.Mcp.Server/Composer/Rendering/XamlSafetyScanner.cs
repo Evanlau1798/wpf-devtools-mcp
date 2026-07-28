@@ -150,7 +150,7 @@ internal static class XamlSafetyScanner
                 ResolveJsonPath(sourceMap, tag.StartIndex),
                 "UnsafePreviewUri",
                 $"Generated renderer XAML must not assign literal URI content to {name.LocalName}.",
-                "Use inert structural content or a simple binding that does not initiate preview-host I/O."));
+                "Use /Assets/image.png or pack://application:,,,/YourAssembly;component/Assets/image.png for a project-owned WPF Resource, or a simple binding without preview-host I/O."));
         }
     }
 
@@ -213,7 +213,7 @@ internal static class XamlSafetyScanner
                 ResolveJsonPath(sourceMap, attribute.StartIndex),
                 "UnsafePreviewUri",
                 $"Generated renderer XAML must not assign literal URI content to {tagName.LocalName}.{attributeName.LocalName}.",
-                "Use inert structural content or a simple binding that does not initiate preview-host I/O."));
+                "Use /Assets/image.png or pack://application:,,,/YourAssembly;component/Assets/image.png for a project-owned WPF Resource, or a simple binding without preview-host I/O."));
             return;
         }
 

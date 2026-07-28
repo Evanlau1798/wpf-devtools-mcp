@@ -8,7 +8,7 @@
   "properties": {
     "source": {
       "type": "string",
-      "description": "Required project-owned image source. Create a literal file before apply and use its application-local pack URI; the reviewed project integration plan declares it as a WPF Resource. A simple binding is also supported. External, file-system, UNC, and traversal URIs are rejected.",
+      "description": "Required project-owned image source. Create the file before apply, then use /Assets/hero.png or pack://application:,,,/YourAssembly;component/Assets/hero.png; the reviewed project integration plan declares it as a WPF Resource. A simple binding is also supported. External, file-system, UNC, relative, and traversal URIs are rejected.",
       "required": true,
       "previewWarning": "The isolated preview may not resolve a target-project resource. Verify the final built application."
     },

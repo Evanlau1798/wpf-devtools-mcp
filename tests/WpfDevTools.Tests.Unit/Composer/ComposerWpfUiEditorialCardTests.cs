@@ -21,7 +21,9 @@ public sealed class ComposerWpfUiEditorialCardTests
         item.Properties["mediaSource"].Description.Should()
             .ContainEquivalentOf("project-owned")
             .And.ContainEquivalentOf("media slot")
-            .And.ContainEquivalentOf("WPF Resource");
+            .And.ContainEquivalentOf("WPF Resource")
+            .And.Contain("/Assets/hero.png")
+            .And.Contain("pack://application:,,,/");
         item.Properties["mediaSource"].PreviewWarning.Should()
             .ContainEquivalentOf("isolated preview")
             .And.ContainEquivalentOf("fallback")

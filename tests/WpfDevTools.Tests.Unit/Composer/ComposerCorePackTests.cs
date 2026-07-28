@@ -1,6 +1,7 @@
 using FluentAssertions;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
+using WpfDevTools.Mcp.Server.Composer.Catalog;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
@@ -197,7 +198,11 @@ public sealed class ComposerCorePackTests
     [Fact]
     public void CoreImage_ShouldRenderOnlyApplicationLocalResources()
     {
-        var renderer = new UiBlueprintRenderer(CreateRegistry());
+        var registry = CreateRegistry();
+        var renderer = new UiBlueprintRenderer(registry);
+        var catalog = new BlockCatalogService(registry)
+            .GetCatalog(new BlockCatalogQuery(Kind: "core.image"))
+            .Items.Single();
         var local = renderer.Render(new RenderBlueprintRequest(Blueprint(
             """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
             "core",
@@ -231,8 +236,15 @@ public sealed class ComposerCorePackTests
             "<Image Source=\"/Assets/hero.png\" AutomationProperties.Name=\"Original hero artwork\"")
             .And.Contain("Width=\"640\" Height=\"360\"")
             .And.Contain("Stretch=\"UniformToFill\"");
+        catalog.Properties["source"].Description.Should()
+            .Contain("/Assets/hero.png")
+            .And.Contain("pack://application:,,,/");
         remote.Success.Should().BeFalse();
-        remote.Errors.Should().Contain(issue => issue.Code == "UnsafePreviewUri");
+        remote.Errors.Where(issue => issue.Code == "UnsafePreviewUri").Should()
+            .NotBeEmpty()
+            .And.OnlyContain(issue =>
+                issue.RepairSuggestion.Contains("/Assets/image.png", StringComparison.Ordinal)
+                && issue.RepairSuggestion.Contains("pack://application:,,,/", StringComparison.Ordinal));
     }
 
     [Fact]

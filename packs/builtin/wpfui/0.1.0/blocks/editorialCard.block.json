@@ -51,7 +51,7 @@
       "type": "number"
     },
     "mediaSource": {
-      "description": "Optional project-owned media image. Declare a literal file as a WPF Resource and use its application-local pack URI, or provide a binding expression. Omit it and populate the media slot for a deterministic theme-aware symbol fallback; external and file-system URIs are rejected.",
+      "description": "Optional project-owned media image. Create the file before apply, then use /Assets/hero.png or pack://application:,,,/YourAssembly;component/Assets/hero.png; the reviewed project integration plan declares it as a WPF Resource. A simple binding is also supported. Omit it and populate the media slot for a deterministic theme-aware symbol fallback; external, file-system, relative, and traversal URIs are rejected.",
       "previewWarning": "The isolated preview may show the fallback when it cannot resolve a target-project resource or binding. Always verify the final built application.",
       "type": "string"
     },

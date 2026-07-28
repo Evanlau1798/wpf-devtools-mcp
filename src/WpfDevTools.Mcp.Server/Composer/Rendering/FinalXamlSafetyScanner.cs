@@ -197,7 +197,7 @@ internal static partial class FinalXamlSafetyScanner
         => Issue(
             "UnsafePreviewUri",
             $"Generated XAML must not assign a non-local literal URI to {member}.",
-            "Use a binding without literal URI fallbacks, a trusted resource reference, or an application-local pack URI.");
+            "Use /Assets/image.png or pack://application:,,,/YourAssembly;component/Assets/image.png for a project-owned WPF Resource, a trusted resource reference, or a binding without literal URI fallbacks.");
 
     private static BlueprintValidationIssue Issue(
         string code,

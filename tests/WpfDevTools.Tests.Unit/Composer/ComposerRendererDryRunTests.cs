@@ -141,12 +141,32 @@ public sealed class ComposerRendererDryRunTests
             """)));
 
         result.Success.Should().BeTrue();
-        result.Xaml.Should().Contain("<ui:NavigationView PaneDisplayMode=\"Left\" IsPaneOpen=\"True\" IsPaneToggleVisible=\"False\"");
+        result.Xaml.Should().Contain("<ui:NavigationView PaneDisplayMode=\"Left\" IsPaneOpen=\"true\" IsPaneToggleVisible=\"False\"");
         result.Xaml.Should().Contain("<ui:AutoSuggestBox Visibility=\"Collapsed\" />");
         result.Xaml.Should().Contain("<ui:NavigationView.ContentOverlay>");
         result.Xaml.Should().Contain("<Grid><ui:Card");
         result.Xaml.Should().NotContainAny("PlaceholderText=", "Width=\"386\"", "#252B33", "#36E0A6");
         result.Xaml.Should().Contain("<ui:Card");
+    }
+
+    [Fact]
+    public void RenderBlueprint_NavigationView_ShouldHonorCollapsedPane()
+    {
+        var renderer = new UiBlueprintRenderer(CreateRegistry());
+
+        var result = renderer.Render(new RenderBlueprintRequest(Blueprint("""
+            {
+              "kind": "wpfui.navigationView",
+              "properties": {
+                "paneDisplayMode": "LeftMinimal",
+                "isPaneOpen": false
+              }
+            }
+            """)));
+
+        result.Success.Should().BeTrue();
+        result.Xaml.Should().Contain(
+            "<ui:NavigationView PaneDisplayMode=\"LeftMinimal\" IsPaneOpen=\"false\" IsPaneToggleVisible=\"False\"");
     }
 
     [Fact]

@@ -34,7 +34,7 @@ ARM64 發行檔可作為 preview asset 提供，但目前不保證穩定性，�
 使用 public installer entrypoint，並帶入原始 archive 與 sidecar directory：
 
 ```powershell
-$version = '1.0.0-beta.112'
+$version = '1.0.0-beta.113'
 $arch = 'x64'
 $archive = (Resolve-Path ".\release_${version}_win-$arch.zip").Path
 $metadata = Split-Path -Parent $archive

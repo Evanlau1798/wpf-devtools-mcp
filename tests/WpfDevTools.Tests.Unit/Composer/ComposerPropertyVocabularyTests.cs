@@ -72,6 +72,15 @@ public sealed class ComposerPropertyVocabularyTests
     }
 
     [Fact]
+    public void GetCatalog_UnfilteredVocabulary_ShouldPrioritizePropertyDefault()
+    {
+        var result = new BlockCatalogService(CreateBuiltinRegistry()).GetCatalog(
+            new BlockCatalogQuery(["wpfui"], Kind: "wpfui.symbolIcon"));
+
+        result.Items.Single().Properties["symbol"].AllowedValues[0].Should().Be("Home24");
+    }
+
+    [Fact]
     public void GetCatalog_AllowedValueQuery_ShouldReturnBoundedMatches()
     {
         var result = new BlockCatalogService(CreateBuiltinRegistry()).GetCatalog(

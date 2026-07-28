@@ -6,7 +6,7 @@
   "category": "display",
   "properties": {
     "symbol": {
-      "description": "WPF UI SymbolRegular member rendered by the icon; use allowed-value search for the exact name.",
+      "description": "WPF UI SymbolRegular member. Common valid values include Home24, Search24, Library24, Apps24, Games24, Settings24, and Info24; use allowedValueQuery to find other exact names.",
       "allowedValuesPath": "vocabularies/symbolRegular.json",
       "default": "Home24",
       "required": false,

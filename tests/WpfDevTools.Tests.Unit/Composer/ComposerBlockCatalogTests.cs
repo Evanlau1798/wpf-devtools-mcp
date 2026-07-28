@@ -116,6 +116,8 @@ public sealed class ComposerBlockCatalogTests
             isActive.GetProperty("description").GetString().Should().Contain("current destination");
             isActive.GetProperty("previewWarning").GetString().Should()
                 .ContainAll("LeftFluent", "active label", "Left");
+            item.GetProperty("slots").GetProperty("content").GetProperty("description")
+                .GetString().Should().ContainAll("slots.content", "properties.content");
             compactResult.StructuredContent!.Value.GetProperty("items")[0]
                 .GetProperty("propertyWarnings").GetProperty("isActive").GetString().Should()
                 .Contain("LeftFluent");

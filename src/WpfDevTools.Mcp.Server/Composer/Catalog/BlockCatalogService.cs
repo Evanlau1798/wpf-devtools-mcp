@@ -91,9 +91,17 @@ internal sealed class BlockCatalogService(PackRegistry registry)
     {
         var allAllowedValues = property.AllowedValues.Length > 0 ? property.AllowedValues : property.EnumValues;
         var query = string.IsNullOrWhiteSpace(allowedValueQuery) ? null : allowedValueQuery.Trim();
-        var matches = query is null
+        string[] matches = query is null
             ? allAllowedValues
             : allAllowedValues.Where(value => value.Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (query is null
+            && property.Default is { ValueKind: JsonValueKind.String } defaultValue
+            && defaultValue.GetString() is { } defaultString
+            && allAllowedValues.Contains(defaultString, StringComparer.Ordinal))
+        {
+            matches = [defaultString, .. matches.Where(value => !string.Equals(value, defaultString, StringComparison.Ordinal))];
+        }
+
         var allowedValues = matches.Length <= MaxAllowedValues ? matches : matches[..MaxAllowedValues];
         return new BlockCatalogProperty(
             property.Type,

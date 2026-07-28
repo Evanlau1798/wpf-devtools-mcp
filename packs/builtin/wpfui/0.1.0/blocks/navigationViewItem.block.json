@@ -38,7 +38,7 @@
   },
   "slots": {
     "content": {
-      "description": "Visible label content for the navigation item.",
+      "description": "Visible label content. Put one core.text or wpfui.textBlock under slots.content; properties.content is not supported.",
       "maxItems": 1,
       "allowedKinds": [
         "core.text",

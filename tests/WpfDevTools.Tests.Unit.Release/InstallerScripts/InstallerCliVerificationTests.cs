@@ -78,6 +78,24 @@ public sealed partial class InstallerScriptTests
     }
 
     [Fact]
+    public void OnlineInstaller_ShouldAllowNormalCliStartupDuringVerification()
+    {
+        var runtimePath = ReleaseScriptTestHarness.GetRepoFilePath(
+            "scripts/installer/OnlineInstaller.Runtime.08.ps1");
+        var command = string.Join(" ; ",
+        [
+            "function Get-LocalInstallerHelperRoots { return @() }",
+            ". '" + runtimePath.Replace("'", "''") + "'",
+            "Remove-Item Env:WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC -ErrorAction SilentlyContinue",
+            "if ((Get-InstallerVerificationTimeoutSeconds) -ne 10) { throw 'Expected a 10-second default verification timeout.' }"
+        ]);
+
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
+
+        result.ExitCode.Should().Be(0, result.Stderr);
+    }
+
+    [Fact]
     public void VerificationCommand_ShouldTerminateTimedOutBatchProcessTree()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();

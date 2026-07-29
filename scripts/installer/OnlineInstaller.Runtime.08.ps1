@@ -419,7 +419,7 @@ function Get-TuiHelperBootstrapTimeoutSeconds {
     return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_HELPER_BOOTSTRAP_TIMEOUT_SEC' -DefaultValue 20 -MinimumValue 3 -MaximumValue 120)
 }
 function Get-InstallerVerificationTimeoutSeconds {
-    return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC' -DefaultValue 2 -MinimumValue 1 -MaximumValue 30)
+    return (Get-InstallerTimeoutSeconds -EnvironmentVariable 'WPFDEVTOOLS_INSTALLER_VERIFICATION_TIMEOUT_SEC' -DefaultValue 10 -MinimumValue 1 -MaximumValue 30)
 }
 function Get-Sha256FileHashHex {
     param([Parameter(Mandatory)] [string]$Path)

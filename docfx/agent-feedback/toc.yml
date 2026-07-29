@@ -1,13 +1,27 @@
 - name: Agent Feedback
   href: index.md
+- name: Flow Launcher style pack beta.114 terra-high Codex E2E
+  href: 2026-07-30-agent-feedback-flow-launcher-style-beta114-terra-high-codex-e2e.md
+- name: NETworkManager style pack beta.114 terra-high Codex E2E
+  href: 2026-07-30-agent-feedback-networkmanager-style-beta114-terra-high-codex-e2e.md
 - name: WPF UI Store beta.114 sol-medium Codex E2E
   href: 2026-07-29-agent-feedback-wpfui-store-beta114-sol-medium-codex-e2e.md
 - name: Material Extension Pack Store beta.114 sol-medium Codex E2E
   href: 2026-07-29-agent-feedback-material-store-beta114-codex-e2e.md
+- name: WPF DevTools beta.99 E2E feedback - WPF UI Store reference
+  href: 2026-07-26-agent-feedback-wpfui-store-beta99-rerun-codex-e2e.md
+- name: Material Store E2E Agent Feedback — v1.0.0-beta.98
+  href: 2026-07-24-agent-feedback-material-store-beta98-codex-e2e.md
+- name: Driftline Paper Atelier — Same-Agent E2E Feedback
+  href: 2026-07-24-agent-feedback-wpfui-store-beta97-codex-e2e.md
 - name: Material Extension Pack Store beta.98 Codex E2E
   href: 2026-07-24-agent-feedback-material-store-beta98-rerun-codex-e2e.md
 - name: WPF UI Store beta.98 Codex E2E
   href: 2026-07-24-agent-feedback-wpfui-store-beta98-rerun-codex-e2e.md
+- name: Building Afterlight with WPF DevTools MCP beta.92
+  href: 2026-07-19-agent-feedback-wpfui-store-beta92-codex-e2e.md
+- name: Building Night Orchard Exchange with WPF DevTools MCP v1.0.0-beta.87
+  href: 2026-07-18-agent-feedback-wpfui-store-beta87-codex-e2e.md
 - name: MaterialDesign pack beta.86 Codex E2E
   href: 2026-07-18-agent-feedback-materialdesign-pack-beta86-codex-e2e.md
 - name: UI Composer beta.75 Codex E2E

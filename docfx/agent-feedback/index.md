@@ -2,10 +2,18 @@
 
 Reviewed agent feedback reports retained for public documentation.
 
+- [Flow Launcher style pack beta.114 terra-high Codex E2E](2026-07-30-agent-feedback-flow-launcher-style-beta114-terra-high-codex-e2e.md)
+- [NETworkManager style pack beta.114 terra-high Codex E2E](2026-07-30-agent-feedback-networkmanager-style-beta114-terra-high-codex-e2e.md)
+
 - [WPF UI Store beta.114 sol-medium Codex E2E](2026-07-29-agent-feedback-wpfui-store-beta114-sol-medium-codex-e2e.md)
 - [Material Extension Pack Store beta.114 sol-medium Codex E2E](2026-07-29-agent-feedback-material-store-beta114-codex-e2e.md)
+- [WPF DevTools beta.99 E2E feedback: WPF UI Store reference](2026-07-26-agent-feedback-wpfui-store-beta99-rerun-codex-e2e.md)
+- [Material Store E2E Agent Feedback — v1.0.0-beta.98](2026-07-24-agent-feedback-material-store-beta98-codex-e2e.md)
+- [Driftline Paper Atelier — Same-Agent E2E Feedback](2026-07-24-agent-feedback-wpfui-store-beta97-codex-e2e.md)
 - [Material Extension Pack Store beta.98 Codex E2E](2026-07-24-agent-feedback-material-store-beta98-rerun-codex-e2e.md)
 - [WPF UI Store beta.98 Codex E2E](2026-07-24-agent-feedback-wpfui-store-beta98-rerun-codex-e2e.md)
+- [Building Afterlight with WPF DevTools MCP beta.92](2026-07-19-agent-feedback-wpfui-store-beta92-codex-e2e.md)
+- [Building Night Orchard Exchange with WPF DevTools MCP v1.0.0-beta.87](2026-07-18-agent-feedback-wpfui-store-beta87-codex-e2e.md)
 - [MaterialDesign pack beta.86 Codex E2E](2026-07-18-agent-feedback-materialdesign-pack-beta86-codex-e2e.md)
 - [UI Composer beta.75 Codex E2E](2026-07-17-agent-feedback-composer-beta75-codex-e2e.md)
 - [UI Composer beta.72 Codex E2E](2026-07-16-agent-feedback-composer-beta72-codex-e2e.md)

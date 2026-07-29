@@ -354,8 +354,10 @@ public sealed partial class SandboxCiScriptContractTests
     private static void AddDescendantProcessIds(
         int processId,
         IReadOnlyDictionary<int, int[]> childrenByParent,
-        List<int> processIds)
+        List<int> processIds,
+        HashSet<int>? visited = null)
     {
+        visited ??= [processId];
         if (!childrenByParent.TryGetValue(processId, out var children))
         {
             return;
@@ -363,7 +365,12 @@ public sealed partial class SandboxCiScriptContractTests
 
         foreach (var child in children)
         {
-            AddDescendantProcessIds(child, childrenByParent, processIds);
+            if (!visited.Add(child))
+            {
+                continue;
+            }
+
+            AddDescendantProcessIds(child, childrenByParent, processIds, visited);
             processIds.Add(child);
         }
     }

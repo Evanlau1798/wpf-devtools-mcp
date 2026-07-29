@@ -283,7 +283,7 @@ public sealed class ComposerRendererSafetyTests
             {"schemaVersion":"wpfdevtools.pack-install-manifest.v1","id":"safety","version":"1.0.0","scope":"project-local","path":".","enabled":true}
             """);
         var manifest = """
-            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"safety","displayName":"Safety Pack","version":"1.0.0","blocks":["safety.demo"],"recipes":[],"xmlNamespaces":XML_NAMESPACES,"resourceSetup":{"applicationMergedDictionaries":["pack://application:,,,/Safe;component/Safe.xaml"]}}
+            {"schemaVersion":"wpfdevtools.ui-pack.v1","id":"safety","displayName":"Safety Pack","version":"1.0.0","blocks":["safety.demo"],"recipes":[],"xmlNamespaces":XML_NAMESPACES}
             """.Replace("XML_NAMESPACES", xmlNamespacesJson, StringComparison.Ordinal);
         File.WriteAllText(Path.Combine(packRoot, "pack.json"), manifest);
         File.WriteAllText(Path.Combine(packRoot, "source.lock.json"), """

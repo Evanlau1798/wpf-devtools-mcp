@@ -68,6 +68,7 @@ internal static class ComposerPackLoader
 
         ValidatePathContract(root, manifest);
         PackResourceVariantResolver.Validate(manifest);
+        ValidateRuntimePackageClosure(manifest);
 
         var blocks = LoadDocuments<UiBlockDefinition>(
             Path.Combine(root, "blocks"),
@@ -99,6 +100,20 @@ internal static class ComposerPackLoader
             : [];
 
         return new ComposerPack(manifest, sourceLock, blocks, recipes, examples, rendererTemplates);
+    }
+
+    private static void ValidateRuntimePackageClosure(UiPackManifest manifest)
+    {
+        var resources = manifest.ResourceSetup.ApplicationMergedDictionaries
+            .Concat(manifest.ResourceSetup.Variants.Values.SelectMany(variant => variant.ApplicationMergedDictionaries));
+        if (manifest.NugetPackages.Length == 0
+            && resources.Any(resource =>
+                resource.StartsWith("pack://application:,,,/", StringComparison.OrdinalIgnoreCase)
+                && resource.Contains(";component/", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidDataException(
+                $"MissingRuntimePackageClosure: pack '{manifest.Id}' references external application resources but declares no nugetPackages.");
+        }
     }
 
     private static void ValidateBlockContracts(

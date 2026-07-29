@@ -2,6 +2,8 @@
 
 Reviewed agent feedback reports retained for public documentation.
 
+- [WPF UI Store beta.114 sol-medium Codex E2E](2026-07-29-agent-feedback-wpfui-store-beta114-sol-medium-codex-e2e.md)
+- [Material Extension Pack Store beta.114 sol-medium Codex E2E](2026-07-29-agent-feedback-material-store-beta114-codex-e2e.md)
 - [Material Extension Pack Store beta.98 Codex E2E](2026-07-24-agent-feedback-material-store-beta98-rerun-codex-e2e.md)
 - [WPF UI Store beta.98 Codex E2E](2026-07-24-agent-feedback-wpfui-store-beta98-rerun-codex-e2e.md)
 - [MaterialDesign pack beta.86 Codex E2E](2026-07-18-agent-feedback-materialdesign-pack-beta86-codex-e2e.md)

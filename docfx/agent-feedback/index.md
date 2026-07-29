@@ -2,6 +2,7 @@
 
 Reviewed agent feedback reports retained for public documentation.
 
+- [AdonisUI style pack beta.116 sol-medium Codex E2E](2026-07-30-agent-feedback-adonis-ui-style-beta116-sol-medium-codex-e2e.md)
 - [Flow Launcher style pack beta.114 terra-high Codex E2E](2026-07-30-agent-feedback-flow-launcher-style-beta114-terra-high-codex-e2e.md)
 - [NETworkManager style pack beta.114 terra-high Codex E2E](2026-07-30-agent-feedback-networkmanager-style-beta114-terra-high-codex-e2e.md)
 

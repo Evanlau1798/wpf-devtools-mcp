@@ -2,6 +2,8 @@
 
 經審查後保留於公開文件的 Agent 回饋報告。
 
+- [NETworkManager style pack beta.116 sol-medium Codex 端對端測試](2026-07-30-agent-feedback-networkmanager-beta116-sol-medium-codex-e2e.md)
+- [Flow Launcher style pack beta.116 sol-medium Codex 端對端測試](2026-07-30-agent-feedback-flow-launcher-beta116-sol-medium-codex-e2e.md)
 - [AdonisUI style pack beta.116 sol-medium Codex 端對端測試](2026-07-30-agent-feedback-adonis-ui-style-beta116-sol-medium-codex-e2e.md)
 - [Flow Launcher style pack beta.114 terra-high Codex 端對端測試](2026-07-30-agent-feedback-flow-launcher-style-beta114-terra-high-codex-e2e.md)
 - [NETworkManager style pack beta.114 terra-high Codex 端對端測試](2026-07-30-agent-feedback-networkmanager-style-beta114-terra-high-codex-e2e.md)

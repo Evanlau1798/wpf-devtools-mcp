@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "mode",
+    "qualityAxes",
+    "referenceAxes",
+    "defects",
+    "summary"
+  ],
+  "properties": {
+    "mode": {
+      "type": "string",
+      "enum": [
+        "reference",
+        "standalone"
+      ]
+    },
+    "qualityAxes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "layoutBalance",
+        "visualHierarchy",
+        "readabilityContrast",
+        "controlStateCoherence",
+        "visualPolish"
+      ],
+      "properties": {
+        "layoutBalance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "visualHierarchy": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "readabilityContrast": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "controlStateCoherence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "visualPolish": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        }
+      }
+    },
+    "referenceAxes": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "regionGeometry",
+            "densityRhythm",
+            "navigationBrowseRhythm",
+            "mediaCardComposition"
+          ],
+          "properties": {
+            "regionGeometry": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "densityRhythm": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "navigationBrowseRhythm": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "mediaCardComposition": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "defects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "severity",
+          "category",
+          "evidence",
+          "bounds"
+        ],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "blocking",
+              "material",
+              "minor"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1
+          },
+          "bounds": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "x",
+              "y",
+              "width",
+              "height"
+            ],
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "y": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "width": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1
+              },
+              "height": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

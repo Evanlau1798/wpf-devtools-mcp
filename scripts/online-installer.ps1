@@ -27,6 +27,7 @@ param(
     [switch]$NonInteractive,
     [switch]$Force,
     [switch]$OutputJson,
+    [Alias('?')]
     [switch]$Help
 )
 
@@ -65,7 +66,7 @@ Common options:
   -NonInteractive        Do not prompt for input.
   -Force                 Allow overwrite when the selected action supports it.
   -OutputJson            Print machine-readable JSON for action results.
-  -Help                  Print this help text without installing or modifying state.
+  -Help, -?              Print this help text without installing or modifying state.
 '@ | Write-Output
 }
 

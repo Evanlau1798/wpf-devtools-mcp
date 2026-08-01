@@ -279,7 +279,7 @@ internal static class UiComposerMcpToolDescriptions
         - startHost defaults false; true loads the preview host.
         - includeRuntimeDiagnostics defaults false; true needs startHost and sensitive reads.
         - compactRuntimeDiagnostics is compact by default: XAML and risk-free correlations become counts; failures, risky correlations, and screenshot resource handles remain. False returns full payloads.
-        - correlationLookupLimit caps visual-tree exact-name queries at 32 (max 64). Unique unsearched namescope targets still receive clipping inspection; raise only when layoutRiskSummary reports lookup-budget.
+        - correlationLookupLimit checks authored elementName and renderer-provided root x:Name at 32 (max 64); namescope-only targets still get clipping checks. Raise only for lookup-budget.
         - Screenshots require startHost, sensitive-read, and screenshot gates.
         - Use screenshotOutputMode="file" for pixel evidence. Preview pixels do not approve final styling.
         - viewportWidth and viewportHeight set preview Window.Width and Window.Height in DIPs; match the target Window dimensions to expose overflow before apply. Screenshot bounds only resize returned pixels.

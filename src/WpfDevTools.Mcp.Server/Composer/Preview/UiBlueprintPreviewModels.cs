@@ -39,7 +39,8 @@ internal sealed record PreviewBlueprintResult(
         new("windowChrome", "Preview uses the available runtime-backed or structural window representation.", "The final app adds project and operating-system integration.", "Confirm window chrome in the final applied app."),
         new("icons", "Preview shows package icons only where runtime dependencies are approved; stub-backed areas are structural.", "The final app uses the declared integration plan.", "Confirm every required icon in the final applied app."),
         new("controlTemplates", "Preview loads approved package templates and resources; stub-backed areas do not prove final styling.", "The final app uses the declared integration plan.", "Confirm control styling and states in the final applied app."),
-        new("layoutAndSpacing", "Preview measures runtime-backed controls and structural stubs in an isolated host.", "The final app may add project-level layout context.", "Confirm layout, clipping, and spacing in the final applied app.")
+        new("layoutAndSpacing", "Preview measures runtime-backed controls and structural stubs in an isolated host.", "The final app may add project-level layout context.", "Confirm layout, clipping, and spacing in the final applied app."),
+        new("contentDensity", "Preview exposes the visible content extent inside repeated surfaces.", "The final app may measure package controls and project resources differently.", "Confirm repeated cards and tiles have no unexplained blank bands, and partial viewport items do not clip text or actions in the final app.")
     ];
     private static readonly PreviewVisualComparison[] UnavailableVisualComparisonItems =
         VisualComparisonItems.Select(item => item with

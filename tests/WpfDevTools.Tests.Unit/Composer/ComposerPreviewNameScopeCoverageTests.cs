@@ -62,7 +62,7 @@ public sealed class ComposerPreviewNameScopeCoverageTests
     }
 
     [Fact]
-    public void Analyze_ShouldPreserveLookupBudgetWhenNamescopeContainsUnsearchedTarget()
+    public void Analyze_ShouldCompleteCoverageWithInspectedNamescopeTargetBeyondLookupBudget()
     {
         var correlations = new[]
         {
@@ -86,22 +86,21 @@ public sealed class ComposerPreviewNameScopeCoverageTests
             }),
             Diagnostic("get_clipping_info", new
             {
-                results = new[] { new { success = true, elementId = "Element_Alpha", isClipped = false } }
-            }) with { TargetElementIds = ["Element_Alpha"] }
+                results = new[]
+                {
+                    new { success = true, elementId = "Element_Alpha", isClipped = false },
+                    new { success = true, elementId = "Element_Zeta", isClipped = false }
+                }
+            }) with { TargetElementIds = ["Element_Alpha", "Element_Zeta"] }
         };
 
         var summary = PreviewLayoutRiskAnalyzer.Analyze(diagnostics, correlations, correlationLookupLimit: 1);
 
-        summary.ResolvedTargetCount.Should().Be(1);
+        summary.ResolvedTargetCount.Should().Be(2);
+        summary.InspectedTargetCount.Should().Be(2);
+        summary.InspectionTruncated.Should().BeFalse();
+        summary.UnresolvedCorrelationCount.Should().Be(0);
         summary.NamescopeOnlyCorrelationCount.Should().Be(0);
-        summary.InspectionTruncated.Should().BeTrue();
-        summary.UnresolvedCorrelations.Should().ContainSingle().Which.Should().BeEquivalentTo(new
-        {
-            JsonPath = "$.layout.slots.items[1]",
-            BlockKind = "sample.item",
-            ElementName = "ZetaTarget",
-            Reason = "lookup-budget"
-        });
     }
 
     [Theory]
@@ -129,6 +128,32 @@ public sealed class ComposerPreviewNameScopeCoverageTests
         summary.NamescopeOnlyCorrelationCount.Should().Be(0);
         summary.InspectionTruncated.Should().BeTrue();
         summary.UnresolvedCorrelations.Should().ContainSingle().Which.Reason.Should().Be("search-incomplete");
+    }
+
+    [Fact]
+    public void BuildClippingTargetIds_ShouldIncludeCorrelatedNamescopeElementsBeyondSearchBudget()
+    {
+        var diagnostics = new[]
+        {
+            Diagnostic("find_elements", new
+            {
+                results = new[] { new { elementId = "Element_1", elementName = "Target01" } }
+            }),
+            Diagnostic("get_namescope", new
+            {
+                namedElements = new[]
+                {
+                    new { elementId = "Element_1", name = "Target01" },
+                    new { elementId = "Element_2", name = "Target02" }
+                }
+            })
+        };
+
+        var targets = UiBlueprintPreviewDiagnosticsBridge.BuildClippingTargetIds(
+            diagnostics,
+            new HashSet<string>(["Target01", "Target02"], StringComparer.Ordinal));
+
+        targets.Should().Equal("Element_1", "Element_2");
     }
 
     private static PreviewRuntimeDiagnostic Diagnostic(string tool, object payload, bool success = true)

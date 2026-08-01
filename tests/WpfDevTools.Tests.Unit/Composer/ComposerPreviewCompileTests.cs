@@ -124,7 +124,7 @@ public sealed partial class ComposerPreviewCompileTests
             .EnumerateArray()
             .ToArray();
         visualComparisonChecklist.Select(item => item.GetProperty("area").GetString()).Should()
-            .Equal("windowChrome", "icons", "controlTemplates", "layoutAndSpacing");
+            .Equal("windowChrome", "icons", "controlTemplates", "layoutAndSpacing", "contentDensity");
         foreach (var item in visualComparisonChecklist)
         {
             item.GetProperty("preview").GetString().Should().NotBeNullOrWhiteSpace();

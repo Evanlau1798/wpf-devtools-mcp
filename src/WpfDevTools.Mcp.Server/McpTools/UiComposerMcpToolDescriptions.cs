@@ -267,7 +267,7 @@ internal static class UiComposerMcpToolDescriptions
         - visualFidelity is resource-backed, hybrid-resource-backed, structural, or not-available; verify the applied, built, and launched app.
         - Project/user packs stay structural until an operator approves them. runtimePackApprovalReviews returns, when eligible, a content-bound approval token. With WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true, retry once via runtimePackApprovalTokens; WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS is the server-start option. Packages need exact [version], SHA-512 contentHash, and a preview-local NuGet cache hash-checked before build.
         - screenshotVerificationGuidance: re-read the resource and verify SHA-256 before replacing a sparse, semantically complete preview.
-        - visualComparisonChecklist: final window chrome, icons, control templates, layout and spacing checks.
+        - visualComparisonChecklist: final window chrome, icons, control templates, layout and spacing, content density, and partial-item clipping checks.
         - propertyWarnings: supplied-property guidance with exact blueprint JSON path, block kind, property name, and message.
         - elementCorrelations maps transient x:Name to jsonPath/blockKind; never written into the blueprint or render/apply output.
         - layoutRiskSummary maps Window client clipping to jsonPath/blockKind. Reasons: ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-realized, search-incomplete. runtime-not-realized means valid XAML is absent; requiresActiveStateInspection=true directs inspection in the applied, built final app after activation. Complete get_namescope hits absent from visual search are namescope-only and counted by namescopeOnlyCorrelationCount; inactive or lazy content alone does not set inspectionTruncated. RuntimeStructuralOverflowRisk means structural-overflow; RuntimeClippingDetected means riskClassification=clipping. advisory with visibleContentImpact=not-determined and requiresVisualConfirmation=true means confirm pixels.
@@ -279,7 +279,7 @@ internal static class UiComposerMcpToolDescriptions
         - startHost defaults false; true loads the preview host.
         - includeRuntimeDiagnostics defaults false; true needs startHost and sensitive reads.
         - compactRuntimeDiagnostics is compact by default: XAML and risk-free correlations become counts; failures, risky correlations, and screenshot resource handles remain. False returns full payloads.
-        - correlationLookupLimit caps authored elementName and renderer-provided root x:Name queries at 32 (max 64); raise only for lookup-budget.
+        - correlationLookupLimit caps visual-tree exact-name queries at 32 (max 64). Unique unsearched namescope targets still receive clipping inspection; raise only when layoutRiskSummary reports lookup-budget.
         - Screenshots require startHost, sensitive-read, and screenshot gates.
         - Use screenshotOutputMode="file" for pixel evidence. Preview pixels do not approve final styling.
         - viewportWidth and viewportHeight set preview Window.Width and Window.Height in DIPs; match the target Window dimensions to expose overflow before apply. Screenshot bounds only resize returned pixels.

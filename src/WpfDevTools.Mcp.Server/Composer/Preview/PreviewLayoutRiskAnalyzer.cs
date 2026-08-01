@@ -23,12 +23,6 @@ internal static class PreviewLayoutRiskAnalyzer
             .Select(group => group.Key)
             .ToHashSet(StringComparer.Ordinal);
         var correlatedTargetCount = correlatedElementNames.Count;
-        var exactNameLookupTruncated = correlations
-            .Select(item => item.ElementName)
-            .Where(name => !name.StartsWith("WpfDevToolsBp_", StringComparison.Ordinal))
-            .Distinct(StringComparer.Ordinal)
-            .Skip(correlationLookupLimit)
-            .Any();
         var lookupPlan = UiBlueprintPreviewDiagnosticsBridge.BuildCorrelationLookupPlan(correlations, correlationLookupLimit);
         var searchedElementNames = correlatedElementNames
             .Where(name => lookupPlan.Any(lookup => MatchesLookup(name, lookup)))
@@ -43,7 +37,19 @@ internal static class PreviewLayoutRiskAnalyzer
             .Select(group => group.Single())
             .Where(item => !ambiguousCorrelationNames.Contains(item.ElementName))
             .ToArray();
-        var namescopeOnlyTargets = ReadNamescopeMatches(diagnostics, correlatedElementNames)
+        var namescopeMatches = ReadNamescopeMatches(diagnostics, correlatedElementNames).ToArray();
+        var namescopeFallbackTargets = namescopeMatches
+            .Where(item => !runtimeMatchCounts.ContainsKey(item.ElementName))
+            .Where(item => !searchedElementNames.Contains(item.ElementName))
+            .GroupBy(item => item.ElementName, StringComparer.Ordinal)
+            .Where(group => group.Count() == 1)
+            .Select(group => group.Single())
+            .Where(item => !ambiguousCorrelationNames.Contains(item.ElementName))
+            .ToArray();
+        var inspectableTargets = resolvedVisualTargets
+            .Concat(namescopeFallbackTargets)
+            .ToArray();
+        var namescopeOnlyTargets = namescopeMatches
             .Where(item => !runtimeMatchCounts.ContainsKey(item.ElementName))
             .Where(item => searchedElementNames.Contains(item.ElementName)
                            && HasCompletedLookup(item.ElementName, diagnostics))
@@ -52,13 +58,13 @@ internal static class PreviewLayoutRiskAnalyzer
             .Select(group => group.Single())
             .Where(item => !ambiguousCorrelationNames.Contains(item.ElementName))
             .ToArray();
-        var resolvedTargets = resolvedVisualTargets
+        var resolvedTargets = inspectableTargets
             .Concat(namescopeOnlyTargets)
             .ToArray();
         var resolvedElementIds = resolvedTargets
             .Select(item => item.ElementId)
             .ToHashSet(StringComparer.Ordinal);
-        var inspectableElementIds = resolvedVisualTargets
+        var inspectableElementIds = inspectableTargets
             .Select(item => item.ElementId)
             .ToHashSet(StringComparer.Ordinal);
         var resolvedCorrelationNames = resolvedTargets
@@ -106,7 +112,7 @@ internal static class PreviewLayoutRiskAnalyzer
         var inspectedTargetCount = inspectedElementIds
             .Intersect(inspectableElementIds, StringComparer.Ordinal)
             .Count();
-        var uninspectedCorrelations = resolvedVisualTargets
+        var uninspectedCorrelations = inspectableTargets
             .DistinctBy(item => (item.ElementId, item.ElementName))
             .Where(item => !ambiguousCorrelationNames.Contains(item.ElementName))
             .Where(item => !inspectedElementIds.Contains(item.ElementId))
@@ -149,8 +155,7 @@ internal static class PreviewLayoutRiskAnalyzer
             CorrelatedTargetCount = correlatedTargetCount,
             ResolvedTargetCount = resolvedElementIds.Count,
             InspectedTargetCount = inspectedTargetCount,
-            InspectionTruncated = exactNameLookupTruncated
-                                  || hasIncompleteSearch
+            InspectionTruncated = hasIncompleteSearch
                                   || unresolvedCorrelations.Length > 0
                                   || inspectedTargetCount < inspectableElementIds.Count,
             UnresolvedCorrelationCount = unresolvedCorrelations.Length,
@@ -277,15 +282,26 @@ internal static class PreviewLayoutRiskAnalyzer
 
     private static Dictionary<string, string> BuildElementNameMap(
         IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics)
-        => diagnostics
-            .Where(diagnostic => diagnostic.Tool == "find_elements" && diagnostic.Success)
-            .SelectMany(diagnostic => ReadArray(diagnostic.Payload, "results"))
-            .Where(result => TryReadString(result, "elementId", out _)
-                             && TryReadString(result, "elementName", out _))
-            .GroupBy(result => result.GetProperty("elementId").GetString()!, StringComparer.Ordinal)
+        => diagnostics.SelectMany(diagnostic => diagnostic.Tool switch
+            {
+                "find_elements" when diagnostic.Success => ReadArray(diagnostic.Payload, "results")
+                    .Where(result => TryReadString(result, "elementId", out _)
+                                     && TryReadString(result, "elementName", out _))
+                    .Select(result => (
+                        ElementId: result.GetProperty("elementId").GetString()!,
+                        ElementName: result.GetProperty("elementName").GetString()!)),
+                "get_namescope" when diagnostic.Success => ReadArray(diagnostic.Payload, "namedElements")
+                    .Where(result => TryReadString(result, "elementId", out _)
+                                     && TryReadString(result, "name", out _))
+                    .Select(result => (
+                        ElementId: result.GetProperty("elementId").GetString()!,
+                        ElementName: result.GetProperty("name").GetString()!)),
+                _ => []
+            })
+            .GroupBy(result => result.ElementId, StringComparer.Ordinal)
             .ToDictionary(
                 group => group.Key,
-                group => group.First().GetProperty("elementName").GetString()!,
+                group => group.First().ElementName,
                 StringComparer.Ordinal);
 
     private static IEnumerable<(JsonElement Result, string? ElementId)> ReadClippingResults(

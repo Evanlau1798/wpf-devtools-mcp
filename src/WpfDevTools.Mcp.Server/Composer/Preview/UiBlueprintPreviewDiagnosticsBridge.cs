@@ -167,13 +167,11 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
         IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics,
         IReadOnlySet<string>? correlatedElementNames = null)
         => diagnostics
-            .Where(diagnostic => diagnostic.Tool == "find_elements" && diagnostic.Success)
-            .SelectMany(diagnostic => ReadSearchResults(diagnostic.Payload))
+            .Where(diagnostic => diagnostic.Success)
+            .SelectMany(ReadClippingTargetCandidates)
             .Where(result => correlatedElementNames is null
-                             || result.TryGetProperty("elementName", out var elementName)
-                             && elementName.ValueKind == JsonValueKind.String
-                             && correlatedElementNames.Contains(elementName.GetString()!))
-            .Select(result => result.GetProperty("elementId").GetString())
+                             || correlatedElementNames.Contains(result.ElementName))
+            .Select(result => result.ElementId)
             .Where(elementId => !string.IsNullOrWhiteSpace(elementId))
             .Select(elementId => elementId!)
             .Distinct(StringComparer.Ordinal)
@@ -194,6 +192,33 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                 result.ValueKind == JsonValueKind.Object
                 && result.TryGetProperty("elementId", out var elementId)
                 && elementId.ValueKind == JsonValueKind.String)
+            : [];
+
+    private static IEnumerable<(string? ElementId, string ElementName)> ReadClippingTargetCandidates(
+        PreviewRuntimeDiagnostic diagnostic)
+        => diagnostic.Tool switch
+        {
+            "find_elements" => ReadSearchResults(diagnostic.Payload)
+                .Where(result => result.TryGetProperty("elementName", out var name)
+                                 && name.ValueKind == JsonValueKind.String)
+                .Select(result => (result.GetProperty("elementId").GetString(),
+                    result.GetProperty("elementName").GetString()!)),
+            "get_namescope" => ReadNamedElements(diagnostic.Payload)
+                .Select(result => (result.GetProperty("elementId").GetString(),
+                    result.GetProperty("name").GetString()!)),
+            _ => []
+        };
+
+    private static IEnumerable<JsonElement> ReadNamedElements(JsonElement payload)
+        => payload.ValueKind == JsonValueKind.Object
+           && payload.TryGetProperty("namedElements", out var elements)
+           && elements.ValueKind == JsonValueKind.Array
+            ? elements.EnumerateArray().Where(result =>
+                result.ValueKind == JsonValueKind.Object
+                && result.TryGetProperty("elementId", out var elementId)
+                && elementId.ValueKind == JsonValueKind.String
+                && result.TryGetProperty("name", out var name)
+                && name.ValueKind == JsonValueKind.String)
             : [];
 
     private static string? GetRegisteredFileScreenshotId(

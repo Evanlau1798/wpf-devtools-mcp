@@ -21,14 +21,13 @@ internal static class StateMcpToolDescriptions
         "- \"propertyNames / viewModelPropertyNames / includeFocus required\" -> choose at least one capture dimension\n\n";
 
     public const string RestoreStateSnapshot =
-        "Use this tool to restore a WPF runtime state snapshot after temporary debugging changes.\n\n" +
-        StateMetadata + "Restore a previously captured in-memory runtime snapshot.\n\n" +
+        StateMetadata + "Restore a captured in-memory runtime snapshot.\n\n" +
         "USE WHEN: Rolling back temporary DependencyProperty, ViewModel, or focus changes in the same session.\n" +
         "DO NOT USE: Across disconnected sessions, application restarts, or after the in-memory snapshot has expired.\n" +
-        "RETENTION: Snapshots are kept for at most 30 minutes and the oldest snapshots are evicted when a process retains more than 20.\n\n" +
+        "RETENTION: 30 minutes; 20 snapshots per process.\n\n" +
         "MINIMAL ROLLBACK CHAIN: capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot. restore_state_snapshot requires the explicit snapshotId returned by capture_state_snapshot or batch_mutate.\n\n" +
-        "EXPRESSION ROLLBACK: Binding-backed DependencyProperty expressions captured in the same session can be restored. When a two-way source property also needs to return to its baseline value, capture that ViewModel property in the same snapshot. Non-Binding expressions are still surfaced through skippedDependencyProperties with explicit reasons.\n" +
-        "READ-ONLY DP: Values such as ScrollViewer offsets cannot be replayed with SetValue and are reported as skipped; restore position with scroll_to_element or app-native navigation, then verify the live value.\n" +
+        "EXPRESSION ROLLBACK: Binding expressions can be restored. For two-way bindings, also capture the source ViewModel property. Other expressions appear in skippedDependencyProperties.\n" +
+        "READ-ONLY DP: ScrollViewer offsets are skipped; recover with scroll_to_element or app navigation, then verify.\n" +
         "VIEWMODEL LIMITS: Complex reference ViewModel properties may be skipped when object identity cannot be reconstructed from the captured value; skipped entries include restoreDisposition, reason, verification fields, and follow-up guidance for re-reading or recapturing the property.\n\n" +
         "RESPONSE SUMMARY:\n" +
         "  - success: boolean,\n" +

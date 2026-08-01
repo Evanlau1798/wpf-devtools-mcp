@@ -41,4 +41,13 @@ public sealed class StateSnapshotRestoreGuidanceTests
         description.Should().Contain("get_dp_value_source");
         description.Should().Contain("get_bindings");
     }
+
+    [Fact]
+    public void RestoreStateSnapshotDescription_ShouldExplainReadOnlyScrollRecovery()
+    {
+        var description = StateMcpToolDescriptions.RestoreStateSnapshot;
+
+        description.Should().ContainEquivalentOf("read-only");
+        description.Should().Contain("scroll_to_element");
+    }
 }

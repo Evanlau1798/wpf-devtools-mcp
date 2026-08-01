@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "wpfdevtools.capability-checklist.v1",
+  "packId": "wpfui",
+  "capabilities": [
+    {"id":"layout","disposition":"delegated","blockKinds":["core.stack","core.grid"],"evidence":["Composer core@0.1.0 supplies native WPF layout primitives used by WPF UI recipes and composite blocks."]},
+    {"id":"text","disposition":"provided","blockKinds":["wpfui.textBlock"],"evidence":["WPF UI TextBlock exposes theme-aware appearance, wrapping, alignment, size, and weight."]},
+    {"id":"image-media","disposition":"provided","blockKinds":["wpfui.editorialCard"],"evidence":["EditorialCard provides a wide source-backed media composition; narrow and standalone images can be composed with the core layout pack."]},
+    {"id":"icon","disposition":"provided","blockKinds":["wpfui.symbolIcon"],"evidence":["SymbolIcon uses the source-backed WPF UI SymbolRegular vocabulary."]},
+    {"id":"action","disposition":"provided","blockKinds":["wpfui.button"],"evidence":["WPF UI Button exposes content, appearance, command, alignment, and icon composition."]},
+    {"id":"content-surface","disposition":"provided","blockKinds":["wpfui.card","wpfui.editorialCard"],"evidence":["Card supplies a theme-aware generic surface; EditorialCard supplies a source-backed wide media surface."]},
+    {"id":"navigation","disposition":"provided","blockKinds":["wpfui.navigationView","wpfui.navigationViewItem","wpfui.tabView","wpfui.tabViewItem"],"evidence":["NavigationView and TabView expose source-backed item and content relationships."]},
+    {"id":"input","disposition":"provided","blockKinds":["wpfui.autoSuggestBox","wpfui.numberBox"],"evidence":["AutoSuggestBox and NumberBox provide direct text-search and numeric input surfaces."]},
+    {"id":"selection","disposition":"provided","blockKinds":["wpfui.toggleSwitch","wpfui.tabView"],"evidence":["ToggleSwitch exposes checked state and TabView exposes source-backed item selection."]},
+    {"id":"collection-data","disposition":"provided","blockKinds":["wpfui.dataGrid"],"evidence":["DataGrid exposes source-backed columns, items binding, and empty-state composition."]},
+    {"id":"feedback-status","disposition":"provided","blockKinds":["wpfui.textBlock","wpfui.progressBar","wpfui.progressRing"],"evidence":["Theme-aware text appearances and progress controls cover inline status and activity feedback without requiring a host service."]},
+    {"id":"progress","disposition":"provided","blockKinds":["wpfui.progressBar","wpfui.progressRing"],"evidence":["The pack provides both linear bounded progress and compact ring progress."]},
+    {"id":"overlay","disposition":"not-applicable","reason":"Directly composable controls cannot preserve the required host or presenter behavior.","blockKinds":[],"evidence":["WPF UI ContentDialog and Snackbar require host or presenter behavior and were excluded from the directly composable pack until a behavior-integration contract exists."]},
+    {"id":"accessibility","disposition":"provided","blockKinds":["wpfui.editorialCard","wpfui.autoSuggestBox","wpfui.button"],"evidence":["Media requires an accessible automation name and generated elements retain stable Composer element names and automation identifiers."]},
+    {"id":"stateful-interaction","disposition":"provided","blockKinds":["wpfui.toggleSwitch","wpfui.numberBox","wpfui.navigationView"],"evidence":["Typed checked, numeric, and navigation state properties remain observable and mutable through WPF runtime tools."]},
+    {"id":"theming-resources","disposition":"provided","blockKinds":["wpfui.fluentWindow","wpfui.card"],"evidence":["The pack pins WPF UI packages and loads ThemesDictionary followed by ControlsDictionary in declared order."]}
+  ]
+}

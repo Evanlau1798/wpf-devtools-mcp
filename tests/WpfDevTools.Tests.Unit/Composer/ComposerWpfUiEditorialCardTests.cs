@@ -16,8 +16,13 @@ public sealed class ComposerWpfUiEditorialCardTests
             .GetCatalog(new BlockCatalogQuery(Kind: "wpfui.editorialCard"))
             .Items.Single();
 
-        item.Description.Should().ContainEquivalentOf("image-capable");
-        item.AuthoringRoles.Should().Contain(["hero", "product-tile", "editorial-media"]);
+        item.Description.Should().ContainEquivalentOf("image-capable")
+            .And.ContainEquivalentOf("wide");
+        item.AuthoringRoles.Should().Contain(["hero", "editorial-media"])
+            .And.NotContain("product-tile");
+        item.Properties["maxWidth"].Description.Should()
+            .ContainEquivalentOf("mediaWidth")
+            .And.ContainEquivalentOf("320");
         item.Properties["mediaSource"].Description.Should()
             .ContainEquivalentOf("project-owned")
             .And.ContainEquivalentOf("media slot")
@@ -25,8 +30,8 @@ public sealed class ComposerWpfUiEditorialCardTests
             .And.Contain("/Assets/hero.png")
             .And.Contain("pack://application:,,,/");
         item.Properties["mediaSource"].PreviewWarning.Should()
-            .ContainEquivalentOf("isolated preview")
-            .And.ContainEquivalentOf("fallback")
+            .ContainEquivalentOf("projectRoot")
+            .And.ContainEquivalentOf("isolated preview")
             .And.ContainEquivalentOf("final built application");
         item.Properties["mediaSource"].Type.Should().Be("string");
         item.Properties["mediaAutomationName"].Required.Should().BeTrue();
@@ -78,7 +83,7 @@ public sealed class ComposerWpfUiEditorialCardTests
             """)));
 
         result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
-        result.Xaml.Should().Contain("<ui:Card Margin=\"12\"")
+        result.Xaml.Should().Contain("<ui:Card Margin=\"12\" MaxWidth=\"1000000\" MinHeight=\"300\" HorizontalContentAlignment=\"Stretch\"")
             .And.Contain("<ColumnDefinition Width=\"420\"")
             .And.Contain("<Image Source=\"{Binding HeroImage}\" Stretch=\"UniformToFill\"")
             .And.Contain("AutomationProperties.Name=\"Purple garden artwork\"")

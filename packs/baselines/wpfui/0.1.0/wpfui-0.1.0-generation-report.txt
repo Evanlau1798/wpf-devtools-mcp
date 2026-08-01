@@ -272,3 +272,28 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
 exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: E6950E16DC5E24CC65C7512CA8D60098C87A9CDA661B08CA53099ABECCCB5371
 ```
+
+## Editorial Width Contract Maintenance
+
+On 2026-08-02, public beta.119 E2E proved that the catalog's former
+`product-tile` authoring role encouraged a 210 DIP media column inside a 286
+DIP horizontal card, leaving unreadable text width. The block now describes
+only wide hero and editorial use, states the required 320 DIP text allowance,
+and directs narrow tiles to the existing `wpfui.card` plus vertical
+`core.stack` composition. The renderer also stretches its content grid. No
+Composer branch, store-specific logic, pack schema, or creator code changed.
+
+The same pass added the capability checklist now required by the creator's
+generic release-readiness gate. Project-owned image preview guidance was
+updated to match Composer's project-root resource parity.
+
+```text
+python <extension-creator-root>/scripts/validate_pack.py packs/builtin/wpfui/0.1.0 --strict --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.validation-report.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: ADA3638DC100714D897CB9F9987FC9CDD2A92CCBD801C3B891B3F0FFB11ED85B
+
+python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt --capability-checklist packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.capability-checklist.json <existing-required-block-slot-and-kind-gates> --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+```

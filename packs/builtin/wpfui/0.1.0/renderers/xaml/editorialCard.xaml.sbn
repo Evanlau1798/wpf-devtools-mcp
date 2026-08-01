@@ -1,4 +1,4 @@
-<ui:Card Margin="{{margin}}" MaxWidth="{{maxWidth}}" MinHeight="{{minHeight}}">
+<ui:Card Margin="{{margin}}" MaxWidth="{{maxWidth}}" MinHeight="{{minHeight}}" HorizontalContentAlignment="Stretch">
   <Grid>
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="{{mediaWidth}}" />

@@ -241,6 +241,15 @@
       "wpfui.titleBar.actions",
       "wpfui.titleBar.icon"
     ],
-    "missingRendererTemplates": []
+    "missingRendererTemplates": [],
+    "capabilityChecklist": {
+      "path": "packs\\baselines\\wpfui\\0.1.0\\reports\\wpfui-0.1.0.capability-checklist.json",
+      "dispositions": {
+        "delegated": 1,
+        "not-applicable": 1,
+        "provided": 14
+      },
+      "coveredCapabilityCount": 16
+    }
   }
 }

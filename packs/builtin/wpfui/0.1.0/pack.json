@@ -69,7 +69,7 @@
       },
       "Card": {
         "baseKind": "stackPanel",
-        "properties": { "Footer": "object" }
+        "properties": { "Footer": "object", "HorizontalContentAlignment": "string" }
       },
       "DataGrid": {
         "baseKind": "itemsControl",

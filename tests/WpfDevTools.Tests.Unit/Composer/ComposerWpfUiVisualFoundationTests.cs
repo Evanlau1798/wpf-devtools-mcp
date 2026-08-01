@@ -112,6 +112,23 @@ public sealed class ComposerWpfUiVisualFoundationTests
     }
 
     [Fact]
+    public void WpfUiFluentWindow_ShouldUseOverrideableSegoeUiTypographyFallback()
+    {
+        var defaultResult = Render("""{ "kind": "wpfui.fluentWindow" }""");
+        var overrideResult = Render("""
+            {
+              "kind": "wpfui.fluentWindow",
+              "properties": { "fontFamily": "Contoso Sans" }
+            }
+            """);
+
+        defaultResult.Success.Should().BeTrue(defaultResult.Errors.FirstOrDefault()?.Message);
+        defaultResult.Xaml.Should().Contain("FontFamily=\"Segoe UI Variable Text, Segoe UI\"");
+        overrideResult.Success.Should().BeTrue(overrideResult.Errors.FirstOrDefault()?.Message);
+        overrideResult.Xaml.Should().Contain("FontFamily=\"Contoso Sans\"");
+    }
+
+    [Fact]
     public void WpfUiRenderer_ShouldRenderPackDefinedInputAndProgressControls()
     {
         var result = Render("""

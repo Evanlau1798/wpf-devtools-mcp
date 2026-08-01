@@ -17,6 +17,11 @@
       "format": "thickness",
       "type": "string"
     },
+    "fontFamily": {
+      "description": "Font family inherited by window content. Override it when the product has its own typography.",
+      "default": "Segoe UI Variable Text, Segoe UI",
+      "type": "string"
+    },
     "height": {
       "description": "Initial height of the generated Fluent Window in device-independent pixels.",
       "default": 802,

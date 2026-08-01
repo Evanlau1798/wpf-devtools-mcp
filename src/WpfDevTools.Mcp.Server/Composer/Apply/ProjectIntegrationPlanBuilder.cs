@@ -170,7 +170,7 @@ internal static class ProjectIntegrationPlanBuilder
             errors);
     }
 
-    private static IReadOnlyList<string> ResolveProjectImageResources(
+    internal static IReadOnlyList<string> ResolveProjectImageResources(
         string projectRoot,
         string appliedXaml,
         List<ApplyBlueprintIssue> errors)

@@ -17,7 +17,8 @@ internal sealed record PreviewBlueprintRequest(
     int CorrelationLookupLimit = UiBlueprintPreviewDiagnosticsBridge.ExistingNameLookupLimit,
     int? ViewportWidth = null,
     int? ViewportHeight = null,
-    IReadOnlyList<string>? RuntimePackApprovalTokens = null)
+    IReadOnlyList<string>? RuntimePackApprovalTokens = null,
+    string? ProjectRoot = null)
 {
     public IReadOnlyList<RenderElementCorrelation> RuntimeElementCorrelations { get; init; } = [];
 }

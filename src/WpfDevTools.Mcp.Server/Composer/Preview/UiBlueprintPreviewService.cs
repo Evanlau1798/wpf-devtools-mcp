@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using WpfDevTools.Mcp.Server.Composer.Apply;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
@@ -53,6 +54,13 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
         }
 
         var propertyWarnings = CollectPropertyWarnings(request.BlueprintJson);
+        var imageResourceIssues = new List<ApplyBlueprintIssue>();
+        var imageResources = string.IsNullOrWhiteSpace(request.ProjectRoot)
+            ? []
+            : ProjectIntegrationPlanBuilder.ResolveProjectImageResources(
+                request.ProjectRoot,
+                render.Xaml,
+                imageResourceIssues);
 
         var previewContract = new UiPackPreviewContractGenerator(registry).Generate(
             request.BlueprintJson,
@@ -100,7 +108,9 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 previewContract.RuntimeNuGetPackages,
                 previewContract.RuntimeResources,
                 request.ViewportWidth,
-                request.ViewportHeight);
+                request.ViewportHeight,
+                request.ProjectRoot,
+                imageResources);
             cancellationToken.ThrowIfCancellationRequested();
             var restoreSucceeded = true;
             var cancelled = false;
@@ -153,6 +163,11 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                     render.SourceMap)
                 .Concat(previewContract.Advisories)
                 .Concat(packageDiagnostics)
+                .Concat(imageResourceIssues.Select(issue => new PreviewDiagnostic(
+                    issue.Code,
+                    issue.Message,
+                    issue.JsonPath,
+                    rendererTemplatePath)))
                 .Concat(CreateRequestDiagnostics(request, rendererTemplatePath))
                 .ToArray();
             if (buildSucceeded && request.StartHost)

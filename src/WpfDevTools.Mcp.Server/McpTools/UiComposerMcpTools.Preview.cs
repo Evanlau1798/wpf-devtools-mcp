@@ -121,7 +121,8 @@ public static partial class UiComposerMcpTools
                     CorrelationLookupLimit: resolvedCorrelationLookupLimit!.Value,
                     ViewportWidth: resolvedViewportWidth,
                     ViewportHeight: resolvedViewportHeight,
-                    RuntimePackApprovalTokens: runtimePackApprovalTokens ?? []),
+                    RuntimePackApprovalTokens: runtimePackApprovalTokens ?? [],
+                    ProjectRoot: projectRoot),
                 cancellationToken)
             .ConfigureAwait(false);
 

@@ -24,12 +24,14 @@ internal static class UiPreviewProjectFiles
         IReadOnlyList<PreviewRuntimeNuGetPackage>? requiredNuGetPackages = null,
         IReadOnlyList<string>? requiredResources = null,
         int? viewportWidth = null,
-        int? viewportHeight = null)
+        int? viewportHeight = null,
+        string? projectRoot = null,
+        IReadOnlyList<string>? projectImageResources = null)
     {
         var previewWindowClassName = "WpfDevToolsPreviewWindow_" + Guid.NewGuid().ToString("N");
         File.WriteAllText(
             Path.Combine(root, "PreviewHost.csproj"),
-            BuildProjectFile(includeRuntimeDiagnostics, requiredNuGetPackages ?? []),
+            BuildProjectFile(includeRuntimeDiagnostics, requiredNuGetPackages ?? [], projectImageResources ?? []),
             Encoding.UTF8);
         File.WriteAllText(
             Path.Combine(root, "App.xaml"),
@@ -59,6 +61,8 @@ internal static class UiPreviewProjectFiles
         {
             File.WriteAllText(Path.Combine(root, "PackPreviewStubs.cs"), previewContract.Source, Encoding.UTF8);
         }
+
+        PreviewProjectImageResources.Copy(projectRoot, root, projectImageResources ?? []);
     }
 
     private static string BuildAppCode()
@@ -71,7 +75,8 @@ internal static class UiPreviewProjectFiles
 
     private static string BuildProjectFile(
         bool includeRuntimeDiagnostics,
-        IReadOnlyList<PreviewRuntimeNuGetPackage> packages)
+        IReadOnlyList<PreviewRuntimeNuGetPackage> packages,
+        IReadOnlyList<string> projectImageResources)
         => $$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
@@ -86,8 +91,17 @@ internal static class UiPreviewProjectFiles
               </PropertyGroup>
             {{BuildPackageReferenceItemGroup(packages)}}
             {{BuildInspectorSdkReferenceItemGroup(includeRuntimeDiagnostics)}}
+            {{BuildProjectResourceItemGroup(projectImageResources)}}
             </Project>
             """;
+
+    private static string BuildProjectResourceItemGroup(IReadOnlyList<string> resources)
+        => resources.Count == 0
+            ? string.Empty
+            : "  <ItemGroup>" + Environment.NewLine
+              + string.Join(Environment.NewLine, resources.Select(path =>
+                  $"    <Resource Include=\"{EscapeXml(path)}\" />"))
+              + Environment.NewLine + "  </ItemGroup>";
 
     private static string BuildPackageReferenceItemGroup(IReadOnlyList<PreviewRuntimeNuGetPackage> packages)
         => packages.Count == 0

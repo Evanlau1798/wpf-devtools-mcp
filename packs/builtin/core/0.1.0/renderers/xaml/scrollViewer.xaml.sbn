@@ -1,0 +1,1 @@
+<ScrollViewer HorizontalScrollBarVisibility="{{horizontalScrollBarVisibility}}" VerticalScrollBarVisibility="{{verticalScrollBarVisibility}}" CanContentScroll="{{canContentScroll}}" Padding="{{padding}}" Margin="{{margin}}">{{slot.content}}</ScrollViewer>

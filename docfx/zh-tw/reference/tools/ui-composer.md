@@ -20,7 +20,8 @@ Composer 目前支援下列 v1 contracts；`schemaVersion` 缺失或不同時會
 
 ## 資料驅動的視覺基礎
 
-- Native WPF layout 與 media 由明確的 `core@0.1.0` pack 提供，並使用 `role="layout-pack"`。請使用 `core.stack`、`core.grid`、`core.rowDefinition`、`core.columnDefinition`、`core.gridCell`、`core.border`、`core.image`、`core.text` 與 `core.template` 等 qualified kinds。
+- Native WPF layout 與 media 由明確的 `core@0.1.0` pack 提供，並使用 `role="layout-pack"`。請使用 `core.stack`、`core.grid`、`core.rowDefinition`、`core.columnDefinition`、`core.gridCell`、`core.scrollViewer`、`core.border`、`core.image`、`core.text` 與 `core.template` 等 qualified kinds。
+- `core.scrollViewer` 可承載一個通用 child，並分別設定 WPF 水平與垂直 scrollbar policy。需要實際捲動時，請把它放在有界的 grid row 或 column，並透過 MCP 驗證最終 runtime offset 或可見項目確實改變，不要只從靜態截圖推測。
 - `core.image` 透過 application-local pack URI 或 simple binding 顯示專案擁有的圖片。使用 literal file 時請先建立檔案；經審查的 `projectIntegrationPlan` 與 `apply_ui_project_integration` 流程會把它宣告為 WPF Resource。此 block 要求可存取性的 automation name，並拒絕外部、檔案系統、UNC 與 traversal URI。
 - `core.grid` 支援真實 rows、columns、grid cells、spanning、alignment 與 WPF `gridLength`。Layout 行為來自 pack data，不是 engine primitive 或 WPF UI 特例。
 - Built-in WPF UI visual set 包含 `wpfui.autoSuggestBox`、`wpfui.numberBox`、`wpfui.toggleSwitch`、`wpfui.progressBar`、`wpfui.progressRing`，也提供可設定的 typography、margin、padding、alignment、width 與 window content constraints。Title bar actions 可放入搜尋框或按鈕。對於有界進度、階段流程或並列比較，請使用線性的 `progressBar`；若只需在緊湊空間表示持續活動，不需要長軌道，則使用 `progressRing`。

@@ -19,6 +19,7 @@
     "core.rowDefinition",
     "core.columnDefinition",
     "core.gridCell",
+    "core.scrollViewer",
     "core.image",
     "core.border",
     "core.text",

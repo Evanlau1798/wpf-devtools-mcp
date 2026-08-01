@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "wpfdevtools.ui-block.v1",
+  "kind": "core.scrollViewer",
+  "displayName": "Scroll Viewer",
+  "description": "Hosts one child in a native WPF viewport with independently configurable horizontal and vertical scrolling.",
+  "category": "layout",
+  "properties": {
+    "horizontalScrollBarVisibility": {
+      "type": "string",
+      "description": "Horizontal scrolling policy. Auto exposes scrolling only when content exceeds the viewport.",
+      "default": "Auto",
+      "enum": ["Disabled", "Auto", "Hidden", "Visible"]
+    },
+    "verticalScrollBarVisibility": {
+      "type": "string",
+      "description": "Vertical scrolling policy. Auto exposes scrolling only when content exceeds the viewport.",
+      "default": "Auto",
+      "enum": ["Disabled", "Auto", "Hidden", "Visible"]
+    },
+    "canContentScroll": {
+      "type": "boolean",
+      "description": "Use logical item scrolling when the hosted content supports IScrollInfo; false keeps pixel-based scrolling for arbitrary layouts.",
+      "default": false
+    },
+    "padding": {
+      "type": "string",
+      "description": "Inner WPF Thickness between the viewport edge and its content.",
+      "default": "0",
+      "format": "thickness"
+    },
+    "margin": {
+      "type": "string",
+      "description": "Outer WPF Thickness separating the viewport from adjacent layout.",
+      "default": "0",
+      "format": "thickness"
+    }
+  },
+  "slots": {
+    "content": {
+      "description": "Single layout or control subtree hosted by the scrollable viewport.",
+      "maxItems": 1,
+      "allowedKinds": ["*"]
+    }
+  },
+  "renderer": { "xamlTemplate": "renderers/xaml/scrollViewer.xaml.sbn" },
+  "sourceHints": [{ "path": "System.Windows.Controls.ScrollViewer", "usage": "native WPF scrollable viewport" }]
+}

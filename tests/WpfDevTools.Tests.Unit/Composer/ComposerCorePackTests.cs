@@ -26,6 +26,7 @@ public sealed class ComposerCorePackTests
             "core.gridCell",
             "core.image",
             "core.rowDefinition",
+            "core.scrollViewer",
             "core.stack",
             "core.template",
             "core.text");
@@ -136,6 +137,38 @@ public sealed class ComposerCorePackTests
 
         result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
         result.Xaml.Should().Contain("<Border Margin=\"6\"><TextBlock");
+    }
+
+    [Fact]
+    public void CoreScrollViewer_ShouldRenderAxisPoliciesAndGenericContent()
+    {
+        var blueprint = Blueprint(
+            """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
+            "core",
+            """
+            {
+              "kind": "core.scrollViewer",
+              "properties": {
+                "horizontalScrollBarVisibility": "Visible",
+                "verticalScrollBarVisibility": "Auto",
+                "canContentScroll": false
+              },
+              "slots": {
+                "content": [{
+                  "kind": "core.stack",
+                  "properties": { "orientation": "Horizontal" },
+                  "slots": { "children": [{ "kind": "core.text", "properties": { "text": "Card" } }] }
+                }]
+              }
+            }
+            """);
+
+        var result = new UiBlueprintRenderer(CreateRegistry()).Render(new RenderBlueprintRequest(blueprint));
+
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Xaml.Should().Contain("<ScrollViewer HorizontalScrollBarVisibility=\"Visible\" VerticalScrollBarVisibility=\"Auto\" CanContentScroll=\"false\"")
+            .And.Contain("<StackPanel Orientation=\"Horizontal\"")
+            .And.Contain("<TextBlock Text=\"Card\"");
     }
 
     [Fact]

@@ -164,11 +164,86 @@ public sealed class ComposerCorePackTests
             """);
 
         var result = new UiBlueprintRenderer(CreateRegistry()).Render(new RenderBlueprintRequest(blueprint));
+        var catalogItem = new BlockCatalogService(CreateRegistry())
+            .GetCatalog(new BlockCatalogQuery(Kind: "core.scrollViewer"))
+            .Items.Single();
 
         result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
         result.Xaml.Should().Contain("<ScrollViewer HorizontalScrollBarVisibility=\"Visible\" VerticalScrollBarVisibility=\"Auto\" CanContentScroll=\"false\"")
             .And.Contain("<StackPanel Orientation=\"Horizontal\"")
             .And.Contain("<TextBlock Text=\"Card\"");
+        catalogItem.Description.Should().ContainEquivalentOf("bounded");
+    }
+
+    [Theory]
+    [InlineData("Vertical", "Disabled", "Auto", true)]
+    [InlineData("Horizontal", "Auto", "Disabled", true)]
+    [InlineData("Vertical", "Auto", "Disabled", false)]
+    public void CoreScrollViewer_ShouldMatchUnboundedStackAndScrollingAxes(
+        string orientation,
+        string horizontalPolicy,
+        string verticalPolicy,
+        bool shouldWarn)
+    {
+        var blueprint = Blueprint(
+            """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
+            "core",
+            $$"""
+            {
+              "kind": "core.stack",
+              "properties": { "orientation": "{{orientation}}" },
+              "slots": { "children": [{
+                "kind": "core.border",
+                "slots": { "content": [{
+                  "kind": "core.scrollViewer",
+                  "properties": {
+                    "horizontalScrollBarVisibility": "{{horizontalPolicy}}",
+                    "verticalScrollBarVisibility": "{{verticalPolicy}}"
+                  },
+                  "slots": { "content": [{ "kind": "core.text", "properties": { "text": "Scrollable" } }] }
+                }] }
+              }] }
+            }
+            """);
+
+        var result = new BlueprintValidationService(CreateRegistry()).Validate(blueprint);
+
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        if (shouldWarn)
+        {
+            result.Warnings.Should().ContainSingle(issue =>
+                issue.Code == "UnboundedScrollViewport"
+                && issue.JsonPath == "$.layout.slots.children[0].slots.content[0]");
+        }
+        else
+        {
+            result.Warnings.Should().NotContain(issue => issue.Code == "UnboundedScrollViewport");
+        }
+    }
+
+    [Fact]
+    public void CoreScrollViewer_ShouldNotWarnWhenGridBoundsViewport()
+    {
+        var blueprint = Blueprint(
+            """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
+            "core",
+            """
+            {
+              "kind": "core.grid",
+              "slots": { "children": [{
+                "kind": "core.gridCell",
+                "slots": { "content": [{
+                  "kind": "core.scrollViewer",
+                  "slots": { "content": [{ "kind": "core.text", "properties": { "text": "Scrollable" } }] }
+                }] }
+              }] }
+            }
+            """);
+
+        var result = new BlueprintValidationService(CreateRegistry()).Validate(blueprint);
+
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Warnings.Should().NotContain(issue => issue.Code == "UnboundedScrollViewport");
     }
 
     [Fact]

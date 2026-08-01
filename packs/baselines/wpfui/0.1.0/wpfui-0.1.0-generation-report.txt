@@ -257,3 +257,18 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 
 The reviewed source-inventory report remains authoritative because this pass
 changed neither source coverage nor generated surface counts.
+
+## Typography Fallback Maintenance
+
+On 2026-08-01, runtime inspection showed that generated Fluent Windows inherited
+the locale-specific WPF system font. The pack now declares an overrideable
+`Segoe UI Variable Text, Segoe UI` root fallback without changing Composer,
+the pack schema, or the extension-creator workflow.
+
+```text
+python <extension-creator-root>/scripts/validate_pack.py packs/builtin/wpfui/0.1.0 --strict --report <temporary-validation-report>
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: E6950E16DC5E24CC65C7512CA8D60098C87A9CDA661B08CA53099ABECCCB5371
+```

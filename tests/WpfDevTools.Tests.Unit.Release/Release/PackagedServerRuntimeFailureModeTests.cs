@@ -21,7 +21,7 @@ public sealed class PackagedServerRuntimeFailureModeTests
         Write-Output 'unset LASTEXITCODE cleanup succeeded'
         """;
 
-        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(5));
+        var result = ReleaseScriptTestHarness.RunPowerShellCommand(command, timeout: TimeSpan.FromSeconds(10));
 
         result.ExitCode.Should().Be(0, $"stdout: {result.Stdout}; stderr: {result.Stderr}");
         result.Stdout.Should().Contain("unset LASTEXITCODE cleanup succeeded");

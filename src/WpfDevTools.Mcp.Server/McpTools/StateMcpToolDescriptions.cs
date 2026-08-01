@@ -21,7 +21,8 @@ internal static class StateMcpToolDescriptions
         "- \"propertyNames / viewModelPropertyNames / includeFocus required\" -> choose at least one capture dimension\n\n";
 
     public const string RestoreStateSnapshot =
-        StateMetadata + "Restore a captured in-memory runtime snapshot.\n\n" +
+        "Restore a captured WPF runtime state snapshot.\n\n" +
+        StateMetadata +
         "USE WHEN: Rolling back temporary DependencyProperty, ViewModel, or focus changes in the same session.\n" +
         "DO NOT USE: Across disconnected sessions, application restarts, or after the in-memory snapshot has expired.\n" +
         "RETENTION: 30 minutes; 20 snapshots per process.\n\n" +

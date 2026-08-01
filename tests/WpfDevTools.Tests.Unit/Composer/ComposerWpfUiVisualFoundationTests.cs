@@ -129,6 +129,27 @@ public sealed class ComposerWpfUiVisualFoundationTests
     }
 
     [Fact]
+    public void WpfUiTextBlock_ShouldExposeAnOverrideableOpticalFontFamily()
+    {
+        var item = new BlockCatalogService(CreateRegistry())
+            .GetCatalog(new BlockCatalogQuery(Kind: "wpfui.textBlock"))
+            .Items.Single();
+        var result = Render("""
+            {
+              "kind": "wpfui.textBlock",
+              "properties": {
+                "text": "Typography", "fontSize": 28,
+                "fontFamily": "Segoe UI Variable Display, Segoe UI"
+              }
+            }
+            """);
+
+        item.Properties["fontFamily"].Description.Should().ContainEquivalentOf("Display");
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Xaml.Should().Contain("FontFamily=\"Segoe UI Variable Display, Segoe UI\"");
+    }
+
+    [Fact]
     public void WpfUiRenderer_ShouldRenderPackDefinedInputAndProgressControls()
     {
         var result = Render("""

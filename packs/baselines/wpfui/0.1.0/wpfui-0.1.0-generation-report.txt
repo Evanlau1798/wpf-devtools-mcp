@@ -297,3 +297,20 @@ exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: ADA3638DC100714D
 python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt --capability-checklist packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.capability-checklist.json <existing-required-block-slot-and-kind-gates> --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
 exit code: 0; valid: true; errors: 0; warnings: 0
 ```
+
+## Optical Typography Maintenance
+
+The beta.119 typography review confirmed that the root Text optical face fixed
+locale-dependent body text but could not represent the Windows Display face for
+headings. `wpfui.textBlock` now exposes a normal overrideable `fontFamily`
+property and documents the 20 DIP Text/Display boundary. This keeps the choice
+inside the WPF UI pack, preserves product typography overrides, and adds no
+Composer or application-specific heuristic.
+
+```text
+python <extension-creator-root>/scripts/validate_pack.py packs/builtin/wpfui/0.1.0 --strict --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.validation-report.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: D269F183B71421B17B78C2441961726ACAECEA71CFF17A366A731326035B2E91
+```

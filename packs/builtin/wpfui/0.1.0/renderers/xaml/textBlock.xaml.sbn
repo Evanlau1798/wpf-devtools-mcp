@@ -1,1 +1,1 @@
-<ui:TextBlock Text="{{text}}" Appearance="{{appearance}}" FontSize="{{fontSize}}" FontWeight="{{fontWeight}}" TextWrapping="{{textWrapping}}" TextAlignment="{{textAlignment}}" Margin="{{margin}}" />
+<ui:TextBlock Text="{{text}}" Appearance="{{appearance}}" FontFamily="{{fontFamily}}" FontSize="{{fontSize}}" FontWeight="{{fontWeight}}" TextWrapping="{{textWrapping}}" TextAlignment="{{textAlignment}}" Margin="{{margin}}" />

@@ -17,6 +17,11 @@
       "required": false,
       "type": "string"
     },
+    "fontFamily": {
+      "description": "Font family for this text. Keep Segoe UI Variable Text for body copy; use Segoe UI Variable Display for Windows type-ramp titles at 20 DIP or larger, or override it for the product typography.",
+      "default": "Segoe UI Variable Text, Segoe UI",
+      "type": "string"
+    },
     "fontSize": {
       "description": "Text size in device-independent pixels.",
       "default": 14,

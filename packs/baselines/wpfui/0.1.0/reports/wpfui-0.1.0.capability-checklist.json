@@ -3,7 +3,7 @@
   "packId": "wpfui",
   "capabilities": [
     {"id":"layout","disposition":"delegated","blockKinds":["core.stack","core.grid"],"evidence":["Composer core@0.1.0 supplies native WPF layout primitives used by WPF UI recipes and composite blocks."]},
-    {"id":"text","disposition":"provided","blockKinds":["wpfui.textBlock"],"evidence":["WPF UI TextBlock exposes theme-aware appearance, wrapping, alignment, size, and weight."]},
+    {"id":"text","disposition":"provided","blockKinds":["wpfui.textBlock"],"evidence":["WPF UI TextBlock exposes theme-aware appearance, wrapping, alignment, optical font family, size, and weight."]},
     {"id":"image-media","disposition":"provided","blockKinds":["wpfui.editorialCard"],"evidence":["EditorialCard provides a wide source-backed media composition; narrow and standalone images can be composed with the core layout pack."]},
     {"id":"icon","disposition":"provided","blockKinds":["wpfui.symbolIcon"],"evidence":["SymbolIcon uses the source-backed WPF UI SymbolRegular vocabulary."]},
     {"id":"action","disposition":"provided","blockKinds":["wpfui.button"],"evidence":["WPF UI Button exposes content, appearance, command, alignment, and icon composition."]},

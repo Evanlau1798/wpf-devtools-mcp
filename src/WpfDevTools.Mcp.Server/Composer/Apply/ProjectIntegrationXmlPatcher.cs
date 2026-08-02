@@ -1,3 +1,4 @@
+using System.IO.Enumeration;
 using System.Xml;
 using System.Xml.Linq;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
@@ -38,12 +39,7 @@ internal static class ProjectIntegrationXmlPatcher
             foreach (var path in resourcePaths)
             {
                 var include = path.Replace('/', Path.DirectorySeparatorChar);
-                if (root.Descendants().Any(element =>
-                        element.Name.LocalName == "Resource"
-                        && string.Equals(
-                            (string?)element.Attribute("Include") ?? (string?)element.Attribute("Update"),
-                            include,
-                            StringComparison.OrdinalIgnoreCase)))
+                if (root.Descendants().Any(element => ResourceItemCovers(element, include)))
                 {
                     continue;
                 }
@@ -52,6 +48,66 @@ internal static class ProjectIntegrationXmlPatcher
                     new XElement(root.Name.Namespace + "Resource", new XAttribute("Include", include)));
             }
         });
+
+    private static bool ResourceItemCovers(XElement element, string include)
+    {
+        if (element.Name.LocalName != "Resource")
+        {
+            return false;
+        }
+
+        var patterns = SplitPatterns(
+            (string?)element.Attribute("Include") ?? (string?)element.Attribute("Update"));
+        return patterns.Any(pattern => MatchesResourcePattern(pattern, include))
+            && !SplitPatterns((string?)element.Attribute("Exclude"))
+                .Any(pattern => MatchesResourcePattern(pattern, include));
+    }
+
+    private static IEnumerable<string> SplitPatterns(string? value)
+        => (value ?? string.Empty).Split(
+            ';',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static bool MatchesResourcePattern(string pattern, string include)
+    {
+        if (pattern.Contains("$(", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var patternSegments = pattern.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var includeSegments = include.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return MatchesResourceSegments(patternSegments, 0, includeSegments, 0);
+    }
+
+    private static bool MatchesResourceSegments(
+        string[] pattern,
+        int patternIndex,
+        string[] include,
+        int includeIndex)
+    {
+        if (patternIndex == pattern.Length)
+        {
+            return includeIndex == include.Length;
+        }
+
+        if (pattern[patternIndex] == "**")
+        {
+            for (var index = includeIndex; index <= include.Length; index++)
+            {
+                if (MatchesResourceSegments(pattern, patternIndex + 1, include, index))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return includeIndex < include.Length
+            && FileSystemName.MatchesSimpleExpression(pattern[patternIndex], include[includeIndex], ignoreCase: true)
+            && MatchesResourceSegments(pattern, patternIndex + 1, include, includeIndex + 1);
+    }
 
     public static ProjectContentPatchResult PatchCentralPackages(
         string path,

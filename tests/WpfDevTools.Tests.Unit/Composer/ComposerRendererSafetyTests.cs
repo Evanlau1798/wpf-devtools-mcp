@@ -58,6 +58,7 @@ public sealed class ComposerRendererSafetyTests
     [Theory]
     [InlineData("<Grid>{{?slot.actions}}</Grid>")]
     [InlineData("<Grid>{{?slot.actions}}{{/slot.content}}</Grid>")]
+    [InlineData("<Grid>{{?slot.}}<TextBlock /></Grid>")]
     public void RenderBlueprint_ShouldRejectUnmatchedOptionalSlotMarker(string rendererTemplate)
     {
         var projectRoot = CreateTempProjectWithSafetyPack(rendererTemplate);

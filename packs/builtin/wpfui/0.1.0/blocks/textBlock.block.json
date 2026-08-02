@@ -35,6 +35,10 @@
       "enum": ["Thin", "ExtraLight", "Light", "Normal", "Medium", "SemiBold", "Bold", "ExtraBold", "Black"],
       "type": "string"
     },
+    "foreground": {
+      "description": "Optional WPF brush value or resource expression; omit to use the WPF UI Appearance role.",
+      "type": "string"
+    },
     "margin": {
       "description": "Outer WPF Thickness separating the text from adjacent content.",
       "default": "0",

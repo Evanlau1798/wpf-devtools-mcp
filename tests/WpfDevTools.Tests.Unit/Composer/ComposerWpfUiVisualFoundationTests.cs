@@ -150,6 +150,27 @@ public sealed class ComposerWpfUiVisualFoundationTests
     }
 
     [Fact]
+    public void WpfUiTextBlock_ShouldAllowExplicitForegroundForContrastingSurfaces()
+    {
+        var item = new BlockCatalogService(CreateRegistry())
+            .GetCatalog(new BlockCatalogQuery(Kind: "wpfui.textBlock"))
+            .Items.Single();
+        var result = Render("""
+            {
+              "kind": "wpfui.textBlock",
+              "properties": { "text": "Readable", "foreground": "#FFFFFFFF" }
+            }
+            """);
+        var inherited = Render("""{ "kind": "wpfui.textBlock", "properties": { "text": "Inherited" } }""");
+
+        item.Properties["foreground"].Description.Should().ContainEquivalentOf("brush");
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Xaml.Should().Contain("Foreground=\"#FFFFFFFF\"");
+        inherited.Success.Should().BeTrue(inherited.Errors.FirstOrDefault()?.Message);
+        inherited.Xaml.Should().NotContain("Foreground=");
+    }
+
+    [Fact]
     public void WpfUiRenderer_ShouldRenderPackDefinedInputAndProgressControls()
     {
         var result = Render("""

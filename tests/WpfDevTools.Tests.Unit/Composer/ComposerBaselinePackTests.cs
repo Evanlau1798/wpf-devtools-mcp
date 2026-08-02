@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using WpfDevTools.Tests.Unit.TestSupport;
 using Xunit;
@@ -119,6 +120,10 @@ public sealed class ComposerBaselinePackTests
             GetStringArray(sourceLock.RootElement.GetProperty("sources")[0], "paths"));
         coverage.RootElement.GetProperty("summary").GetProperty("rendererTokens")
             .GetProperty("identity.attributes").GetInt32().Should().Be(1);
+        var reportedTokens = coverage.RootElement.GetProperty("summary").GetProperty("rendererTokens")
+            .EnumerateObject()
+            .ToDictionary(property => property.Name, property => property.Value.GetInt32(), StringComparer.Ordinal);
+        GetRendererTokenCounts().Should().BeEquivalentTo(reportedTokens);
         var builtInRecipeFiles = Directory.GetFiles(Path.Combine(GetRepoFilePath(PackRoot), "recipes"), "*.recipe.json")
             .Select(Path.GetFileName)
             .Order(StringComparer.Ordinal)
@@ -209,6 +214,28 @@ public sealed class ComposerBaselinePackTests
             .Replace("\r\n", "\n", StringComparison.Ordinal)
             .Replace("\r", "\n", StringComparison.Ordinal);
         return SHA256.HashData(Encoding.UTF8.GetBytes(normalizedText));
+    }
+
+    private static Dictionary<string, int> GetRendererTokenCounts()
+    {
+        var tokens = new List<string>();
+        foreach (var path in Directory.EnumerateFiles(
+                     GetRepoFilePath(Path.Combine(PackRoot, "renderers", "xaml")),
+                     "*.xaml.sbn"))
+        {
+            var template = File.ReadAllText(path);
+            var templateTokens = Regex.Matches(template, @"{{\s*([^}\s]+)\s*}}")
+                .Select(match => match.Groups[1].Value)
+                .Where(token => !token.StartsWith("?slot.", StringComparison.Ordinal)
+                                && !token.StartsWith("/slot.", StringComparison.Ordinal))
+                .ToHashSet(StringComparer.Ordinal);
+            templateTokens.UnionWith(Regex.Matches(template, @"{{\s*\?\s*slot\.([A-Za-z0-9_.-]+)\s*}}")
+                .Select(match => $"slot.{match.Groups[1].Value}"));
+            tokens.AddRange(templateTokens);
+        }
+
+        return tokens.GroupBy(token => token, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
     }
 
     private static string GetRepoFilePath(string relativePath)

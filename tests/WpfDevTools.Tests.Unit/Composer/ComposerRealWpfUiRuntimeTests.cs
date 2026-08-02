@@ -28,6 +28,7 @@ using WpfUiProgressRing = Wpf.Ui.Controls.ProgressRing;
 using WpfUiSymbolIcon = Wpf.Ui.Controls.SymbolIcon;
 using WpfUiTabView = Wpf.Ui.Controls.TabView;
 using WpfUiTabViewItem = Wpf.Ui.Controls.TabViewItem;
+using WpfUiTextBlock = Wpf.Ui.Controls.TextBlock;
 using WpfUiTitleBar = Wpf.Ui.Controls.TitleBar;
 using WpfUiToggleSwitch = Wpf.Ui.Controls.ToggleSwitch;
 
@@ -154,7 +155,9 @@ public sealed class ComposerRealWpfUiRuntimeTests
                     { "kind": "wpfui.numberBox", "properties": { "value": 42, "minimum": 0, "maximum": 100, "smallChange": 5 } },
                     { "kind": "wpfui.toggleSwitch", "properties": { "isChecked": true, "offContent": "Off", "onContent": "On", "labelPosition": "Right" } },
                     { "kind": "wpfui.progressBar", "properties": { "value": 65, "isIndeterminate": false, "width": 240 } },
-                    { "kind": "wpfui.progressRing", "properties": { "progress": 65, "isIndeterminate": false, "size": 32 } }
+                    { "kind": "wpfui.progressRing", "properties": { "progress": 65, "isIndeterminate": false, "size": 32 } },
+                    { "kind": "wpfui.textBlock", "properties": { "text": "Inherited" } },
+                    { "kind": "wpfui.textBlock", "properties": { "text": "Explicit", "foreground": "#FFFFFFFF" } }
                   ] }
                 }] }
               }
@@ -177,6 +180,16 @@ public sealed class ComposerRealWpfUiRuntimeTests
                 .ContainSingle(bar => bar.Value == 65 && bar.Width == 240)
                 .Subject;
             descendants.OfType<WpfUiProgressRing>().Should().ContainSingle(ring => ring.Progress == 65);
+            var inheritedText = descendants.OfType<WpfUiTextBlock>()
+                .Should().ContainSingle(text => text.Text == "Inherited").Subject;
+            var explicitText = descendants.OfType<WpfUiTextBlock>()
+                .Should().ContainSingle(text => text.Text == "Explicit").Subject;
+            DependencyPropertyHelper.GetValueSource(inheritedText, WpfUiTextBlock.ForegroundProperty)
+                .BaseValueSource.Should().NotBe(BaseValueSource.Local);
+            DependencyPropertyHelper.GetValueSource(explicitText, WpfUiTextBlock.ForegroundProperty)
+                .BaseValueSource.Should().Be(BaseValueSource.Local);
+            explicitText.Foreground.Should().BeOfType<SolidColorBrush>()
+                .Which.Color.Should().Be(Colors.White);
             AssertImplicitStyleResource<ProgressBar>(window);
             progressBar.Style.Should().BeSameAs(window.FindResource(typeof(ProgressBar)));
             progressBar.IsVisible.Should().BeTrue();

@@ -13,9 +13,9 @@
       </Grid>
     </Border>
     <StackPanel Grid.Column="1" Margin="{{padding}}" VerticalAlignment="Center">
-      <ui:TextBlock Text="{{eyebrow}}" Appearance="Secondary" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" />
-      <ui:TextBlock Text="{{title}}" Appearance="Primary" FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0" />
-      <ui:TextBlock Text="{{description}}" Appearance="Secondary" FontSize="15" FontWeight="Normal" TextWrapping="Wrap" Margin="0,12,0,0" />
+      <ui:TextBlock Text="{{eyebrow}}" Appearance="Secondary" FontFamily="{{bodyFontFamily}}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <ui:TextBlock Text="{{title}}" Appearance="Primary" FontFamily="{{titleFontFamily}}" FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0" />
+      <ui:TextBlock Text="{{description}}" Appearance="Secondary" FontFamily="{{bodyFontFamily}}" FontSize="15" FontWeight="Normal" TextWrapping="Wrap" Margin="0,12,0,0" />
       <StackPanel>
         {{slot.content}}
       </StackPanel>

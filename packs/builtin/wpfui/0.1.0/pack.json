@@ -85,6 +85,7 @@
         "properties": {
           "AutoSuggestBox": "object",
           "ContentOverlay": "object",
+          "CompactPaneLength": "double",
           "FooterMenuItems": "objectCollection",
           "IsBackButtonVisible": "string",
           "IsFooterSeparatorVisible": "boolean",

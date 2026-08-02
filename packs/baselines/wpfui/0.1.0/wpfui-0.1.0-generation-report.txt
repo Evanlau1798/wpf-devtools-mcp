@@ -378,3 +378,23 @@ exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: C36BEE656446F3CF
 python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt --capability-checklist packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.capability-checklist.json <existing-required-block-slot-and-kind-gates> --required-slot wpfui.navigationView.content --required-slot-kind wpfui.navigationView.content=* --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
 exit code: 0; valid: true; errors: 0; warnings: 0
 ```
+
+## Typography And Navigation Sizing Maintenance
+
+The beta.124 WPF UI E2E confirmed that the 32-DIP editorial title inherited the
+body text face and that NavigationView exposed only open/collapsed state, not
+its native pane-length controls. The pack now gives the editorial title and
+supporting copy separate overridable font-family contracts and exposes WPF UI's
+existing OpenPaneLength and CompactPaneLength properties. These are pack-owned
+capabilities; no Composer engine, schema, or extension-creator code changed.
+
+```text
+python <extension-creator-root>/scripts/validate_pack.py packs/builtin/wpfui/0.1.0 --strict --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.validation-report.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: E63E81DBC21EB9429B5814146AA4E0EF5A5AB8BD05AEAD633FB87C0119CDF8FE
+
+python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt --capability-checklist packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.capability-checklist.json <existing-required-block-slot-and-kind-gates> --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+```

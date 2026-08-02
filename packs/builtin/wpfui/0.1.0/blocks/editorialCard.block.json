@@ -10,6 +10,11 @@
       "default": "Discover a curated collection.",
       "type": "string"
     },
+    "bodyFontFamily": {
+      "description": "Font family for eyebrow and supporting copy. Keep the WPF UI text face for readable body copy or override it for the product typography.",
+      "default": "Segoe UI Variable Text, Segoe UI",
+      "type": "string"
+    },
     "eyebrow": {
       "description": "Short category or collection label displayed above the title.",
       "default": "Featured",
@@ -89,6 +94,11 @@
       "description": "Primary editorial or product title.",
       "default": "Featured collection",
       "required": true,
+      "type": "string"
+    },
+    "titleFontFamily": {
+      "description": "Display font family for the large editorial title. Override it when the product uses another heading face.",
+      "default": "Segoe UI Variable Display, Segoe UI",
       "type": "string"
     }
   },

@@ -34,6 +34,10 @@ public sealed class ComposerWpfUiEditorialCardTests
             .And.ContainEquivalentOf("isolated preview")
             .And.ContainEquivalentOf("final built application");
         item.Properties["mediaSource"].Type.Should().Be("string");
+        item.Properties["titleFontFamily"].Default!.ToString().Should()
+            .Be("Segoe UI Variable Display, Segoe UI");
+        item.Properties["bodyFontFamily"].Default!.ToString().Should()
+            .Be("Segoe UI Variable Text, Segoe UI");
         item.Properties["mediaAutomationName"].Required.Should().BeTrue();
         item.Slots["media"].MaxItems.Should().Be(1);
         item.Slots["media"].AllowedKinds.Should().Equal("wpfui.symbolIcon");
@@ -72,7 +76,8 @@ public sealed class ComposerWpfUiEditorialCardTests
                 "eyebrow": "Curated", "title": "Signal Gardens", "description": "Living soundscapes",
                 "mediaSource": "{Binding HeroImage}", "mediaAutomationName": "Purple garden artwork",
                 "mediaBackground": "#243247", "mediaWidth": 420, "mediaHeight": 300,
-                "mediaStretch": "UniformToFill", "margin": "12", "padding": "28"
+                "mediaStretch": "UniformToFill", "margin": "12", "padding": "28",
+                "titleFontFamily": "Heading Face", "bodyFontFamily": "Body Face"
               },
               "slots": {
                 "media": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "Image24" } }],
@@ -87,7 +92,8 @@ public sealed class ComposerWpfUiEditorialCardTests
             .And.Contain("<ColumnDefinition Width=\"420\"")
             .And.Contain("<Image Source=\"{Binding HeroImage}\" Stretch=\"UniformToFill\"")
             .And.Contain("AutomationProperties.Name=\"Purple garden artwork\"")
-            .And.Contain("Text=\"Signal Gardens\"")
+            .And.Contain("Text=\"Signal Gardens\" Appearance=\"Primary\" FontFamily=\"Heading Face\"")
+            .And.Contain("Text=\"Living soundscapes\" Appearance=\"Secondary\" FontFamily=\"Body Face\"")
             .And.Contain("<ui:SymbolIcon Symbol=\"Image24\"")
             .And.Contain("<ui:Button")
             .And.Contain("Content=\"Explore\"");

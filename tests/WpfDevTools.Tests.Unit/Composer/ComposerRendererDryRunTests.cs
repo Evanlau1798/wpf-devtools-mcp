@@ -180,7 +180,8 @@ public sealed class ComposerRendererDryRunTests
             """)));
 
         result.Success.Should().BeTrue();
-        result.Xaml.Should().Contain("<ui:NavigationView PaneDisplayMode=\"Left\" IsPaneOpen=\"true\" IsPaneToggleVisible=\"False\"");
+        result.Xaml.Should().Contain(
+            "<ui:NavigationView PaneDisplayMode=\"Left\" IsPaneOpen=\"true\" OpenPaneLength=\"320\" CompactPaneLength=\"48\" IsPaneToggleVisible=\"False\"");
         result.Xaml.Should().Contain("<ui:AutoSuggestBox Visibility=\"Collapsed\" />");
         result.Xaml.Should().Contain("<ui:NavigationView.ContentOverlay>");
         result.Xaml.Should().Contain("<Grid><ui:Card");
@@ -198,14 +199,16 @@ public sealed class ComposerRendererDryRunTests
               "kind": "wpfui.navigationView",
               "properties": {
                 "paneDisplayMode": "LeftMinimal",
-                "isPaneOpen": false
+                "isPaneOpen": false,
+                "openPaneLength": 248,
+                "compactPaneLength": 52
               }
             }
             """)));
 
         result.Success.Should().BeTrue();
         result.Xaml.Should().Contain(
-            "<ui:NavigationView PaneDisplayMode=\"LeftMinimal\" IsPaneOpen=\"false\" IsPaneToggleVisible=\"False\"");
+            "<ui:NavigationView PaneDisplayMode=\"LeftMinimal\" IsPaneOpen=\"false\" OpenPaneLength=\"248\" CompactPaneLength=\"52\" IsPaneToggleVisible=\"False\"");
     }
 
     [Fact]

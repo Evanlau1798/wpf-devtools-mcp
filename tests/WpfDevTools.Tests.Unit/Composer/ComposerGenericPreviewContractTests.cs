@@ -41,6 +41,43 @@ public sealed partial class ComposerGenericPreviewContractTests
     }
 
     [Fact]
+    [Trait("Category", "ComposerCompile")]
+    public async Task PreviewBlueprint_ShouldCompileResourceDictionaryPreviewProperties()
+    {
+        var projectRoot = CreateProjectPack(includePreview: true, baseKind: "contentControl");
+        var previewRoot = CreateTempDirectory();
+        try
+        {
+            var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", "sample", "1.0.0");
+            var packPath = Path.Combine(packRoot, "pack.json");
+            var manifest = JsonNode.Parse(File.ReadAllText(packPath))!.AsObject();
+            manifest["preview"]!["types"] = JsonNode.Parse("""
+                {"Theme":{"baseKind":"resourceDictionary","properties":{"BaseTheme":"string"}}}
+                """);
+            File.WriteAllText(packPath, manifest.ToJsonString());
+            File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "panel.xaml.sbn"), "<Grid />");
+
+            var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot)).PreviewAsync(
+                new PreviewBlueprintRequest(
+                    Blueprint("sample.panel"),
+                    RestoreEnabled: true,
+                    StartHost: false,
+                    TemporaryRoot: previewRoot,
+                    KeepArtifacts: true));
+
+            result.BuildSucceeded.Should().BeTrue(result.BuildOutput);
+            File.ReadAllText(Path.Combine(previewRoot, "PackPreviewStubs.cs"))
+                .Should().Contain("class Theme : ResourceDictionary")
+                .And.Contain("public string? BaseTheme { get; set; }");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+            DeleteDirectory(previewRoot);
+        }
+    }
+
+    [Fact]
     public async Task PreviewBlueprint_ShouldReportMissingPreviewContract()
     {
         var projectRoot = CreateProjectPack(includePreview: false, baseKind: "contentControl");

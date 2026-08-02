@@ -382,7 +382,14 @@ internal sealed partial class UiPackPreviewContractGenerator(PackRegistry regist
             .AppendLine("    {");
         foreach (var (propertyName, propertyType) in type.Properties.Where(item => item.Value != "objectCollection"))
         {
-            AppendDependencyProperty(source, typeName, type, propertyName, propertyType);
+            if (type.BaseKind == "resourceDictionary")
+            {
+                source.Append("        public ").Append(PropertyTypes[propertyType]).Append(' ').Append(propertyName).AppendLine(" { get; set; }");
+            }
+            else
+            {
+                AppendDependencyProperty(source, typeName, type, propertyName, propertyType);
+            }
         }
 
         foreach (var propertyName in collections)

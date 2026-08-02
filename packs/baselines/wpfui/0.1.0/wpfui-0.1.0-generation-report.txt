@@ -314,3 +314,22 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
 exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: D269F183B71421B17B78C2441961726ACAECEA71CFF17A366A731326035B2E91
 ```
+
+## Optional Footer Maintenance
+
+The beta.120 visual review proved that an empty `actions` slot left the Card
+footer's horizontal wrapper in generated XAML, reserving blank space and
+clipping body text. The renderer now uses the generic optional-slot section
+contract so the complete footer is emitted only when actions exist. The same
+multi-item StackPanel remains unchanged for populated action slots.
+
+```text
+python <extension-creator-root>/scripts/validate_pack.py packs/builtin/wpfui/0.1.0 --strict --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.validation-report.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: E710D2E83264E1A03642FC3B8C0EE138EB79AA6CBD31F91A1E996DF8E10926A7
+
+python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt --capability-checklist packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.capability-checklist.json <existing-required-block-slot-and-kind-gates> --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+```

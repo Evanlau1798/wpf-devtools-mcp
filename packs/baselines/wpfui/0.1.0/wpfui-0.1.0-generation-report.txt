@@ -357,3 +357,24 @@ exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: C5F400D3E0D21AD6
 python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt --capability-checklist packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.capability-checklist.json <existing-required-block-slot-and-kind-gates> --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
 exit code: 0; valid: true; errors: 0; warnings: 0
 ```
+
+## Navigation Content Extensibility Maintenance
+
+The beta.123 WPF UI E2E exposed that `wpfui.navigationView.content` rejected a
+direct `core.grid`, forcing an unnecessary wrapper around the primary page.
+The slot now uses the existing pack-neutral `*` contract, matching the already
+open FluentWindow, Card, EditorialCard, and TabViewItem content surfaces. Any
+resolved block from a declared built-in or third-party pack can be composed
+directly; navigation items and footer actions retain their narrow contracts.
+No Composer engine, schema, renderer, recipe, or extension-creator code changed.
+
+```text
+python <extension-creator-root>/scripts/validate_pack.py packs/builtin/wpfui/0.1.0 --strict --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.validation-report.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: C36BEE656446F3CF7C152EB82A4994FD897ABF69028D4D120239A601647323B6
+
+python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt --capability-checklist packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.capability-checklist.json <existing-required-block-slot-and-kind-gates> --required-slot wpfui.navigationView.content --required-slot-kind wpfui.navigationView.content=* --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+```

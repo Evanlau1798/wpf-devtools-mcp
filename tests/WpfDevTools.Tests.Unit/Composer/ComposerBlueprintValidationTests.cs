@@ -377,7 +377,7 @@ public sealed class ComposerBlueprintValidationTests
                             "kind": "wpfui.navigationViewItem",
                             "slots": { "icon": [{ "kind": "wpfui.symbolIcon" }] }
                           }],
-                          "content": [{ "kind": "wpfui.card" }]
+                          "content": [{ "kind": "core.grid" }]
                         }
                       }]
                     }

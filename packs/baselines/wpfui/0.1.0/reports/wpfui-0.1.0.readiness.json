@@ -115,11 +115,7 @@
         "wpfui.titleBar"
       ],
       "wpfui.navigationView.content": [
-        "core.text",
-        "core.stack",
-        "core.template",
-        "wpfui.card",
-        "wpfui.navigationViewDemo"
+        "*"
       ],
       "wpfui.navigationView.footer": [
         "wpfui.navigationViewItem",

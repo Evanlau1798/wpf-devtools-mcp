@@ -197,6 +197,10 @@ internal sealed record PreviewLayoutRiskSummary(
 
     public IReadOnlyList<PreviewUninspectedCorrelation> UninspectedCorrelations { get; init; } = [];
 
+    public int AttentionRequiredCount { get; init; }
+
+    public double? MinimumVisibleRatio { get; init; }
+
     public static PreviewLayoutRiskSummary Empty { get; } = new(0, 0, false, []);
 }
 
@@ -238,6 +242,12 @@ internal sealed record PreviewLayoutWarning(
     public string GeometricClippingSeverity { get; init; } = "unknown";
 
     public double? VisibleRatio { get; init; }
+
+    public string VisibilityClassification { get; init; } = "unknown";
+
+    public bool RequiresAttention { get; init; }
+
+    public JsonElement? NearestScrollContainer { get; init; }
 }
 
 internal sealed record PreviewCorrelationLookup(string Query, string MatchMode);

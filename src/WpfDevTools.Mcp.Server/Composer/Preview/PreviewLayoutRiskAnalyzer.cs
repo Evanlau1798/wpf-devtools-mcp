@@ -144,11 +144,23 @@ internal static class PreviewLayoutRiskAnalyzer
             .Where(warning => warning is not null)
             .Select(warning => warning!)
             .ToArray();
-        var warnings = allWarnings
+        var orderedWarnings = allWarnings
             .OrderBy(GetGeometricClippingPriority)
             .ThenBy(warning => warning.VisibleRatio ?? double.MaxValue)
             .ThenBy(warning => warning.JsonPath, StringComparer.Ordinal)
+            .ToArray();
+        var warnings = orderedWarnings
+            .Take(1)
+            .Concat(orderedWarnings.Skip(1).Where(warning => warning.RequiresAttention))
+            .Concat(orderedWarnings.Skip(1).Where(warning => !warning.RequiresAttention))
             .Take(MaxWarnings)
+            .OrderBy(GetGeometricClippingPriority)
+            .ThenBy(warning => warning.VisibleRatio ?? double.MaxValue)
+            .ThenBy(warning => warning.JsonPath, StringComparer.Ordinal)
+            .ToArray();
+        var visibleRatios = allWarnings
+            .Where(warning => warning.RequiresAttention && warning.VisibleRatio.HasValue)
+            .Select(warning => warning.VisibleRatio!.Value)
             .ToArray();
 
         return new PreviewLayoutRiskSummary(
@@ -174,7 +186,9 @@ internal static class PreviewLayoutRiskAnalyzer
             UninspectedCorrelationCount = uninspectedCorrelations.Length,
             ReportedUninspectedCorrelationCount = reportedUninspectedCorrelations.Length,
             UninspectedCorrelationsTruncated = uninspectedCorrelations.Length > reportedUninspectedCorrelations.Length,
-            UninspectedCorrelations = reportedUninspectedCorrelations
+            UninspectedCorrelations = reportedUninspectedCorrelations,
+            AttentionRequiredCount = allWarnings.Count(warning => warning.RequiresAttention),
+            MinimumVisibleRatio = visibleRatios.Length == 0 ? null : visibleRatios.Min()
         };
     }
 
@@ -361,6 +375,16 @@ internal static class PreviewLayoutRiskAnalyzer
         var visibleContentRisk = requiresVisualConfirmation
             ? isStructuralOverflow ? "unconfirmed-structural" : "unconfirmed-clipping"
             : visibleContentImpact == "none" ? "none" : "confirmed";
+        var geometricClippingSeverity = ReadString(result, "geometricClippingSeverity") ?? "unknown";
+        var visibleRatio = ReadDouble(result, "visibleRatio");
+        var visibilityClassification = ClassifyVisibility(geometricClippingSeverity, visibleRatio);
+        var nearestScrollContainer = result.TryGetProperty("nearestScrollContainer", out var scrollContainer)
+                                     && scrollContainer.ValueKind == JsonValueKind.Object
+            ? scrollContainer.Clone()
+            : (JsonElement?)null;
+        var canBringTargetIntoView = nearestScrollContainer is { } scroll
+                                     && scroll.TryGetProperty("canBringTargetIntoView", out var canBring)
+                                     && canBring.ValueKind == JsonValueKind.True;
         return new PreviewLayoutWarning(
             isStructuralOverflow ? "RuntimeStructuralOverflowRisk" : "RuntimeClippingDetected",
             correlation.JsonPath,
@@ -376,9 +400,30 @@ internal static class PreviewLayoutRiskAnalyzer
             overflow,
             ReadString(result, "suggestedFix"))
         {
-            GeometricClippingSeverity = ReadString(result, "geometricClippingSeverity") ?? "unknown",
-            VisibleRatio = ReadDouble(result, "visibleRatio")
+            GeometricClippingSeverity = geometricClippingSeverity,
+            VisibleRatio = visibleRatio,
+            VisibilityClassification = visibilityClassification,
+            RequiresAttention = visibilityClassification == "sliver"
+                                || (visibilityClassification == "hidden" && !canBringTargetIntoView),
+            NearestScrollContainer = nearestScrollContainer
         };
+    }
+
+    private static string ClassifyVisibility(string geometricClippingSeverity, double? visibleRatio)
+    {
+        if (geometricClippingSeverity == "full")
+        {
+            return "hidden";
+        }
+
+        if (geometricClippingSeverity != "partial" || visibleRatio is null)
+        {
+            return "unknown";
+        }
+
+        return visibleRatio <= 0.15 ? "sliver"
+            : visibleRatio >= 0.85 ? "mostly-visible"
+            : "partial";
     }
 
     private static int GetGeometricClippingPriority(PreviewLayoutWarning warning)

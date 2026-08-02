@@ -92,6 +92,10 @@ internal sealed partial class BlueprintValidationService(PackRegistry registry)
                 blueprint.Layout,
                 "$.layout",
                 warnings);
+            BlueprintStackSpacingDiagnostics.AddIssues(
+                blueprint.Layout,
+                "$.layout",
+                warnings);
             warnings.AddRange(GeneratedClassMemberCollisionValidator.Validate(
                 blueprint,
                 context.Blocks,

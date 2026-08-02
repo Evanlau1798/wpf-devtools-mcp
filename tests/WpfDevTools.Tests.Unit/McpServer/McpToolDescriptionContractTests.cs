@@ -146,8 +146,38 @@ public sealed class McpToolDescriptionContractTests
             "visibleContentImpact",
             "geometricClippingSeverity",
             "visibleRatio",
+            "nearestScrollContainer",
+            "extentWidth",
+            "viewportWidth",
+            "hasVisibleScrollBarChrome",
+            "isTargetClippedByViewport",
+            "canBringTargetIntoView",
             "does not prove visible pixel loss",
             "confirm affected content");
+    }
+
+    [Fact]
+    public void PreviewUiBlueprint_Description_ShouldPrioritizeAccidentalSlivers()
+    {
+        var description = GetDescriptionText("preview_ui_blueprint");
+
+        description.Should().ContainAll(
+            "attentionRequiredCount",
+            "minimumVisibleRatio",
+            "visibilityClassification",
+            "sliver",
+            "nearestScrollContainer",
+            "canBringTargetIntoView",
+            "Window outer dimensions");
+        description.Should().NotContain("Window client dimensions");
+    }
+
+    [Fact]
+    public void ValidateUiBlueprint_Description_ShouldExplainLargeFixedStackSpacing()
+    {
+        var description = GetDescriptionText("validate_ui_blueprint");
+
+        description.Should().ContainAll("LargeFixedStackSpacing", "core.stack", "core.grid");
     }
 
     [Fact]

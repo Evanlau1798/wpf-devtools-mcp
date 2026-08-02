@@ -18,6 +18,9 @@ public sealed class NamedPipeClientConcurrencyTests
         var processId = TestHelpers.NextSyntheticProcessId();
         var pipeName = $"WpfDevTools_Test_{Guid.NewGuid():N}";
         var firstRequestReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirstResponse = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondRequestReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseSecondResponse = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var server = new NamedPipeServerStream(
             pipeName,
@@ -25,19 +28,29 @@ public sealed class NamedPipeClientConcurrencyTests
             1,
             PipeTransmissionMode.Byte,
             PipeOptions.Asynchronous);
-        var serverTask = RunServerAsync(server, firstRequestReceived);
+        var serverTask = RunServerAsync(
+            server,
+            firstRequestReceived,
+            releaseFirstResponse,
+            secondRequestReceived,
+            releaseSecondResponse);
         using var client = new NamedPipeClient(
             processId,
             pipeName,
             authManager: null,
             certManager: null,
             enforceHostCompatibilityValidation: false,
-            requestTimeout: TimeSpan.FromSeconds(1));
+            requestTimeout: TimeSpan.FromSeconds(3));
         (await client.ConnectAsync(TimeSpan.FromSeconds(5), maxRetries: 1)).Should().BeTrue();
 
         var first = client.SendRequestAsync("first", "first-id", new { }, CancellationToken.None);
         await firstRequestReceived.Task.WaitAsync(TimeSpan.FromSeconds(2));
         var second = client.SendRequestAsync("second", "second-id", new { }, CancellationToken.None);
+        await Task.Delay(TimeSpan.FromMilliseconds(1600));
+        releaseFirstResponse.SetResult();
+        await secondRequestReceived.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await Task.Delay(TimeSpan.FromMilliseconds(1600));
+        releaseSecondResponse.SetResult();
 
         var responses = await Task.WhenAll(first, second);
 
@@ -94,7 +107,10 @@ public sealed class NamedPipeClientConcurrencyTests
 
     private static async Task RunServerAsync(
         NamedPipeServerStream server,
-        TaskCompletionSource firstRequestReceived)
+        TaskCompletionSource firstRequestReceived,
+        TaskCompletionSource releaseFirstResponse,
+        TaskCompletionSource secondRequestReceived,
+        TaskCompletionSource releaseSecondResponse)
     {
         await server.WaitForConnectionAsync();
         for (var index = 0; index < 2; index++)
@@ -104,9 +120,14 @@ public sealed class NamedPipeClientConcurrencyTests
             if (index == 0)
             {
                 firstRequestReceived.SetResult();
+                await releaseFirstResponse.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            }
+            else
+            {
+                secondRequestReceived.SetResult();
+                await releaseSecondResponse.Task.WaitAsync(TimeSpan.FromSeconds(2));
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(600));
             var response = new InspectorResponse
             {
                 Id = request.Id,

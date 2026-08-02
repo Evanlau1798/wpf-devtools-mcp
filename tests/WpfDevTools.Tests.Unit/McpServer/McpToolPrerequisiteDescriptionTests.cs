@@ -130,7 +130,7 @@ public sealed class McpToolPrerequisiteDescriptionTests
         description.Should().Contain("runtimePackApprovalTokens");
         description.Should().Contain("viewportWidth");
         description.Should().Contain("viewportHeight");
-        description.Should().Contain("Window client");
+        description.Should().Contain("Window outer");
         description.Should().Contain("exact [version]");
         description.Should().Contain("SHA-512 contentHash");
         description.Should().Contain("preview-local NuGet cache");

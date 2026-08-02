@@ -103,7 +103,7 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - Returns success, valid, errorCount, warningCount, errors, warnings, compositionMap, blueprintSize, and diagnostics.
-        - Issues include path/code/repair and allowed values. InvalidBlueprintShape adds observedValueKind/expectedJsonShape; SurfaceThemeContrastRisk flags resource conflicts.
+        - Issues include path/code/repair/allowed values. InvalidBlueprintShape adds observedValueKind/expectedJsonShape; SurfaceThemeContrastRisk flags conflicts; LargeFixedStackSpacing flags large core.stack margins and suggests core.grid.
         - Optional node elementName and automationId values are validated for safe syntax, uniqueness, and generated class/member collisions before render.
         - compositionMap: up to 64 copy-ready slot targets with counts and capacity.
         - blueprintSize reports currentCharacters, maximumCharacters, remainingCharacters, and utilizationPercent for the public blueprintJson limit.
@@ -265,12 +265,12 @@ internal static class UiComposerMcpToolDescriptions
 
         RESPONSE SUMMARY:
         - visualFidelity is resource-backed, hybrid-resource-backed, structural, or not-available; verify the applied, built, and launched app.
-        - Project/user packs stay structural until an operator approves them. runtimePackApprovalReviews returns, when eligible, a content-bound approval token. With WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true, retry once via runtimePackApprovalTokens; WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS is the server-start option. Packages need exact [version], SHA-512 contentHash, and a preview-local NuGet cache hash-checked before build.
+        - Project/user packs stay structural until an operator approves. runtimePackApprovalReviews returns a content-bound approval token when eligible; with WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true, retry via runtimePackApprovalTokens. WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS is server-start only. Packages need exact [version], SHA-512 contentHash, and a preview-local NuGet cache hash-checked before build.
         - previewScreenshot keeps successful screenshot resource handles near the response start; verify SHA-256 before trusting sparse pixels.
         - visualComparisonChecklist: final window chrome, icons, control templates, layout and spacing, content density, and partial-item clipping checks.
         - propertyWarnings: supplied-property guidance with exact blueprint JSON path, block kind, property name, and message.
         - elementCorrelations maps transient x:Name to jsonPath/blockKind; never written into the blueprint or render/apply output.
-        - layoutRiskSummary maps Window client clipping to jsonPath/blockKind. Partial targets precede full/offscreen or unclassified ones; geometricClippingSeverity/visibleRatio describe geometry only. Reasons: ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-realized, search-incomplete. runtime-not-realized means valid XAML is absent; requiresActiveStateInspection=true directs inspection in the applied, built final app after activation. Complete get_namescope hits absent from visual search are namescope-only (namescopeOnlyCorrelationCount); inactive or lazy content does not set inspectionTruncated. RuntimeStructuralOverflowRisk means structural-overflow; RuntimeClippingDetected means riskClassification=clipping. advisory with visibleContentImpact=not-determined and requiresVisualConfirmation=true means confirm pixels.
+        - layoutRiskSummary: attentionRequiredCount/minimumVisibleRatio cover visibilityClassification=sliver<=15%, plus hidden when nearestScrollContainer.canBringTargetIntoView!=true. geometricClippingSeverity/visibleRatio=geometry. ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-realized, search-incomplete. runtime-not-realized means inactive or lazy content; requiresActiveStateInspection=true: inspect applied, built final app. namescopeOnlyCorrelationCount: get_namescope-only; no inspectionTruncated. RuntimeStructuralOverflowRisk=structural-overflow; RuntimeClippingDetected=riskClassification=clipping. advisory+visibleContentImpact=not-determined+requiresVisualConfirmation=true: confirm pixels.
         - Compile failures map to line/column and renderer path; infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:
@@ -282,7 +282,7 @@ internal static class UiComposerMcpToolDescriptions
         - correlationLookupLimit checks authored elementName and renderer-provided root x:Name at 32 (max 64); namescope-only targets still get clipping checks. Raise only for lookup-budget.
         - Screenshots require startHost, sensitive-read, and screenshot gates.
         - screenshotOutputMode="file" returns pixel evidence at previewScreenshot.resourceUri; preview pixels do not approve final styling.
-        - viewportWidth and viewportHeight set preview Window.Width and Window.Height in DIPs; match the target Window dimensions to expose overflow before apply. Screenshot bounds only resize returned pixels.
+        - viewportWidth/viewportHeight set Window.Width/Window.Height DIPs; match target Window outer dimensions for overflow. Screenshot bounds resize returned pixels only.
         - runtimePackApprovalTokens accepts reviewed content-bound tokens for this request only and requires WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.

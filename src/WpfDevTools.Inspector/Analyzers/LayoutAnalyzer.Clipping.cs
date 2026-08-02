@@ -42,6 +42,10 @@ public sealed partial class LayoutAnalyzer
                 ? selfSource
                 : ancestorAnalysis.primarySource;
             var isClipped = clip != null || HasOverflow(overflow);
+            var nearestScrollContainer = CreateNearestScrollContainerInfo(
+                uiElement,
+                selfSource == "none" ? ancestorAnalysis.primaryClippingAncestor : null,
+                overflow);
 
             return new
             {
@@ -59,6 +63,7 @@ public sealed partial class LayoutAnalyzer
                 effectiveClipBounds = CreateBoundsInfo(effectiveClip?.Bounds),
                 overflowAmount = CreateOverflowInfo(overflow),
                 clippingAncestors = ancestorAnalysis.ancestors,
+                nearestScrollContainer,
                 suggestedFix = CreateClippingSuggestion(
                     isClipped,
                     selfSource,
@@ -70,16 +75,18 @@ public sealed partial class LayoutAnalyzer
     private (List<object> ancestors,
         (double left, double top, double right, double bottom) overflow,
         string primarySource,
-        string? primaryDisplay) GetAncestorClippingAnalysis(UIElement element)
+        string? primaryDisplay,
+        UIElement? primaryClippingAncestor) GetAncestorClippingAnalysis(UIElement element)
     {
         var ancestors = new List<object>();
         var overflow = (left: 0d, top: 0d, right: 0d, bottom: 0d);
         string? primarySource = null;
         string? primaryDisplay = null;
+        UIElement? primaryClippingAncestor = null;
 
         if (element is not FrameworkElement frameworkElement)
         {
-            return (ancestors, overflow, "none", null);
+            return (ancestors, overflow, "none", null, null);
         }
 
         var elementBounds = GetContentBounds(frameworkElement);
@@ -98,6 +105,7 @@ public sealed partial class LayoutAnalyzer
 
                     if (HasOverflow(ancestorOverflow))
                     {
+                        primaryClippingAncestor ??= ancestorElement;
                         var clipSource = GetEffectiveClipSource(ancestorElement);
                         var elementType = ancestorElement.GetType().Name;
                         var elementName = (ancestorElement as FrameworkElement)?.Name;
@@ -137,6 +145,7 @@ public sealed partial class LayoutAnalyzer
             var viewportOverflow = ComputeOverflow(transformedContentBounds, viewportBounds);
             if (HasOverflow(viewportOverflow))
             {
+                primaryClippingAncestor ??= viewportRoot;
                 var elementType = viewportRoot.GetType().Name;
                 var elementName = (viewportRoot as FrameworkElement)?.Name;
                 ancestors.Add(new
@@ -154,7 +163,7 @@ public sealed partial class LayoutAnalyzer
             }
         }
 
-        return (ancestors, overflow, primarySource ?? "none", primaryDisplay);
+        return (ancestors, overflow, primarySource ?? "none", primaryDisplay, primaryClippingAncestor);
     }
 
     private static bool TryGetWindowViewportBoundary(

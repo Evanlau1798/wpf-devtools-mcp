@@ -66,7 +66,7 @@ Some interaction and diagnostic responses may piggyback a compact `pendingEvents
 
 `visibleContentImpact="not-determined"` means the structural clip or overflow does not by itself prove visible pixel loss. Confirm affected content with focused descendant checks or a screenshot before changing layout.
 
-`geometricClippingSeverity` reports `none`, `partial`, or `full`, and `visibleRatio` reports the remaining geometric area from 0 to 1. These fields prioritize viewport-facing checks; they do not identify whether meaningful pixels were lost.
+`geometricClippingSeverity` reports `none`, `partial`, or `full`, and `visibleRatio` reports the remaining geometric area from 0 to 1. These fields prioritize viewport-facing checks; they do not identify whether meaningful pixels were lost. When the target is inside a `ScrollViewer`, `nearestScrollContainer` reports its `extentWidth`/`viewportWidth`, height equivalents, offsets, requested and computed scrollbar visibility, and `hasVisibleScrollBarChrome`. `isTargetClippedByViewport=true` means that viewer's content presenter is the target's primary clip and the viewer itself is visible; `canBringTargetIntoView=true` additionally proves every clipped axis is scrollable. Use this context to distinguish an intentional carousel peek from an accidental sliver or exposed scrollbar before editing the blueprint.
 
 The tool does not implicitly aggregate every descendant of a container. When a caption or control looks cut off but has no name, use `find_elements(query: "visible text")` first and pass the returned IDs to `get_clipping_info`. `diagnose_visibility` uses the same effective clipping boundaries for partial and full visibility classification.
 

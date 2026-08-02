@@ -66,7 +66,7 @@ Trace 回應也會在 trace teardown 延遲或復原時帶出 cleanup state。�
 
 `visibleContentImpact="not-determined"` 表示結構性的 clip 或 overflow 本身無法證明可見 pixel 已遺失。變更 layout 前，先對受影響內容進行 focused descendant checks 或取得 screenshot 確認。
 
-`geometricClippingSeverity` 會回報 `none`、`partial` 或 `full`，`visibleRatio` 則以 0 到 1 表示剩餘的幾何面積。這些欄位用於優先檢查 viewport 內的 targets，不代表有意義的 pixels 一定遺失。
+`geometricClippingSeverity` 會回報 `none`、`partial` 或 `full`，`visibleRatio` 則以 0 到 1 表示剩餘的幾何面積。這些欄位用於優先檢查 viewport 內的 targets，不代表有意義的 pixels 一定遺失。當 target 位於 `ScrollViewer` 內，`nearestScrollContainer` 會回報 `extentWidth`/`viewportWidth`、對應高度、offset、requested/computed scrollbar visibility 與 `hasVisibleScrollBarChrome`。`isTargetClippedByViewport=true` 表示該 viewer 的 content presenter 是 target 的 primary clip，且 viewer 本身可見；`canBringTargetIntoView=true` 進一步證明每個受裁切軸都可捲動。修改 blueprint 前，先用這些資訊區分刻意保留的 carousel peek、意外只剩少量畫面的 sliver，以及外露的 scrollbar。
 
 此 tool 不會自動彙總容器內所有 descendants。若被裁切的 caption 或 control 沒有名稱，先以 `find_elements(query: "可見文字")` 找到 IDs，再傳給 `get_clipping_info`。`diagnose_visibility` 也會使用相同的有效裁切邊界判斷 partial 或 full clipping。
 

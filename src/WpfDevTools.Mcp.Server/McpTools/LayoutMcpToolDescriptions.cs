@@ -25,9 +25,8 @@ internal static class LayoutMcpToolDescriptions
     public const string GetClippingInfo =
         "Inspect WPF Clip, ClipToBounds, layout clips, Window client viewport overflow, and ancestor overflow.\n\n" +
         LayoutMetadata +
-        "USE: Pass `elementId` or up to 100 `elementIds`; use find_elements when only text is known. " +
-        "No descendant scan; use get_layout_info for sizing.\n" +
-        "RETURNS: isClipped, clippingSource, geometricClippingSeverity, visibleRatio, visibleContentImpact, overflowAmount, clippingAncestors, suggestedFix; batches keep elementId. " +
+        "USE: Pass `elementId` or <=100 `elementIds`; use find_elements for text and get_layout_info for sizing. No descendant scan.\n" +
+        "RETURNS: isClipped, clippingSource, geometricClippingSeverity, visibleRatio, visibleContentImpact, overflowAmount, clippingAncestors, nearestScrollContainer (extentWidth, viewportWidth, hasVisibleScrollBarChrome, isTargetClippedByViewport, canBringTargetIntoView), suggestedFix; batches keep elementId. " +
         "geometricClippingSeverity/visibleRatio describe geometry. visibleContentImpact=not-determined does not prove visible pixel loss; confirm affected content with descendant checks or a screenshot.\n" +
         "ERRORS: not connected -> connect; target missing -> verify ID; no targets -> pass elementId or elementIds.\n";
 

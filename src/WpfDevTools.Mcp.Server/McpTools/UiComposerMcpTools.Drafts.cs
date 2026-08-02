@@ -17,7 +17,7 @@ public static partial class UiComposerMcpTools
     [Description(UiComposerMcpToolDescriptions.CreateUiBlueprintDraft)]
     public static Task<CallToolResult> CreateUiBlueprintDraft(
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
-        [Description("Root: schemaVersion=wpfdevtools.ui-blueprint.v1; name, packs, primaryPack, layout; elementName -> @ElementName.")] string blueprintJson,
+        [Description("Root: schemaVersion=wpfdevtools.ui-blueprint.v1; name, packs, primaryPack, layout; resourceVariants maps packId to variantId; elementName -> @ElementName.")] string blueprintJson,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(("blueprintJson", blueprintJson));

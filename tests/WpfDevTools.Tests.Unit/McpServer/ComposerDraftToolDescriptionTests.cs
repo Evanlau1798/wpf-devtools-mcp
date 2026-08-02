@@ -32,6 +32,7 @@ public sealed class ComposerDraftToolDescriptionTests
         description.Should()
             .Contain("schemaVersion=wpfdevtools.ui-blueprint.v1")
             .And.ContainAll("name", "packs", "primaryPack", "layout")
+            .And.Contain("resourceVariants maps packId to variantId")
             .And.Contain("elementName -> @ElementName");
     }
 

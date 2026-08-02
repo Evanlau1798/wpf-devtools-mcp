@@ -30,6 +30,11 @@ public sealed class ComposerCorePackTests
             "core.stack",
             "core.template",
             "core.text");
+
+        var gridCell = new BlockCatalogService(registry)
+            .GetCatalog(new BlockCatalogQuery(Kind: "core.gridCell")).Items.Single();
+        gridCell.Description.Should().Contain("layered")
+            .And.Contain("later children render above earlier children");
     }
 
     [Fact]

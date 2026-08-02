@@ -2,7 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "core.gridCell",
   "displayName": "Grid Cell",
-  "description": "Places child content at a specific native WPF Grid row and column.",
+  "description": "Places child content at a specific native WPF Grid row and column; same-cell children are layered, and later children render above earlier children.",
   "category": "layout",
   "properties": {
     "row": { "type": "number", "description": "Zero-based target row index in the parent grid.", "default": 0, "minimum": 0, "integer": true },

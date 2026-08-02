@@ -30,10 +30,10 @@ public sealed class ComposerDraftToolDescriptionTests
             .GetCustomAttribute<DescriptionAttribute>()!.Description;
 
         description.Should()
-            .Contain("schemaVersion=wpfdevtools.ui-blueprint.v1")
+            .Contain("wpfdevtools.ui-blueprint.v1")
             .And.ContainAll("name", "packs", "primaryPack", "layout")
-            .And.Contain("resourceVariants maps packId to variantId")
-            .And.Contain("elementName -> @ElementName");
+            .And.Contain("resourceVariants{packId:variantId}")
+            .And.Contain("elementName->@Name");
     }
 
     [Fact]

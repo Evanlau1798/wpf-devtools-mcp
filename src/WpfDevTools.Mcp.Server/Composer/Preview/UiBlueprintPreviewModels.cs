@@ -233,6 +233,11 @@ internal sealed record PreviewLayoutWarning(
     string VisibleContentImpact,
     bool RequiresVisualConfirmation,
     JsonElement OverflowAmount,
-    string? SuggestedFix);
+    string? SuggestedFix)
+{
+    public string GeometricClippingSeverity { get; init; } = "unknown";
+
+    public double? VisibleRatio { get; init; }
+}
 
 internal sealed record PreviewCorrelationLookup(string Query, string MatchMode);

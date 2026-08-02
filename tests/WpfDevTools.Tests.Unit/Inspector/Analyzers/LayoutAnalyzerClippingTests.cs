@@ -232,6 +232,8 @@ public class LayoutAnalyzerClippingTests
         doc.GetProperty("clippingSource").GetString().Should().Be("ancestor-layout-clip");
         doc.GetProperty("visibleContentImpact").GetString().Should().Be("not-determined",
             "layout overflow alone does not prove that meaningful rendered pixels are missing");
+        doc.GetProperty("geometricClippingSeverity").GetString().Should().Be("partial");
+        doc.GetProperty("visibleRatio").GetDouble().Should().BeInRange(0.01, 0.99);
         var ancestor = doc.GetProperty("clippingAncestors").EnumerateArray()
             .Should().ContainSingle().Subject;
         ancestor.GetProperty("elementType").GetString().Should().Be("StackPanel");

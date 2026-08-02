@@ -144,6 +144,8 @@ public sealed class McpToolDescriptionContractTests
 
         description.Should().ContainAll(
             "visibleContentImpact",
+            "geometricClippingSeverity",
+            "visibleRatio",
             "does not prove visible pixel loss",
             "confirm affected content");
     }

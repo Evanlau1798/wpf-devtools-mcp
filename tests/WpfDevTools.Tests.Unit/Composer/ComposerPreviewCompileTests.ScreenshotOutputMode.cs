@@ -9,7 +9,7 @@ namespace WpfDevTools.Tests.Unit.Composer;
 public sealed partial class ComposerPreviewCompileTests
 {
     [Fact]
-    public void PreviewHostPayload_WhenCompact_ShouldKeepScreenshotHandleAndOmitVerbosePayloads()
+    public void PreviewHostPayload_WhenCompact_ShouldOmitSuccessfulPayloadsAndKeepFailures()
     {
         var host = new PreviewHostResult(
             "loaded",
@@ -78,8 +78,8 @@ public sealed partial class ComposerPreviewCompileTests
         diagnostics[3].GetProperty("targetElementCount").GetInt32().Should().Be(2);
         diagnostics[3].GetProperty("payload").GetProperty("errorCode").GetString()
             .Should().Be("ProbeFailed");
-        diagnostics[4].GetProperty("payload").GetProperty("resourceUri").GetString()
-            .Should().Be("wpf://screenshots/shot_01");
+        diagnostics[4].GetProperty("payloadOmitted").GetBoolean().Should().BeTrue();
+        diagnostics[4].TryGetProperty("payload", out _).Should().BeFalse();
 
         var fullPayload = JsonSerializer.SerializeToElement(
             UiComposerMcpTools.BuildPreviewHostPayload(host, compactRuntimeDiagnostics: false));

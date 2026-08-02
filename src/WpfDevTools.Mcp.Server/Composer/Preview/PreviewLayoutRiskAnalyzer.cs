@@ -135,7 +135,7 @@ internal static class PreviewLayoutRiskAnalyzer
             .Where(item => item.ElementId is not null && resolvedElementIds.Contains(item.ElementId))
             .Where(item => IsClipped(item.Result))
             .ToArray();
-        var warnings = clipped
+        var allWarnings = clipped
             .Select(item => CreateWarning(
                 item.Result,
                 item.ElementId,
@@ -143,13 +143,18 @@ internal static class PreviewLayoutRiskAnalyzer
                 correlationsByName))
             .Where(warning => warning is not null)
             .Select(warning => warning!)
+            .ToArray();
+        var warnings = allWarnings
+            .OrderBy(GetGeometricClippingPriority)
+            .ThenBy(warning => warning.VisibleRatio ?? double.MaxValue)
+            .ThenBy(warning => warning.JsonPath, StringComparer.Ordinal)
             .Take(MaxWarnings)
             .ToArray();
 
         return new PreviewLayoutRiskSummary(
             clipped.Length,
             warnings.Length,
-            clipped.Length > warnings.Length,
+            allWarnings.Length > warnings.Length,
             warnings)
         {
             CorrelatedTargetCount = correlatedTargetCount,
@@ -369,8 +374,21 @@ internal static class PreviewLayoutRiskAnalyzer
             visibleContentImpact,
             requiresVisualConfirmation,
             overflow,
-            ReadString(result, "suggestedFix"));
+            ReadString(result, "suggestedFix"))
+        {
+            GeometricClippingSeverity = ReadString(result, "geometricClippingSeverity") ?? "unknown",
+            VisibleRatio = ReadDouble(result, "visibleRatio")
+        };
     }
+
+    private static int GetGeometricClippingPriority(PreviewLayoutWarning warning)
+        => warning.GeometricClippingSeverity switch
+        {
+            "partial" => 0,
+            "unknown" => 1,
+            "full" => 2,
+            _ => 3
+        };
 
     private static bool IsClipped(JsonElement result)
         => result.ValueKind == JsonValueKind.Object
@@ -386,6 +404,15 @@ internal static class PreviewLayoutRiskAnalyzer
 
     private static string? ReadString(JsonElement element, string propertyName)
         => TryReadString(element, propertyName, out var value) ? value : null;
+
+    private static double? ReadDouble(JsonElement element, string propertyName)
+        => element.ValueKind == JsonValueKind.Object
+           && element.TryGetProperty(propertyName, out var property)
+           && property.ValueKind == JsonValueKind.Number
+           && property.TryGetDouble(out var value)
+           && double.IsFinite(value)
+            ? value
+            : null;
 
     private static bool TryReadString(JsonElement element, string propertyName, out string value)
     {

@@ -150,6 +150,7 @@ public static partial class UiComposerMcpTools
             result.Success,
             result.Valid,
             blueprintDraftRef,
+            previewScreenshot = GetPreviewScreenshot(result.PreviewHost),
             result.BuildSucceeded,
             result.RestoreEnabled,
             result.BuildOutput,
@@ -173,6 +174,15 @@ public static partial class UiComposerMcpTools
             observability = ComposerObservability.ForPreview(result)
         };
     }
+
+    private static JsonElement? GetPreviewScreenshot(PreviewHostResult host)
+        => host.RuntimeDiagnostics?
+            .LastOrDefault(diagnostic => diagnostic.Success
+                                         && string.Equals(
+                                             diagnostic.Tool,
+                                             "element_screenshot",
+                                             StringComparison.Ordinal))
+            ?.Payload.Clone();
 
     internal static bool ShouldCompactElementCorrelations(
         bool compactSuccessfulPayload,
@@ -199,7 +209,7 @@ public static partial class UiComposerMcpTools
             viewLoaded = host.ViewLoaded,
             processId = host.ProcessId,
             runtimeDiagnosticsCompacted = true,
-            fullPayloadHint = "Set compactRuntimeDiagnostics=false only when full non-screenshot diagnostic payloads are required.",
+            fullPayloadHint = "Set compactRuntimeDiagnostics=false only when full diagnostic payloads are required.",
             runtimeDiagnostics = host.RuntimeDiagnostics.Select(ToCompactRuntimeDiagnostic).ToArray()
         };
     }
@@ -232,8 +242,7 @@ public static partial class UiComposerMcpTools
             compact["matchedElementCount"] = results.GetArrayLength();
         }
 
-        var keepPayload = !diagnostic.Success
-            || string.Equals(diagnostic.Tool, "element_screenshot", StringComparison.Ordinal);
+        var keepPayload = !diagnostic.Success;
         compact["payloadOmitted"] = !keepPayload;
         if (keepPayload)
         {

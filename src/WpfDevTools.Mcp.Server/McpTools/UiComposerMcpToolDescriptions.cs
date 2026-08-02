@@ -266,11 +266,11 @@ internal static class UiComposerMcpToolDescriptions
         RESPONSE SUMMARY:
         - visualFidelity is resource-backed, hybrid-resource-backed, structural, or not-available; verify the applied, built, and launched app.
         - Project/user packs stay structural until an operator approves them. runtimePackApprovalReviews returns, when eligible, a content-bound approval token. With WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true, retry once via runtimePackApprovalTokens; WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS is the server-start option. Packages need exact [version], SHA-512 contentHash, and a preview-local NuGet cache hash-checked before build.
-        - screenshotVerificationGuidance: re-read the resource and verify SHA-256 before replacing a sparse, semantically complete preview.
+        - previewScreenshot keeps successful screenshot resource handles near the response start; verify SHA-256 before trusting sparse pixels.
         - visualComparisonChecklist: final window chrome, icons, control templates, layout and spacing, content density, and partial-item clipping checks.
         - propertyWarnings: supplied-property guidance with exact blueprint JSON path, block kind, property name, and message.
         - elementCorrelations maps transient x:Name to jsonPath/blockKind; never written into the blueprint or render/apply output.
-        - layoutRiskSummary maps Window client clipping to jsonPath/blockKind. Reasons: ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-realized, search-incomplete. runtime-not-realized means valid XAML is absent; requiresActiveStateInspection=true directs inspection in the applied, built final app after activation. Complete get_namescope hits absent from visual search are namescope-only and counted by namescopeOnlyCorrelationCount; inactive or lazy content alone does not set inspectionTruncated. RuntimeStructuralOverflowRisk means structural-overflow; RuntimeClippingDetected means riskClassification=clipping. advisory with visibleContentImpact=not-determined and requiresVisualConfirmation=true means confirm pixels.
+        - layoutRiskSummary maps Window client clipping to jsonPath/blockKind. Partial targets precede full/offscreen or unclassified ones; geometricClippingSeverity/visibleRatio describe geometry only. Reasons: ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-realized, search-incomplete. runtime-not-realized means valid XAML is absent; requiresActiveStateInspection=true directs inspection in the applied, built final app after activation. Complete get_namescope hits absent from visual search are namescope-only (namescopeOnlyCorrelationCount); inactive or lazy content does not set inspectionTruncated. RuntimeStructuralOverflowRisk means structural-overflow; RuntimeClippingDetected means riskClassification=clipping. advisory with visibleContentImpact=not-determined and requiresVisualConfirmation=true means confirm pixels.
         - Compile failures map to line/column and renderer path; infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:
@@ -278,10 +278,10 @@ internal static class UiComposerMcpToolDescriptions
         - restoreEnabled defaults true; false verifies restore-disabled diagnostics.
         - startHost defaults false; true loads the preview host.
         - includeRuntimeDiagnostics defaults false; true needs startHost and sensitive reads.
-        - compactRuntimeDiagnostics is compact by default: XAML and risk-free correlations become counts; failures, risky correlations, and screenshot resource handles remain. False returns full payloads.
+        - compactRuntimeDiagnostics is compact by default: XAML/risk-free correlations become counts; failures remain and screenshot resource handles stay in previewScreenshot. False returns full.
         - correlationLookupLimit checks authored elementName and renderer-provided root x:Name at 32 (max 64); namescope-only targets still get clipping checks. Raise only for lookup-budget.
         - Screenshots require startHost, sensitive-read, and screenshot gates.
-        - Use screenshotOutputMode="file" for pixel evidence. Preview pixels do not approve final styling.
+        - screenshotOutputMode="file" returns pixel evidence at previewScreenshot.resourceUri; preview pixels do not approve final styling.
         - viewportWidth and viewportHeight set preview Window.Width and Window.Height in DIPs; match the target Window dimensions to expose overflow before apply. Screenshot bounds only resize returned pixels.
         - runtimePackApprovalTokens accepts reviewed content-bound tokens for this request only and requires WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.

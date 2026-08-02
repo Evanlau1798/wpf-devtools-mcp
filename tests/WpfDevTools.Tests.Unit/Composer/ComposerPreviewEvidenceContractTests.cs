@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
 using WpfDevTools.Mcp.Server.McpTools;
@@ -7,6 +8,47 @@ namespace WpfDevTools.Tests.Unit.Composer;
 
 public sealed class ComposerPreviewEvidenceContractTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void PreviewToolPayload_ShouldExposeReusableScreenshotBeforeVerboseHostDiagnostics(bool compact)
+    {
+        var screenshot = JsonSerializer.SerializeToElement(new
+        {
+            success = true,
+            screenshotId = "shot_01",
+            resourceUri = "wpf://screenshots/shot_01",
+            resourceRead = new { method = "resources/read" }
+        });
+        var result = new PreviewBlueprintResult(
+            true,
+            true,
+            true,
+            true,
+            new string('b', 16_000),
+            new string('x', 16_000),
+            [],
+            new PreviewHostResult(
+                "loaded",
+                Started: true,
+                RuntimeDiagnostics:
+                [
+                    new PreviewRuntimeDiagnostic("get_ui_summary", true, JsonSerializer.SerializeToElement(new { nodes = new string('n', 16_000) })),
+                    new PreviewRuntimeDiagnostic("element_screenshot", true, screenshot)
+                ]));
+
+        var payload = JsonSerializer.SerializeToElement(
+            UiComposerMcpTools.BuildPreviewToolPayload(result, "draft://sample", compact));
+
+        payload.EnumerateObject().Select(property => property.Name).Should().ContainInOrder(
+            "blueprintDraftRef",
+            "previewScreenshot",
+            "BuildOutput",
+            "previewHost");
+        payload.GetProperty("previewScreenshot").GetProperty("resourceUri").GetString()
+            .Should().Be("wpf://screenshots/shot_01");
+    }
+
     [Fact]
     public void PreviewToolPayload_ShouldPreserveFullXamlWithoutRebuildingPreview()
     {

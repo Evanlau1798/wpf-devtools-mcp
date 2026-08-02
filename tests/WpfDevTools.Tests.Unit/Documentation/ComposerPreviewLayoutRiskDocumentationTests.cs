@@ -67,6 +67,8 @@ public sealed class ComposerPreviewLayoutRiskDocumentationTests
         content.Should().Contain("elementId");
         content.Should().ContainAll(
             "visibleContentImpact",
+            "geometricClippingSeverity",
+            "visibleRatio",
             "not-determined",
             "pixel",
             "screenshot");

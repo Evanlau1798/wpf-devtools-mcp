@@ -34,6 +34,9 @@ public sealed partial class LayoutAnalyzer
             var selfOverflow = GetSelfOverflowAmounts(uiElement, effectiveClip, uiElement.ClipToBounds);
             var ancestorAnalysis = GetAncestorClippingAnalysis(uiElement);
             var overflow = MaxOverflow(selfOverflow, ancestorAnalysis.overflow);
+            var geometricClipping = uiElement is FrameworkElement frameworkElement
+                ? AnalyzeClipping(frameworkElement)
+                : ClippingDiagnosis.None;
             var selfSource = GetSelfClipSource(uiElement, effectiveClip, selfOverflow);
             var clippingSource = selfSource != "none"
                 ? selfSource
@@ -45,6 +48,8 @@ public sealed partial class LayoutAnalyzer
                 success = true,
                 isClipped,
                 visibleContentImpact = isClipped ? "not-determined" : "none",
+                geometricClippingSeverity = geometricClipping.Severity,
+                visibleRatio = NormalizeDouble(geometricClipping.VisibleRatio),
                 analysisScope = "target-and-ancestors",
                 clippingSource,
                 clipToBounds = uiElement.ClipToBounds,

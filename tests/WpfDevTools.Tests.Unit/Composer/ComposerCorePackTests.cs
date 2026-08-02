@@ -247,6 +247,81 @@ public sealed class ComposerCorePackTests
     }
 
     [Fact]
+    public void CoreScrollViewer_ShouldWarnWhenGridIsMeasuredByStack()
+    {
+        var blueprint = Blueprint(
+            """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
+            "core",
+            """
+            {
+              "kind": "core.stack",
+              "slots": { "children": [{
+                "kind": "core.grid",
+                "slots": { "children": [{
+                  "kind": "core.gridCell",
+                  "slots": { "content": [{
+                    "kind": "core.scrollViewer",
+                    "slots": { "content": [{ "kind": "core.text", "properties": { "text": "Scrollable" } }] }
+                  }] }
+                }] }
+              }] }
+            }
+            """);
+
+        var result = new BlueprintValidationService(CreateRegistry()).Validate(blueprint);
+
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Warnings.Should().ContainSingle(issue =>
+            issue.Code == "UnboundedScrollViewport"
+            && issue.JsonPath == "$.layout.slots.children[0].slots.children[0].slots.content[0]");
+    }
+
+    [Theory]
+    [InlineData("Vertical", "rows", "core.rowDefinition", "height", "120", "120", "row", "0", false)]
+    [InlineData("Horizontal", "columns", "core.columnDefinition", "width", "240", "240", "column", "0", false)]
+    [InlineData("Vertical", "rows", "core.rowDefinition", "height", "120", "*", "row", "1.0", true)]
+    public void CoreScrollViewer_ShouldRespectFixedGridTrackBounds(
+        string orientation,
+        string definitionsSlot,
+        string definitionKind,
+        string sizeProperty,
+        string firstSize,
+        string secondSize,
+        string cellIndexProperty,
+        string cellIndex,
+        bool shouldWarn)
+    {
+        var blueprint = Blueprint(
+            """[{ "id": "core", "version": "0.1.0", "required": true, "role": "primary" }]""",
+            "core",
+            $$"""
+            {
+              "kind": "core.stack",
+              "properties": { "orientation": "{{orientation}}" },
+              "slots": { "children": [{
+                "kind": "core.grid",
+                "slots": {
+                  "{{definitionsSlot}}": [
+                    { "kind": "{{definitionKind}}", "properties": { "{{sizeProperty}}": "{{firstSize}}" } },
+                    { "kind": "{{definitionKind}}", "properties": { "{{sizeProperty}}": "{{secondSize}}" } }
+                  ],
+                  "children": [{
+                    "kind": "core.gridCell",
+                    "properties": { "{{cellIndexProperty}}": {{cellIndex}} },
+                    "slots": { "content": [{ "kind": "core.scrollViewer" }] }
+                  }]
+                }
+              }] }
+            }
+            """);
+
+        var result = new BlueprintValidationService(CreateRegistry()).Validate(blueprint);
+
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Warnings.Any(issue => issue.Code == "UnboundedScrollViewport").Should().Be(shouldWarn);
+    }
+
+    [Fact]
     public void CoreStack_ShouldWarnForAdjacentHorizontalTextWithoutSeparation()
     {
         var blueprint = Blueprint(

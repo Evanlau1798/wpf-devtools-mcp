@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using WpfDevTools.Mcp.Server.Composer.Contracts;
 
@@ -30,7 +31,7 @@ internal static class BlueprintScrollViewportDiagnostics
             return;
         }
 
-        if (node.Kind is not ("core.stack" or "core.border" or "core.scrollViewer"))
+        if (node.Kind is not ("core.stack" or "core.border" or "core.grid" or "core.gridCell" or "core.scrollViewer"))
         {
             unboundedWidthSource = null;
             unboundedHeightSource = null;
@@ -80,15 +81,76 @@ internal static class BlueprintScrollViewportDiagnostics
             var slotPath = AppendJsonPath(path + ".slots", slotName);
             for (var index = 0; index < children.Length; index++)
             {
+                var child = children[index];
+                var childWidthSource = unboundedWidthSource;
+                var childHeightSource = unboundedHeightSource;
+                if (node.Kind == "core.grid" && slotName == "children" && child.Kind == "core.gridCell")
+                {
+                    if (IsFixedGridSpan(node, child, "columns", "column", "columnSpan", "width"))
+                    {
+                        childWidthSource = null;
+                    }
+
+                    if (IsFixedGridSpan(node, child, "rows", "row", "rowSpan", "height"))
+                    {
+                        childHeightSource = null;
+                    }
+                }
+
                 AddIssues(
-                    children[index],
+                    child,
                     $"{slotPath}[{index}]",
-                    unboundedWidthSource,
-                    unboundedHeightSource,
+                    childWidthSource,
+                    childHeightSource,
                     warnings,
                     ref added);
             }
         }
+    }
+
+    private static bool IsFixedGridSpan(
+        UiBlueprintNode grid,
+        UiBlueprintNode cell,
+        string definitionsSlot,
+        string indexProperty,
+        string spanProperty,
+        string sizeProperty)
+    {
+        if (!grid.Slots.TryGetValue(definitionsSlot, out var definitions))
+        {
+            return false;
+        }
+
+        var start = ReadInt(cell, indexProperty, 0);
+        var span = ReadInt(cell, spanProperty, 1);
+        return start >= 0
+               && span > 0
+               && span <= definitions.Length
+               && start <= definitions.Length - span
+               && definitions.Skip(start).Take(span).All(definition => IsFixedGridLength(definition, sizeProperty));
+    }
+
+    private static bool IsFixedGridLength(UiBlueprintNode definition, string propertyName)
+        => definition.Properties.TryGetValue(propertyName, out var value)
+           && value.ValueKind == JsonValueKind.String
+           && double.TryParse(value.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var size)
+           && double.IsFinite(size)
+           && size >= 0;
+
+    private static int ReadInt(UiBlueprintNode node, string propertyName, int defaultValue)
+    {
+        if (!node.Properties.TryGetValue(propertyName, out var value)
+            || value.ValueKind != JsonValueKind.Number
+            || !value.TryGetDouble(out var number)
+            || !double.IsFinite(number)
+            || Math.Truncate(number) != number
+            || number < int.MinValue
+            || number > int.MaxValue)
+        {
+            return defaultValue;
+        }
+
+        return (int)number;
     }
 
     private static string ReadString(UiBlueprintNode node, string propertyName, string defaultValue)

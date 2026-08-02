@@ -55,10 +55,12 @@ public sealed class ComposerRendererSafetyTests
         }
     }
 
-    [Fact]
-    public void RenderBlueprint_ShouldRejectUnmatchedOptionalSlotMarker()
+    [Theory]
+    [InlineData("<Grid>{{?slot.actions}}</Grid>")]
+    [InlineData("<Grid>{{?slot.actions}}{{/slot.content}}</Grid>")]
+    public void RenderBlueprint_ShouldRejectUnmatchedOptionalSlotMarker(string rendererTemplate)
     {
-        var projectRoot = CreateTempProjectWithSafetyPack("<Grid>{{?slot.actions}}</Grid>");
+        var projectRoot = CreateTempProjectWithSafetyPack(rendererTemplate);
         try
         {
             var result = new UiBlueprintRenderer(CreateRegistry(projectRoot))
@@ -66,6 +68,46 @@ public sealed class ComposerRendererSafetyTests
 
             result.Success.Should().BeFalse();
             result.Errors.Should().Contain(issue => issue.Code == "RendererOptionalSectionMalformed");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
+    public void RenderBlueprint_ShouldRejectNestedOptionalSlotSectionsBeforeExpansion()
+    {
+        var projectRoot = CreateTempProjectWithSafetyPack(
+            "<Grid>{{?slot.outer}}{{?slot.inner}}<TextBlock />{{/slot.inner}}{{/slot.outer}}</Grid>",
+            slotsJson: """{"outer":{"allowedKinds":["*"]},"inner":{"allowedKinds":["*"]}}""");
+        try
+        {
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot))
+                .Render(new RenderBlueprintRequest(Blueprint()));
+
+            result.Success.Should().BeFalse();
+            result.Errors.Should().Contain(issue => issue.Code == "RendererOptionalSectionMalformed");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Fact]
+    public void RenderBlueprint_ShouldAcceptSpacedOptionalSlotMarkers()
+    {
+        var projectRoot = CreateTempProjectWithSafetyPack(
+            "<Grid>{{ ?slot.actions}}<StackPanel>{{slot.actions}}</StackPanel>{{ /slot.actions}}</Grid>",
+            slotsJson: """{"actions":{"allowedKinds":["*"]}}""");
+        try
+        {
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot))
+                .Render(new RenderBlueprintRequest(Blueprint()));
+
+            result.Success.Should().BeTrue();
+            result.Xaml.Should().NotContain("slot.actions").And.NotContain("<StackPanel>");
         }
         finally
         {
@@ -288,7 +330,8 @@ public sealed class ComposerRendererSafetyTests
 
     private static string CreateTempProjectWithSafetyPack(
         string rendererTemplate,
-        string xmlNamespacesJson = "{}")
+        string xmlNamespacesJson = "{}",
+        string slotsJson = "{}")
     {
         var projectRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-renderer-safety-" + Guid.NewGuid().ToString("N"));
         var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", "safety", "1.0.0");
@@ -307,9 +350,10 @@ public sealed class ComposerRendererSafetyTests
         File.WriteAllText(Path.Combine(packRoot, "source.lock.json"), """
             {"schemaVersion":"wpfdevtools.source-lock.v1","sources":[],"transformPolicy":{}}
             """);
-        File.WriteAllText(Path.Combine(packRoot, "blocks", "demo.block.json"), """
-            {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"safety.demo","displayName":"Demo","category":"test","properties":{},"slots":{},"renderer":{"xamlTemplate":"renderers/xaml/demo.xaml.sbn"},"sourceHints":[]}
-            """);
+        var block = """
+            {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"safety.demo","displayName":"Demo","category":"test","properties":{},"slots":SLOTS,"renderer":{"xamlTemplate":"renderers/xaml/demo.xaml.sbn"},"sourceHints":[]}
+            """.Replace("SLOTS", slotsJson, StringComparison.Ordinal);
+        File.WriteAllText(Path.Combine(packRoot, "blocks", "demo.block.json"), block);
         File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "demo.xaml.sbn"), rendererTemplate);
         return projectRoot;
     }

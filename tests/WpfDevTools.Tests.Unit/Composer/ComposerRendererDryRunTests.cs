@@ -108,6 +108,28 @@ public sealed class ComposerRendererDryRunTests
     }
 
     [Fact]
+    public void RenderBlueprint_ShouldKeepOptionalSlotWrapperWhenSlotHasChildren()
+    {
+        var renderer = new UiBlueprintRenderer(CreateRegistry());
+
+        var result = renderer.Render(new RenderBlueprintRequest(Blueprint("""
+            {
+              "kind": "wpfui.card",
+              "slots": {
+                "actions": [
+                  { "kind": "wpfui.button", "properties": { "text": "Save" } },
+                  { "kind": "wpfui.button", "properties": { "text": "Share" } }
+                ]
+              }
+            }
+            """)));
+
+        result.Success.Should().BeTrue();
+        result.Xaml.Should().Contain("<ui:Card.Footer>");
+        result.Xaml.Should().Contain("Content=\"Save\"").And.Contain("Content=\"Share\"");
+    }
+
+    [Fact]
     public void RenderBlueprint_ShouldRenderDataGridColumnsAsPropertyElement()
     {
         var renderer = new UiBlueprintRenderer(CreateRegistry());

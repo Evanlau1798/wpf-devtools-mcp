@@ -12,13 +12,6 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
     private static readonly Regex TokenPattern = new(
         @"\{\{\s*(?<name>[A-Za-z0-9_.-]+)\s*\}\}",
         RegexOptions.CultureInvariant);
-    private static readonly Regex OptionalSlotSectionPattern = new(
-        @"\{\{\?\s*(?<name>slot\.[A-Za-z0-9_.-]+)\s*\}\}(?<content>.*?)\{\{/\s*\k<name>\s*\}\}",
-        RegexOptions.CultureInvariant | RegexOptions.Singleline);
-    private static readonly Regex OptionalSlotMarkerPattern = new(
-        @"\{\{[?/]\s*slot\.[A-Za-z0-9_.-]+\s*\}\}",
-        RegexOptions.CultureInvariant);
-
     private static readonly Regex EmptyPropertyElementPattern = new(
         @"\s*<(?<prefix>[A-Za-z_][A-Za-z0-9_]*):(?<type>[A-Za-z_][A-Za-z0-9_]*)\.(?<property>[A-Za-z_][A-Za-z0-9_]*)>\s*</\k<prefix>:\k<type>\.\k<property>>",
         RegexOptions.CultureInvariant);
@@ -177,37 +170,6 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         }
 
         sourceMap.Add(new RenderSourceMapEntry(path, node.Kind, templateResult.Template.TemplatePath, rendered));
-        return rendered;
-    }
-
-    private static string ResolveOptionalSlotSections(
-        string template,
-        UiBlueprintNode node,
-        UiBlockDefinition block,
-        string path,
-        List<BlueprintValidationIssue> errors)
-    {
-        var rendered = OptionalSlotSectionPattern.Replace(template, match =>
-        {
-            var token = match.Groups["name"].Value;
-            var slotName = token["slot.".Length..];
-            if (!block.Slots.ContainsKey(slotName))
-            {
-                errors.Add(Issue(path, "RendererTokenMismatch", $"Renderer optional section '{token}' does not match a slot on block '{block.Kind}'.", "Update the renderer template section or add the slot to the block contract."));
-                return string.Empty;
-            }
-
-            return node.Slots.TryGetValue(slotName, out var children) && children.Length > 0
-                ? match.Groups["content"].Value
-                : string.Empty;
-        });
-
-        if (OptionalSlotMarkerPattern.IsMatch(rendered))
-        {
-            errors.Add(Issue(path, "RendererOptionalSectionMalformed", $"Renderer for block '{block.Kind}' contains an unmatched optional slot marker.", "Pair each {{?slot.name}} marker with {{/slot.name}}."));
-            return string.Empty;
-        }
-
         return rendered;
     }
 

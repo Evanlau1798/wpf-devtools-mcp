@@ -55,6 +55,24 @@ public sealed class ComposerRendererSafetyTests
         }
     }
 
+    [Fact]
+    public void RenderBlueprint_ShouldRejectUnmatchedOptionalSlotMarker()
+    {
+        var projectRoot = CreateTempProjectWithSafetyPack("<Grid>{{?slot.actions}}</Grid>");
+        try
+        {
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot))
+                .Render(new RenderBlueprintRequest(Blueprint()));
+
+            result.Success.Should().BeFalse();
+            result.Errors.Should().Contain(issue => issue.Code == "RendererOptionalSectionMalformed");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
     [Theory]
     [InlineData("<Grid><evil:Code>void Run() { }</evil:Code></Grid>", "UnsafeXamlDirective")]
     [InlineData("<TextBlock Text=\"{evil:Static Grid.Tag}\" />", "UnsafeXamlMarkupExtension")]

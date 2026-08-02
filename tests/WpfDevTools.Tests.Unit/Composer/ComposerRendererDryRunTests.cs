@@ -91,6 +91,23 @@ public sealed class ComposerRendererDryRunTests
     }
 
     [Fact]
+    public void RenderBlueprint_ShouldOmitOptionalSlotWrapperWhenSlotIsEmpty()
+    {
+        var renderer = new UiBlueprintRenderer(CreateRegistry());
+
+        var result = renderer.Render(new RenderBlueprintRequest(Blueprint("""
+            {
+              "kind": "wpfui.card",
+              "slots": { "content": [{ "kind": "core.text", "properties": { "text": "Ready" } }] }
+            }
+            """)));
+
+        result.Success.Should().BeTrue();
+        result.Xaml.Should().Contain("Ready");
+        result.Xaml.Should().NotContain("<ui:Card.Footer>");
+    }
+
+    [Fact]
     public void RenderBlueprint_ShouldRenderDataGridColumnsAsPropertyElement()
     {
         var renderer = new UiBlueprintRenderer(CreateRegistry());

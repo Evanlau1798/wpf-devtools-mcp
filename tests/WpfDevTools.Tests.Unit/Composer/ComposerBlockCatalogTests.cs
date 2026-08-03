@@ -201,6 +201,21 @@ public sealed class ComposerBlockCatalogTests
         detail.Items.Should().ContainSingle(item => item.Kind == "wpfui.navigationViewItem");
     }
 
+    [Fact]
+    public async Task GetUiBlockCatalogTool_AllowedValueQueryWithoutExactKind_ShouldFailCompactly()
+    {
+        var result = await UiComposerMcpTools.GetUiBlockCatalog(
+            compact: true,
+            allowedValueQuery: "image",
+            cancellationToken: CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        var payload = result.StructuredContent!.Value;
+        payload.GetProperty("errorCode").GetString().Should().Be("CatalogExactKindRequired");
+        payload.GetProperty("hint").GetString().Should().ContainAll("kind", "broad discovery");
+        payload.TryGetProperty("items", out _).Should().BeFalse();
+    }
+
     [Theory]
     [InlineData("wpfui.navigationView", "items", "wpfui.navigationViewItem")]
     [InlineData("wpfui.navigationView", "items", "wpfui.navigationViewItemSeparator")]

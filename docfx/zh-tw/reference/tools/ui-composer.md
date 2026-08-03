@@ -83,7 +83,7 @@ Request options:
 - `kind`: optional exact pack-qualified block kind，用於 single-block detail。
 - `includeRecipes`: true 時同時回傳可供 `expand_ui_recipe` 使用的 recipe catalog entries。
 - `compact`: true 時回傳精簡 discovery projection，保留 identity、pack-authored block description、category、property names、required 或具有數值界線的 `propertyContracts`、preview warnings、slot bounds、renderer availability、`compositionSkeleton` 及 pack-defined `authoringRoles`。每個 compact property contract 會保留 type、required flag、bounded allowed-value sample/count、numeric bounds、integer flag 與 format。省略 `maximum` 或 `maxItems` 仍表示不設上限。
-- `allowedValueQuery`: optional case-insensitive substring search，用於搜尋 allowed string values。請搭配 exact `kind` 與 `compact=false`；query 最長 128 字元。
+- `allowedValueQuery`: optional case-insensitive substring search，用於搜尋 allowed string values。請搭配 exact `kind` 與 `compact=false`；省略 `kind` 時會回傳 `CatalogExactKindRequired`，而不是完整 catalog。Query 最長 128 字元。
 
 Catalog entries 只包含 source hint paths，不會把第三方 source code 複製進 tool output。
 

@@ -299,6 +299,17 @@ public static partial class UiComposerMcpTools
         string? projectRoot,
         string? localAppDataRoot)
     {
+        if (!string.IsNullOrWhiteSpace(allowedValueQuery) && string.IsNullOrWhiteSpace(kind))
+        {
+            return new
+            {
+                success = false,
+                errorCode = "CatalogExactKindRequired",
+                error = "allowedValueQuery requires an exact pack-qualified kind.",
+                hint = "Pass kind from broad discovery, or omit allowedValueQuery for broad discovery."
+            };
+        }
+
         var registry = CreateRegistry(projectRoot, localAppDataRoot);
         var catalog = new BlockCatalogService(registry);
         var result = catalog.GetCatalog(new BlockCatalogQuery(packIds, category, kindPrefix, composableOnly, kind, allowedValueQuery));

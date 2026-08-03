@@ -11,6 +11,7 @@ public sealed class McpToolExecutionPolicyPreviewDiagnosticsTests
     [InlineData("{\"includeRuntimeDiagnostics\":true}")]
     [InlineData("{\"includeRuntimeDiagnostics\":\"true\"}")]
     [InlineData("{\"includeScreenshotDiagnostics\":true}")]
+    [InlineData("{\"visualLayoutContractJson\":\"{\\\"regions\\\":[{\\\"elementName\\\":\\\"Primary\\\",\\\"bounds\\\":{\\\"x\\\":0,\\\"y\\\":0,\\\"width\\\":1,\\\"height\\\":1}}]}\"}")]
     public void EvaluateToolCall_WhenPreviewDiagnosticsRequestSensitiveReadsAndGateIsDisabled_ShouldDeny(string argumentsJson)
     {
         var policy = McpToolExecutionPolicy.FromConfiguredValues(
@@ -53,7 +54,7 @@ public sealed class McpToolExecutionPolicyPreviewDiagnosticsTests
 
         policy.EvaluateToolCall(
                 "preview_ui_blueprint",
-                ToArguments("{\"includeRuntimeDiagnostics\":false,\"includeScreenshotDiagnostics\":false}"))
+                ToArguments("{\"includeRuntimeDiagnostics\":false,\"includeScreenshotDiagnostics\":false,\"visualLayoutContractJson\":\"   \"}"))
             .IsAllowed.Should().BeTrue();
     }
 

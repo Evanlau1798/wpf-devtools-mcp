@@ -206,22 +206,24 @@ public static partial class UiComposerMcpTools
     public static Task<CallToolResult> PreviewUiBlueprint(
         SessionManager sessionManager,
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
-        [Description("UI blueprint JSON text or an opaque draftRef to compile in a temporary preview project.")] string blueprintJson,
-        [Description("Restore before build; false uses --no-restore and reports missing assets.")] bool restoreEnabled = true,
-        [Description("Start and stop the temporary preview host after a successful build.")] bool startHost = false,
-        [Description("With startHost, returns semantic and layout diagnostics; requires sensitive reads.")] bool includeRuntimeDiagnostics = false,
-        [Description("Compact XAML/risk-free correlations to counts; keep failures and screenshot resource handles. False returns full.")] bool compactRuntimeDiagnostics = true,
-        [Description("With startHost, adds a screenshot; requires sensitive-read and screenshot gates.")] bool includeScreenshotDiagnostics = false,
+        [Description("Blueprint JSON or draftRef for isolated preview compile.")] string blueprintJson,
+        [Description("Restore before build; false uses --no-restore.")] bool restoreEnabled = true,
+        [Description("Launch the temporary preview host after build.")] bool startHost = false,
+        [Description("Host semantic/layout diagnostics; needs startHost and sensitive reads.")] bool includeRuntimeDiagnostics = false,
+        [Description("Compact successful XAML/correlations; failures and screenshot handles remain.")] bool compactRuntimeDiagnostics = true,
+        [Description("Host screenshot; needs startHost, sensitive-read, and screenshot gates.")] bool includeScreenshotDiagnostics = false,
         [AllowedValues("metadata", "file")]
-        [Description("Screenshot output mode used when includeScreenshotDiagnostics=true: 'metadata' (default) or resource-backed 'file'.")] string screenshotOutputMode = "metadata",
+        [Description("Screenshot mode: metadata or resource-backed file.")] string screenshotOutputMode = "metadata",
         [Range(1, int.MaxValue)]
         [Description("Maximum screenshot width; defaults to 1024. Null keeps rendered width.")] int? screenshotMaxWidth = 1024,
         [Range(1, int.MaxValue)]
         [Description("Maximum screenshot height; defaults to 1024. Null keeps rendered height.")] int? screenshotMaxHeight = 1024,
         [Range(1, UiPreviewProjectFiles.MaximumViewportDimension)]
-        [Description("Preview Window.Width in DIPs; match the target Window dimension to expose overflow.")] int? viewportWidth = null,
+        [Description("Preview Window.Width DIPs for target overflow.")] int? viewportWidth = null,
         [Range(1, UiPreviewProjectFiles.MaximumViewportDimension)]
-        [Description("Preview Window.Height in DIPs; match the target Window dimension to expose overflow.")] int? viewportHeight = null,
+        [Description("Preview Window.Height DIPs for target overflow.")] int? viewportHeight = null,
+        [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
+        [Description("Pack-neutral named-region geometry JSON; requires startHost.")] string? visualLayoutContractJson = null,
         [Description("One-request reviewed tokens; requires WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true.")] string[]? runtimePackApprovalTokens = null,
         [Range(1, UiBlueprintPreviewDiagnosticsBridge.MaximumNameLookupLimit)]
         [Description("Inspects up to 32 non-generated correlation names (authored elementName values and renderer-provided root x:Name values); raise to 64 only for layoutRiskSummary lookup-budget truncation.")] int correlationLookupLimit = UiBlueprintPreviewDiagnosticsBridge.ExistingNameLookupLimit,
@@ -241,6 +243,7 @@ public static partial class UiComposerMcpTools
             ("screenshotMaxHeight", screenshotMaxHeight),
             ("viewportWidth", viewportWidth),
             ("viewportHeight", viewportHeight),
+            ("visualLayoutContractJson", visualLayoutContractJson),
             ("runtimePackApprovalTokens", runtimePackApprovalTokens),
             ("correlationLookupLimit", correlationLookupLimit),
             ("projectRoot", projectRoot),
@@ -260,6 +263,7 @@ public static partial class UiComposerMcpTools
                 screenshotMaxHeight,
                 viewportWidth,
                 viewportHeight,
+                visualLayoutContractJson,
                 runtimePackApprovalTokens,
                 correlationLookupLimit,
                 projectRoot,

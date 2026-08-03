@@ -3,7 +3,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using WpfDevTools.Mcp.Server.Composer.Apply;
-using WpfDevTools.Mcp.Server.Composer.Contracts;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
 
@@ -32,6 +31,9 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
         PreviewBlueprintRequest request,
         CancellationToken cancellationToken = default)
     {
+        var unavailableVisualLayoutContractSummary = PreviewVisualLayoutContractAnalyzer.Analyze(
+            [],
+            request.VisualLayoutContract);
         var render = new UiBlueprintRenderer(registry)
             .Render(new RenderBlueprintRequest(
                 request.BlueprintJson,
@@ -50,7 +52,10 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                     rendererTemplatePath)
                 {
                     RelatedJsonPaths = error.RelatedJsonPaths
-                }).ToArray());
+                }).ToArray()) with
+            {
+                VisualLayoutContractSummary = unavailableVisualLayoutContractSummary
+            };
         }
 
         var propertyWarnings = CollectPropertyWarnings(request.BlueprintJson);
@@ -74,6 +79,7 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 {
                     PropertyWarnings = propertyWarnings,
                     ElementCorrelations = render.ElementCorrelations,
+                    VisualLayoutContractSummary = unavailableVisualLayoutContractSummary,
                     RuntimePackApprovalReviews = previewContract.RuntimePackApprovalReviews
                 };
         }
@@ -86,6 +92,7 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 {
                     PropertyWarnings = propertyWarnings,
                     ElementCorrelations = render.ElementCorrelations,
+                    VisualLayoutContractSummary = unavailableVisualLayoutContractSummary,
                     RuntimePackApprovalReviews = previewContract.RuntimePackApprovalReviews
                 };
         }
@@ -151,7 +158,8 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                     with
                     {
                         PropertyWarnings = propertyWarnings,
-                        ElementCorrelations = render.ElementCorrelations
+                        ElementCorrelations = render.ElementCorrelations,
+                        VisualLayoutContractSummary = unavailableVisualLayoutContractSummary
                     };
             }
 
@@ -179,7 +187,11 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
             var layoutRiskSummary = PreviewLayoutRiskAnalyzer.Analyze(
                 previewHost.RuntimeDiagnostics ?? [],
                 render.ElementCorrelations,
-                request.CorrelationLookupLimit);
+                request.CorrelationLookupLimit,
+                request.VisualLayoutContract?.Regions.Select(region => region.ElementName));
+            var visualLayoutContractSummary = PreviewVisualLayoutContractAnalyzer.Analyze(
+                previewHost.RuntimeDiagnostics ?? [],
+                request.VisualLayoutContract);
 
             return new PreviewBlueprintResult(
                 Success: true,
@@ -194,6 +206,7 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 PropertyWarnings = propertyWarnings,
                 ElementCorrelations = render.ElementCorrelations,
                 LayoutRiskSummary = layoutRiskSummary,
+                VisualLayoutContractSummary = visualLayoutContractSummary,
                 UsesStructuralStubs = previewContract.UsesStructuralStubs,
                 UsesRuntimeDependencies = previewContract.UsesRuntimeDependencies,
                 RuntimePackApprovalReviews = previewContract.RuntimePackApprovalReviews
@@ -206,7 +219,8 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 with
                 {
                     PropertyWarnings = propertyWarnings,
-                    ElementCorrelations = render.ElementCorrelations
+                    ElementCorrelations = render.ElementCorrelations,
+                    VisualLayoutContractSummary = unavailableVisualLayoutContractSummary
                 };
         }
         finally
@@ -215,45 +229,6 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
             {
                 DeleteDirectoryBestEffort(tempRoot);
             }
-        }
-    }
-
-    private string ResolveRootRendererTemplatePath(string blueprintJson)
-    {
-        try
-        {
-            var blueprint = ComposerJsonLoader.Parse<UiBlueprint>(
-                blueprintJson,
-                "<inline-blueprint>",
-                UiComposerSchemaVersions.UiBlueprint);
-            var packId = ComposerPackKindResolver.ResolveDeclaredPackId(blueprint.Layout.Kind, blueprint.Packs.Select(pack => pack.Id))
-                ?? ComposerPackKindResolver.GetFallbackPackId(blueprint.Layout.Kind);
-            var packRef = blueprint.Packs.FirstOrDefault(candidate =>
-                string.Equals(candidate.Id, packId, StringComparison.Ordinal));
-            if (packRef is null)
-            {
-                return string.Empty;
-            }
-
-            var packs = registry.ListPacks().Packs;
-            var pack = packs.FirstOrDefault(candidate =>
-                string.Equals(candidate.Id, packRef.Id, StringComparison.Ordinal)
-                && string.Equals(candidate.Version, packRef.Version, StringComparison.Ordinal));
-            if (pack is null)
-            {
-                return string.Empty;
-            }
-
-            var loaded = ComposerPackLoader.Load(pack.RootPath);
-            var block = loaded.Blocks.FirstOrDefault(candidate =>
-                string.Equals(candidate.Kind, blueprint.Layout.Kind, StringComparison.Ordinal));
-            return block is null || string.IsNullOrWhiteSpace(block.Renderer.XamlTemplate)
-                ? string.Empty
-                : Path.GetFullPath(Path.Combine(pack.RootPath, block.Renderer.XamlTemplate.Replace('/', Path.DirectorySeparatorChar)));
-        }
-        catch
-        {
-            return string.Empty;
         }
     }
 
@@ -301,7 +276,9 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
             : [];
 
     internal static bool RequiresRuntimeDiagnostics(PreviewBlueprintRequest request)
-        => request.IncludeRuntimeDiagnostics || request.IncludeScreenshotDiagnostics;
+        => request.IncludeRuntimeDiagnostics
+           || request.IncludeScreenshotDiagnostics
+           || request.VisualLayoutContract is not null;
 
     private static RenderSourceMapEntry? ResolveCompileDiagnosticSource(
         string buildOutput,

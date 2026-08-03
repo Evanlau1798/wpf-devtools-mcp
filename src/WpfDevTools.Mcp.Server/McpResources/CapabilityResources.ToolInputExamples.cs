@@ -19,7 +19,7 @@ public static partial class CapabilityResources
         var resource = new
         {
             resourceUri = ToolExamplesResourceUri,
-            version = "2026-05-26",
+            version = "2026-08-03",
             purpose = "Concise structured examples for complex tool inputs; use these alongside tools/list schemas.",
             examplesByTool = new
             {
@@ -351,6 +351,24 @@ public static partial class CapabilityResources
                                     value = "Ready"
                                 }
                             }
+                        }
+                    }
+                },
+                preview_ui_blueprint = new[]
+                {
+                    new
+                    {
+                        name = "Measure caller-declared preview regions",
+                        policyGates = new[]
+                        {
+                            "WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS",
+                            "WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS"
+                        },
+                        arguments = new
+                        {
+                            blueprintJson = "draft_00000000000000000000000000000000",
+                            startHost = true,
+                            visualLayoutContractJson = "{\"regions\":[{\"elementName\":\"PrimaryRegion\",\"bounds\":{\"x\":0.05,\"y\":0.05,\"width\":0.9,\"height\":0.5},\"horizontalScrollbarChrome\":\"hidden\"}]}"
                         }
                     }
                 },

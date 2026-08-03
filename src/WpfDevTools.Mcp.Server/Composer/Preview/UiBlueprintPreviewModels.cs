@@ -18,6 +18,7 @@ internal sealed record PreviewBlueprintRequest(
     int? ViewportWidth = null,
     int? ViewportHeight = null,
     IReadOnlyList<string>? RuntimePackApprovalTokens = null,
+    PreviewVisualLayoutContract? VisualLayoutContract = null,
     string? ProjectRoot = null)
 {
     public IReadOnlyList<RenderElementCorrelation> RuntimeElementCorrelations { get; init; } = [];
@@ -96,6 +97,9 @@ internal sealed record PreviewBlueprintResult(
     public IReadOnlyList<RenderElementCorrelation> ElementCorrelations { get; init; } = [];
 
     public PreviewLayoutRiskSummary LayoutRiskSummary { get; init; } = PreviewLayoutRiskSummary.Empty;
+
+    public PreviewVisualLayoutContractSummary VisualLayoutContractSummary { get; init; }
+        = PreviewVisualLayoutContractSummary.NotProvided;
 
     public IReadOnlyList<PreviewRuntimePackApprovalReview> RuntimePackApprovalReviews { get; init; } = [];
 

@@ -13,6 +13,14 @@ public sealed class ComposerPreviewLayoutRiskDocumentationTests
         var content = File.ReadAllText(TestRepositoryPaths.GetRepoFilePath(path));
 
         content.Should().Contain("layoutRiskSummary");
+        content.Should().ContainAll(
+            "visualLayoutContractJson",
+            "visualLayoutContractSummary",
+            "unresolvedCount",
+            "normalized",
+            "horizontalScrollbarChrome",
+            "computed scrollbar visibility",
+            "pack-neutral");
         content.Should().Contain("get_clipping_info");
         content.Should().Contain("jsonPath");
         content.Should().Contain("blockKind");

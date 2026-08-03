@@ -6,6 +6,47 @@ namespace WpfDevTools.Mcp.Server.Composer.Preview;
 
 internal sealed partial class UiBlueprintPreviewService
 {
+    private string ResolveRootRendererTemplatePath(string blueprintJson)
+    {
+        try
+        {
+            var blueprint = ComposerJsonLoader.Parse<UiBlueprint>(
+                blueprintJson,
+                "<inline-blueprint>",
+                UiComposerSchemaVersions.UiBlueprint);
+            var packId = ComposerPackKindResolver.ResolveDeclaredPackId(
+                             blueprint.Layout.Kind,
+                             blueprint.Packs.Select(pack => pack.Id))
+                         ?? ComposerPackKindResolver.GetFallbackPackId(blueprint.Layout.Kind);
+            var packRef = blueprint.Packs.FirstOrDefault(candidate =>
+                string.Equals(candidate.Id, packId, StringComparison.Ordinal));
+            if (packRef is null)
+            {
+                return string.Empty;
+            }
+
+            var pack = registry.ListPacks().Packs.FirstOrDefault(candidate =>
+                string.Equals(candidate.Id, packRef.Id, StringComparison.Ordinal)
+                && string.Equals(candidate.Version, packRef.Version, StringComparison.Ordinal));
+            if (pack is null)
+            {
+                return string.Empty;
+            }
+
+            var block = ComposerPackLoader.Load(pack.RootPath).Blocks.FirstOrDefault(candidate =>
+                string.Equals(candidate.Kind, blueprint.Layout.Kind, StringComparison.Ordinal));
+            return block is null || string.IsNullOrWhiteSpace(block.Renderer.XamlTemplate)
+                ? string.Empty
+                : Path.GetFullPath(Path.Combine(
+                    pack.RootPath,
+                    block.Renderer.XamlTemplate.Replace('/', Path.DirectorySeparatorChar)));
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
     private IReadOnlyList<PreviewPropertyWarning> CollectPropertyWarnings(string blueprintJson)
     {
         var blueprint = ComposerJsonLoader.Parse<UiBlueprint>(

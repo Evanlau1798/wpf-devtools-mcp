@@ -6,7 +6,7 @@ using WpfDevTools.Mcp.Server.Tools;
 
 namespace WpfDevTools.Mcp.Server.Composer.Preview;
 
-internal static class UiBlueprintPreviewDiagnosticsBridge
+internal static partial class UiBlueprintPreviewDiagnosticsBridge
 {
     private const int ToolTimeoutSeconds = 60;
     internal const int ExistingNameLookupLimit = 32;
@@ -21,6 +21,7 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
         int? screenshotMaxHeight,
         int correlationLookupLimit,
         IReadOnlyList<RenderElementCorrelation> elementCorrelations,
+        PreviewVisualLayoutContract? visualLayoutContract,
         CancellationToken cancellationToken)
     {
         var processId = previewProcess.Id;
@@ -65,7 +66,10 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
             }
 
             var lookupDiagnostics = new List<PreviewRuntimeDiagnostic>();
-            foreach (var lookup in BuildCorrelationLookupPlan(elementCorrelations, correlationLookupLimit))
+            foreach (var lookup in BuildCorrelationLookupPlan(
+                         elementCorrelations,
+                         correlationLookupLimit,
+                         visualLayoutContract?.Regions.Select(region => region.ElementName)))
             {
                 var lookupDiagnostic = await RunGatedAsync(
                     policy,
@@ -100,6 +104,14 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
                     cancellationToken).ConfigureAwait(false);
                 diagnostics.Add(clippingDiagnostic with { TargetElementIds = clippingBatch });
             }
+
+            diagnostics.AddRange(await CaptureVisualContractSnapshotsAsync(
+                sessionManager,
+                processId,
+                policy,
+                lookupDiagnostics,
+                visualLayoutContract,
+                cancellationToken).ConfigureAwait(false));
 
             diagnostics.Add(await RunGatedAsync(
                 policy,
@@ -141,7 +153,8 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
 
     internal static IReadOnlyList<PreviewCorrelationLookup> BuildCorrelationLookupPlan(
         IReadOnlyList<RenderElementCorrelation> correlations,
-        int exactNameLookupLimit = ExistingNameLookupLimit)
+        int exactNameLookupLimit = ExistingNameLookupLimit,
+        IEnumerable<string>? prioritizedElementNames = null)
     {
         var plan = new List<PreviewCorrelationLookup>();
         if (correlations.Any(item => item.ElementName.StartsWith("WpfDevToolsBp_", StringComparison.Ordinal)))
@@ -149,9 +162,15 @@ internal static class UiBlueprintPreviewDiagnosticsBridge
             plan.Add(new PreviewCorrelationLookup("WpfDevToolsBp_", "contains"));
         }
 
+        var prioritized = (prioritizedElementNames ?? [])
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        plan.AddRange(prioritized.Select(name => new PreviewCorrelationLookup(name, "exact")));
         plan.AddRange(correlations
             .Select(item => item.ElementName)
             .Where(name => !name.StartsWith("WpfDevToolsBp_", StringComparison.Ordinal))
+            .Where(name => !prioritized.Contains(name, StringComparer.Ordinal))
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
             .Take(exactNameLookupLimit)

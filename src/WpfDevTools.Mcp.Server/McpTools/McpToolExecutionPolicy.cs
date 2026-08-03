@@ -154,7 +154,8 @@ internal sealed class McpToolExecutionPolicy
                 || BatchMutateReturnsSensitiveRead(arguments))
             || string.Equals(toolName, "preview_ui_blueprint", StringComparison.Ordinal)
             && (IsEnabledArgument(arguments, "includeRuntimeDiagnostics")
-                || IsEnabledArgument(arguments, "includeScreenshotDiagnostics"));
+                || IsEnabledArgument(arguments, "includeScreenshotDiagnostics")
+                || ContainsNonEmptyString(arguments, "visualLayoutContractJson"));
     }
 
     private static bool HasEffectiveBatchSnapshot(IDictionary<string, JsonElement>? arguments)
@@ -269,6 +270,13 @@ internal sealed class McpToolExecutionPolicy
         string propertyName)
         => TryGetArrayArgument(arguments, propertyName, out var value)
            && JsonArrayHasValues(value);
+
+    private static bool ContainsNonEmptyString(
+        IDictionary<string, JsonElement>? arguments,
+        string propertyName)
+        => arguments?.TryGetValue(propertyName, out var value) == true
+           && value.ValueKind == JsonValueKind.String
+           && !string.IsNullOrWhiteSpace(value.GetString());
 
     private static bool JsonArrayHasValues(JsonElement value)
         => value.ValueKind == JsonValueKind.Array && value.GetArrayLength() > 0;

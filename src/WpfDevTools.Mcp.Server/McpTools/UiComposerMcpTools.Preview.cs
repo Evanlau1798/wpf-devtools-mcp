@@ -4,6 +4,7 @@ using WpfDevTools.Mcp.Server.Composer.Diagnostics;
 using WpfDevTools.Mcp.Server.Composer.Drafts;
 using WpfDevTools.Mcp.Server.Composer.Preview;
 using WpfDevTools.Mcp.Server.Tools;
+using WpfDevTools.Shared.ErrorHandling;
 using WpfDevTools.Shared.Validation;
 
 namespace WpfDevTools.Mcp.Server.McpTools;
@@ -23,6 +24,7 @@ public static partial class UiComposerMcpTools
         int? screenshotMaxHeight,
         int? viewportWidth,
         int? viewportHeight,
+        string? visualLayoutContractJson,
         string[]? runtimePackApprovalTokens,
         int correlationLookupLimit,
         string? projectRoot,
@@ -107,6 +109,19 @@ public static partial class UiComposerMcpTools
             return correlationLookupLimitError!;
         }
 
+        if (!PreviewVisualLayoutContractParser.TryParse(
+                visualLayoutContractJson,
+                out var visualLayoutContract,
+                out var visualLayoutContractError))
+        {
+            return new ToolErrorPayload
+            {
+                Error = visualLayoutContractError!,
+                ErrorCode = ToolErrorCode.InvalidArgument.ToString(),
+                Hint = "Provide 1-16 unique named regions with normalized bounds, optional tolerance, and scrollbar chrome expectations."
+            };
+        }
+
         var result = await new UiBlueprintPreviewService(CreateRegistry(projectRoot, localAppDataRoot), sessionManager)
             .PreviewAsync(
                 new PreviewBlueprintRequest(
@@ -121,6 +136,7 @@ public static partial class UiComposerMcpTools
                     CorrelationLookupLimit: resolvedCorrelationLookupLimit!.Value,
                     ViewportWidth: resolvedViewportWidth,
                     ViewportHeight: resolvedViewportHeight,
+                    VisualLayoutContract: visualLayoutContract,
                     RuntimePackApprovalTokens: runtimePackApprovalTokens ?? [],
                     ProjectRoot: projectRoot),
                 cancellationToken)
@@ -170,6 +186,7 @@ public static partial class UiComposerMcpTools
             elementCorrelationsCompacted = compactElementCorrelations && result.ElementCorrelations.Count > 0,
             elementCorrelationCount = result.ElementCorrelations.Count,
             result.LayoutRiskSummary,
+            result.VisualLayoutContractSummary,
             result.RuntimePackApprovalReviews,
             observability = ComposerObservability.ForPreview(result)
         };

@@ -112,8 +112,8 @@ internal static class UiComposerMcpToolDescriptions
         REQUEST OPTIONS:
         - blueprintJson accepts raw JSON or an opaque draftRef. Raw JSON must contain schemaVersion wpfdevtools.ui-blueprint.v1.
         - targetPath optionally checks generated class/member collisions for that XAML filename; omission uses Views/<blueprint-name>.xaml.
-        - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
-        - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.
+        - projectRoot: optional project-local pack discovery root.
+        - localAppDataRoot: optional user-global discovery root.
 
         EXAMPLES:
         """ + CanonicalExamples;
@@ -267,22 +267,24 @@ internal static class UiComposerMcpToolDescriptions
         - visualFidelity is resource-backed, hybrid-resource-backed, structural, or not-available; verify the applied, built, and launched app.
         - Project/user packs stay structural until an operator approves. runtimePackApprovalReviews returns a content-bound approval token when eligible; with WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true, retry via runtimePackApprovalTokens. WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS is server-start only. Packages need exact [version], SHA-512 contentHash, and a preview-local NuGet cache hash-checked before build.
         - previewScreenshot keeps successful screenshot resource handles near the response start; verify SHA-256 before trusting sparse pixels.
-        - visualComparisonChecklist: final window chrome, icons, control templates, layout and spacing, content density, and partial-item clipping checks.
-        - propertyWarnings: supplied-property guidance with exact blueprint JSON path, block kind, property name, and message.
-        - elementCorrelations maps transient x:Name to jsonPath/blockKind; never written into the blueprint or render/apply output.
-        - layoutRiskSummary: attentionRequiredCount/minimumVisibleRatio cover visibilityClassification=sliver<=15%, plus hidden when nearestScrollContainer.canBringTargetIntoView!=true. geometricClippingSeverity/visibleRatio=geometry. ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-realized, search-incomplete. runtime-not-realized means inactive or lazy content; requiresActiveStateInspection=true: inspect applied, built final app. namescopeOnlyCorrelationCount: get_namescope-only; no inspectionTruncated. RuntimeStructuralOverflowRisk=structural-overflow; RuntimeClippingDetected=riskClassification=clipping. advisory+visibleContentImpact=not-determined+requiresVisualConfirmation=true: confirm pixels.
+        - visualComparisonChecklist: final window chrome, icons, control templates, layout and spacing, density, clipping.
+        - propertyWarnings: supplied properties with exact blueprint JSON path, block kind, name, and message.
+        - elementCorrelations: transient x:Name -> jsonPath/blockKind; never written into the blueprint or output.
+        - layoutRiskSummary: attentionRequiredCount/minimumVisibleRatio/visibilityClassification covers sliver<=15% or hidden+!canBringTargetIntoView; nearestScrollContainer identifies scroll context. geometricClippingSeverity/visibleRatio=geometry. ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-realized, search-incomplete. runtime-not-realized means inactive or lazy content; requiresActiveStateInspection: inspect applied, built final app. namescopeOnlyCorrelationCount=get_namescope namescope-only; no inspectionTruncated. RuntimeStructuralOverflowRisk=structural-overflow; RuntimeClippingDetected=riskClassification=clipping; advisory+visibleContentImpact+requiresVisualConfirmation: confirm pixels.
+        - visualLayoutContractSummary: pack-neutral geometry/scrollbars with unresolved reason.
         - Compile failures map to line/column and renderer path; infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:
         - blueprintJson accepts raw JSON or an opaque draftRef (wpfdevtools.ui-blueprint.v1).
-        - restoreEnabled defaults true; false verifies restore-disabled diagnostics.
-        - startHost defaults false; true loads the preview host.
-        - includeRuntimeDiagnostics defaults false; true needs startHost and sensitive reads.
-        - compactRuntimeDiagnostics is compact by default: XAML/risk-free correlations become counts; failures remain and screenshot resource handles stay in previewScreenshot. False returns full.
-        - correlationLookupLimit checks authored elementName and renderer-provided root x:Name at 32 (max 64); namescope-only targets still get clipping checks. Raise only for lookup-budget.
-        - Screenshots require startHost, sensitive-read, and screenshot gates.
-        - screenshotOutputMode="file" returns pixel evidence at previewScreenshot.resourceUri; preview pixels do not approve final styling.
+        - restoreEnabled=false verifies restore-disabled diagnostics; default true.
+        - startHost=true loads preview host; default false.
+        - includeRuntimeDiagnostics=true needs startHost+sensitive reads; default false.
+        - compactRuntimeDiagnostics is compact by default; keeps failures and screenshot resource handles. False returns full.
+        - correlationLookupLimit caps non-contract authored elementName and renderer-provided root x:Name at 32 (max 64); 16 contract names are separate. Raise only for lookup-budget.
+        - Screenshots need startHost+sensitive-read+screenshot gates.
+        - screenshotOutputMode="file": pixels at previewScreenshot.resourceUri; preview does not approve final styling.
         - viewportWidth/viewportHeight set Window.Width/Window.Height DIPs; match target Window outer dimensions for overflow. Screenshot bounds resize returned pixels only.
+        - visualLayoutContractJson: 1-16 exact names, normalized bounds/tolerance/scrollbars; startHost required.
         - runtimePackApprovalTokens accepts reviewed content-bound tokens for this request only and requires WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.

@@ -11,7 +11,8 @@ internal static class PreviewLayoutRiskAnalyzer
     internal static PreviewLayoutRiskSummary Analyze(
         IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics,
         IReadOnlyList<RenderElementCorrelation> correlations,
-        int correlationLookupLimit = UiBlueprintPreviewDiagnosticsBridge.ExistingNameLookupLimit)
+        int correlationLookupLimit = UiBlueprintPreviewDiagnosticsBridge.ExistingNameLookupLimit,
+        IEnumerable<string>? prioritizedElementNames = null)
     {
         var correlatedElementNames = correlations
             .Select(item => item.ElementName)
@@ -23,7 +24,10 @@ internal static class PreviewLayoutRiskAnalyzer
             .Select(group => group.Key)
             .ToHashSet(StringComparer.Ordinal);
         var correlatedTargetCount = correlatedElementNames.Count;
-        var lookupPlan = UiBlueprintPreviewDiagnosticsBridge.BuildCorrelationLookupPlan(correlations, correlationLookupLimit);
+        var lookupPlan = UiBlueprintPreviewDiagnosticsBridge.BuildCorrelationLookupPlan(
+            correlations,
+            correlationLookupLimit,
+            prioritizedElementNames);
         var searchedElementNames = correlatedElementNames
             .Where(name => lookupPlan.Any(lookup => MatchesLookup(name, lookup)))
             .ToHashSet(StringComparer.Ordinal);

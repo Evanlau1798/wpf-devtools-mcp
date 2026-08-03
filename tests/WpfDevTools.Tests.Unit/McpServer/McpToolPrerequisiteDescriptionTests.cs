@@ -121,6 +121,7 @@ public sealed class McpToolPrerequisiteDescriptionTests
             .Description;
 
         description.Should().Contain("resource-backed");
+        description.Should().ContainAll("visualLayoutContractJson", "pack-neutral", "visualLayoutContractSummary");
         description.Should().Contain("resource-backed, hybrid-resource-backed, structural, or not-available");
         description.Should().Contain("hash-checked before build");
         description.Should().Contain(McpServerConfiguration.ComposerTrustedRuntimePacksEnvVar);

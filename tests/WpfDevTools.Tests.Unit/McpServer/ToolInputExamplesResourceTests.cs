@@ -129,6 +129,22 @@ public sealed class ToolInputExamplesResourceTests
     }
 
     [Fact]
+    public void ToolExamplesResource_ShouldIncludeVisualLayoutContractExample()
+    {
+        using var document = ReadToolExamples();
+        var example = document.RootElement.GetProperty("examplesByTool")
+            .GetProperty("preview_ui_blueprint")[0];
+        var arguments = example.GetProperty("arguments");
+
+        arguments.GetProperty("startHost").GetBoolean().Should().BeTrue();
+        using var contract = JsonDocument.Parse(arguments.GetProperty("visualLayoutContractJson").GetString()!);
+        contract.RootElement.GetProperty("regions")[0].GetProperty("elementName").GetString()
+            .Should().Be("PrimaryRegion");
+        example.GetProperty("policyGates").EnumerateArray().Select(item => item.GetString())
+            .Should().Contain("WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS");
+    }
+
+    [Fact]
     public void ToolExamplesResource_ShouldIncludeBoundDpSnapshotRollbackExample()
     {
         using var document = ReadToolExamples();

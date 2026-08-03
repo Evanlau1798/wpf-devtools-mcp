@@ -203,10 +203,24 @@ Request options:
 - `screenshotOutputMode`: optional closed value，預設為 `metadata`；需要保留 server-owned PNG 時使用 `file`，response 會回傳 `resourceUri` 與精確的 `resourceRead` request。Temporary preview host 結束後、server session 結束前，必須在相同 MCP server session 以 `resourceRead.method`（`resources/read`）和 `resourceRead.params` 讀取。其他值（包含 `base64`）會在 preview work 開始前回傳 `InvalidArgument`。
 - `screenshotMaxWidth` 與 `screenshotMaxHeight`: optional positive bounds，預設為 1024。跨 constrained Agent image bridge 進行 visual consumption 時應保留預設值；只有 full rendered dimensions 是 archival evidence 的必要條件時，才明確傳入 null。
 - `viewportWidth` 與 `viewportHeight`: optional preview `Window.Width` 與 `Window.Height`，以 device-independent pixels 表示，每個值範圍為 1 到 8192。請配合預期的 target Window dimensions，以便在 apply 前找出 overflow。這兩個參數會影響 WPF layout；screenshot bounds 只縮放回傳的 pixel evidence。有 Window chrome 時，實際 client area 會較小。
+- `visualLayoutContractJson`: optional pack-neutral JSON，包含 1 到 16 個具唯一 exact `elementName` 的 regions。每個 region 宣告相對於 preview root 的 normalized `bounds`（`x`、`y`、`width`、`height`）、0 到 0.25 的 optional `tolerance`（預設 0.05），以及 optional `horizontalScrollbarChrome` / `verticalScrollbarChrome`；其值為 `any`、`hidden` 或 `visible`。此功能需要 `startHost=true` 與 sensitive reads。
 - `runtimePackApprovalTokens`: optional 已審查 content-bound tokens，只套用於這次 request；需要 `WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true`。
-- `correlationLookupLimit`: runtime diagnostics 最多檢查的 exact non-generated correlation names（authored `elementName` values 與 renderer-provided root `x:Name` values）數量。預設為 32，上限為 64。只有 `unresolvedCorrelations` 回報 `reason="lookup-budget"` 時才提高；其他原因需要修復或 final-app check，不應增加 lookups。
+- `correlationLookupLimit`: runtime diagnostics 最多檢查的 exact non-generated correlation names（authored `elementName` values 與 renderer-provided root `x:Name` values）數量。預設為 32，上限為 64；另有上限的 visual-contract names 不會占用此 lookup budget。只有 `unresolvedCorrelations` 回報 `reason="lookup-budget"` 時才提高；其他原因需要修復或 final-app check，不應增加 lookups。
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
+
+`visualLayoutContractJson` value 範例：
+
+```json
+{
+  "regions": [{
+    "elementName": "PrimaryRegion",
+    "bounds": { "x": 0.05, "y": 0.05, "width": 0.9, "height": 0.5 },
+    "tolerance": 0.05,
+    "horizontalScrollbarChrome": "hidden"
+  }]
+}
+```
 
 Preview 會執行 restore/build，且可能載入第三方程式碼，因此 `preview_ui_blueprint` 屬於 destructive tool；即使只做 compile，也需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`。
 
@@ -215,6 +229,8 @@ Window client 會視為 implicit viewport boundary，因此即使 WPF `ClipToBou
 此 tool 只寫入隔離的 temporary preview directory，compile smoke 後會刪除。Built-in runtime packs 由 release provenance 信任，且不會出現在這份 review 中。NuGet build targets、control constructors 與 resource markup 都是可執行的第三方相依套件，因此 project-local 與 user-global packs 預設維持 structural，直到對應的 `runtimePackApprovalReviews` entry 完成審查。每個 entry 都會結構化提供 pack identity、scope、fingerprint、所選 resources、含 hashes 的 exact package closure、`approvalScope="content-bound-installed-pack"`、`approvalSource`（`none`、`request-token` 或 `environment-token`）、`approved`、`runtimeEligible`，以及 nullable `eligibilityCode`/`eligibilityMessage`，不需要解析診斷文字。不符合資格的 entry 不會提供 approval token；應先修復回報的 package immutability 或 resource-safety 問題。當 `WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true` 時，可把精確 token 放入 `runtimePackApprovalTokens` 重試，且只授權該次 request；由 operator 控制的 `WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS` 仍可用於 server-start approval。這個綁定內容的 approval token 綁定 pack scope、canonical installed root、id、version 與 fingerprint，不能授權另一個 project 或修改後的 pack。Runtime dependency closure 中的每個 package 都必須列出 exact `[version]` 與 NuGet SHA-512 `contentHash`；restore 使用 preview-local NuGet cache、拒絕未宣告的 transitive packages，並在 build 前核對所有 hashes。Selected preview inputs 會在產生 project 前執行 safety scan。通用 WPF framework safety rules 會拒絕外部或 rooted image、navigation、media、XML 與 resource-dictionary locations。Resource dictionary 只允許 pack 宣告的 application-local ResourceDictionary pack URI；preview 仍會封鎖 literal `Image.Source` 與 `BitmapImage.UriSource`。已核准 packs 會使用其 NuGet packages、XML namespaces、selected resource variants 與去重且維持順序的 application dictionaries。這裡沒有 pack 或 library-specific branching：framework safety checks 只分類可能啟動 I/O 的 WPF surfaces，不會辨識第三方 pack id、block kind、control type 或 resource name。
 
 完成結果依序以 `visualFidelity="resource-backed"` 表示純 runtime output、`"hybrid-resource-backed"` 表示 runtime/stub 混合、`"structural"` 表示只有 stubs；invalid、cancelled 或 build failure 則回報 `"not-available"`。`visualValidationGuidance` 與 `visualComparisonChecklist` 仍要求在 apply、build 並 launch 後確認 final app。成功的 compact 結果包含 `generatedXamlLength`、`elementCorrelationCount`、`buildOutput` 與 `previewHost` summary；只有確實需要完整 generated `xaml` 與無風險 `elementCorrelations` 時才設 `compactRuntimeDiagnostics=false`。涉及 clipping、unresolved lookup、incomplete inspection 或 truncated inspection 的 correlations 在 compact mode 仍會保留。Runtime diagnostics 是 opt-in；失敗 payload 仍會保留，避免隱藏 recovery guidance。`layoutRiskSummary.warnings` 會把幾何上部分可見的 targets 排在完全離開 viewport 或尚未分類的 overflow 前面；`geometricClippingSeverity` 與 `visibleRatio` 只描述幾何，不會宣稱重要 pixels 一定遺失。成功的 `screenshotOutputMode="file"` resource 會直接出現在 `previewScreenshot`，仍受 `SessionManager` 的 24 小時與 100-resource 上限管理，並在 expiry、eviction 或 disposal 時移除。若 client 顯示缺漏或大片暗色，但 semantic evidence 完整，先依 `screenshotVerificationGuidance` 重讀 `previewScreenshot.resourceUri` 並核對 SHA-256，再決定是否重跑。相同 decoded bytes 仍 sparse 時，才以 `screenshotMaxWidth=1024` 與 `screenshotMaxHeight=1024` 重跑 `preview_ui_blueprint`；原呼叫回傳時 temporary host 已結束。Verified image 與 semantic summary 尚未一致前，不可回報 product visual failure。Build failure 會在可用時對應回 blueprint root 與 renderer template path。
+
+提供 `visualLayoutContractJson` 時，`visualLayoutContractSummary` 會回報 matched、mismatched 與 unresolved named regions，包含 `unresolvedCount`、nullable unresolved `reason`、expected 與 measured normalized bounds、maximum bounds delta，以及 scrollbar-chrome mismatches。Scrollbar expectation 必須指向可提供 computed scrollbar visibility 的 runtime element；否則該值 unavailable，region 會判為 mismatch。Contract 只量測 caller 明確宣告的 names 與 geometry，不辨識 pack id、control library、product name 或 reference-image subject。它可在 apply 前把從任意參考圖提取的 composition check 轉成 machine-readable evidence；preview evidence 不是最終 visual approval，因此仍須驗證 final built application。
 
 `propertyWarnings` array 只包含 submitted blueprint 明確使用之 properties 的 pack-defined warnings。每個 entry 都會回報精確的 `jsonPath`、`blockKind`、`propertyName` 與 `message`，讓 Agent 將 final-app validation 聚焦在受影響的 layout 或 styling decision，而不必把所有 preview limitation 視為同等相關。
 

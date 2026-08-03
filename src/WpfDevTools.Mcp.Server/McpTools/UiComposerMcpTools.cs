@@ -41,7 +41,7 @@ public static partial class UiComposerMcpTools
     public static Task<CallToolResult> GetUiBlockCatalog(
         [Description("Pack IDs; omit for all enabled packs.")] string[]? packIds = null,
         [Description("Exact block category.")] string? category = null,
-        [Description("Case-insensitive exact pack-defined role.")] string? authoringRole = null,
+        [Description("Exact block authoring role; not pack role.")] string? authoringRole = null,
         [Description("Pack-qualified kind prefix.")] string? kindPrefix = null,
         [Description("Only blocks with renderer templates.")] bool composableOnly = false,
         [Description("Exact pack-qualified block kind.")] string? kind = null,
@@ -315,7 +315,8 @@ public static partial class UiComposerMcpTools
 
         var registry = CreateRegistry(projectRoot, localAppDataRoot);
         var catalog = new BlockCatalogService(registry);
-        var result = catalog.GetCatalog(new BlockCatalogQuery(packIds, category, kindPrefix, composableOnly, kind, allowedValueQuery, authoringRole));
+        var query = new BlockCatalogQuery(packIds, category, kindPrefix, composableOnly, kind, allowedValueQuery, authoringRole);
+        var result = catalog.GetCatalog(query);
         var recipes = includeRecipes
             ? new RecipeCatalogService(registry).GetCatalog(new RecipeCatalogQuery(packIds)).Items
             : [];
@@ -328,6 +329,7 @@ public static partial class UiComposerMcpTools
             compact,
             itemCount = result.Items.Count,
             items,
+            authoringRoleResolution = BuildAuthoringRoleResolution(catalog, query, authoringRole, result.Items.Count > 0),
             recipeCount = recipes.Count,
             recipes,
             authoringGuidance = new

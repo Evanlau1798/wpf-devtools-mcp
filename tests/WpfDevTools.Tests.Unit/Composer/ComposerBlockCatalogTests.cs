@@ -110,7 +110,9 @@ public sealed class ComposerBlockCatalogTests
             var paneDisplayMode = navigationResult.StructuredContent!.Value.GetProperty("items")[0]
                 .GetProperty("properties").GetProperty("paneDisplayMode");
             paneDisplayMode.GetProperty("description").GetString().Should()
-                .ContainAll("Left", "LeftMinimal", "LeftFluent", "Top", "Bottom");
+                .ContainAll("Left", "LeftMinimal", "LeftFluent", "Top", "Bottom", "40 DIP");
+            navigationResult.StructuredContent!.Value.GetProperty("items")[0]
+                .GetProperty("properties").TryGetProperty("compactPaneLength", out _).Should().BeFalse();
             var item = result.StructuredContent!.Value.GetProperty("items")[0];
             var isActive = item.GetProperty("properties").GetProperty("isActive");
             isActive.GetProperty("description").GetString().Should().Contain("current destination");
@@ -230,6 +232,14 @@ public sealed class ComposerBlockCatalogTests
                 .Select(item => item.GetProperty("kind").GetString())
                 .Should().Equal("core.grid");
             partialRoleResult.StructuredContent!.Value.GetProperty("items").GetArrayLength().Should().Be(0);
+            var roleResolution = partialRoleResult.StructuredContent!.Value
+                .GetProperty("authoringRoleResolution");
+            roleResolution.GetProperty("matched").GetBoolean().Should().BeFalse();
+            roleResolution.GetProperty("availableRoles").EnumerateArray()
+                .Select(value => value.GetString())
+                .Should().Contain(["hero", "overlay-layout", "overlay-layer"]);
+            roleResolution.GetProperty("hint").GetString().Should()
+                .ContainAll("items[].authoringRoles", "pack role");
             var carousel = carouselResult.StructuredContent!.Value.GetProperty("items").EnumerateArray().Single();
             carousel.GetProperty("kind").GetString().Should().Be("core.scrollViewer");
             carousel.GetProperty("authoringRoles").EnumerateArray().Select(value => value.GetString())

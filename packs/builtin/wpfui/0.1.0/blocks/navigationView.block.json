@@ -5,15 +5,8 @@
   "description": "Semantic WPF UI Navigation View block.",
   "category": "navigation",
   "properties": {
-    "compactPaneLength": {
-      "description": "Width in device-independent pixels reserved for the collapsed icon rail. Adjust it only after measuring the target navigation proportion.",
-      "default": 48,
-      "maximum": 1000,
-      "minimum": 0,
-      "type": "number"
-    },
     "paneDisplayMode": {
-      "description": "Navigation pane placement for this persistent desktop shell. Left uses the standard item template. LeftMinimal uses the compact item template; combine it with isPaneOpen=false for a narrow icon rail. LeftFluent uses large icons with titles underneath. Top and Bottom place navigation on the matching horizontal edge.",
+      "description": "Navigation pane placement for this persistent desktop shell. Left uses the standard item template. LeftMinimal with isPaneOpen=false uses the current upstream template's fixed 40 DIP icon rail; use open Left or LeftFluent when labels or a wider navigation proportion matter. LeftFluent uses large icons with titles underneath. Top and Bottom place navigation on the matching horizontal edge.",
       "default": "Left",
       "enum": ["Left", "LeftMinimal", "LeftFluent", "Top", "Bottom"],
       "required": false,

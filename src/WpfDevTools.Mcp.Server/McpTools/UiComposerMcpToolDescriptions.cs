@@ -78,7 +78,7 @@ internal static class UiComposerMcpToolDescriptions
         DO NOT USE: Do not use this for live target inspection or third-party source retrieval.
 
         RESPONSE SUMMARY:
-        - Full mode returns descriptions, previewWarning, roles, pack guidance, properties, bounded slots, renderers, skeletons, and source hints.
+        - Full mode returns descriptions, previewWarning, pack-defined roles, properties, bounded slots, renderers, compositionSkeleton, and source hints.
         - compact=true adds required/numeric-bounded propertyContracts to brief discovery; omitted maximum or maxItems means unbounded.
         - Large vocabularies return bounded matches plus total/match counts and truncation.
         - compositionSkeleton is a compact pack-neutral node derived from required properties and declared slots.
@@ -86,7 +86,7 @@ internal static class UiComposerMcpToolDescriptions
         - Source hints never copy third-party source text.
 
         REQUEST OPTIONS:
-        - Filter by pack, category, authoringRole, prefix, renderer, or exact kind; use roles before convenience blocks.
+        - Filter by pack, category, block role, prefix, renderer, or exact kind; use items[].authoringRoles values.
         - Use compact=true broadly; use exact kind, compact=false, and optional allowedValueQuery for detail.
         - includeRecipes defaults to false; enable it only after choosing an independent brief.
 

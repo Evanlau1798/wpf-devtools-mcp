@@ -4,6 +4,32 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 
 public static partial class UiComposerMcpTools
 {
+    private static object? BuildAuthoringRoleResolution(
+        BlockCatalogService catalog,
+        BlockCatalogQuery query,
+        string? requestedRole,
+        bool matched)
+    {
+        if (string.IsNullOrWhiteSpace(requestedRole) || matched)
+        {
+            return null;
+        }
+
+        var availableRoles = catalog.GetCatalog(query with { AuthoringRole = null }).Items
+            .SelectMany(item => item.AuthoringRoles)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return new
+        {
+            requestedRole,
+            matched = false,
+            availableRoles,
+            hint = "No block authoring role matched. Use an exact value from items[].authoringRoles; list_ui_block_packs roles are pack roles and are not valid here."
+        };
+    }
+
     private static object ToCompactCatalogItem(BlockCatalogItem item)
         => new
         {

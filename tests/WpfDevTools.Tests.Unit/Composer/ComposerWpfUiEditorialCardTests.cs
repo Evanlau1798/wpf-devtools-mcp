@@ -17,9 +17,10 @@ public sealed class ComposerWpfUiEditorialCardTests
             .Items.Single();
 
         item.Description.Should().ContainEquivalentOf("image-capable")
-            .And.ContainEquivalentOf("wide");
-        item.AuthoringRoles.Should().Contain(["hero", "editorial-media"])
-            .And.NotContain("product-tile");
+            .And.ContainEquivalentOf("split")
+            .And.ContainEquivalentOf("core.grid");
+        item.AuthoringRoles.Should().Contain(["split-hero", "editorial-media"])
+            .And.NotContain(["hero", "product-tile"]);
         item.Properties["maxWidth"].Description.Should()
             .ContainEquivalentOf("mediaWidth")
             .And.ContainEquivalentOf("320");

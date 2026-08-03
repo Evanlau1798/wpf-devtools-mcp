@@ -4,6 +4,7 @@
   "displayName": "Grid Cell",
   "description": "Places child content at a specific native WPF Grid row and column; same-cell children are layered, and later children render above earlier children.",
   "category": "layout",
+  "authoringRoles": ["overlay-layer"],
   "properties": {
     "row": { "type": "number", "description": "Zero-based target row index in the parent grid.", "default": 0, "minimum": 0, "integer": true },
     "column": { "type": "number", "description": "Zero-based target column index in the parent grid.", "default": 0, "minimum": 0, "integer": true },

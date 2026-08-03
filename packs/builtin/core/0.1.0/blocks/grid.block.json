@@ -2,8 +2,9 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "core.grid",
   "displayName": "Grid",
-  "description": "Arranges children in a native WPF row-and-column grid.",
+  "description": "Arranges children in a native WPF row-and-column grid. Target the same cell with multiple core.gridCell children to create full-bleed background media, scrims, and foreground content overlays.",
   "category": "layout",
+  "authoringRoles": ["hero", "overlay-layout"],
   "properties": {
     "margin": { "type": "string", "description": "Outer WPF Thickness separating the grid from adjacent layout.", "default": "0", "format": "thickness" },
     "horizontalAlignment": { "type": "string", "description": "Horizontal placement of the grid within its parent.", "default": "Stretch", "enum": ["Left", "Center", "Right", "Stretch"] },

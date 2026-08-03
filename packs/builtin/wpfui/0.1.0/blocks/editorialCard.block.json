@@ -2,7 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "wpfui.editorialCard",
   "displayName": "Editorial Card",
-  "description": "Image-capable horizontal WPF UI Card for a wide desktop hero or curated collection. For narrow rail tiles, compose wpfui.card with a vertical core.stack instead. It remains useful without an image by combining a theme-aware media surface with one pack-owned symbol slot.",
+  "description": "Image-capable horizontal split WPF UI Card for a wide desktop hero or curated collection where media and copy occupy separate columns. For a full-bleed media hero or foreground overlay, compose core.grid with same-cell core.gridCell layers and pack-owned foreground controls. For narrow rail tiles, compose wpfui.card with a vertical core.stack instead.",
   "category": "container",
   "properties": {
     "description": {
@@ -140,7 +140,7 @@
     }
   ],
   "authoringRoles": [
-    "hero",
+    "split-hero",
     "editorial-media"
   ]
 }

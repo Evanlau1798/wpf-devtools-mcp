@@ -4,16 +4,17 @@
   "displayName": "Scroll Viewer",
   "description": "Hosts one child in a native WPF viewport with independently configurable horizontal and vertical scrolling. Place it in a bounded parent such as a fixed or star-sized Grid row or column; a StackPanel in the scrolling axis expands instead of creating a viewport.",
   "category": "layout",
+  "authoringRoles": ["scroll-region", "carousel"],
   "properties": {
     "horizontalScrollBarVisibility": {
       "type": "string",
-      "description": "Horizontal scrolling policy. Auto exposes scrolling only when content exceeds the viewport.",
+      "description": "Horizontal scrolling policy. Auto exposes native scrollbar chrome when content exceeds the viewport; for a polished media rail, use Hidden only when another browse affordance explains the scroll interaction.",
       "default": "Auto",
       "enum": ["Disabled", "Auto", "Hidden", "Visible"]
     },
     "verticalScrollBarVisibility": {
       "type": "string",
-      "description": "Vertical scrolling policy. Auto exposes scrolling only when content exceeds the viewport.",
+      "description": "Vertical scrolling policy. Auto exposes native scrollbar chrome when content exceeds the viewport; Hidden keeps scrolling available without visible chrome.",
       "default": "Auto",
       "enum": ["Disabled", "Auto", "Hidden", "Visible"]
     },

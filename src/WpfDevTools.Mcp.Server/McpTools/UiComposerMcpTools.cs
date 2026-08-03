@@ -39,11 +39,12 @@ public static partial class UiComposerMcpTools
     [McpServerTool(Name = "get_ui_block_catalog", Title = "Get UI Composer Block Catalog", OpenWorld = false, ReadOnly = true, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.GetUiBlockCatalog)]
     public static Task<CallToolResult> GetUiBlockCatalog(
-        [Description("Pack IDs to include; omit for all enabled packs.")] string[]? packIds = null,
-        [Description("Optional exact block category.")] string? category = null,
-        [Description("Optional pack-qualified block kind prefix.")] string? kindPrefix = null,
-        [Description("Return only blocks with renderer templates.")] bool composableOnly = false,
-        [Description("Optional exact pack-qualified block kind.")] string? kind = null,
+        [Description("Pack IDs; omit for all enabled packs.")] string[]? packIds = null,
+        [Description("Exact block category.")] string? category = null,
+        [Description("Case-insensitive exact pack-defined role.")] string? authoringRole = null,
+        [Description("Pack-qualified kind prefix.")] string? kindPrefix = null,
+        [Description("Only blocks with renderer templates.")] bool composableOnly = false,
+        [Description("Exact pack-qualified block kind.")] string? kind = null,
         [Description("Include recipes from the same pack scope.")] bool includeRecipes = false,
         [Description("Compact discovery with required/bounded property contracts; false returns full exact-kind details.")] bool compact = false,
         [StringLength(128)]
@@ -55,6 +56,7 @@ public static partial class UiComposerMcpTools
         var args = ToolCallHelper.BuildJsonArgs(
             ("packIds", packIds),
             ("category", category),
+            ("authoringRole", authoringRole),
             ("kindPrefix", kindPrefix),
             ("composableOnly", composableOnly),
             ("kind", kind),
@@ -65,7 +67,7 @@ public static partial class UiComposerMcpTools
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(GetCatalog(packIds, category, kindPrefix, composableOnly, kind, includeRecipes, compact, allowedValueQuery, projectRoot, localAppDataRoot)),
+            (_, _) => Task.FromResult<object>(GetCatalog(packIds, category, authoringRole, kindPrefix, composableOnly, kind, includeRecipes, compact, allowedValueQuery, projectRoot, localAppDataRoot)),
             args,
             cancellationToken,
             timeoutSeconds: 10);
@@ -290,6 +292,7 @@ public static partial class UiComposerMcpTools
     private static object GetCatalog(
         string[]? packIds,
         string? category,
+        string? authoringRole,
         string? kindPrefix,
         bool composableOnly,
         string? kind,
@@ -312,7 +315,7 @@ public static partial class UiComposerMcpTools
 
         var registry = CreateRegistry(projectRoot, localAppDataRoot);
         var catalog = new BlockCatalogService(registry);
-        var result = catalog.GetCatalog(new BlockCatalogQuery(packIds, category, kindPrefix, composableOnly, kind, allowedValueQuery));
+        var result = catalog.GetCatalog(new BlockCatalogQuery(packIds, category, kindPrefix, composableOnly, kind, allowedValueQuery, authoringRole));
         var recipes = includeRecipes
             ? new RecipeCatalogService(registry).GetCatalog(new RecipeCatalogQuery(packIds)).Items
             : [];

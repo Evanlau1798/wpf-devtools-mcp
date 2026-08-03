@@ -202,6 +202,48 @@ public sealed class ComposerBlockCatalogTests
     }
 
     [Fact]
+    public async Task GetUiBlockCatalogTool_ShouldFilterByPackDefinedAuthoringRole()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var result = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["core"],
+                authoringRole: "OvErLaY-LaYoUt",
+                compact: true,
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+            var partialRoleResult = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["core"],
+                authoringRole: "overlay",
+                compact: true,
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+            var carouselResult = await UiComposerMcpTools.GetUiBlockCatalog(
+                packIds: ["core"],
+                authoringRole: "carousel",
+                localAppDataRoot: tempRoot,
+                cancellationToken: CancellationToken.None);
+
+            result.IsError.Should().BeFalse();
+            result.StructuredContent!.Value.GetProperty("items").EnumerateArray()
+                .Select(item => item.GetProperty("kind").GetString())
+                .Should().Equal("core.grid");
+            partialRoleResult.StructuredContent!.Value.GetProperty("items").GetArrayLength().Should().Be(0);
+            var carousel = carouselResult.StructuredContent!.Value.GetProperty("items").EnumerateArray().Single();
+            carousel.GetProperty("kind").GetString().Should().Be("core.scrollViewer");
+            carousel.GetProperty("authoringRoles").EnumerateArray().Select(value => value.GetString())
+                .Should().BeEquivalentTo("scroll-region", "carousel");
+            carousel.GetProperty("properties").GetProperty("horizontalScrollBarVisibility")
+                .GetProperty("description").GetString().Should().ContainAll("media rail", "Hidden", "browse affordance");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public async Task GetUiBlockCatalogTool_AllowedValueQueryWithoutExactKind_ShouldFailCompactly()
     {
         var result = await UiComposerMcpTools.GetUiBlockCatalog(

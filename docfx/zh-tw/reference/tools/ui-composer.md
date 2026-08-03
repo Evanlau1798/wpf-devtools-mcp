@@ -78,6 +78,7 @@ Request options:
 
 - `packIds`: optional pack id filter，例如 `["sample"]`。
 - `category`: optional block category filter。
+- `authoringRole`: optional case-insensitive exact filter，用於查詢 pack-defined `authoringRoles`。請先從預期視覺結構推導 `overlay-layout`、`carousel` 等角色，再選擇 convenience blocks。
 - `kindPrefix`: optional pack-qualified kind prefix。
 - `composableOnly`: true 時只回傳具備 renderer template 的 blocks。
 - `kind`: optional exact pack-qualified block kind，用於 single-block detail。

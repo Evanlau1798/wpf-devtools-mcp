@@ -78,6 +78,7 @@ Request options:
 
 - `packIds`: optional pack id filter, such as `["sample"]`.
 - `category`: optional block category filter.
+- `authoringRole`: optional case-insensitive exact filter over pack-defined `authoringRoles`. Derive roles from the intended visual structure, such as `overlay-layout` or `carousel`, before choosing convenience blocks.
 - `kindPrefix`: optional pack-qualified kind prefix.
 - `composableOnly`: when true, returns only blocks with an available renderer template.
 - `kind`: optional exact pack-qualified block kind for single-block detail.

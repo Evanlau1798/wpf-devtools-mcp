@@ -49,6 +49,8 @@ internal sealed class BlockCatalogService(PackRegistry registry)
         return (string.IsNullOrWhiteSpace(query.Kind) || string.Equals(item.Kind, query.Kind, StringComparison.Ordinal))
             && (string.IsNullOrWhiteSpace(query.Category) || string.Equals(item.Category, query.Category, StringComparison.Ordinal))
             && (string.IsNullOrWhiteSpace(query.KindPrefix) || item.Kind.StartsWith(query.KindPrefix, StringComparison.Ordinal))
+            && (string.IsNullOrWhiteSpace(query.AuthoringRole)
+                || item.AuthoringRoles.Contains(query.AuthoringRole, StringComparer.OrdinalIgnoreCase))
             && (!query.ComposableOnly || item.RendererAvailable);
     }
 
@@ -231,7 +233,8 @@ internal sealed record BlockCatalogQuery(
     string? KindPrefix = null,
     bool ComposableOnly = false,
     string? Kind = null,
-    string? AllowedValueQuery = null);
+    string? AllowedValueQuery = null,
+    string? AuthoringRole = null);
 
 internal sealed record BlockCatalogResult(
     IReadOnlyList<BlockCatalogItem> Items,

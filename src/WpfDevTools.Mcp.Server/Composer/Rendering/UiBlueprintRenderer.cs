@@ -125,6 +125,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
             block,
             path,
             errors);
+        template = ResolveOptionalPropertySections(template, node, block, path, errors);
         template = OmitUnsetPropertyAttributes(template, node, block);
         var identityTargets = TokenPattern.Matches(template)
             .Where(match => match.Groups["name"].Value == IdentityAttributesToken)

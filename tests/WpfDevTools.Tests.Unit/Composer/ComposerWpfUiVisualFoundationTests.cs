@@ -165,9 +165,9 @@ public sealed class ComposerWpfUiVisualFoundationTests
 
         item.Properties["foreground"].Description.Should().ContainEquivalentOf("brush");
         result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
-        result.Xaml.Should().Contain("Foreground=\"#FFFFFFFF\"");
+        result.Xaml.Should().Contain("Foreground=\"#FFFFFFFF\"").And.NotContain("Appearance=");
         inherited.Success.Should().BeTrue(inherited.Errors.FirstOrDefault()?.Message);
-        inherited.Xaml.Should().NotContain("Foreground=");
+        inherited.Xaml.Should().Contain("Appearance=\"Primary\"").And.NotContain("Foreground=");
     }
 
     [Fact]

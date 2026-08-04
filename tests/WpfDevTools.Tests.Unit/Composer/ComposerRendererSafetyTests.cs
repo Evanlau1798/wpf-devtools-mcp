@@ -117,6 +117,53 @@ public sealed class ComposerRendererSafetyTests
     }
 
     [Theory]
+    [InlineData("{\"title\":\"Authored\"}", "Authored", "Fallback")]
+    [InlineData("{}", "Fallback", "Authored")]
+    public void RenderBlueprint_ShouldResolveOptionalPropertySections(
+        string propertiesJson,
+        string expectedText,
+        string omittedText)
+    {
+        var projectRoot = CreateTempProjectWithSafetyPack(
+            "<TextBlock>{{?property.title}}<Run Text=\"{{title}}\" />{{/property.title}}{{^property.title}}<Run Text=\"Fallback\" />{{/property.title}}</TextBlock>",
+            propertiesJson: "{\"title\":{\"type\":\"string\"}}");
+        try
+        {
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot))
+                .Render(new RenderBlueprintRequest(Blueprint(propertiesJson)));
+
+            result.Success.Should().BeTrue();
+            result.Xaml.Should().Contain(expectedText).And.NotContain(omittedText);
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Theory]
+    [InlineData("<Grid>{{?property.title}}</Grid>")]
+    [InlineData("<Grid>{{^property.title}}{{/property.other}}</Grid>")]
+    public void RenderBlueprint_ShouldRejectMalformedOptionalPropertySections(string rendererTemplate)
+    {
+        var projectRoot = CreateTempProjectWithSafetyPack(
+            rendererTemplate,
+            propertiesJson: "{\"title\":{\"type\":\"string\"},\"other\":{\"type\":\"string\"}}");
+        try
+        {
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot))
+                .Render(new RenderBlueprintRequest(Blueprint()));
+
+            result.Success.Should().BeFalse();
+            result.Errors.Should().Contain(issue => issue.Code == "RendererOptionalSectionMalformed");
+        }
+        finally
+        {
+            DeleteDirectory(projectRoot);
+        }
+    }
+
+    [Theory]
     [InlineData("<Grid><evil:Code>void Run() { }</evil:Code></Grid>", "UnsafeXamlDirective")]
     [InlineData("<TextBlock Text=\"{evil:Static Grid.Tag}\" />", "UnsafeXamlMarkupExtension")]
     [InlineData("<TextBlock Text=\"{evil:StaticExtension Grid.Tag}\" />", "UnsafeXamlMarkupExtension")]
@@ -307,16 +354,16 @@ public sealed class ComposerRendererSafetyTests
             ComposerPackPaths.ProjectLocalRoot(projectRoot),
             null);
 
-    private static string Blueprint()
+    private static string Blueprint(string propertiesJson = "{}")
         => """
             {
               "schemaVersion": "wpfdevtools.ui-blueprint.v1",
               "name": "SafetyView",
               "packs": [{ "id": "safety", "version": "1.0.0", "required": true, "role": "primary" }],
               "primaryPack": "safety",
-              "layout": { "kind": "safety.demo" }
+              "layout": { "kind": "safety.demo", "properties": PROPERTIES }
             }
-            """;
+            """.Replace("PROPERTIES", propertiesJson, StringComparison.Ordinal);
 
     private static string WpfUiBlueprint(string layoutJson)
         => $$"""
@@ -332,7 +379,8 @@ public sealed class ComposerRendererSafetyTests
     private static string CreateTempProjectWithSafetyPack(
         string rendererTemplate,
         string xmlNamespacesJson = "{}",
-        string slotsJson = "{}")
+        string slotsJson = "{}",
+        string propertiesJson = "{}")
     {
         var projectRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-renderer-safety-" + Guid.NewGuid().ToString("N"));
         var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", "safety", "1.0.0");
@@ -352,8 +400,10 @@ public sealed class ComposerRendererSafetyTests
             {"schemaVersion":"wpfdevtools.source-lock.v1","sources":[],"transformPolicy":{}}
             """);
         var block = """
-            {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"safety.demo","displayName":"Demo","category":"test","properties":{},"slots":SLOTS,"renderer":{"xamlTemplate":"renderers/xaml/demo.xaml.sbn"},"sourceHints":[]}
-            """.Replace("SLOTS", slotsJson, StringComparison.Ordinal);
+            {"schemaVersion":"wpfdevtools.ui-block.v1","kind":"safety.demo","displayName":"Demo","category":"test","properties":PROPERTIES,"slots":SLOTS,"renderer":{"xamlTemplate":"renderers/xaml/demo.xaml.sbn"},"sourceHints":[]}
+            """
+            .Replace("PROPERTIES", propertiesJson, StringComparison.Ordinal)
+            .Replace("SLOTS", slotsJson, StringComparison.Ordinal);
         File.WriteAllText(Path.Combine(packRoot, "blocks", "demo.block.json"), block);
         File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "demo.xaml.sbn"), rendererTemplate);
         return projectRoot;

@@ -227,10 +227,15 @@ public sealed class ComposerBaselinePackTests
             var templateTokens = Regex.Matches(template, @"{{\s*([^}\s]+)\s*}}")
                 .Select(match => match.Groups[1].Value)
                 .Where(token => !token.StartsWith("?slot.", StringComparison.Ordinal)
-                                && !token.StartsWith("/slot.", StringComparison.Ordinal))
+                                && !token.StartsWith("/slot.", StringComparison.Ordinal)
+                                && !token.StartsWith("?property.", StringComparison.Ordinal)
+                                && !token.StartsWith("^property.", StringComparison.Ordinal)
+                                && !token.StartsWith("/property.", StringComparison.Ordinal))
                 .ToHashSet(StringComparer.Ordinal);
             templateTokens.UnionWith(Regex.Matches(template, @"{{\s*\?\s*slot\.([A-Za-z0-9_.-]+)\s*}}")
                 .Select(match => $"slot.{match.Groups[1].Value}"));
+            templateTokens.UnionWith(Regex.Matches(template, @"{{\s*[?^]\s*property\.([A-Za-z0-9_.-]+)\s*}}")
+                .Select(match => match.Groups[1].Value));
             tokens.AddRange(templateTokens);
         }
 

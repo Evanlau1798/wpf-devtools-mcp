@@ -167,6 +167,7 @@ public class ElementScreenshotToolTests
             chunking.GetProperty("uriTemplate").GetString().Should().Be(
                 "wpf://screenshots/shot_0123456789abcdef0123456789abcdef/chunks/{offset}/{length}");
             chunking.GetProperty("maxChunkBytes").GetInt32().Should().Be(16_384);
+            chunking.GetProperty("fallbackOnly").GetBoolean().Should().BeTrue();
             result.GetProperty("expiresAtUtc").GetDateTimeOffset().Should().Be(
                 now.Add(SessionManager.ScreenshotResourceRetentionWindow));
             result.GetProperty("localPathRedacted").GetBoolean().Should().BeTrue();

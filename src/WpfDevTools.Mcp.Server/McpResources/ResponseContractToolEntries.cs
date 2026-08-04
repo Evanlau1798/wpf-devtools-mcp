@@ -375,6 +375,7 @@ internal static class ResponseContractToolEntries
                     "resourceRead.sameSessionRequired",
                     "resourceRead.chunking.uriTemplate",
                     "resourceRead.chunking.maxChunkBytes",
+                    "resourceRead.chunking.fallbackOnly",
                     "resourceRead.chunking.assembly"
                 },
                 requestParameters = new[]

@@ -318,6 +318,7 @@ public sealed class ElementScreenshotTool : PipeConnectedToolBase
                     "uriTemplate",
                     $"wpf://screenshots/{screenshot.ScreenshotId}/chunks/{{offset}}/{{length}}");
                 writer.WriteNumber("maxChunkBytes", ScreenshotResources.MaxChunkBytes);
+                writer.WriteBoolean("fallbackOnly", true);
                 writer.WriteString(
                     "assembly",
                     "Read decoded chunks in offset order until byteLength, concatenate them, then verify the screenshot sha256.");

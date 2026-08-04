@@ -305,7 +305,7 @@ public sealed class McpToolOutputSchemaTests
             "nextSteps");
         AssertNestedFields("element_screenshot", ["resourceRead"], "method", "params", "sameSessionRequired", "chunking");
         AssertNestedFields("element_screenshot", ["resourceRead", "params"], "uri");
-        AssertNestedFields("element_screenshot", ["resourceRead", "chunking"], "uriTemplate", "maxChunkBytes", "assembly");
+        AssertNestedFields("element_screenshot", ["resourceRead", "chunking"], "uriTemplate", "maxChunkBytes", "fallbackOnly", "assembly");
         var resourceRead = CreateToolSchema("element_screenshot").GetProperty("properties").GetProperty("resourceRead");
         resourceRead.GetProperty("required").EnumerateArray().Select(value => value.GetString()).Should().BeEquivalentTo("method", "params", "sameSessionRequired", "chunking");
         resourceRead.GetProperty("properties").GetProperty("params").GetProperty("required")[0]

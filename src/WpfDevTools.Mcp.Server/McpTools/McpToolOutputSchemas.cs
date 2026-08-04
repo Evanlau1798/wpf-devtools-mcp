@@ -241,11 +241,12 @@ internal static partial class McpToolOutputSchemas
                             type = "object",
                             description = "Bounded resource reads for clients that truncate the complete screenshot blob.",
                             additionalProperties = false,
-                            required = new[] { "uriTemplate", "maxChunkBytes", "assembly" },
+                            required = new[] { "uriTemplate", "maxChunkBytes", "fallbackOnly", "assembly" },
                             properties = new Dictionary<string, object>
                             {
                                 ["uriTemplate"] = String("Resource URI template with offset and length placeholders."),
                                 ["maxChunkBytes"] = Integer("Maximum decoded byte count per chunk read."),
+                                ["fallbackOnly"] = Boolean("True when chunk reads should be used only after the complete resource read is unavailable or truncated."),
                                 ["assembly"] = String("Instructions for reconstructing and verifying the original PNG bytes.")
                             }
                         }

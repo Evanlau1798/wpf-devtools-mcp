@@ -77,6 +77,19 @@ public sealed class ScreenshotLifecycleDocumentationTests
         content.Should().Contain("resourceUri");
     }
 
+    [Theory]
+    [InlineData("docfx/reference/tools/interaction-events-layout.md")]
+    [InlineData("docfx/zh-tw/reference/tools/interaction-events-layout.md")]
+    [InlineData("src/WpfDevTools.Mcp.Server/McpTools/InteractionMcpToolDescriptions.cs")]
+    public void ElementScreenshotDocumentation_ShouldIdentifyDownscaledEvidence(string relativePath)
+    {
+        var content = File.ReadAllText(GetRepoFilePath(relativePath));
+
+        content.Should().Contain("sourceWidth");
+        content.Should().Contain("downscaled");
+        content.Should().Contain("typography");
+    }
+
     [Fact]
     public void ToolPages_ShouldDocumentPreviewScreenshotAndAssignableTypeOptions()
     {

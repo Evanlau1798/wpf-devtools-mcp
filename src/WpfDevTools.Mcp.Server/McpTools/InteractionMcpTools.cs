@@ -162,9 +162,9 @@ public static class InteractionMcpTools
         [AllowedValues("metadata", "file", "base64")]
         [Description("Optional output mode. 'metadata' (default) does not render or return pixel bytes and may report rendered=false; use 'file' plus resources/read for normal pixel evidence, or explicit 'base64' for small inline captures.")] string? outputMode = null,
         [Range(1, int.MaxValue)]
-        [Description("Optional maximum screenshot width. When provided, the image is downscaled proportionally and never upscaled.")] int? maxWidth = null,
+        [Description("Optional maximum screenshot width. It downscales proportionally; omit both limits for source-sized typography evidence.")] int? maxWidth = null,
         [Range(1, int.MaxValue)]
-        [Description("Optional maximum screenshot height. When provided, the image is downscaled proportionally and never upscaled.")] int? maxHeight = null,
+        [Description("Optional maximum screenshot height. It downscales proportionally; omit both limits for source-sized typography evidence.")] int? maxHeight = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(

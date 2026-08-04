@@ -65,6 +65,10 @@ public sealed partial class InteractionAnalyzer
                     bounds.Height,
                     maxWidth,
                     maxHeight);
+                var sourceWidth = Math.Max(1, (int)Math.Round(bounds.Width));
+                var sourceHeight = Math.Max(1, (int)Math.Round(bounds.Height));
+                var scaleFactor = Math.Min(targetWidth / bounds.Width, targetHeight / bounds.Height);
+                var downscaled = targetWidth < sourceWidth || targetHeight < sourceHeight;
 
                 if (normalizedOutputMode == "metadata")
                 {
@@ -73,6 +77,10 @@ public sealed partial class InteractionAnalyzer
                         success = true,
                         width = targetWidth,
                         height = targetHeight,
+                        sourceWidth,
+                        sourceHeight,
+                        scaleFactor,
+                        downscaled,
                         format = "png",
                         rendered = false,
                         byteLength = 0
@@ -113,6 +121,10 @@ public sealed partial class InteractionAnalyzer
                         sha256 = screenshot.Sha256,
                         width = targetWidth,
                         height = targetHeight,
+                        sourceWidth,
+                        sourceHeight,
+                        scaleFactor,
+                        downscaled,
                         format = "png",
                         rendered = true,
                         byteLength = imageBytes.Length
@@ -139,6 +151,10 @@ public sealed partial class InteractionAnalyzer
                     base64Image = Convert.ToBase64String(imageBytes),
                     width = targetWidth,
                     height = targetHeight,
+                    sourceWidth,
+                    sourceHeight,
+                    scaleFactor,
+                    downscaled,
                     format = "png",
                     rendered = true,
                     byteLength = imageBytes.Length

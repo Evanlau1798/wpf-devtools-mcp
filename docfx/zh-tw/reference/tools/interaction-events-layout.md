@@ -18,6 +18,8 @@
 
 File 與 base64 回應會 render pixels，包含 `rendered: true`、dimensions、`format` 與 `byteLength`。File mode 會回傳 `screenshotId`、`resourceUri`、精確的 `resourceRead` request、`fileName`、`expiresAtUtc`、`localPathRedacted: true` 與 `sha256`；base64 mode 只會在小型 inline PNG payload 時回傳 `base64Image`。較大的截圖請使用 file mode，讓 client 取得 session-scoped resource handle，而不是 inline pixels。不要傳入 `outputPath`；client 應在相同 MCP server session 以 `resourceRead.method` 和 `resourceRead.params` 讀取。如果 client 截斷 blob，請依 `resourceRead.chunking.uriTemplate` 使用連續 offset，每次不得超過 `maxChunkBytes`，組合解碼後的 byte ranges，最後以 `byteLength` 與 `sha256` 驗證。
 
+每個成功回應也會標示 `sourceWidth`、`sourceHeight`、`scaleFactor` 與 `downscaled`。尺寸上限適合產生精簡證據，但 `downscaled: true` 不能作為權威 typography 或 pixel evidence。評估文字 rendering 或最終 visual fidelity 時，請省略兩個尺寸上限並確認 `downscaled: false`。
+
 需要證明 screenshot resource lifecycle 的 validation agent 應使用 `outputMode: "file"` 後再呼叫 `resources/read`；metadata mode 是刻意不 render 的 shape/availability probe。File mode 是 MCP server-owned retained screenshot resource。`SessionManager` 會提供 per-process server-issued lease root、在 24 小時後到期、將每個 MCP server session 限制在最多 100 筆、刪除 evicted 或 expired PNG files，並在 target session disconnect 或 server session manager dispose 時清除。此 lifecycle 由 `SessionManager` 管理，not by the Inspector default screenshot cache。
 
 ## 狀態快照與批次 mutation

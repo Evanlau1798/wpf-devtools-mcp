@@ -30,6 +30,10 @@ public sealed class InteractionAnalyzerScreenshotOptionsTests
         json.GetProperty("byteLength").GetInt32().Should().Be(0);
         json.GetProperty("width").GetInt32().Should().Be(160);
         json.GetProperty("height").GetInt32().Should().Be(80);
+        json.GetProperty("sourceWidth").GetInt32().Should().Be(160);
+        json.GetProperty("sourceHeight").GetInt32().Should().Be(80);
+        json.GetProperty("scaleFactor").GetDouble().Should().Be(1);
+        json.GetProperty("downscaled").GetBoolean().Should().BeFalse();
     }
 
     [StaFact]
@@ -46,6 +50,10 @@ public sealed class InteractionAnalyzerScreenshotOptionsTests
         json.GetProperty("success").GetBoolean().Should().BeTrue();
         json.GetProperty("width").GetInt32().Should().Be(80);
         json.GetProperty("height").GetInt32().Should().Be(40);
+        json.GetProperty("sourceWidth").GetInt32().Should().Be(200);
+        json.GetProperty("sourceHeight").GetInt32().Should().Be(100);
+        json.GetProperty("scaleFactor").GetDouble().Should().Be(0.4);
+        json.GetProperty("downscaled").GetBoolean().Should().BeTrue();
     }
 
     [StaFact]

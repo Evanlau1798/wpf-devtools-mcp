@@ -25,5 +25,9 @@ public sealed class McpScreenshotOutputSchemaDescriptionTests
             .Should().Contain("false for metadata mode");
         properties.GetProperty("byteLength").GetProperty("description").GetString()
             .Should().Contain("zero for metadata mode");
+        properties.GetProperty("sourceWidth").GetProperty("description").GetString()
+            .Should().Contain("before optional downscaling");
+        properties.GetProperty("downscaled").GetProperty("description").GetString()
+            .Should().Contain("typography");
     }
 }

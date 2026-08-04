@@ -8,11 +8,11 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string CreateUiBlueprintDraft =
         """
-        USE WHEN: Reusing one blueprint across several Composer calls without retransmitting it.
+        USE WHEN: Start a reusable blueprint with the smallest valid root or shell; add descendants via compose_ui_blueprint. Do not hand-author a deep complete tree.
 
         CATEGORY: UI Composer
 
-        RETURNS: Immutable, bounded, process-local draftRef, copy-ready node aliasInventory, and retention metadata; no blueprintJson echo.
+        RETURNS: Opaque process-local draftRef and alias/retention metadata; no JSON echo.
 
         EXAMPLES:
         """ + CanonicalExamples;

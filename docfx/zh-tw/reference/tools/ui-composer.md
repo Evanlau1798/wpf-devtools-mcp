@@ -104,7 +104,7 @@ children 或 optional properties，不必手動重打 pack-specific kind 與 slo
 
 ## Optional blueprint draft transport
 
-多步驟 workflow 若要避免重複傳輸及 double-serialize 同一份文件，可使用 `create_ui_blueprint_draft`。它接受一個 blueprint JSON object，回傳 opaque `draftRef`，且不會 echo 原始文件。Bounded `aliasInventory` 最多列出 64 個由 node-level `elementName` 宣告的 copy-ready `@ElementName` aliases；metadata fields 不會建立 alias。Immutable、process-local store 最多保留 32 drafts，每份最多 65,536 字元，每筆存活 30 minutes。Reference 無法猜測、永不持久化；MCP server process 結束、到期或容量淘汰後就會失效。
+多步驟 workflow 若要避免重複傳輸及 double-serialize 同一份文件，可使用 `create_ui_blueprint_draft`。先建立最小且有效的 root 或 shell、立即存成 draft，再以 `compose_ui_blueprint` 加入 descendants；不要在一個 JSON 字串中手寫完整的深層 tree。工具會回傳 opaque `draftRef`，且不會 echo 原始文件。Bounded `aliasInventory` 最多列出 64 個由 node-level `elementName` 宣告的 copy-ready `@ElementName` aliases；metadata fields 不會建立 alias。Immutable、process-local store 最多保留 32 drafts，每份最多 65,536 字元，每筆存活 30 minutes。Reference 無法猜測、永不持久化；MCP server process 結束、到期或容量淘汰後就會失效。
 
 使用 `patch_ui_blueprint_draft` 搭配 live reference，可建立新的 immutable derived reference。Broad object change 可傳入 JSON Merge Patch object：null 會移除 object property、nested object 會遞迴 merge、array 或 scalar 會取代 target。單一 edit 可傳入 exact `jsonPath` 與 native JSON `value`；若要刪除該 target，省略 value 並設定 `remove=true`。Bare `@ElementName` alias 會選取整個 named node 以進行 replace/remove；若要操作 nested target，則附加 `@ElementName.properties.text` 等 relative path。兩到 16 個相關 edits 可改傳 ordered `operations`；它們會對同一份 working copy 原子執行，並只產生一個 derived reference。每筆 atomic change 都會包含從零開始的 `operationIndex`。Source reference 永遠不變。每次成功衍生都會回傳 bounded `changeSummary`，列出 changed paths 與 compact before/after values，而不 echo 完整 blueprint。遺失、到期或遭淘汰的 reference 會回傳 `BlueprintDraftNotFound` 與 recovery guidance。
 

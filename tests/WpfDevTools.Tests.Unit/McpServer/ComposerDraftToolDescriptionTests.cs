@@ -22,10 +22,11 @@ public sealed class ComposerDraftToolDescriptionTests
     ];
 
     [Fact]
-    public void CreateDraftParameter_ShouldExposeRequiredBlueprintEnvelope()
+    public void CreateDraftContract_ShouldExposeRequiredEnvelopeAndProgressiveAuthoring()
     {
-        var description = typeof(UiComposerMcpTools)
-            .GetMethod(nameof(UiComposerMcpTools.CreateUiBlueprintDraft))!
+        var method = typeof(UiComposerMcpTools)
+            .GetMethod(nameof(UiComposerMcpTools.CreateUiBlueprintDraft))!;
+        var description = method
             .GetParameters().Single(parameter => parameter.Name == "blueprintJson")
             .GetCustomAttribute<DescriptionAttribute>()!.Description;
 
@@ -33,7 +34,12 @@ public sealed class ComposerDraftToolDescriptionTests
             .Contain("wpfdevtools.ui-blueprint.v1")
             .And.ContainAll("name", "packs", "primaryPack", "layout")
             .And.Contain("resourceVariants{packId:variantId}")
-            .And.Contain("elementName->@Name");
+            .And.Contain("elementName->@Name")
+            .And.Contain("smallest valid root or shell");
+        method.GetCustomAttribute<DescriptionAttribute>()!.Description.Should()
+            .Contain("compose_ui_blueprint")
+            .And.Contain("smallest valid root or shell")
+            .And.Contain("Do not hand-author a deep complete tree");
     }
 
     [Fact]

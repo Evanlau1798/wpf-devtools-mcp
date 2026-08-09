@@ -48,6 +48,7 @@ function Invoke-InstallerFullUninstallCore {
     $installationBackups = @()
     $removedInstallations = @()
     $stateRestoreRequired = $false
+    $cleanupCommitted = $false
 
     try {
         foreach ($registration in $detectedRegistrations) {
@@ -172,12 +173,13 @@ function Invoke-InstallerFullUninstallCore {
         }
         $statePath = Save-InstallerState -State $newState
         $stateRestoreRequired = $true
+        $cleanupCommitted = $true
         foreach ($registrationBackup in $registrationBackups) {
-            Remove-PathIfExists -Path ([string]$registrationBackup.BackupPath) -BestEffort
+            Remove-PathIfExists -Path ([string]$registrationBackup.BackupPath)
         }
 
         foreach ($backup in $installationBackups) {
-            Remove-PathIfExists -Path ([string]$backup.RollbackPath) -BestEffort
+            Remove-PathIfExists -Path ([string]$backup.RollbackPath)
         }
 
         $removedInstallRoots = @(Remove-InstallerOwnedEmptyInstallRoots -Installations $removedInstallations -BestEffort)
@@ -195,6 +197,10 @@ function Invoke-InstallerFullUninstallCore {
         }
     }
     catch {
+        if ($cleanupCommitted) {
+            throw
+        }
+
         $rollbackErrors = New-Object System.Collections.Generic.List[string]
         $registrationBackupsInReverse = @($registrationBackups)
         [array]::Reverse($registrationBackupsInReverse)

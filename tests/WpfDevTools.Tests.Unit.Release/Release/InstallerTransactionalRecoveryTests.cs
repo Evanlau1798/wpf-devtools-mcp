@@ -85,15 +85,16 @@ public sealed class InstallerTransactionalRecoveryTests
 
             result.ExitCode.Should().Be(0, result.Stderr);
             using var json = JsonDocument.Parse(result.Stdout);
-            json.RootElement.GetProperty("Succeeded").GetBoolean().Should().BeTrue(
-                json.RootElement.GetProperty("Error").GetString());
+            json.RootElement.GetProperty("Succeeded").GetBoolean().Should().BeFalse(
+                "full-uninstall must not report success while rollback cleanup residue remains");
+            json.RootElement.GetProperty("Error").GetString().Should().Contain("simulated rollback disposal failure");
             json.RootElement.GetProperty("State").GetString().Should().NotContain("\"vscode\"",
                 "durable state persistence is the full-uninstall commit point");
             json.RootElement.GetProperty("Config").GetString().Should().NotContain("wpf-devtools");
             json.RootElement.GetProperty("InstallExists").GetBoolean().Should().BeFalse();
             json.RootElement.GetProperty("ExecutableExists").GetBoolean().Should().BeFalse();
             json.RootElement.GetProperty("RollbackResidueExists").GetBoolean().Should().BeTrue(
-                "failed best-effort disposal may leave safe rollback residue for later cleanup");
+                "the failed cleanup path should remain available for a retry after the locking process exits");
         }
         finally
         {

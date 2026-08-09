@@ -50,7 +50,8 @@ public sealed class StandaloneFullUninstallCommitPointTests
 
             result.ExitCode.Should().Be(0, result.Stderr);
             using var json = JsonDocument.Parse(result.Stdout);
-            json.RootElement.GetProperty("Succeeded").GetBoolean().Should().BeTrue();
+            json.RootElement.GetProperty("Succeeded").GetBoolean().Should().BeFalse(
+                "full-uninstall must not report success while rollback cleanup residue remains");
             json.RootElement.GetProperty("StateExists").GetBoolean().Should().BeTrue();
             json.RootElement.GetProperty("X64Exists").GetBoolean().Should().BeFalse();
             json.RootElement.GetProperty("X86Exists").GetBoolean().Should().BeFalse();

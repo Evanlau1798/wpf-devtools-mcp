@@ -60,6 +60,7 @@ function Invoke-StandaloneFullUninstallActionCore {
         $removedInstallations = @()
         $removedInstallRoots = @()
         $stateRestoreRequired = $false
+        $cleanupCommitted = $false
         $statePath = Resolve-StandaloneInstallerStatePath -CreateRoot
         $hadOriginalStateFile = Test-Path -LiteralPath $statePath
         $originalStateJson = if ($hadOriginalStateFile) { Get-Content -LiteralPath $statePath -Raw } else { $null }
@@ -229,12 +230,13 @@ function Invoke-StandaloneFullUninstallActionCore {
             }
             $statePath = Save-StandaloneInstallerState -State $state
             $stateRestoreRequired = $true
+            $cleanupCommitted = $true
             foreach ($operation in $registrationOperations) {
-                Remove-PathIfExists -Path ([string]$operation.BackupPath) -BestEffort
+                Remove-PathIfExists -Path ([string]$operation.BackupPath)
             }
 
             foreach ($backup in $installationBackups) {
-                Remove-PathIfExists -Path ([string]$backup.RollbackPath) -BestEffort
+                Remove-PathIfExists -Path ([string]$backup.RollbackPath)
             }
             $removedInstallRoots = @(Remove-StandaloneInstallerOwnedEmptyInstallRoots -Installations $removedInstallations -BestEffort)
             $summary = Get-StandaloneFullUninstallResultSummary -RemovedInstallations $removedInstallations -RequestedVersion $RequestedVersion
@@ -265,6 +267,10 @@ function Invoke-StandaloneFullUninstallActionCore {
             }
         }
         catch {
+            if ($cleanupCommitted) {
+                throw
+            }
+
             $backupsInReverse = @($installationBackups)
             [array]::Reverse($backupsInReverse)
             foreach ($backup in $backupsInReverse) {

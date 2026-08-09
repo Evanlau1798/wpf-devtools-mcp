@@ -104,7 +104,7 @@ elseif (-not [string]::IsNullOrWhiteSpace($PSCommandPath)) {
 else {
     $null
 }
-$script:InstallerHelperManifestCacheKey = 'sha256:4e7c1d0413a33227eee8e8d880e33515b5bb53e6ceaeda34f94a2f3744e6e293'
+$script:InstallerHelperManifestCacheKey = 'sha256:bcc8f2274521d1911522d367acf86342b4f6344e1f66d40e10ec802d13c721c7'
 $script:OnlineInstallerRuntimeSourcePaths = @(
     'scripts/installer/OnlineInstaller.Runtime.01.ps1'
     'scripts/installer/OnlineInstaller.Runtime.02.ps1'

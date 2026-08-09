@@ -123,7 +123,13 @@ internal static class ProjectIntegrationPlanBuilder
     {
         var selectedManifests = ComposerWindowRootResolver.ResolveSelectedManifests(registry, blueprintJson);
         var setStartup = ComposerWindowRootResolver.IsWindowRoot(selectedManifests, appliedXaml);
-        if (resources.Count == 0 && !setStartup)
+        var replacedResources = selectedManifests
+            .SelectMany(manifest => manifest.ResourceSetup.Variants.Values)
+            .SelectMany(variant => variant.ApplicationMergedDictionaries)
+            .Except(resources, StringComparer.Ordinal)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (resources.Count == 0 && replacedResources.Length == 0 && !setStartup)
         {
             return;
         }
@@ -138,7 +144,9 @@ internal static class ProjectIntegrationPlanBuilder
             return;
         }
 
-        var namespaces = ResolveResourceNamespaces(selectedManifests, resources);
+        var namespaces = ResolveResourceNamespaces(
+            selectedManifests,
+            resources.Concat(replacedResources).ToArray());
         var purposes = new List<string>();
         if (resources.Count > 0)
         {
@@ -159,6 +167,7 @@ internal static class ProjectIntegrationPlanBuilder
                 projectRoot,
                 targetPath,
                 resources,
+                replacedResources,
                 namespaces,
                 setStartup),
             setStartup

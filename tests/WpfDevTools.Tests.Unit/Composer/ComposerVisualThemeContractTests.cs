@@ -1,4 +1,7 @@
 using FluentAssertions;
+using System.Xml.Linq;
+using WpfDevTools.Mcp.Server;
+using WpfDevTools.Mcp.Server.Composer.Apply;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
@@ -7,6 +10,7 @@ using WpfDevTools.Tests.Unit.TestSupport;
 
 namespace WpfDevTools.Tests.Unit.Composer;
 
+[Collection("ProcessEnvironment")]
 public sealed class ComposerVisualThemeContractTests
 {
     [Fact]
@@ -167,18 +171,65 @@ public sealed class ComposerVisualThemeContractTests
             "<ui:ControlsDictionary />");
     }
 
+    [Fact]
+    public void ProjectIntegration_ShouldReplaceASelectedPacksPreviousResourceVariant()
+    {
+        var projectRoot = CreateProjectWithThemePack(includeBareVariant: true);
+        using var writes = new EnvironmentVariableScope(McpServerConfiguration.AllowProjectWritesEnvVar, "true");
+        using var roots = new EnvironmentVariableScope(McpServerConfiguration.AllowedProjectRootsEnvVar, projectRoot);
+        try
+        {
+            var registry = CreateRegistry(projectRoot);
+            ApplyIntegration(registry, projectRoot, Blueprint("dark"));
+            ApplyIntegration(registry, projectRoot, Blueprint("light"));
+
+            var app = XDocument.Load(Path.Combine(projectRoot, "App.xaml"));
+            var themes = app.Descendants().Where(element => element.Name.LocalName == "Theme").ToArray();
+            themes.Should().ContainSingle();
+            themes[0].Attribute("Mode")?.Value.Should().Be("Light");
+
+            ApplyIntegration(registry, projectRoot, Blueprint("bare"));
+            XDocument.Load(Path.Combine(projectRoot, "App.xaml"))
+                .Descendants()
+                .Should().NotContain(element => element.Name.LocalName == "Theme");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
+    private static void ApplyIntegration(PackRegistry registry, string projectRoot, string blueprint)
+    {
+        var dryRun = new UiBlueprintApplyService(registry).Apply(
+            new ApplyBlueprintRequest(blueprint, projectRoot, "Views/ThemeProbe.xaml"));
+        dryRun.Success.Should().BeTrue(dryRun.Errors.FirstOrDefault()?.Message);
+
+        var result = new UiBlueprintProjectIntegrationService(registry).Apply(
+            new ProjectIntegrationRequest(
+                blueprint,
+                projectRoot,
+                "Views/ThemeProbe.xaml",
+                dryRun.ProjectIntegrationPlan.PlanHash,
+                ConfirmIntegration: true));
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+    }
+
     private static PackRegistry CreateRegistry(string projectRoot)
         => new(
             ComposerPackPaths.BuiltinRoot(TestRepositoryPaths.GetRepoFilePath(".")),
             ComposerPackPaths.ProjectLocalRoot(projectRoot));
 
-    private static string CreateProjectWithThemePack()
+    private static string CreateProjectWithThemePack(bool includeBareVariant = false)
     {
         var projectRoot = Path.Combine(Path.GetTempPath(), "wpfdevtools-theme-" + Guid.NewGuid().ToString("N"));
         var packRoot = Path.Combine(projectRoot, ".wpfdevtools", "packs", "nebula", "1.0.0");
         Directory.CreateDirectory(Path.Combine(packRoot, "blocks"));
         Directory.CreateDirectory(Path.Combine(packRoot, "renderers", "xaml"));
-        File.WriteAllText(Path.Combine(packRoot, "pack.json"),
+        File.WriteAllText(
+            Path.Combine(projectRoot, "App.xaml"),
+            "<Application xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" />");
+        var manifest =
             """
             {
               "schemaVersion": "wpfdevtools.ui-pack.v1",
@@ -191,13 +242,19 @@ public sealed class ComposerVisualThemeContractTests
                 "defaultVariant": "dark",
                 "variants": {
                   "dark": { "appearance": "dark", "applicationMergedDictionaries": ["<nebula:Theme Mode=\"Dark\" />"] },
-                  "light": { "appearance": "light", "applicationMergedDictionaries": ["<nebula:Theme Mode=\"Light\" />"] }
+                  "light": { "appearance": "light", "applicationMergedDictionaries": ["<nebula:Theme Mode=\"Light\" />"] }__BARE_VARIANT__
                 }
               },
               "blocks": ["nebula.surface", "nebula.control"],
               "recipes": []
             }
-            """);
+            """;
+        File.WriteAllText(
+            Path.Combine(packRoot, "pack.json"),
+            manifest.Replace(
+                "__BARE_VARIANT__",
+                includeBareVariant ? ",\n                  \"bare\": { \"appearance\": \"light\", \"applicationMergedDictionaries\": [] }" : string.Empty,
+                StringComparison.Ordinal));
         File.WriteAllText(Path.Combine(packRoot, "source.lock.json"),
             """{"schemaVersion":"wpfdevtools.source-lock.v1","sources":[],"transformPolicy":{}}""");
         File.WriteAllText(Path.Combine(packRoot, "install.manifest.json"),
@@ -252,4 +309,19 @@ public sealed class ComposerVisualThemeContractTests
               }
             }
             """;
+
+    private sealed class EnvironmentVariableScope : IDisposable
+    {
+        private readonly string name;
+        private readonly string? original;
+
+        public EnvironmentVariableScope(string name, string? value)
+        {
+            this.name = name;
+            original = Environment.GetEnvironmentVariable(name);
+            Environment.SetEnvironmentVariable(name, value);
+        }
+
+        public void Dispose() => Environment.SetEnvironmentVariable(name, original);
+    }
 }

@@ -136,6 +136,7 @@ internal static class ProjectIntegrationXmlPatcher
         string projectRoot,
         string targetPath,
         IReadOnlyList<string> resources,
+        IReadOnlyList<string> replacedResources,
         IReadOnlyDictionary<string, string> namespaces,
         bool setStartup)
         => PatchXml(appPath, document =>
@@ -153,7 +154,7 @@ internal static class ProjectIntegrationXmlPatcher
                 application.SetAttributeValue(XNamespace.Xmlns + prefix, namespaceUri);
             }
 
-            if (resources.Count == 0)
+            if (resources.Count == 0 && replacedResources.Count == 0)
             {
                 return;
             }
@@ -182,6 +183,13 @@ internal static class ProjectIntegrationXmlPatcher
                 merged = new XElement(presentation + "ResourceDictionary.MergedDictionaries");
                 dictionary.AddFirst(merged);
             }
+
+            var replaced = replacedResources
+                .Select(resource => ParseResource(resource, presentation, namespaces))
+                .ToArray();
+            merged.Elements()
+                .Where(existing => replaced.Any(resource => XNode.DeepEquals(existing, resource)))
+                .Remove();
 
             foreach (var resource in resources)
             {

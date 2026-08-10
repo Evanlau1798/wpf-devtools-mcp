@@ -73,6 +73,8 @@ public sealed class ComposerDraftToolDescriptionTests
         compose.Should().Contain("160");
         compose.Should().Contain("compact values");
         compose.Should().Contain("truncation");
+        compose.Should().Contain("16 dependent insertions");
+        compose.Should().Contain("operations is an ordered atomic batch");
         compose.Should().NotContain("properties of 160");
         typeof(UiComposerMcpTools).GetMethod(nameof(UiComposerMcpTools.ComposeUiBlueprint))!
             .GetParameters().Single(parameter => parameter.Name == "targetPath")

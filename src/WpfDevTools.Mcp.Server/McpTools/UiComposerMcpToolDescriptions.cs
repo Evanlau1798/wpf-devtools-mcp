@@ -120,25 +120,21 @@ internal static class UiComposerMcpToolDescriptions
 
     public const string ComposeUiBlueprint =
         """
-        USE WHEN: You have a current blueprint and need to append or insert a catalog block into an existing slot.
+        USE WHEN: Append one catalog block, or atomically apply up to 16 dependent insertions; a later batch operation may target an alias created earlier in that batch.
 
         CATEGORY: UI Composer
 
-        DO NOT USE: Do not use this as a general JSON patch tool or filesystem writer. It only inserts exact compositionSkeleton content declared by installed packs and validates the candidate blueprint before returning it.
+        DO NOT USE: This is not a general JSON patch or filesystem writer; it inserts installed-pack compositionSkeleton content.
 
-        RESPONSE SUMMARY:
-        - Success returns validation plus the raw blueprint or a derived draftRef that omits the full blueprint; source drafts stay unchanged.
-        - insertedNodeSummary: path/kind/elementName/automationId plus up to 32 properties with compact values capped at 160 characters and explicit truncation metadata.
-        - targetSlotSummary: exact parent/slot, declared kinds/bounds, counts, and remaining capacity.
-        - Failure returns success=false as an MCP error result with diagnostics and any available candidateDraftRef or candidateBlueprintJson.
+        RETURNS:
+        - Success returns validation plus raw JSON or one derived draftRef that omits the full blueprint; source drafts stay unchanged.
+        - insertedNodeSummary includes identity and up to 32 properties as compact values capped at 160 characters with truncation metadata; targetSlotSummary covers bounds and capacity.
+        - Failure returns success=false as an MCP error result; invalid single draft composition can include candidateDraftRef.
 
-        REQUEST OPTIONS:
+        OPTIONS:
         - blueprintJson accepts raw JSON or an opaque draftRef.
-        - targetPath example: @Panel.slots.actions (or exact JSON path).
-        - kind is an exact pack-qualified kind from get_ui_block_catalog(composableOnly=true).
-        - elementName and automationId optionally assign validated, blueprint-wide unique standard identity.
-        - properties optionally configures the inserted node with one JSON object of pack-defined values; installed block validation remains authoritative.
-        - insertionIndex optionally inserts before an existing child; omit it to append.
+        - Single mode uses targetPath such as @Panel.slots.actions, exact pack-qualified kind, optional identities/properties, and insertionIndex.
+        - operations is an ordered atomic batch of 1–16 insertions; do not combine it with single-mode fields.
 
         EXAMPLES:
         """ + CanonicalExamples;

@@ -98,7 +98,7 @@ Parameter metadata、policy gates 與 output schemas 請以 runtime resources �
 
 這些值由 runtime MCP contract resources 產生。當 tool 新增或改名、method signature 變更、policy gate 移動，或 response fields 變更時，文件測試會要求同步更新此 snapshot。
 
-- `wpf://contracts/tools` SHA-256: `c913b85a077941dd3ba6740567fd54f2d0b1677580bd46d1a890a317a7068026`
+- `wpf://contracts/tools` SHA-256: `0596755d31f7e59cd300b12ecbae8c5c5d1fa4c09b8950efce5e58618b27dd3b`
 - `wpf://contracts/response` SHA-256: `507832fa967139c957ffd00e09694b9d43780e65075e121acd14ed55fff1776e`
 - Validation scope: `toolCount`、`name`、`title`、`parameters`、parameter `constraints`、`requiredParameters`、`inputSchemaHash`、`outputSchemaHash`、`capabilityTags`、`policyCapabilityTags`、`annotations`、`parameterConstraints`、`parameterVocabularies` 與 `highValueTools`。
 

@@ -127,7 +127,7 @@ The response returns the new reference, `sourceDraftRef`, retention metadata, an
 
 ## `compose_ui_blueprint`
 
-Inserts one pack-defined `compositionSkeleton` into an existing blueprint slot and validates the resulting document. Use it to build nested interfaces incrementally without manually rewriting deep JSON. This operation is pack-neutral and never writes files.
+Inserts one pack-defined `compositionSkeleton`, or atomically applies up to 16 dependent insertions, then validates the resulting blueprint. Use it to build nested interfaces without manually rewriting deep JSON. This operation is pack-neutral and never writes files.
 
 Request options:
 
@@ -137,11 +137,14 @@ Request options:
 - `elementName` and `automationId`: optional standard identities assigned during insertion. Existing blueprint validation enforces safe syntax and blueprint-wide uniqueness; neither field depends on the selected extension pack.
 - `properties`: optional JSON object of pack-defined values to apply during insertion. The installed block contract validates property names, types, ranges, and allowed values.
 - `insertionIndex`: optional zero-based position; omit it to append.
+- `operations`: optional ordered array of one to 16 insertions. Each entry has the same `targetPath`, `kind`, identity, `properties`, and `insertionIndex` fields as single mode. A later entry may target an `@ElementName` created by an earlier entry. Do not combine this array with single-mode insertion fields.
 - `projectRoot` and `localAppDataRoot`: optional pack discovery roots.
 
 Use `properties` when the block should be configured at insertion time; this avoids a follow-up edit through a long nested path while keeping the pack's `compositionSkeleton` authoritative. With raw JSON input, `composed=true` returns a new `blueprint`, compact `blueprintJson`, exact `insertedPath`, and validation result. With draft input, it returns a new immutable `draftRef` and omits the full document; the source draft remains unchanged. Every non-composed outcome returns `success=false` as an MCP error result. An invalid draft-derived candidate is still retained under `candidateDraftRef`, while raw input retains the existing `invalidCandidate` and `candidateBlueprintJson` recovery shape. Neither path writes project files. Ambiguous paths and non-composable blocks return actionable errors without a candidate.
 
-Every successful response also includes a bounded `insertedNodeSummary` so the caller can verify same-call configuration without rendering or retrieving the full draft. It publishes the resolved exact JSON path, kind, optional `elementName` and `automationId`, total and reported property counts, truncation state, and up to 32 deterministic property entries. Each entry includes its name, JSON value kind, a compact value of at most 160 characters, and an explicit value-truncation flag.
+Batch mode validates each dependent insertion against the result of the preceding entry but creates only one final derived draft. Any failed entry returns `failedOperationIndex` and rejects the complete batch, so no partial draft is retained. Successful responses include bounded per-operation insertion and slot summaries.
+
+Every successful single-mode response also includes a bounded `insertedNodeSummary` so the caller can verify same-call configuration without rendering or retrieving the full draft. It publishes the resolved exact JSON path, kind, optional `elementName` and `automationId`, total and reported property counts, truncation state, and up to 32 deterministic property entries. Each entry includes its name, JSON value kind, a compact value of at most 160 characters, and an explicit value-truncation flag.
 
 When the target resolves to an installed block contract, `targetSlotSummary` reports its exact path, parent kind, slot name, `allowedKinds`, `minItems`, `maxItems`, existing and resulting counts, `remainingCapacity`, and whether capacity was exceeded. A declared but omitted empty slot is created when first composed. Unbounded `maxItems` and `remainingCapacity` are explicit JSON null values rather than omitted members. The same summary is retained with an invalid candidate, so the Agent can recover from `SlotMinimumItemsNotMet` or `SlotMaximumItemsExceeded` without another catalog lookup. These are extension-declared child-count constraints, not pixel-width predictions.
 

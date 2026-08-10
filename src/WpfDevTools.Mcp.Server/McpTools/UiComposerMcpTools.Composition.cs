@@ -19,15 +19,18 @@ public static partial class UiComposerMcpTools
         [StringLength(BoundaryStringLimits.MaxStringifiedJsonArgumentLength)]
         [Description("Current UI blueprint JSON text or opaque draftRef. Raw JSON returns a new object; draft input returns a new immutable derived draftRef.")] string blueprintJson,
         [StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
-        [Description("Target slot: $.layout.slots.content or @Panel.slots.actions.")] string targetPath,
+        [Description("Target slot for single mode: $.layout.slots.content or @Panel.slots.actions.")] string? targetPath = null,
         [StringLength(BoundaryStringLimits.MaxLabelLength)]
-        [Description("Exact pack-qualified block kind to insert. Its compositionSkeleton is resolved from the installed pack.")] string kind,
+        [Description("Exact pack-qualified block kind for single mode. Its compositionSkeleton is resolved from the installed pack.")] string? kind = null,
         [StringLength(BoundaryStringLimits.MaxLabelLength)]
         [Description("Optional standard WPF x:Name identity for the inserted node. Must be unique in the blueprint.")] string? elementName = null,
         [StringLength(BoundaryStringLimits.MaxLabelLength)]
         [Description("Optional stable automation identity for the inserted node. Must be unique in the blueprint.")] string? automationId = null,
         [Description("Optional JSON object of pack-defined property values to apply while inserting the block. Values are validated against the installed block contract.")] JsonElement? properties = null,
         [Description("Optional zero-based insertion index. Omit to append to the target slot.")] int? insertionIndex = null,
+        [MinLength(1)]
+        [MaxLength(BlueprintCompositionOperation.MaxOperations)]
+        [Description("Optional ordered batch of up to 16 dependent insertions. Do not combine with single-mode targetPath or kind.")] BlueprintCompositionOperation[]? operations = null,
         [Description("Optional local WPF project root used for project-local pack discovery.")] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global pack discovery.")] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
@@ -40,29 +43,42 @@ public static partial class UiComposerMcpTools
             ("automationId", automationId),
             ("properties", properties),
             ("insertionIndex", insertionIndex),
+            ("operations", operations),
             ("projectRoot", projectRoot),
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(Compose(
-                blueprintJson,
-                targetPath,
-                kind,
-                elementName,
-                automationId,
-                properties,
-                insertionIndex,
-                projectRoot,
-                localAppDataRoot)),
+            (_, _) => Task.FromResult(operations is null
+                ? ComposeSingle(
+                    blueprintJson,
+                    targetPath,
+                    kind,
+                    elementName,
+                    automationId,
+                    properties,
+                    insertionIndex,
+                    projectRoot,
+                    localAppDataRoot)
+                : ComposeBatch(
+                    blueprintJson,
+                    targetPath,
+                    kind,
+                    elementName,
+                    automationId,
+                    properties,
+                    insertionIndex,
+                    operations,
+                    projectRoot,
+                    localAppDataRoot)),
             args,
             cancellationToken,
             timeoutSeconds: 10);
     }
 
-    private static object Compose(
+    private static object ComposeSingle(
         string blueprintJson,
-        string targetPath,
-        string kind,
+        string? targetPath,
+        string? kind,
         string? elementName,
         string? automationId,
         JsonElement? properties,
@@ -70,6 +86,13 @@ public static partial class UiComposerMcpTools
         string? projectRoot,
         string? localAppDataRoot)
     {
+        if (string.IsNullOrWhiteSpace(targetPath) || string.IsNullOrWhiteSpace(kind))
+        {
+            return InvalidCompositionRequest(
+                "Single composition mode requires both targetPath and kind.",
+                "Pass targetPath and kind, or omit both and pass operations.");
+        }
+
         var input = BlueprintInputResolver.Resolve(blueprintJson);
         if (!input.Success)
         {
@@ -165,4 +188,145 @@ public static partial class UiComposerMcpTools
                 observability
             };
     }
+
+    private static object ComposeBatch(
+        string blueprintJson,
+        string? targetPath,
+        string? kind,
+        string? elementName,
+        string? automationId,
+        JsonElement? properties,
+        int? insertionIndex,
+        IReadOnlyList<BlueprintCompositionOperation> operations,
+        string? projectRoot,
+        string? localAppDataRoot)
+    {
+        if (targetPath is not null
+            || kind is not null
+            || elementName is not null
+            || automationId is not null
+            || properties is not null
+            || insertionIndex is not null)
+        {
+            return InvalidCompositionRequest(
+                "Batch operations cannot be combined with single composition fields.",
+                "Pass operations alone with blueprintJson and optional pack discovery roots.");
+        }
+
+        if (operations.Count is < 1 or > BlueprintCompositionOperation.MaxOperations)
+        {
+            return InvalidCompositionRequest(
+                $"Batch composition accepts 1 to {BlueprintCompositionOperation.MaxOperations} operations.",
+                $"Split the work into batches of at most {BlueprintCompositionOperation.MaxOperations} dependent insertions.");
+        }
+
+        var input = BlueprintInputResolver.Resolve(blueprintJson);
+        if (!input.Success)
+        {
+            return BlueprintDraftError(input.Error!);
+        }
+
+        var service = new BlueprintCompositionService(CreateRegistry(projectRoot, localAppDataRoot));
+        var currentBlueprintJson = input.BlueprintJson;
+        var summaries = new List<object>(operations.Count);
+        BlueprintCompositionResult? finalResult = null;
+        for (var operationIndex = 0; operationIndex < operations.Count; operationIndex++)
+        {
+            var operation = operations[operationIndex];
+            var result = service.Compose(
+                currentBlueprintJson,
+                operation.TargetPath,
+                operation.Kind,
+                operation.ElementName,
+                operation.AutomationId,
+                operation.Properties,
+                operation.InsertionIndex);
+            if (!result.Composed)
+            {
+                object errors = result.Errors.Count > 0
+                    ? result.Errors
+                    : result.Validation?.Errors ?? [];
+                return new
+                {
+                    success = false,
+                    composed = false,
+                    batchComposed = false,
+                    sourceDraftRef = input.IsDraft ? input.DraftRef : null,
+                    failedOperationIndex = operationIndex,
+                    candidateWritten = false,
+                    errors,
+                    observability = ComposerObservability.ForComposition(result)
+                };
+            }
+
+            currentBlueprintJson = result.BlueprintJson!;
+            finalResult = result;
+            summaries.Add(new
+            {
+                operationIndex,
+                result.InsertedPath,
+                result.InsertedNodeSummary,
+                result.TargetSlotSummary
+            });
+        }
+
+        var validation = new
+        {
+            valid = finalResult!.Validation!.Success,
+            errors = finalResult.Validation.Errors,
+            warnings = finalResult.Validation.Warnings,
+            resolution = finalResult.Validation.Resolution,
+            diagnostics = finalResult.Validation.Diagnostics
+        };
+
+        if (input.IsDraft)
+        {
+            var derived = BlueprintInputResolver.Store.Create(currentBlueprintJson);
+            return derived.Success
+                ? new
+                {
+                    success = true,
+                    composed = true,
+                    batchComposed = true,
+                    sourceDraftRef = input.DraftRef,
+                    derived.DraftRef,
+                    derived.CharacterCount,
+                    derived.ExpiresAt,
+                    operationCount = summaries.Count,
+                    operations = summaries,
+                    validation
+                }
+                : BlueprintDraftError(derived.Error!);
+        }
+
+        using var document = JsonDocument.Parse(currentBlueprintJson);
+        return new
+        {
+            success = true,
+            composed = true,
+            batchComposed = true,
+            blueprint = document.RootElement.Clone(),
+            blueprintJson = currentBlueprintJson,
+            operationCount = summaries.Count,
+            operations = summaries,
+            validation
+        };
+    }
+
+    private static object InvalidCompositionRequest(string message, string repairSuggestion)
+        => new
+        {
+            success = false,
+            composed = false,
+            errorCode = "InvalidCompositionRequest",
+            errors = new[]
+            {
+                new
+                {
+                    code = "InvalidCompositionRequest",
+                    message,
+                    repairSuggestion
+                }
+            }
+        };
 }

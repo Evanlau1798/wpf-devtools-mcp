@@ -126,7 +126,7 @@ Response 會回傳新 reference、`sourceDraftRef`、retention metadata，以及
 
 ## `compose_ui_blueprint`
 
-將一個 pack-defined `compositionSkeleton` 插入既有 blueprint slot，並驗證結果文件。Agent 可用它逐步建立巢狀介面，不必手動重寫深層 JSON。此操作保持 pack-neutral，而且不會寫入檔案。
+將一個 pack-defined `compositionSkeleton` 插入既有 blueprint slot，或以原子方式執行最多 16 個相依插入，再驗證結果 blueprint。Agent 可用它建立巢狀介面，不必手動重寫深層 JSON。此操作保持 pack-neutral，而且不會寫入檔案。
 
 Request options:
 
@@ -136,11 +136,14 @@ Request options:
 - `elementName` 與 `automationId`: optional standard identities，可在插入時直接指定。既有 blueprint validation 會驗證安全語法及 blueprint-wide uniqueness；兩者皆不依賴選用的 extension pack。
 - `properties`: optional JSON object，可在插入時套用 pack-defined values。Installed block contract 會驗證 property name、type、range 與 allowed values。
 - `insertionIndex`: optional zero-based position；省略時 append。
+- `operations`: optional ordered array，包含一到 16 個 insertion。每筆沿用 single mode 的 `targetPath`、`kind`、identity、`properties` 與 `insertionIndex`；後一筆可使用前一筆剛建立的 `@ElementName`。不可與 single-mode insertion fields 混用。
 - `projectRoot` 與 `localAppDataRoot`: optional pack discovery roots。
 
 需要在插入時設定 block 時，使用 `properties` 可避免再透過很長的 nested path 追加一次 edit，同時仍以 pack 的 `compositionSkeleton` 為權威。Raw JSON input 在 `composed=true` 時會回傳新的 `blueprint`、compact `blueprintJson`、精確 `insertedPath` 與 validation result。Draft input 則回傳新的 immutable `draftRef` 並省略完整文件，source draft 保持不變。所有未完成 composition 的 outcome 都會以 MCP error result 回傳 `success=false`。Invalid draft-derived candidate 仍會保留在 `candidateDraftRef`；raw input 則維持既有 `invalidCandidate` 與 `candidateBlueprintJson` recovery shape。兩者都不會寫入 project files。Ambiguous path 與 non-composable block 只回傳可採取行動的 errors，不提供 candidate。
 
-每個成功 response 也會回傳 bounded `insertedNodeSummary`，讓 caller 不必 render 或取回完整 draft，就能驗證同呼叫的設定。內容包含解析後的精確 JSON path、kind、optional `elementName` 與 `automationId`、property total/reported counts、truncation state，以及最多 32 個 deterministic property entries。每個 entry 包含 name、JSON value kind、最多 160 字元的 compact value 與明確的 value-truncation flag。
+Batch mode 會依序對前一筆結果驗證每個相依 insertion，但最後只建立一份 derived draft。任一筆失敗都會回傳 `failedOperationIndex` 並拒絕完整 batch，不會保留 partial draft；成功時會回傳 bounded per-operation insertion 與 slot summaries。
+
+每個成功的 single-mode response 也會回傳 bounded `insertedNodeSummary`，讓 caller 不必 render 或取回完整 draft，就能驗證同呼叫的設定。內容包含解析後的精確 JSON path、kind、optional `elementName` 與 `automationId`、property total/reported counts、truncation state，以及最多 32 個 deterministic property entries。每個 entry 包含 name、JSON value kind、最多 160 字元的 compact value 與明確的 value-truncation flag。
 
 Target 可解析到 installed block contract 時，`targetSlotSummary` 會回傳 exact path、parent kind、slot name、`allowedKinds`、`minItems`、`maxItems`、existing/resulting counts、`remainingCapacity` 與 capacity 是否超出。已宣告但省略的空 slot 會在第一次 compose 時建立。無上限的 `maxItems` 與 `remainingCapacity` 會明確回傳 JSON null，而不會省略 member。Invalid candidate 也會保留同一份 summary，讓 Agent 遇到 `SlotMinimumItemsNotMet` 或 `SlotMaximumItemsExceeded` 時不必再查一次 catalog。這些是 extension-declared child-count constraints，不是 pixel-width 預測。
 

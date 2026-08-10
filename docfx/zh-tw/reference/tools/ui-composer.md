@@ -108,11 +108,17 @@ children 或 optional properties，不必手動重打 pack-specific kind 與 slo
 
 使用 `patch_ui_blueprint_draft` 搭配 live reference，可建立新的 immutable derived reference。Broad object change 可傳入 JSON Merge Patch object：null 會移除 object property、nested object 會遞迴 merge、array 或 scalar 會取代 target。單一 edit 可傳入 exact `jsonPath` 與 native JSON `value`；若要刪除該 target，省略 value 並設定 `remove=true`。Bare `@ElementName` alias 會選取整個 named node 以進行 replace/remove；若要操作 nested target，則附加 `@ElementName.properties.text` 等 relative path。兩到 16 個相關 edits 可改傳 ordered `operations`；它們會對同一份 working copy 原子執行，並只產生一個 derived reference。每筆 atomic change 都會包含從零開始的 `operationIndex`。Source reference 永遠不變。每次成功衍生都會回傳 bounded `changeSummary`，列出 changed paths 與 compact before/after values，而不 echo 完整 blueprint。遺失、到期或遭淘汰的 reference 會回傳 `BlueprintDraftNotFound` 與 recovery guidance。
 
+只有在預計重啟 provider、交接 repair，或 draft 接近到期而需要可重建 checkpoint 時，才使用 `get_ui_blueprint_draft`。它只輸出一次 exact immutable JSON；請直接把 raw response 保存為 evidence，重啟後再將該 JSON 傳給 `create_ui_blueprint_draft`。一般 authoring 應繼續使用 compact reference，Composer 不會在背景隱式持久化 draft。
+
 七個接受 `blueprintJson` 的 downstream tools 也接受 opaque `draftRef`：`compose_ui_blueprint`、`validate_ui_blueprint`、`render_ui_blueprint`、`preview_ui_blueprint`、`repair_ui_blueprint`、`apply_ui_blueprint` 與 `apply_ui_project_integration`。One-shot workflow 仍可直接使用 `blueprintJson`。
 
 ## `create_ui_blueprint_draft`
 
 建立一份 bounded ephemeral draft。Response 包含 `draftRef`、`characterCount`、`expiresAt`、`immutable=true` 與精確 retention metadata，並刻意省略 stored JSON。
+
+## `get_ui_blueprint_draft`
+
+將一份 live draft 的 exact JSON 輸出為明確 checkpoint。Response 也包含 `characterCount`、`expiresAt` 與 `recreateWith=create_ui_blueprint_draft`。Payload 可能很大，因此只在 lifecycle boundary 使用，並直接保存 raw result，避免反覆載入 Agent context。
 
 ## `patch_ui_blueprint_draft`
 

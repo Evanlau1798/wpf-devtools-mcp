@@ -295,8 +295,8 @@ internal static partial class McpToolOutputSchemas
     private static Dictionary<string, object> CommonProperties()
         => new(StringComparer.Ordinal)
         {
-            ["success"] = Boolean("Whether the tool operation succeeded."),
-            ["error"] = String("Human-readable error message when success is false."),
+            ["success"] = Boolean("Whether the operation succeeded."),
+            ["error"] = String("Error message when success is false."),
             ["errorCode"] = String("Machine-readable error code when available."),
             ["message"] = String("Human-readable status or summary message."),
             ["hint"] = String("Human-readable recovery hint when available."),

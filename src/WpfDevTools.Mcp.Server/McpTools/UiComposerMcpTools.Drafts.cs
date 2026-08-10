@@ -28,6 +28,21 @@ public static partial class UiComposerMcpTools
             timeoutSeconds: 10);
     }
 
+    [McpServerTool(Name = "get_ui_blueprint_draft", Title = "Export UI Blueprint Draft Checkpoint", OpenWorld = false, ReadOnly = true, Destructive = false, UseStructuredContent = true)]
+    [Description(UiComposerMcpToolDescriptions.GetUiBlueprintDraft)]
+    public static Task<CallToolResult> GetUiBlueprintDraft(
+        [StringLength(BoundaryStringLimits.MaxStringArgumentLength)]
+        [Description("Export draftRef before restart.")] string draftRef,
+        CancellationToken cancellationToken = default)
+    {
+        var args = ToolCallHelper.BuildJsonArgs(("draftRef", draftRef));
+        return ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult(GetDraftCheckpoint(draftRef)),
+            args,
+            cancellationToken,
+            timeoutSeconds: 10);
+    }
+
     [McpServerTool(Name = "patch_ui_blueprint_draft", Title = "Derive Patched UI Blueprint Draft", OpenWorld = false, ReadOnly = false, Destructive = false, UseStructuredContent = true)]
     [Description(UiComposerMcpToolDescriptions.PatchUiBlueprintDraft)]
     public static Task<CallToolResult> PatchUiBlueprintDraft(
@@ -59,6 +74,22 @@ public static partial class UiComposerMcpTools
 
     private static object CreateDraft(string blueprintJson)
         => DraftMutationPayload(BlueprintInputResolver.Store.Create(blueprintJson), sourceDraftRef: null);
+
+    private static object GetDraftCheckpoint(string draftRef)
+    {
+        var draft = BlueprintInputResolver.Store.Resolve(draftRef);
+        return draft.Success
+            ? new
+            {
+                success = true,
+                draft.DraftRef,
+                draft.BlueprintJson,
+                draft.CharacterCount,
+                draft.ExpiresAt,
+                recreateWith = "create_ui_blueprint_draft"
+            }
+            : BlueprintDraftError(draft.Error!, "$.draftRef");
+    }
 
     private static object PatchDraft(
         string draftRef,

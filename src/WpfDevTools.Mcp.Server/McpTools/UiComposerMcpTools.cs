@@ -226,7 +226,7 @@ public static partial class UiComposerMcpTools
         [Description("Pack-neutral named-region geometry JSON; requires startHost.")] string? visualLayoutContractJson = null,
         [Description("One-request reviewed tokens; requires WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true.")] string[]? runtimePackApprovalTokens = null,
         [Range(1, UiBlueprintPreviewDiagnosticsBridge.MaximumNameLookupLimit)]
-        [Description("Inspects up to 32 non-generated correlation names (authored elementName values and renderer-provided root x:Name values); raise to 64 only for layoutRiskSummary lookup-budget truncation.")] int correlationLookupLimit = UiBlueprintPreviewDiagnosticsBridge.ExistingNameLookupLimit,
+        [Description("Up to 32 non-generated correlation names (authored elementName values and renderer-provided root x:Name values); raise to 64 after truncation. Contract names have separate priority.")] int correlationLookupLimit = UiBlueprintPreviewDiagnosticsBridge.ExistingNameLookupLimit,
         [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
         [Description("Optional LocalApplicationData root override for user-global packs.")] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)

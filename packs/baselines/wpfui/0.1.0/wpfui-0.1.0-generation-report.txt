@@ -415,3 +415,23 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
 exit code: 0; archive entries: 47; root: wpfui/0.1.0/; SHA-256: 5C05DA7F4341EA5B7C21801A676508003ED45ECF52FD4D3B050081B985BAE5A8
 ```
+
+## Generic Visual Authoring Contract Maintenance
+
+Recent blind E2E runs exposed ambiguous horizontal continuation, weak action
+hierarchy, sparse repeated cards, and underscaled application identity. The
+pack now documents those authoring constraints and exposes TitleBar font size
+as pack data. Composer remains pack-neutral; no engine or creator branch was
+added for WPF UI.
+
+```text
+python <extension-creator-root>/scripts/validate_pack.py packs/builtin/wpfui/0.1.0 --strict --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.validation-report.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/audit_pack_coverage.py packs/builtin/wpfui/0.1.0 --source-inventory <temporary-source-inventory> --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.coverage-audit.json
+exit code: 0; valid: true; errors: 0; warnings: 1
+warning: `SourceInventoryCandidatesMissing`
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 47; root: wpfui/0.1.0/
+```

@@ -212,6 +212,35 @@ public sealed class ComposerWpfUiVisualFoundationTests
             .And.Contain("<ui:SymbolIcon Symbol=\"Apps24\"");
     }
 
+    [Fact]
+    public void WpfUiTitleBar_ShouldExposePackOwnedTypographyScale()
+    {
+        var catalog = new BlockCatalogService(CreateRegistry())
+            .GetCatalog(new BlockCatalogQuery(PackIds: ["wpfui"]));
+        var fontSize = catalog.Items.Single(item => item.Kind == "wpfui.titleBar").Properties["fontSize"];
+
+        var result = Render("""{ "kind": "wpfui.titleBar", "properties": { "title": "Studio", "fontSize": 18 } }""");
+
+        fontSize.Minimum.Should().Be(8);
+        fontSize.Maximum.Should().Be(64);
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Xaml.Should().Contain("<ui:TitleBar Title=\"Studio\" Height=\"56\" Padding=\"16,0\" FontSize=\"18\"");
+    }
+
+    [Fact]
+    public void WpfUiSurfaceContracts_ShouldExplainActionHierarchyAndDenseShelves()
+    {
+        var catalog = new BlockCatalogService(CreateRegistry())
+            .GetCatalog(new BlockCatalogQuery(PackIds: ["wpfui"]));
+        var button = catalog.Items.Single(item => item.Kind == "wpfui.button");
+        var card = catalog.Items.Single(item => item.Kind == "wpfui.card");
+
+        button.Properties["appearance"].Description.Should().ContainEquivalentOf("dominant action")
+            .And.ContainEquivalentOf("surface contrast");
+        card.Description.Should().ContainEquivalentOf("dense")
+            .And.ContainEquivalentOf("content budget");
+    }
+
     private static RenderBlueprintResult Render(string layout)
         => new UiBlueprintRenderer(CreateRegistry()).Render(new RenderBlueprintRequest(Blueprint(layout)));
 

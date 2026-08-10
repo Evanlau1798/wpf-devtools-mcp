@@ -1,6 +1,6 @@
 # 工具總覽
 
-目前 server 提供 77 個工具，分成 12 個類別。
+目前 server 提供 78 個工具，分成 12 個類別。
 
 ## 類別
 
@@ -45,7 +45,7 @@
 | 解釋非預期 visual value | `get_dp_value_source` | `get_applied_styles`、`get_resource_chain`、`get_triggers` | 用於 precedence 或 style 不清楚時。 |
 | 驗證 click 或 keyboard action | `get_interaction_readiness` | `click_element`、`drain_events`、`get_state_diff` | 只有在已知具體 `elementId` 後才使用。 |
 | 做 rollback-safe changes | `capture_state_snapshot` | `batch_mutate`、`get_state_diff`、`restore_state_snapshot` | 需要對應 destructive 與 read gates。 |
-| 安裝、組合、render、preview、repair 並 apply Composer UI | `list_ui_block_packs` | `import_ui_block_pack`、`get_ui_block_catalog`、`create_ui_blueprint_draft`、`patch_ui_blueprint_draft`、`compose_ui_blueprint`、`expand_ui_recipe`、`validate_ui_blueprint`、`render_ui_blueprint`、`preview_ui_blueprint`、`repair_ui_blueprint`、`apply_ui_blueprint`、`apply_ui_project_integration` | 先 dry-run 經審查的 project-local pack import，再建立 bounded drafts、探索、組合、驗證、render、preview、repair 並 guarded-apply pack-defined UI 與 reviewed project integration。 |
+| 安裝、組合、render、preview、repair 並 apply Composer UI | `list_ui_block_packs` | `import_ui_block_pack`、`get_ui_block_catalog`、`create_ui_blueprint_draft`、`get_ui_blueprint_draft`、`patch_ui_blueprint_draft`、`compose_ui_blueprint`、`expand_ui_recipe`、`validate_ui_blueprint`、`render_ui_blueprint`、`preview_ui_blueprint`、`repair_ui_blueprint`、`apply_ui_blueprint`、`apply_ui_project_integration` | 先 dry-run 經審查的 project-local pack import，再建立 bounded drafts、只在需要時輸出 checkpoint、探索、組合、驗證、render、preview、repair 並 guarded-apply pack-defined UI 與 reviewed project integration。 |
 | 跟完整 recipe | 看 [常見工作流程](../../guides/common-workflows.md) | 先跟 `navigation.recommended` | Workflow pages 是 baseline；tool response 仍是權威。 |
 
 ## 類別速覽
@@ -63,7 +63,7 @@
 | MVVM | `get_viewmodel` | 檢查 view 背後的資料與 commands |
 | Performance | `get_render_stats` | 作為 performance triage 起點 |
 | State & Scene Diagnostics | `get_ui_summary` | 在 tree-heavy inspection 前取得 semantic context |
-| UI Composer | `list_ui_block_packs`、`import_ui_block_pack`、`get_ui_block_catalog`、`create_ui_blueprint_draft`、`patch_ui_blueprint_draft`、`compose_ui_blueprint`、`expand_ui_recipe`、`validate_ui_blueprint`、`render_ui_blueprint`、`preview_ui_blueprint`、`repair_ui_blueprint`、`apply_ui_blueprint`、`apply_ui_project_integration` | Dry-run 並匯入經審查的 project-local packs，再建立 bounded drafts、探索、組合、驗證、render、preview、repair 與 guarded-apply blueprints 及 reviewed project integration |
+| UI Composer | `list_ui_block_packs`、`import_ui_block_pack`、`get_ui_block_catalog`、`create_ui_blueprint_draft`、`get_ui_blueprint_draft`、`patch_ui_blueprint_draft`、`compose_ui_blueprint`、`expand_ui_recipe`、`validate_ui_blueprint`、`render_ui_blueprint`、`preview_ui_blueprint`、`repair_ui_blueprint`、`apply_ui_blueprint`、`apply_ui_project_integration` | Dry-run 並匯入經審查的 project-local packs，再建立 bounded drafts、只在需要時輸出 checkpoint、探索、組合、驗證、render、preview、repair 與 guarded-apply blueprints 及 reviewed project integration |
 
 ## Navigation model
 
@@ -98,8 +98,8 @@ Parameter metadata、policy gates 與 output schemas 請以 runtime resources �
 
 這些值由 runtime MCP contract resources 產生。當 tool 新增或改名、method signature 變更、policy gate 移動，或 response fields 變更時，文件測試會要求同步更新此 snapshot。
 
-- `wpf://contracts/tools` SHA-256: `0596755d31f7e59cd300b12ecbae8c5c5d1fa4c09b8950efce5e58618b27dd3b`
-- `wpf://contracts/response` SHA-256: `507832fa967139c957ffd00e09694b9d43780e65075e121acd14ed55fff1776e`
+- `wpf://contracts/tools` SHA-256: `45c263ec9481ba9ec8548d6dfef883ed33028158c692ca2416b91aaaa10b8d9e`
+- `wpf://contracts/response` SHA-256: `71525dfc1c94cfcb963e8d92d88426ccf288889212d459abe61805e76039194b`
 - Validation scope: `toolCount`、`name`、`title`、`parameters`、parameter `constraints`、`requiredParameters`、`inputSchemaHash`、`outputSchemaHash`、`capabilityTags`、`policyCapabilityTags`、`annotations`、`parameterConstraints`、`parameterVocabularies` 與 `highValueTools`。
 
 需要更深入的語意與使用注意事項時，請再查看各分類頁面。

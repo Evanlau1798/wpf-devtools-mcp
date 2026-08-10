@@ -6,7 +6,7 @@
   "category": "input",
   "properties": {
     "appearance": {
-      "description": "Visual appearance applied to the generated WPF UI Button.",
+      "description": "Visual hierarchy applied to the generated WPF UI Button. Use Primary for the single dominant action in a region, Secondary for supporting actions, and Transparent for tertiary text-like actions. Check surface contrast before choosing Light or Dark.",
       "allowedValues": [
         "Primary",
         "Secondary",

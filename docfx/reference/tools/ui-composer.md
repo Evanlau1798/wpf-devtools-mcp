@@ -109,11 +109,17 @@ Use `create_ui_blueprint_draft` when a multi-step workflow should avoid retransm
 
 Use `patch_ui_blueprint_draft` with a live reference to create a new immutable derived reference. For broad object changes, pass a JSON Merge Patch object: null removes an object property, nested objects merge recursively, and arrays or scalar values replace their target. For one edit, pass an exact `jsonPath` plus a native JSON `value`, or set `remove=true` without a value. A bare `@ElementName` alias selects the whole named node for replace/remove; append a relative path such as `@ElementName.properties.text` for a nested target. For two to 16 related edits, pass ordered `operations`; they run atomically against one working copy and produce one derived reference. Each reported atomic change includes its zero-based `operationIndex`. The source reference never changes. Every successful derivation returns a bounded `changeSummary` with changed paths and compact before/after values instead of echoing the full blueprint. A missing, expired, or evicted reference returns `BlueprintDraftNotFound` with recovery guidance.
 
+Use `get_ui_blueprint_draft` only when a planned provider restart, repair handoff, or approaching expiry requires a recreatable checkpoint. It returns the exact immutable JSON once; persist the raw response directly as evidence and pass that JSON to `create_ui_blueprint_draft` after restart. Routine authoring should keep using the compact reference. Composer does not persist drafts implicitly.
+
 The seven downstream tools that take `blueprintJson` also accept an opaque `draftRef`: `compose_ui_blueprint`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint`, and `apply_ui_project_integration`. Direct `blueprintJson` remains the simplest option for one-shot workflows.
 
 ## `create_ui_blueprint_draft`
 
 Creates one bounded ephemeral draft. The response includes `draftRef`, `characterCount`, `expiresAt`, `immutable=true`, and exact retention metadata; it intentionally omits the stored JSON.
+
+## `get_ui_blueprint_draft`
+
+Exports the exact JSON for one live draft as an explicit checkpoint. The response also returns `characterCount`, `expiresAt`, and `recreateWith=create_ui_blueprint_draft`. Because the payload may be large, use it only at a lifecycle boundary and save the raw result without repeatedly loading it into Agent context.
 
 ## `patch_ui_blueprint_draft`
 

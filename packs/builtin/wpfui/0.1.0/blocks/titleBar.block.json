@@ -2,13 +2,20 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "wpfui.titleBar",
   "displayName": "Title Bar",
-  "description": "Semantic WPF UI Title Bar block.",
+  "description": "Semantic WPF UI Title Bar block for compact application identity and trailing commands. Balance icon, title scale, search width, and actions against the measured desktop width instead of letting one region visually erase the others.",
   "category": "shell",
   "properties": {
     "height": {
       "description": "Rendered height of the Title Bar in device-independent pixels.",
       "default": 56,
       "minimum": 0,
+      "type": "number"
+    },
+    "fontSize": {
+      "description": "Font size of the compact application title in device-independent pixels.",
+      "default": 14,
+      "minimum": 8,
+      "maximum": 64,
       "type": "number"
     },
     "padding": {

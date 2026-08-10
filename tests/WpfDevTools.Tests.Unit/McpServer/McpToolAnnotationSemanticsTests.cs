@@ -49,6 +49,16 @@ public class McpToolAnnotationSemanticsTests
     }
 
     [Fact]
+    public void GetUiBlueprintDraft_ShouldAdvertiseAnExplicitReadOnlyCheckpoint()
+    {
+        var method = typeof(UiComposerMcpTools).GetMethod(nameof(UiComposerMcpTools.GetUiBlueprintDraft));
+
+        var attribute = method!.GetCustomAttribute<McpServerToolAttribute>();
+        attribute!.ReadOnly.Should().BeTrue();
+        attribute.Destructive.Should().BeFalse();
+    }
+
+    [Fact]
     public void WatchDpChanges_ShouldAdvertiseStatefulNonDestructiveRegistration()
     {
         var method = typeof(DependencyPropertyMcpTools).GetMethod(nameof(DependencyPropertyMcpTools.WatchDpChanges));

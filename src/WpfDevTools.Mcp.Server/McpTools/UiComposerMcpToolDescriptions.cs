@@ -28,6 +28,19 @@ internal static class UiComposerMcpToolDescriptions
         EXAMPLES:
         """ + CanonicalExamples;
 
+    public const string GetUiBlueprintDraft =
+        """
+        USE WHEN: Export blueprint JSON before restart, handoff, or expiry.
+
+        CATEGORY: UI Composer
+
+        AVOID routine calls; keep draftRef. Save this large response, then recreate with create_ui_blueprint_draft.
+
+        RETURNS: Immutable blueprint JSON and metadata. No implicit disk persistence.
+
+        EXAMPLES: get_ui_blueprint_draft(draftRef="<draftRef>")
+        """ + CanonicalExamples;
+
     public const string ImportUiBlockPack =
         """
         Import a normalized Composer block-pack archive into one reviewed project.
@@ -276,7 +289,7 @@ internal static class UiComposerMcpToolDescriptions
         - startHost=true loads preview host; default false.
         - includeRuntimeDiagnostics=true needs startHost+sensitive reads; default false.
         - compactRuntimeDiagnostics is compact by default; keeps failures and screenshot resource handles. False returns full.
-        - correlationLookupLimit caps non-contract authored elementName and renderer-provided root x:Name at 32 (max 64); 16 contract names are separate. Raise only for lookup-budget.
+        - correlationLookupLimit: 32 non-generated correlation names (authored elementName values and renderer-provided root x:Name values), max 64; 16 visualLayoutContract names are separate. Raise only for lookup-budget.
         - Screenshots need startHost+sensitive-read+screenshot gates.
         - screenshotOutputMode="file": pixels at previewScreenshot.resourceUri; preview does not approve final styling.
         - viewportWidth/viewportHeight set Window.Width/Window.Height DIPs; match target Window outer dimensions for overflow. Screenshot bounds resize returned pixels only.

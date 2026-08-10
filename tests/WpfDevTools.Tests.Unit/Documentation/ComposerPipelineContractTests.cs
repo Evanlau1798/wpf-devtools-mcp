@@ -305,8 +305,9 @@ public sealed class ComposerPipelineContractTests
 
         documentation.Should().ContainAll(
             "release-specific expected count",
-            "77 tools",
+            "78 tools",
             "`create_ui_blueprint_draft`",
+            "`get_ui_blueprint_draft`",
             "`compose_ui_blueprint`",
             "`validate_ui_blueprint`",
             "`render_ui_blueprint`",

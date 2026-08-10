@@ -1,4 +1,4 @@
-<ui:TitleBar Title="{{title}}" Height="{{height}}" Padding="{{padding}}">
+<ui:TitleBar Title="{{title}}" Height="{{height}}" Padding="{{padding}}" FontSize="{{fontSize}}">
   <ui:TitleBar.Icon>{{slot.icon}}</ui:TitleBar.Icon>
   <ui:TitleBar.TrailingContent>
     <StackPanel Orientation="Horizontal">{{slot.actions}}</StackPanel>

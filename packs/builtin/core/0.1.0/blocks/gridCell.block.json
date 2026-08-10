@@ -2,7 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "core.gridCell",
   "displayName": "Grid Cell",
-  "description": "Places child content at a specific native WPF Grid row and column; same-cell children are layered, and later children render above earlier children.",
+  "description": "Places child content at a specific native WPF Grid row and column; same-cell children are layered, and later children render above earlier children. For a heading and trailing action in one row, use matching vertical alignment, normally Center, and leave clear space before following content.",
   "category": "layout",
   "authoringRoles": ["overlay-layer"],
   "properties": {

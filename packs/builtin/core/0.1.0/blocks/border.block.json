@@ -2,7 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "core.border",
   "displayName": "Border",
-  "description": "Wraps one child with native WPF padding, border, background, and corner styling.",
+  "description": "Wraps one child with native WPF padding, border, background, and corner styling. For a current or selected media tile, combine a contrasting borderBrush with nonzero borderThickness and a visible label or control state; do not rely on color alone.",
   "category": "layout",
   "properties": {
     "padding": { "type": "string", "description": "Inner WPF Thickness between the border edge and its content.", "default": "0", "format": "thickness" },

@@ -29,6 +29,9 @@ public sealed class StandaloneFullUninstallCommitPointTests
                     "$script:saveCompleted = $false; $script:disposalCount = 0",
                     "function Get-StandaloneInstallerState { return $script:testState }",
                     "function Resolve-StandaloneRemovalInstallRoot { return '" + installRoot.Replace("'", "''") + "' }",
+                    "function Normalize-StandaloneInstallerPath { param([string]$PathValue) return $PathValue }",
+                    "function Test-StandaloneInstallerPathEquals { return $true }",
+                    "function Test-StandaloneRegistrationMatchesInstallRoot { return $true }",
                     "function Get-StandaloneDetectedInstallerInstallations { return @([ordered]@{ InstallRoot='" + installRoot.Replace("'", "''") + "'; Architecture='x64'; InstallBase='" + x64Base.Replace("'", "''") + "'; InstalledExecutable='x64.exe'; ResolvedVersion='test'; InstallerOwned=$true }, [ordered]@{ InstallRoot='" + installRoot.Replace("'", "''") + "'; Architecture='x86'; InstallBase='" + x86Base.Replace("'", "''") + "'; InstalledExecutable='x86.exe'; ResolvedVersion='test'; InstallerOwned=$true }) }",
                     "function Get-StandaloneDetectedInstallerRegistrations { return @() }",
                     "function Get-StandaloneManagedRegistrationsFromInstall { return @() }",
@@ -42,8 +45,11 @@ public sealed class StandaloneFullUninstallCommitPointTests
                     "function Get-StandaloneFullUninstallResultSummary { return [ordered]@{ version='test'; resolvedVersion='test'; installRoot=$null; releaseChannel='test' } }",
                     "function Get-StandaloneFullUninstallCleanupGuidance { return 'test guidance' }",
                     "$succeeded=$false; try { Invoke-StandaloneFullUninstallActionCore -ResolvedAction full-uninstall -ResolvedArchitecture x64 -ResolvedClient all -ResolvedInstallRoot '' -RequestedVersion test | Out-Null; $succeeded=$true } catch { }",
-                    "$rollbackResidue = @(Get-ChildItem -LiteralPath '" + installRoot.Replace("'", "''") + "' -Filter '*.rollback-*' -Force -ErrorAction SilentlyContinue).Count",
-                    "[ordered]@{ Succeeded=$succeeded; StateExists=(Test-Path -LiteralPath '" + statePath.Replace("'", "''") + "'); X64Exists=(Test-Path -LiteralPath '" + x64Base.Replace("'", "''") + "'); X86Exists=(Test-Path -LiteralPath '" + x86Base.Replace("'", "''") + "'); RollbackResidueCount=$rollbackResidue } | ConvertTo-Json -Compress"
+                    "$initialRollbackResidue = @(Get-ChildItem -LiteralPath '" + installRoot.Replace("'", "''") + "' -Filter '*.rollback-*' -Force -ErrorAction SilentlyContinue).Count",
+                    "$decoyPath = Join-Path '" + installRoot.Replace("'", "''") + "' 'arm64.rollback-user-data'; New-Item -ItemType Directory -Path $decoyPath -Force | Out-Null",
+                    "$retrySucceeded=$false; $retryError=$null; try { Invoke-StandaloneFullUninstallActionCore -ResolvedAction full-uninstall -ResolvedArchitecture x64 -ResolvedClient all -ResolvedInstallRoot '" + installRoot.Replace("'", "''") + "' -RequestedVersion test -InstallRootWasSpecified | Out-Null; $retrySucceeded=$true } catch { $retryError=$_.Exception.Message }",
+                    "$rollbackResidue = @(Get-ChildItem -LiteralPath '" + installRoot.Replace("'", "''") + "' -Directory -Force -ErrorAction SilentlyContinue | Where-Object Name -Match '^(?:x64|x86|arm64)\\.rollback-[0-9a-fA-F]{32}$').Count",
+                    "[ordered]@{ Succeeded=$succeeded; RetrySucceeded=$retrySucceeded; RetryError=$retryError; StateExists=(Test-Path -LiteralPath '" + statePath.Replace("'", "''") + "'); X64Exists=(Test-Path -LiteralPath '" + x64Base.Replace("'", "''") + "'); X86Exists=(Test-Path -LiteralPath '" + x86Base.Replace("'", "''") + "'); InitialRollbackResidueCount=$initialRollbackResidue; RollbackResidueCount=$rollbackResidue; DecoyExists=(Test-Path -LiteralPath $decoyPath) } | ConvertTo-Json -Compress"
                 ]);
 
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
@@ -52,10 +58,16 @@ public sealed class StandaloneFullUninstallCommitPointTests
             using var json = JsonDocument.Parse(result.Stdout);
             json.RootElement.GetProperty("Succeeded").GetBoolean().Should().BeFalse(
                 "full-uninstall must not report success while rollback cleanup residue remains");
+            json.RootElement.GetProperty("RetrySucceeded").GetBoolean().Should().BeTrue(
+                json.RootElement.GetProperty("RetryError").GetString());
             json.RootElement.GetProperty("StateExists").GetBoolean().Should().BeTrue();
             json.RootElement.GetProperty("X64Exists").GetBoolean().Should().BeFalse();
             json.RootElement.GetProperty("X86Exists").GetBoolean().Should().BeFalse();
-            json.RootElement.GetProperty("RollbackResidueCount").GetInt32().Should().Be(1);
+            json.RootElement.GetProperty("InitialRollbackResidueCount").GetInt32().Should().Be(1);
+            json.RootElement.GetProperty("RollbackResidueCount").GetInt32().Should().Be(0,
+                "a retry should remove trusted installer-created rollback residue after the lock is released");
+            json.RootElement.GetProperty("DecoyExists").GetBoolean().Should().BeTrue(
+                "similarly named user content must not be treated as installer transaction residue");
         }
         finally
         {

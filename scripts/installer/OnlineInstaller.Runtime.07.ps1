@@ -1,3 +1,28 @@
+function Remove-StandaloneFullUninstallRollbackResidues {
+    param([AllowNull()] [string]$InstallRoot)
+
+    if ([string]::IsNullOrWhiteSpace($InstallRoot)) { return @() }
+    $trustedInstallRoot = Assert-InstallerLocalPathTrusted -Path $InstallRoot
+    if (-not (Test-Path -LiteralPath $trustedInstallRoot -PathType Container)) { return @() }
+
+    $removed = @()
+    foreach ($item in @(Get-ChildItem -LiteralPath $trustedInstallRoot -Directory -Force -ErrorAction Stop)) {
+        if ($item.Name -notmatch '^(?:x64|x86|arm64)\.rollback-[0-9a-fA-F]{32}$') { continue }
+        if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Refusing to remove rollback residue through a reparse point: $($item.FullName)"
+        }
+
+        $trustedResidue = Assert-InstallerLocalPathTrusted -Path $item.FullName
+        Remove-PathIfExists -Path $trustedResidue
+        if (Test-Path -LiteralPath $trustedResidue) {
+            throw "Rollback residue still exists: $trustedResidue"
+        }
+        $removed += $trustedResidue
+    }
+
+    return @($removed)
+}
+
 function Invoke-StandaloneFullUninstallActionCore {
     param(
         [Parameter(Mandatory)] [ValidateSet('uninstall', 'full-uninstall')] [string]$ResolvedAction,
@@ -238,7 +263,12 @@ function Invoke-StandaloneFullUninstallActionCore {
             foreach ($backup in $installationBackups) {
                 Remove-PathIfExists -Path ([string]$backup.RollbackPath)
             }
-            $removedInstallRoots = @(Remove-StandaloneInstallerOwnedEmptyInstallRoots -Installations $removedInstallations -BestEffort)
+            $removedRollbackResidues = @(Remove-StandaloneFullUninstallRollbackResidues -InstallRoot $effectiveInstallRoot)
+            $installationsForRootCleanup = @($removedInstallations)
+            if (-not [string]::IsNullOrWhiteSpace($effectiveInstallRoot)) {
+                $installationsForRootCleanup += [ordered]@{ InstallerOwned = $true; InstallRoot = $effectiveInstallRoot }
+            }
+            $removedInstallRoots = @(Remove-StandaloneInstallerOwnedEmptyInstallRoots -Installations $installationsForRootCleanup -BestEffort)
             $summary = Get-StandaloneFullUninstallResultSummary -RemovedInstallations $removedInstallations -RequestedVersion $RequestedVersion
 
             return [ordered]@{
@@ -257,6 +287,7 @@ function Invoke-StandaloneFullUninstallActionCore {
                 statePath = $statePath
                 removedInstallation = ($removedInstallations.Count -gt 0)
                 removedInstallations = @($removedInstallations)
+                removedRollbackResidues = @($removedRollbackResidues)
                 removedInstallRoots = @($removedInstallRoots)
                 removedRuntimeScreenshotCache = $removedRuntimeScreenshotCache
                 registrations = @($registrationOperations | Where-Object { [bool]$_.Applied })

@@ -63,6 +63,9 @@ public sealed class InstallerTransactionalRecoveryTests
                     "function Resolve-ClientStateKey { param([string]$ClientId, [string]$RegistrationMode) return $ClientId }",
                     "function Resolve-ClientBaseId { param([string]$ClientId) return $ClientId }",
                     "function Assert-InstallerLocalPathTrusted { param([string]$Path) return $Path }",
+                    "function Normalize-InstallerPathCore { param([string]$PathValue) return $PathValue }",
+                    "function Test-InstallerRegistrationMatchesInstallRoot { return $true }",
+                    "function Test-InstallerPathEqualsCore { return $true }",
                     "function Get-TrustedRecordedRegistrationTarget { return '" + vscodeConfigPath.Replace("'", "''") + "' }",
                     "function Resolve-InstallerStatePath { return '" + statePath.Replace("'", "''") + "' }",
                     "function Get-DetectedInstallerRegistrations { param($State) return @([ordered]@{ ClientId='vscode'; RegistrationMode='json-file'; RegistrationTarget='" + vscodeConfigPath.Replace("'", "''") + "'; InstallRoot='" + installRoot.Replace("'", "''") + "'; Architecture='x64'; InstalledExecutable='" + installedExecutable.Replace("'", "''") + "'; InstallerOwned=$true }) }",
@@ -77,8 +80,11 @@ public sealed class InstallerTransactionalRecoveryTests
                     "function Save-InstallerState { param($State) $script:saveCompleted = $true; '{\"lastInstallRoot\":null,\"architectures\":{},\"registrations\":{}}' | Set-Content -LiteralPath '" + statePath.Replace("'", "''") + "' -Encoding UTF8; return '" + statePath.Replace("'", "''") + "' }",
                     "function Remove-PathIfExists { param([string]$Path, [switch]$BestEffort) if ([string]::IsNullOrWhiteSpace($Path)) { return }; if ($script:saveCompleted -and $Path -like '*.rollback-*') { $script:disposalCount++; if ($script:disposalCount -eq 2) { if ($BestEffort) { return }; throw 'simulated rollback disposal failure' } }; if (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -Recurse -Force } }",
                     "$succeeded = $false; $errorMessage=$null; try { Invoke-InstallerFullUninstallCore -State ([ordered]@{ lastInstallRoot='" + installRoot.Replace("'", "''") + "'; architectures=[ordered]@{}; registrations=[ordered]@{} }) | Out-Null; $succeeded = $true } catch { $errorMessage=$_.Exception.Message }",
-                    "$rollbackResidue = @(Get-ChildItem -LiteralPath '" + installRoot.Replace("'", "''") + "' -Filter 'x64.rollback-*' -Force -ErrorAction SilentlyContinue).Count -eq 1",
-                    "[ordered]@{ Succeeded=$succeeded; Error=$errorMessage; State=[string](Get-Content -LiteralPath '" + statePath.Replace("'", "''") + "' -Raw); Config=[string](Get-Content -LiteralPath '" + vscodeConfigPath.Replace("'", "''") + "' -Raw); InstallExists=(Test-Path -LiteralPath '" + installBase.Replace("'", "''") + "'); ExecutableExists=(Test-Path -LiteralPath '" + installedExecutable.Replace("'", "''") + "'); RollbackResidueExists=$rollbackResidue } | ConvertTo-Json -Compress"
+                    "$initialRollbackResidue = @(Get-ChildItem -LiteralPath '" + installRoot.Replace("'", "''") + "' -Filter 'x64.rollback-*' -Force -ErrorAction SilentlyContinue).Count -eq 1",
+                    "$decoyPath = Join-Path '" + installRoot.Replace("'", "''") + "' 'x64.rollback-user-data'; New-Item -ItemType Directory -Path $decoyPath -Force | Out-Null",
+                    "$retrySucceeded = $false; $retryError=$null; try { Invoke-InstallerFullUninstallCore -State ([ordered]@{ lastInstallRoot=$null; architectures=[ordered]@{}; registrations=[ordered]@{} }) -InstallRoot '" + installRoot.Replace("'", "''") + "' -InstallRootWasSpecified | Out-Null; $retrySucceeded = $true } catch { $retryError=$_.Exception.Message }",
+                    "$rollbackResidue = @(Get-ChildItem -LiteralPath '" + installRoot.Replace("'", "''") + "' -Directory -Force -ErrorAction SilentlyContinue | Where-Object Name -Match '^x64\\.rollback-[0-9a-fA-F]{32}$').Count -gt 0",
+                    "[ordered]@{ Succeeded=$succeeded; RetrySucceeded=$retrySucceeded; RetryError=$retryError; Error=$errorMessage; State=[string](Get-Content -LiteralPath '" + statePath.Replace("'", "''") + "' -Raw); Config=[string](Get-Content -LiteralPath '" + vscodeConfigPath.Replace("'", "''") + "' -Raw); InstallExists=(Test-Path -LiteralPath '" + installBase.Replace("'", "''") + "'); ExecutableExists=(Test-Path -LiteralPath '" + installedExecutable.Replace("'", "''") + "'); InitialRollbackResidueExists=$initialRollbackResidue; RollbackResidueExists=$rollbackResidue; DecoyExists=(Test-Path -LiteralPath $decoyPath) } | ConvertTo-Json -Compress"
                 ]);
 
             var result = ReleaseScriptTestHarness.RunPowerShellCommand(command);
@@ -88,13 +94,19 @@ public sealed class InstallerTransactionalRecoveryTests
             json.RootElement.GetProperty("Succeeded").GetBoolean().Should().BeFalse(
                 "full-uninstall must not report success while rollback cleanup residue remains");
             json.RootElement.GetProperty("Error").GetString().Should().Contain("simulated rollback disposal failure");
+            json.RootElement.GetProperty("RetrySucceeded").GetBoolean().Should().BeTrue(
+                json.RootElement.GetProperty("RetryError").GetString());
             json.RootElement.GetProperty("State").GetString().Should().NotContain("\"vscode\"",
                 "durable state persistence is the full-uninstall commit point");
             json.RootElement.GetProperty("Config").GetString().Should().NotContain("wpf-devtools");
             json.RootElement.GetProperty("InstallExists").GetBoolean().Should().BeFalse();
             json.RootElement.GetProperty("ExecutableExists").GetBoolean().Should().BeFalse();
-            json.RootElement.GetProperty("RollbackResidueExists").GetBoolean().Should().BeTrue(
+            json.RootElement.GetProperty("InitialRollbackResidueExists").GetBoolean().Should().BeTrue(
                 "the failed cleanup path should remain available for a retry after the locking process exits");
+            json.RootElement.GetProperty("RollbackResidueExists").GetBoolean().Should().BeFalse(
+                "a full-uninstall retry should remove a trusted installer-created rollback residue even after state was cleared");
+            json.RootElement.GetProperty("DecoyExists").GetBoolean().Should().BeTrue(
+                "similarly named user content must not be treated as installer transaction residue");
         }
         finally
         {

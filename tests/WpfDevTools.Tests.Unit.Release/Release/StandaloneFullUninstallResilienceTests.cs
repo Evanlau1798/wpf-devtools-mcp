@@ -135,6 +135,7 @@ public sealed class StandaloneFullUninstallResilienceTests
                     "function Resolve-StandaloneRemovalInstallRoot { return 'C:\\test-root' }",
                     "function Get-StandaloneDetectedInstallerInstallations { return @() }",
                     "function Get-StandaloneDetectedInstallerRegistrations { return @() }",
+                    "function Assert-InstallerLocalPathTrusted { param([string]$Path) return $Path }",
                     "function Resolve-StandaloneInstallerStatePath { return '" + statePath.Replace("'", "''") + "' }",
                     "function Save-StandaloneInstallerState { param($State) return '" + statePath.Replace("'", "''") + "' }",
                     "function Remove-PathIfExists { param([string]$Path) }",

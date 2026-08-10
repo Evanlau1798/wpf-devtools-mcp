@@ -181,7 +181,7 @@ public sealed class ComposerCorePackTests
         result.Xaml.Should().Contain("<ScrollViewer HorizontalScrollBarVisibility=\"Visible\" VerticalScrollBarVisibility=\"Auto\" CanContentScroll=\"false\"")
             .And.Contain("<StackPanel Orientation=\"Horizontal\"")
             .And.Contain("<TextBlock Text=\"Card\"");
-        catalogItem.Description.Should().ContainEquivalentOf("bounded");
+        catalogItem.Description.Should().ContainEquivalentOf("bounded").And.ContainEquivalentOf("full-size").And.ContainEquivalentOf("same grid cell");
     }
 
     [Theory]

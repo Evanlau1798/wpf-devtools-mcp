@@ -2,7 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "core.scrollViewer",
   "displayName": "Scroll Viewer",
-  "description": "Hosts one child in a native WPF viewport with independently configurable horizontal and vertical scrolling. Place it in a bounded parent such as a fixed or star-sized Grid row or column; a StackPanel in the scrolling axis expands instead of creating a viewport.",
+  "description": "Hosts one child in a native WPF viewport with independently configurable horizontal and vertical scrolling. Place it in a bounded parent such as a fixed or star-sized Grid row or column; a StackPanel in the scrolling axis expands instead of creating a viewport. For a deliberate partial continuation, keep every repeated child full-size and let the real viewport expose a measured fraction. When edge navigation is required, overlay its control in the same Grid cell as this viewport; do not fake continuation with a narrow final child or detached label.",
   "category": "layout",
   "authoringRoles": ["scroll-region", "carousel"],
   "properties": {

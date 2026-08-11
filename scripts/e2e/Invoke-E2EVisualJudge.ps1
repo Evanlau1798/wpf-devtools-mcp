@@ -278,6 +278,8 @@ foreach ($outputPath in $outputPaths) {
     if (Test-Path -LiteralPath $outputPath) {
         throw "Visual judge output '$outputPath' already exists. Use a fresh attempt evidence root."
     }
+
+    New-Item -ItemType Directory -Path (Split-Path -Parent $outputPath) -Force | Out-Null
 }
 
 $systemTempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\') + '\'
@@ -315,7 +317,8 @@ Quality axes:
 - visualPolish: consistency, completeness, rhythm, and professional finish.
 
 Classify every visible defect and give its normalized final-image bounds:
-- blocking: unreadable, clipped, overlapping, missing, or visibly broken state.
+- blocking: unreadable, accidental clipping that removes meaningful content,
+  overlapping, missing, or visibly broken state.
 - material: conspicuous imbalance, accidental empty region, inconsistent sizing
   or alignment, unintegrated default controls, unexplained scrollbars, or blank
   repeated surfaces.
@@ -323,6 +326,9 @@ Classify every visible defect and give its normalized final-image bounds:
 
 In reference mode, compare broad spatial architecture, dominant proportions,
 information density, navigation and browse rhythm, and media/card composition.
+Do not classify a partial continuation as clipping when the reference shows a
+comparable partial item and the final image does not cut meaningful content or
+an action; judge its framing, spacing, and affordance against the reference.
 Do not penalize original branding, content, palette, or imagery. In standalone
 mode, return null referenceAxes. Do not include a pass/fail verdict or infer a
 target score. Keep the summary concise and image-grounded.

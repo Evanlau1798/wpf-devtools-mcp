@@ -113,22 +113,30 @@ public sealed class E2EVisualJudgeScriptTests
 
             var cleanFake = WriteFakeCodex(tempRoot, "clean", forbiddenToolEvent: false);
             var cleanEvidence = Path.Combine(tempRoot, "clean-evidence");
+            var nestedResult = Path.Combine(cleanEvidence, "attempt-1", "judge.json");
+            var nestedDecision = Path.Combine(cleanEvidence, "attempt-1", "decision.json");
             var cleanResult = ReleaseScriptTestHarness.RunPowerShellScript(
                 VisualJudgeScriptPath,
                 [
                     "-FinalImagePath", finalPath,
                     "-ReferenceImagePath", referencePath,
                     "-EvidenceRoot", cleanEvidence,
+                    "-JudgeResultPath", nestedResult,
+                    "-DecisionPath", nestedDecision,
                     "-CodexExecutable", cleanFake
                 ]);
 
             cleanResult.ExitCode.Should().Be(0, cleanResult.Stderr);
+            File.Exists(nestedResult).Should().BeTrue();
+            File.Exists(nestedDecision).Should().BeTrue();
             using var arguments = JsonDocument.Parse(
                 File.ReadAllText(Path.Combine(tempRoot, "clean-arguments.json")));
             var values = arguments.RootElement.EnumerateArray().Select(value => value.GetString()!).ToArray();
             Array.IndexOf(values, referencePath).Should().BeLessThan(Array.IndexOf(values, finalPath));
             values.Should().Contain(["--ignore-user-config", "--ignore-rules", "--ephemeral"]);
             values[1].Should().NotContain("9.5");
+            values[1].Should().Contain("partial continuation");
+            values[1].Should().Contain("meaningful content");
             var judgeWorkingDirectory = values[Array.IndexOf(values, "--cd") + 1];
             judgeWorkingDirectory.Should().StartWith(Path.GetTempPath());
             judgeWorkingDirectory.StartsWith(

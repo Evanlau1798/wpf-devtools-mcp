@@ -54,17 +54,18 @@ public sealed class GitHubCiHangDiagnosticsContractTests
     }
 
     [Fact]
-    public void BuildAndTestWorkflow_ShouldUploadTestDiagnosticsWhenTestsFailOrAreCancelled()
+    public void BuildAndTestWorkflow_ShouldRetainTestTimingsForSuccessfulAndFailedRuns()
     {
         var lines = File.ReadAllLines(Path.Combine(RepoRoot, ".github", "workflows", "ci-cd.yml"));
 
         var step = string.Join(Environment.NewLine, GetNamedStepBlock(lines, "Upload test diagnostics"));
 
-        step.Should().Contain("if: failure() || cancelled()");
+        step.Should().Contain("if: always()");
         step.Should().Contain("actions/upload-artifact@");
         step.Should().Contain("name: test-diagnostics-${{ matrix.configuration }}-${{ matrix.platform }}");
         step.Should().Contain("path: TestResults/");
         step.Should().Contain("if-no-files-found: ignore");
+        step.Should().Contain("retention-days: 7");
     }
 
     [Fact]

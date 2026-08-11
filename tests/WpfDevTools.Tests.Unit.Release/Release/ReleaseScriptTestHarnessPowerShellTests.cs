@@ -1,10 +1,32 @@
 using FluentAssertions;
+using System.Reflection;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
 [Collection("ProcessEnvironment")]
 public sealed class ReleaseScriptTestHarnessPowerShellTests
 {
+    [Fact]
+    public void ReleasePackagingTests_ShouldSerializeOnlyHostEnvironmentMutationCases()
+    {
+        typeof(ReleasePackagingContractTests).GetCustomAttribute<CollectionAttribute>()
+            .Should().BeNull();
+        typeof(ReleasePackagingProcessEnvironmentTests).CustomAttributes
+            .Single(candidate => candidate.AttributeType == typeof(CollectionAttribute))
+            .ConstructorArguments.Single().Value.Should().Be("ProcessEnvironment");
+    }
+
+    [Fact]
+    public void PackageSourceFingerprint_ShouldBeCachedOncePerTestHost()
+    {
+        var field = typeof(ReleaseScriptTestHarness).GetField(
+            "PackageSourceFingerprint",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        field.Should().NotBeNull();
+        field!.FieldType.Should().Be(typeof(Lazy<string>));
+    }
+
     [Fact]
     public void PackagedRuntimeFailureModes_ShouldRunWithoutCompetingPowerShellCollections()
     {
@@ -58,4 +80,5 @@ public sealed class ReleaseScriptTestHarnessPowerShellTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+
 }

@@ -190,19 +190,11 @@ internal static partial class ReleaseScriptTestHarness
     {
         var inputs = new List<string>
         {
-            "release-cache-v6",
+            "release-cache-v7",
             architecture,
             useSignedPayload ? "signed" : "unsigned",
-            GetFileContentHash(GetRepoFilePath("scripts/online-installer.ps1")),
-            GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "tools", "packaging", "run-template.bat"))),
-            GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "installer", "installer-helpers.manifest.json"))),
-            GetBuiltinComposerPackContentHash()
+            PackageSourceFingerprint.Value
         };
-
-        foreach (var helperFile in GetInstallerHelperFiles())
-        {
-            inputs.Add(GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "installer", helperFile))));
-        }
 
         if (useSignedPayload)
         {
@@ -216,6 +208,29 @@ internal static partial class ReleaseScriptTestHarness
             inputs.Add("unsigned-payload");
         }
 
+        return ComputePackageInputHash(inputs);
+    }
+
+    private static string ComputePackageSourceFingerprint()
+    {
+        var inputs = new List<string>
+        {
+            GetFileContentHash(GetRepoFilePath("scripts/online-installer.ps1")),
+            GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "tools", "packaging", "run-template.bat"))),
+            GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "installer", "installer-helpers.manifest.json"))),
+            GetBuiltinComposerPackContentHash()
+        };
+
+        foreach (var helperFile in GetInstallerHelperFiles())
+        {
+            inputs.Add(GetFileContentHash(GetRepoFilePath(Path.Combine("scripts", "installer", helperFile))));
+        }
+
+        return ComputePackageInputHash(inputs);
+    }
+
+    private static string ComputePackageInputHash(IEnumerable<string> inputs)
+    {
         var content = string.Join("\n", inputs);
         var hashBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content));
         return Convert.ToHexString(hashBytes).ToLowerInvariant();

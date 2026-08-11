@@ -236,28 +236,6 @@ public sealed partial class ReleasePackagingContractTests
     }
 
     [Fact]
-    public void ReleaseScriptHarness_ShouldScrubInheritedReleaseCertificateThumbprint()
-    {
-        var originalThumbprint = Environment.GetEnvironmentVariable("WPFDEVTOOLS_RELEASE_CERTIFICATE_THUMBPRINT");
-
-        try
-        {
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_CERTIFICATE_THUMBPRINT", "INHERITED_THUMBPRINT");
-
-            var result = ReleaseScriptTestHarness.RunPowerShellCommand(
-                "if ([string]::IsNullOrWhiteSpace($env:WPFDEVTOOLS_RELEASE_CERTIFICATE_THUMBPRINT)) { 'EMPTY' } else { $env:WPFDEVTOOLS_RELEASE_CERTIFICATE_THUMBPRINT }");
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Trim().Should().Be("EMPTY",
-                "release test child processes should not inherit host-level certificate thumbprint overrides unless the test passes them explicitly");
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_RELEASE_CERTIFICATE_THUMBPRINT", originalThumbprint);
-        }
-    }
-
-    [Fact]
     public void ReleaseScriptHarness_ShouldPrepareCertificateProviderAndCleanupSelfSignedFallbackFailures()
     {
         var harnessSource = ReleaseScriptHarnessSource.ReadAll();
@@ -274,27 +252,6 @@ public sealed partial class ReleasePackagingContractTests
         harnessSource.Should().Contain("RunPowerShellCommand(command, timeout: SelfSignedPayloadTimeout)");
         harnessSource.Should().Contain("CleanupGeneratedCertificateFromFile(certificateThumbprintPath);");
         harnessSource.Should().Contain("CleanupGeneratedCertificateIfKnown(generatedThumbprint);");
-    }
-
-    [Fact]
-    public void ReleaseScriptHarness_ShouldDefaultInstallerTestProcessesToNonElevated()
-    {
-        var originalAssumeElevated = Environment.GetEnvironmentVariable("WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED");
-
-        try
-        {
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED", "1");
-
-            var result = ReleaseScriptTestHarness.RunPowerShellCommand("$env:WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED");
-
-            result.ExitCode.Should().Be(0, result.Stderr);
-            result.Stdout.Trim().Should().Be("0",
-                "release tests should not inherit the hosted runner's elevated state unless a test opts in explicitly");
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED", originalAssumeElevated);
-        }
     }
 
     private static (string Thumbprint, string Subject, string PfxPath) CreateSigningCertificate(

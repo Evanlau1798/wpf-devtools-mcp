@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using Xunit;
+using static WpfDevTools.Tests.Unit.Release.StandaloneInstallerRegressionBootstrapTestSupport;
 using static WpfDevTools.Tests.Unit.Release.StandaloneInstallerRegressionTestSupport;
 
 namespace WpfDevTools.Tests.Unit.Release;
@@ -64,6 +65,10 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
         }
     }
 
+}
+
+public sealed class StandaloneInstallerRegressionBootstrapTestsIntegrityTrackedRuntime
+{
     [Theory]
     [MemberData(nameof(StandaloneInstallerRegressionTestSupport.RemovalActions), MemberType = typeof(StandaloneInstallerRegressionTestSupport))]
     public void StandaloneOnlineInstaller_WithoutInstalledHelpers_ShouldUseIntegrityTrackedRuntime(string action)
@@ -134,6 +139,10 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
         }
     }
 
+}
+
+public sealed class StandaloneInstallerRegressionBootstrapTestsJsonRegistration
+{
     [Fact]
     public void StandaloneOnlineInstaller_FullUninstall_ShouldRemoveJsonRegistrationsWhenHelperModulesAreUnavailable()
     {
@@ -191,6 +200,10 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
         }
     }
 
+}
+
+public sealed class StandaloneInstallerRegressionBootstrapTestsCodexRemoval
+{
     [Theory]
     [MemberData(nameof(StandaloneInstallerRegressionTestSupport.RemovalActions), MemberType = typeof(StandaloneInstallerRegressionTestSupport))]
     public void StandaloneOnlineInstaller_CodexRemovalModes_ShouldVerifyCliRegistrationWithoutHelperRuntime(string action)
@@ -260,6 +273,10 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
         }
     }
 
+}
+
+public sealed class StandaloneInstallerRegressionBootstrapTestsMissingCodexRegistration
+{
     [Fact]
     public void StandaloneOnlineInstaller_CodexUninstallWithoutInstallRoot_ShouldHandleMissingCodexRegistration()
     {
@@ -327,6 +344,10 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
         }
     }
 
+}
+
+public sealed class StandaloneInstallerRegressionBootstrapTestsAbsentCliRegistration
+{
     [Fact]
     public void StandaloneOnlineInstaller_FullUninstall_ShouldAcceptCliListExitCodeWhenRegistrationIsAbsent()
     {
@@ -394,7 +415,11 @@ public sealed class StandaloneInstallerRegressionBootstrapTests
         }
     }
 
-    private static void WriteFakeCli(
+}
+
+internal static class StandaloneInstallerRegressionBootstrapTestSupport
+{
+    internal static void WriteFakeCli(
         string fakeCliRoot,
         string commandName,
         string markerPath,

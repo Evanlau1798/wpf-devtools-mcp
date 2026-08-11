@@ -19,6 +19,8 @@ public sealed class OnlineInstallerFullUninstallLockFailureTests
             var installRoot = Path.Combine(tempRoot, "install");
             var scriptPath = ReleaseScriptTestHarness.GetRepoFilePath("scripts/online-installer.ps1");
             var environment = CreateInstallerEnvironment(tempRoot);
+            var retryLogPath = Path.Combine(tempRoot, "retry-delays.txt");
+            environment["WPFDEVTOOLS_INSTALLER_TEST_RETRY_DELAY_LOG"] = retryLogPath;
 
             var install = ReleaseScriptTestHarness.RunPowerShellScript(
                 scriptPath,
@@ -67,6 +69,8 @@ public sealed class OnlineInstallerFullUninstallLockFailureTests
             uninstall.ExitCode.Should().NotBe(0);
             (uninstall.Stdout + uninstall.Stderr).Should().Contain("Close any running WPF target applications");
             (uninstall.Stdout + uninstall.Stderr).Should().Contain("-Action full-uninstall");
+            File.ReadAllLines(retryLogPath).Select(int.Parse).Should().Equal(
+                Enumerable.Range(1, 19).Select(attempt => Math.Min(150 * attempt, 2000)));
         }
         finally
         {
@@ -86,4 +90,5 @@ public sealed class OnlineInstallerFullUninstallLockFailureTests
             ["WPFDEVTOOLS_INSTALLER_ASSUME_ELEVATED"] = "1",
             ["WPFDEVTOOLS_SKIP_ELEVATION"] = "1"
         };
+
 }

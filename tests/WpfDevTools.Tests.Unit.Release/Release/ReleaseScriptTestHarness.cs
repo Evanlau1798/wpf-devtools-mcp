@@ -11,6 +11,8 @@ internal static partial class ReleaseScriptTestHarness
     private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan SelfSignedPayloadTimeout = TimeSpan.FromMinutes(3);
     private static readonly ConcurrentDictionary<string, Lazy<CachedPackageArtifacts>> PackageArtifactCache = new(StringComparer.Ordinal);
+    private static readonly Lazy<string> PackageSourceFingerprint =
+        new(ComputePackageSourceFingerprint, LazyThreadSafetyMode.ExecutionAndPublication);
     private static readonly ConcurrentDictionary<string, byte> GeneratedCertificateThumbprints = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Lazy<SignedPayloadInfo> SignedPayload =
         new(ResolveSignedPayloadInfo, LazyThreadSafetyMode.ExecutionAndPublication);

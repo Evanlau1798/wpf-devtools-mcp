@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using Xunit;
+using static WpfDevTools.Tests.Unit.Release.StandaloneInstallerLiveRegistrationOwnershipTestSupport;
 using static WpfDevTools.Tests.Unit.Release.StandaloneInstallerRegressionTestSupport;
 
 namespace WpfDevTools.Tests.Unit.Release;
@@ -74,7 +75,10 @@ public sealed class StandaloneInstallerLiveRegistrationOwnershipTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+}
 
+public sealed class StandaloneInstallerLiveRegistrationOwnershipTestsDistinctTargets
+{
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -143,7 +147,10 @@ public sealed class StandaloneInstallerLiveRegistrationOwnershipTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+}
 
+public sealed class StandaloneInstallerLiveRegistrationOwnershipTestsRefreshOwnership
+{
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -217,8 +224,11 @@ public sealed class StandaloneInstallerLiveRegistrationOwnershipTests
             ReleaseScriptTestHarness.DeleteDirectory(tempRoot);
         }
     }
+}
 
-    private static void WriteVisualStudioRegistration(string path, string executable)
+internal static class StandaloneInstallerLiveRegistrationOwnershipTestSupport
+{
+    internal static void WriteVisualStudioRegistration(string path, string executable)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(
@@ -232,7 +242,7 @@ public sealed class StandaloneInstallerLiveRegistrationOwnershipTests
             }));
     }
 
-    private static (int ExitCode, string Stdout, string Stderr) RunScopedRemoval(
+    internal static (int ExitCode, string Stdout, string Stderr) RunScopedRemoval(
         string installerPath,
         string installRoot,
         string visualStudioConfigPath,

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using Xunit;
+using static WpfDevTools.Tests.Unit.Release.InstallerFullUninstallRootCleanupTestSupport;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
@@ -108,6 +109,10 @@ public sealed class InstallerFullUninstallRootCleanupTests
         }
     }
 
+}
+
+public sealed class InstallerFullUninstallRootCleanupTestsPreserveOtherRoot
+{
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -223,6 +228,10 @@ public sealed class InstallerFullUninstallRootCleanupTests
         }
     }
 
+}
+
+public sealed class InstallerFullUninstallRootCleanupTestsOwnedRoot
+{
     [Fact]
     public void OnlineInstaller_FullUninstall_ShouldRemoveEmptyInstallerOwnedInstallRoot()
     {
@@ -266,6 +275,10 @@ public sealed class InstallerFullUninstallRootCleanupTests
         }
     }
 
+}
+
+public sealed class InstallerFullUninstallRootCleanupTestsPublicOwnedRoot
+{
     [Fact]
     public void PublicOnlineInstaller_FullUninstall_ShouldRemoveEmptyInstallerOwnedInstallRoot()
     {
@@ -348,6 +361,10 @@ public sealed class InstallerFullUninstallRootCleanupTests
         }
     }
 
+}
+
+public sealed class InstallerFullUninstallRootCleanupTestsEnumerationFailure
+{
     [Fact]
     public void SharedEmptyRootCleanup_BestEffort_ShouldContainEnumerationFailure()
     {
@@ -368,6 +385,10 @@ public sealed class InstallerFullUninstallRootCleanupTests
         }
     }
 
+}
+
+public sealed class InstallerFullUninstallRootCleanupTestsVerifiedRemoval
+{
     [Fact]
     public void SharedEmptyRootCleanup_BestEffort_ShouldReportOnlyVerifiedRemoval()
     {
@@ -388,7 +409,11 @@ public sealed class InstallerFullUninstallRootCleanupTests
         }
     }
 
-    private static (int ExitCode, string Stdout, string Stderr) RunSharedEmptyRootCleanupProbe(
+}
+
+internal static class InstallerFullUninstallRootCleanupTestSupport
+{
+    internal static (int ExitCode, string Stdout, string Stderr) RunSharedEmptyRootCleanupProbe(
         string installRoot,
         string injectedFunction)
     {

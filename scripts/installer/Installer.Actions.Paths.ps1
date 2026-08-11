@@ -158,7 +158,14 @@ function Move-InstallerPathWithRetry {
                 throw (Get-InstallerFileSystemRecoveryMessage -Operation 'Move installer path' -Path $SourcePath -Exception $_.Exception)
             }
 
-            Start-Sleep -Milliseconds ([Math]::Min(150 * ($attempt + 1), 2000))
+            $retryDelayMilliseconds = [Math]::Min(150 * ($attempt + 1), 2000)
+            $retryDelayLog = Get-InstallerTestEnvironmentValue -Name 'WPFDEVTOOLS_INSTALLER_TEST_RETRY_DELAY_LOG'
+            if ([string]::IsNullOrWhiteSpace($retryDelayLog)) {
+                Start-Sleep -Milliseconds $retryDelayMilliseconds
+            }
+            else {
+                Add-Content -LiteralPath $retryDelayLog -Value $retryDelayMilliseconds
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "cacheKey":  "sha256:5ee05a92f102efbc7aace2409aeed8a9cfafec15f240e3f179e9da526ca14740",
+    "cacheKey":  "sha256:fc499d18a613a391d102dc8521db9ffa7e4395f8eeafc114f1bd1ae1603e0159",
     "helperFiles":  [
                         {
                             "path":  "Installer.Actions.Core.ps1",
@@ -9,8 +9,8 @@
                         },
                         {
                             "path":  "Installer.Actions.Paths.ps1",
-                            "sha256":  "a975d6e55ba3c678cd54a1b47f8e64a9234593686acab6542bd326fbefd8db1e",
-                            "sizeBytes":  6461
+                            "sha256":  "26d20126f5f3cf86534a11bb468b56f504a839b5e2f80f068131eed4fb73d7ea",
+                            "sizeBytes":  6837
                         },
                         {
                             "path":  "Installer.Actions.Payload.ps1",

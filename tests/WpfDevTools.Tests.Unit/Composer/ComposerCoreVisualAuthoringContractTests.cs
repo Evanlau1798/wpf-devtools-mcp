@@ -13,12 +13,16 @@ public sealed class ComposerCoreVisualAuthoringContractTests
         var catalog = new BlockCatalogService(CreateRegistry());
 
         var border = catalog.GetCatalog(new BlockCatalogQuery(Kind: "core.border")).Items.Single();
+        var grid = catalog.GetCatalog(new BlockCatalogQuery(Kind: "core.grid")).Items.Single();
         var scrollViewer = catalog.GetCatalog(new BlockCatalogQuery(Kind: "core.scrollViewer")).Items.Single();
 
         border.Description.Should().Contain("selected").And.Contain("borderBrush");
+        grid.Description.Should().Contain("shared alignment axis")
+            .And.Contain("overlay copy");
         scrollViewer.Description.Should().Contain("trailing gutter")
             .And.Contain("control footprint")
-            .And.Contain("visible gap");
+            .And.Contain("visible gap")
+            .And.Contain("visually integrated");
     }
 
     [Fact]

@@ -237,9 +237,12 @@ public sealed class ComposerWpfUiVisualFoundationTests
 
         button.Properties["appearance"].Description.Should().ContainEquivalentOf("dominant action")
             .And.ContainEquivalentOf("surface contrast")
-            .And.ContainEquivalentOf("do not replace Primary");
+            .And.ContainEquivalentOf("do not replace Primary")
+            .And.ContainEquivalentOf("edge navigation");
         card.Description.Should().ContainEquivalentOf("dense")
-            .And.ContainEquivalentOf("content budget");
+            .And.ContainEquivalentOf("content budget")
+            .And.ContainEquivalentOf("selected")
+            .And.ContainEquivalentOf("outer geometry");
     }
 
     private static RenderBlueprintResult Render(string layout)

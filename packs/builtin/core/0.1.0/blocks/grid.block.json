@@ -2,7 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "core.grid",
   "displayName": "Grid",
-  "description": "Arranges children in a native WPF row-and-column grid. Target the same cell with multiple core.gridCell children to create full-bleed background media, scrims, and foreground content overlays.",
+  "description": "Arranges children in a native WPF row-and-column grid. Target the same cell with multiple core.gridCell children to create full-bleed background media, scrims, and foreground content overlays. When overlay copy, repeated rows, or adjacent sections share a visual inset, keep them on one shared alignment axis instead of assigning unrelated margins.",
   "category": "layout",
   "authoringRoles": ["hero", "overlay-layout"],
   "properties": {

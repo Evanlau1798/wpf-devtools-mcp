@@ -6,7 +6,7 @@
   "category": "input",
   "properties": {
     "appearance": {
-      "description": "Visual hierarchy applied to the generated WPF UI Button. Use Primary for the single dominant action in a region, Secondary for supporting actions, and Transparent for tertiary text-like actions. Light and Dark provide surface contrast; they do not replace Primary for a dominant action when Primary remains readable.",
+      "description": "Visual hierarchy applied to the generated WPF UI Button. Use Primary for the single dominant action in a region, Secondary for supporting actions, and Transparent for tertiary text-like actions. Light and Dark provide surface contrast; they do not replace Primary for a dominant action when Primary remains readable. For compact edge navigation, choose the surface-appropriate Secondary or Transparent treatment and integrate it with the rail instead of leaving a default-looking neutral rectangle.",
       "allowedValues": [
         "Primary",
         "Secondary",

@@ -2,7 +2,7 @@
   "schemaVersion": "wpfdevtools.ui-block.v1",
   "kind": "wpfui.card",
   "displayName": "Card",
-  "description": "Semantic WPF UI Card block. For a dense repeated shelf, define an explicit content budget for media, title, metadata, and padding; avoid a minHeight or generous padding that leaves unexplained empty space.",
+  "description": "Semantic WPF UI Card block. For a dense repeated shelf, define an explicit content budget for media, title, metadata, and padding; avoid a minHeight or generous padding that leaves unexplained empty space. Keep selected and unselected siblings on identical outer geometry; allocate the selected border and padding inside that fixed footprint so selection does not change the row baseline or item size.",
   "category": "container",
   "properties": {
     "horizontalContentAlignment": {

@@ -129,6 +129,27 @@ public sealed class ComposerWpfUiVisualFoundationTests
     }
 
     [Fact]
+    public void WpfUiNavigationView_ShouldExposeBackButtonVisibility()
+    {
+        var item = new BlockCatalogService(CreateRegistry())
+            .GetCatalog(new BlockCatalogQuery(Kind: "wpfui.navigationView"))
+            .Items.Single();
+        var result = Render("""
+            {
+              "kind": "wpfui.navigationView",
+              "properties": { "isBackButtonVisible": "Visible" }
+            }
+            """);
+
+        item.Properties["isBackButtonVisible"].AllowedValues.Should()
+            .BeEquivalentTo(["Auto", "Visible", "Collapsed"]);
+        item.Properties["isBackButtonVisible"].Default.Should().NotBeNull();
+        item.Properties["isBackButtonVisible"].Default!.Value.GetString().Should().Be("Collapsed");
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Xaml.Should().Contain("IsBackButtonVisible=\"Visible\"");
+    }
+
+    [Fact]
     public void WpfUiTextBlock_ShouldExposeAnOverrideableOpticalFontFamily()
     {
         var item = new BlockCatalogService(CreateRegistry())

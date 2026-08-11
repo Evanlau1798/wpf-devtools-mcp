@@ -55,7 +55,7 @@ public sealed class ComposerBaselinePackTests
         Directory.GetFiles(Path.Combine(packRoot, "renderers", "xaml"), "*.xaml.sbn")
             .Should().HaveCount(19);
         Directory.GetFiles(Path.Combine(packRoot, "recipes"), "*.recipe.json")
-            .Should().HaveCount(4);
+            .Should().HaveCount(5);
         Directory.GetFiles(Path.Combine(packRoot, "examples"), "*.ui.json")
             .Should().HaveCount(1);
 
@@ -113,9 +113,9 @@ public sealed class ComposerBaselinePackTests
             entry.FullName.StartsWith("wpfui/0.1.0/", StringComparison.Ordinal)
             && !entry.FullName.Contains('\\'));
         archive.Entries.Select(entry => entry.FullName).Should().Contain("wpfui/0.1.0/pack.json");
-        GetStringArray(pack.RootElement, "recipes").Should().HaveCount(4);
-        readiness.RootElement.GetProperty("summary").GetProperty("recipeCount").GetInt32().Should().Be(4);
-        coverage.RootElement.GetProperty("summary").GetProperty("recipeCount").GetInt32().Should().Be(4);
+        GetStringArray(pack.RootElement, "recipes").Should().HaveCount(5);
+        readiness.RootElement.GetProperty("summary").GetProperty("recipeCount").GetInt32().Should().Be(5);
+        coverage.RootElement.GetProperty("summary").GetProperty("recipeCount").GetInt32().Should().Be(5);
         GetStringArray(readiness.RootElement.GetProperty("summary"), "sourceLockPaths").Should().Equal(
             GetStringArray(sourceLock.RootElement.GetProperty("sources")[0], "paths"));
         coverage.RootElement.GetProperty("summary").GetProperty("rendererTokens")

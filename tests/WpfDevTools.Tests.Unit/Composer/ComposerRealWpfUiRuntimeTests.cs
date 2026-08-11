@@ -38,7 +38,6 @@ namespace WpfDevTools.Tests.Unit.Composer;
 public sealed class ComposerRealWpfUiRuntimeTests
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     [StaFact]
     public void ShellRecipeGeneratedXaml_ShouldLoadRealWpfUiControlsAndStyles()
     {
@@ -118,6 +117,7 @@ public sealed class ComposerRealWpfUiRuntimeTests
                 .Should().BeEmpty("real WPF UI icon bindings should resolve after the window reaches idle");
 
             navigation.IsPaneOpen.Should().BeTrue();
+            navigation.IsBackButtonVisible.Should().Be(Wpf.Ui.Controls.NavigationViewBackButtonVisible.Collapsed);
             navigation.IsPaneToggleVisible.Should().BeFalse();
             var paneToggle = navigation.Template.FindName("PART_ToggleButton", navigation) as FrameworkElement;
             paneToggle.Should().NotBeNull();

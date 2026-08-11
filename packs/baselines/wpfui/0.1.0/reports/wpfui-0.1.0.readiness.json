@@ -8,7 +8,7 @@
   "summary": {
     "blockCount": 19,
     "rendererTemplateCount": 19,
-    "recipeCount": 4,
+    "recipeCount": 5,
     "exampleCount": 1,
     "blockKinds": [
       "wpfui.autoSuggestBox",

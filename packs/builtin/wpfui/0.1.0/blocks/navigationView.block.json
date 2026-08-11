@@ -24,6 +24,12 @@
       "maximum": 1000,
       "minimum": 0,
       "type": "number"
+    },
+    "isBackButtonVisible": {
+      "description": "Visibility of the NavigationView back control and its reserved row. Keep Collapsed when the application has no working back-navigation history so the content starts without an empty navigation band; use Auto or Visible only when back navigation is implemented.",
+      "default": "Collapsed",
+      "enum": ["Auto", "Visible", "Collapsed"],
+      "type": "string"
     }
   },
   "slots": {

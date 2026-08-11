@@ -181,7 +181,7 @@ public sealed class ComposerRendererDryRunTests
 
         result.Success.Should().BeTrue();
         result.Xaml.Should().Contain(
-            "<ui:NavigationView PaneDisplayMode=\"Left\" IsPaneOpen=\"true\" OpenPaneLength=\"320\" IsPaneToggleVisible=\"False\"");
+            "<ui:NavigationView PaneDisplayMode=\"Left\" IsPaneOpen=\"true\" OpenPaneLength=\"320\" IsBackButtonVisible=\"Collapsed\" IsPaneToggleVisible=\"False\"");
         result.Xaml.Should().NotContain("CompactPaneLength=");
         result.Xaml.Should().Contain("<ui:AutoSuggestBox Visibility=\"Collapsed\" />");
         result.Xaml.Should().Contain("<ui:NavigationView.ContentOverlay>");
@@ -208,7 +208,7 @@ public sealed class ComposerRendererDryRunTests
 
         result.Success.Should().BeTrue();
         result.Xaml.Should().Contain(
-            "<ui:NavigationView PaneDisplayMode=\"LeftMinimal\" IsPaneOpen=\"false\" OpenPaneLength=\"248\" IsPaneToggleVisible=\"False\"");
+            "<ui:NavigationView PaneDisplayMode=\"LeftMinimal\" IsPaneOpen=\"false\" OpenPaneLength=\"248\" IsBackButtonVisible=\"Collapsed\" IsPaneToggleVisible=\"False\"");
         result.Xaml.Should().NotContain("CompactPaneLength=");
     }
 

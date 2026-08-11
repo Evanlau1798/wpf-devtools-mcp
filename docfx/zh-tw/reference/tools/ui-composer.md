@@ -177,7 +177,7 @@ Request options:
 - `projectRoot`: optional WPF project root。提供時，會從 `<projectRoot>/.wpfdevtools/packs` 探索 project-local packs。
 - `localAppDataRoot`: optional user-global discovery root。省略時，server 會使用目前使用者的 LocalApplicationData path。
 
-Response 包含 `valid`、`recipeId`、展開後的 `blueprint` 與 nested validation result。Built-in WPF UI starter recipes 覆蓋 navigation shell、dashboard card、data grid page 與 tabbed settings patterns。
+Response 包含 `valid`、`recipeId`、展開後的 `blueprint` 與 nested validation result。Built-in WPF UI starter recipes 覆蓋 navigation shell、dashboard card、data grid page、horizontal media rail 與 tabbed settings patterns。Media-rail fragment 會把 browse action 放在保留的尾端欄位，讓作者可自由調整內容與 tile geometry，而不會覆蓋可讀 media。
 
 Built-in catalog 會刻意排除 `Snackbar` 與 `ContentDialog` 這類需要 host 的控制項。這些控制項需要 presenter、host 或 runtime show behavior，不能安全地表示成獨立 layout node。請以 runtime catalog discovery 為準；第三方 pack 只有在 renderer 與 behavior contract 能涵蓋這些要求時才應提供同類控制項。
 

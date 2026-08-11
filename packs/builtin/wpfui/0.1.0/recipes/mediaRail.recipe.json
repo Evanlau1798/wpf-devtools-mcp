@@ -1,0 +1,301 @@
+{
+  "schemaVersion": "wpfdevtools.ui-recipe.v1",
+  "id": "wpfui.mediaRail",
+  "displayName": "WPF UI Horizontal Media Rail",
+  "description": "A customizable horizontal media rail that keeps full-size tiles inside a real scroll viewport and reserves a separate trailing column for the browse action.",
+  "packId": "wpfui",
+  "requiredPacks": [
+    {
+      "id": "core",
+      "version": "0.1.0",
+      "required": true,
+      "role": "layout-pack"
+    },
+    {
+      "id": "wpfui",
+      "version": "0.1.0",
+      "required": true,
+      "role": "primary"
+    }
+  ],
+  "inputs": {
+    "firstImage": {
+      "description": "Project-owned WPF Resource URI for the first media tile.",
+      "default": "/Assets/media-01.png",
+      "type": "string"
+    },
+    "firstMetadata": {
+      "description": "Short supporting metadata for the first media tile.",
+      "default": "Featured collection",
+      "type": "string"
+    },
+    "firstTitle": {
+      "description": "Application-specific title for the first media tile.",
+      "default": "First selection",
+      "type": "string"
+    },
+    "nextCommand": {
+      "description": "Command that advances or reveals more rail content.",
+      "default": "{Binding NextMediaCommand}",
+      "type": "binding"
+    },
+    "nextText": {
+      "description": "Visible and accessible label for the trailing browse action.",
+      "default": "Next",
+      "type": "string"
+    },
+    "secondImage": {
+      "description": "Project-owned WPF Resource URI for the second media tile.",
+      "default": "/Assets/media-02.png",
+      "type": "string"
+    },
+    "secondMetadata": {
+      "description": "Short supporting metadata for the second media tile.",
+      "default": "Recently added",
+      "type": "string"
+    },
+    "secondTitle": {
+      "description": "Application-specific title for the second media tile.",
+      "default": "Second selection",
+      "type": "string"
+    },
+    "thirdImage": {
+      "description": "Project-owned WPF Resource URI for the third media tile.",
+      "default": "/Assets/media-03.png",
+      "type": "string"
+    },
+    "thirdMetadata": {
+      "description": "Short supporting metadata for the third media tile.",
+      "default": "More to explore",
+      "type": "string"
+    },
+    "thirdTitle": {
+      "description": "Application-specific title for the third media tile.",
+      "default": "Third selection",
+      "type": "string"
+    }
+  },
+  "expandsTo": {
+    "kind": "core.grid",
+    "slots": {
+      "children": [
+        {
+          "kind": "core.gridCell",
+          "properties": {
+            "column": 0
+          },
+          "slots": {
+            "content": [
+              {
+                "kind": "core.scrollViewer",
+                "properties": {
+                  "horizontalScrollBarVisibility": "Hidden",
+                  "verticalScrollBarVisibility": "Disabled"
+                },
+                "slots": {
+                  "content": [
+                    {
+                      "kind": "core.stack",
+                      "properties": {
+                        "orientation": "Horizontal",
+                        "spacing": "0,0,12,0",
+                        "verticalAlignment": "Top"
+                      },
+                      "slots": {
+                        "children": [
+                          {
+                            "kind": "wpfui.card",
+                            "properties": {
+                              "maxWidth": 232,
+                              "minHeight": 188,
+                              "padding": "8"
+                            },
+                            "slots": {
+                              "content": [
+                                {
+                                  "kind": "core.stack",
+                                  "properties": {
+                                    "spacing": "0,0,0,6"
+                                  },
+                                  "slots": {
+                                    "children": [
+                                      {
+                                        "kind": "core.image",
+                                        "properties": {
+                                          "source": "{{firstImage}}",
+                                          "automationName": "{{firstTitle}} artwork",
+                                          "height": 112,
+                                          "width": 216
+                                        }
+                                      },
+                                      {
+                                        "kind": "wpfui.textBlock",
+                                        "properties": {
+                                          "fontSize": 16,
+                                          "fontWeight": "SemiBold",
+                                          "text": "{{firstTitle}}"
+                                        }
+                                      },
+                                      {
+                                        "kind": "wpfui.textBlock",
+                                        "properties": {
+                                          "appearance": "Secondary",
+                                          "fontSize": 12,
+                                          "text": "{{firstMetadata}}"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "kind": "wpfui.card",
+                            "properties": {
+                              "maxWidth": 232,
+                              "minHeight": 188,
+                              "padding": "8"
+                            },
+                            "slots": {
+                              "content": [
+                                {
+                                  "kind": "core.stack",
+                                  "properties": {
+                                    "spacing": "0,0,0,6"
+                                  },
+                                  "slots": {
+                                    "children": [
+                                      {
+                                        "kind": "core.image",
+                                        "properties": {
+                                          "source": "{{secondImage}}",
+                                          "automationName": "{{secondTitle}} artwork",
+                                          "height": 112,
+                                          "width": 216
+                                        }
+                                      },
+                                      {
+                                        "kind": "wpfui.textBlock",
+                                        "properties": {
+                                          "fontSize": 16,
+                                          "fontWeight": "SemiBold",
+                                          "text": "{{secondTitle}}"
+                                        }
+                                      },
+                                      {
+                                        "kind": "wpfui.textBlock",
+                                        "properties": {
+                                          "appearance": "Secondary",
+                                          "fontSize": 12,
+                                          "text": "{{secondMetadata}}"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "kind": "wpfui.card",
+                            "properties": {
+                              "maxWidth": 232,
+                              "minHeight": 188,
+                              "padding": "8"
+                            },
+                            "slots": {
+                              "content": [
+                                {
+                                  "kind": "core.stack",
+                                  "properties": {
+                                    "spacing": "0,0,0,6"
+                                  },
+                                  "slots": {
+                                    "children": [
+                                      {
+                                        "kind": "core.image",
+                                        "properties": {
+                                          "source": "{{thirdImage}}",
+                                          "automationName": "{{thirdTitle}} artwork",
+                                          "height": 112,
+                                          "width": 216
+                                        }
+                                      },
+                                      {
+                                        "kind": "wpfui.textBlock",
+                                        "properties": {
+                                          "fontSize": 16,
+                                          "fontWeight": "SemiBold",
+                                          "text": "{{thirdTitle}}"
+                                        }
+                                      },
+                                      {
+                                        "kind": "wpfui.textBlock",
+                                        "properties": {
+                                          "appearance": "Secondary",
+                                          "fontSize": 12,
+                                          "text": "{{thirdMetadata}}"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "core.gridCell",
+          "properties": {
+            "column": 1,
+            "horizontalAlignment": "Stretch",
+            "margin": "12,0,0,0",
+            "verticalAlignment": "Center"
+          },
+          "slots": {
+            "content": [
+              {
+                "kind": "wpfui.button",
+                "properties": {
+                  "appearance": "Secondary",
+                  "command": "{{nextCommand}}",
+                  "horizontalAlignment": "Stretch",
+                  "minWidth": 72,
+                  "text": "{{nextText}}"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "columns": [
+        {
+          "kind": "core.columnDefinition",
+          "properties": {
+            "width": "*"
+          }
+        },
+        {
+          "kind": "core.columnDefinition",
+          "properties": {
+            "width": "96"
+          }
+        }
+      ]
+    }
+  },
+  "customizationGuidance": [
+    "Replace every sample asset and label after choosing the application's creative brief; vary the item count, dimensions, and content hierarchy instead of preserving the starter artwork or wording.",
+    "Keep the reserved action column separate from scrollable content so the edge action never covers readable media or creates a cramped final fragment.",
+    "When showing a continuation peek, keep the next item full-size and expose roughly one quarter to one half of it; never create a narrow final item to imitate clipping."
+  ]
+}

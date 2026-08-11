@@ -435,3 +435,31 @@ warning: `SourceInventoryCandidatesMissing`
 python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
 exit code: 0; archive entries: 47; root: wpfui/0.1.0/
 ```
+
+## Navigation Back Row And Media Rail Maintenance
+
+Repeated blind E2E reviews showed two reusable pack gaps: a generated
+NavigationView could not collapse its unused back-navigation row, and authors
+had only prose guidance for separating a horizontal media rail from its edge
+action. The pack now exposes the upstream `IsBackButtonVisible` property and
+adds an optional `wpfui.mediaRail` recipe with a dedicated trailing action
+column. The recipe is a customizable fragment with generic assets and wording;
+it does not encode a store screen or add Composer engine branching.
+
+```text
+python <extension-creator-root>/scripts/validate_pack.py packs/builtin/wpfui/0.1.0 --strict --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.validation-report.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/audit_pack_coverage.py packs/builtin/wpfui/0.1.0 --source-inventory <reviewed-source-inventory> --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.coverage-audit.json
+exit code: 0; valid: true; errors: 0; warnings: 1; warning: `SourceInventoryCandidatesMissing`
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 48; root: wpfui/0.1.0/; SHA-256: CCE899D8D2210001FD2F743A6C39C3E815DF2183F124EAC424A7741CCB3D79E2
+
+python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt --capability-checklist packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.capability-checklist.json <existing-required-block-slot-and-kind-gates> --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+```
+
+Counts remain 19 blocks, 19 renderers, and one example; recipes increase from
+four to five with no removals. The Composer schemas and creator workflow are
+unchanged, so the extension-creator repository requires no code update.

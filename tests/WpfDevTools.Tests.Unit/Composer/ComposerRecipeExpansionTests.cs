@@ -3,6 +3,7 @@ using FluentAssertions;
 using WpfDevTools.Mcp.Server.Composer.Blueprints;
 using WpfDevTools.Mcp.Server.Composer.Catalog;
 using WpfDevTools.Mcp.Server.Composer.Packs;
+using WpfDevTools.Mcp.Server.Composer.Rendering;
 using WpfDevTools.Mcp.Server.McpTools;
 using WpfDevTools.Tests.Unit.TestSupport;
 
@@ -14,6 +15,7 @@ public sealed class ComposerRecipeExpansionTests
     [
         "wpfui.dashboardCards",
         "wpfui.dataGridPage",
+        "wpfui.mediaRail",
         "wpfui.shellWithNavigation",
         "wpfui.tabbedSettings"
     ];
@@ -55,7 +57,7 @@ public sealed class ComposerRecipeExpansionTests
             var payload = catalog.StructuredContent!.Value;
 
             payload.GetProperty("success").GetBoolean().Should().BeTrue();
-            payload.GetProperty("recipeCount").GetInt32().Should().Be(4);
+            payload.GetProperty("recipeCount").GetInt32().Should().Be(5);
             payload.GetProperty("recipes").EnumerateArray()
                 .Should().Contain(recipe => recipe.GetProperty("id").GetString() == "wpfui.tabbedSettings");
         }
@@ -78,6 +80,38 @@ public sealed class ComposerRecipeExpansionTests
         result.Blueprint.Layout.Kind.Should().Be("wpfui.fluentWindow");
         result.Blueprint.Layout.Slots["titleBar"][0]
             .Properties["title"].GetString().Should().Be("WPF UI Application");
+    }
+
+    [Fact]
+    public void MediaRailRecipe_ShouldReserveEdgeActionOutsideScrollableContent()
+    {
+        var registry = CreateRegistry();
+        var catalog = new RecipeCatalogService(registry)
+            .GetCatalog(new RecipeCatalogQuery(RecipeId: "wpfui.mediaRail"))
+            .Items.Single();
+        var result = new RecipeExpansionService(registry)
+            .Expand(new RecipeExpansionRequest("wpfui.mediaRail"));
+
+        catalog.CustomizationGuidance.Should().Contain(guidance =>
+            guidance.Contains("reserved action column", StringComparison.OrdinalIgnoreCase));
+        catalog.CustomizationGuidance.Should().Contain(guidance =>
+            guidance.Contains("full-size", StringComparison.OrdinalIgnoreCase));
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Validation.Success.Should().BeTrue();
+        result.Blueprint.Layout.Kind.Should().Be("core.grid");
+        result.Blueprint.Layout.Slots["columns"].Should().HaveCount(2);
+        result.Blueprint.Layout.Slots["columns"][1].Properties["width"].GetString().Should().Be("96");
+        var cells = result.Blueprint.Layout.Slots["children"];
+        cells.Should().Contain(cell => cell.Properties["column"].GetInt32() == 0
+            && cell.Slots["content"].Single().Kind == "core.scrollViewer");
+        cells.Should().Contain(cell => cell.Properties["column"].GetInt32() == 1
+            && cell.Slots["content"].Single().Kind == "wpfui.button");
+        var render = new UiBlueprintRenderer(registry).Render(
+            new RenderBlueprintRequest(JsonSerializer.Serialize(result.Blueprint)));
+        render.Success.Should().BeTrue(render.Errors.FirstOrDefault()?.Message);
+        render.Xaml.Should().Contain("<ColumnDefinition Width=\"96\"")
+            .And.Contain("HorizontalScrollBarVisibility=\"Hidden\"")
+            .And.Contain("Content=\"Next\"");
     }
 
     [Fact]

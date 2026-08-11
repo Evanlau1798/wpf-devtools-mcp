@@ -169,6 +169,7 @@
     "wpfui.shellWithNavigation",
     "wpfui.dashboardCards",
     "wpfui.dataGridPage",
+    "wpfui.mediaRail",
     "wpfui.tabbedSettings"
   ],
   "compatibility": {

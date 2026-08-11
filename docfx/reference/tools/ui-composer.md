@@ -178,7 +178,7 @@ Request options:
 - `projectRoot`: optional WPF project root. When present, project-local packs are discovered from `<projectRoot>/.wpfdevtools/packs`.
 - `localAppDataRoot`: optional root for user-global discovery. When omitted, the server uses the current user's LocalApplicationData path if available.
 
-The response includes `valid`, `recipeId`, the expanded `blueprint`, and the nested validation result. Built-in WPF UI starter recipes cover navigation shell, dashboard card, data grid page, and tabbed settings patterns.
+The response includes `valid`, `recipeId`, the expanded `blueprint`, and the nested validation result. Built-in WPF UI starter recipes cover navigation shell, dashboard card, data grid page, horizontal media rail, and tabbed settings patterns. The media-rail fragment keeps its browse action in a reserved trailing column so authors can vary content and tile geometry without overlapping readable media.
 
 The built-in catalog intentionally excludes host-backed controls such as WPF UI `Snackbar` and `ContentDialog`. Those controls require presenter, host, or runtime show behavior that a standalone layout node cannot represent safely. Runtime catalog discovery is authoritative; third-party packs may expose comparable controls only when their renderer and behavior contracts cover those requirements.
 

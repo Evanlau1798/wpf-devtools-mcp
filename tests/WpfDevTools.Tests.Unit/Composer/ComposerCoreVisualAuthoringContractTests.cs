@@ -16,7 +16,9 @@ public sealed class ComposerCoreVisualAuthoringContractTests
         var scrollViewer = catalog.GetCatalog(new BlockCatalogQuery(Kind: "core.scrollViewer")).Items.Single();
 
         border.Description.Should().Contain("selected").And.Contain("borderBrush");
-        scrollViewer.Description.Should().Contain("trailing gutter").And.Contain("control footprint");
+        scrollViewer.Description.Should().Contain("trailing gutter")
+            .And.Contain("control footprint")
+            .And.Contain("visible gap");
     }
 
     [Fact]

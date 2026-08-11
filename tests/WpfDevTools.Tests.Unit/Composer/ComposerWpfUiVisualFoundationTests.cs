@@ -236,7 +236,8 @@ public sealed class ComposerWpfUiVisualFoundationTests
         var card = catalog.Items.Single(item => item.Kind == "wpfui.card");
 
         button.Properties["appearance"].Description.Should().ContainEquivalentOf("dominant action")
-            .And.ContainEquivalentOf("surface contrast");
+            .And.ContainEquivalentOf("surface contrast")
+            .And.ContainEquivalentOf("do not replace Primary");
         card.Description.Should().ContainEquivalentOf("dense")
             .And.ContainEquivalentOf("content budget");
     }

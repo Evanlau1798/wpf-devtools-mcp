@@ -32,6 +32,20 @@
     }
   },
   "slots": {
+    "centerContent": {
+      "description": "Optional content rendered in the Title Bar's native flexible center region. Prefer this for a centered search or command surface instead of compensating with asymmetric Title Bar padding.",
+      "allowedKinds": [
+        "*"
+      ],
+      "maxItems": 1
+    },
+    "header": {
+      "description": "Optional custom identity content rendered beside the icon. Use this when icon, title, or supporting identity need explicit composition; omit it to keep the native title text.",
+      "allowedKinds": [
+        "*"
+      ],
+      "maxItems": 1
+    },
     "actions": {
       "description": "Search and action controls rendered horizontally in the trailing content region.",
       "allowedKinds": [

@@ -36,9 +36,10 @@
     "templatesWithTokensCount": 17,
     "missingRendererTemplateCount": 0,
     "genericContentSlotCount": 0,
-    "nonGenericSlotCount": 23,
+    "nonGenericSlotCount": 25,
     "distinctSlotNames": [
       "actions",
+      "centerContent",
       "columns",
       "content",
       "emptyState",
@@ -72,6 +73,8 @@
       "wpfui.tabViewItem.content",
       "wpfui.tabViewItem.header",
       "wpfui.titleBar.actions",
+      "wpfui.titleBar.centerContent",
+      "wpfui.titleBar.header",
       "wpfui.titleBar.icon"
     ],
     "slotAllowedKinds": {
@@ -148,6 +151,12 @@
       "wpfui.titleBar.actions": [
         "wpfui.button",
         "wpfui.autoSuggestBox"
+      ],
+      "wpfui.titleBar.centerContent": [
+        "*"
+      ],
+      "wpfui.titleBar.header": [
+        "*"
       ],
       "wpfui.titleBar.icon": [
         "wpfui.symbolIcon"
@@ -234,6 +243,8 @@
       "wpfui.tabView.items",
       "wpfui.tabViewItem.content",
       "wpfui.tabViewItem.header",
+      "wpfui.titleBar.centerContent",
+      "wpfui.titleBar.header",
       "wpfui.titleBar.actions",
       "wpfui.titleBar.icon"
     ],

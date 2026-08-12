@@ -136,7 +136,7 @@
       },
       "TitleBar": {
         "baseKind": "control",
-        "properties": { "Icon": "object", "Title": "string", "TrailingContent": "object" }
+        "properties": { "CenterContent": "object", "Header": "object", "Icon": "object", "Title": "string", "TrailingContent": "object" }
       },
       "ToggleSwitch": {
         "baseKind": "toggleButton",

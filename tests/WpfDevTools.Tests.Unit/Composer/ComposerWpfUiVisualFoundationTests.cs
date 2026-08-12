@@ -234,6 +234,31 @@ public sealed class ComposerWpfUiVisualFoundationTests
     }
 
     [Fact]
+    public void WpfUiTitleBar_ShouldExposeNativeHeaderAndCenterContentSlots()
+    {
+        var catalog = new BlockCatalogService(CreateRegistry())
+            .GetCatalog(new BlockCatalogQuery(Kind: "wpfui.titleBar"))
+            .Items.Single();
+        var result = Render("""
+            {
+              "kind": "wpfui.titleBar",
+              "properties": { "title": "Studio" },
+              "slots": {
+                "header": [{ "kind": "wpfui.textBlock", "properties": { "text": "Studio" } }],
+                "centerContent": [{ "kind": "wpfui.autoSuggestBox", "properties": { "placeholderText": "Search" } }]
+              }
+            }
+            """);
+
+        catalog.Slots["header"].AllowedKinds.Should().Equal("*");
+        catalog.Slots["centerContent"].AllowedKinds.Should().Equal("*");
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Xaml.Should().Contain("<ui:TitleBar.Header>")
+            .And.Contain("<ui:TitleBar.CenterContent>")
+            .And.Contain("<ui:AutoSuggestBox");
+    }
+
+    [Fact]
     public void WpfUiTitleBar_ShouldExposePackOwnedTypographyScale()
     {
         var catalog = new BlockCatalogService(CreateRegistry())

@@ -192,6 +192,20 @@ public sealed class ComposerWpfUiVisualFoundationTests
     }
 
     [Fact]
+    public void WpfUiTextBlock_ShouldExposeNativeVerticalAlignment()
+    {
+        var item = new BlockCatalogService(CreateRegistry())
+            .GetCatalog(new BlockCatalogQuery(Kind: "wpfui.textBlock"))
+            .Items.Single();
+        var result = Render("""{ "kind": "wpfui.textBlock", "properties": { "text": "Brand", "verticalAlignment": "Center" } }""");
+
+        item.Properties["verticalAlignment"].AllowedValues.Should()
+            .BeEquivalentTo(["Top", "Center", "Bottom", "Stretch"]);
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Xaml.Should().Contain("VerticalAlignment=\"Center\"");
+    }
+
+    [Fact]
     public void WpfUiRenderer_ShouldRenderPackDefinedInputAndProgressControls()
     {
         var result = Render("""

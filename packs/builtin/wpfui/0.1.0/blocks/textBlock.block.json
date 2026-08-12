@@ -57,6 +57,12 @@
       "enum": ["Left", "Center", "Right", "Justify"],
       "type": "string"
     },
+    "verticalAlignment": {
+      "description": "Vertical placement within the parent layout slot. Use Center when custom header or compact identity text should align with neighboring controls.",
+      "default": "Stretch",
+      "enum": ["Top", "Center", "Bottom", "Stretch"],
+      "type": "string"
+    },
     "textWrapping": {
       "description": "Wrapping behavior when text exceeds the available width.",
       "default": "Wrap",

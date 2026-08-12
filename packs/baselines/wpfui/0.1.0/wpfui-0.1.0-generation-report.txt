@@ -486,7 +486,6 @@ exit code: 0; archive entries: 48; root: wpfui/0.1.0/; SHA-256: 10E2ACDCCA5321F3
 python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt --capability-checklist packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.capability-checklist.json <existing-required-block-slot-and-kind-gates> --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
 exit code: 0; valid: true; errors: 0; warnings: 0
 ```
-
 The beta.147 blind review exposed that trailing search encouraged asymmetric padding which separated the upstream icon from its title. Source-backed `Header` and `CenterContent` slots now support direct composition. Composer and creator schemas are unchanged.
 ```text
 validate_pack.py --strict
@@ -498,3 +497,4 @@ exit code: 0; entries: 48; SHA-256: 09AE4FDDA80CBE8F7901C37BAD402B843518C58EBCC8
 check_pack_readiness.py --level release (both new slots required)
 exit code: 0; valid: true; errors: 0; warnings: 0
 ```
+The beta.148 blind review found custom identity text aligned differently from its neighboring icon. `wpfui.textBlock` now exposes native `VerticalAlignment` for any parent layout; no title-bar or application-specific engine behavior was added. Strict validation and coverage passed, and the refreshed 48-entry archive SHA-256 is `86F48E930AD076573C3F405C8F0FDD500E168C27E279BDE79FB8DCF39E7FEEB8`.

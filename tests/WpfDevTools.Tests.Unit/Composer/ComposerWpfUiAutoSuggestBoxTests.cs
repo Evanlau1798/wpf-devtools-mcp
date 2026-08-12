@@ -1,5 +1,7 @@
+using System.Windows;
 using System.Windows.Markup;
 using System.Windows.Controls;
+using System.Windows.Media;
 using FluentAssertions;
 using WpfDevTools.Mcp.Server.Composer.Packs;
 using WpfDevTools.Mcp.Server.Composer.Rendering;
@@ -32,7 +34,10 @@ public sealed class ComposerWpfUiAutoSuggestBoxTests
                       "text": "signal",
                       "minWidth": 320,
                       "margin": "8",
-                      "clearButtonEnabled": true
+                      "clearButtonEnabled": true,
+                      "surfaceBackground": "#FFF7F9FC",
+                      "surfaceBorderBrush": "#FF60758A",
+                      "surfaceCornerRadius": "10"
                     },
                     "slots": {
                       "icon": [{ "kind": "wpfui.symbolIcon", "properties": { "symbol": "Search24" } }]
@@ -52,6 +57,13 @@ public sealed class ComposerWpfUiAutoSuggestBoxTests
         search.Text.Should().Be("signal");
         search.MinWidth.Should().Be(320);
         search.ClearButtonEnabled.Should().BeTrue();
+        search.Resources["TextControlBackground"].Should().BeOfType<SolidColorBrush>()
+            .Which.Color.Should().Be(Color.FromRgb(0xF7, 0xF9, 0xFC));
+        search.Resources["TextControlBackgroundPointerOver"].Should().BeOfType<SolidColorBrush>()
+            .Which.Color.Should().Be(Color.FromRgb(0xF7, 0xF9, 0xFC));
+        search.Resources["TextControlElevationBorderBrush"].Should().BeOfType<SolidColorBrush>()
+            .Which.Color.Should().Be(Color.FromRgb(0x60, 0x75, 0x8A));
+        search.Resources["ControlCornerRadius"].Should().Be(new CornerRadius(10));
     }
 
     [Fact]
@@ -64,5 +76,22 @@ public sealed class ComposerWpfUiAutoSuggestBoxTests
 
         titleBar.Slots["actions"].AllowedKinds.Should()
             .Contain(["wpfui.button", "wpfui.autoSuggestBox"]);
+    }
+
+    [Fact]
+    public void Catalog_ShouldDescribeSearchChromeAndCompactNavigationTradeoffs()
+    {
+        var registry = PackRegistry.ForRepository(TestRepositoryPaths.GetRepoFilePath("."));
+        var blocks = ComposerPackLoader.Load(
+                registry.ListPacks().Packs.Single(pack => pack.Id == "wpfui").RootPath)
+            .Blocks;
+        var search = blocks.Single(block => block.Kind == "wpfui.autoSuggestBox");
+        var navigation = blocks.Single(block => block.Kind == "wpfui.navigationView");
+
+        search.Properties.Should().ContainKeys(
+            "surfaceBackground", "surfaceBorderBrush", "surfaceCornerRadius");
+        search.Properties["surfaceBackground"].Description.Should().ContainEquivalentOf("internal text surface");
+        navigation.Properties["paneDisplayMode"].PreviewWarning.Should()
+            .ContainEquivalentOf("icon-only");
     }
 }

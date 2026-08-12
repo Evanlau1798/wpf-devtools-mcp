@@ -295,7 +295,7 @@
   },
   "customizationGuidance": [
     "Replace every sample asset and label after choosing the application's creative brief; vary the item count, dimensions, and content hierarchy instead of preserving the starter artwork or wording.",
-    "Keep the reserved action column separate from scrollable content so the edge action never covers readable media or creates a cramped final fragment.",
+    "Keep the reserved action column separate from scrollable content so the edge action never covers readable media or creates a cramped final fragment. If its width is customized, reserve at least the action's minimum width plus 24 DIP of breathing room and keep a visible gap before the control.",
     "When showing a continuation peek, keep the next item full-size and expose roughly one quarter to one half of it; never create a narrow final item to imitate clipping."
   ]
 }

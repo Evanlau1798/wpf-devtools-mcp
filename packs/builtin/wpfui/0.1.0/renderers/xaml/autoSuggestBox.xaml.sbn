@@ -1,3 +1,12 @@
 <ui:AutoSuggestBox Text="{{text}}" PlaceholderText="{{placeholderText}}" MinWidth="{{minWidth}}" Margin="{{margin}}" ClearButtonEnabled="{{clearButtonEnabled}}" MaxSuggestionListHeight="{{maxSuggestionListHeight}}">
+  <ui:AutoSuggestBox.Resources>
+    {{?property.surfaceBackground}}<SolidColorBrush x:Key="TextControlBackground" Color="{{surfaceBackground}}" />
+    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="{{surfaceBackground}}" />
+    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="{{surfaceBackground}}" />{{/property.surfaceBackground}}
+    {{?property.surfaceBorderBrush}}<SolidColorBrush x:Key="TextControlElevationBorderBrush" Color="{{surfaceBorderBrush}}" />
+    <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="{{surfaceBorderBrush}}" />
+    <SolidColorBrush x:Key="TextControlFocusedBorderBrush" Color="{{surfaceBorderBrush}}" />{{/property.surfaceBorderBrush}}
+    {{?property.surfaceCornerRadius}}<CornerRadius x:Key="ControlCornerRadius">{{surfaceCornerRadius}}</CornerRadius>{{/property.surfaceCornerRadius}}
+  </ui:AutoSuggestBox.Resources>
   <ui:AutoSuggestBox.Icon>{{slot.icon}}</ui:AutoSuggestBox.Icon>
 </ui:AutoSuggestBox>

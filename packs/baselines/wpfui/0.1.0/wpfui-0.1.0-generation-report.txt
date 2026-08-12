@@ -463,3 +463,26 @@ exit code: 0; valid: true; errors: 0; warnings: 0
 Counts remain 19 blocks, 19 renderers, and one example; recipes increase from
 four to five with no removals. The Composer schemas and creator workflow are
 unchanged, so the extension-creator repository requires no code update.
+
+## Search Surface And Dense Navigation Maintenance
+
+The beta.145 blind review confirmed that authors could size an AutoSuggestBox
+but could not tune its nested WPF UI text-surface chrome. The renderer now
+offers optional pack-owned background, border, and corner-radius resource
+overrides while preserving the active theme when they are omitted. Navigation
+and media-rail guidance also makes the existing icon-only and trailing-action
+tradeoffs explicit. Composer, pack schemas, and creator workflow are unchanged.
+
+```text
+python <extension-creator-root>/scripts/validate_pack.py packs/builtin/wpfui/0.1.0 --strict --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.validation-report.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+
+python <extension-creator-root>/scripts/audit_pack_coverage.py packs/builtin/wpfui/0.1.0 --source-inventory <reviewed-source-inventory> --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.coverage-audit.json
+exit code: 0; valid: true; errors: 0; warnings: 1; warning: `SourceInventoryCandidatesMissing`
+
+python <extension-creator-root>/scripts/package_pack.py packs/builtin/wpfui/0.1.0 --out packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip
+exit code: 0; archive entries: 48; root: wpfui/0.1.0/; SHA-256: 10E2ACDCCA5321F36B9BEC411DD0D7985D3D5A24DE7C15A82F5104CFF42E94DA
+
+python <extension-creator-root>/scripts/check_pack_readiness.py packs/builtin/wpfui/0.1.0 --level release --archive packs/baselines/wpfui/0.1.0/archives/wpfui-0.1.0.zip --e2e-report packs/baselines/wpfui/0.1.0/wpfui-0.1.0-generation-report.txt --capability-checklist packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.capability-checklist.json <existing-required-block-slot-and-kind-gates> --report packs/baselines/wpfui/0.1.0/reports/wpfui-0.1.0.readiness.json
+exit code: 0; valid: true; errors: 0; warnings: 0
+```

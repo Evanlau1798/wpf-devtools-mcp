@@ -33,6 +33,20 @@
       "default": "Search",
       "type": "string"
     },
+    "surfaceBackground": {
+      "description": "Optional brush override for the internal text surface in its resting, pointer-over, and focused states. Omit it to retain the active WPF UI theme.",
+      "type": "string",
+      "visualRole": "surface"
+    },
+    "surfaceBorderBrush": {
+      "description": "Optional brush override for the internal text surface border and focus stroke. Omit it to retain the active WPF UI theme.",
+      "type": "string"
+    },
+    "surfaceCornerRadius": {
+      "description": "Optional WPF CornerRadius for the internal text surface. Omit it to retain the active WPF UI theme radius.",
+      "format": "thickness",
+      "type": "string"
+    },
     "text": {
       "description": "Current editable search text.",
       "default": "",

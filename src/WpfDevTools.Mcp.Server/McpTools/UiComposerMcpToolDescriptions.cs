@@ -275,11 +275,11 @@ internal static class UiComposerMcpToolDescriptions
         RESPONSE SUMMARY:
         - visualFidelity is resource-backed, hybrid-resource-backed, structural, or not-available; verify the applied, built, and launched app.
         - Project/user packs stay structural until an operator approves. runtimePackApprovalReviews returns a content-bound approval token when eligible; with WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true, retry via runtimePackApprovalTokens. WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS is server-start only. Packages need exact [version], SHA-512 contentHash, and a preview-local NuGet cache hash-checked before build.
-        - previewScreenshot keeps successful screenshot resource handles near the response start; verify SHA-256 before trusting sparse pixels.
-        - visualComparisonChecklist: final window chrome, icons, control templates, layout and spacing, density, clipping.
-        - propertyWarnings: supplied properties with exact blueprint JSON path, block kind, name, and message.
-        - elementCorrelations: transient x:Name -> jsonPath/blockKind; never written into the blueprint or output.
-        - layoutRiskSummary: attentionRequiredCount/minimumVisibleRatio/visibilityClassification covers sliver<=15% or hidden+!canBringTargetIntoView; nearestScrollContainer identifies scroll context. geometricClippingSeverity/visibleRatio=geometry. ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-realized, search-incomplete. runtime-not-realized means inactive or lazy content; requiresActiveStateInspection: inspect applied, built final app. namescopeOnlyCorrelationCount=get_namescope namescope-only; no inspectionTruncated. RuntimeStructuralOverflowRisk=structural-overflow; RuntimeClippingDetected=riskClassification=clipping; advisory+visibleContentImpact+requiresVisualConfirmation: confirm pixels.
+        - previewScreenshot keeps screenshot resource handles early; verify SHA-256.
+        - visualComparisonChecklist: window chrome, icons, control templates, layout and spacing, density, clipping.
+        - propertyWarnings: supplied properties with exact blueprint JSON path, kind, name, message.
+        - elementCorrelations: transient x:Name -> jsonPath/kind; never written into the blueprint.
+        - layoutRiskSummary: attentionRequiredCount/minimumVisibleRatio/visibilityClassification; sliver<=15%, hidden uses canBringTargetIntoView; nearestScrollContainer gives scroll context. geometricClippingSeverity/visibleRatio=geometry. Reasons: ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-realized, search-incomplete. runtime-not-realized means inactive or lazy content; requiresActiveStateInspection: inspect applied, built final app. namescopeOnlyCorrelationCount counts get_namescope namescope-only. RuntimeStructuralOverflowRisk=structural-overflow; RuntimeClippingDetected uses riskClassification=clipping. advisory+visibleContentImpact+requiresVisualConfirmation: confirm pixels.
         - visualLayoutContractSummary: pack-neutral geometry/scrollbars with unresolved reason.
         - Compile failures map to line/column and renderer path; infrastructure failures stay at $.layout.
 
@@ -293,7 +293,7 @@ internal static class UiComposerMcpToolDescriptions
         - Screenshots need startHost+sensitive-read+screenshot gates.
         - screenshotOutputMode="file": pixels at previewScreenshot.resourceUri; preview does not approve final styling.
         - viewportWidth/viewportHeight set Window.Width/Window.Height DIPs; match target Window outer dimensions for overflow. Screenshot bounds resize returned pixels only.
-        - visualLayoutContractJson: 1-16 exact names, normalized bounds/tolerance/scrollbars; startHost required.
+        - visualLayoutContractJson: 1-16 exact names, normalized bounds/tolerance/scrollbars; startHost required. Minimal: {"regions":[{"elementName":"PrimaryRegion","bounds":{"x":0.05,"y":0.05,"width":0.9,"height":0.5}}]}
         - runtimePackApprovalTokens accepts reviewed content-bound tokens for this request only and requires WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true.
         - projectRoot optionally enables project-local discovery from <projectRoot>/.wpfdevtools/packs.
         - localAppDataRoot optionally overrides user-global discovery from <root>/WpfDevTools/Composer/Packs.

@@ -80,6 +80,33 @@ public sealed partial class ComposerPreviewCompileTests
             .Should().Contain(diagnostic => diagnostic.GetProperty("tool").GetString() == "get_element_snapshot");
     }
 
+    [Fact]
+    [Trait("Category", "ComposerRuntime")]
+    public async Task PreviewUiBlueprintTool_ShouldInspectNamescopeTargetsBeyondSearchBudget()
+    {
+        using var sensitiveReads = new EnvironmentVariableScope(
+            McpServerConfiguration.AllowSensitiveReadsEnvVar,
+            "true");
+        using var session = SecurePreviewSession.Create();
+        using var timeout = CreateTimeout();
+
+        var result = await UiComposerMcpTools.PreviewUiBlueprint(
+            session.SessionManager,
+            CorrelationLookupBlueprint(),
+            startHost: true,
+            includeRuntimeDiagnostics: true,
+            correlationLookupLimit: 1,
+            cancellationToken: timeout.Token);
+
+        result.IsError.Should().BeFalse();
+        var layoutRiskSummary = result.StructuredContent!.Value.GetProperty("layoutRiskSummary");
+        layoutRiskSummary.GetProperty("correlatedTargetCount").GetInt32().Should().Be(34);
+        layoutRiskSummary.GetProperty("resolvedTargetCount").GetInt32().Should().Be(34);
+        layoutRiskSummary.GetProperty("inspectedTargetCount").GetInt32().Should().Be(34);
+        layoutRiskSummary.GetProperty("inspectionTruncated").GetBoolean().Should().BeFalse();
+        layoutRiskSummary.GetProperty("uninspectedCorrelationCount").GetInt32().Should().Be(0);
+    }
+
     private static string CorrelationLookupBlueprint()
     {
         var children = Enumerable.Range(1, 33)

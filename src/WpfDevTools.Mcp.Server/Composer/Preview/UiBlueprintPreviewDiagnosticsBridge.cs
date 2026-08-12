@@ -90,7 +90,7 @@ internal static partial class UiBlueprintPreviewDiagnosticsBridge
             var correlatedElementNames = elementCorrelations
                 .Select(item => item.ElementName)
                 .ToHashSet(StringComparer.Ordinal);
-            var clippingTargets = BuildClippingTargetIds(lookupDiagnostics, correlatedElementNames);
+            var clippingTargets = BuildClippingTargetIds(diagnostics, correlatedElementNames);
             foreach (var clippingBatch in BuildClippingTargetBatches(clippingTargets))
             {
                 var clippingDiagnostic = await RunGatedAsync(

@@ -7,7 +7,7 @@ namespace WpfDevTools.Tests.Unit.McpServer;
 public sealed class McpToolExecutionPolicyBatchSnapshotTests
 {
     [Fact]
-    public void EvaluateToolCall_WhenBatchInfersSnapshotAndSensitiveReadsAreDisabled_ShouldDeny()
+    public void EvaluateToolCall_WhenBatchInfersSnapshotAndSensitiveReadsAreUnset_ShouldRequestConsent()
     {
         var policy = McpToolExecutionPolicy.FromConfiguredValues(
             allowDestructiveTools: "true",
@@ -19,7 +19,7 @@ public sealed class McpToolExecutionPolicyBatchSnapshotTests
             ToArguments("""{"captureSnapshot":true,"mutations":[{"tool":"click_element","args":{}}]}"""));
 
         decision.IsAllowed.Should().BeFalse();
-        decision.ErrorCode.Should().Be("SecurityError");
+        decision.ErrorCode.Should().Be("InteractiveConsentRequired");
         decision.PolicyCategory.Should().Be("sensitive-reads");
     }
 

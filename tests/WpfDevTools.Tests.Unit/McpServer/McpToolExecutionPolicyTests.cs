@@ -14,6 +14,7 @@ public sealed class McpToolExecutionPolicyTests
     private static readonly HashSet<string> DestructivePolicyExceptions = new(StringComparer.Ordinal)
     {
         "connect",
+        "request_session_access",
         "select_active_process"
     };
 

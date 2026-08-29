@@ -10,7 +10,7 @@ namespace WpfDevTools.Mcp.Server.McpTools;
 public static class AccessMcpTools
 {
     [McpServerTool(Name = "get_access_status", Title = "Get Session Access Status", OpenWorld = false, ReadOnly = true, Idempotent = true, UseStructuredContent = true)]
-    [Description("CATEGORY: Process\nReports session access and exact request inputs; never grants it.")]
+    [Description(AccessMcpToolDescriptions.GetStatus)]
     public static Task<CallToolResult> GetAccessStatus(
         ModelContextProtocol.Server.McpServer server,
         [Range(1, int.MaxValue)]
@@ -33,7 +33,7 @@ public static class AccessMcpTools
     }
 
     [McpServerTool(Name = "request_session_access", Title = "Request Temporary Session Access", OpenWorld = false, Destructive = true, Idempotent = false, UseStructuredContent = true)]
-    [Description("CATEGORY: Process\nRequests exact temporary access through server elicitation; Agent text is not authorization.")]
+    [Description(AccessMcpToolDescriptions.Request)]
     public static Task<CallToolResult> RequestSessionAccess(
         ModelContextProtocol.Server.McpServer server,
         [MinLength(1), MaxLength(9)]

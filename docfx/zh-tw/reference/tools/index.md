@@ -19,7 +19,7 @@
 
 ## 建議使用順序
 
-受限流程前先呼叫 `get_access_status`。若缺少權限，Agent 應說明用途並呼叫 `request_session_access`；只有 server 產生的 MCP elicitation 回應可以建立暫時 grant。不支援 elicitation 的 client 使用 operator environment 設定。
+受限流程前先呼叫 `get_access_status`。若缺少權限，Agent 應說明用途並呼叫 `request_session_access`；只有 server 產生的 MCP elicitation 回應可以建立暫時 grant。不支援 elicitation 的 client 使用 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS=<exact local absolute executable path>` 作為 target fallback；malformed configured scope 會 fail closed。
 
 1. `connect()` 使用預設 auto-discovery path
 2. `get_active_process`
@@ -98,8 +98,8 @@ Parameter metadata、policy gates 與 output schemas 請以 runtime resources �
 
 這些值由 runtime MCP contract resources 產生。當 tool 新增或改名、method signature 變更、policy gate 移動，或 response fields 變更時，文件測試會要求同步更新此 snapshot。
 
-- `wpf://contracts/tools` SHA-256: `45c263ec9481ba9ec8548d6dfef883ed33028158c692ca2416b91aaaa10b8d9e`
-- `wpf://contracts/response` SHA-256: `71525dfc1c94cfcb963e8d92d88426ccf288889212d459abe61805e76039194b`
+- `wpf://contracts/tools` SHA-256: `e1414ab03d1407f70623cd8c85543887f8918f30076aac40ca37150e26911419`
+- `wpf://contracts/response` SHA-256: `ed1fa6ec938a18f38093595c4386bc9a4c2c5ea48de697b3f0e75be6088880f9`
 - Validation scope: `toolCount`、`name`、`title`、`parameters`、parameter `constraints`、`requiredParameters`、`inputSchemaHash`、`outputSchemaHash`、`capabilityTags`、`policyCapabilityTags`、`annotations`、`parameterConstraints`、`parameterVocabularies` 與 `highValueTools`。
 
 需要更深入的語意與使用注意事項時，請再查看各分類頁面。

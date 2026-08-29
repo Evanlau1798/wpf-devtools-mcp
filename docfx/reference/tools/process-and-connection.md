@@ -1,6 +1,6 @@
 # Process and Connection Tools
 
-Use `get_access_status` before a restricted workflow. If access is missing, explain the purpose and call `request_session_access`; only an accepted server-authored MCP elicitation grants temporary access. Operator environment settings remain the fallback for clients without elicitation and a hard ceiling when configured.
+Use `get_access_status` before a restricted workflow. If access is missing, explain the purpose and call `request_session_access`; only an accepted server-authored MCP elicitation grants temporary access. For clients without elicitation, configure `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` with the exact local absolute executable path; configured scopes are hard ceilings and malformed values fail closed.
 
 ## Most important tools
 

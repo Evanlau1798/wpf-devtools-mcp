@@ -1,6 +1,6 @@
 # 程序與連線工具
 
-受限流程前先呼叫 `get_access_status`。權限不足時，Agent 應說明用途並呼叫 `request_session_access`；只有 server 產生的 MCP elicitation 被接受後，才會建立暫時權限。不支援 elicitation 的 client 仍可使用 operator environment 設定；已設定的範圍是硬性上限。
+受限流程前先呼叫 `get_access_status`。權限不足時，Agent 應說明用途並呼叫 `request_session_access`；只有 server 產生的 MCP elicitation 被接受後，才會建立暫時權限。不支援 elicitation 的 client 使用 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS=<exact local absolute executable path>`；已設定範圍是硬性上限，malformed value 會 fail closed。
 
 ## 最重要的工具
 

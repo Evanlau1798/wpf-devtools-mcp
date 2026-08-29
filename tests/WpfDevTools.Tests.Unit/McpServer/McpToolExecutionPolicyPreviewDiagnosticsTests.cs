@@ -17,7 +17,8 @@ public sealed class McpToolExecutionPolicyPreviewDiagnosticsTests
         var policy = McpToolExecutionPolicy.FromConfiguredValues(
             allowDestructiveTools: "true",
             allowScreenshots: "true",
-            allowViewModelInspection: "true");
+            allowViewModelInspection: "true",
+            allowSensitiveReads: "false");
 
         var decision = policy.EvaluateToolCall("preview_ui_blueprint", ToArguments(argumentsJson));
 
@@ -56,6 +57,26 @@ public sealed class McpToolExecutionPolicyPreviewDiagnosticsTests
                 "preview_ui_blueprint",
                 ToArguments("{\"includeRuntimeDiagnostics\":false,\"includeScreenshotDiagnostics\":false,\"visualLayoutContractJson\":\"   \"}"))
             .IsAllowed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void EvaluateToolCall_WhenPreviewScreenshotConsentIsMissing_ShouldOfferExactGrantAndNoScreenshotRetry()
+    {
+        var policy = McpToolExecutionPolicy.FromConfiguredValues(
+            allowDestructiveTools: "true",
+            allowScreenshots: null,
+            allowViewModelInspection: "true",
+            allowSensitiveReads: "true",
+            sessionGrantChecker: _ => false);
+
+        var decision = policy.EvaluateToolCall(
+            "preview_ui_blueprint",
+            ToArguments("{\"includeScreenshotDiagnostics\":true}"));
+
+        decision.ErrorCode.Should().Be("InteractiveConsentRequired");
+        decision.SuggestedAction.Should().ContainAll(
+            "request_session_access", "screenshot", "composer-preview",
+            "includeScreenshotDiagnostics=false", "no preview compile has started");
     }
 
     private static Dictionary<string, JsonElement> ToArguments(string argumentsJson)

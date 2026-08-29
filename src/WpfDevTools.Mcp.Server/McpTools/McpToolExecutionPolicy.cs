@@ -405,11 +405,15 @@ internal sealed class McpToolExecutionPolicy
                 reason = $"Allow {toolName} to {capabilityDescription}.",
                 lifetime = "session"
             });
+            var noScreenshotAlternative = toolName == "preview_ui_blueprint"
+                                          && request.Capabilities.Contains(SessionAccessCapabilities.Screenshot)
+                ? " Alternatively, retry preview_ui_blueprint with includeScreenshotDiagnostics=false; no preview compile has started."
+                : string.Empty;
             return McpToolPolicyDecision.Denied(
                 error: $"'{toolName}' requires temporary user-approved access.",
                 errorCode: "InteractiveConsentRequired",
                 hint: "Ask the user to review the exact scope, then call request_session_access. Chat text alone is not authorization.",
-                suggestedAction: $"Call request_session_access with {requestJson}, then retry '{toolName}' in this session.",
+                suggestedAction: $"Call request_session_access with {requestJson}, then retry '{toolName}' in this session.{noScreenshotAlternative}",
                 policyCategory: policyCategory);
         }
 

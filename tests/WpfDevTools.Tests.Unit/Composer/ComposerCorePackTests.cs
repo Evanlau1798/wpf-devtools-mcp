@@ -36,6 +36,7 @@ public sealed class ComposerCorePackTests
         gridCell.Description.Should().Contain("layered")
             .And.Contain("later children render above earlier children");
         gridCell.AuthoringRoles.Should().Contain("overlay-layer");
+        gridCell.Properties["horizontalAlignment"].Description.Should().Contain("Stretch").And.Contain("action");
         var grid = new BlockCatalogService(registry).GetCatalog(new BlockCatalogQuery(Kind: "core.grid")).Items.Single();
         grid.Description.Should().Contain("full-bleed").And.Contain("same cell");
         grid.AuthoringRoles.Should().Contain(["hero", "overlay-layout"]);

@@ -11,7 +11,7 @@
     "rowSpan": { "type": "number", "description": "Number of consecutive rows occupied by this cell.", "default": 1, "minimum": 1, "integer": true },
     "columnSpan": { "type": "number", "description": "Number of consecutive columns occupied by this cell.", "default": 1, "minimum": 1, "integer": true },
     "margin": { "type": "string", "description": "Outer WPF Thickness applied around the cell content.", "default": "0", "format": "thickness" },
-    "horizontalAlignment": { "type": "string", "description": "Horizontal placement of the cell content within its allocated area.", "default": "Stretch", "enum": ["Left", "Center", "Right", "Stretch"] },
+    "horizontalAlignment": { "type": "string", "description": "Horizontal placement of the cell content. Stretch fills the cell; set Left, Center, or Right for an overlaid action that must keep its intrinsic width.", "default": "Stretch", "enum": ["Left", "Center", "Right", "Stretch"] },
     "verticalAlignment": { "type": "string", "description": "Vertical placement of the cell content within its allocated area.", "default": "Stretch", "enum": ["Top", "Center", "Bottom", "Stretch"] }
   },
   "slots": { "content": { "description": "Child elements placed at this cell's row, column, and span.", "allowedKinds": ["*"] } },

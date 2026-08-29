@@ -95,14 +95,20 @@ public sealed class ConnectAllowlistDocumentationTests
     }
 
     [Fact]
-    public void ServerInstructions_ShouldStateMcpTargetAllowlistInsideMandatoryWorkflowBeforeConnect()
+    public void ServerInstructions_ShouldStateInteractiveAccessAndConfiguredTargetCeilingBeforeConnect()
     {
         var workflow = ExtractSection(
             ServerInstructions.Value,
             "=== MANDATORY WORKFLOW ===",
             "=== PARAMETER CONVENTIONS ===");
 
-        AssertAllowlistBeforeConnect(workflow, "ServerInstructions mandatory workflow");
+        workflow.Should().Contain("get_access_status");
+        workflow.Should().Contain("request_session_access");
+        workflow.Should().Contain("WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
+        workflow.Should().Contain("exact local absolute executable path");
+        workflow.Should().Contain("hard ceiling");
+        workflow.IndexOf("WPFDEVTOOLS_MCP_ALLOWED_TARGETS", StringComparison.Ordinal)
+            .Should().BeLessThan(workflow.IndexOf("connect(", StringComparison.OrdinalIgnoreCase));
         workflow.Should().NotContain("1. connect() -> try auto-discovery against visible WPF apps",
             "mandatory workflow should not present visibility-only connect success before target authorization");
     }

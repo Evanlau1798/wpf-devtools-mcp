@@ -17,7 +17,7 @@ public static class ServerInstructions
         Use this server for runtime desktop UI diagnostics, WPF element lookup, exact-match element search, XAML structure inspection, multi-window investigation, and safe temporary automation against a connected WPF process.
 
         === MANDATORY WORKFLOW ===
-        1. Before a restricted workflow, call get_access_status with the intended processId, projectRoot, or packRef scope
+        1. Before a restricted workflow, call get_access_status with the intended processId, projectRoot, or packRef scope; a configured WPFDEVTOOLS_MCP_ALLOWED_TARGETS exact local absolute executable path list remains a hard ceiling
         2. If capabilities are missing, explain the purpose and impact to the user, then call request_session_access; only an accepted MCP elicitation response is authorization
         3. After acceptance, retry the original tool in the same MCP session without changing registration, environment settings, or restarting either process
         4. If consent is declined, cancelled, or unavailable, keep fail-closed behavior and use a read-only alternative when possible
@@ -132,7 +132,10 @@ public static class ServerInstructions
         - Project-write grants bind the normalized exact project root; Composer runtime approvals bind pack id, version, and fingerprint
         - Grants stay in memory and are invalidated by expiry, session end, scope mismatch, or changed process identity
         - Clients without elicitation support receive InteractiveConsentUnavailable and may use the existing operator environment configuration as an advanced fallback
-        - WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS covers runtime mutation and session state-consuming tools; the screenshot, sensitive-read, ViewModel, Composer preview, and Composer runtime approval gates retain their specific scopes
+        - WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS covers runtime mutation and session state-consuming tools such as capture_state_snapshot and drain_events
+        - WPFDEVTOOLS_MCP_ALLOW_SCREENSHOTS covers element_screenshot; WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS covers target UI, binding, DependencyProperty, event, scene, and state values
+        - WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION covers ViewModel and command inspection or mutation
+        - WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS covers content-bound runtime pack approval tokens; WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS remains the operator-controlled trusted pack list
         - Invalid boolean or malformed allowlist values return errorCode: InvalidPolicyConfiguration
         - Common gate bundles are listed as `policyProfiles` in `wpf://contracts/response`; use them before asking an operator to enable extra capabilities
 
@@ -193,7 +196,7 @@ public static class ServerInstructions
         - "signature verification failed" (errorCode: SecurityError) -> use a Debug build for local development (auto-skips verification for local DLLs), or sign the Inspector DLL with Authenticode for production
         - "timeout" -> process may be frozen; try ping() to verify connection
         - existing SDK host security mismatch (errorCode: SecurityError) -> verify WPFDEVTOOLS_AUTH_SECRET matches and WPFDEVTOOLS_CERT_DIR is the same local absolute path in both processes. Network paths are not allowed. Hardened SDK mode requires setting both values together before calling InspectorSdk.Initialize(), and the default-hardened MCP server will not reuse a plaintext SDK host.
-        - connect() requires target access -> call get_access_status(processId), explain the requested scope, then request target-connect; raw injection additionally requires a one-use raw-injection grant bound to the current process identity. Prefer InspectorSdk.Initialize() for target-side reuse.
+        - connect() returns requiresExplicitTargetOptIn=true -> call get_access_status(processId), explain the requested scope, then request target-connect; raw injection additionally requires a one-use raw-injection grant bound to the current process identity. Prefer InspectorSdk.Initialize() for target-side reuse.
         - InvalidPolicyConfiguration with WPFDEVTOOLS_INJECTION_ALLOWED_TARGETS or WPFDEVTOOLS_MCP_ALLOWED_TARGETS -> fix malformed entries to exact local absolute executable paths and restart.
         - InteractiveConsentRequired -> call get_access_status for the exact scope, request the suggested capabilities, and retry after acceptance.
         - InteractiveConsentUnavailable -> use an allowed read-only workflow or ask the operator to configure the relevant environment fallback; Agent chat text is never authorization.

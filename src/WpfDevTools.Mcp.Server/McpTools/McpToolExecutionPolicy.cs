@@ -23,41 +23,48 @@ internal sealed class McpToolExecutionPolicy
     private readonly PolicyGate _sensitiveReads;
     private readonly PolicyGate _viewModelInspection;
     private readonly PolicyGate _composerRuntimeApprovals;
+    private readonly Func<SessionAccessRequest, bool> _sessionGrantChecker;
 
     private McpToolExecutionPolicy(
         PolicyGate destructiveTools,
         PolicyGate screenshots,
         PolicyGate sensitiveReads,
         PolicyGate viewModelInspection,
-        PolicyGate composerRuntimeApprovals)
+        PolicyGate composerRuntimeApprovals,
+        Func<SessionAccessRequest, bool>? sessionGrantChecker)
     {
         _destructiveTools = destructiveTools;
         _screenshots = screenshots;
         _sensitiveReads = sensitiveReads;
         _viewModelInspection = viewModelInspection;
         _composerRuntimeApprovals = composerRuntimeApprovals;
+        _sessionGrantChecker = sessionGrantChecker ?? (_ => false);
     }
 
-    internal static McpToolExecutionPolicy FromEnvironment()
+    internal static McpToolExecutionPolicy FromEnvironment(
+        Func<SessionAccessRequest, bool>? sessionGrantChecker = null)
         => FromConfiguredValues(
             allowDestructiveTools: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowDestructiveToolsEnvVar),
             allowScreenshots: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowScreenshotsEnvVar),
             allowViewModelInspection: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowViewModelInspectionEnvVar),
             allowSensitiveReads: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowSensitiveReadsEnvVar),
-            allowComposerRuntimeApprovals: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowComposerRuntimeApprovalsEnvVar));
+            allowComposerRuntimeApprovals: Environment.GetEnvironmentVariable(McpServerConfiguration.AllowComposerRuntimeApprovalsEnvVar),
+            sessionGrantChecker: sessionGrantChecker);
 
     internal static McpToolExecutionPolicy FromConfiguredValues(
         string? allowDestructiveTools,
         string? allowScreenshots,
         string? allowViewModelInspection,
         string? allowSensitiveReads = null,
-        string? allowComposerRuntimeApprovals = null)
+        string? allowComposerRuntimeApprovals = null,
+        Func<SessionAccessRequest, bool>? sessionGrantChecker = null)
         => new(
             PolicyGate.Parse(McpServerConfiguration.AllowDestructiveToolsEnvVar, allowDestructiveTools),
             PolicyGate.Parse(McpServerConfiguration.AllowScreenshotsEnvVar, allowScreenshots),
             PolicyGate.Parse(McpServerConfiguration.AllowSensitiveReadsEnvVar, allowSensitiveReads),
             PolicyGate.Parse(McpServerConfiguration.AllowViewModelInspectionEnvVar, allowViewModelInspection),
-            PolicyGate.Parse(McpServerConfiguration.AllowComposerRuntimeApprovalsEnvVar, allowComposerRuntimeApprovals));
+            PolicyGate.Parse(McpServerConfiguration.AllowComposerRuntimeApprovalsEnvVar, allowComposerRuntimeApprovals),
+            sessionGrantChecker);
 
     internal McpToolPolicyDecision EvaluateToolCall(string? toolName)
         => EvaluateToolCall(toolName, arguments: null);
@@ -77,7 +84,8 @@ internal sealed class McpToolExecutionPolicy
                 _screenshots,
                 toolName,
                 policyCategory: McpToolPolicyTags.Screenshots,
-                capabilityDescription: "capture or return target UI screenshots");
+                capabilityDescription: "capture or return target UI screenshots",
+                request: BuildAccessRequest(SessionAccessCapabilities.Screenshot, toolName, arguments));
             if (!decision.IsAllowed)
             {
                 return decision;
@@ -90,7 +98,8 @@ internal sealed class McpToolExecutionPolicy
                 _viewModelInspection,
                 toolName,
                 policyCategory: McpToolPolicyTags.ViewModelInspection,
-                capabilityDescription: "inspect or modify target ViewModel state");
+                capabilityDescription: "inspect or modify target ViewModel state",
+                request: BuildAccessRequest(SessionAccessCapabilities.ViewModelInspection, toolName, arguments));
             if (!decision.IsAllowed)
             {
                 return decision;
@@ -103,7 +112,8 @@ internal sealed class McpToolExecutionPolicy
                 _destructiveTools,
                 toolName,
                 policyCategory: McpToolPolicyTags.DestructiveTools,
-                capabilityDescription: "mutate the running target application or persist generated project files");
+                capabilityDescription: "mutate the running target application or persist generated project files",
+                request: BuildAccessRequest(ResolveMutationCapability(toolName), toolName, arguments));
             if (!decision.IsAllowed)
             {
                 return decision;
@@ -116,7 +126,8 @@ internal sealed class McpToolExecutionPolicy
                 _sensitiveReads,
                 toolName,
                 policyCategory: McpToolPolicyTags.SensitiveReads,
-                capabilityDescription: "read target UI text, dependency property values, bindings, runtime event data, or state snapshots");
+                capabilityDescription: "read target UI text, dependency property values, bindings, runtime event data, or state snapshots",
+                request: BuildAccessRequest(SessionAccessCapabilities.SensitiveRead, toolName, arguments));
             if (!decision.IsAllowed)
             {
                 return decision;
@@ -126,14 +137,18 @@ internal sealed class McpToolExecutionPolicy
         if (string.Equals(toolName, "preview_ui_blueprint", StringComparison.Ordinal)
             && ContainsNonEmptyArray(arguments, "runtimePackApprovalTokens"))
         {
-            var decision = EvaluateGate(
-                _composerRuntimeApprovals,
-                toolName,
-                policyCategory: "composer-runtime-approvals",
-                capabilityDescription: "approve reviewed content-bound third-party runtime packs for this preview request");
-            if (!decision.IsAllowed)
+            foreach (var packRef in GetStringArray(arguments, "runtimePackApprovalTokens"))
             {
-                return decision;
+                var decision = EvaluateGate(
+                    _composerRuntimeApprovals,
+                    toolName,
+                    policyCategory: "composer-runtime-approvals",
+                    capabilityDescription: "approve reviewed content-bound third-party runtime packs for this preview request",
+                    request: BuildAccessRequest(SessionAccessCapabilities.ComposerRuntimeApproval, toolName, arguments, packRef));
+                if (!decision.IsAllowed)
+                {
+                    return decision;
+                }
             }
         }
 
@@ -352,11 +367,12 @@ internal sealed class McpToolExecutionPolicy
         }
     }
 
-    private static McpToolPolicyDecision EvaluateGate(
+    private McpToolPolicyDecision EvaluateGate(
         PolicyGate gate,
         string toolName,
         string policyCategory,
-        string capabilityDescription)
+        string capabilityDescription,
+        SessionAccessRequest request)
     {
         if (gate.IsAllowed)
         {
@@ -373,6 +389,30 @@ internal sealed class McpToolExecutionPolicy
                 policyCategory: policyCategory);
         }
 
+        if (gate.CanRequest && _sessionGrantChecker(request))
+        {
+            return McpToolPolicyDecision.Allowed;
+        }
+
+        if (gate.CanRequest)
+        {
+            var requestJson = JsonSerializer.Serialize(new
+            {
+                capabilities = request.Capabilities,
+                processId = request.ProcessId,
+                projectRoot = request.ProjectRoot,
+                packRef = request.PackRef,
+                reason = $"Allow {toolName} to {capabilityDescription}.",
+                lifetime = "session"
+            });
+            return McpToolPolicyDecision.Denied(
+                error: $"'{toolName}' requires temporary user-approved access.",
+                errorCode: "InteractiveConsentRequired",
+                hint: "Ask the user to review the exact scope, then call request_session_access. Chat text alone is not authorization.",
+                suggestedAction: $"Call request_session_access with {requestJson}, then retry '{toolName}' in this session.",
+                policyCategory: policyCategory);
+        }
+
         return McpToolPolicyDecision.Denied(
             error: $"MCP policy blocks '{toolName}' because {policyCategory} are disabled.",
             errorCode: "SecurityError",
@@ -381,83 +421,50 @@ internal sealed class McpToolExecutionPolicy
             policyCategory: policyCategory);
     }
 
-    private readonly record struct PolicyGate(
-        string EnvironmentVariable,
-        bool IsAllowed,
-        string? ConfigurationError)
+    private static SessionAccessRequest BuildAccessRequest(
+        string capability,
+        string toolName,
+        IDictionary<string, JsonElement>? arguments,
+        string? packRef = null)
     {
-        internal static PolicyGate Parse(string environmentVariable, string? configuredValue)
-        {
-            if (string.IsNullOrWhiteSpace(configuredValue))
-            {
-                return new PolicyGate(environmentVariable, IsAllowed: false, ConfigurationError: null);
-            }
-
-            if (IsEnabledValue(configuredValue))
-            {
-                return new PolicyGate(environmentVariable, IsAllowed: true, ConfigurationError: null);
-            }
-
-            if (IsDisabledValue(configuredValue))
-            {
-                return new PolicyGate(environmentVariable, IsAllowed: false, ConfigurationError: null);
-            }
-
-            return new PolicyGate(
-                environmentVariable,
-                IsAllowed: false,
-                ConfigurationError:
-                $"Invalid value for {environmentVariable}. {EnvironmentVariableDiagnostics.AcceptedBooleanValues}");
-        }
-
-        private static bool IsEnabledValue(string value)
-            => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase);
-
-        private static bool IsDisabledValue(string value)
-            => string.Equals(value, "false", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "0", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "no", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "off", StringComparison.OrdinalIgnoreCase);
+        var capabilities = toolName == "preview_ui_blueprint"
+                           && capability is SessionAccessCapabilities.Screenshot or SessionAccessCapabilities.SensitiveRead
+            ? new[] { capability, SessionAccessCapabilities.ComposerPreview }
+            : new[] { capability };
+        return new SessionAccessRequest(
+            capabilities,
+            TryGetIntArgument(arguments, "processId"),
+            TryGetStringArgument(arguments, "projectRoot"),
+            packRef,
+            null,
+            SessionAccessLifetime.Session);
     }
-}
 
-internal readonly record struct McpToolPolicyDecision(
-    bool IsAllowed,
-    string? Error,
-    string? ErrorCode,
-    string? Hint,
-    string? SuggestedAction,
-    string? PolicyCategory)
-{
-    internal static McpToolPolicyDecision Allowed { get; } = new(
-        IsAllowed: true,
-        Error: null,
-        ErrorCode: null,
-        Hint: null,
-        SuggestedAction: null,
-        PolicyCategory: null);
+    private static string ResolveMutationCapability(string toolName)
+        => toolName switch
+        {
+            "preview_ui_blueprint" => SessionAccessCapabilities.ComposerPreview,
+            "apply_ui_blueprint" or "import_ui_block_pack" => SessionAccessCapabilities.ProjectWrite,
+            _ => SessionAccessCapabilities.RuntimeMutation
+        };
 
-    internal static McpToolPolicyDecision Denied(
-        string error,
-        string errorCode,
-        string hint,
-        string suggestedAction,
-        string policyCategory)
-        => new(
-            IsAllowed: false,
-            Error: error,
-            ErrorCode: errorCode,
-            Hint: hint,
-            SuggestedAction: suggestedAction,
-            PolicyCategory: policyCategory);
+    private static int? TryGetIntArgument(IDictionary<string, JsonElement>? arguments, string name)
+        => arguments?.TryGetValue(name, out var value) == true && value.TryGetInt32(out var result)
+            ? result
+            : null;
 
-    internal CallToolResult ToCallToolResult()
-        => ToolCallHelper.CreateStructuredErrorResult(
-            Error ?? "MCP tool call blocked by policy.",
-            ErrorCode ?? "SecurityError",
-            Hint,
-            SuggestedAction);
+    private static string? TryGetStringArgument(IDictionary<string, JsonElement>? arguments, string name)
+        => arguments?.TryGetValue(name, out var value) == true && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    private static IEnumerable<string> GetStringArray(
+        IDictionary<string, JsonElement>? arguments,
+        string name)
+        => TryGetArrayArgument(arguments, name, out var values)
+            ? values.EnumerateArray()
+                .Where(value => value.ValueKind == JsonValueKind.String)
+                .Select(value => value.GetString()!)
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+            : [];
 }

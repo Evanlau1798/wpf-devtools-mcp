@@ -65,7 +65,9 @@ try
     builder.Services.AddSingleton<SessionAccessRequestService>();
 
     // MCP Server configuration
-    var toolPolicy = McpToolExecutionPolicy.FromEnvironment();
+    SessionAccessRequestService? accessRequestService = null;
+    var toolPolicy = McpToolExecutionPolicy.FromEnvironment(request =>
+        accessRequestService?.GetStatus(request) is { Success: true, Status: "granted" });
     builder.Services.AddMcpServer(options =>
     {
         options.ServerInfo = new() { Name = "wpf-devtools-mcp", Version = serverVersion };
@@ -128,6 +130,7 @@ try
     fileLogger.LogInfo($"Log file: {fileLogger.LogFilePath}");
 
     var host = builder.Build();
+    accessRequestService = host.Services.GetRequiredService<SessionAccessRequestService>();
 
     // Wire MetricsCollector into the static ToolCallHelper for recording tool execution metrics
     ToolCallHelper.SetMetricsCollector(host.Services.GetRequiredService<MetricsCollector>());

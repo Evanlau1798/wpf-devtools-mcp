@@ -126,7 +126,8 @@ public sealed class McpToolExecutionPolicyTests
         var policy = McpToolExecutionPolicy.FromConfiguredValues(
             allowDestructiveTools: "true",
             allowScreenshots: "true",
-            allowViewModelInspection: "true");
+            allowViewModelInspection: "true",
+            allowSensitiveReads: "false");
 
         var decision = policy.EvaluateToolCall(toolName);
 
@@ -146,7 +147,8 @@ public sealed class McpToolExecutionPolicyTests
         var policy = McpToolExecutionPolicy.FromConfiguredValues(
             allowDestructiveTools: "true",
             allowScreenshots: "true",
-            allowViewModelInspection: "true");
+            allowViewModelInspection: "true",
+            allowSensitiveReads: "false");
 
         policy.EvaluateToolCall(toolName).IsAllowed.Should().BeTrue();
     }
@@ -218,7 +220,8 @@ public sealed class McpToolExecutionPolicyTests
         var policy = McpToolExecutionPolicy.FromConfiguredValues(
             allowDestructiveTools: "true",
             allowScreenshots: "true",
-            allowViewModelInspection: "true");
+            allowViewModelInspection: "true",
+            allowSensitiveReads: "false");
         using var document = JsonDocument.Parse("{\"captureSnapshot\":\"{\\\"propertyNames\\\":[\\\"Text\\\"]}\"}");
         var arguments = document.RootElement.EnumerateObject()
             .ToDictionary(property => property.Name, property => property.Value.Clone());
@@ -239,7 +242,8 @@ public sealed class McpToolExecutionPolicyTests
         var policy = McpToolExecutionPolicy.FromConfiguredValues(
             allowDestructiveTools: "true",
             allowScreenshots: "true",
-            allowViewModelInspection: "true");
+            allowViewModelInspection: "true",
+            allowSensitiveReads: "false");
         using var document = JsonDocument.Parse(argumentsJson);
         var arguments = document.RootElement.EnumerateObject()
             .ToDictionary(property => property.Name, property => property.Value.Clone());
@@ -287,7 +291,7 @@ public sealed class McpToolExecutionPolicyTests
     }
 
     [Theory]
-    [InlineData(null, false, "SecurityError")]
+    [InlineData(null, false, "InteractiveConsentRequired")]
     [InlineData("false", false, "SecurityError")]
     [InlineData("invalid", false, "InvalidPolicyConfiguration")]
     [InlineData("true", true, null)]

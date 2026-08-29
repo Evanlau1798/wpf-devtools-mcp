@@ -1,10 +1,12 @@
 # 程序與連線工具
 
-`WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 必須先包含 reviewed target 的 exact local absolute executable path，才呼叫 `connect`；未設定或 malformed value 會 fail closed。
+受限流程前先呼叫 `get_access_status`。權限不足時，Agent 應說明用途並呼叫 `request_session_access`；只有 server 產生的 MCP elicitation 被接受後，才會建立暫時權限。不支援 elicitation 的 client 仍可使用 operator environment 設定；已設定的範圍是硬性上限。
 
 ## 最重要的工具
 
 - `get_processes`
+- `get_access_status`
+- `request_session_access`
 - `select_active_process`
 - `get_active_process`
 - `connect`
@@ -12,7 +14,9 @@
 
 ## 什麼時候用哪一個
 
-- 呼叫任何 `connect` 變體前，先將已審查 target 的 exact local absolute executable path 設到 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`。未設定會以 `SecurityError` fail closed；relative path 或 malformed entry 會以 `InvalidPolicyConfiguration` fail closed。
+- 使用 `get_access_status(processId?, projectRoot?, packRef?)` 查詢目前與缺少的 capability；此工具不會授權。
+- Agent 說明用途後，使用精確 scope 呼叫 `request_session_access`。接受後會在同一 MCP connection 立即生效；拒絕或取消仍 fail closed。Raw injection 只接受綁定 process identity 的單次 grant。
+- 不支援 MCP elicitation 的 client 會收到 `InteractiveConsentUnavailable`，可改用已審查的 operator environment 設定。明確停用不可被覆蓋，已設定的 target/project allowlist 仍是最大範圍。
 - target 已 allowlist 後，一般情況先用 `connect()`。它會自動發現單一可見的 WPF 目標並直接建立連線。
 - 當 hidden 或 background 的 WPF 視窗也必須參與 auto-discovery，但你不想先多做一次 process listing 時，使用 `connect(windowFilter='all')`。
 - 當你預期同時有多個 WPF target，且你是有意識地要直接挑選最大 working set 候選者時，使用 `connect(selectionStrategy='largest_working_set', windowFilter='all')`，而不是先 list 再 connect。
@@ -40,7 +44,7 @@
 ## 實際工作流程
 
 ```text
-connect -> get_ui_summary -> find_elements -> get_element_snapshot(elementId)
+get_access_status -> request_session_access -> connect -> get_ui_summary -> find_elements -> get_element_snapshot(elementId)
 ```
 
 ```text

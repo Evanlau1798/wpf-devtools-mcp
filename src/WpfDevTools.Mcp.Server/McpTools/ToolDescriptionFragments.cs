@@ -6,10 +6,10 @@ internal static class ToolDescriptionFragments
         "PREREQUISITE: connect() selected target.\n\n";
 
     public const string ContractGuidance =
-        "CONTRACT: Use structuredContent; content[0].text is only a compact fallback. Fields/envelope: wpf://contracts/response.\n\n";
+        "CONTRACT: structuredContent is canonical; content[0].text is compact fallback. See wpf://contracts/response.\n\n";
 
     public const string DetailMode =
-        "DETAIL: detail=minimal|compact (default)|verbose; standard is an alias. Verbose adds requested/effective input and observedEffect; semantic fallback indicators remain.\n\n";
+        "DETAIL: detail=minimal|compact (default; standard alias)|verbose. Verbose adds inputs, observedEffect, and fallback indicators.\n\n";
 
     public const string ActiveProcessIdParameter =
         "Process ID from get_processes; omit to use the active process.";
@@ -24,8 +24,8 @@ internal static class ToolDescriptionFragments
         "LocalApplicationData override for global packs; omit for the current user's default.";
 
     public const string MutationDetailParameter =
-        "Detail: minimal returns success/property/newValue only; compact (default); verbose adds requested/effective input and observedEffect; standard=compact.";
+        "Detail: minimal, compact (default/standard), or verbose with inputs and observedEffect.";
 
     public const string SuccessDetailParameter =
-        "Detail: minimal returns success only; compact (default); verbose adds requested/effective input and observedEffect; standard=compact.";
+        "Detail: minimal, compact (default/standard), or verbose with inputs and observedEffect.";
 }

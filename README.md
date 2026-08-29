@@ -10,8 +10,8 @@
 
 - Windows and WPF targets only.
 - STDIO MCP server transport.
-- 78 MCP tools; use the [DocFX tool reference](https://wpf-mcptools.evanlau1798.com/reference/tools/) for the current catalog.
-- Security defaults fail closed: targets, screenshots, sensitive reads, ViewModel inspection, raw injection, and destructive operations require explicit configuration.
+- 80 MCP tools; use the [DocFX tool reference](https://wpf-mcptools.evanlau1798.com/reference/tools/) for the current catalog.
+- Security defaults fail closed. Elicitation-capable clients can grant exact, in-memory session access without reinstalling or restarting; operator environment settings remain the non-interactive fallback and hard ceiling.
 
 ## Install
 
@@ -46,6 +46,8 @@ $installRoot = '<exact-install-root>'
 
 ## Security essentials
 
+- Call `get_access_status` before a restricted workflow. When access is missing, explain the purpose, call `request_session_access`, and retry only after the server-authored MCP elicitation is accepted. Chat text is never authorization.
+- Session grants remain in memory for at most 30 minutes or until disconnect. Raw injection is one-time and bound to PID, process start time, and executable path; project writes and runtime pack approvals use exact scopes.
 - Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact local absolute executable path before `connect()`.
 - Malformed `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` entries fail with `InvalidPolicyConfiguration`.
 - Set `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` only when UI text, binding values, DependencyProperty values, or runtime state may leave the target process.

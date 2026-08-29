@@ -142,7 +142,7 @@ This prevents regressions where an installer writes plausible configuration but 
 
 ## For public pre-release Agent E2E
 
-Treat the public install as a release contract, not a source-build smoke test. Install the exact GitHub pre-release through the public installer, start only the installed executable over STDIO, and save the release tag together with the release-specific expected count. Runtime `tools/list` discovery remains authoritative, but a mismatch against that one recorded expectation is a finding. The current development surface contains 78 tools.
+Treat the public install as a release contract, not a source-build smoke test. Install the exact GitHub pre-release through the public installer, start only the installed executable over STDIO, and save the release tag together with the release-specific expected count. Runtime `tools/list` discovery remains authoritative, but a mismatch against that one recorded expectation is a finding. The current development surface contains 80 tools.
 
 For Composer, verify `create_ui_blueprint_draft` as the initial transport entry and enumerate all seven downstream tools whose schema accepts `blueprintJson`: `compose_ui_blueprint`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint`, and `apply_ui_project_integration`. Derive this set from `tools/list`; do not preserve an older hand-maintained subset in the E2E task. Use `get_ui_blueprint_draft` only to save one explicit checkpoint before a planned provider restart; normal draft traffic should remain compact.
 

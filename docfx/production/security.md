@@ -38,6 +38,10 @@ Raw DLL injection into arbitrary same-user WPF processes is blocked by default.
 
 The server evaluates high-risk MCP `tools/call` requests before dispatching them to tool implementations.
 
+For an elicitation-capable client, `get_access_status` reports the exact missing scopes and `request_session_access` asks the user through a server-authored MCP form. Acceptance creates only an in-memory grant for the current connection (at most 30 minutes); decline, cancellation, disconnect, scope mismatch, expiry, or process identity change remains fail-closed. Agent prose, caller-supplied approval flags, tokens, and replayed responses are not authorization. Raw injection grants are one-time and bind PID, process start time, and normalized executable path. Project writes bind an exact normalized root; runtime pack approval binds pack id, version, and fingerprint.
+
+Environment settings use tri-state semantics: explicit enable is preauthorization, explicit disable is a hard denial that elicitation cannot override, and unset permits an exact session request. Configured target and project allowlists are hard maximum scopes. Clients without elicitation receive `InteractiveConsentUnavailable` and must use reviewed operator settings.
+
 | Gate | Default | Enables | Main risk controlled | Common first tool |
 | --- | --- | --- | --- | --- |
 | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | Required for target access | `connect()` targets by exact local absolute executable path | Process identity and window metadata disclosure | `connect` |
@@ -56,7 +60,7 @@ Use the smallest gate set that matches the diagnostic task. For example, scene-l
 - `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` opts into target UI text, DependencyProperty and binding values, routed-event payloads, tree/scene summaries, and runtime state snapshots. This is the per-session diagnostic profile gate for read-heavy tools such as `get_ui_summary`, `get_visual_tree`, `get_bindings`, and `get_state_diff`.
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` opts into `get_viewmodel`, `get_commands`, `get_datacontext_chain`, `modify_viewmodel`, and `execute_command`. The same gate applies when `capture_state_snapshot` requests `viewModelPropertyNames`, when `batch_mutate` captures or mutates ViewModel state, and when `wait_for_dp_change_after_mutation` uses a ViewModel mutation trigger.
 - `WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true` lets `preview_ui_blueprint` accept an exact reviewed content-bound token for one request. `WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS` remains the operator-controlled server-start option. Each token binds the exact pack root, id, version, and fingerprint; preview still requires `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`.
-- Unset, false, or invalid boolean gates fail closed for the affected category.
+- Explicit `false` and invalid boolean gates fail closed. Unset gates require accepted elicitation for capable clients and remain unavailable to clients without elicitation.
 
 ### MCP JSON-RPC envelope boundary
 

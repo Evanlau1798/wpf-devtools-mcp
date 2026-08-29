@@ -138,6 +138,7 @@ internal static class CanonicalMcpToolManifest
     {
         return method.GetParameters()
             .Where(parameter => parameter.ParameterType != typeof(SessionManager))
+            .Where(parameter => parameter.ParameterType != typeof(ModelContextProtocol.Server.McpServer))
             .Where(parameter => parameter.ParameterType != typeof(CancellationToken))
             .Select(parameter => new ParameterEntry(
                 parameter.Name ?? string.Empty,

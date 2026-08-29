@@ -13,6 +13,8 @@ public sealed class McpToolPrerequisiteDescriptionTests
 
     private static readonly HashSet<string> ToolsThatDoNotRequireConnectedInspector = new(StringComparer.Ordinal)
     {
+        "get_access_status",
+        "request_session_access",
         "get_processes",
         "get_active_process",
         "connect",

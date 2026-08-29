@@ -295,11 +295,11 @@ internal static partial class McpToolOutputSchemas
     private static Dictionary<string, object> CommonProperties()
         => new(StringComparer.Ordinal)
         {
-            ["success"] = Boolean("Whether the operation succeeded."),
-            ["error"] = String("Error message when success is false."),
-            ["errorCode"] = String("Machine-readable error code when available."),
-            ["message"] = String("Human-readable status or summary message."),
-            ["hint"] = String("Human-readable recovery hint when available."),
+            ["success"] = Boolean("Operation success."),
+            ["error"] = String("Error when unsuccessful."),
+            ["errorCode"] = String("Machine-readable error code."),
+            ["message"] = String("Status or summary."),
+            ["hint"] = String("Recovery hint."),
             ["suggestedAction"] = String("Operator-oriented next action when available."),
             ["toolName"] = String("MCP tool name when an execution wrapper reports an error."),
             ["requiresReconnect"] = Boolean("Whether the client should reconnect before retrying."),

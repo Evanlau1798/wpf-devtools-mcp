@@ -1,6 +1,6 @@
 # Tool Reference Overview
 
-The server currently exposes 78 tools across twelve categories.
+The server currently exposes 80 tools across twelve categories.
 
 ## Categories
 
@@ -19,7 +19,7 @@ The server currently exposes 78 tools across twelve categories.
 
 ## Recommended order of use
 
-Before step 1, confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` includes the reviewed target's exact local absolute executable path; unset or malformed values fail closed before `connect` attaches.
+Before a restricted workflow, call `get_access_status`. If access is missing, explain why it is needed and call `request_session_access`; only the server-authored MCP elicitation response can grant temporary access. Clients without elicitation use operator environment configuration.
 
 1. `connect()` for the default auto-discovery path
 2. `get_active_process`
@@ -39,7 +39,7 @@ Use the smallest workflow that answers the question. Prefer scene-level aggregat
 
 | Intent | First tool | Common follow-up | Details |
 | --- | --- | --- | --- |
-| Confirm what app is connected | `connect` | `get_active_process` | Target access still requires `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`. |
+| Confirm what app is connected | `get_access_status` | `request_session_access`, `connect`, `get_active_process` | Accepted elicitation grants exact temporary access; configured allowlists remain hard ceilings. |
 | Understand the current screen | `get_ui_summary` | `find_elements`, then `get_element_snapshot(elementId)` | Good default for agents because it is semantic and compact. |
 | Diagnose binding failures | `get_binding_errors` | `get_affected_elements`, `get_bindings`, `get_datacontext_chain` | Keep compact mode unless the summary is insufficient. |
 | Explain an unexpected visual value | `get_dp_value_source` | `get_applied_styles`, `get_resource_chain`, `get_triggers` | Use when precedence or styles are unclear. |

@@ -38,6 +38,10 @@ MCP client 預設是不可信任的（untrusted by default）。Tool description
 
 server 會在把高風險 MCP `tools/call` 派送到 tool implementation 前先做政策檢查。
 
+支援 elicitation 的 client 可先用 `get_access_status` 取得精確缺少 scope，再由 `request_session_access` 顯示 server 產生的 MCP 確認表單。只有接受才會在目前 connection 建立記憶體 grant（最長 30 分鐘）；拒絕、取消、斷線、scope 不符、逾時或 process identity 改變仍會 fail closed。Agent 敘述、呼叫端 approval flag、自產 token 或重播回應都不是授權。Raw injection grant 是單次，並綁定 PID、process start time 與正規化 executable path；project write 綁定精確正規化 root；runtime pack approval 綁定 pack id、version 與 fingerprint。
+
+Environment 設定採三態語意：明確啟用代表預先授權，明確停用是 elicitation 也不能覆蓋的硬性禁止，未設定則允許提出精確 session request。已設定的 target/project allowlist 是最大範圍。不支援 elicitation 的 client 會收到 `InteractiveConsentUnavailable`，必須改用已審查的 operator 設定。
+
 | Gate | 預設 | 啟用能力 | 控制的主要風險 | 常見第一個 tool |
 | --- | --- | --- | --- | --- |
 | `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` | target access 必要 | 用 exact local absolute executable path 允許 `connect()` target | process identity 與 window metadata 外洩 | `connect` |
@@ -56,7 +60,7 @@ server 會在把高風險 MCP `tools/call` 派送到 tool implementation 前先�
 - `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` 會 opt in target UI text、DependencyProperty 與 binding values、routed-event payloads、tree/scene summaries，以及 runtime state snapshots。這是 per-session diagnostic profile gate，會保護 `get_ui_summary`、`get_visual_tree`、`get_bindings`、`get_state_diff` 等 read-heavy tools。
 - `WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true` 會 opt in `get_viewmodel`、`get_commands`、`get_datacontext_chain`、`modify_viewmodel` 與 `execute_command`。當 `capture_state_snapshot` 要求 `viewModelPropertyNames`、`batch_mutate` capture 或 mutate ViewModel state，或 `wait_for_dp_change_after_mutation` 的 trigger mutation 使用 ViewModel tool 時，也會套用同一 gate。
 - `WPFDEVTOOLS_MCP_ALLOW_COMPOSER_RUNTIME_APPROVALS=true` 允許 `preview_ui_blueprint` 在單次 request 使用精確且已審查的 content-bound token；`WPFDEVTOOLS_COMPOSER_TRUSTED_RUNTIME_PACKS` 仍是 operator 控制的 server-start 選項。每個 token 都綁定精確 pack root、id、version 與 fingerprint，且 preview 仍需要 `WPFDEVTOOLS_MCP_ALLOW_DESTRUCTIVE_TOOLS=true`。
-- boolean gate 未設定、false 或無效時會讓受影響類別 fail closed。
+- boolean gate 明確為 `false` 或格式無效時會 fail closed；未設定時，支援 elicitation 的 client 必須取得接受，不支援者則維持不可用。
 
 ### MCP JSON-RPC envelope boundary
 

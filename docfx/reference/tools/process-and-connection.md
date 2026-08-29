@@ -1,10 +1,12 @@
 # Process and Connection Tools
 
-Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact local absolute executable path before calling `connect`; unset or malformed values fail closed.
+Use `get_access_status` before a restricted workflow. If access is missing, explain the purpose and call `request_session_access`; only an accepted server-authored MCP elicitation grants temporary access. Operator environment settings remain the fallback for clients without elicitation and a hard ceiling when configured.
 
 ## Most important tools
 
 - `get_processes`
+- `get_access_status`
+- `request_session_access`
 - `select_active_process`
 - `get_active_process`
 - `connect`
@@ -12,7 +14,9 @@ Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact local absol
 
 ## When to use which
 
-- Before any `connect` variant, set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact local absolute executable path. Unset values fail closed with `SecurityError`; relative or malformed entries fail closed with `InvalidPolicyConfiguration`.
+- Call `get_access_status(processId?, projectRoot?, packRef?)` to inspect current and missing capabilities without granting anything.
+- After explaining the purpose, call `request_session_access` with the exact suggested scope. Accepted grants take effect immediately in the same MCP connection; decline or cancellation remains fail-closed. Raw injection accepts only a one-time process-identity-bound grant.
+- Clients without MCP elicitation receive `InteractiveConsentUnavailable` and can use reviewed operator environment settings. Explicit disables cannot be overridden, and configured target/project allowlists remain maximum scopes.
 - Use `connect()` first for the common case after the target is allowlisted. It auto-discovers a single visible WPF target and connects in one step.
 - Use `connect(windowFilter='all')` when hidden or background WPF windows should participate in auto-discovery without a separate process-listing step.
 - Use `connect(selectionStrategy='largest_working_set', windowFilter='all')` when multiple WPF targets are expected and you intentionally want the largest candidate instead of a list-then-connect disambiguation round trip.
@@ -40,7 +44,7 @@ Set `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` to the reviewed target's exact local absol
 ## Practical sequences
 
 ```text
-connect -> get_ui_summary -> find_elements -> get_element_snapshot(elementId)
+get_access_status -> request_session_access -> connect -> get_ui_summary -> find_elements -> get_element_snapshot(elementId)
 ```
 
 ```text

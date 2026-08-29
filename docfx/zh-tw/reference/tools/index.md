@@ -1,6 +1,6 @@
 # 工具總覽
 
-目前 server 提供 78 個工具，分成 12 個類別。
+目前 server 提供 80 個工具，分成 12 個類別。
 
 ## 類別
 
@@ -19,7 +19,7 @@
 
 ## 建議使用順序
 
-在第 1 步前，請確認 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` 已包含 reviewed target 的 exact local absolute executable path；未設定或 malformed value 會在 `connect` attach 前 fail closed。
+受限流程前先呼叫 `get_access_status`。若缺少權限，Agent 應說明用途並呼叫 `request_session_access`；只有 server 產生的 MCP elicitation 回應可以建立暫時 grant。不支援 elicitation 的 client 使用 operator environment 設定。
 
 1. `connect()` 使用預設 auto-discovery path
 2. `get_active_process`
@@ -39,7 +39,7 @@
 
 | 意圖 | 第一個 tool | 常見 follow-up | 補充 |
 | --- | --- | --- | --- |
-| 確認目前連到哪個 app | `connect` | `get_active_process` | Target access 仍需要 `WPFDEVTOOLS_MCP_ALLOWED_TARGETS`。 |
+| 確認目前連到哪個 app | `get_access_status` | `request_session_access`、`connect`、`get_active_process` | 接受 elicitation 後可取得精確暫時權限；已設定 allowlist 仍是硬性上限。 |
 | 理解目前畫面 | `get_ui_summary` | `find_elements`，再 `get_element_snapshot(elementId)` | 對 Agent 來說是好的預設，因為語意化且 compact。 |
 | 診斷 binding failures | `get_binding_errors` | `get_affected_elements`、`get_bindings`、`get_datacontext_chain` | 除非 summary 不足，先維持 compact mode。 |
 | 解釋非預期 visual value | `get_dp_value_source` | `get_applied_styles`、`get_resource_chain`、`get_triggers` | 用於 precedence 或 style 不清楚時。 |

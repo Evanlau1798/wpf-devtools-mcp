@@ -63,6 +63,14 @@ internal sealed class SessionAccessRequestService
             Scopes: resolution.Scopes);
     }
 
+    internal bool TryConsume(SessionAccessRequest request)
+    {
+        var resolution = _scopeResolver.Resolve(request);
+        return resolution.Success
+               && resolution.Scopes.Count == 1
+               && _grantStore.TryConsume(resolution.Scopes[0]);
+    }
+
     internal async Task<SessionAccessRequestResult> RequestAsync(
         SessionAccessRequest request,
         bool supportsElicitation,

@@ -5,7 +5,9 @@ using WpfDevTools.Mcp.Server.Composer.Rendering;
 
 namespace WpfDevTools.Mcp.Server.Composer.Apply;
 
-internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
+internal sealed partial class UiBlueprintApplyService(
+    PackRegistry registry,
+    Func<string, ProjectWriteAuthorization>? authorizeProjectWrite = null)
 {
     private const string BlueprintHeaderPrefix = "<!-- WPFDEVTOOLS_BLUEPRINT_SOURCE: ";
     private const string SafeSlotBegin = "<!-- WPFDEVTOOLS_SAFE_SLOT_BEGIN: manual-content -->";
@@ -118,7 +120,7 @@ internal sealed partial class UiBlueprintApplyService(PackRegistry registry)
                 requiresConfirmation: true);
         }
 
-        var authorization = ProjectWritePolicy.Authorize(projectRoot);
+        var authorization = (authorizeProjectWrite ?? ProjectWritePolicy.Authorize)(projectRoot);
         if (!authorization.Allowed)
         {
             return ApplyBlueprintResult.Invalid(

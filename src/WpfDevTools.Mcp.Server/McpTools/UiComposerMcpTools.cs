@@ -181,6 +181,7 @@ public static partial class UiComposerMcpTools
         [Range(1, UiPreviewProjectFiles.MaximumViewportDimension)]
         [Description("Target Window.Height in DIPs; copy preview viewportHeight.")] int? targetWindowHeight = null,
         [Description("Optional LocalApplicationData root override for user-global packs.")] string? localAppDataRoot = null,
+        ModelContextProtocol.Server.McpServer? server = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -195,7 +196,7 @@ public static partial class UiComposerMcpTools
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(ApplyBlueprint(blueprintJson, projectRoot, targetPath, dryRun, confirmApply, includeGeneratedXaml, targetWindowWidth, targetWindowHeight, localAppDataRoot)),
+            (_, _) => Task.FromResult<object>(ApplyBlueprint(blueprintJson, projectRoot, targetPath, dryRun, confirmApply, includeGeneratedXaml, targetWindowWidth, targetWindowHeight, localAppDataRoot, CreateProjectWriteAuthorizer(server))),
             args,
             cancellationToken,
             timeoutSeconds: 10);
@@ -447,7 +448,8 @@ public static partial class UiComposerMcpTools
         bool includeGeneratedXaml,
         int? targetWindowWidth,
         int? targetWindowHeight,
-        string? localAppDataRoot)
+        string? localAppDataRoot,
+        Func<string, ProjectWriteAuthorization>? authorizeProjectWrite)
     {
         var input = BlueprintInputResolver.Resolve(blueprintJson);
         if (!input.Success)
@@ -455,7 +457,9 @@ public static partial class UiComposerMcpTools
             return BlueprintDraftError(input.Error!);
         }
 
-        var result = new UiBlueprintApplyService(CreateRegistry(projectRoot, localAppDataRoot))
+        var result = new UiBlueprintApplyService(
+                CreateRegistry(projectRoot, localAppDataRoot),
+                authorizeProjectWrite)
             .Apply(new ApplyBlueprintRequest(input.BlueprintJson, projectRoot, targetPath, dryRun, confirmApply, targetWindowWidth, targetWindowHeight));
 
         return new

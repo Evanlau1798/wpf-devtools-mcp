@@ -65,6 +65,49 @@ internal static class ProjectWritePolicy
                 $"Add the exact projectRoot to {McpServerConfiguration.AllowedProjectRootsEnvVar}.");
     }
 
+    internal static ProjectWriteAuthorization AuthorizeSession(
+        string projectRoot,
+        Func<string, bool> tryConsumeGrant)
+    {
+        ArgumentNullException.ThrowIfNull(tryConsumeGrant);
+        var configuredWrites = Environment.GetEnvironmentVariable(
+            McpServerConfiguration.AllowProjectWritesEnvVar);
+        if (!string.IsNullOrWhiteSpace(configuredWrites))
+        {
+            return Authorize(projectRoot);
+        }
+
+        var roots = ParseAllowedRoots(Environment.GetEnvironmentVariable(
+            McpServerConfiguration.AllowedProjectRootsEnvVar));
+        if (!roots.Valid)
+        {
+            return ProjectWriteAuthorization.Denied(
+                "InvalidProjectRootAllowlist",
+                $"{McpServerConfiguration.AllowedProjectRootsEnvVar} contains a non-local or non-absolute root.",
+                "Use semicolon-separated local absolute project roots.");
+        }
+
+        var normalizedProjectRoot = NormalizeRoot(projectRoot);
+        if (roots.Count > 0
+            && !roots.Roots.Any(root => string.Equals(
+                root,
+                normalizedProjectRoot,
+                StringComparison.OrdinalIgnoreCase)))
+        {
+            return ProjectWriteAuthorization.Denied(
+                "ProjectRootNotAllowlisted",
+                "projectRoot is outside the configured project root ceiling.",
+                $"Choose an exact projectRoot already listed in {McpServerConfiguration.AllowedProjectRootsEnvVar}.");
+        }
+
+        return tryConsumeGrant(normalizedProjectRoot)
+            ? ProjectWriteAuthorization.CreateAllowed()
+            : ProjectWriteAuthorization.Denied(
+                "InteractiveConsentRequired",
+                "Writing this project requires temporary user-approved access.",
+                $"Call request_session_access for project-write with projectRoot '{normalizedProjectRoot}', then retry in this session.");
+    }
+
     public static bool IsLocalAbsolutePath(string path)
         => Path.IsPathFullyQualified(path) && !path.StartsWith(@"\\", StringComparison.Ordinal) && !path.StartsWith("//", StringComparison.Ordinal);
 

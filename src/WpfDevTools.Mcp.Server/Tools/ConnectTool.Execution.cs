@@ -180,21 +180,6 @@ public sealed partial class ConnectTool
             cancellationToken).ConfigureAwait(false);
     }
 
-    private object CreateRawInjectionDeniedFailure(int processId, WpfProcessInfo processInfo)
-    {
-        var authorization = RawInjectionTargetPolicy.Authorize(processInfo);
-        Trace.WriteLine($"ConnectTool raw injection denied process {processId}: executable={SensitiveLogRedactor.Redact(processInfo.ExecutablePath)}");
-        return new
-        {
-            success = false,
-            error = authorization.Error,
-            errorCode = authorization.ErrorCode,
-            hint = authorization.Hint,
-            requiresExplicitTargetOptIn = true,
-            allowlistEnvVar = McpServerConfiguration.RawInjectionAllowedTargetsEnvVar
-        };
-    }
-
     private object? TryCreateInjectionRequest(
         int processId,
         ConnectTargetContext context,
@@ -340,6 +325,11 @@ public sealed partial class ConnectTool
         if (pathValidationFailure != null)
         {
             return pathValidationFailure;
+        }
+
+        if (!_consumeRawInjectionAccess(context.ProcessInfo))
+        {
+            return CreateRawInjectionDeniedFailure(processId, context.ProcessInfo);
         }
 
         InjectionResult injectionResult;

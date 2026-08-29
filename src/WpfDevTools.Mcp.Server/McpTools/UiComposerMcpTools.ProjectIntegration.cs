@@ -21,6 +21,7 @@ public static partial class UiComposerMcpTools
         [Description("Optional project-root-relative target XAML path used by the reviewed dry-run.")] string? targetPath = null,
         [Description("Required explicit confirmation that only the exact reviewed integration plan may be applied.")] bool confirmIntegration = false,
         [Description("Optional LocalApplicationData root override for user-global packs.")] string? localAppDataRoot = null,
+        ModelContextProtocol.Server.McpServer? server = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -38,7 +39,8 @@ public static partial class UiComposerMcpTools
                 reviewedPlanHash,
                 targetPath,
                 confirmIntegration,
-                localAppDataRoot)),
+                localAppDataRoot,
+                CreateProjectWriteAuthorizer(server))),
             args,
             cancellationToken,
             timeoutSeconds: 30);
@@ -50,7 +52,8 @@ public static partial class UiComposerMcpTools
         string reviewedPlanHash,
         string? targetPath,
         bool confirmIntegration,
-        string? localAppDataRoot)
+        string? localAppDataRoot,
+        Func<string, ProjectWriteAuthorization>? authorizeProjectWrite)
     {
         var input = BlueprintInputResolver.Resolve(blueprintJson);
         if (!input.Success)
@@ -58,7 +61,9 @@ public static partial class UiComposerMcpTools
             return BlueprintDraftError(input.Error!);
         }
 
-        var result = new UiBlueprintProjectIntegrationService(CreateRegistry(projectRoot, localAppDataRoot))
+        var result = new UiBlueprintProjectIntegrationService(
+                CreateRegistry(projectRoot, localAppDataRoot),
+                authorizeProjectWrite)
             .Apply(new ProjectIntegrationRequest(
                 input.BlueprintJson,
                 projectRoot,

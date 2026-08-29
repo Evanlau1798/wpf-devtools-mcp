@@ -3,7 +3,9 @@ using WpfDevTools.Mcp.Server.Composer.Packs;
 
 namespace WpfDevTools.Mcp.Server.Composer.Apply;
 
-internal sealed class UiBlueprintProjectIntegrationService(PackRegistry registry)
+internal sealed class UiBlueprintProjectIntegrationService(
+    PackRegistry registry,
+    Func<string, ProjectWriteAuthorization>? authorizeProjectWrite = null)
 {
     private static readonly HashSet<string> AllowedRoles =
     [
@@ -42,7 +44,7 @@ internal sealed class UiBlueprintProjectIntegrationService(PackRegistry registry
             return ProjectIntegrationResult.Invalid(request.ReviewedPlanHash, [projectRoot.Error]);
         }
 
-        var authorization = ProjectWritePolicy.Authorize(projectRoot.Path!);
+        var authorization = (authorizeProjectWrite ?? ProjectWritePolicy.Authorize)(projectRoot.Path!);
         if (!authorization.Allowed)
         {
             return ProjectIntegrationResult.Invalid(

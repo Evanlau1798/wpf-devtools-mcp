@@ -10,7 +10,9 @@ public readonly record struct McpTargetAuthorization(
 {
     public string ErrorCode => FailureKind == McpTargetAuthorizationFailureKind.InvalidPolicyConfiguration
         ? "InvalidPolicyConfiguration"
-        : "SecurityError";
+        : FailureKind == McpTargetAuthorizationFailureKind.InteractiveConsentRequired
+            ? "InteractiveConsentRequired"
+            : "SecurityError";
 
     public bool ShouldAbortDiscovery
         => FailureKind == McpTargetAuthorizationFailureKind.InvalidPolicyConfiguration;
@@ -20,6 +22,7 @@ public enum McpTargetAuthorizationFailureKind
 {
     TargetDenied,
     PolicyNotConfigured,
+    InteractiveConsentRequired,
     InvalidPolicyConfiguration
 }
 

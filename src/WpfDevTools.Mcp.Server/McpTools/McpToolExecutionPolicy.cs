@@ -444,7 +444,8 @@ internal sealed class McpToolExecutionPolicy
         => toolName switch
         {
             "preview_ui_blueprint" => SessionAccessCapabilities.ComposerPreview,
-            "apply_ui_blueprint" or "import_ui_block_pack" => SessionAccessCapabilities.ProjectWrite,
+            "apply_ui_blueprint" or "apply_ui_project_integration" or "import_ui_block_pack"
+                => SessionAccessCapabilities.ProjectWrite,
             _ => SessionAccessCapabilities.RuntimeMutation
         };
 

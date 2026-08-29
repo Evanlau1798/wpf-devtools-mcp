@@ -21,6 +21,7 @@ public static partial class UiComposerMcpTools
         [Description("Required when dryRun=false.")] bool confirmImport = false,
         [Description("SHA-256 returned by the reviewed dry run; required when dryRun=false.")] string? reviewedArchiveSha256 = null,
         [Description("Allow same-version replacement. Defaults to false.")] bool allowOverwrite = false,
+        ModelContextProtocol.Server.McpServer? server = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -39,6 +40,7 @@ public static partial class UiComposerMcpTools
                 confirmImport,
                 reviewedArchiveSha256,
                 allowOverwrite,
+                CreateProjectWriteAuthorizer(server),
                 token),
             args,
             cancellationToken,
@@ -52,6 +54,7 @@ public static partial class UiComposerMcpTools
         bool confirmImport,
         string? reviewedArchiveSha256,
         bool allowOverwrite,
+        Func<string, ProjectWriteAuthorization>? authorizeProjectWrite,
         CancellationToken cancellationToken)
     {
         var normalizedProjectRoot = NormalizeImportProjectRoot(projectRoot);
@@ -104,7 +107,7 @@ public static partial class UiComposerMcpTools
             return ImportPlanChangedFailure();
         }
 
-        var authorization = ProjectWritePolicy.Authorize(normalizedProjectRoot);
+        var authorization = (authorizeProjectWrite ?? ProjectWritePolicy.Authorize)(normalizedProjectRoot);
         if (!authorization.Allowed)
         {
             return ImportFailure(

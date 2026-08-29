@@ -34,6 +34,8 @@ public sealed partial class ConnectTool
     private readonly Func<string, IEnumerable<string>> _bootstrapperCandidateResolver;
     private readonly PipeReadyProbe _pipeReadyProbe;
     private readonly Func<WpfProcessInfo, bool> _isRawInjectionTargetAllowed;
+    private readonly Func<WpfProcessInfo, RawInjectionAuthorization> _rawInjectionPolicy;
+    private readonly Func<WpfProcessInfo, bool> _consumeRawInjectionAccess;
     private readonly Func<WpfProcessInfo, McpTargetAuthorization> _targetPolicy;
     private readonly Func<int, string?, TimeSpan, CancellationToken, Task<NamedPipeConnectFailure>> _connectInjectedSessionAsync;
     private readonly TimeSpan _connectTimeout;
@@ -52,7 +54,9 @@ public sealed partial class ConnectTool
         Func<string, IEnumerable<string>>? bootstrapperCandidateResolver = null,
         PipeReadyProbe? pipeReadyProbe = null,
         Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed = null,
-        Func<WpfProcessInfo, McpTargetAuthorization>? targetPolicy = null)
+        Func<WpfProcessInfo, McpTargetAuthorization>? targetPolicy = null,
+        Func<WpfProcessInfo, RawInjectionAuthorization>? rawInjectionPolicy = null,
+        Func<WpfProcessInfo, bool>? consumeRawInjectionAccess = null)
         : this(
             sessionManager,
             injector,
@@ -66,7 +70,9 @@ public sealed partial class ConnectTool
             isRawInjectionTargetAllowed,
             targetPolicy,
                 connectInjectedSessionAsync: null,
-                connectTimeout: null)
+                connectTimeout: null,
+                rawInjectionPolicy,
+                consumeRawInjectionAccess)
     {
     }
 
@@ -83,7 +89,9 @@ public sealed partial class ConnectTool
         Func<WpfProcessInfo, bool>? isRawInjectionTargetAllowed,
         Func<WpfProcessInfo, McpTargetAuthorization>? targetPolicy,
         Func<int, TimeSpan, CancellationToken, Task<NamedPipeConnectFailure>>? connectInjectedSessionAsync,
-        TimeSpan? connectTimeout)
+        TimeSpan? connectTimeout,
+        Func<WpfProcessInfo, RawInjectionAuthorization>? rawInjectionPolicy = null,
+        Func<WpfProcessInfo, bool>? consumeRawInjectionAccess = null)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
         _injector = injector ?? throw new ArgumentNullException(nameof(injector));
@@ -94,7 +102,14 @@ public sealed partial class ConnectTool
         _inspectorCandidateResolver = inspectorCandidateResolver ?? DllCandidateResolver.EnumerateInspectorCandidates;
         _bootstrapperCandidateResolver = bootstrapperCandidateResolver ?? DllCandidateResolver.EnumerateBootstrapperCandidates;
         _pipeReadyProbe = pipeReadyProbe ?? new PipeReadyProbe();
-        _isRawInjectionTargetAllowed = isRawInjectionTargetAllowed ?? RawInjectionTargetPolicy.IsAllowed;
+        _rawInjectionPolicy = rawInjectionPolicy
+            ?? (isRawInjectionTargetAllowed is null
+                ? RawInjectionTargetPolicy.Authorize
+                : processInfo => isRawInjectionTargetAllowed(processInfo)
+                    ? new RawInjectionAuthorization(true, null, null)
+                    : RawInjectionTargetPolicy.Authorize(processInfo));
+        _isRawInjectionTargetAllowed = processInfo => _rawInjectionPolicy(processInfo).IsAllowed;
+        _consumeRawInjectionAccess = consumeRawInjectionAccess ?? (_ => true);
         _targetPolicy = targetPolicy ?? McpTargetPolicy.Authorize;
         _connectInjectedSessionAsync = connectInjectedSessionAsync
             is null

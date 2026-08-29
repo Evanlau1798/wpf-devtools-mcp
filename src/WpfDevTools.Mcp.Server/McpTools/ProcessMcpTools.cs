@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using ModelContextProtocol.Protocol;
 using WpfDevTools.Injector;
@@ -76,6 +77,7 @@ public static class ProcessMcpTools
         [Description("Optional auto-discovery strategy: 'single_only' (safe default) or 'largest_working_set' for multi-process auto-selection.")] string? selectionStrategy = null,
         [AllowedValues("visible", "all", "foreground")]
         [Description("Optional auto-discovery window filter: 'visible' (default), 'all', or 'foreground'.")] string? windowFilter = null,
+        ModelContextProtocol.Server.McpServer? server = null,
         CancellationToken cancellationToken = default)
     {
         var args = ToolCallHelper.BuildJsonArgs(
@@ -84,19 +86,51 @@ public static class ProcessMcpTools
             ("windowFilter", windowFilter));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (a, ct) => ToolCallHelper.CachedTool<ConnectTool>(sessionManager, "ConnectTool", () => CreateConnectTool(sessionManager)).ExecuteAsync(a, ct),
+            (a, ct) => ToolCallHelper.CachedTool<ConnectTool>(sessionManager, "ConnectTool", () => CreateConnectTool(sessionManager, server)).ExecuteAsync(a, ct),
             args,
             cancellationToken,
             timeoutSeconds: McpServerConfiguration.ConnectTimeoutSeconds,
             toolName: "connect");
     }
 
-    private static ConnectTool CreateConnectTool(SessionManager sessionManager)
+    private static ConnectTool CreateConnectTool(
+        SessionManager sessionManager,
+        ModelContextProtocol.Server.McpServer? server)
     {
+        var access = server?.Services?.GetService<SessionAccessRequestService>();
+        if (access is not null)
+        {
+            return new ConnectTool(
+                sessionManager,
+                new ProcessInjector(),
+                dllPathValidator: CreateDllPathValidator(),
+                targetPolicy: processInfo => SessionTargetAccessPolicy.AuthorizeTarget(
+                    processInfo,
+                    access,
+                    Environment.GetEnvironmentVariable(McpServerConfiguration.AllowedTargetsEnvVar),
+                    ResolvePhysicalPath),
+                rawInjectionPolicy: processInfo => SessionTargetAccessPolicy.AuthorizeRawInjection(
+                    processInfo,
+                    access,
+                    Environment.GetEnvironmentVariable(McpServerConfiguration.RawInjectionAllowedTargetsEnvVar),
+                    ResolvePhysicalPath),
+                consumeRawInjectionAccess: processInfo => SessionTargetAccessPolicy.ConsumeRawInjection(
+                    processInfo,
+                    access,
+                    Environment.GetEnvironmentVariable(McpServerConfiguration.RawInjectionAllowedTargetsEnvVar),
+                    ResolvePhysicalPath));
+        }
+
         return new ConnectTool(
             sessionManager,
             new ProcessInjector(),
             dllPathValidator: CreateDllPathValidator());
+    }
+
+    private static string? ResolvePhysicalPath(string path)
+    {
+        var result = RawInjectionTargetPolicy.ResolvePhysicalPathForPolicy(path);
+        return result.IsResolved ? result.Path : null;
     }
 
     private static Action<string> CreateDllPathValidator()

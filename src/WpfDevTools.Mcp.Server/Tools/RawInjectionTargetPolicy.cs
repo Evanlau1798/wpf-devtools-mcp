@@ -8,7 +8,7 @@ using WpfDevTools.Shared.Utilities;
 
 namespace WpfDevTools.Mcp.Server.Tools;
 
-internal readonly record struct RawInjectionAuthorization(
+public readonly record struct RawInjectionAuthorization(
     bool IsAllowed,
     string? Error,
     string? Hint,
@@ -16,12 +16,15 @@ internal readonly record struct RawInjectionAuthorization(
 {
     public string ErrorCode => FailureKind == RawInjectionAuthorizationFailureKind.InvalidPolicyConfiguration
         ? "InvalidPolicyConfiguration"
-        : "SecurityError";
+        : FailureKind == RawInjectionAuthorizationFailureKind.InteractiveConsentRequired
+            ? "InteractiveConsentRequired"
+            : "SecurityError";
 }
 
-internal enum RawInjectionAuthorizationFailureKind
+public enum RawInjectionAuthorizationFailureKind
 {
     TargetDenied,
+    InteractiveConsentRequired,
     InvalidPolicyConfiguration
 }
 

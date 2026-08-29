@@ -194,6 +194,11 @@ internal sealed class McpToolExecutionPolicy
             return false;
         }
 
+        if (toolName == "request_session_access")
+        {
+            return false;
+        }
+
         return toolName is not "apply_ui_blueprint" and not "import_ui_block_pack"
                || IsComposerWrite(arguments);
     }

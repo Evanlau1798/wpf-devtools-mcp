@@ -59,7 +59,7 @@ try
         authManager,
         transportSecurity.CertificateManager,
         sp.GetRequiredService<ILoggerFactory>().CreateLogger<SessionManager>()));
-    builder.Services.AddSingleton<SessionAccessGrantStore>();
+    builder.Services.AddSingleton(_ => new SessionAccessGrantStore());
     builder.Services.AddSingleton(sp => SessionAccessScopeResolver.Create(
         sp.GetRequiredService<SessionManager>()));
     builder.Services.AddSingleton(sp => new SessionAccessRequestService(

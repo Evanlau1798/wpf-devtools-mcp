@@ -48,6 +48,13 @@ public sealed partial class McpStdioClient : IDisposable
         string serverExePath,
         IReadOnlyDictionary<string, string>? environmentVariables,
         CancellationToken ct = default)
+        => await StartAsync(serverExePath, environmentVariables, supportsElicitation: false, ct);
+
+    private async Task<JsonElement> StartAsync(
+        string serverExePath,
+        IReadOnlyDictionary<string, string>? environmentVariables,
+        bool supportsElicitation,
+        CancellationToken ct)
     {
         IReadOnlyDictionary<string, string> effectiveEnvironmentVariables = CreateMergedEnvironment(environmentVariables);
         var effectiveTempRoot = ResolveTempRoot(effectiveEnvironmentVariables);
@@ -103,10 +110,13 @@ public sealed partial class McpStdioClient : IDisposable
                 $"Stderr: {ServerStderr}");
         }
 
+        object clientCapabilities = supportsElicitation
+            ? new { elicitation = new { } }
+            : new { };
         var initResult = await SendRequestAsync("initialize", new
         {
             protocolVersion = "2025-06-18",
-            capabilities = new { },
+            capabilities = clientCapabilities,
             clientInfo = new { name = "e2e-integration-test", version = "1.0.0" }
         }, timeoutMs: 30000, ct);
 
@@ -322,10 +332,17 @@ public sealed partial class McpStdioClient : IDisposable
                 if (line == null)
                 {
                     throw new EndOfStreamException(
-                        $"MCP server closed stdout. Server stderr: {TruncateStderr(300)}");
+                        $"MCP server closed stdout. Server stderr: {TruncateStderr(8000)}");
                 }
 
                 var message = JsonSerializer.Deserialize<JsonElement>(line);
+                if (message.TryGetProperty("method", out _)
+                    && message.TryGetProperty("id", out _))
+                {
+                    await HandleServerRequestAsync(message, ct);
+                    continue;
+                }
+
                 if (!message.TryGetProperty("id", out var responseId) ||
                     responseId.ValueKind != JsonValueKind.Number)
                 {

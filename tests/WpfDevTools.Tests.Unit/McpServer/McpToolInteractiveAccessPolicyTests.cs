@@ -68,6 +68,14 @@ public sealed class McpToolInteractiveAccessPolicyTests
         decision.ErrorCode.Should().Be("InteractiveConsentRequired");
     }
 
+    [Fact]
+    public void EvaluateToolCall_RequestSessionAccess_ShouldReachTheConsentBoundary()
+    {
+        var policy = CreatePolicy(_ => false);
+
+        policy.EvaluateToolCall("request_session_access").IsAllowed.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData("preview_ui_blueprint", "composer-preview")]
     [InlineData("apply_ui_blueprint", "project-write")]

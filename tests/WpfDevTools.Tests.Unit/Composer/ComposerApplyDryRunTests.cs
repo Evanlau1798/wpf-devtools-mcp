@@ -44,6 +44,31 @@ public sealed class ComposerApplyDryRunTests
     }
 
     [Fact]
+    public void ApplyBlueprint_DryRunShouldReportExistingNamedContractLoss()
+    {
+        var tempRoot = CreateTempDirectory();
+        try
+        {
+            var projectRoot = Path.Combine(tempRoot, "project");
+            var targetPath = Path.Combine(projectRoot, "Views", "GeneratedView.xaml");
+            Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+            File.WriteAllText(targetPath,
+                "<Grid xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"><Button x:Name=\"LegacyAction\"/></Grid>");
+
+            var result = new UiBlueprintApplyService(CreateRegistry())
+                .Apply(new ApplyBlueprintRequest(Blueprint(), projectRoot));
+
+            result.Success.Should().BeTrue();
+            result.ExistingXamlContractAnalysis.Changes.Should().Contain(change =>
+                change.Code == "ExistingNamedElementRemoved" && change.ElementName == "LegacyAction");
+        }
+        finally
+        {
+            DeleteDirectory(tempRoot);
+        }
+    }
+
+    [Fact]
     public void ApplyBlueprint_ShouldRejectWriteWhenProjectWriteGateDisabled()
     {
         var tempRoot = CreateTempDirectory();

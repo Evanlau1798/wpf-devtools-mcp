@@ -93,6 +93,7 @@ internal sealed partial class UiBlueprintApplyService(
                 targetExisted: File.Exists(targetPath),
                 backupPath: null,
                 codeBehind);
+            var existingContractAnalysis = AnalyzeExistingContracts(targetPath, dryRunDocument.Content);
             return ApplyBlueprintResult.CreateValid(
                 dryRun: true,
                 requiresConfirmation: true,
@@ -105,6 +106,7 @@ internal sealed partial class UiBlueprintApplyService(
                 behaviorContract,
                 targetWindowPlan,
                 projectIntegrationPlan,
+                existingContractAnalysis,
                 []);
         }
 
@@ -169,6 +171,7 @@ internal sealed partial class UiBlueprintApplyService(
             behaviorContract,
             targetWindowPlan,
             projectIntegrationPlan,
+            ExistingXamlContractAnalysis.NotApplicable,
             []);
     }
 

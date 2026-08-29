@@ -482,6 +482,7 @@ public static partial class UiComposerMcpTools
             result.BehaviorIntegrationContract,
             result.TargetWindowPlan,
             result.ProjectIntegrationPlan,
+            result.ExistingXamlContractAnalysis,
             result.Errors,
             observability = ComposerObservability.ForApply(result)
         };

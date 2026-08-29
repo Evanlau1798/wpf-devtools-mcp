@@ -26,6 +26,7 @@ internal sealed record ApplyBlueprintResult(
     BehaviorIntegrationContractPlan BehaviorIntegrationContract,
     TargetWindowPlan TargetWindowPlan,
     ProjectIntegrationPlan ProjectIntegrationPlan,
+    ExistingXamlContractAnalysis ExistingXamlContractAnalysis,
     IReadOnlyList<ApplyBlueprintIssue> Errors)
 {
     public static ApplyBlueprintResult CreateValid(
@@ -40,14 +41,15 @@ internal sealed record ApplyBlueprintResult(
         BehaviorIntegrationContractPlan behaviorIntegrationContract,
         TargetWindowPlan targetWindowPlan,
         ProjectIntegrationPlan projectIntegrationPlan,
+        ExistingXamlContractAnalysis existingXamlContractAnalysis,
         IReadOnlyList<ApplyBlueprintIssue> errors)
-        => new(true, true, dryRun, requiresConfirmation, wouldWriteFiles, xaml, filePlan, resourcePlan, packages, viewModelBindingContract, behaviorIntegrationContract, targetWindowPlan, projectIntegrationPlan, errors);
+        => new(true, true, dryRun, requiresConfirmation, wouldWriteFiles, xaml, filePlan, resourcePlan, packages, viewModelBindingContract, behaviorIntegrationContract, targetWindowPlan, projectIntegrationPlan, existingXamlContractAnalysis, errors);
 
     public static ApplyBlueprintResult Invalid(
         bool dryRun,
         IReadOnlyList<ApplyBlueprintIssue> errors,
         bool requiresConfirmation = false)
-        => new(false, false, dryRun, requiresConfirmation, false, string.Empty, [], [], [], new ViewModelBindingContractPlan(string.Empty, string.Empty, false, null), BehaviorIntegrationContractPlan.Empty, TargetWindowPlan.NotAvailable, ProjectIntegrationPlan.Empty, errors);
+        => new(false, false, dryRun, requiresConfirmation, false, string.Empty, [], [], [], new ViewModelBindingContractPlan(string.Empty, string.Empty, false, null), BehaviorIntegrationContractPlan.Empty, TargetWindowPlan.NotAvailable, ProjectIntegrationPlan.Empty, ExistingXamlContractAnalysis.NotApplicable, errors);
 }
 
 internal sealed record TargetWindowPlan(

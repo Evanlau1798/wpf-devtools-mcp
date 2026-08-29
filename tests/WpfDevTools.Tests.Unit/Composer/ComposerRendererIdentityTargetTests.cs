@@ -30,6 +30,31 @@ public sealed class ComposerRendererIdentityTargetTests
     }
 
     [Fact]
+    public void Renderer_ShouldApplyAuthoredBindingsToPackSelectedTarget()
+    {
+        var projectRoot = CreatePack("<sample:Panel Text=\"fallback\"{{identity.attributes}} />");
+        try
+        {
+            var blueprint = Blueprint(authoredIdentity: true).Replace(
+                "\"kind\": \"sample.region\"",
+                "\"kind\": \"sample.region\", \"bindings\": { \"Text\": \"{Binding StatusMessage}\" }",
+                StringComparison.Ordinal);
+
+            var result = new UiBlueprintRenderer(CreateRegistry(projectRoot)).Render(
+                new RenderBlueprintRequest(blueprint));
+
+            result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+            result.Xaml.Should().Contain("Text=\"{Binding StatusMessage}\"");
+            result.Xaml[..result.Xaml.IndexOf("<sample:Panel", StringComparison.Ordinal)]
+                .Should().NotContain("Text=\"{Binding StatusMessage}\"");
+        }
+        finally
+        {
+            TestDirectory.Delete(projectRoot);
+        }
+    }
+
+    [Fact]
     public void Renderer_ShouldCorrelateGeneratedPreviewNameToPackSelectedTarget()
     {
         var projectRoot = CreatePack("<sample:Panel{{identity.attributes}} />");

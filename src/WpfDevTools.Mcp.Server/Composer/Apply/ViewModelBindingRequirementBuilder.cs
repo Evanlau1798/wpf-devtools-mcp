@@ -57,6 +57,28 @@ internal static class ViewModelBindingRequirementBuilder
         IReadOnlyDictionary<string, UiBlockDefinition> blocks,
         List<ViewModelBindingUsage> usages)
     {
+        foreach (var (propertyName, value) in node.Bindings.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        {
+            if (value.ValueKind != JsonValueKind.String)
+            {
+                continue;
+            }
+
+            var rawBinding = value.GetString() ?? string.Empty;
+            if (!TryNormalizeBindingPath(rawBinding, out var bindingPath))
+            {
+                continue;
+            }
+
+            usages.Add(new ViewModelBindingUsage(
+                $"{jsonPath}.bindings.{propertyName}",
+                node.Kind,
+                propertyName,
+                "binding",
+                rawBinding,
+                bindingPath));
+        }
+
         if (blocks.TryGetValue(node.Kind, out var block))
         {
             foreach (var (propertyName, value) in node.Properties.OrderBy(pair => pair.Key, StringComparer.Ordinal))
@@ -93,7 +115,7 @@ internal static class ViewModelBindingRequirementBuilder
         }
     }
 
-    private static bool TryNormalizeBindingPath(string value, out string? path)
+    internal static bool TryNormalizeBindingPath(string value, out string? path)
     {
         path = null;
         var binding = value.Trim();

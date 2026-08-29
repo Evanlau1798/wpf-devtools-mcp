@@ -151,6 +151,10 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         }
 
         var hasIdentityTarget = identityTargets.Length == 1;
+        if (hasIdentityTarget && node.Bindings.Count > 0)
+        {
+            template = ApplyAuthoredBindings(template, identityTargets[0].Index, node);
+        }
         var includeRuntimeCorrelation = includeTransientElementCorrelation && block.Renderer.RuntimeInspectable;
         var rendered = TokenPattern.Replace(template, match =>
             ResolveToken(match.Groups["name"].Value, node, block, path, packs, context, errors, sourceMap,
@@ -159,6 +163,7 @@ internal sealed partial class UiBlueprintRenderer(PackRegistry registry)
         if (!hasIdentityTarget)
         {
             rendered = AddAuthoredIdentity(rendered, node, path, errors);
+            rendered = ApplyAuthoredBindings(rendered, XamlDocumentRootLocator.FindStart(rendered), node);
             if (includeRuntimeCorrelation)
             {
                 rendered = AddTransientElementCorrelation(

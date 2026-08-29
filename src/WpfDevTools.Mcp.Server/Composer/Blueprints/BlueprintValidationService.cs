@@ -323,6 +323,7 @@ internal sealed partial class BlueprintValidationService(PackRegistry registry)
         }
 
         ValidateProperties(node, path, block, errors, warnings);
+        ValidateBindings(node, path, errors);
         ValidateSlots(node, path, block, context, usedPackIds, errors, warnings);
     }
 

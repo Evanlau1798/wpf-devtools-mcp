@@ -138,6 +138,7 @@ public sealed class ComposerBlockCatalogTests
         {
             var full = await UiComposerMcpTools.GetUiBlockCatalog(
                 packIds: ["core"],
+                compact: false,
                 localAppDataRoot: tempRoot,
                 cancellationToken: CancellationToken.None);
             var compact = await UiComposerMcpTools.GetUiBlockCatalog(
@@ -179,6 +180,22 @@ public sealed class ComposerBlockCatalogTests
         {
             DeleteDirectory(tempRoot);
         }
+    }
+
+    [Fact]
+    public async Task GetUiBlockCatalogTool_ShouldChooseCompactDefaultByQueryPrecision()
+    {
+        var broad = await UiComposerMcpTools.GetUiBlockCatalog(
+            packIds: ["core"],
+            cancellationToken: CancellationToken.None);
+        var exact = await UiComposerMcpTools.GetUiBlockCatalog(
+            kind: "core.stack",
+            cancellationToken: CancellationToken.None);
+
+        broad.StructuredContent!.Value.GetProperty("compact").GetBoolean().Should().BeTrue();
+        exact.StructuredContent!.Value.GetProperty("compact").GetBoolean().Should().BeFalse();
+        exact.StructuredContent!.Value.GetProperty("items")[0]
+            .TryGetProperty("properties", out _).Should().BeTrue();
     }
 
     [Fact]
@@ -224,6 +241,7 @@ public sealed class ComposerBlockCatalogTests
             var carouselResult = await UiComposerMcpTools.GetUiBlockCatalog(
                 packIds: ["core"],
                 authoringRole: "carousel",
+                compact: false,
                 localAppDataRoot: tempRoot,
                 cancellationToken: CancellationToken.None);
 

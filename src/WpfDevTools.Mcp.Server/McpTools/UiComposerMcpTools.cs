@@ -46,13 +46,14 @@ public static partial class UiComposerMcpTools
         [Description("Only blocks with renderer templates.")] bool composableOnly = false,
         [Description("Exact pack-qualified block kind.")] string? kind = null,
         [Description("Include recipes from the same pack scope.")] bool includeRecipes = false,
-        [Description("Compact discovery with required/bounded property contracts; false returns full exact-kind details.")] bool compact = false,
+        [Description("Compact projection. Defaults to true for broad discovery and false for exact kind lookup.")] bool? compact = null,
         [StringLength(128)]
         [Description("Case-insensitive allowed-value substring search; use with exact kind. Max 128 characters.")] string? allowedValueQuery = null,
         [Description(ToolDescriptionFragments.ComposerProjectRootParameter)] string? projectRoot = null,
         [Description(ToolDescriptionFragments.ComposerLocalAppDataRootParameter)] string? localAppDataRoot = null,
         CancellationToken cancellationToken = default)
     {
+        var effectiveCompact = compact ?? string.IsNullOrWhiteSpace(kind);
         var args = ToolCallHelper.BuildJsonArgs(
             ("packIds", packIds),
             ("category", category),
@@ -61,13 +62,13 @@ public static partial class UiComposerMcpTools
             ("composableOnly", composableOnly),
             ("kind", kind),
             ("includeRecipes", includeRecipes),
-            ("compact", compact),
+            ("compact", effectiveCompact),
             ("allowedValueQuery", allowedValueQuery),
             ("projectRoot", projectRoot),
             ("localAppDataRoot", localAppDataRoot));
 
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(GetCatalog(packIds, category, authoringRole, kindPrefix, composableOnly, kind, includeRecipes, compact, allowedValueQuery, projectRoot, localAppDataRoot)),
+            (_, _) => Task.FromResult<object>(GetCatalog(packIds, category, authoringRole, kindPrefix, composableOnly, kind, includeRecipes, effectiveCompact, allowedValueQuery, projectRoot, localAppDataRoot)),
             args,
             cancellationToken,
             timeoutSeconds: 10);

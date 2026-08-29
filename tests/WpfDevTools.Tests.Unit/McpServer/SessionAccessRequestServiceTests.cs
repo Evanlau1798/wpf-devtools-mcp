@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using ModelContextProtocol.Protocol;
+using WpfDevTools.Mcp.Server;
 using WpfDevTools.Mcp.Server.McpTools;
 
 namespace WpfDevTools.Tests.Unit.McpServer;
@@ -80,6 +81,114 @@ public sealed class SessionAccessRequestServiceTests
 
         result.Success.Should().BeFalse();
         result.ErrorCode.Should().Be("InteractiveConsentUnavailable");
+        elicitationCalled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RequestAsync_WhenCapabilityIsExplicitlyDisabled_ShouldRejectBeforePrompt()
+    {
+        using var store = new SessionAccessGrantStore(() => _now);
+        var service = CreateService(store, name =>
+            name == McpServerConfiguration.AllowDestructiveToolsEnvVar ? "false" : null);
+        var elicitationCalled = false;
+
+        var result = await service.RequestAsync(
+            new SessionAccessRequest(
+                [SessionAccessCapabilities.ComposerPreview],
+                null, null, null, "Preview the draft.", SessionAccessLifetime.Session),
+            true,
+            (_, _) =>
+            {
+                elicitationCalled = true;
+                return Task.FromResult(Accepted());
+            },
+            CancellationToken.None);
+
+        result.Status.Should().Be("hard-denied");
+        result.ErrorCode.Should().Be("SecurityError");
+        elicitationCalled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RequestAsync_WhenOnlySomeCapabilitiesArePreauthorized_ShouldPromptForTheRemainder()
+    {
+        using var store = new SessionAccessGrantStore(() => _now);
+        var service = CreateService(store, name =>
+            name == McpServerConfiguration.AllowDestructiveToolsEnvVar ? "true" : null);
+        var elicitationCalled = false;
+
+        var result = await service.RequestAsync(
+            new SessionAccessRequest(
+                [SessionAccessCapabilities.ComposerPreview, SessionAccessCapabilities.Screenshot],
+                null, null, null, "Preview with pixels.", SessionAccessLifetime.Session),
+            true,
+            (_, _) =>
+            {
+                elicitationCalled = true;
+                return Task.FromResult(Accepted());
+            },
+            CancellationToken.None);
+
+        elicitationCalled.Should().BeTrue();
+        result.Status.Should().Be("granted");
+    }
+
+    [Fact]
+    public async Task RequestAsync_WhenTargetExceedsConfiguredCeiling_ShouldRejectBeforePrompt()
+    {
+        using var store = new SessionAccessGrantStore(() => _now);
+        var service = new SessionAccessRequestService(
+            store,
+            new SessionAccessScopeResolver(
+                processId => processId == 123
+                    ? new TargetProcessIdentity(123, 100, Environment.ProcessPath!)
+                    : null,
+                () => null),
+            () => _now,
+            name => name == McpServerConfiguration.AllowedTargetsEnvVar
+                ? typeof(SessionAccessRequestServiceTests).Assembly.Location
+                : null);
+        var elicitationCalled = false;
+
+        var result = await service.RequestAsync(
+            ProcessRequest(SessionAccessCapabilities.TargetConnect),
+            true,
+            (_, _) =>
+            {
+                elicitationCalled = true;
+                return Task.FromResult(Accepted());
+            },
+            CancellationToken.None);
+
+        result.Status.Should().Be("hard-denied");
+        result.ErrorCode.Should().Be("SecurityError");
+        elicitationCalled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RequestAsync_WhenProjectExceedsConfiguredCeiling_ShouldRejectBeforePrompt()
+    {
+        using var store = new SessionAccessGrantStore(() => _now);
+        var service = CreateService(store, name =>
+            name == McpServerConfiguration.AllowedProjectRootsEnvVar
+                ? @"G:\projects\reviewed"
+                : null);
+        var elicitationCalled = false;
+
+        var result = await service.RequestAsync(
+            new SessionAccessRequest(
+                [SessionAccessCapabilities.ProjectWrite],
+                null, @"G:\projects\outside", null, "Write generated XAML.", SessionAccessLifetime.Session),
+            true,
+            (_, _) =>
+            {
+                elicitationCalled = true;
+                return Task.FromResult(Accepted());
+            },
+            CancellationToken.None);
+
+        result.Status.Should().Be("hard-denied");
+        result.ErrorCode.Should().Be("ProjectRootNotAllowlisted");
         elicitationCalled.Should().BeFalse();
     }
 
@@ -200,7 +309,9 @@ public sealed class SessionAccessRequestServiceTests
         promptCount.Should().Be(3);
     }
 
-    private SessionAccessRequestService CreateService(SessionAccessGrantStore store)
+    private SessionAccessRequestService CreateService(
+        SessionAccessGrantStore store,
+        Func<string, string?>? getEnvironmentValue = null)
         => new(
             store,
             new SessionAccessScopeResolver(
@@ -208,7 +319,8 @@ public sealed class SessionAccessRequestServiceTests
                     ? new TargetProcessIdentity(123, 100, @"G:\apps\sample\Sample.exe")
                     : null,
                 () => null),
-            () => _now);
+            () => _now,
+            getEnvironmentValue);
 
     private static SessionAccessRequest ProcessRequest(
         string capability,

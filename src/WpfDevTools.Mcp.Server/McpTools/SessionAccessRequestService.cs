@@ -28,13 +28,14 @@ internal sealed class SessionAccessRequestService
     private readonly SessionAccessGrantStore _grantStore;
     private readonly SessionAccessScopeResolver _scopeResolver;
     private readonly Func<DateTimeOffset> _utcNow;
+    private readonly Func<string, string?> _getEnvironmentValue;
     private readonly SemaphoreSlim _promptGate = new(1, 1);
     private readonly Queue<DateTimeOffset> _recentPrompts = new();
 
     internal SessionAccessRequestService(
         SessionAccessGrantStore grantStore,
         SessionAccessScopeResolver scopeResolver)
-        : this(grantStore, scopeResolver, () => DateTimeOffset.UtcNow)
+        : this(grantStore, scopeResolver, () => DateTimeOffset.UtcNow, null)
     {
     }
 
@@ -42,10 +43,20 @@ internal sealed class SessionAccessRequestService
         SessionAccessGrantStore grantStore,
         SessionAccessScopeResolver scopeResolver,
         Func<DateTimeOffset> utcNow)
+        : this(grantStore, scopeResolver, utcNow, null)
+    {
+    }
+
+    internal SessionAccessRequestService(
+        SessionAccessGrantStore grantStore,
+        SessionAccessScopeResolver scopeResolver,
+        Func<DateTimeOffset> utcNow,
+        Func<string, string?>? getEnvironmentValue)
     {
         _grantStore = grantStore ?? throw new ArgumentNullException(nameof(grantStore));
         _scopeResolver = scopeResolver ?? throw new ArgumentNullException(nameof(scopeResolver));
         _utcNow = utcNow ?? throw new ArgumentNullException(nameof(utcNow));
+        _getEnvironmentValue = getEnvironmentValue ?? (_ => null);
     }
 
     internal SessionAccessRequestResult GetStatus(SessionAccessRequest request)
@@ -57,10 +68,11 @@ internal sealed class SessionAccessRequestService
         }
 
         var granted = resolution.Scopes.Where(_grantStore.HasGrant).ToArray();
-        return new SessionAccessRequestResult(
+        var result = new SessionAccessRequestResult(
             Success: true,
             Status: granted.Length == resolution.Scopes.Count ? "granted" : "consent-required",
             Scopes: resolution.Scopes);
+        return SessionAccessOperatorPolicy.Apply(request, result, _getEnvironmentValue);
     }
 
     internal bool TryConsume(SessionAccessRequest request)
@@ -82,6 +94,16 @@ internal sealed class SessionAccessRequestService
         if (!resolution.Success)
         {
             return Invalid(resolution);
+        }
+
+        var operatorStatus = SessionAccessOperatorPolicy.Apply(
+            request,
+            new SessionAccessRequestResult(true, "consent-required", resolution.Scopes),
+            _getEnvironmentValue);
+        if (operatorStatus.Status == "preauthorized"
+            || operatorStatus.Status is "hard-denied" or "invalid-policy")
+        {
+            return operatorStatus;
         }
 
         if (resolution.Scopes.All(_grantStore.HasGrant))

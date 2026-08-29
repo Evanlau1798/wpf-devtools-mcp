@@ -26,9 +26,18 @@ internal static class ProjectWritePolicy
     ];
 
     public static ProjectWriteAuthorization Authorize(string projectRoot)
+        => Authorize(
+            projectRoot,
+            Environment.GetEnvironmentVariable(McpServerConfiguration.AllowProjectWritesEnvVar),
+            Environment.GetEnvironmentVariable(McpServerConfiguration.AllowedProjectRootsEnvVar));
+
+    private static ProjectWriteAuthorization Authorize(
+        string projectRoot,
+        string? configuredWrites,
+        string? configuredRoots)
     {
         if (!string.Equals(
-                Environment.GetEnvironmentVariable(McpServerConfiguration.AllowProjectWritesEnvVar),
+                configuredWrites,
                 "true",
                 StringComparison.OrdinalIgnoreCase))
         {
@@ -38,7 +47,6 @@ internal static class ProjectWritePolicy
                 "Enable project writes only after reviewing the generated file plan.");
         }
 
-        var configuredRoots = Environment.GetEnvironmentVariable(McpServerConfiguration.AllowedProjectRootsEnvVar);
         var roots = ParseAllowedRoots(configuredRoots);
         if (!roots.Valid)
         {
@@ -68,17 +76,25 @@ internal static class ProjectWritePolicy
     internal static ProjectWriteAuthorization AuthorizeSession(
         string projectRoot,
         Func<string, bool> tryConsumeGrant)
+        => AuthorizeSession(
+            projectRoot,
+            tryConsumeGrant,
+            Environment.GetEnvironmentVariable(McpServerConfiguration.AllowProjectWritesEnvVar),
+            Environment.GetEnvironmentVariable(McpServerConfiguration.AllowedProjectRootsEnvVar));
+
+    internal static ProjectWriteAuthorization AuthorizeSession(
+        string projectRoot,
+        Func<string, bool> tryConsumeGrant,
+        string? configuredWrites,
+        string? configuredRoots)
     {
         ArgumentNullException.ThrowIfNull(tryConsumeGrant);
-        var configuredWrites = Environment.GetEnvironmentVariable(
-            McpServerConfiguration.AllowProjectWritesEnvVar);
         if (!string.IsNullOrWhiteSpace(configuredWrites))
         {
-            return Authorize(projectRoot);
+            return Authorize(projectRoot, configuredWrites, configuredRoots);
         }
 
-        var roots = ParseAllowedRoots(Environment.GetEnvironmentVariable(
-            McpServerConfiguration.AllowedProjectRootsEnvVar));
+        var roots = ParseAllowedRoots(configuredRoots);
         if (!roots.Valid)
         {
             return ProjectWriteAuthorization.Denied(

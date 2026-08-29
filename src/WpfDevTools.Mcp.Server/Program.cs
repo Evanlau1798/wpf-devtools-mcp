@@ -62,7 +62,11 @@ try
     builder.Services.AddSingleton<SessionAccessGrantStore>();
     builder.Services.AddSingleton(sp => SessionAccessScopeResolver.Create(
         sp.GetRequiredService<SessionManager>()));
-    builder.Services.AddSingleton<SessionAccessRequestService>();
+    builder.Services.AddSingleton(sp => new SessionAccessRequestService(
+        sp.GetRequiredService<SessionAccessGrantStore>(),
+        sp.GetRequiredService<SessionAccessScopeResolver>(),
+        () => DateTimeOffset.UtcNow,
+        Environment.GetEnvironmentVariable));
 
     // MCP Server configuration
     SessionAccessRequestService? accessRequestService = null;

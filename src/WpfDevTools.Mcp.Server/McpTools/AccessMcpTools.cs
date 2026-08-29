@@ -22,7 +22,11 @@ public static class AccessMcpTools
         var service = (server.Services ?? throw new InvalidOperationException("MCP services are unavailable."))
             .GetRequiredService<SessionAccessRequestService>();
         return ToolCallHelper.ExecuteAndWrapAsync(
-            (_, _) => Task.FromResult<object>(BuildStatus(service, processId, projectRoot, packRef)),
+            (_, _) => Task.FromResult<object>(BuildStatus(
+                service,
+                processId,
+                projectRoot,
+                packRef)),
             null,
             cancellationToken,
             toolName: "get_access_status");
@@ -67,7 +71,7 @@ public static class AccessMcpTools
             toolName: "request_session_access");
     }
 
-    private static object BuildStatus(
+    internal static object BuildStatus(
         SessionAccessRequestService service,
         int? processId,
         string? projectRoot,
@@ -87,35 +91,72 @@ public static class AccessMcpTools
                         ? SessionAccessLifetime.Once
                         : SessionAccessLifetime.Session);
                 var status = service.GetStatus(request);
+                var reportedStatus = status.Status == "invalid"
+                    && status.ErrorCode is "ProcessScopeRequired" or "PackScopeRequired" or "InvalidProjectRoot"
+                        ? "scope-required"
+                        : status.Status;
                 return new
                 {
                     capability,
-                    status = status.Success ? status.Status : "scope-required",
+                    status = reportedStatus,
                     status.ErrorCode,
                     status.Error
                 };
             })
             .ToArray();
         var missing = capabilities
+            .Where(item => item.status is not "granted" and not "preauthorized")
+            .Select(item => item.capability)
+            .ToArray();
+        var requestable = capabilities
             .Where(item => item.status == "consent-required")
             .Select(item => item.capability)
             .ToArray();
+        var unavailable = capabilities
+            .Where(item => item.status is "hard-denied" or "invalid-policy" or "scope-required")
+            .Select(item => item.capability)
+            .ToArray();
+        var sessionCapabilities = requestable
+            .Where(capability => capability != SessionAccessCapabilities.RawInjection)
+            .ToArray();
+        var suggestedRequests = new List<object>(2);
+        if (sessionCapabilities.Length > 0)
+        {
+            suggestedRequests.Add(CreateSuggestedRequest(
+                sessionCapabilities, processId, projectRoot, packRef, "session"));
+        }
+
+        if (requestable.Contains(SessionAccessCapabilities.RawInjection, StringComparer.Ordinal))
+        {
+            suggestedRequests.Add(CreateSuggestedRequest(
+                [SessionAccessCapabilities.RawInjection], processId, projectRoot, packRef, "once"));
+        }
 
         return new
         {
             success = true,
             capabilities,
             missingCapabilities = missing,
-            suggestedRequest = missing.Length == 0 ? null : new
-            {
-                tool = "request_session_access",
-                capabilities = missing,
-                processId,
-                projectRoot,
-                packRef,
-                reason = "Explain why this temporary access is needed.",
-                lifetime = "session"
-            }
+            requestableCapabilities = requestable,
+            unavailableCapabilities = unavailable,
+            suggestedRequests
         };
     }
+
+    private static object CreateSuggestedRequest(
+        string[] capabilities,
+        int? processId,
+        string? projectRoot,
+        string? packRef,
+        string lifetime)
+        => new
+        {
+            tool = "request_session_access",
+            capabilities,
+            processId,
+            projectRoot,
+            packRef,
+            reason = "Explain why this temporary access is needed.",
+            lifetime
+        };
 }

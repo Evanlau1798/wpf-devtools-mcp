@@ -92,6 +92,20 @@ public sealed class ToolInputExamplesResourceTests
     }
 
     [Fact]
+    public void ToolExamplesResource_ShouldExposePackNeutralDraftCreation()
+    {
+        using var document = ReadToolExamples();
+        var example = document.RootElement.GetProperty("examplesByTool")
+            .GetProperty("create_ui_blueprint_draft")[0];
+
+        example.GetProperty("name").GetString().Should().Contain("minimal");
+        var blueprintJson = example.GetProperty("arguments").GetProperty("blueprintJson").GetString();
+        blueprintJson.Should().Contain("core.grid").And.NotContainAny("wpfui", "MaterialDesign");
+        example.GetProperty("outputGuidance").GetProperty("validationStatus").GetString()
+            .Should().Be("not-run");
+    }
+
+    [Fact]
     public void ToolExamplesResource_ShouldDescribeScreenshotResourceFollowUp()
     {
         using var document = ReadToolExamples();

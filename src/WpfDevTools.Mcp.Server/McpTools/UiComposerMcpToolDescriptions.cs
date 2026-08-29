@@ -12,7 +12,7 @@ internal static class UiComposerMcpToolDescriptions
 
         CATEGORY: UI Composer
 
-        RETURNS: Opaque process-local draftRef and alias/retention metadata; no JSON echo.
+        RETURNS: Opaque process-local draftRef with stored=true and validationStatus=not-run; saving never implies validation.
 
         EXAMPLES:
         """ + CanonicalExamples;

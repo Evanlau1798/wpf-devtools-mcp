@@ -354,6 +354,7 @@ public static partial class CapabilityResources
                         }
                     }
                 },
+                create_ui_blueprint_draft = CreateBlueprintDraftExamples(),
                 preview_ui_blueprint = new[]
                 {
                     new

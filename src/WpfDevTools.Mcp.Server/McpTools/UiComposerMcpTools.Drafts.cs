@@ -197,6 +197,8 @@ public static partial class UiComposerMcpTools
             ? new
             {
                 success = true,
+                stored = true,
+                validationStatus = "not-run",
                 result.DraftRef,
                 sourceDraftRef,
                 result.CharacterCount,
@@ -204,6 +206,7 @@ public static partial class UiComposerMcpTools
                 changeSummary = result.ChangeSummary,
                 aliasInventory = CreateAliasInventory(result.DraftRef),
                 immutable = true,
+                nextStep = "Call validate_ui_blueprint with draftRef before render, preview, or apply.",
                 retention = new
                 {
                     maxDrafts = BlueprintDraftStore.DefaultMaxDrafts,

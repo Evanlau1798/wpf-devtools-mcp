@@ -210,6 +210,8 @@ public sealed class ComposerBlueprintDraftTests
             Blueprint(),
             CancellationToken.None);
         var aliases = created.StructuredContent!.Value.GetProperty("aliasInventory");
+        created.StructuredContent.Value.GetProperty("stored").GetBoolean().Should().BeTrue();
+        created.StructuredContent.Value.GetProperty("validationStatus").GetString().Should().Be("not-run");
         aliases.GetProperty("count").GetInt32().Should().Be(1);
         aliases.GetProperty("aliases")[0].GetString().Should().Be("@RootStack");
         var originalRef = created.StructuredContent!.Value.GetProperty("draftRef").GetString()!;

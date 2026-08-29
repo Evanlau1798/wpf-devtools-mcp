@@ -122,7 +122,7 @@ Parameters:
 - `propertyNames`, `viewModelPropertyNames`, and `includeFocus` select what is captured.
 - `snapshotName` optional label.
 
-Output fields include `snapshotId` and `snapshotSummary`. Snapshots are in-memory, session-scoped, and retained for a bounded time.
+Output fields include `snapshotId`, `snapshotSummary`, and bounded skipped-property details. Snapshots are in-memory, session-scoped, and retained for a bounded time. Scalar ViewModel values are restorable; complex references remain available for diff evidence but appear immediately in `skippedViewModelProperties` because display text cannot reconstruct object identity. Capture a scalar selection key or the bound selection DependencyProperty when deterministic rollback is required.
 
 Minimal rollback chain: `capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot`. Pass the returned `snapshotId` explicitly to both diff and restore calls.
 

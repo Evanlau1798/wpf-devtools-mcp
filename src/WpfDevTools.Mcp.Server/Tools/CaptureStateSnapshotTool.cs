@@ -130,14 +130,14 @@ public sealed partial class CaptureStateSnapshotTool(SessionManager sessionManag
                     (canWriteProperty.ValueKind == JsonValueKind.True);
                 var propertyType = GetOptionalString(property, "type");
                 var propertyValue = GetOptionalString(property, "value");
-                var canRestore = canWrite && IsRestorableViewModelValue(propertyType, propertyValue);
+                var canRestore = canWrite && IsRestorableViewModelValue(propertyType);
                 viewModelProperties.Add(new StoredViewModelPropertySnapshot(
                     elementId,
                     propertyName,
                     propertyType,
                     propertyValue,
                     canRestore,
-                    GetRestoreSkipReason(propertyName, canWrite, propertyType, propertyValue)));
+                    GetRestoreSkipReason(propertyName, canWrite, propertyType)));
             }
         }
 
@@ -205,6 +205,20 @@ public sealed partial class CaptureStateSnapshotTool(SessionManager sessionManag
             warnings.Add($"Skipped {skippedDependencyProperties.Count} DependencyProperty capture request(s); inspect skippedDependencyProperties and call get_dp_value_source with exact propertyName values before retrying.");
         }
 
+        var skippedViewModelProperties = viewModelProperties
+            .Where(snapshot => !snapshot.CanRestore)
+            .Select(snapshot => new
+            {
+                propertyName = snapshot.PropertyName,
+                propertyType = snapshot.PropertyType,
+                reason = snapshot.SkipReason
+            })
+            .ToArray();
+        if (skippedViewModelProperties.Length > 0)
+        {
+            warnings.Add($"Skipped {skippedViewModelProperties.Length} complex ViewModel property restore(s); use a scalar property or capture the bound DependencyProperty used to select the value.");
+        }
+
         var snapshotId = $"snapshot_{Guid.NewGuid():N}";
         var snapshot = new StoredStateSnapshot(
             snapshotId,
@@ -241,6 +255,8 @@ public sealed partial class CaptureStateSnapshotTool(SessionManager sessionManag
                 restorableDependencyPropertyCount = dependencyProperties.Count(snapshot => snapshot.CanRestore),
                 skippedDependencyPropertyCount = dependencyProperties.Count(snapshot => !snapshot.CanRestore) + skippedDependencyProperties.Count,
                 viewModelPropertyCount = viewModelProperties.Count,
+                restorableViewModelPropertyCount = viewModelProperties.Count(snapshot => snapshot.CanRestore),
+                skippedViewModelPropertyCount = skippedViewModelProperties.Length,
                 capturedFocus = focus != null
             },
             snapshotCompleteness = new
@@ -249,6 +265,7 @@ public sealed partial class CaptureStateSnapshotTool(SessionManager sessionManag
                 validationBaselineCaptured = hasValidationBaseline
             },
             skippedDependencyProperties,
+            skippedViewModelProperties,
             warnings
         };
     }

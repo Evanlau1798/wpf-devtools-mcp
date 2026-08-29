@@ -5,20 +5,17 @@ internal static class StateMcpToolDescriptions
     private const string StateMetadata = "CATEGORY: State\n" + ToolDescriptionFragments.ConnectPrerequisite;
 
     public const string CaptureStateSnapshot =
-        "Use this tool to capture a WPF runtime state snapshot before mutations or multi-step debugging.\n\n" +
-        StateMetadata + "Capture a restorable runtime snapshot for a connected WPF process.\n\n" +
-        "USE WHEN: Before mutation-heavy debugging, demos, or regression flows where rollback matters.\n" +
-        "DO NOT USE: As durable persistence; snapshots are in-memory and session-scoped only.\n" +
-        "RETENTION: The server retains at most 20 snapshots per process for up to 30 minutes; capture a fresh snapshot before long mutation sequences.\n\n" +
-        "MINIMAL ROLLBACK CHAIN: capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot. Always pass the returned snapshotId explicitly to diff and restore.\n\n" +
-        "BOUND DP ROLLBACK: For Binding-backed or two-way DependencyProperty changes, capture both the target DP in propertyNames and the source property in viewModelPropertyNames. Set includeFocus=true when command validation, keyboard routing, or focused element state is part of the workflow.\n\n" +
+        "Capture connected WPF state before mutations. Snapshots are session-only (30 minutes; 20 per process).\n\n" +
+        StateMetadata +
+        "FLOW: capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot. Pass snapshotId to diff and restore.\n" +
+        "Binding-backed/two-way DP: capture propertyNames and viewModelPropertyNames; use includeFocus for focus or command state.\n" +
+        "VIEWMODEL LIMIT: Only scalar values restore deterministically. skippedViewModelProperties reports complex values; capture a scalar key or selection DP instead.\n\n" +
         "RESPONSE SUMMARY:\n" +
-        "  - success: boolean,\n" +
-        "  - snapshotId: string,\n" +
-        "  - snapshotSummary: { dependencyPropertyCount, skippedDependencyPropertyCount, viewModelPropertyCount, capturedFocus },\n" +
-        "  - skippedDependencyProperties: [{ propertyName, reason, errorCode }] when individual DependencyProperty captures are skipped but another requested state dimension is captured\n\n" +
-        "ERRORS:\n" +
-        "- \"propertyNames / viewModelPropertyNames / includeFocus required\" -> choose at least one capture dimension\n\n";
+        "  - success, snapshotId,\n" +
+        "  - snapshotSummary: { dependencyPropertyCount, skippedDependencyPropertyCount, viewModelPropertyCount, restorableViewModelPropertyCount, skippedViewModelPropertyCount, capturedFocus },\n" +
+        "  - skippedDependencyProperties: [{ propertyName, reason, errorCode }],\n" +
+        "  - skippedViewModelProperties: [{ propertyName, propertyType, reason }]\n\n" +
+        "ERROR: Choose propertyNames, viewModelPropertyNames, or includeFocus.\n\n";
 
     public const string RestoreStateSnapshot =
         "Restore a captured WPF runtime state snapshot.\n\n" +

@@ -122,7 +122,7 @@ Policy gate：destructive。使用此工具前，需設定 `WPFDEVTOOLS_MCP_ALLO
 - `propertyNames`、`viewModelPropertyNames` 與 `includeFocus` 決定要捕捉的 state。
 - `snapshotName`：可選 label。
 
-輸出欄位包含 `snapshotId` 與 `snapshotSummary`。Snapshot 存於記憶體、綁定 session，並且有保留數量與時間上限。
+輸出欄位包含 `snapshotId`、`snapshotSummary` 與 bounded skipped-property details。Snapshot 存於記憶體、綁定 session，並且有保留數量與時間上限。Scalar ViewModel value 可以還原；complex reference 仍可用於 diff evidence，但會立即列入 `skippedViewModelProperties`，因為 display text 無法重建 object identity。需要 deterministic rollback 時，請 capture scalar selection key 或 bound selection DependencyProperty。
 
 最小 rollback 鏈：`capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot`。請把回傳的 `snapshotId` 明確傳給 diff 與 restore 呼叫。
 

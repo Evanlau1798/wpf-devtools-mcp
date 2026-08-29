@@ -83,13 +83,8 @@ public sealed partial class CaptureStateSnapshotTool
     private static bool GetOptionalBool(JsonElement element, string propertyName) =>
         element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.True;
 
-    private static bool IsRestorableViewModelValue(string? propertyType, string? propertyValue)
+    private static bool IsRestorableViewModelValue(string? propertyType)
     {
-        if (propertyValue != null)
-        {
-            return true;
-        }
-
         if (string.IsNullOrWhiteSpace(propertyType))
         {
             return false;
@@ -98,7 +93,7 @@ public sealed partial class CaptureStateSnapshotTool
         return propertyType switch
         {
             "String" or "Boolean" or "Byte" or "SByte" or "Char" or "Decimal" or "Double" or "Single" or
-            "Int16" or "Int32" or "Int64" or "UInt16" or "UInt32" or "UInt64" or "DateTime" or "Guid" or
+            "Int16" or "Int32" or "Int64" or "UInt16" or "UInt32" or "UInt64" or "DateTime" or "DateTimeOffset" or "Guid" or
             "TimeSpan" or "Uri" => true,
             _ when propertyType.StartsWith("Nullable<", StringComparison.Ordinal) => true,
             _ => false
@@ -108,17 +103,16 @@ public sealed partial class CaptureStateSnapshotTool
     private static string? GetRestoreSkipReason(
         string propertyName,
         bool canWrite,
-        string? propertyType,
-        string? propertyValue)
+        string? propertyType)
     {
         if (!canWrite)
         {
             return $"Property '{propertyName}' is read-only or derived and cannot be restored via modify_viewmodel.";
         }
 
-        if (!IsRestorableViewModelValue(propertyType, propertyValue))
+        if (!IsRestorableViewModelValue(propertyType))
         {
-            return $"Property '{propertyName}' is a complex reference with a null snapshot value and cannot be deterministically restored via modify_viewmodel.";
+            return $"Property '{propertyName}' is a complex reference and cannot be deterministically restored from its display value via modify_viewmodel.";
         }
 
         return null;

@@ -338,8 +338,10 @@ public sealed class StateSnapshotToolTests : IDisposable
         snapshot.HasValidationBaseline.Should().BeFalse();
     }
 
-    [Fact]
-    public async Task CaptureStateSnapshot_ShouldMarkComplexNullViewModelPropertyAsNonRestorable()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("Mosaic Terrace")]
+    public async Task CaptureStateSnapshot_ShouldMarkComplexViewModelPropertyAsNonRestorable(string? propertyValue)
     {
         const int processId = 51006;
         using var connected = await CreateConnectedSessionAsync(
@@ -352,7 +354,7 @@ public sealed class StateSnapshotToolTests : IDisposable
                     typeName = "SampleViewModel",
                     properties = new[]
                     {
-                        new { name = "SelectedTask", type = "TaskItem", value = (string?)null, canWrite = true }
+                        new { name = "SelectedTask", type = "TaskItem", value = propertyValue, canWrite = true }
                     }
                 }),
                 JsonSerializer.Serialize(new
@@ -381,6 +383,11 @@ public sealed class StateSnapshotToolTests : IDisposable
         sessionManager.TryGetStateSnapshot(processId, snapshotId!, out var snapshot).Should().BeTrue();
         snapshot!.ViewModelProperties[0].CanRestore.Should().BeFalse();
         snapshot.ViewModelProperties[0].SkipReason.Should().Contain("complex reference");
+        var summary = captureResult.GetProperty("snapshotSummary");
+        summary.GetProperty("restorableViewModelPropertyCount").GetInt32().Should().Be(0);
+        summary.GetProperty("skippedViewModelPropertyCount").GetInt32().Should().Be(1);
+        captureResult.GetProperty("skippedViewModelProperties")[0]
+            .GetProperty("propertyName").GetString().Should().Be("SelectedTask");
     }
 
     [Fact]

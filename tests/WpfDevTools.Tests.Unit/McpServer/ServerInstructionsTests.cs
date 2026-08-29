@@ -27,6 +27,19 @@ public class ServerInstructionsTests
     }
 
     [Fact]
+    public void Value_ShouldGuideInteractiveSessionAccessBeforeEnvironmentFallback()
+    {
+        ServerInstructions.Value.Should().Contain("get_access_status");
+        ServerInstructions.Value.Should().Contain("request_session_access");
+        ServerInstructions.Value.Should().Contain("MCP elicitation");
+        ServerInstructions.Value.Should().Contain("same MCP session");
+        ServerInstructions.Value.Should().Contain("InteractiveConsentUnavailable");
+        ServerInstructions.Value.Should().Contain("hard ceiling");
+        ServerInstructions.Value.Should().NotContain(
+            "All common workflows assume WPFDEVTOOLS_MCP_ALLOWED_TARGETS");
+    }
+
+    [Fact]
     public void Value_ShouldContainParameterConventions()
     {
         ServerInstructions.Value.Should().Contain("PARAMETER CONVENTIONS");

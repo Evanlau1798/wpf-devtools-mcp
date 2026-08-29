@@ -36,16 +36,21 @@ public sealed partial class RestoreStateSnapshotTool(SessionManager sessionManag
         var progress = new RestoreProgress();
         try
         {
+            await RestoreDependencyPropertiesAsync(
+                processId,
+                sessionGeneration,
+                snapshot.DependencyProperties,
+                progress,
+                cancellationToken).ConfigureAwait(false);
             await RestoreViewModelPropertiesAsync(
                 processId,
                 sessionGeneration,
                 snapshot.ViewModelProperties,
                 progress,
                 cancellationToken).ConfigureAwait(false);
-            await RestoreDependencyPropertiesAsync(
+            await VerifyDependencyPropertiesAsync(
                 processId,
                 sessionGeneration,
-                snapshot.DependencyProperties,
                 progress,
                 cancellationToken).ConfigureAwait(false);
             progress.RestoredFocus = await RestoreFocusAsync(
@@ -108,17 +113,7 @@ public sealed partial class RestoreStateSnapshotTool(SessionManager sessionManag
 
                 if (IsSuccess(restoreResponse))
                 {
-                    var verification = await VerifyDependencyPropertyAsync(
-                        processId,
-                        sessionGeneration,
-                        snapshot,
-                        cancellationToken).ConfigureAwait(false);
-                    progress.RestoredDependencyProperties.Add(CreateDependencyPropertyVerificationResult(snapshot, verification));
-                    if (!verification.verified)
-                    {
-                        AddDependencyPropertyVerificationFailure(progress, snapshot);
-                    }
-
+                    progress.RestoredDependencyPropertySnapshots.Add(snapshot);
                     progress.RestoredDependencyPropertyCount++;
                     continue;
                 }
@@ -130,27 +125,7 @@ public sealed partial class RestoreStateSnapshotTool(SessionManager sessionManag
 
             if (!snapshot.CanRestore)
             {
-                var verification = await VerifyDependencyPropertyAsync(
-                    processId,
-                    sessionGeneration,
-                    snapshot,
-                    cancellationToken).ConfigureAwait(false);
-                progress.SkippedDependencyProperties.Add(new
-                {
-                    propertyName = snapshot.PropertyName,
-                    reason = snapshot.SkipReason ?? $"Property '{snapshot.PropertyName}' cannot be deterministically restored.",
-                    restoreDisposition = ClassifyDependencyPropertyRestoreDisposition(snapshot),
-                    verified = verification.verified,
-                    expectedValue = snapshot.CurrentValue,
-                    currentValue = verification.currentValue,
-                    verificationSkippedReason = verification.skippedReason
-                });
-
-                if (!verification.verified)
-                {
-                    AddDependencyPropertyVerificationFailure(progress, snapshot);
-                }
-
+                progress.SkippedDependencyPropertySnapshots.Add(snapshot);
                 continue;
             }
 
@@ -168,37 +143,27 @@ public sealed partial class RestoreStateSnapshotTool(SessionManager sessionManag
 
             if (IsSuccess(response))
             {
-                var verification = await VerifyDependencyPropertyAsync(
-                    processId,
-                    sessionGeneration,
-                    snapshot,
-                    cancellationToken).ConfigureAwait(false);
-                if (ShouldRetryClear(snapshot, verification))
+                if (!snapshot.HadLocalValue)
                 {
-                    var retryResponse = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
+                    var verification = await VerifyDependencyPropertyAsync(
                         processId,
                         sessionGeneration,
-                        "clear_dp_value",
-                        new { elementId = snapshot.ElementId, propertyName = snapshot.PropertyName },
-                        cancellationToken,
-                        piggybackPendingEvents: false).ConfigureAwait(false));
-                    ThrowIfStructuredRestoreFailure(retryResponse);
-                    if (IsSuccess(retryResponse))
+                        snapshot,
+                        cancellationToken).ConfigureAwait(false);
+                    if (ShouldRetryClear(snapshot, verification))
                     {
-                        verification = await VerifyDependencyPropertyAsync(
+                        var retryResponse = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
                             processId,
                             sessionGeneration,
-                            snapshot,
-                            cancellationToken).ConfigureAwait(false);
+                            "clear_dp_value",
+                            new { elementId = snapshot.ElementId, propertyName = snapshot.PropertyName },
+                            cancellationToken,
+                            piggybackPendingEvents: false).ConfigureAwait(false));
+                        ThrowIfStructuredRestoreFailure(retryResponse);
                     }
                 }
 
-                progress.RestoredDependencyProperties.Add(CreateDependencyPropertyVerificationResult(snapshot, verification));
-                if (!verification.verified)
-                {
-                    AddDependencyPropertyVerificationFailure(progress, snapshot);
-                }
-
+                progress.RestoredDependencyPropertySnapshots.Add(snapshot);
                 progress.RestoredDependencyPropertyCount++;
                 continue;
             }

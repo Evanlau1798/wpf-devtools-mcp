@@ -274,9 +274,9 @@ public sealed partial class StateSnapshotRestoreVerificationTests
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("warnings").GetArrayLength().Should().Be(0);
         connected.RequestMethods.Should().Equal(
+            "restore_dp_expression",
             "modify_viewmodel",
             "get_viewmodel",
-            "restore_dp_expression",
             "get_dp_value_source");
     }
 

@@ -152,6 +152,8 @@ public sealed partial class RestoreStateSnapshotTool
     private sealed class RestoreProgress
     {
         public int RestoredDependencyPropertyCount { get; set; }
+        public List<StoredDependencyPropertySnapshot> RestoredDependencyPropertySnapshots { get; } = [];
+        public List<StoredDependencyPropertySnapshot> SkippedDependencyPropertySnapshots { get; } = [];
         public List<object> RestoredDependencyProperties { get; } = [];
         public List<object> SkippedDependencyProperties { get; } = [];
         public int RestoredViewModelPropertyCount { get; set; }

@@ -22,6 +22,7 @@ public sealed class McpToolAttributeTests
 
     private static readonly string[] ExpectedPublishedToolNames =
     [
+        "get_access_status", "request_session_access",
         "get_processes", "connect", "ping",
         "get_visual_tree", "get_logical_tree", "serialize_to_xaml", "get_namescope", "get_template_tree", "compare_trees",
         "get_bindings", "get_binding_errors", "get_binding_value_chain", "get_datacontext_chain", "force_binding_update",
@@ -37,14 +38,14 @@ public sealed class McpToolAttributeTests
 
     private static readonly string[] ReadOnlyToolNames =
     [
-        "get_processes", "get_visual_tree", "get_logical_tree", "get_bindings", "get_binding_errors",
+        "get_access_status", "get_processes", "get_visual_tree", "get_logical_tree", "get_bindings", "get_binding_errors",
         "get_dp_value_source", "get_applied_styles", "get_event_handlers", "element_screenshot",
         "get_focus_state", "get_layout_info", "get_viewmodel", "get_render_stats", "wait_for_dp_change"
     ];
 
     private static readonly string[] DestructiveToolNames =
     [
-        "connect", "set_dp_value", "clear_dp_value", "click_element", "fire_routed_event",
+        "request_session_access", "connect", "set_dp_value", "clear_dp_value", "click_element", "fire_routed_event",
         "execute_command", "modify_viewmodel", "override_style_setter", "invalidate_layout",
         "drag_and_drop", "focus_element", "simulate_keyboard", "force_binding_update",
         "wait_for_dp_change_after_mutation", "scroll_to_element", "highlight_element",
@@ -193,6 +194,7 @@ public sealed class McpToolAttributeTests
 
     private static bool IsMcpExposedParameter(ParameterInfo parameter)
         => parameter.ParameterType != typeof(SessionManager)
+            && parameter.ParameterType != typeof(ModelContextProtocol.Server.McpServer)
             && parameter.ParameterType != typeof(CancellationToken);
 
     private static ToolMetadata GetRequiredTool(string name)

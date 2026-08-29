@@ -59,6 +59,10 @@ try
         authManager,
         transportSecurity.CertificateManager,
         sp.GetRequiredService<ILoggerFactory>().CreateLogger<SessionManager>()));
+    builder.Services.AddSingleton<SessionAccessGrantStore>();
+    builder.Services.AddSingleton(sp => SessionAccessScopeResolver.Create(
+        sp.GetRequiredService<SessionManager>()));
+    builder.Services.AddSingleton<SessionAccessRequestService>();
 
     // MCP Server configuration
     var toolPolicy = McpToolExecutionPolicy.FromEnvironment();

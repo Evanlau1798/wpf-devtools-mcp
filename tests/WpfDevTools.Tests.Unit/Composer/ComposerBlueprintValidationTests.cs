@@ -92,8 +92,9 @@ public sealed class ComposerBlueprintValidationTests
             var result = validator.Validate(blueprint);
 
             result.Success.Should().BeFalse();
-            result.Errors.Should().Contain(issue => issue.JsonPath == "$.layout.properties.rawXaml"
+            var unknownProperty = result.Errors.Single(issue => issue.JsonPath == "$.layout.properties.rawXaml"
                 && issue.Code == "UnknownProperty");
+            unknownProperty.AllowedProperties.Should().NotBeEmpty().And.HaveCountLessThanOrEqualTo(16);
             result.Warnings.Should().Contain(issue => issue.JsonPath == "$.packs[1]"
                 && issue.Code == "UnusedPack");
         }

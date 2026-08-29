@@ -50,6 +50,8 @@ internal sealed record BlueprintValidationIssue(
     string? ParentSlot)
 {
     public IReadOnlyList<string> RelatedJsonPaths { get; init; } = [];
+    public IReadOnlyList<string> AllowedProperties { get; init; } = [];
+    public bool AllowedPropertiesTruncated { get; init; }
     public string? ObservedValueKind { get; init; }
     public string? ExpectedJsonShape { get; init; }
 }

@@ -349,7 +349,7 @@ internal sealed partial class BlueprintValidationService(PackRegistry registry)
         {
             if (!block.Properties.TryGetValue(name, out var property))
             {
-                errors.Add(Issue($"{path}.properties.{name}", "UnknownProperty", $"Block '{block.Kind}' does not define property '{name}'.", $"Remove property '{name}' or update the pack contract."));
+                errors.Add(UnknownPropertyIssue(path, name, block));
                 continue;
             }
 
@@ -459,6 +459,23 @@ internal sealed partial class BlueprintValidationService(PackRegistry registry)
 
     private static string[] GetAllowedValues(UiBlockProperty property)
         => property.AllowedValues.Length > 0 ? property.AllowedValues : property.EnumValues;
+
+    private static BlueprintValidationIssue UnknownPropertyIssue(
+        string path,
+        string name,
+        UiBlockDefinition block)
+    {
+        var allowed = block.Properties.Keys.Order(StringComparer.Ordinal).Take(17).ToArray();
+        return Issue(
+            $"{path}.properties.{name}",
+            "UnknownProperty",
+            $"Block '{block.Kind}' does not define property '{name}'.",
+            $"Use an allowed property returned here or query get_ui_block_catalog for exact kind '{block.Kind}'.") with
+        {
+            AllowedProperties = allowed.Take(16).ToArray(),
+            AllowedPropertiesTruncated = allowed.Length > 16
+        };
+    }
 
     private static string BuildUnknownKindSuggestion(BlueprintValidationContext context, string packId)
         => context.PackKinds.TryGetValue(packId, out var kinds) && kinds.Length > 0

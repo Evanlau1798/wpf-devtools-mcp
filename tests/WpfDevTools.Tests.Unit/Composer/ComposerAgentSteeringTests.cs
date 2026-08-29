@@ -38,6 +38,8 @@ public sealed class ComposerAgentSteeringTests
 
         text.Should().Contain("brief-first");
         text.Should().Contain("optional accelerator");
+        text.Should().Contain("node bindings");
+        text.Should().Contain("root DependencyProperties");
         text.ToLowerInvariant().Should().NotContain("wpfui");
         text.ToLowerInvariant().Should().NotContain("fluentwindow");
     }

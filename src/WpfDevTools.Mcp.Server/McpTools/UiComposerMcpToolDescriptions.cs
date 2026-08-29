@@ -96,6 +96,7 @@ internal static class UiComposerMcpToolDescriptions
         - Large vocabularies return bounded matches plus total/match counts and truncation.
         - compositionSkeleton is a compact pack-neutral node derived from required properties and declared slots.
         - authoringGuidance keeps brief-first creative decisions independent; recipes remain optional accelerators.
+        - Use properties for declared fields; use node bindings for additional root DependencyProperties.
         - Source hints never copy third-party source text.
 
         REQUEST OPTIONS:

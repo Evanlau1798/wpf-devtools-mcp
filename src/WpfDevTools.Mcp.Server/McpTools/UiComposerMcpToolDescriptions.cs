@@ -281,7 +281,7 @@ internal static class UiComposerMcpToolDescriptions
         - propertyWarnings: supplied properties with exact blueprint JSON path, kind, name, message.
         - elementCorrelations: transient x:Name -> jsonPath/kind; never written into the blueprint.
         - layoutRiskSummary: attentionRequiredCount/minimumVisibleRatio/visibilityClassification; sliver<=15%, hidden uses canBringTargetIntoView; nearestScrollContainer gives scroll context. geometricClippingSeverity/visibleRatio=geometry. Reasons: ambiguous-authored-name, lookup-budget, runtime-match-ambiguous, runtime-not-realized, search-incomplete. runtime-not-realized means inactive or lazy content; requiresActiveStateInspection: inspect applied, built final app. namescopeOnlyCorrelationCount counts get_namescope namescope-only. RuntimeStructuralOverflowRisk=structural-overflow; RuntimeClippingDetected uses riskClassification=clipping. advisory+visibleContentImpact+requiresVisualConfirmation: confirm pixels.
-        - visualLayoutContractSummary: pack-neutral geometry/scrollbars with unresolved reason.
+        - visualLayoutContractSummary: pack-neutral full and effective visible bounds, visibleRatio, scrollbars, and unresolved reason; clipped regions are compared by visible bounds.
         - Compile failures map to line/column and renderer path; infrastructure failures stay at $.layout.
 
         REQUEST OPTIONS:

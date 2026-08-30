@@ -172,7 +172,8 @@ internal static class PreviewVisualLayoutContractAnalyzer
 {
     internal static PreviewVisualLayoutContractSummary Analyze(
         IReadOnlyList<PreviewRuntimeDiagnostic> diagnostics,
-        PreviewVisualLayoutContract? contract)
+        PreviewVisualLayoutContract? contract,
+        PreviewLayoutRiskSummary? layoutRiskSummary = null)
     {
         if (contract is null)
         {
@@ -193,7 +194,8 @@ internal static class PreviewVisualLayoutContractAnalyzer
             .Where(payload => TryGetString(payload, "elementName", out _))
             .GroupBy(payload => payload.GetProperty("elementName").GetString()!, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
-        var results = contract.Regions.Select(region => AnalyzeRegion(region, rootLayout, snapshots)).ToArray();
+        var visibility = PreviewVisualLayoutVisibility.Read(layoutRiskSummary);
+        var results = contract.Regions.Select(region => AnalyzeRegion(region, rootLayout, snapshots, visibility)).ToArray();
         var mismatchCount = results.Count(item => item.Status == "mismatch");
         var unresolvedCount = results.Count(item => item.Status == "unresolved");
         return new PreviewVisualLayoutContractSummary(
@@ -205,14 +207,15 @@ internal static class PreviewVisualLayoutContractAnalyzer
             UnresolvedCount: unresolvedCount,
             Regions: results,
             Guidance: mismatchCount == 0 && unresolvedCount == 0
-                ? "All declared visual regions match the preview contract. Recheck the applied final app."
+                ? "All declared visual regions match the preview contract, using effective visible bounds when clipping diagnostics are available. Recheck the applied final app."
                 : "Repair mismatched or unresolved regions before visual approval; this contract is pack-neutral geometry evidence.");
     }
 
     private static PreviewVisualLayoutRegionResult AnalyzeRegion(
         PreviewVisualLayoutRegion region,
         LayoutReading root,
-        IReadOnlyDictionary<string, JsonElement> snapshots)
+        IReadOnlyDictionary<string, JsonElement> snapshots,
+        IReadOnlyDictionary<string, PreviewVisualLayoutVisibilityReading> visibility)
     {
         if (!snapshots.TryGetValue(region.ElementName, out var snapshot))
         {
@@ -241,23 +244,40 @@ internal static class PreviewVisualLayoutContractAnalyzer
         var actualY = (layout.Y - root.Y) / root.Height;
         var actualWidth = layout.Width / root.Width;
         var actualHeight = layout.Height / root.Height;
-        var maximumDelta = new[]
-        {
-            Math.Abs(actualX - region.Bounds.X),
-            Math.Abs(actualY - region.Bounds.Y),
-            Math.Abs(actualWidth - region.Bounds.Width),
-            Math.Abs(actualHeight - region.Bounds.Height)
-        }.Max();
         var actual = new PreviewNormalizedBounds(
             Round(actualX),
             Round(actualY),
             Round(actualWidth),
             Round(actualHeight));
+        PreviewNormalizedBounds? actualVisible = null;
+        double? visibleRatio = null;
+        if (visibility.TryGetValue(region.ElementName, out var reading))
+        {
+            actualVisible = PreviewVisualLayoutVisibility.Apply(
+                actualX, actualY, layout.Width, layout.Height, root.Width, root.Height, reading);
+            visibleRatio = reading.VisibleRatio;
+        }
+
+        var comparison = actualVisible ?? actual;
+        var maximumDelta = new[]
+        {
+            Math.Abs(comparison.X - region.Bounds.X),
+            Math.Abs(comparison.Y - region.Bounds.Y),
+            Math.Abs(comparison.Width - region.Bounds.Width),
+            Math.Abs(comparison.Height - region.Bounds.Height)
+        }.Max();
         var scrollbarMismatches = ReadScrollbarMismatches(snapshot, region);
         var status = maximumDelta <= region.Tolerance && scrollbarMismatches.Count == 0
             ? "matched"
             : "mismatch";
-        return Result(region, status, actual, Round(maximumDelta), scrollbarMismatches);
+        return Result(
+            region,
+            status,
+            actual,
+            Round(maximumDelta),
+            scrollbarMismatches,
+            actualVisibleBounds: actualVisible,
+            visibleRatio: visibleRatio);
     }
 
     private static IReadOnlyList<string> ReadScrollbarMismatches(
@@ -322,7 +342,9 @@ internal static class PreviewVisualLayoutContractAnalyzer
         PreviewNormalizedBounds? actualBounds,
         double? maximumDelta,
         IReadOnlyList<string> scrollbarMismatches,
-        string? reason = null)
+        string? reason = null,
+        PreviewNormalizedBounds? actualVisibleBounds = null,
+        double? visibleRatio = null)
         => new(
             region.ElementName,
             status,
@@ -333,7 +355,9 @@ internal static class PreviewVisualLayoutContractAnalyzer
             region.HorizontalScrollbarChrome,
             region.VerticalScrollbarChrome,
             reason,
-            scrollbarMismatches);
+            scrollbarMismatches,
+            actualVisibleBounds,
+            visibleRatio);
 
     private static bool TryReadLayout(JsonElement? payload, bool requirePosition, out LayoutReading layout)
     {
@@ -471,4 +495,6 @@ internal sealed record PreviewVisualLayoutRegionResult(
     string ExpectedHorizontalScrollbarChrome,
     string ExpectedVerticalScrollbarChrome,
     string? Reason,
-    IReadOnlyList<string> ScrollbarMismatches);
+    IReadOnlyList<string> ScrollbarMismatches,
+    PreviewNormalizedBounds? ActualVisibleBounds,
+    double? VisibleRatio);

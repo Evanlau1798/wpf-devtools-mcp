@@ -124,7 +124,12 @@ public sealed class McpToolPrerequisiteDescriptionTests
             .Description;
 
         description.Should().Contain("resource-backed");
-        description.Should().ContainAll("visualLayoutContractJson", "pack-neutral", "visualLayoutContractSummary");
+        description.Should().ContainAll(
+            "visualLayoutContractJson",
+            "pack-neutral",
+            "visualLayoutContractSummary",
+            "effective visible bounds",
+            "visibleRatio");
         description.Should().Contain("{\"regions\":[{\"elementName\":\"PrimaryRegion\",\"bounds\":{\"x\":0.05,\"y\":0.05,\"width\":0.9,\"height\":0.5}}]}");
         description.Should().Contain("resource-backed, hybrid-resource-backed, structural, or not-available");
         description.Should().Contain("hash-checked before build");

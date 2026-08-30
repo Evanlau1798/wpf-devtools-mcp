@@ -191,7 +191,8 @@ internal sealed partial class UiBlueprintPreviewService(PackRegistry registry, S
                 request.VisualLayoutContract?.Regions.Select(region => region.ElementName));
             var visualLayoutContractSummary = PreviewVisualLayoutContractAnalyzer.Analyze(
                 previewHost.RuntimeDiagnostics ?? [],
-                request.VisualLayoutContract);
+                request.VisualLayoutContract,
+                layoutRiskSummary);
 
             return new PreviewBlueprintResult(
                 Success: true,

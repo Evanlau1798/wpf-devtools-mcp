@@ -10,7 +10,7 @@ internal sealed class BlueprintDraftStore
 {
     public const string ReferencePrefix = "wpfdevtools-blueprint-draft:";
     public const int DefaultMaxDrafts = 32;
-    public static readonly TimeSpan DefaultLifetime = TimeSpan.FromMinutes(30);
+    public static readonly TimeSpan DefaultLifetime = TimeSpan.FromHours(4);
 
     private readonly object _gate = new();
     private readonly Dictionary<string, DraftEntry> _entries = new(StringComparer.Ordinal);

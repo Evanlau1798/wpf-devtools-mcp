@@ -94,6 +94,33 @@ public sealed class ComposerPreviewVisualLayoutContractTests
     }
 
     [Fact]
+    public void Analyze_ShouldCompareViewportVisibleBoundsWhenRegionIsClipped()
+    {
+        PreviewVisualLayoutContractParser.TryParse(
+            """{"regions":[{"elementName":"PrimaryRegion","bounds":{"x":0.10,"y":0.08,"width":0.75,"height":0.52},"tolerance":0.01}]}""",
+            out var contract,
+            out _).Should().BeTrue();
+        var warning = new PreviewLayoutWarning(
+            "RuntimeClippingDetected", "$", "core.border", "PrimaryRegion", "Border_1",
+            "ancestor-layout-clip", "clipping", "unconfirmed-clipping", "advisory",
+            "not-determined", true,
+            JsonSerializer.SerializeToElement(new { left = 0, top = 0, right = 50, bottom = 0 }),
+            null) { VisibleRatio = 0.9375 };
+        var risks = new PreviewLayoutRiskSummary(1, 1, false, [warning]);
+
+        var summary = PreviewVisualLayoutContractAnalyzer.Analyze(
+            Diagnostics(actualHeight: 416, horizontalChrome: "Collapsed"),
+            contract,
+            risks);
+        var region = summary.Regions[0];
+
+        summary.Passed.Should().BeTrue();
+        region.ActualBounds!.Width.Should().Be(0.8);
+        region.ActualVisibleBounds!.Width.Should().Be(0.75);
+        region.VisibleRatio.Should().Be(0.9375);
+    }
+
+    [Fact]
     public void Analyze_ShouldExposeGeometryAndScrollbarMismatches()
     {
         PreviewVisualLayoutContractParser.TryParse(

@@ -98,7 +98,7 @@ If a tool signature, policy gate, or response schema changes, update the relevan
 
 These values are generated from the runtime MCP contract resources. If a tool is added or renamed, a method signature changes, policy gates move, or response fields change, the documentation tests require this snapshot to be regenerated.
 
-- `wpf://contracts/tools` SHA-256: `e1414ab03d1407f70623cd8c85543887f8918f30076aac40ca37150e26911419`
+- `wpf://contracts/tools` SHA-256: `08ae6cfd5320f5a23000b487501aa866456e274fd5e87f5ca379b690264377ab`
 - `wpf://contracts/response` SHA-256: `ed1fa6ec938a18f38093595c4386bc9a4c2c5ea48de697b3f0e75be6088880f9`
 - Validation scope: `toolCount`, `name`, `title`, `parameters`, parameter `constraints`, `requiredParameters`, `inputSchemaHash`, `outputSchemaHash`, `capabilityTags`, `policyCapabilityTags`, `annotations`, `parameterConstraints`, `parameterVocabularies`, and `highValueTools`.
 

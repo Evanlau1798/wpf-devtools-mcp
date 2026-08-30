@@ -59,7 +59,7 @@ public static class ToolErrorFactory
     public static ToolErrorPayload ElementNotClickable(string elementType) => Create(
         ToolErrorCode.ElementNotClickable,
         "Element is not clickable",
-        $"Target a ButtonBase descendant or TabItem instead. Current elementType is '{elementType}'.",
+        $"Target a ButtonBase descendant, TabItem, or standard selectable item container instead. Current elementType is '{elementType}'.",
         new { elementType });
 
     /// <summary>

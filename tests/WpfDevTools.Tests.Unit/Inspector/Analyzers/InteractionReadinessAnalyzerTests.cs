@@ -92,7 +92,7 @@ public sealed class InteractionReadinessAnalyzerTests
     }
 
     [StaFact]
-    public void GetInteractionReadiness_WhenClickElementCannotClickTarget_ShouldReportUnsupportedClickTarget()
+    public void GetInteractionReadiness_WhenTargetIsSelectableItem_ShouldReportReady()
     {
         var finder = new ElementFinder();
         var analyzer = new InteractionAnalyzer(finder);
@@ -108,9 +108,7 @@ public sealed class InteractionReadinessAnalyzerTests
         var result = JsonSerializer.SerializeToElement(analyzer.GetInteractionReadiness(elementId, "Click"));
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
-        result.GetProperty("isReady").GetBoolean().Should().BeFalse();
-        result.GetProperty("blockers").EnumerateArray()
-            .Select(item => item.GetProperty("reason").GetString())
-            .Should().Contain("ClickTargetUnsupported");
+        result.GetProperty("isReady").GetBoolean().Should().BeTrue(result.GetRawText());
+        result.GetProperty("blockers").GetArrayLength().Should().Be(0);
     }
 }

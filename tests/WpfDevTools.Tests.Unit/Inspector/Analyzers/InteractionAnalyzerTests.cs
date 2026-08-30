@@ -79,6 +79,35 @@ public class InteractionAnalyzerTests
     }
 
     [StaFact]
+    public void ClickElement_WithDataGridRow_ShouldSelectRow()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 300, Height = 200 };
+        var dataGrid = new DataGrid { ItemsSource = new[] { "First", "Second" } };
+        window.Content = dataGrid;
+        window.Show();
+
+        try
+        {
+            dataGrid.ScrollIntoView(dataGrid.Items[1]);
+            dataGrid.UpdateLayout();
+            var row = (DataGridRow)dataGrid.ItemContainerGenerator.ContainerFromIndex(1);
+            var elementId = finder.GenerateElementId(row);
+
+            var result = JsonSerializer.SerializeToElement(analyzer.ClickElement(elementId));
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue(result.GetRawText());
+            dataGrid.SelectedIndex.Should().Be(1);
+            dataGrid.SelectedItem.Should().Be("Second");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
     public void ClickElement_WithButtonCommand_ShouldExecuteCommandExactlyOnce()
     {
         var finder = new ElementFinder();

@@ -96,6 +96,25 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                     };
                 }
 
+                if (element is FrameworkElement itemContainer && IsSelectableItemContainer(itemContainer))
+                {
+                    var readinessError = CreateClickReadinessError(itemContainer, elementId);
+                    if (readinessError is not null)
+                    {
+                        return readinessError;
+                    }
+
+                    Selector.SetIsSelected(itemContainer, true);
+                    itemContainer.Focus();
+
+                    return new
+                    {
+                        success = true,
+                        message = "Collection item selected successfully",
+                        elementType = element.GetType().Name
+                    };
+                }
+
                 return ToolErrorFactory.ElementNotClickable(element.GetType().Name);
             }
             catch (Exception ex)
@@ -107,6 +126,9 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
             }
         });
     }
+
+    private static bool IsSelectableItemContainer(FrameworkElement element)
+        => element is ListBoxItem or DataGridRow or TreeViewItem;
 
     private object? CreateClickReadinessError(FrameworkElement element, string? elementId)
     {

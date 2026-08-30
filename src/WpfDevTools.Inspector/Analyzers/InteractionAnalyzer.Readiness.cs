@@ -72,11 +72,12 @@ public sealed partial class InteractionAnalyzer
 
             if (IsClickInteraction(normalizedInteractionType)
                 && frameworkElement is not ButtonBase
-                && frameworkElement is not TabItem)
+                && frameworkElement is not TabItem
+                && !IsSelectableItemContainer(frameworkElement))
             {
                 blockers.Add(CreateBlocker(
                     "ClickTargetUnsupported",
-                    "click_element supports ButtonBase and TabItem targets. Choose a clickable child, use focus_element, or inspect the element snapshot before interacting."));
+                    "click_element supports ButtonBase, TabItem, and standard selectable item-container targets. Choose a clickable child, use focus_element, or inspect the element snapshot before interacting."));
             }
 
             var resolvedElementId = elementId ?? _elementFinder.GenerateElementId(frameworkElement);

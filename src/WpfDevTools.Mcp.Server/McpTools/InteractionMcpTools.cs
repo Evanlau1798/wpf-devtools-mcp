@@ -18,7 +18,7 @@ public static class InteractionMcpTools
     [Description(InteractionMcpToolDescriptions.ClickElement)]
     public static Task<CallToolResult> ClickElement(
         SessionManager sessionManager,
-        [Description("Element ID of the clickable control.")] string elementId,
+        [Description("Clickable control or item-container ID.")] string elementId,
         [Description(ToolDescriptionFragments.ActiveProcessIdParameter)] int? processId = null,
         [AllowedValues("compact", "minimal", "verbose", "standard")]
         [Description(ToolDescriptionFragments.SuccessDetailParameter)] string? detail = null,

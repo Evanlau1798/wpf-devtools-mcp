@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Collections;
 using System.Reflection;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows;
@@ -167,6 +168,39 @@ public sealed class DependencyPropertyExpressionRollbackTests
     }
 
     [StaFact]
+    public void RestoreExpression_ShouldPreserveCapturedReferenceIdentity_ForTwoWaySelection()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new DependencyPropertyAnalyzer(finder);
+        var original = new SelectionOption("Original");
+        var replacement = new SelectionOption("Replacement");
+        var viewModel = new SelectionViewModel { Selected = original };
+        var comboBox = new ComboBox
+        {
+            DataContext = viewModel,
+            ItemsSource = new[] { original, replacement }
+        };
+        BindingOperations.SetBinding(comboBox, Selector.SelectedItemProperty, new Binding(nameof(SelectionViewModel.Selected))
+        {
+            Mode = BindingMode.TwoWay,
+            UpdateSourceTrigger = UpdateSourceTrigger.Explicit
+        });
+        var elementId = finder.GenerateElementId(comboBox);
+        var captureResult = JsonSerializer.SerializeToElement(
+            analyzer.CaptureExpressionRestore("SelectedItem", elementId));
+        var restoreToken = captureResult.GetProperty("restoreToken").GetString();
+        viewModel.Selected = replacement;
+        comboBox.GetBindingExpression(Selector.SelectedItemProperty)!.UpdateTarget();
+
+        var restoreResult = JsonSerializer.SerializeToElement(
+            analyzer.RestoreExpression("SelectedItem", restoreToken!, elementId));
+
+        restoreResult.GetProperty("success").GetBoolean().Should().BeTrue(restoreResult.GetRawText());
+        viewModel.Selected.Should().BeSameAs(original);
+        comboBox.SelectedItem.Should().BeSameAs(original);
+    }
+
+    [StaFact]
     public void RestoreExpression_ShouldRestoreTemplateBindingBaseSource_AfterSetValueReplacedIt()
     {
         var finder = new ElementFinder();
@@ -259,6 +293,13 @@ public sealed class DependencyPropertyExpressionRollbackTests
     private sealed class VisibilityViewModel
     {
         public bool IsGhostVisible { get; init; }
+    }
+
+    private sealed record SelectionOption(string Name);
+
+    private sealed class SelectionViewModel
+    {
+        public SelectionOption? Selected { get; set; }
     }
 
     private sealed class TemplateHost : Control

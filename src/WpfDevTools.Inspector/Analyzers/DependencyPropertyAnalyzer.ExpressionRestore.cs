@@ -158,12 +158,16 @@ public sealed partial class DependencyPropertyAnalyzer
             _ => bindingBase.GetType().Name
         };
 
+        var targetValue = depObj.GetValue(dp);
         _capturedExpressions[restoreToken] = new CapturedExpressionState(
             new WeakReference<DependencyObject>(depObj),
             dp,
             clonedBinding,
             expressionKind,
-            FormatResponseValue(depObj.GetValue(dp)),
+            FormatResponseValue(targetValue),
+            targetValue is not null && !targetValue.GetType().IsValueType
+                ? new WeakReference<object>(targetValue)
+                : null,
             valueSource.BaseValueSource);
         RememberLatestRollbackToken(depObj, dp, requestElementId, requestPropertyName, restoreToken);
         CleanupCapturedExpressionsIfNeeded();
@@ -373,6 +377,7 @@ public sealed partial class DependencyPropertyAnalyzer
         BindingBase Binding,
         string ExpressionKind,
         string? CapturedTargetValue,
+        WeakReference<object>? CapturedTargetObject,
         BaseValueSource BaseValueSource);
 
     private static bool TryRestoreParentTemplateExpression(
@@ -454,7 +459,14 @@ public sealed partial class DependencyPropertyAnalyzer
             return;
         }
 
-        var restoreValue = hasTargetValue ? targetValue : capturedState.CapturedTargetValue;
+        object? restoreValue = targetValue;
+        if (!hasTargetValue)
+        {
+            restoreValue = capturedState.CapturedTargetObject is { } reference &&
+                reference.TryGetTarget(out var capturedTarget)
+                    ? capturedTarget
+                    : capturedState.CapturedTargetValue;
+        }
         try
         {
             depObj.SetCurrentValue(dp, ConvertValue(restoreValue, dp.PropertyType));
@@ -473,26 +485,4 @@ public sealed partial class DependencyPropertyAnalyzer
         _ => false
     };
 
-    private static BindingBase? CreatePreviewRestoreBinding(BindingBase bindingBase) => bindingBase switch
-    {
-        Binding binding => CreatePreviewBinding(binding),
-        MultiBinding multiBinding => CreatePreviewMultiBinding(multiBinding),
-        _ => null
-    };
-
-    private static Binding CreatePreviewBinding(Binding source)
-    {
-        var preview = CloneBinding(source);
-        preview.Mode = BindingMode.OneWay;
-        preview.UpdateSourceTrigger = UpdateSourceTrigger.Explicit;
-        return preview;
-    }
-
-    private static MultiBinding CreatePreviewMultiBinding(MultiBinding source)
-    {
-        var preview = CloneMultiBinding(source);
-        preview.Mode = BindingMode.OneWay;
-        preview.UpdateSourceTrigger = UpdateSourceTrigger.Explicit;
-        return preview;
-    }
 }

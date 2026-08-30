@@ -281,10 +281,11 @@ public sealed partial class StateSnapshotRestoreVerificationTests
     }
 
     [Fact]
-    public async Task RestoreStateSnapshot_ShouldPassCapturedValueWhenRestoringBindingExpression()
+    public async Task RestoreStateSnapshot_ShouldLetBindingTokenRestoreCapturedReferenceIdentity()
     {
         var processId = NextSyntheticProcessId();
-        var boundSourceValue = "CodexE2E-DP";
+        var boundSourceValue = "Replacement";
+        var requestIncludedTargetValue = false;
         using var connected = await CreateConnectedSessionAsync(
             processId,
             request =>
@@ -292,10 +293,8 @@ public sealed partial class StateSnapshotRestoreVerificationTests
                 switch (request.Method)
                 {
                     case "restore_dp_expression":
-                        if (request.Params!.Value.TryGetProperty("targetValue", out var targetValue))
-                        {
-                            boundSourceValue = targetValue.GetString()!;
-                        }
+                        requestIncludedTargetValue = request.Params!.Value.TryGetProperty("targetValue", out _);
+                        boundSourceValue = "Original";
 
                         return new
                         {
@@ -328,7 +327,7 @@ public sealed partial class StateSnapshotRestoreVerificationTests
                     "Text",
                     HadLocalValue: false,
                     LocalValue: null,
-                    CurrentValue: "",
+                    CurrentValue: "Original",
                     BaseValueSource: "TemplateBinding",
                     IsExpression: true,
                     ExpressionRestoreToken: "binding-token",
@@ -340,6 +339,7 @@ public sealed partial class StateSnapshotRestoreVerificationTests
 
         result.GetProperty("success").GetBoolean().Should().BeTrue();
         result.GetProperty("warnings").GetArrayLength().Should().Be(0);
+        requestIncludedTargetValue.Should().BeFalse();
         connected.RequestMethods.Should().Equal("restore_dp_expression", "get_dp_value_source");
     }
 

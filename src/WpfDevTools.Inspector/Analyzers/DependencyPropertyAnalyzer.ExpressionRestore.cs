@@ -223,8 +223,8 @@ public sealed partial class DependencyPropertyAnalyzer
                     depObj,
                     dp,
                     capturedState,
-                    targetValue,
-                    hasTargetValue,
+                    ResolveRestoreValue(capturedState, targetValue, hasTargetValue),
+                    hasTargetValue: true,
                     out expressionKind,
                     out currentValue,
                     out restoreError);
@@ -459,14 +459,7 @@ public sealed partial class DependencyPropertyAnalyzer
             return;
         }
 
-        object? restoreValue = targetValue;
-        if (!hasTargetValue)
-        {
-            restoreValue = capturedState.CapturedTargetObject is { } reference &&
-                reference.TryGetTarget(out var capturedTarget)
-                    ? capturedTarget
-                    : capturedState.CapturedTargetValue;
-        }
+        var restoreValue = ResolveRestoreValue(capturedState, targetValue, hasTargetValue);
         try
         {
             depObj.SetCurrentValue(dp, ConvertValue(restoreValue, dp.PropertyType));
@@ -484,5 +477,15 @@ public sealed partial class DependencyPropertyAnalyzer
         MultiBinding binding => binding.Mode is not BindingMode.OneWay and not BindingMode.OneTime,
         _ => false
     };
+
+    private static object? ResolveRestoreValue(
+        CapturedExpressionState capturedState,
+        object? targetValue,
+        bool hasTargetValue) =>
+        hasTargetValue
+            ? targetValue
+            : capturedState.CapturedTargetObject is { } reference && reference.TryGetTarget(out var capturedTarget)
+                ? capturedTarget
+                : capturedState.CapturedTargetValue;
 
 }

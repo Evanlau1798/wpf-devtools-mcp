@@ -28,6 +28,12 @@
       "required": false,
       "type": "binding"
     },
+    "fontSize": {
+      "description": "Optional Button label size in device-independent pixels. Use a measured larger value when a dominant media action needs stronger readable hierarchy.",
+      "minimum": 1,
+      "maximum": 200,
+      "type": "number"
+    },
     "horizontalAlignment": {
       "description": "Horizontal alignment of the Button inside its parent layout.",
       "default": "Left",

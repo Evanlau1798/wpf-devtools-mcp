@@ -30,6 +30,12 @@
       "required": false,
       "type": "boolean"
     },
+    "minHeight": {
+      "description": "Minimum row height in device-independent pixels. Keep the 50 DIP upstream baseline or reduce it deliberately for a measured compact navigation layout.",
+      "default": 50,
+      "minimum": 0,
+      "type": "number"
+    },
     "targetPageTag": {
       "description": "Stable destination tag used by the application's navigation logic.",
       "required": false,
@@ -38,7 +44,7 @@
   },
   "slots": {
     "content": {
-      "description": "Visible label content. Put one core.text or wpfui.textBlock under slots.content; properties.content is not supported.",
+      "description": "Visible label content. Put one core.text or wpfui.textBlock under slots.content; properties.content is not supported. For a persistent single-line label, use wpfui.textBlock with textWrapping=NoWrap and size the parent navigationView.openPaneLength for the longest label.",
       "maxItems": 1,
       "allowedKinds": [
         "core.text",

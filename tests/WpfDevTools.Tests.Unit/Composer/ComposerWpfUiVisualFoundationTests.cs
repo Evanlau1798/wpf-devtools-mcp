@@ -33,6 +33,40 @@ public sealed class ComposerWpfUiVisualFoundationTests
     }
 
     [Fact]
+    public void WpfUiNavigationAndActionContracts_ShouldExposeNativeSizing()
+    {
+        var catalog = new BlockCatalogService(CreateRegistry())
+            .GetCatalog(new BlockCatalogQuery(PackIds: ["wpfui"]));
+        var navigationItem = catalog.Items.Single(item => item.Kind == "wpfui.navigationViewItem");
+        var button = catalog.Items.Single(item => item.Kind == "wpfui.button");
+
+        navigationItem.Properties["minHeight"].Default!.ToString().Should().Be("50");
+        navigationItem.Slots["content"].Description.Should().Contain("NoWrap")
+            .And.Contain("openPaneLength");
+        button.Properties["fontSize"].Minimum.Should().Be(1);
+
+        var result = Render("""
+            {
+              "kind": "core.stack",
+              "slots": {
+                "children": [
+                  {
+                    "kind": "wpfui.navigationViewItem",
+                    "properties": { "minHeight": 44 },
+                    "slots": { "content": [{ "kind": "core.text", "properties": { "text": "Workshops" } }] }
+                  },
+                  { "kind": "wpfui.button", "properties": { "text": "Reserve", "fontSize": 16 } }
+                ]
+              }
+            }
+            """);
+
+        result.Success.Should().BeTrue(result.Errors.FirstOrDefault()?.Message);
+        result.Xaml.Should().Contain("<ui:NavigationViewItem").And.Contain("MinHeight=\"44\"")
+            .And.Contain("<ui:Button Content=\"Reserve\"").And.Contain("FontSize=\"16\"");
+    }
+
+    [Fact]
     public void WpfUiCatalog_ShouldExposeSupportedTabContractsAndExcludeHostBackedControls()
     {
         var items = new BlockCatalogService(CreateRegistry())

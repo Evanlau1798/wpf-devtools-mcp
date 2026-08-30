@@ -498,3 +498,7 @@ check_pack_readiness.py --level release (both new slots required)
 exit code: 0; valid: true; errors: 0; warnings: 0
 ```
 The beta.148 blind review found custom identity text aligned differently from its neighboring icon. `wpfui.textBlock` now exposes native `VerticalAlignment` for any parent layout; no title-bar or application-specific engine behavior was added. Strict validation and coverage passed, and the refreshed 48-entry archive SHA-256 is `86F48E930AD076573C3F405C8F0FDD500E168C27E279BDE79FB8DCF39E7FEEB8`.
+
+## Navigation And Action Sizing Maintenance
+
+Repeated blind E2E runs exposed two pack-contract gaps: NavigationViewItem rendered a fixed 50-DIP minimum height that the catalog did not declare, and Button did not expose its native FontSize for readable dominant actions. Both values are now ordinary pack properties, navigation label guidance points to the existing NoWrap and openPaneLength controls, and Composer remains pack-neutral. Strict validation and release readiness passed; the refreshed 48-entry archive SHA-256 is `7E522F211225766F7669793F15DD7E27F9FA49E5944234D4F0E8D4446AA71B34`.

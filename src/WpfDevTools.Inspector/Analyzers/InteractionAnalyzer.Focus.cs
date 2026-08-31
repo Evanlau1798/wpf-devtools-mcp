@@ -95,6 +95,55 @@ public sealed partial class InteractionAnalyzer
         });
     }
 
+    /// <summary>
+    /// Clear keyboard and logical focus within the resolved window.
+    /// </summary>
+    internal object ClearFocus(string? elementId = null)
+    {
+        return InvokeOnUIThread<object>(() =>
+        {
+            var scopedElement = elementId == null ? null : _elementFinder.FindById(elementId);
+            if (elementId != null && scopedElement == null)
+            {
+                return ToolErrorFactory.ElementNotFound(elementId);
+            }
+
+            var window = ResolveFocusWindow(scopedElement);
+            var keyboardFocus = Keyboard.FocusedElement as DependencyObject;
+            var focusScope = keyboardFocus != null ? FocusManager.GetFocusScope(keyboardFocus) : window;
+
+            Keyboard.ClearFocus();
+            if (focusScope != null)
+            {
+                FocusManager.SetFocusedElement(focusScope, null);
+            }
+
+            if (window != null && !ReferenceEquals(window, focusScope))
+            {
+                FocusManager.SetFocusedElement(window, null);
+            }
+
+            var keyboardCleared = Keyboard.FocusedElement == null;
+            var logicalCleared = (focusScope == null || FocusManager.GetFocusedElement(focusScope) == null)
+                && (window == null || FocusManager.GetFocusedElement(window) == null);
+            if (!keyboardCleared || !logicalCleared)
+            {
+                return ToolErrorFactory.OperationFailed(
+                    "clear focus",
+                    new InvalidOperationException("Keyboard or logical focus remained active."),
+                    "Inspect get_focus_state and ensure the active window allows focus to be cleared before retrying restore_state_snapshot.");
+            }
+
+            return new
+            {
+                success = true,
+                cleared = true,
+                keyboardFocusCleared = true,
+                logicalFocusCleared = true
+            };
+        });
+    }
+
     private static Window? ResolveFocusWindow(object? scopedElement)
     {
         if (scopedElement is Window scopedWindow)

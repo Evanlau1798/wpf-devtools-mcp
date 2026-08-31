@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using FluentAssertions;
 using WpfDevTools.Inspector.Analyzers;
+using WpfDevTools.Inspector.Host.Handlers;
 using WpfDevTools.Inspector.Utilities;
 using Xunit;
 
@@ -62,6 +63,40 @@ public sealed class InteractionFocusContractTests
             focusResult.GetProperty("success").GetBoolean().Should().BeTrue();
             focusResult.GetProperty("focused").GetBoolean().Should().BeTrue();
             stateResult.GetProperty("focusedElementId").GetString().Should().Be(secondId);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [StaFact]
+    public void ClearFocus_ShouldClearKeyboardAndLogicalFocus()
+    {
+        var finder = new ElementFinder();
+        var analyzer = new InteractionAnalyzer(finder);
+        var window = new Window { Width = 240, Height = 180 };
+        var textBox = new TextBox();
+        window.Content = textBox;
+        window.Show();
+
+        try
+        {
+            FocusManager.SetFocusedElement(window, textBox);
+            Keyboard.Focus(textBox);
+            var windowId = finder.GenerateElementId(window);
+
+            var handler = new InteractionHandlers(analyzer);
+            var clearResult = JsonSerializer.SerializeToElement(handler.HandleAsync(
+                "clear_focus",
+                JsonSerializer.SerializeToElement(new { elementId = windowId }),
+                CancellationToken.None).GetAwaiter().GetResult());
+            var stateResult = JsonSerializer.SerializeToElement(analyzer.GetFocusState(windowId));
+
+            clearResult.GetProperty("success").GetBoolean().Should().BeTrue();
+            clearResult.GetProperty("cleared").GetBoolean().Should().BeTrue();
+            stateResult.GetProperty("focusKind").GetString().Should().Be("None");
+            stateResult.GetProperty("focusedElementId").ValueKind.Should().Be(JsonValueKind.Null);
         }
         finally
         {

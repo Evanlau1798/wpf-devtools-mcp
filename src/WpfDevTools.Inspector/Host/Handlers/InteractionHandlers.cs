@@ -31,6 +31,7 @@ public class InteractionHandlers : IRequestHandler
             "get_interaction_readiness",
             "get_focus_state",
             "focus_element",
+            "clear_focus",
             "scroll_to_element",
             "element_screenshot",
             "drag_and_drop",
@@ -54,6 +55,7 @@ public class InteractionHandlers : IRequestHandler
             "get_interaction_readiness" => await HandleGetInteractionReadinessAsync(@params, cancellationToken).ConfigureAwait(false),
             "get_focus_state" => await HandleGetFocusStateAsync(@params, cancellationToken).ConfigureAwait(false),
             "focus_element" => await HandleFocusElementAsync(@params, cancellationToken).ConfigureAwait(false),
+            "clear_focus" => await HandleClearFocusAsync(@params, cancellationToken).ConfigureAwait(false),
             "scroll_to_element" => await HandleScrollToElementAsync(@params, cancellationToken).ConfigureAwait(false),
             "element_screenshot" => await HandleElementScreenshotAsync(@params, cancellationToken).ConfigureAwait(false),
             "drag_and_drop" => await HandleDragAndDropAsync(@params, cancellationToken).ConfigureAwait(false),
@@ -94,6 +96,13 @@ public class InteractionHandlers : IRequestHandler
 
         await Task.CompletedTask;
         return _interactionAnalyzer.FocusElement(elementId);
+    }
+
+    private async Task<object> HandleClearFocusAsync(JsonElement? @params, CancellationToken cancellationToken)
+    {
+        var elementId = ParameterHelpers.GetStringParam(@params, "elementId");
+        await Task.CompletedTask;
+        return _interactionAnalyzer.ClearFocus(elementId);
     }
 
     private async Task<object> HandleScrollToElementAsync(JsonElement? @params, CancellationToken cancellationToken)

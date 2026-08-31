@@ -295,36 +295,6 @@ public sealed partial class RestoreStateSnapshotTool(SessionManager sessionManag
         return (string.Equals(currentValue, snapshot.Value, StringComparison.Ordinal), currentValue, null);
     }
 
-    private async Task<bool> RestoreFocusAsync(
-        int processId,
-        long sessionGeneration,
-        StoredFocusSnapshot? snapshot,
-        List<string> warnings,
-        CancellationToken cancellationToken)
-    {
-        if (snapshot?.FocusedElementId == null)
-        {
-            return false;
-        }
-
-        var response = JsonSerializer.SerializeToElement(await SendInspectorRequestAsync(
-            processId,
-            sessionGeneration,
-            "focus_element",
-            new { elementId = snapshot.FocusedElementId },
-            cancellationToken,
-            piggybackPendingEvents: false).ConfigureAwait(false));
-
-        if (IsSuccess(response))
-        {
-            return true;
-        }
-
-        ThrowIfStructuredRestoreFailure(response);
-        warnings.Add("Focus restore failed.");
-        return false;
-    }
-
     private async Task<(bool verified, string? currentValue, bool? currentIsExpression, string? currentBaseValueSource, string? skippedReason)> VerifyDependencyPropertyAsync(
         int processId,
         long sessionGeneration,

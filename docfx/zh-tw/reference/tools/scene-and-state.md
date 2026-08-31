@@ -203,6 +203,8 @@ Policy gate：destructive。使用此工具前，需設定 `WPFDEVTOOLS_MCP_ALLO
 
 輸出欄位包含 restored / skipped DependencyProperty values、restored / skipped ViewModel properties、focus restoration、warnings 與 verification flags。
 
+有擷取 focus 時，`restoredFocus=true` 代表最後一次 `get_focus_state` readback 已符合 baseline。若 baseline 原本沒有 focused element，restore 會清除 keyboard 與 logical focus。Mutation 或 readback mismatch 會 fail closed、保留 snapshot 並回傳 warning。
+
 最小 rollback 鏈：`capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot`。
 
 範例：

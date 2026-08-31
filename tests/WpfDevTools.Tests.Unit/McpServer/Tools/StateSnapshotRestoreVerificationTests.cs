@@ -346,14 +346,15 @@ public sealed partial class StateSnapshotRestoreVerificationTests
     private static StoredStateSnapshot CreateSnapshot(
         string snapshotId,
         IReadOnlyList<StoredDependencyPropertySnapshot>? dependencyProperties = null,
-        IReadOnlyList<StoredViewModelPropertySnapshot>? viewModelProperties = null) =>
+        IReadOnlyList<StoredViewModelPropertySnapshot>? viewModelProperties = null,
+        StoredFocusSnapshot? focus = null) =>
         new(
             snapshotId,
             SnapshotName: null,
             ElementId: null,
             dependencyProperties ?? [],
             viewModelProperties ?? [],
-            Focus: null,
+            Focus: focus,
             BindingErrors: [],
             HasBindingErrorBaseline: true,
             ValidationErrors: [],

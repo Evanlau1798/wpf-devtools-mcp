@@ -18,7 +18,7 @@ public sealed class RequestDispatcherRegistryTests : IDisposable
         (typeof(MvvmHandlers), ["get_viewmodel", "get_commands", "execute_command", "modify_viewmodel", "get_validation_errors"]),
         (typeof(DependencyPropertyHandlers), ["get_dp_value_source", "get_dp_metadata", "set_dp_value", "clear_dp_value", "capture_dp_expression_restore", "restore_dp_expression", "watch_dp_changes", "wait_for_dp_change"]),
         (typeof(LayoutHandlers), ["get_layout_info", "get_clipping_info", "diagnose_visibility", "highlight_element", "invalidate_layout"]),
-        (typeof(InteractionHandlers), ["click_element", "get_interaction_readiness", "get_focus_state", "focus_element", "scroll_to_element", "element_screenshot", "drag_and_drop", "simulate_keyboard"]),
+        (typeof(InteractionHandlers), ["click_element", "get_interaction_readiness", "get_focus_state", "focus_element", "clear_focus", "scroll_to_element", "element_screenshot", "drag_and_drop", "simulate_keyboard"]),
         (typeof(StyleHandlers), ["get_applied_styles", "get_triggers", "get_resource_chain", "override_style_setter"]),
         (typeof(EventHandlers), ["trace_routed_events", "get_event_handlers", "fire_routed_event", "drain_events"]),
         (typeof(PerformanceHandlers), ["get_render_stats", "find_binding_leaks", "measure_element_render_time", "get_visual_count"]),

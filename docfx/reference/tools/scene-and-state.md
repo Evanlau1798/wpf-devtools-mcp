@@ -203,6 +203,8 @@ Parameters:
 
 Output fields include restored and skipped DependencyProperty values, restored and skipped ViewModel properties, focus restoration, warnings, and verification flags.
 
+When focus was captured, `restoredFocus=true` means the final `get_focus_state` read-back matched the baseline. A baseline with no focused element is restored by clearing keyboard and logical focus. A mutation or read-back mismatch fails closed, retains the snapshot, and returns a warning.
+
 Minimal rollback chain: `capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot`.
 
 Example:

@@ -119,6 +119,39 @@ public sealed class ComposerContractTests
     }
 
     [Fact]
+    public void UiBlockContract_ShouldPreservePreviewWarningValuesAndExposeThemInSchema()
+    {
+        var block = ComposerJsonLoader.Parse<UiBlockDefinition>(
+            """
+            {
+              "schemaVersion": "wpfdevtools.ui-block.v1",
+              "kind": "sample.panel",
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "previewWarning": "Check the selected mode.",
+                  "previewWarningValues": ["Compact", 2, true]
+                }
+              }
+            }
+            """,
+            "panel.block.json",
+            UiComposerSchemaVersions.UiBlock);
+
+        block.Properties["mode"].PreviewWarningValues
+            .Select(value => value.GetRawText()).Should().Equal("\"Compact\"", "2", "true");
+
+        using var schema = JsonDocument.Parse(File.ReadAllText(GetRepoFilePath(
+            "src/WpfDevTools.Mcp.Server/Composer/Schemas/wpfdevtools.ui-block.v1.schema.json")));
+        schema.RootElement.GetProperty("properties")
+            .GetProperty("properties")
+            .GetProperty("additionalProperties")
+            .GetProperty("properties")
+            .GetProperty("previewWarningValues")
+            .GetProperty("type").GetString().Should().Be("array");
+    }
+
+    [Fact]
     public void ComposerJsonLoader_ShouldRejectUnknownSchemaVersion()
     {
         var json = """

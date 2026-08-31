@@ -74,6 +74,7 @@ public sealed class ComposerBlockCatalogTests
                 .Contain("each child");
             spacing.GetProperty("previewWarning").GetString().Should()
                 .Contain("final app");
+            spacing.GetProperty("previewWarningValues").GetArrayLength().Should().Be(0);
             stack.GetProperty("slots").GetProperty("children")
                 .GetProperty("description").GetString().Should()
                 .Contain("Ordered child");
@@ -160,6 +161,7 @@ public sealed class ComposerBlockCatalogTests
                 .Should().Contain("spacing");
             stack.GetProperty("propertyWarnings").GetProperty("spacing").GetString().Should()
                 .Contain("final app");
+            stack.GetProperty("propertyWarningValues").GetRawText().Should().Be("{}");
             var children = stack.GetProperty("slots").GetProperty("children");
             children.GetProperty("allowedKinds").EnumerateArray().Select(value => value.GetString())
                 .Should().Contain("*");

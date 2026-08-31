@@ -5,7 +5,19 @@
   "type": "object",
   "required": ["schemaVersion"],
   "properties": {
-    "schemaVersion": { "const": "wpfdevtools.ui-block.v1" }
+    "schemaVersion": { "const": "wpfdevtools.ui-block.v1" },
+    "properties": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "previewWarningValues": {
+            "type": "array",
+            "items": { "type": ["string", "number", "boolean", "null"] }
+          }
+        }
+      }
+    }
   },
   "additionalProperties": true,
   "x-source": {

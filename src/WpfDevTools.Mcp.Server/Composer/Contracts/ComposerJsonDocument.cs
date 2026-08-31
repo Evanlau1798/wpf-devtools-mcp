@@ -69,6 +69,7 @@ internal sealed class UiBlockProperty
     public string Type { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string PreviewWarning { get; set; } = string.Empty;
+    public JsonElement[] PreviewWarningValues { get; set; } = [];
     public string VisualRole { get; set; } = string.Empty;
     public bool Required { get; set; }
     public JsonElement? Default { get; set; }

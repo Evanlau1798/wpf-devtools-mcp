@@ -34,6 +34,66 @@ public sealed partial class ComposerPreviewCompileTests
         warnings[0].GetProperty("message").GetString().Should().Contain("final app");
     }
 
+    [Theory]
+    [InlineData("0")]
+    [InlineData("")]
+    public async Task PreviewUiBlueprintTool_ShouldSuppressUnconfiguredWarningsForDefaultOrEmptyValues(
+        string spacing)
+    {
+        using var sessionManager = new SessionManager();
+        var blueprint = Blueprint($$"""
+            {
+              "kind": "core.stack",
+              "properties": { "spacing": "{{spacing}}" }
+            }
+            """);
+
+        var result = await UiComposerMcpTools.PreviewUiBlueprint(
+            sessionManager,
+            blueprint,
+            restoreEnabled: false,
+            cancellationToken: CancellationToken.None);
+
+        result.StructuredContent!.Value.GetProperty("propertyWarnings")
+            .GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task PreviewUiBlueprintTool_ShouldSuppressConfiguredWarningValuesThatDoNotMatch()
+    {
+        var projectRoot = CreateDottedAuthoringHintPack();
+        try
+        {
+            using var sessionManager = new SessionManager();
+            var blueprint = """
+                {
+                  "schemaVersion": "wpfdevtools.ui-blueprint.v1",
+                  "name": "DottedHints",
+                  "packs": [{ "id": "hint", "version": "1.0.0", "required": true, "role": "primary" }],
+                  "primaryPack": "hint",
+                  "layout": {
+                    "kind": "hint.container",
+                    "properties": { "layout.gap": "8" }
+                  }
+                }
+                """;
+
+            var result = await UiComposerMcpTools.PreviewUiBlueprint(
+                sessionManager,
+                blueprint,
+                restoreEnabled: false,
+                projectRoot: projectRoot,
+                cancellationToken: CancellationToken.None);
+
+            result.StructuredContent!.Value.GetProperty("propertyWarnings")
+                .GetArrayLength().Should().Be(0);
+        }
+        finally
+        {
+            Directory.Delete(projectRoot, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task PreviewUiBlueprintTool_ShouldEscapeThirdPartyWarningPaths()
     {
@@ -163,7 +223,7 @@ public sealed partial class ComposerPreviewCompileTests
         File.WriteAllText(Path.Combine(packRoot, "source.lock.json"),
             """{"schemaVersion":"wpfdevtools.source-lock.v1","sources":[{"name":"Hint","url":"https://example.invalid/hint","version":"1.0.0","paths":["src"]}],"transformPolicy":{}}""");
         File.WriteAllText(Path.Combine(packRoot, "blocks", "container.block.json"),
-            """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"hint.container","displayName":"Container","description":"Test container.","category":"container","properties":{"layout.gap":{"type":"string","default":"0","previewWarning":"Validate the final app."}},"slots":{"body.items":{"allowedKinds":["hint.container"]}},"renderer":{"xamlTemplate":"renderers/xaml/container.xaml.sbn"},"sourceHints":[]}""");
+            """{"schemaVersion":"wpfdevtools.ui-block.v1","kind":"hint.container","displayName":"Container","description":"Test container.","category":"container","properties":{"layout.gap":{"type":"string","default":"0","previewWarning":"Validate the final app.","previewWarningValues":["4"]}},"slots":{"body.items":{"allowedKinds":["hint.container"]}},"renderer":{"xamlTemplate":"renderers/xaml/container.xaml.sbn"},"sourceHints":[]}""");
         File.WriteAllText(Path.Combine(packRoot, "renderers", "xaml", "container.xaml.sbn"),
             "<StackPanel Margin=\"{{layout.gap}}\">{{slot.body.items}}</StackPanel>");
         return projectRoot;

@@ -78,10 +78,10 @@ internal sealed partial class UiBlueprintPreviewService
     {
         if (blocks.TryGetValue(node.Kind, out var block))
         {
-            foreach (var propertyName in node.Properties.Keys)
+            foreach (var (propertyName, value) in node.Properties)
             {
                 if (block.Properties.TryGetValue(propertyName, out var property)
-                    && !string.IsNullOrWhiteSpace(property.PreviewWarning))
+                    && ShouldReportPropertyWarning(value, property))
                 {
                     warnings.Add(new PreviewPropertyWarning(
                         AppendJsonPath(path + ".properties", propertyName),
@@ -101,6 +101,40 @@ internal sealed partial class UiBlueprintPreviewService
             }
         }
     }
+
+    private static bool ShouldReportPropertyWarning(JsonElement value, UiBlockProperty property)
+    {
+        if (string.IsNullOrWhiteSpace(property.PreviewWarning))
+        {
+            return false;
+        }
+
+        if (property.PreviewWarningValues.Length > 0)
+        {
+            return property.PreviewWarningValues.Any(candidate => JsonValuesEqual(value, candidate));
+        }
+
+        return HasExplicitValue(value)
+            && (!property.Default.HasValue || !JsonValuesEqual(value, property.Default.Value));
+    }
+
+    private static bool HasExplicitValue(JsonElement value)
+        => value.ValueKind switch
+        {
+            JsonValueKind.Undefined or JsonValueKind.Null => false,
+            JsonValueKind.String => !string.IsNullOrWhiteSpace(value.GetString()),
+            _ => true
+        };
+
+    private static bool JsonValuesEqual(JsonElement left, JsonElement right)
+        => left.ValueKind == right.ValueKind
+            && left.ValueKind switch
+            {
+                JsonValueKind.String => string.Equals(left.GetString(), right.GetString(), StringComparison.Ordinal),
+                JsonValueKind.Number => left.GetRawText() == right.GetRawText(),
+                JsonValueKind.True or JsonValueKind.False or JsonValueKind.Null => true,
+                _ => left.GetRawText() == right.GetRawText()
+            };
 
     private static string AppendJsonPath(string path, string propertyName)
         => IsSimpleJsonPathName(propertyName)

@@ -60,6 +60,9 @@ public static partial class UiComposerMcpTools
             propertyWarnings = item.Properties
                 .Where(pair => !string.IsNullOrWhiteSpace(pair.Value.PreviewWarning))
                 .ToDictionary(pair => pair.Key, pair => pair.Value.PreviewWarning, StringComparer.Ordinal),
+            propertyWarningValues = item.Properties
+                .Where(pair => pair.Value.PreviewWarningValues.Count > 0)
+                .ToDictionary(pair => pair.Key, pair => pair.Value.PreviewWarningValues, StringComparer.Ordinal),
             slots = item.Slots.ToDictionary(
                 pair => pair.Key,
                 pair => new

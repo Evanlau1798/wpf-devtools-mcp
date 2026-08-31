@@ -25,6 +25,7 @@ internal static class PreviewVisualLayoutVisibility
     internal static IReadOnlyDictionary<string, PreviewVisualLayoutVisibilityReading> Read(
         PreviewLayoutRiskSummary? summary)
         => (summary?.Warnings ?? [])
+            .Where(item => item.RiskClassification == "clipping")
             .Where(item => item.OverflowAmount.ValueKind == System.Text.Json.JsonValueKind.Object)
             .GroupBy(item => item.ElementName, StringComparer.Ordinal)
             .ToDictionary(

@@ -153,6 +153,9 @@ public sealed class E2EVisualJudgeScriptTests
                 .Should().Be("wpfdevtools.e2e-visual-judge-inputs.v1");
             mapping.RootElement.GetProperty("images").EnumerateArray()
                 .Should().OnlyContain(image => image.GetProperty("sha256").GetString()!.Length == 64);
+            mapping.RootElement.GetProperty("images").EnumerateArray()
+                .Select(image => image.GetProperty("frozenPath").GetString())
+                .Should().Equal("inputs/reference.png", "inputs/candidate.png");
             values.Should().Contain(["--ignore-user-config", "--ignore-rules", "--ephemeral"]);
             values[1].Should().NotContain("9.5");
             values[1].Should().Contain("partial continuation");

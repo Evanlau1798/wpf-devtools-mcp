@@ -109,8 +109,8 @@ public sealed class E2ERunEvidenceFinalTests
             "inputMapping",
             """
             {"schemaVersion":"wpfdevtools.e2e-visual-judge-inputs.v1","mode":"reference","images":[
-              {"role":"reference","frozenPath":"attempts/1/inputs/reference.png","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","byteLength":24},
-              {"role":"candidate","frozenPath":"attempts/1/inputs/candidate.png","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","byteLength":24}
+              {"role":"reference","frozenPath":"inputs/reference.png","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","byteLength":24},
+              {"role":"candidate","frozenPath":"inputs/candidate.png","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","byteLength":24}
             ]}
             """);
 

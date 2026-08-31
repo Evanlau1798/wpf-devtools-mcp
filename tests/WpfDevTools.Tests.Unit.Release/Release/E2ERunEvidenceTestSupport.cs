@@ -304,14 +304,14 @@ internal sealed class E2ERunEvidenceFixture : IDisposable
                 new
                 {
                     role = "reference",
-                    frozenPath = "attempts/1/inputs/reference.png",
+                    frozenPath = "inputs/reference.png",
                     sha256 = ArtifactHash("attemptReference"),
                     byteLength = 24
                 },
                 new
                 {
                     role = "candidate",
-                    frozenPath = "attempts/1/inputs/candidate.png",
+                    frozenPath = "inputs/candidate.png",
                     sha256 = ArtifactHash("attemptCandidate"),
                     byteLength = 24
                 }

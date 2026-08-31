@@ -138,7 +138,7 @@ function Assert-InputMappings {
                 if ($lengthValue.ValueKind -ne [System.Text.Json.JsonValueKind]::Number -or
                     -not $lengthValue.TryGetInt64([ref] $byteLength) -or
                     $byteLength -ne [System.IO.FileInfo]::new($artifactPath).Length -or
-                    (Get-JsonString $image 'frozenPath') -cne $relativePath -or
+                    (Get-JsonString $image 'frozenPath') -cne "inputs/$role.png" -or
                     -not (Get-JsonString $image 'sha256').Equals(
                         (Get-Sha256 $artifactPath),
                         [StringComparison]::OrdinalIgnoreCase)) {

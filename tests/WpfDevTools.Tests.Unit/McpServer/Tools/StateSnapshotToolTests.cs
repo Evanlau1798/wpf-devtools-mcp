@@ -168,7 +168,8 @@ public sealed class StateSnapshotToolTests : IDisposable
                     baseValueSource = "LocalValue",
                     isExpression = false
                 }),
-                JsonSerializer.Serialize(new { success = true, focused = true })
+                JsonSerializer.Serialize(new { success = true, focused = true }),
+                JsonSerializer.Serialize(new { success = true, focusKind = "Logical", focusedElementId = "TextBox_42" })
             });
 
         var captureTool = new CaptureStateSnapshotTool(connected.SessionManager);

@@ -185,22 +185,23 @@ function Get-AxisMinimum {
     return $minimum
 }
 
-function Test-VisualQualification {
+function Test-JudgeAttemptQualification {
     param(
-        [System.Text.Json.JsonElement] $Root,
+        [System.Text.Json.JsonElement] $Attempt,
         [hashtable] $Artifacts,
-        [System.Collections.Generic.List[string]] $Reasons
+        [System.Collections.Generic.List[string]] $Reasons,
+        [switch] $RecordReasons
     )
 
-    $attempts = @((Get-JsonArray $Root 'attempts').EnumerateArray())
-    $lastAttempt = $attempts[$attempts.Count - 1]
-    $resultPath = Get-ArtifactPath $Artifacts (Get-JsonString $lastAttempt 'judgeResultArtifactId')
+    $number = Get-JsonInteger $Attempt 'number'
+    $resultPath = Get-ArtifactPath $Artifacts (Get-JsonString $Attempt 'judgeResultArtifactId')
     $document = [System.Text.Json.JsonDocument]::Parse([System.IO.File]::ReadAllText($resultPath))
     try {
         $result = $document.RootElement
         if ((Get-JsonString $result 'mode') -cne 'reference') {
-            throw "Formal E2E visual judge result must use reference mode."
+            throw "Visual judge attempt $number must use reference mode."
         }
+        Get-JsonString $result 'summary' | Out-Null
         $quality = Get-AxisMinimum (Get-JsonProperty $result 'qualityAxes') @(
             'layoutBalance', 'visualHierarchy', 'readabilityContrast', 'controlStateCoherence', 'visualPolish')
         $fidelity = Get-AxisMinimum (Get-JsonProperty $result 'referenceAxes') @(
@@ -217,17 +218,38 @@ function Test-VisualQualification {
         }
         $quality = [Math]::Min($quality, $severityCap)
         $fidelity = [Math]::Min($fidelity, $severityCap)
-        if ($quality -le 9.5) {
-            $Reasons.Add("visualQuality=$quality is not strictly greater than 9.5")
-        }
-        if ($fidelity -le 9.5) {
-            $Reasons.Add("referenceFidelity=$fidelity is not strictly greater than 9.5")
+        if ($RecordReasons) {
+            if ($quality -le 9.5) {
+                $Reasons.Add("visualQuality=$quality is not strictly greater than 9.5")
+            }
+            if ($fidelity -le 9.5) {
+                $Reasons.Add("referenceFidelity=$fidelity is not strictly greater than 9.5")
+            }
         }
         return $quality -gt 9.5 -and $fidelity -gt 9.5
     }
     finally {
         $document.Dispose()
     }
+}
+
+function Test-VisualQualification {
+    param(
+        [System.Text.Json.JsonElement] $Root,
+        [hashtable] $Artifacts,
+        [System.Collections.Generic.List[string]] $Reasons
+    )
+
+    $attempts = @((Get-JsonArray $Root 'attempts').EnumerateArray())
+    if ($attempts.Count -eq 1) {
+        return Test-JudgeAttemptQualification $attempts[0] $Artifacts $Reasons -RecordReasons
+    }
+
+    $firstQualified = Test-JudgeAttemptQualification $attempts[0] $Artifacts $Reasons
+    if ($firstQualified) {
+        throw 'Visual judge attempt 2 is invalid because attempt 1 already qualified.'
+    }
+    return Test-JudgeAttemptQualification $attempts[1] $Artifacts $Reasons -RecordReasons
 }
 
 function Write-FinalDecision {

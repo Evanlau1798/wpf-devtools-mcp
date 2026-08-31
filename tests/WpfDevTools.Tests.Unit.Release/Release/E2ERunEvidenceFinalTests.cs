@@ -105,6 +105,31 @@ public sealed class E2ERunEvidenceFinalTests
     }
 
     [Fact]
+    public void Final_ShouldRejectSecondAttemptWhenFirstAlreadyQualified()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.AddSecondAttempt(firstScore: 9.8, secondScore: 9.8);
+
+        var decision = RunFailedFinal(fixture);
+
+        DecisionReasons(decision).Should()
+            .Contain(reason => reason.Contains("attempt 1", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Final_ShouldRejectInvalidFirstJudgeResultBeforeSecondAttempt()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.AddSecondAttempt();
+        fixture.SetArtifactText("judgeResult", "{}");
+
+        var decision = RunFailedFinal(fixture);
+
+        DecisionReasons(decision).Should()
+            .Contain(reason => reason.Contains("mode", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Final_ShouldRejectFailedCleanupGate()
     {
         using var fixture = new E2ERunEvidenceFixture();

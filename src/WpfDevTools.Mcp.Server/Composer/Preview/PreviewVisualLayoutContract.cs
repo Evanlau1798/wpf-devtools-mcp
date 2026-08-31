@@ -259,15 +259,28 @@ internal static class PreviewVisualLayoutContractAnalyzer
         }
 
         var comparison = actualVisible ?? actual;
-        var maximumDelta = new[]
+        var deltas = new[]
         {
             Math.Abs(comparison.X - region.Bounds.X),
             Math.Abs(comparison.Y - region.Bounds.Y),
             Math.Abs(comparison.Width - region.Bounds.Width),
             Math.Abs(comparison.Height - region.Bounds.Height)
-        }.Max();
+        };
+        var tolerances = new[]
+        {
+            region.Tolerance,
+            region.Tolerance,
+            SizeTolerance(region.Bounds.Width, region.Tolerance, root.Width),
+            SizeTolerance(region.Bounds.Height, region.Tolerance, root.Height)
+        };
+        var geometryMismatches = new[] { "x", "y", "width", "height" }
+            .Select((name, index) => (Name: name, Delta: deltas[index], Tolerance: tolerances[index]))
+            .Where(item => item.Delta > item.Tolerance)
+            .Select(item => $"{item.Name} delta {Round(item.Delta)} exceeded tolerance {Round(item.Tolerance)}.")
+            .ToArray();
+        var maximumDelta = deltas.Max();
         var scrollbarMismatches = ReadScrollbarMismatches(snapshot, region);
-        var status = maximumDelta <= region.Tolerance && scrollbarMismatches.Count == 0
+        var status = geometryMismatches.Length == 0 && scrollbarMismatches.Count == 0
             ? "matched"
             : "mismatch";
         return Result(
@@ -276,9 +289,16 @@ internal static class PreviewVisualLayoutContractAnalyzer
             actual,
             Round(maximumDelta),
             scrollbarMismatches,
+            reason: geometryMismatches.Length == 0 ? null : string.Join(" ", geometryMismatches),
             actualVisibleBounds: actualVisible,
             visibleRatio: visibleRatio);
     }
+
+    private static double SizeTolerance(
+        double expectedSize,
+        double absoluteTolerance,
+        double rootSize)
+        => Math.Min(absoluteTolerance, Math.Max(expectedSize * 0.25, 2 / rootSize));
 
     private static IReadOnlyList<string> ReadScrollbarMismatches(
         JsonElement snapshot,

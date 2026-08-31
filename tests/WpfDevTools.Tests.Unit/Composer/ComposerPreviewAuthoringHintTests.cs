@@ -95,6 +95,38 @@ public sealed partial class ComposerPreviewCompileTests
     }
 
     [Fact]
+    public async Task PreviewUiBlueprintTool_ShouldAggregateEquivalentWarningsAndPreserveEveryPath()
+    {
+        using var sessionManager = new SessionManager();
+        var blueprint = Blueprint("""
+            {
+              "kind": "core.stack",
+              "slots": {
+                "children": [
+                  { "kind": "core.stack", "properties": { "spacing": "4" } },
+                  { "kind": "core.stack", "properties": { "spacing": "8" } }
+                ]
+              }
+            }
+            """);
+
+        var result = await UiComposerMcpTools.PreviewUiBlueprint(
+            sessionManager,
+            blueprint,
+            restoreEnabled: false,
+            cancellationToken: CancellationToken.None);
+
+        var warnings = result.StructuredContent!.Value.GetProperty("propertyWarnings")
+            .EnumerateArray().ToArray();
+        warnings.Should().ContainSingle();
+        warnings[0].GetProperty("occurrenceCount").GetInt32().Should().Be(2);
+        warnings[0].GetProperty("relatedJsonPaths").EnumerateArray()
+            .Select(path => path.GetString()).Should().Equal(
+                "$.layout.slots.children[0].properties.spacing",
+                "$.layout.slots.children[1].properties.spacing");
+    }
+
+    [Fact]
     public async Task PreviewUiBlueprintTool_ShouldEscapeThirdPartyWarningPaths()
     {
         var projectRoot = CreateDottedAuthoringHintPack();

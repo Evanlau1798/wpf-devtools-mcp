@@ -120,7 +120,12 @@ internal sealed record PreviewPropertyWarning(
     string JsonPath,
     string BlockKind,
     string PropertyName,
-    string Message);
+    string Message)
+{
+    public int OccurrenceCount { get; init; } = 1;
+
+    public IReadOnlyList<string> RelatedJsonPaths { get; init; } = [];
+}
 
 internal sealed record PreviewDiagnostic(
     string Code,

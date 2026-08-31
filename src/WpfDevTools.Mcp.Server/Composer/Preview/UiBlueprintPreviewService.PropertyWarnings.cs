@@ -67,7 +67,14 @@ internal sealed partial class UiBlueprintPreviewService
 
         var warnings = new List<PreviewPropertyWarning>();
         CollectPropertyWarnings(blueprint.Layout, "$.layout", blocks, warnings);
-        return warnings;
+        return warnings
+            .GroupBy(warning => (warning.BlockKind, warning.PropertyName, warning.Message))
+            .Select(group => group.First() with
+            {
+                OccurrenceCount = group.Count(),
+                RelatedJsonPaths = group.Select(warning => warning.JsonPath).ToArray()
+            })
+            .ToArray();
     }
 
     private static void CollectPropertyWarnings(

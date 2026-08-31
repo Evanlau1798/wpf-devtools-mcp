@@ -112,18 +112,20 @@ public sealed class ComposerBlockCatalogTests
                 .GetProperty("properties").GetProperty("paneDisplayMode");
             paneDisplayMode.GetProperty("description").GetString().Should()
                 .ContainAll("Left", "LeftMinimal", "LeftFluent", "Top", "Bottom", "40 DIP");
+            paneDisplayMode.GetProperty("previewWarning").GetString().Should()
+                .ContainAll("LeftMinimal", "LeftFluent", "active label", "Left");
+            paneDisplayMode.GetProperty("previewWarningValues").EnumerateArray()
+                .Select(value => value.GetString()).Should().Equal("LeftMinimal", "LeftFluent");
             navigationResult.StructuredContent!.Value.GetProperty("items")[0]
                 .GetProperty("properties").TryGetProperty("compactPaneLength", out _).Should().BeFalse();
             var item = result.StructuredContent!.Value.GetProperty("items")[0];
             var isActive = item.GetProperty("properties").GetProperty("isActive");
             isActive.GetProperty("description").GetString().Should().Contain("current destination");
-            isActive.GetProperty("previewWarning").GetString().Should()
-                .ContainAll("LeftFluent", "active label", "Left");
+            isActive.GetProperty("previewWarning").GetString().Should().BeEmpty();
             item.GetProperty("slots").GetProperty("content").GetProperty("description")
                 .GetString().Should().ContainAll("slots.content", "properties.content");
             compactResult.StructuredContent!.Value.GetProperty("items")[0]
-                .GetProperty("propertyWarnings").GetProperty("isActive").GetString().Should()
-                .Contain("LeftFluent");
+                .GetProperty("propertyWarnings").TryGetProperty("isActive", out _).Should().BeFalse();
         }
         finally
         {

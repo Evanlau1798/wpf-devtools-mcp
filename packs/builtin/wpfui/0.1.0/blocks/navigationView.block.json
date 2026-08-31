@@ -9,7 +9,8 @@
       "description": "Navigation pane placement for this persistent desktop shell. Left uses the standard item template. LeftMinimal with isPaneOpen=false uses the current upstream template's fixed 40 DIP icon rail; use open Left or LeftFluent when labels or a wider navigation proportion matter. LeftFluent uses large icons with titles underneath. Top and Bottom place navigation on the matching horizontal edge.",
       "default": "Left",
       "enum": ["Left", "LeftMinimal", "LeftFluent", "Top", "Bottom"],
-      "previewWarning": "LeftMinimal is a fixed narrow icon-only rail in the current upstream template. It hides item labels and can appear under-dense in a tall viewport; use LeftFluent for an icon-over-label rail or open Left when labels must remain beside icons.",
+      "previewWarning": "LeftMinimal is a fixed narrow icon-only rail that hides item labels. LeftFluent uses an icon-over-label rail and intentionally collapses the active label. Use open Left when every navigation label must remain visible beside its icon.",
+      "previewWarningValues": ["LeftMinimal", "LeftFluent"],
       "required": false,
       "type": "string"
     },

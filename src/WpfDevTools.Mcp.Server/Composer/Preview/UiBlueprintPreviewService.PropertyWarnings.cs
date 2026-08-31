@@ -138,10 +138,23 @@ internal sealed partial class UiBlueprintPreviewService
             && left.ValueKind switch
             {
                 JsonValueKind.String => string.Equals(left.GetString(), right.GetString(), StringComparison.Ordinal),
-                JsonValueKind.Number => left.GetRawText() == right.GetRawText(),
+                JsonValueKind.Number => JsonNumbersEqual(left, right),
                 JsonValueKind.True or JsonValueKind.False or JsonValueKind.Null => true,
                 _ => left.GetRawText() == right.GetRawText()
             };
+
+    private static bool JsonNumbersEqual(JsonElement left, JsonElement right)
+    {
+        if (left.TryGetDecimal(out var leftDecimal) && right.TryGetDecimal(out var rightDecimal))
+        {
+            return leftDecimal == rightDecimal;
+        }
+        return left.TryGetDouble(out var leftDouble)
+            && right.TryGetDouble(out var rightDouble)
+            && double.IsFinite(leftDouble)
+            && double.IsFinite(rightDouble)
+            && leftDouble.Equals(rightDouble);
+    }
 
     private static string AppendJsonPath(string path, string propertyName)
         => IsSimpleJsonPathName(propertyName)

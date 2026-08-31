@@ -70,7 +70,7 @@ public static partial class ToolCallHelper
         if (navigation is not null)
         {
             writer.WritePropertyName("nextSteps");
-            JsonSerializer.Serialize(writer, navigation.Recommended, SerializerOptions);
+            WriteMergedNextSteps(writer, element, navigation.Recommended);
             writer.WritePropertyName("navigation");
             JsonSerializer.Serialize(writer, navigation, SerializerOptions);
         }
@@ -85,6 +85,53 @@ public static partial class ToolCallHelper
 
         using var document = JsonDocument.Parse(buffer.WrittenMemory);
         return document.RootElement.Clone();
+    }
+
+    private static void WriteMergedNextSteps(
+        Utf8JsonWriter writer,
+        JsonElement element,
+        IReadOnlyList<ToolNextStep> recommended)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        writer.WriteStartArray();
+
+        if (element.TryGetProperty("nextSteps", out var toolSteps)
+            && toolSteps.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var step in toolSteps.EnumerateArray())
+            {
+                if (!TryGetNextStepKey(step, out var key) || seen.Add(key))
+                {
+                    step.WriteTo(writer);
+                }
+            }
+        }
+
+        foreach (var plannedStep in recommended)
+        {
+            var step = JsonSerializer.SerializeToElement(plannedStep, SerializerOptions);
+            if (!TryGetNextStepKey(step, out var key) || seen.Add(key))
+            {
+                step.WriteTo(writer);
+            }
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static bool TryGetNextStepKey(JsonElement step, out string key)
+    {
+        key = string.Empty;
+        if (step.ValueKind != JsonValueKind.Object
+            || !step.TryGetProperty("tool", out var tool)
+            || tool.ValueKind != JsonValueKind.String
+            || !step.TryGetProperty("params", out var parameters))
+        {
+            return false;
+        }
+
+        key = string.Concat(tool.GetString(), "\0", parameters.GetRawText());
+        return true;
     }
 
     private static bool HasEmptyPendingEvents(JsonElement element) =>

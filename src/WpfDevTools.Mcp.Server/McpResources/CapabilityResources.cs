@@ -37,7 +37,7 @@ public static partial class CapabilityResources
         - Enable `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` only for sessions where target UI text, DependencyProperty or binding values, event payloads, tree/scene summaries, or state snapshots may leave the target process.
         - Call `get_processes(windowFilter)` only when `connect()` reports multiple candidates or when you explicitly need a filtered process list before connecting.
         - Prefer `get_ui_summary`, `get_element_snapshot`, or `get_form_summary` before tree-heavy inspection.
-        - After each diagnostic, interaction, or mutation, prefer returned `navigation.recommended`; treat compatibility `nextSteps` as the fallback for older clients before guessing the next tool.
+        - After each diagnostic, interaction, or mutation, follow non-empty tool-specific `nextSteps` in order; otherwise use `navigation.recommended` before guessing the next tool.
 
         ## Response contract notes
 
@@ -46,7 +46,7 @@ public static partial class CapabilityResources
         - Read `wpf://contracts/response` when clients need stable field-level metadata for `structuredContent`, `navigation`, `nextSteps`, `contextRefs`, canonical `recovery` error guidance, closed vocabularies for common enum-like parameters, and the `get_binding_errors` `navigation=false` opt-out without relying on prose alone.
         - By default, every tool response includes compatibility `nextSteps`; tools without runtime-computable guidance return `nextSteps: []`.
         - By default, responses also include a `navigation` envelope with `recommended`, `alternatives`, `prefetchTools`, and `contextRefs`.
-        - `nextSteps` remains a compatibility field and is derived from `navigation.recommended` unless `get_binding_errors` explicitly receives `navigation=false`.
+        - `nextSteps` keeps tool-specific recovery entries first, then appends planner recommendations not already represented by the same tool and params; `navigation` remains the planner envelope.
         - Clients may request `navigation=false` on `get_binding_errors` as an explicit opt-out to omit both `navigation` and compatibility `nextSteps` from a response. Schema-driven clients can rely on that opt-out there because the parameter is advertised in the tool schema today; do not assume other tool schemas expose that parameter unless they advertise it explicitly.
         - v2 adds optional `preconditions`, `expectedOutcome`, `workflowId`, `prefetchTools`, `whyNow`, and `confidence` fields on `nextSteps` entries.
         - `contextRefs` are descriptive JSON only; they are not executable handles or hidden server-side orchestration tokens.
@@ -99,7 +99,7 @@ public static partial class CapabilityResources
         1. Confirm `WPFDEVTOOLS_MCP_ALLOWED_TARGETS` contains the reviewed exact local absolute executable path and `WPFDEVTOOLS_MCP_ALLOW_SENSITIVE_READS=true` is set for scene, binding, DP, and state reads.
         2. Call `connect()`.
         3. Call `get_ui_summary(depthMode="semantic", summaryOnly=true)` for first scene context.
-        4. Follow returned `navigation.recommended` before guessing the next tool.
+        4. Follow non-empty `nextSteps` first; otherwise use `navigation.recommended` before guessing the next tool.
         5. When you have a concrete `elementId`, call `get_element_snapshot(elementId)`.
         6. Use `get_form_summary` for form readiness or `get_bindings(elementId)` for binding-specific follow-up.
         7. Search or load specialized tools only after the scene or binding result narrows the task.
@@ -124,7 +124,7 @@ public static partial class CapabilityResources
         2. `connect()`
         3. If `connect()` reports multiple candidates, call `get_processes(windowFilter)` and retry `connect(processId)`
         4. `get_binding_errors`
-        5. Follow `navigation.recommended` or `nextSteps` from the latest diagnostic result
+        5. Follow non-empty `nextSteps` first; otherwise use `navigation.recommended` from the latest diagnostic result
         6. If the latest diagnostic still leaves the failing element ambiguous, call `get_element_snapshot` for one-call local context
         7. `get_bindings`
         8. `get_binding_value_chain`

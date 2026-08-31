@@ -70,7 +70,7 @@ public class McpDiscoveryContentTests
         WorkflowPrompts.DebugBindingIssue().Should().Contain("get_binding_errors");
         WorkflowPrompts.DebugBindingIssue().Should().Contain("get_element_snapshot");
         WorkflowPrompts.DebugBindingIssue().Should().Contain("navigation.recommended");
-        WorkflowPrompts.DebugBindingIssue().Should().Contain("Prefer navigation.recommended first");
+        WorkflowPrompts.DebugBindingIssue().Should().Contain("Follow non-empty nextSteps first");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("click_element");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("get_interaction_readiness");
         WorkflowPrompts.DebugCommandOrClick().Should().Contain("drain_events(eventTypes=['RoutedEvent'], elementId)");
@@ -108,6 +108,8 @@ public class McpDiscoveryContentTests
         capabilities.Should().Contain("get_ui_summary");
         capabilities.Should().Contain("navigation.recommended");
         capabilities.Should().Contain("compatibility `nextSteps`");
+        capabilities.Should().Contain("non-empty tool-specific `nextSteps`");
+        capabilities.Should().Contain("otherwise use `navigation.recommended`");
         capabilities.Should().Contain("portable discovery contract");
         capabilities.Should().NotContain("nextSteps / `navigation` guidance",
             "capability guidance should explicitly prefer navigation.recommended over the compatibility field");

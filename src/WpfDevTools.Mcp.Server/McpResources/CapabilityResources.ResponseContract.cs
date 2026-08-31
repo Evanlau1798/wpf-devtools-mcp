@@ -273,7 +273,7 @@ public static partial class CapabilityResources
             nextSteps = new
             {
                 field = "nextSteps",
-                derivedFrom = "navigation.recommended",
+                derivedFrom = "tool-specific entries followed by unique navigation.recommended entries",
                 entry = nextStepEntry
             },
             contextRefs = new

@@ -181,7 +181,6 @@ public class ServerInstructionsTests
     [Fact]
     public void Value_ShouldExplainHowToUseRuntimeNavigation()
     {
-        ServerInstructions.Value.Should().Contain("preferred follow-up surface");
         ServerInstructions.Value.Should().Contain("By default, tool responses include the additive `navigation` envelope");
         ServerInstructions.Value.Should().Contain("By default, tool responses also include compatibility `nextSteps`");
         ServerInstructions.Value.Should().Contain("nextSteps: []");
@@ -192,6 +191,8 @@ public class ServerInstructionsTests
         ServerInstructions.Value.Should().Contain("advisory");
         ServerInstructions.Value.Should().Contain("navigation.recommended");
         ServerInstructions.Value.Should().Contain("compatibility field");
+        ServerInstructions.Value.Should().Contain("non-empty tool-specific `nextSteps`");
+        ServerInstructions.Value.Should().Contain("otherwise use `navigation.recommended`");
         ServerInstructions.Value.Should().Contain("descriptive JSON");
         ServerInstructions.Value.Should().Contain("already know the next step");
         ServerInstructions.Value.Should().Contain("get_binding_errors accepts navigation=false");

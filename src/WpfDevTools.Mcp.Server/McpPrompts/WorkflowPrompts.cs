@@ -16,7 +16,7 @@ public static class WorkflowPrompts
         1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before connect() attaches.
         2. Call connect().
         3. Call get_ui_summary(depthMode='semantic', summaryOnly=true).
-        4. Follow navigation.recommended from the latest result before guessing another tool.
+        4. Follow non-empty nextSteps first; otherwise use navigation.recommended before guessing another tool.
         5. When a concrete elementId is known, call get_element_snapshot(elementId).
         6. Use wpf://workflows/starter-path only when you need this path as a reusable resource.
 
@@ -52,14 +52,14 @@ public static class WorkflowPrompts
         1. Confirm WPFDEVTOOLS_MCP_ALLOWED_TARGETS contains the reviewed target's exact local absolute executable path; unset or malformed values fail closed before connect() attaches.
         2. connect()
         3. get_binding_errors()
-        4. Follow navigation.recommended or nextSteps from the latest diagnostic result
+        4. Follow non-empty nextSteps first; otherwise use navigation.recommended from the latest diagnostic result
         5. If navigation is absent, or the failing element is already known, call get_element_snapshot(elementId) for one-call local context
         6. get_bindings(elementId)
         7. get_binding_value_chain(elementId, propertyName)
         8. get_datacontext_chain(elementId) when WPFDEVTOOLS_MCP_ALLOW_VIEWMODEL_INSPECTION=true
         9. get_validation_errors(elementId) when validation may be involved
 
-        Prefer navigation.recommended first. Use the remaining tools when the next step still needs clarification across binding source, value chain, or validation state.
+        Follow non-empty nextSteps first; otherwise use navigation.recommended. Use the remaining tools when the next step still needs clarification across binding source, value chain, or validation state.
         """;
 
     [McpServerPrompt(Name = "diagnose_style_or_template", Title = "Diagnose Style Or Template")]
@@ -76,7 +76,7 @@ public static class WorkflowPrompts
         5. get_applied_styles(elementId)
         6. get_triggers(elementId)
         7. get_resource_chain(elementId, resourceKey) when a DynamicResource, StaticResource, or theme resource is suspected
-        8. Follow navigation.recommended before expanding get_template_tree or broader tree tools
+        8. Follow non-empty nextSteps first; otherwise use navigation.recommended before expanding get_template_tree or broader tree tools
 
         Keep this workflow read-only. Do not call override_style_setter unless the operator explicitly opts into destructive tools and asks for a temporary live override.
         """;
@@ -95,7 +95,7 @@ public static class WorkflowPrompts
         5. diagnose_visibility(elementId)
         6. get_layout_info(elementId)
         7. get_interaction_readiness(elementId, interactionType='Click') when the user-visible symptom is click or focus failure
-        8. Follow navigation.recommended before considering get_visual_tree; request element_screenshot only when screenshots are explicitly enabled and visual evidence is needed
+        8. Follow non-empty nextSteps first; otherwise use navigation.recommended before considering get_visual_tree; request element_screenshot only when screenshots are explicitly enabled and visual evidence is needed
 
         Prefer compact scene diagnostics first. Full trees and screenshots are follow-up evidence, not the default entry point.
         """;

@@ -113,6 +113,48 @@ public sealed class E2ERunEvidencePreJudgeTests
     }
 
     [Fact]
+    public void PreJudge_ShouldRejectInvalidRunnerJsonl()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.SetArtifactText("runnerEvents", "{\"type\":\"run.started\"}\nnot-json\n");
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().Contain("JSONL");
+    }
+
+    [Fact]
+    public void PreJudge_ShouldRejectInvalidUtf8RunnerJsonl()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        var prefix = Encoding.UTF8.GetBytes("{\"type\":\"run.completed\",\"completed\":true,\"exitCode\":0,\"note\":\"");
+        var suffix = Encoding.UTF8.GetBytes("\"}\n");
+        fixture.SetArtifactBytes("runnerEvents", [.. prefix, 0xff, .. suffix]);
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().Contain("UTF-8");
+    }
+
+    [Theory]
+    [InlineData("{\"type\":\"run.started\"}\n", "terminal")]
+    [InlineData("{\"type\":\"run.completed\",\"completed\":true,\"exitCode\":1}\n", "manifest")]
+    public void PreJudge_ShouldRejectMissingOrMismatchedTerminalRunnerEvent(
+        string events,
+        string expectedError)
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.SetArtifactText("runnerEvents", events);
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().ContainEquivalentOf(expectedError);
+    }
+
+    [Fact]
     public void PreJudge_ShouldRejectHeaderOnlyPng()
     {
         using var fixture = new E2ERunEvidenceFixture();

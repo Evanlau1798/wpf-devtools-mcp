@@ -51,6 +51,10 @@ catch {
 
 if ($Phase -ceq 'PreJudge') {
     $artifacts = Assert-PreJudgeEvidence -Root $root -EvidenceRoot $evidenceFullPath
+    if (-not (Get-RunnerCompleted $root)) {
+        throw 'Runner did not complete successfully before PreJudge.'
+    }
+    Assert-RunnerEvents $root $artifacts
     New-PreJudgeReceipt -Root $root -Artifacts $artifacts -EvidenceRoot $evidenceFullPath
     $result = [ordered]@{ phase = 'PreJudge'; passed = $true; reasons = @() }
     $json = [System.Text.Json.JsonSerializer]::Serialize(

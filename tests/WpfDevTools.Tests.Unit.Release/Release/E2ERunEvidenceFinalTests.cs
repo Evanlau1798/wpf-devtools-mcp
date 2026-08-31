@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 
@@ -41,59 +40,6 @@ public sealed class E2ERunEvidenceFinalTests
         root.GetProperty("visualQualified").GetBoolean().Should().BeTrue();
         root.GetProperty("overallResult").GetString().Should().Be("PASS");
         root.GetProperty("repairBudgetExhausted").GetBoolean().Should().BeFalse();
-    }
-
-    [Fact]
-    public void Final_ShouldRejectInvalidRunnerJsonlEvenWithSuccessfulExit()
-    {
-        using var fixture = new E2ERunEvidenceFixture();
-        fixture.SetArtifactText("runnerEvents", "{\"type\":\"run.started\"}\nnot-json\n");
-
-        var decision = RunFailedFinal(fixture);
-
-        decision.GetProperty("runnerCompleted").GetBoolean().Should().BeTrue();
-        decision.GetProperty("operationalGatesPassed").GetBoolean().Should().BeFalse();
-        DecisionReasons(decision).Should().Contain(reason => reason.Contains("JSONL", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void Final_ShouldRejectInvalidUtf8RunnerJsonl()
-    {
-        using var fixture = new E2ERunEvidenceFixture();
-        var prefix = Encoding.UTF8.GetBytes("{\"type\":\"run.completed\",\"completed\":true,\"exitCode\":0,\"note\":\"");
-        var suffix = Encoding.UTF8.GetBytes("\"}\n");
-        fixture.SetArtifactBytes("runnerEvents", [.. prefix, 0xff, .. suffix]);
-
-        var decision = RunFailedFinal(fixture);
-
-        DecisionReasons(decision).Should()
-            .Contain(reason => reason.Contains("UTF-8", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void Final_ShouldRejectRunnerWithoutTerminalCompletionEvent()
-    {
-        using var fixture = new E2ERunEvidenceFixture();
-        fixture.SetArtifactText("runnerEvents", "{\"type\":\"run.started\"}\n");
-
-        var decision = RunFailedFinal(fixture);
-
-        DecisionReasons(decision).Should()
-            .Contain(reason => reason.Contains("terminal", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact]
-    public void Final_ShouldRejectTerminalRunnerStatusMismatch()
-    {
-        using var fixture = new E2ERunEvidenceFixture();
-        fixture.SetArtifactText(
-            "runnerEvents",
-            "{\"type\":\"run.completed\",\"completed\":true,\"exitCode\":1}\n");
-
-        var decision = RunFailedFinal(fixture);
-
-        DecisionReasons(decision).Should()
-            .Contain(reason => reason.Contains("manifest", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

@@ -12,7 +12,7 @@ public sealed class E2ERunEvidenceFinalTests
 
         var result = E2ERunEvidenceFixture.Run(fixture, "Final");
 
-        result.ExitCode.Should().Be(0, result.Stderr);
+        result.ExitCode.Should().Be(0, result.Stderr + result.Stdout);
         using var decision = JsonDocument.Parse(File.ReadAllText(fixture.DecisionPath));
         var root = decision.RootElement;
         root.EnumerateObject().Select(property => property.Name).Should().BeEquivalentTo(
@@ -57,7 +57,7 @@ public sealed class E2ERunEvidenceFinalTests
     public void Final_ShouldRejectReportMissingRequiredImage()
     {
         using var fixture = new E2ERunEvidenceFixture();
-        fixture.SetArtifactText("report", "![reference](visual/reference.png)\n");
+        fixture.SetArtifactText("report", "![reference](attempts/1/inputs/reference.png)\n");
 
         var decision = RunFailedFinal(fixture);
 
@@ -99,6 +99,24 @@ public sealed class E2ERunEvidenceFinalTests
         var decision = RunFailedFinal(fixture);
 
         DecisionReasons(decision).Should().Contain(reason => reason.Contains("cleanup", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Final_ShouldRejectImageMappingHashMismatch()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.SetArtifactText(
+            "inputMapping",
+            """
+            {"schemaVersion":"wpfdevtools.e2e-visual-judge-inputs.v1","mode":"reference","images":[
+              {"role":"reference","frozenPath":"attempts/1/inputs/reference.png","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","byteLength":24},
+              {"role":"candidate","frozenPath":"attempts/1/inputs/candidate.png","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","byteLength":24}
+            ]}
+            """);
+
+        var decision = RunFailedFinal(fixture);
+
+        DecisionReasons(decision).Should().Contain(reason => reason.Contains("mapping", StringComparison.OrdinalIgnoreCase));
     }
 
     private static JsonElement RunFailedFinal(E2ERunEvidenceFixture fixture)

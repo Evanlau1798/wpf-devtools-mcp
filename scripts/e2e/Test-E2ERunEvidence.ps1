@@ -86,6 +86,7 @@ if ($operational) {
     foreach ($gate in @(
             { Assert-PreJudgeEvidence $root $evidenceFullPath | Out-Null },
             { Assert-RunnerEvents $root $artifacts },
+            { Assert-InputMappings $root $artifacts },
             { Assert-ReportAndCleanup $root $artifacts })) {
         try {
             & $gate

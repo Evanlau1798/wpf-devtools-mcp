@@ -6,7 +6,7 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class E2EVisualJudgeScriptTests
 {
     [Fact]
-    public void ValidateOnly_ShouldApplyBlindVisualQualityThresholds()
+    public void ValidateOnly_ShouldPreservePixelJudgmentWithoutQualification()
     {
         var tempRoot = ReleaseScriptTestHarness.CreateTempDirectory();
         try
@@ -16,9 +16,11 @@ public sealed class E2EVisualJudgeScriptTests
                 "clean",
                 CreateJudgeResult(9.8, referenceScore: 9.7),
                 "reference");
-            clean.GetProperty("qualified").GetBoolean().Should().BeTrue();
-            clean.GetProperty("visualQuality").GetDouble().Should().Be(9.8);
-            clean.GetProperty("referenceFidelity").GetDouble().Should().Be(9.7);
+            clean.GetProperty("mode").GetString().Should().Be("reference");
+            clean.TryGetProperty("qualified", out _).Should().BeFalse();
+            clean.TryGetProperty("requiresRepair", out _).Should().BeFalse();
+            clean.GetProperty("qualityAxes").GetProperty("layoutBalance").GetDouble().Should().Be(9.8);
+            clean.GetProperty("referenceAxes").GetProperty("regionGeometry").GetDouble().Should().Be(9.7);
 
             var material = RunDecision(
                 tempRoot,
@@ -37,10 +39,9 @@ public sealed class E2EVisualJudgeScriptTests
                         }
                     ]),
                 "reference");
-            material.GetProperty("qualified").GetBoolean().Should().BeFalse();
-            material.GetProperty("visualQuality").GetDouble().Should().Be(9.5);
-            material.GetProperty("referenceFidelity").GetDouble().Should().Be(9.5);
-            material.GetProperty("severityCap").GetDouble().Should().Be(9.5);
+            material.GetProperty("qualityAxes").GetProperty("layoutBalance").GetDouble().Should().Be(9.9);
+            material.GetProperty("referenceAxes").GetProperty("regionGeometry").GetDouble().Should().Be(9.9);
+            material.GetProperty("defects").GetArrayLength().Should().Be(1);
 
             var blocking = RunDecision(
                 tempRoot,
@@ -60,9 +61,8 @@ public sealed class E2EVisualJudgeScriptTests
                         }
                     ]),
                 "standalone");
-            blocking.GetProperty("qualified").GetBoolean().Should().BeFalse();
-            blocking.GetProperty("visualQuality").GetDouble().Should().Be(9.0);
-            blocking.GetProperty("referenceFidelity").ValueKind.Should().Be(JsonValueKind.Null);
+            blocking.GetProperty("qualityAxes").GetProperty("layoutBalance").GetDouble().Should().Be(9.9);
+            blocking.GetProperty("referenceAxes").ValueKind.Should().Be(JsonValueKind.Null);
         }
         finally
         {
@@ -81,7 +81,7 @@ public sealed class E2EVisualJudgeScriptTests
             File.WriteAllText(resultPath, JsonSerializer.Serialize(
                 CreateJudgeResult(9.9, referenceScore: null, mode: "standalone")));
 
-            var result = ReleaseScriptTestHarness.RunPowerShellScript(
+            var result = E2ERunEvidenceFixture.RunPwshScript(
                 VisualJudgeScriptPath,
                 [
                     "-JudgeResultPath", resultPath,
@@ -112,10 +112,10 @@ public sealed class E2EVisualJudgeScriptTests
             File.WriteAllBytes(finalPath, [137, 80, 78, 71]);
 
             var cleanFake = WriteFakeCodex(tempRoot, "clean", forbiddenToolEvent: false);
-            var cleanEvidence = Path.Combine(tempRoot, "clean-evidence");
-            var nestedResult = Path.Combine(cleanEvidence, "attempt-1", "judge.json");
-            var nestedDecision = Path.Combine(cleanEvidence, "attempt-1", "decision.json");
-            var cleanResult = ReleaseScriptTestHarness.RunPowerShellScript(
+            var cleanEvidence = Path.Combine(tempRoot, "clean-evidence", "attempt-1");
+            var nestedResult = Path.Combine(cleanEvidence, "judge.json");
+            var nestedDecision = Path.Combine(cleanEvidence, "validated.json");
+            var cleanResult = E2ERunEvidenceFixture.RunPwshScript(
                 VisualJudgeScriptPath,
                 [
                     "-FinalImagePath", finalPath,
@@ -132,7 +132,27 @@ public sealed class E2EVisualJudgeScriptTests
             using var arguments = JsonDocument.Parse(
                 File.ReadAllText(Path.Combine(tempRoot, "clean-arguments.json")));
             var values = arguments.RootElement.EnumerateArray().Select(value => value.GetString()!).ToArray();
-            Array.IndexOf(values, referencePath).Should().BeLessThan(Array.IndexOf(values, finalPath));
+            values.Should().NotContain(referencePath);
+            values.Should().NotContain(finalPath);
+            var imageArguments = values
+                .Select((value, index) => (value, index))
+                .Where(entry => entry.value == "--image")
+                .Select(entry => values[entry.index + 1])
+                .ToArray();
+            imageArguments.Should().HaveCount(2);
+            imageArguments.Should().OnlyContain(path => path.StartsWith(
+                Path.Combine(cleanEvidence, "inputs"),
+                StringComparison.OrdinalIgnoreCase));
+            imageArguments[0].Should().EndWith("reference.png");
+            imageArguments[1].Should().EndWith("candidate.png");
+            File.ReadAllBytes(imageArguments[0]).Should().Equal(File.ReadAllBytes(referencePath));
+            File.ReadAllBytes(imageArguments[1]).Should().Equal(File.ReadAllBytes(finalPath));
+            using var mapping = JsonDocument.Parse(
+                File.ReadAllText(Path.Combine(cleanEvidence, "visual-judge-inputs.json")));
+            mapping.RootElement.GetProperty("schemaVersion").GetString()
+                .Should().Be("wpfdevtools.e2e-visual-judge-inputs.v1");
+            mapping.RootElement.GetProperty("images").EnumerateArray()
+                .Should().OnlyContain(image => image.GetProperty("sha256").GetString()!.Length == 64);
             values.Should().Contain(["--ignore-user-config", "--ignore-rules", "--ephemeral"]);
             values[1].Should().NotContain("9.5");
             values[1].Should().Contain("partial continuation");
@@ -147,7 +167,7 @@ public sealed class E2EVisualJudgeScriptTests
             var staleEvidence = Path.Combine(tempRoot, "stale-evidence");
             Directory.CreateDirectory(staleEvidence);
             File.WriteAllText(Path.Combine(staleEvidence, "visual-judge-result.json"), "{}");
-            var staleResult = ReleaseScriptTestHarness.RunPowerShellScript(
+            var staleResult = E2ERunEvidenceFixture.RunPwshScript(
                 VisualJudgeScriptPath,
                 [
                     "-FinalImagePath", finalPath,
@@ -159,7 +179,7 @@ public sealed class E2EVisualJudgeScriptTests
 
             var forbiddenFake = WriteFakeCodex(tempRoot, "forbidden", forbiddenToolEvent: true);
             var forbiddenEvidence = Path.Combine(tempRoot, "forbidden-evidence");
-            var forbiddenResult = ReleaseScriptTestHarness.RunPowerShellScript(
+            var forbiddenResult = E2ERunEvidenceFixture.RunPwshScript(
                 VisualJudgeScriptPath,
                 [
                     "-FinalImagePath", finalPath,
@@ -189,7 +209,7 @@ public sealed class E2EVisualJudgeScriptTests
         var decisionPath = Path.Combine(tempRoot, name + "-decision.json");
         File.WriteAllText(resultPath, JsonSerializer.Serialize(judgeResult));
 
-        var result = ReleaseScriptTestHarness.RunPowerShellScript(
+        var result = E2ERunEvidenceFixture.RunPwshScript(
             VisualJudgeScriptPath,
             [
                 "-JudgeResultPath", resultPath,
@@ -215,9 +235,12 @@ public sealed class E2EVisualJudgeScriptTests
             scriptPath,
             string.Join(
                 Environment.NewLine,
+                "[string[]] $argumentArray = $args",
+                "$argumentsJson = [System.Text.Json.JsonSerializer]::Serialize(" +
+                "    $argumentArray, $argumentArray.GetType(), [System.Text.Json.JsonSerializerOptions]::new())",
                 "[System.IO.File]::WriteAllText(",
                 $"    '{escapedArgumentsPath}',",
-                "    ($args | ConvertTo-Json),",
+                "    $argumentsJson,",
                 "    [System.Text.UTF8Encoding]::new($false))",
                 "$outputIndex = [Array]::IndexOf($args, '--output-last-message')",
                 "$resultPath = $args[$outputIndex + 1]",

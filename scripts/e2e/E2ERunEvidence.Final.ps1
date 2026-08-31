@@ -90,6 +90,73 @@ function Assert-ReportAndCleanup {
     }
 }
 
+function Assert-InputMappings {
+    param([System.Text.Json.JsonElement] $Root, [hashtable] $Artifacts)
+
+    foreach ($attempt in (Get-JsonArray $Root 'attempts').EnumerateArray()) {
+        $number = Get-JsonInteger $attempt 'number'
+        $mappingId = Get-JsonString $attempt 'imageMappingArtifactId'
+        $mappingRelativePath = Get-ArtifactRelativePath $Root $mappingId
+        if (-not $mappingRelativePath.Replace('\', '/').StartsWith(
+                "attempts/$number/",
+                [StringComparison]::Ordinal)) {
+            throw "Attempt $number image mapping must be attempt-local."
+        }
+
+        $document = [System.Text.Json.JsonDocument]::Parse(
+            [System.IO.File]::ReadAllText((Get-ArtifactPath $Artifacts $mappingId)))
+        try {
+            $mapping = $document.RootElement
+            if ((Get-JsonString $mapping 'schemaVersion') -cne 'wpfdevtools.e2e-visual-judge-inputs.v1' -or
+                (Get-JsonString $mapping 'mode') -cne 'reference') {
+                throw "Attempt $number image mapping has an invalid schema or mode."
+            }
+            $images = @((Get-JsonArray $mapping 'images').EnumerateArray())
+            if ($images.Count -ne 2) {
+                throw "Attempt $number image mapping must contain reference and candidate images."
+            }
+
+            $byRole = @{}
+            foreach ($image in $images) {
+                $role = Get-JsonString $image 'role'
+                if ($role -notin @('reference', 'candidate') -or $byRole.ContainsKey($role)) {
+                    throw "Attempt $number image mapping contains invalid or duplicate roles."
+                }
+                $byRole[$role] = $image
+            }
+            foreach ($role in @('reference', 'candidate')) {
+                if (-not $byRole.ContainsKey($role)) {
+                    throw "Attempt $number image mapping is missing '$role'."
+                }
+                $artifactField = if ($role -ceq 'reference') { 'referenceArtifactId' } else { 'candidateArtifactId' }
+                $artifactId = Get-JsonString $attempt $artifactField
+                $artifactPath = Get-ArtifactPath $Artifacts $artifactId
+                $relativePath = Get-ArtifactRelativePath $Root $artifactId
+                $image = [System.Text.Json.JsonElement] $byRole[$role]
+                $lengthValue = Get-JsonProperty $image 'byteLength'
+                $byteLength = 0L
+                if ($lengthValue.ValueKind -ne [System.Text.Json.JsonValueKind]::Number -or
+                    -not $lengthValue.TryGetInt64([ref] $byteLength) -or
+                    $byteLength -ne [System.IO.FileInfo]::new($artifactPath).Length -or
+                    (Get-JsonString $image 'frozenPath') -cne $relativePath -or
+                    -not (Get-JsonString $image 'sha256').Equals(
+                        (Get-Sha256 $artifactPath),
+                        [StringComparison]::OrdinalIgnoreCase)) {
+                    throw "Attempt $number '$role' image mapping does not match its frozen artifact."
+                }
+                if (-not $relativePath.Replace('\', '/').StartsWith(
+                        "attempts/$number/inputs/",
+                        [StringComparison]::Ordinal)) {
+                    throw "Attempt $number '$role' image must be an attempt-local frozen copy."
+                }
+            }
+        }
+        finally {
+            $document.Dispose()
+        }
+    }
+}
+
 function Get-AxisMinimum {
     param([System.Text.Json.JsonElement] $Axes, [string[]] $Names)
 

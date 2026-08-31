@@ -17,19 +17,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$qualityAxisNames = @(
-    'layoutBalance',
-    'visualHierarchy',
-    'readabilityContrast',
-    'controlStateCoherence',
-    'visualPolish'
-)
-$referenceAxisNames = @(
-    'regionGeometry',
-    'densityRhythm',
-    'navigationBrowseRhythm',
-    'mediaCardComposition'
-)
+. (Join-Path $PSScriptRoot 'E2EVisualJudge.Inputs.ps1')
 
 function Require-File {
     param(
@@ -49,52 +37,92 @@ function Require-File {
 function Get-RequiredProperty {
     param(
         [Parameter(Mandatory = $true)]
-        [object] $Value,
+        [System.Text.Json.JsonElement] $Value,
         [Parameter(Mandatory = $true)]
         [string] $Name
     )
 
-    if ($null -eq $Value -or $Value.PSObject.Properties.Name -notcontains $Name) {
-        throw "Judge result is missing '$Name'."
+    foreach ($property in $Value.EnumerateObject()) {
+        if ($property.Name -ceq $Name) {
+            return $property.Value.Clone()
+        }
     }
-
-    return $Value.$Name
+    throw "Judge result is missing '$Name'."
 }
 
-function Get-AxisMinimum {
+function Assert-ExactProperties {
     param(
-        [Parameter(Mandatory = $true)]
-        [object] $Axes,
-        [Parameter(Mandatory = $true)]
-        [string[]] $Names
+        [System.Text.Json.JsonElement] $Value,
+        [string[]] $Names,
+        [string] $Description
     )
 
-    $scores = foreach ($name in $Names) {
-        $raw = Get-RequiredProperty -Value $Axes -Name $name
-        $score = [double] $raw
-        if ($score -lt 0 -or $score -gt 10) {
+    if ($Value.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
+        throw "$Description must be a JSON object."
+    }
+    $actual = @($Value.EnumerateObject() | ForEach-Object { $_.Name })
+    foreach ($name in $Names) {
+        if ($actual -cnotcontains $name) {
+            throw "$Description is missing '$name'."
+        }
+    }
+    if ($actual.Count -ne $Names.Count) {
+        throw "$Description contains unsupported properties."
+    }
+}
+
+function Get-RequiredString {
+    param([System.Text.Json.JsonElement] $Value, [string] $Name)
+
+    $property = Get-RequiredProperty $Value $Name
+    if ($property.ValueKind -ne [System.Text.Json.JsonValueKind]::String -or
+        [string]::IsNullOrWhiteSpace($property.GetString())) {
+        throw "Judge result '$Name' must be a non-empty string."
+    }
+    return $property.GetString()
+}
+
+function Assert-Axes {
+    param([System.Text.Json.JsonElement] $Axes, [string[]] $Names)
+
+    Assert-ExactProperties $Axes $Names 'Judge axes'
+    foreach ($name in $Names) {
+        $raw = Get-RequiredProperty $Axes $name
+        $score = 0.0
+        if ($raw.ValueKind -ne [System.Text.Json.JsonValueKind]::Number -or
+            -not $raw.TryGetDouble([ref] $score) -or $score -lt 0 -or $score -gt 10) {
             throw "Judge axis '$name' must be between 0 and 10."
         }
-
-        $score
     }
-
-    return [double] (($scores | Measure-Object -Minimum).Minimum)
 }
 
 function Assert-DefectBounds {
-    param([Parameter(Mandatory = $true)] [object] $Defect)
+    param([System.Text.Json.JsonElement] $Defect)
 
-    $evidence = [string] (Get-RequiredProperty -Value $Defect -Name 'evidence')
-    if ([string]::IsNullOrWhiteSpace($evidence)) {
-        throw 'Every defect must include image-grounded evidence.'
+    Assert-ExactProperties $Defect @('severity', 'category', 'evidence', 'bounds') 'Visual defect'
+    $severity = Get-RequiredString $Defect 'severity'
+    if ($severity -notin @('blocking', 'material', 'minor')) {
+        throw "Unsupported defect severity '$severity'."
     }
+    Get-RequiredString $Defect 'category' | Out-Null
+    Get-RequiredString $Defect 'evidence' | Out-Null
 
-    $bounds = Get-RequiredProperty -Value $Defect -Name 'bounds'
-    $x = [double] (Get-RequiredProperty -Value $bounds -Name 'x')
-    $y = [double] (Get-RequiredProperty -Value $bounds -Name 'y')
-    $width = [double] (Get-RequiredProperty -Value $bounds -Name 'width')
-    $height = [double] (Get-RequiredProperty -Value $bounds -Name 'height')
+    $bounds = Get-RequiredProperty $Defect 'bounds'
+    Assert-ExactProperties $bounds @('x', 'y', 'width', 'height') 'Visual defect bounds'
+    $values = @{}
+    foreach ($name in @('x', 'y', 'width', 'height')) {
+        $raw = Get-RequiredProperty $bounds $name
+        $number = 0.0
+        if ($raw.ValueKind -ne [System.Text.Json.JsonValueKind]::Number -or
+            -not $raw.TryGetDouble([ref] $number)) {
+            throw "Visual defect bound '$name' must be numeric."
+        }
+        $values[$name] = $number
+    }
+    $x = $values.x
+    $y = $values.y
+    $width = $values.width
+    $height = $values.height
     if ($x -lt 0 -or $y -lt 0 -or $width -le 0 -or $height -le 0 -or
         $x -gt 1 -or $y -gt 1 -or $width -gt 1 -or $height -gt 1 -or
         ($x + $width) -gt 1.000001 -or ($y + $height) -gt 1.000001) {
@@ -111,21 +139,26 @@ function Assert-BlindJudgeEvents {
             continue
         }
 
-        $event = $line | ConvertFrom-Json
-        $eventType = [string] (Get-RequiredProperty -Value $event -Name 'type')
-        if ($eventType -match 'compact') {
-            throw "Visual judge emitted unexpected context compaction event '$eventType'."
+        $document = [System.Text.Json.JsonDocument]::Parse($line)
+        try {
+            $event = $document.RootElement
+            $eventType = Get-RequiredString $event 'type'
+            if ($eventType -match 'compact') {
+                throw "Visual judge emitted unexpected context compaction event '$eventType'."
+            }
+            foreach ($property in $event.EnumerateObject()) {
+                if ($property.Name -ceq 'item' -and
+                    $property.Value.ValueKind -eq [System.Text.Json.JsonValueKind]::Object) {
+                    $itemType = Get-RequiredString $property.Value 'type'
+                    if ($itemType -notin @('agent_message', 'reasoning')) {
+                        throw "Visual judge emitted forbidden tool event '$itemType'."
+                    }
+                    $sawAgentMessage = $sawAgentMessage -or $itemType -ceq 'agent_message'
+                }
+            }
         }
-
-        if ($event.PSObject.Properties.Name -contains 'item' -and $null -ne $event.item) {
-            $itemType = [string] (Get-RequiredProperty -Value $event.item -Name 'type')
-            if ($itemType -notin @('agent_message', 'reasoning')) {
-                throw "Visual judge emitted forbidden tool event '$itemType'."
-            }
-
-            if ($itemType -eq 'agent_message') {
-                $sawAgentMessage = $true
-            }
+        finally {
+            $document.Dispose()
         }
     }
 
@@ -134,7 +167,7 @@ function Assert-BlindJudgeEvents {
     }
 }
 
-function Write-Decision {
+function Write-ValidatedResult {
     param(
         [Parameter(Mandatory = $true)]
         [string] $ResultPath,
@@ -145,89 +178,43 @@ function Write-Decision {
         [string] $RequiredMode
     )
 
-    $result = [System.IO.File]::ReadAllText($ResultPath) | ConvertFrom-Json
-    $mode = [string] (Get-RequiredProperty -Value $result -Name 'mode')
-    if ($mode -notin @('reference', 'standalone')) {
-        throw "Judge mode must be 'reference' or 'standalone'."
-    }
-    if ($mode -ne $RequiredMode) {
-        throw "Judge mode '$mode' does not match expected image-input mode '$RequiredMode'."
-    }
-
-    $visualQuality = Get-AxisMinimum `
-        -Axes (Get-RequiredProperty -Value $result -Name 'qualityAxes') `
-        -Names $qualityAxisNames
-    $referenceFidelity = $null
-    $referenceAxes = Get-RequiredProperty -Value $result -Name 'referenceAxes'
-    if ($mode -eq 'reference') {
-        if ($null -eq $referenceAxes) {
-            throw 'Reference mode requires referenceAxes.'
+    $document = [System.Text.Json.JsonDocument]::Parse([System.IO.File]::ReadAllText($ResultPath))
+    try {
+        $result = $document.RootElement
+        Assert-ExactProperties $result @('mode', 'qualityAxes', 'referenceAxes', 'defects', 'summary') 'Judge result'
+        $mode = Get-RequiredString $result 'mode'
+        if ($mode -notin @('reference', 'standalone') -or $mode -cne $RequiredMode) {
+            throw "Judge mode '$mode' does not match expected image-input mode '$RequiredMode'."
         }
-
-        $referenceFidelity = Get-AxisMinimum -Axes $referenceAxes -Names $referenceAxisNames
-    }
-    elseif ($null -ne $referenceAxes) {
-        throw 'Standalone mode must return null referenceAxes.'
-    }
-
-    $severityCap = $null
-    $defects = @(Get-RequiredProperty -Value $result -Name 'defects')
-    foreach ($defect in $defects) {
-        Assert-DefectBounds -Defect $defect
-        $severity = [string] (Get-RequiredProperty -Value $defect -Name 'severity')
-        switch ($severity) {
-            'blocking' {
-                $severityCap = if ($null -eq $severityCap) { 9.0 } else { [Math]::Min($severityCap, 9.0) }
-            }
-            'material' {
-                $severityCap = if ($null -eq $severityCap) { 9.5 } else { [Math]::Min($severityCap, 9.5) }
-            }
-            'minor' {
-            }
-            default {
-                throw "Unsupported defect severity '$severity'."
-            }
+        Assert-Axes (Get-RequiredProperty $result 'qualityAxes') @(
+            'layoutBalance', 'visualHierarchy', 'readabilityContrast', 'controlStateCoherence', 'visualPolish')
+        $referenceAxes = Get-RequiredProperty $result 'referenceAxes'
+        if ($mode -ceq 'reference') {
+            Assert-Axes $referenceAxes @(
+                'regionGeometry', 'densityRhythm', 'navigationBrowseRhythm', 'mediaCardComposition')
         }
-    }
-
-    if ($null -ne $severityCap) {
-        $visualQuality = [Math]::Min($visualQuality, $severityCap)
-        if ($null -ne $referenceFidelity) {
-            $referenceFidelity = [Math]::Min($referenceFidelity, $severityCap)
+        elseif ($referenceAxes.ValueKind -ne [System.Text.Json.JsonValueKind]::Null) {
+            throw 'Standalone mode must return null referenceAxes.'
         }
-    }
+        $defects = Get-RequiredProperty $result 'defects'
+        if ($defects.ValueKind -ne [System.Text.Json.JsonValueKind]::Array) {
+            throw 'Judge result defects must be an array.'
+        }
+        foreach ($defect in $defects.EnumerateArray()) {
+            Assert-DefectBounds $defect
+        }
+        Get-RequiredString $result 'summary' | Out-Null
 
-    $reasons = [System.Collections.Generic.List[string]]::new()
-    if ($visualQuality -le 9.5) {
-        $reasons.Add("visualQuality=$visualQuality is not strictly greater than 9.5")
+        $json = $result.GetRawText()
+        [System.IO.File]::WriteAllText(
+            [System.IO.Path]::GetFullPath($OutputPath),
+            $json,
+            [System.Text.UTF8Encoding]::new($false))
+        [Console]::Out.WriteLine($json)
     }
-    if ($mode -eq 'reference' -and $referenceFidelity -le 9.5) {
-        $reasons.Add("referenceFidelity=$referenceFidelity is not strictly greater than 9.5")
+    finally {
+        $document.Dispose()
     }
-
-    $decision = [ordered]@{
-        mode = $mode
-        qualified = $reasons.Count -eq 0
-        visualQuality = $visualQuality
-        referenceFidelity = $referenceFidelity
-        severityCap = $severityCap
-        requiresRepair = $reasons.Count -ne 0
-        reasons = @($reasons)
-        defects = $defects
-        judgeResultPath = (Resolve-Path -LiteralPath $ResultPath).Path
-    }
-
-    $parent = Split-Path -Parent $OutputPath
-    if (-not [string]::IsNullOrWhiteSpace($parent)) {
-        New-Item -ItemType Directory -Path $parent -Force | Out-Null
-    }
-
-    $json = $decision | ConvertTo-Json -Depth 8
-    [System.IO.File]::WriteAllText(
-        [System.IO.Path]::GetFullPath($OutputPath),
-        $json,
-        [System.Text.UTF8Encoding]::new($false))
-    Write-Output ($decision | ConvertTo-Json -Depth 8 -Compress)
 }
 
 if ($ValidateOnly) {
@@ -239,7 +226,7 @@ if ($ValidateOnly) {
         throw 'ExpectedMode is required with ValidateOnly.'
     }
 
-    Write-Decision -ResultPath $resolvedResultPath -OutputPath $DecisionPath -RequiredMode $ExpectedMode
+    Write-ValidatedResult -ResultPath $resolvedResultPath -OutputPath $DecisionPath -RequiredMode $ExpectedMode
     exit 0
 }
 
@@ -259,7 +246,7 @@ if ([string]::IsNullOrWhiteSpace($JudgeResultPath)) {
     $JudgeResultPath = Join-Path $evidenceDirectory 'visual-judge-result.json'
 }
 if ([string]::IsNullOrWhiteSpace($DecisionPath)) {
-    $DecisionPath = Join-Path $evidenceDirectory 'visual-judge-decision.json'
+    $DecisionPath = Join-Path $evidenceDirectory 'visual-judge-validated.json'
 }
 
 $schemaPath = Join-Path $PSScriptRoot 'e2e-visual-judge.schema.json'
@@ -281,6 +268,11 @@ foreach ($outputPath in $outputPaths) {
 
     New-Item -ItemType Directory -Path (Split-Path -Parent $outputPath) -Force | Out-Null
 }
+
+$frozenInputs = Freeze-VisualJudgeInputs `
+    -EvidenceRoot $evidenceDirectory `
+    -CandidatePath $resolvedFinalImage `
+    -ReferencePath $resolvedReferenceImage
 
 $systemTempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\') + '\'
 $judgeWorkDirectory = [System.IO.Path]::GetFullPath(
@@ -387,17 +379,20 @@ $codexArguments = @(
     $judgeWorkDirectory
 )
 if ($mode -eq 'reference') {
-    $codexArguments += @('--image', $resolvedReferenceImage)
+    $codexArguments += @('--image', $frozenInputs.ReferencePath)
 }
-$codexArguments += @('--image', $resolvedFinalImage)
+$codexArguments += @('--image', $frozenInputs.CandidatePath)
 
 try {
     $previousErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
-        & $CodexExecutable @codexArguments 2> $stderrPath |
-            Set-Content -LiteralPath $eventsPath -Encoding UTF8
+        $eventLines = @(& $CodexExecutable @codexArguments 2> $stderrPath)
         $judgeExitCode = $LASTEXITCODE
+        [System.IO.File]::WriteAllLines(
+            $eventsPath,
+            [string[]] $eventLines,
+            [System.Text.UTF8Encoding]::new($false))
     }
     finally {
         $ErrorActionPreference = $previousErrorActionPreference
@@ -409,7 +404,7 @@ try {
     $resolvedEventsPath = Require-File -Path $eventsPath -ParameterName 'visual judge events'
     Assert-BlindJudgeEvents -EventsPath $resolvedEventsPath
     $resolvedJudgeResult = Require-File -Path $JudgeResultPath -ParameterName 'JudgeResultPath'
-    Write-Decision `
+    Write-ValidatedResult `
         -ResultPath $resolvedJudgeResult `
         -OutputPath $DecisionPath `
         -RequiredMode $ExpectedMode

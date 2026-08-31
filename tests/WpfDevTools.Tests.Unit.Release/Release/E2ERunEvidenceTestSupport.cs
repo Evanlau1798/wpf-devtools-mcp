@@ -16,6 +16,8 @@ internal sealed class E2ERunEvidenceFixture : IDisposable
         WriteArtifact("runnerEvents", "runner/events.jsonl", "{\"type\":\"run.completed\"}\n");
         WritePngArtifact("referenceImage", "visual/reference.png", 1920, 1215);
         WritePngArtifact("candidateImage", "visual/candidate.png", 1920, 1215);
+        WritePngArtifact("attemptReference", "attempts/1/inputs/reference.png", 1920, 1215);
+        WritePngArtifact("attemptCandidate", "attempts/1/inputs/candidate.png", 1920, 1215);
         WriteArtifact("visualContract", "visual/contract.json", "{\"contract\":\"v1\"}");
         WriteArtifact("interactionBefore", "interaction/before.json", "{}");
         WriteArtifact("interactionAction", "interaction/action.json", "{}");
@@ -24,11 +26,12 @@ internal sealed class E2ERunEvidenceFixture : IDisposable
         WriteArtifact("stateRestore", "state/restore.json", "{}");
         WriteArtifact("cleanup", "cleanup/result.json", "{\"passed\":true}");
         WriteArtifact("judgeResult", "attempts/1/judge-result.json", CreateJudgeResult(9.8));
-        WriteArtifact("inputMapping", "attempts/1/visual-judge-inputs.json", "{}");
+        WriteArtifact("inputMapping", "attempts/1/visual-judge-inputs.json", CreateInputMapping());
         WriteArtifact(
             "report",
             "report.md",
-            "![reference](visual/reference.png)\n![candidate](visual/candidate.png)\n");
+            "![reference](attempts/1/inputs/reference.png)\n" +
+            "![candidate](attempts/1/inputs/candidate.png)\n");
         Save(CreateManifest());
     }
 
@@ -93,6 +96,20 @@ internal sealed class E2ERunEvidenceFixture : IDisposable
         string phase)
     {
         var script = ReleaseScriptTestHarness.GetRepoFilePath("scripts/e2e/Test-E2ERunEvidence.ps1");
+        return RunPwshScript(
+            script,
+            [
+                "-Phase", phase,
+                "-EvidenceRoot", fixture.Root,
+                "-ManifestPath", fixture.ManifestPath,
+                "-DecisionPath", fixture.DecisionPath
+            ]);
+    }
+
+    public static (int ExitCode, string Stdout, string Stderr) RunPwshScript(
+        string script,
+        IReadOnlyList<string> arguments)
+    {
         var start = new ProcessStartInfo
         {
             FileName = "pwsh",
@@ -102,14 +119,7 @@ internal sealed class E2ERunEvidenceFixture : IDisposable
             CreateNoWindow = true,
             WorkingDirectory = ReleaseScriptTestHarness.GetRepoFilePath(".")
         };
-        foreach (var argument in new[]
-                 {
-                     "-NoProfile", "-File", script,
-                     "-Phase", phase,
-                     "-EvidenceRoot", fixture.Root,
-                     "-ManifestPath", fixture.ManifestPath,
-                     "-DecisionPath", fixture.DecisionPath
-                 })
+        foreach (var argument in new[] { "-NoProfile", "-File", script }.Concat(arguments))
         {
             start.ArgumentList.Add(argument);
         }
@@ -187,15 +197,15 @@ internal sealed class E2ERunEvidenceFixture : IDisposable
                 ["number"] = 1,
                 ["repairKind"] = "none",
                 ["visualContractHash"] = VisualContractHash,
-                ["referenceArtifactId"] = "referenceImage",
-                ["candidateArtifactId"] = "candidateImage",
+                ["referenceArtifactId"] = "attemptReference",
+                ["candidateArtifactId"] = "attemptCandidate",
                 ["judgeResultArtifactId"] = "judgeResult",
                 ["imageMappingArtifactId"] = "inputMapping"
             }),
             ["report"] = new JsonObject
             {
                 ["artifactId"] = "report",
-                ["imageArtifactIds"] = new JsonArray("referenceImage", "candidateImage")
+                ["imageArtifactIds"] = new JsonArray("attemptReference", "attemptCandidate")
             },
             ["cleanup"] = new JsonObject
             {
@@ -279,6 +289,34 @@ internal sealed class E2ERunEvidenceFixture : IDisposable
     private string VisualContractHash => Artifacts
         .Single(item => item["id"]!.GetValue<string>() == "visualContract")["sha256"]!
         .GetValue<string>();
+
+    private string ArtifactHash(string id) => Artifacts
+        .Single(item => item["id"]!.GetValue<string>() == id)["sha256"]!
+        .GetValue<string>();
+
+    private string CreateInputMapping()
+        => JsonSerializer.Serialize(new
+        {
+            schemaVersion = "wpfdevtools.e2e-visual-judge-inputs.v1",
+            mode = "reference",
+            images = new object[]
+            {
+                new
+                {
+                    role = "reference",
+                    frozenPath = "attempts/1/inputs/reference.png",
+                    sha256 = ArtifactHash("attemptReference"),
+                    byteLength = 24
+                },
+                new
+                {
+                    role = "candidate",
+                    frozenPath = "attempts/1/inputs/candidate.png",
+                    sha256 = ArtifactHash("attemptCandidate"),
+                    byteLength = 24
+                }
+            }
+        });
 
     private void WriteArtifact(string id, string relativePath, string content)
     {

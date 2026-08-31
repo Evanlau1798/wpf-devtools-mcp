@@ -1,0 +1,114 @@
+using System.Text.Json;
+using FluentAssertions;
+
+namespace WpfDevTools.Tests.Unit.Release;
+
+public sealed class E2ERunEvidenceFinalTests
+{
+    [Fact]
+    public void Final_ShouldWriteExactPassingDecision()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "Final");
+
+        result.ExitCode.Should().Be(0, result.Stderr);
+        using var decision = JsonDocument.Parse(File.ReadAllText(fixture.DecisionPath));
+        var root = decision.RootElement;
+        root.EnumerateObject().Select(property => property.Name).Should().BeEquivalentTo(
+            "runnerCompleted",
+            "operationalGatesPassed",
+            "visualQualified",
+            "overallResult",
+            "reasons",
+            "repairBudgetExhausted");
+        root.GetProperty("runnerCompleted").GetBoolean().Should().BeTrue();
+        root.GetProperty("operationalGatesPassed").GetBoolean().Should().BeTrue();
+        root.GetProperty("visualQualified").GetBoolean().Should().BeTrue();
+        root.GetProperty("overallResult").GetString().Should().Be("PASS");
+        root.GetProperty("repairBudgetExhausted").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
+    public void Final_ShouldRejectInvalidRunnerJsonlEvenWithSuccessfulExit()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.SetArtifactText("runnerEvents", "{\"type\":\"run.started\"}\nnot-json\n");
+
+        var decision = RunFailedFinal(fixture);
+
+        decision.GetProperty("runnerCompleted").GetBoolean().Should().BeTrue();
+        decision.GetProperty("operationalGatesPassed").GetBoolean().Should().BeFalse();
+        DecisionReasons(decision).Should().Contain(reason => reason.Contains("JSONL", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Final_ShouldRejectChangedVisualContractHashOnRepairAttempt()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.AddSecondAttempt(new string('b', 64));
+
+        var decision = RunFailedFinal(fixture);
+
+        DecisionReasons(decision).Should().Contain(reason => reason.Contains("contract hash changed", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Final_ShouldRejectReportMissingRequiredImage()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.SetArtifactText("report", "![reference](visual/reference.png)\n");
+
+        var decision = RunFailedFinal(fixture);
+
+        DecisionReasons(decision).Should().Contain(reason => reason.Contains("report", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Final_ShouldFailVisualGateWhenRunnerExitedZero()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.SetJudgeScore(9.5);
+
+        var decision = RunFailedFinal(fixture);
+
+        decision.GetProperty("runnerCompleted").GetBoolean().Should().BeTrue();
+        decision.GetProperty("operationalGatesPassed").GetBoolean().Should().BeTrue();
+        decision.GetProperty("visualQualified").GetBoolean().Should().BeFalse();
+        decision.GetProperty("overallResult").GetString().Should().Be("FAIL");
+    }
+
+    [Fact]
+    public void Final_ShouldMarkRepairBudgetExhaustedAfterSecondVisualFailure()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.AddSecondAttempt();
+        fixture.SetJudgeScore(9.4);
+
+        var decision = RunFailedFinal(fixture);
+
+        decision.GetProperty("repairBudgetExhausted").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public void Final_ShouldRejectFailedCleanupGate()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.Mutate(manifest => manifest["cleanup"]!["passed"] = false);
+
+        var decision = RunFailedFinal(fixture);
+
+        DecisionReasons(decision).Should().Contain(reason => reason.Contains("cleanup", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static JsonElement RunFailedFinal(E2ERunEvidenceFixture fixture)
+    {
+        var result = E2ERunEvidenceFixture.Run(fixture, "Final");
+        result.ExitCode.Should().NotBe(0);
+        File.Exists(fixture.DecisionPath).Should().BeTrue(result.Stderr);
+        return JsonDocument.Parse(File.ReadAllText(fixture.DecisionPath)).RootElement.Clone();
+    }
+
+    private static string[] DecisionReasons(JsonElement decision)
+        => decision.GetProperty("reasons").EnumerateArray().Select(item => item.GetString()!).ToArray();
+}

@@ -55,6 +55,39 @@ internal sealed class E2ERunEvidenceFixture : IDisposable
         return Path.Combine(Root, artifact["path"]!.GetValue<string>());
     }
 
+    public void SetArtifactText(string id, string content, bool includeBom = false)
+    {
+        var path = GetArtifactPath(id);
+        File.WriteAllText(path, content, new UTF8Encoding(includeBom));
+        Mutate(manifest =>
+        {
+            var artifact = manifest["artifacts"]!.AsArray()
+                .Select(node => node!.AsObject())
+                .Single(item => item["id"]!.GetValue<string>() == id);
+            artifact["sha256"] = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
+        });
+    }
+
+    public void SetJudgeScore(double score) => SetArtifactText("judgeResult", CreateJudgeResult(score));
+
+    public void AddSecondAttempt(string? contractHash = null)
+    {
+        Mutate(manifest =>
+        {
+            var first = manifest["attempts"]![0]!.AsObject();
+            manifest["attempts"]!.AsArray().Add(new JsonObject
+            {
+                ["number"] = 2,
+                ["repairKind"] = "aesthetic",
+                ["visualContractHash"] = contractHash ?? manifest["visualContractHash"]!.GetValue<string>(),
+                ["referenceArtifactId"] = first["referenceArtifactId"]!.GetValue<string>(),
+                ["candidateArtifactId"] = first["candidateArtifactId"]!.GetValue<string>(),
+                ["judgeResultArtifactId"] = first["judgeResultArtifactId"]!.GetValue<string>(),
+                ["imageMappingArtifactId"] = first["imageMappingArtifactId"]!.GetValue<string>()
+            });
+        });
+    }
+
     public static (int ExitCode, string Stdout, string Stderr) Run(
         E2ERunEvidenceFixture fixture,
         string phase)

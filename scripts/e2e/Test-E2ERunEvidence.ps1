@@ -15,10 +15,7 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'E2ERunEvidence.Common.ps1')
 . (Join-Path $PSScriptRoot 'E2ERunEvidence.Interactive.ps1')
-
-if ($Phase -ceq 'Final') {
-    throw 'Final evidence validation is not implemented yet.'
-}
+. (Join-Path $PSScriptRoot 'E2ERunEvidence.Final.ps1')
 if (-not (Test-Path -LiteralPath $EvidenceRoot -PathType Container)) {
     throw 'EvidenceRoot must identify an existing directory.'
 }
@@ -35,14 +32,84 @@ if (-not $manifestFullPath.StartsWith($manifestPrefix, [StringComparison]::Ordin
 
 $document = [System.Text.Json.JsonDocument]::Parse([System.IO.File]::ReadAllText($manifestFullPath))
 try {
-    Assert-PreJudgeEvidence -Root $document.RootElement -EvidenceRoot $evidenceFullPath | Out-Null
+    $root = $document.RootElement.Clone()
+}
+finally {
+    $document.Dispose()
+}
+
+if ($Phase -ceq 'PreJudge') {
+    Assert-PreJudgeEvidence -Root $root -EvidenceRoot $evidenceFullPath | Out-Null
     $result = [ordered]@{ phase = 'PreJudge'; passed = $true; reasons = @() }
     $json = [System.Text.Json.JsonSerializer]::Serialize(
         $result,
         $result.GetType(),
         [System.Text.Json.JsonSerializerOptions]::new())
     [Console]::Out.WriteLine($json)
+    exit 0
 }
-finally {
-    $document.Dispose()
+
+if ([string]::IsNullOrWhiteSpace($DecisionPath)) {
+    throw 'DecisionPath is required for Final validation.'
+}
+$decisionFullPath = [System.IO.Path]::GetFullPath($DecisionPath)
+if (-not $decisionFullPath.StartsWith($manifestPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'DecisionPath must be contained by EvidenceRoot.'
+}
+if (Test-Path -LiteralPath $decisionFullPath) {
+    throw 'DecisionPath must not identify an existing file.'
+}
+[System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($decisionFullPath)) | Out-Null
+
+$reasons = [System.Collections.Generic.List[string]]::new()
+$artifacts = $null
+try {
+    $artifacts = Assert-EvidenceArtifacts -Root $root -EvidenceRoot $evidenceFullPath
+}
+catch {
+    $reasons.Add($_.Exception.Message)
+}
+
+$runnerCompleted = $false
+try {
+    $runnerCompleted = Get-RunnerCompleted $root
+    if (-not $runnerCompleted) {
+        $reasons.Add('Runner did not complete successfully.')
+    }
+}
+catch {
+    $reasons.Add($_.Exception.Message)
+}
+
+$operational = $null -ne $artifacts
+if ($operational) {
+    foreach ($gate in @(
+            { Assert-PreJudgeEvidence $root $evidenceFullPath | Out-Null },
+            { Assert-RunnerEvents $root $artifacts },
+            { Assert-ReportAndCleanup $root $artifacts })) {
+        try {
+            & $gate
+        }
+        catch {
+            $operational = $false
+            $reasons.Add($_.Exception.Message)
+        }
+    }
+}
+
+$visualQualified = $false
+if ($null -ne $artifacts) {
+    try {
+        $visualQualified = Test-VisualQualification $root $artifacts $reasons
+    }
+    catch {
+        $reasons.Add($_.Exception.Message)
+    }
+}
+
+$attemptCount = @((Get-JsonArray $root 'attempts').EnumerateArray()).Count
+$repairBudgetExhausted = $attemptCount -eq 2 -and -not $visualQualified
+Write-FinalDecision $decisionFullPath $runnerCompleted $operational $visualQualified $reasons $repairBudgetExhausted
+if (-not ($runnerCompleted -and $operational -and $visualQualified)) {
+    exit 1
 }

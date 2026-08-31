@@ -78,21 +78,41 @@ internal sealed partial class E2ERunEvidenceFixture : IDisposable
 
     public void SetJudgeScore(double score) => SetArtifactText("judgeResult", CreateJudgeResult(score));
 
-    public void AddSecondAttempt(string? contractHash = null)
+    public void AddSecondAttempt(
+        string? contractHash = null,
+        double firstScore = 9.4,
+        double secondScore = 9.8)
     {
+        SetJudgeScore(firstScore);
+        WritePngArtifact("candidateImage2", "visual/candidate-2.png", 1920, 1215);
+        WritePngArtifact("attemptReference2", "attempts/2/inputs/reference.png", 1920, 1215);
+        WritePngArtifact("attemptCandidate2", "attempts/2/inputs/candidate.png", 1920, 1215);
+        WriteArtifact("judgeResult2", "attempts/2/judge-result.json", CreateJudgeResult(secondScore));
+        WriteArtifact(
+            "inputMapping2",
+            "attempts/2/visual-judge-inputs.json",
+            CreateInputMapping("attemptReference2", "attemptCandidate2", "candidateImage2"));
+        SetArtifactText(
+            "report",
+            "![reference 1](attempts/1/inputs/reference.png)\n" +
+            "![candidate 1](attempts/1/inputs/candidate.png)\n" +
+            "![reference 2](attempts/2/inputs/reference.png)\n" +
+            "![candidate 2](attempts/2/inputs/candidate.png)\n");
         Mutate(manifest =>
         {
-            var first = manifest["attempts"]![0]!.AsObject();
+            manifest["artifacts"] = new JsonArray(Artifacts.Select(item => item.DeepClone()).ToArray());
             manifest["attempts"]!.AsArray().Add(new JsonObject
             {
                 ["number"] = 2,
                 ["repairKind"] = "aesthetic",
                 ["visualContractHash"] = contractHash ?? manifest["visualContractHash"]!.GetValue<string>(),
-                ["referenceArtifactId"] = first["referenceArtifactId"]!.GetValue<string>(),
-                ["candidateArtifactId"] = first["candidateArtifactId"]!.GetValue<string>(),
-                ["judgeResultArtifactId"] = first["judgeResultArtifactId"]!.GetValue<string>(),
-                ["imageMappingArtifactId"] = first["imageMappingArtifactId"]!.GetValue<string>()
+                ["referenceArtifactId"] = "attemptReference2",
+                ["candidateArtifactId"] = "attemptCandidate2",
+                ["judgeResultArtifactId"] = "judgeResult2",
+                ["imageMappingArtifactId"] = "inputMapping2"
             });
+            manifest["report"]!["imageArtifactIds"] = new JsonArray(
+                "attemptReference", "attemptCandidate", "attemptReference2", "attemptCandidate2");
         });
     }
 
@@ -304,6 +324,12 @@ internal sealed partial class E2ERunEvidenceFixture : IDisposable
         .GetValue<string>();
 
     private string CreateInputMapping()
+        => CreateInputMapping("attemptReference", "attemptCandidate", "candidateImage");
+
+    private string CreateInputMapping(
+        string referenceArtifactId,
+        string candidateArtifactId,
+        string candidateSourceArtifactId)
         => JsonSerializer.Serialize(new
         {
             schemaVersion = "wpfdevtools.e2e-visual-judge-inputs.v1",
@@ -315,16 +341,16 @@ internal sealed partial class E2ERunEvidenceFixture : IDisposable
                     role = "reference",
                     sourceArtifactId = "referenceImage",
                     frozenPath = "inputs/reference.png",
-                    sha256 = ArtifactHash("attemptReference"),
-                    byteLength = ArtifactLength("attemptReference")
+                    sha256 = ArtifactHash(referenceArtifactId),
+                    byteLength = ArtifactLength(referenceArtifactId)
                 },
                 new
                 {
                     role = "candidate",
-                    sourceArtifactId = "candidateImage",
+                    sourceArtifactId = candidateSourceArtifactId,
                     frozenPath = "inputs/candidate.png",
-                    sha256 = ArtifactHash("attemptCandidate"),
-                    byteLength = ArtifactLength("attemptCandidate")
+                    sha256 = ArtifactHash(candidateArtifactId),
+                    byteLength = ArtifactLength(candidateArtifactId)
                 }
             }
         });

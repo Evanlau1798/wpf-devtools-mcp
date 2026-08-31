@@ -95,11 +95,12 @@ public sealed class E2ERunEvidenceFinalTests
     public void Final_ShouldMarkRepairBudgetExhaustedAfterSecondVisualFailure()
     {
         using var fixture = new E2ERunEvidenceFixture();
-        fixture.AddSecondAttempt();
-        fixture.SetJudgeScore(9.4);
+        fixture.AddSecondAttempt(secondScore: 9.4);
 
         var decision = RunFailedFinal(fixture);
 
+        decision.GetProperty("operationalGatesPassed").GetBoolean().Should().BeTrue();
+        decision.GetProperty("visualQualified").GetBoolean().Should().BeFalse();
         decision.GetProperty("repairBudgetExhausted").GetBoolean().Should().BeTrue();
     }
 

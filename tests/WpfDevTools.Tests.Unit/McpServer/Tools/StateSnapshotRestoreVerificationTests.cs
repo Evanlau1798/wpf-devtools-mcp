@@ -277,7 +277,8 @@ public sealed partial class StateSnapshotRestoreVerificationTests
             "restore_dp_expression",
             "modify_viewmodel",
             "get_viewmodel",
-            "get_dp_value_source");
+            "get_dp_value_source",
+            "get_viewmodel");
     }
 
     [Fact]

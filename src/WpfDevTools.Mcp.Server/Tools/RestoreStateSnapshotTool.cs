@@ -53,6 +53,15 @@ public sealed partial class RestoreStateSnapshotTool(SessionManager sessionManag
                 sessionGeneration,
                 progress,
                 cancellationToken).ConfigureAwait(false);
+            if (snapshot.DependencyProperties.Count > 0)
+            {
+                await VerifyFinalViewModelPropertiesAsync(
+                    processId,
+                    sessionGeneration,
+                    snapshot.ViewModelProperties,
+                    progress,
+                    cancellationToken).ConfigureAwait(false);
+            }
             progress.RestoredFocus = await RestoreFocusAsync(
                 processId,
                 sessionGeneration,

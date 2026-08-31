@@ -205,6 +205,8 @@ Policy gate：destructive。使用此工具前，需設定 `WPFDEVTOOLS_MCP_ALLO
 
 有擷取 focus 時，`restoredFocus=true` 代表最後一次 `get_focus_state` readback 已符合 baseline。若 baseline 原本沒有 focused element，restore 會清除 keyboard 與 logical focus。Mutation 或 readback mismatch 會 fail closed、保留 snapshot 並回傳 warning。
 
+當 snapshot 同時包含 DependencyProperty 與 ViewModel state 時，restore 會在所有 DependencyProperty verification 完成後執行最後一次 `get_viewmodel` readback。若值不符，流程不會重試 ViewModel mutation，而會 fail closed 並保留 snapshot 供明確復原。
+
 最小 rollback 鏈：`capture_state_snapshot -> snapshotId -> get_state_diff -> restore_state_snapshot`。
 
 範例：

@@ -16,9 +16,18 @@ function Assert-RunnerEvents {
     if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
         throw 'Runner JSONL must use UTF-8 without a BOM.'
     }
+    try {
+        $text = [System.Text.UTF8Encoding]::new($false, $true).GetString($bytes)
+    }
+    catch [System.Text.DecoderFallbackException] {
+        throw "Runner JSONL must contain strict UTF-8: $($_.Exception.Message)"
+    }
 
     $lineNumber = 0
-    foreach ($line in [System.IO.File]::ReadLines($eventsPath)) {
+    $terminalLine = 0
+    $terminalEvent = $null
+    $reader = [System.IO.StringReader]::new($text)
+    while ($null -ne ($line = $reader.ReadLine())) {
         $lineNumber++
         if ([string]::IsNullOrWhiteSpace($line)) {
             throw "Runner JSONL line $lineNumber is blank."
@@ -29,7 +38,14 @@ function Assert-RunnerEvents {
                 if ($document.RootElement.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
                     throw 'event must be a JSON object'
                 }
-                Get-JsonString $document.RootElement 'type' | Out-Null
+                $type = Get-JsonString $document.RootElement 'type'
+                if ($type -ceq 'run.completed') {
+                    if ($null -ne $terminalEvent) {
+                        throw 'runner stream contains more than one terminal completion event'
+                    }
+                    $terminalEvent = $document.RootElement.Clone()
+                    $terminalLine = $lineNumber
+                }
             }
             finally {
                 $document.Dispose()
@@ -41,6 +57,15 @@ function Assert-RunnerEvents {
     }
     if ($lineNumber -eq 0) {
         throw 'Runner JSONL must contain at least one event.'
+    }
+    if ($null -eq $terminalEvent -or $terminalLine -ne $lineNumber) {
+        throw 'Runner JSONL must end with exactly one terminal run.completed event.'
+    }
+    $completed = Get-JsonBoolean $terminalEvent 'completed'
+    $exitCode = Get-JsonInteger $terminalEvent 'exitCode'
+    if ($completed -ne (Get-JsonBoolean $runner 'completed') -or
+        $exitCode -ne (Get-JsonInteger $runner 'exitCode')) {
+        throw 'Runner JSONL terminal status does not match the manifest runner status.'
     }
 }
 

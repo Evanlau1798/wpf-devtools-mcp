@@ -20,16 +20,9 @@ $ErrorActionPreference = 'Stop'
 if (-not (Test-Path -LiteralPath $EvidenceRoot -PathType Container)) {
     throw 'EvidenceRoot must identify an existing directory.'
 }
-if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) {
-    throw 'ManifestPath must identify an existing file.'
-}
-
-$manifestFullPath = [System.IO.Path]::GetFullPath($ManifestPath)
 $evidenceFullPath = (Resolve-Path -LiteralPath $EvidenceRoot).Path.TrimEnd('\', '/')
-$manifestPrefix = $evidenceFullPath + [System.IO.Path]::DirectorySeparatorChar
-if (-not $manifestFullPath.StartsWith($manifestPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-    throw 'ManifestPath must be contained by EvidenceRoot.'
-}
+Assert-NoReparsePoint $evidenceFullPath $evidenceFullPath
+$manifestFullPath = Assert-ContainedEvidencePath $evidenceFullPath $ManifestPath 'ManifestPath' -MustExist
 
 $document = [System.Text.Json.JsonDocument]::Parse([System.IO.File]::ReadAllText($manifestFullPath))
 try {
@@ -55,13 +48,12 @@ if ([string]::IsNullOrWhiteSpace($DecisionPath)) {
     throw 'DecisionPath is required for Final validation.'
 }
 $decisionFullPath = [System.IO.Path]::GetFullPath($DecisionPath)
-if (-not $decisionFullPath.StartsWith($manifestPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-    throw 'DecisionPath must be contained by EvidenceRoot.'
-}
+$decisionFullPath = Assert-ContainedEvidencePath $evidenceFullPath $decisionFullPath 'DecisionPath'
 if (Test-Path -LiteralPath $decisionFullPath) {
     throw 'DecisionPath must not identify an existing file.'
 }
 [System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($decisionFullPath)) | Out-Null
+Assert-NoReparsePoint $evidenceFullPath $decisionFullPath
 
 $reasons = [System.Collections.Generic.List[string]]::new()
 $artifacts = $null

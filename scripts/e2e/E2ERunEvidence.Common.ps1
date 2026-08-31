@@ -97,14 +97,45 @@ function Get-Sha256 {
 function Assert-NoReparsePoint {
     param([string] $Root, [string] $Path)
 
-    $cursor = [System.IO.FileInfo]::new($Path)
-    while ($null -ne $cursor -and
-        -not $cursor.FullName.Equals($Root, [StringComparison]::OrdinalIgnoreCase)) {
-        if (($cursor.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
-            throw "Artifact path '$Path' traverses a reparse point."
+    $resolvedRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd('\', '/')
+    $cursorPath = [System.IO.Path]::GetFullPath($Path)
+    while (-not (Test-Path -LiteralPath $cursorPath)) {
+        $parent = [System.IO.Path]::GetDirectoryName($cursorPath)
+        if ([string]::IsNullOrEmpty($parent) -or $parent -ceq $cursorPath) {
+            throw "Evidence path '$Path' has no existing ancestor."
         }
-        $cursor = if ($cursor -is [System.IO.FileInfo]) { $cursor.Directory } else { $cursor.Parent }
+        $cursorPath = $parent
     }
+
+    while ($true) {
+        $item = Get-Item -LiteralPath $cursorPath -Force
+        if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Evidence path '$Path' traverses a reparse point."
+        }
+        if ($item.FullName.TrimEnd('\', '/').Equals($resolvedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            break
+        }
+        $cursorPath = [System.IO.Path]::GetDirectoryName($item.FullName)
+        if ([string]::IsNullOrEmpty($cursorPath)) {
+            throw "Evidence path '$Path' is not contained by the evidence root."
+        }
+    }
+}
+
+function Assert-ContainedEvidencePath {
+    param([string] $Root, [string] $Path, [string] $Kind, [switch] $MustExist)
+
+    $resolvedRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd('\', '/')
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    $prefix = $resolvedRoot + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $fullPath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "$Kind must be contained by EvidenceRoot."
+    }
+    if ($MustExist -and -not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+        throw "$Kind must identify an existing file."
+    }
+    Assert-NoReparsePoint $resolvedRoot $fullPath
+    return $fullPath
 }
 
 function Assert-EvidenceArtifacts {

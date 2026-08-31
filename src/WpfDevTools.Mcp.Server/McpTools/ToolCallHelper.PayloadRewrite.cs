@@ -92,7 +92,7 @@ public static partial class ToolCallHelper
         JsonElement element,
         IReadOnlyList<ToolNextStep> recommended)
     {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var seen = new List<(string Tool, JsonElement Parameters)>();
         writer.WriteStartArray();
 
         if (element.TryGetProperty("nextSteps", out var toolSteps)
@@ -100,7 +100,7 @@ public static partial class ToolCallHelper
         {
             foreach (var step in toolSteps.EnumerateArray())
             {
-                if (!TryGetNextStepKey(step, out var key) || seen.Add(key))
+                if (TryAddNextStep(step, seen))
                 {
                     step.WriteTo(writer);
                 }
@@ -110,7 +110,7 @@ public static partial class ToolCallHelper
         foreach (var plannedStep in recommended)
         {
             var step = JsonSerializer.SerializeToElement(plannedStep, SerializerOptions);
-            if (!TryGetNextStepKey(step, out var key) || seen.Add(key))
+            if (TryAddNextStep(step, seen))
             {
                 step.WriteTo(writer);
             }
@@ -119,18 +119,26 @@ public static partial class ToolCallHelper
         writer.WriteEndArray();
     }
 
-    private static bool TryGetNextStepKey(JsonElement step, out string key)
+    private static bool TryAddNextStep(
+        JsonElement step,
+        List<(string Tool, JsonElement Parameters)> seen)
     {
-        key = string.Empty;
         if (step.ValueKind != JsonValueKind.Object
             || !step.TryGetProperty("tool", out var tool)
             || tool.ValueKind != JsonValueKind.String
             || !step.TryGetProperty("params", out var parameters))
         {
-            return false;
+            return true;
         }
 
-        key = string.Concat(tool.GetString(), "\0", parameters.GetRawText());
+        var toolName = tool.GetString()!;
+        if (seen.Any(candidate =>
+                string.Equals(candidate.Tool, toolName, StringComparison.Ordinal)
+                && JsonElement.DeepEquals(candidate.Parameters, parameters)))
+        {
+            return false;
+        }
+        seen.Add((toolName, parameters.Clone()));
         return true;
     }
 

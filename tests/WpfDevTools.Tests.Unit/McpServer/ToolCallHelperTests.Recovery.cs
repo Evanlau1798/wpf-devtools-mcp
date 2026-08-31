@@ -70,4 +70,46 @@ public partial class ToolCallHelperTests
         recommended.GetArrayLength().Should().Be(2);
         recommended[0].GetProperty("reason").GetString().Should().Be("Planner retry.");
     }
+
+    [Fact]
+    public async Task ExecuteAndWrapAsync_ShouldDeduplicateParamsRegardlessOfPropertyOrder()
+    {
+        var plannerParams = System.Text.Json.JsonSerializer.SerializeToElement(new
+        {
+            snapshotId = "snapshot_123",
+            processId = 42
+        });
+        var registry = new ToolNavigationRegistry();
+        registry.Register("known_tool", _ => ToolNavigationEnvelope.FromRecommended(
+        [
+            new ToolNextStep(
+                "restore_state_snapshot",
+                plannerParams,
+                "Planner retry.",
+                ToolNextStepKind.Action,
+                1)
+        ]));
+        using var scope = ToolCallHelper.BeginTestScope(
+            navigationPlanner: new ToolNavigationPlanner(registry));
+
+        var result = await ToolCallHelper.ExecuteAndWrapAsync(
+            (_, _) => Task.FromResult<object>(new
+            {
+                success = false,
+                nextSteps = new[]
+                {
+                    new
+                    {
+                        tool = "restore_state_snapshot",
+                        @params = new { processId = 42, snapshotId = "snapshot_123" },
+                        reason = "Use the exact tool recovery."
+                    }
+                }
+            }),
+            null,
+            CancellationToken.None,
+            toolName: "known_tool");
+
+        result.StructuredContent!.Value.GetProperty("nextSteps").GetArrayLength().Should().Be(1);
+    }
 }

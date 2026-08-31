@@ -24,12 +24,29 @@ $evidenceFullPath = (Resolve-Path -LiteralPath $EvidenceRoot).Path.TrimEnd('\', 
 Assert-NoReparsePoint $evidenceFullPath $evidenceFullPath
 $manifestFullPath = Assert-ContainedEvidencePath $evidenceFullPath $ManifestPath 'ManifestPath' -MustExist
 
-$document = [System.Text.Json.JsonDocument]::Parse([System.IO.File]::ReadAllText($manifestFullPath))
-try {
-    $root = $document.RootElement.Clone()
+$decisionFullPath = $null
+if ($Phase -ceq 'Final') {
+    if ([string]::IsNullOrWhiteSpace($DecisionPath)) {
+        throw 'DecisionPath is required for Final validation.'
+    }
+    $decisionFullPath = Assert-ContainedEvidencePath $evidenceFullPath $DecisionPath 'DecisionPath'
+    if (Test-Path -LiteralPath $decisionFullPath) {
+        throw 'DecisionPath must not identify an existing file.'
+    }
+    [System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($decisionFullPath)) | Out-Null
+    Assert-NoReparsePoint $evidenceFullPath $decisionFullPath
 }
-finally {
-    $document.Dispose()
+
+try {
+    $document = [System.Text.Json.JsonDocument]::Parse([System.IO.File]::ReadAllText($manifestFullPath))
+    try { $root = $document.RootElement.Clone() } finally { $document.Dispose() }
+}
+catch {
+    if ($Phase -cne 'Final') { throw }
+    $parseReasons = [System.Collections.Generic.List[string]]::new()
+    $parseReasons.Add("Manifest JSON is invalid: $($_.Exception.Message)")
+    Write-FinalDecision $decisionFullPath $false $false $false $parseReasons $false
+    exit 1
 }
 
 if ($Phase -ceq 'PreJudge') {
@@ -43,17 +60,6 @@ if ($Phase -ceq 'PreJudge') {
     [Console]::Out.WriteLine($json)
     exit 0
 }
-
-if ([string]::IsNullOrWhiteSpace($DecisionPath)) {
-    throw 'DecisionPath is required for Final validation.'
-}
-$decisionFullPath = [System.IO.Path]::GetFullPath($DecisionPath)
-$decisionFullPath = Assert-ContainedEvidencePath $evidenceFullPath $decisionFullPath 'DecisionPath'
-if (Test-Path -LiteralPath $decisionFullPath) {
-    throw 'DecisionPath must not identify an existing file.'
-}
-[System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($decisionFullPath)) | Out-Null
-Assert-NoReparsePoint $evidenceFullPath $decisionFullPath
 
 $reasons = [System.Collections.Generic.List[string]]::new()
 $artifacts = $null
@@ -103,7 +109,14 @@ if ($null -ne $artifacts) {
     }
 }
 
-$attemptCount = @((Get-JsonArray $root 'attempts').EnumerateArray()).Count
+$attemptCount = 0
+try {
+    $attemptCount = @((Get-JsonArray $root 'attempts').EnumerateArray()).Count
+}
+catch {
+    $operational = $false
+    $reasons.Add($_.Exception.Message)
+}
 $repairBudgetExhausted = $attemptCount -eq 2 -and -not $visualQualified
 Write-FinalDecision $decisionFullPath $runnerCompleted $operational $visualQualified $reasons $repairBudgetExhausted
 if (-not ($runnerCompleted -and $operational -and $visualQualified)) {

@@ -227,6 +227,32 @@ public sealed class E2ERunEvidenceFinalTests
         DecisionReasons(decision).Should().Contain(reason => reason.Contains("imageMappingArtifactId", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void Final_ShouldWriteFixedDecisionForMalformedManifest()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        E2ERunEvidenceFixture.Run(fixture, "PreJudge").ExitCode.Should().Be(0);
+        File.WriteAllText(fixture.ManifestPath, "{");
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "Final");
+
+        result.ExitCode.Should().NotBe(0);
+        AssertFixedFailDecision(fixture.DecisionPath);
+    }
+
+    [Fact]
+    public void Final_ShouldWriteFixedDecisionWhenAttemptsAreMissing()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        E2ERunEvidenceFixture.Run(fixture, "PreJudge").ExitCode.Should().Be(0);
+        fixture.Mutate(manifest => manifest.Remove("attempts"));
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "Final");
+
+        result.ExitCode.Should().NotBe(0);
+        AssertFixedFailDecision(fixture.DecisionPath);
+    }
+
     private static JsonElement RunFailedFinal(E2ERunEvidenceFixture fixture)
     {
         var result = E2ERunEvidenceFixture.RunFinal(fixture);
@@ -237,4 +263,16 @@ public sealed class E2ERunEvidenceFinalTests
 
     private static string[] DecisionReasons(JsonElement decision)
         => decision.GetProperty("reasons").EnumerateArray().Select(item => item.GetString()!).ToArray();
+
+    private static void AssertFixedFailDecision(string path)
+    {
+        File.Exists(path).Should().BeTrue();
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        var root = document.RootElement;
+        root.EnumerateObject().Select(property => property.Name).Should().BeEquivalentTo(
+            "runnerCompleted", "operationalGatesPassed", "visualQualified",
+            "overallResult", "reasons", "repairBudgetExhausted");
+        root.GetProperty("overallResult").GetString().Should().Be("FAIL");
+        root.GetProperty("reasons").GetArrayLength().Should().BeGreaterThan(0);
+    }
 }

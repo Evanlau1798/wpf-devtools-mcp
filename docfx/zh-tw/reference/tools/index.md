@@ -68,7 +68,7 @@
 ## Navigation model
 
 - Tool response 會保留 `nextSteps` 作為 compatibility field，並包含 `navigation` envelope：`recommended`、`alternatives`、`prefetchTools` 與 `contextRefs`。
-- 除非 tool 明確停用 navigation，`nextSteps` 會由 `navigation.recommended` 推導。
+- Tool-specific `nextSteps` 會保留在前；不重複的 `navigation.recommended` 會接續其後，除非 tool 明確停用 navigation。
 - `prefetchTools` 只是 advisory tool-name hint。
 - `contextRefs` 是 descriptive JSON，不是 executable handle。
 
@@ -99,7 +99,7 @@ Parameter metadata、policy gates 與 output schemas 請以 runtime resources �
 這些值由 runtime MCP contract resources 產生。當 tool 新增或改名、method signature 變更、policy gate 移動，或 response fields 變更時，文件測試會要求同步更新此 snapshot。
 
 - `wpf://contracts/tools` SHA-256: `08ae6cfd5320f5a23000b487501aa866456e274fd5e87f5ca379b690264377ab`
-- `wpf://contracts/response` SHA-256: `ed1fa6ec938a18f38093595c4386bc9a4c2c5ea48de697b3f0e75be6088880f9`
+- `wpf://contracts/response` SHA-256: `39edcc66d1eb9ea4841d139e0a4e3c147c403fbbb5b00d1139a5f40177d65091`
 - Validation scope: `toolCount`、`name`、`title`、`parameters`、parameter `constraints`、`requiredParameters`、`inputSchemaHash`、`outputSchemaHash`、`capabilityTags`、`policyCapabilityTags`、`annotations`、`parameterConstraints`、`parameterVocabularies` 與 `highValueTools`。
 
 需要更深入的語意與使用注意事項時，請再查看各分類頁面。

@@ -15,6 +15,17 @@ public sealed class E2ERunEvidencePreJudgeTests
     }
 
     [Fact]
+    public void PreJudge_ShouldWriteDurableReceipt()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().Be(0, result.Stderr);
+        File.Exists(Path.Combine(fixture.Root, "prejudge-receipt.json")).Should().BeTrue();
+    }
+
+    [Fact]
     public void PreJudge_ShouldNotRequirePostJudgeArtifacts()
     {
         using var fixture = new E2ERunEvidenceFixture();

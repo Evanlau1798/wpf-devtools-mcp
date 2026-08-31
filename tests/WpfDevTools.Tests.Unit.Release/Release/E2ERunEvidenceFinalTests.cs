@@ -6,11 +6,24 @@ namespace WpfDevTools.Tests.Unit.Release;
 public sealed class E2ERunEvidenceFinalTests
 {
     [Fact]
-    public void Final_ShouldWriteExactPassingDecision()
+    public void Final_ShouldRequirePreJudgeReceipt()
     {
         using var fixture = new E2ERunEvidenceFixture();
 
         var result = E2ERunEvidenceFixture.Run(fixture, "Final");
+
+        result.ExitCode.Should().NotBe(0);
+        using var decision = JsonDocument.Parse(File.ReadAllText(fixture.DecisionPath));
+        DecisionReasons(decision.RootElement).Should()
+            .Contain(reason => reason.Contains("PreJudge receipt", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Final_ShouldWriteExactPassingDecision()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+
+        var result = E2ERunEvidenceFixture.RunFinal(fixture);
 
         result.ExitCode.Should().Be(0, result.Stderr + result.Stdout);
         using var decision = JsonDocument.Parse(File.ReadAllText(fixture.DecisionPath));
@@ -120,6 +133,21 @@ public sealed class E2ERunEvidenceFinalTests
     }
 
     [Fact]
+    public void Final_ShouldRejectOperationalEvidenceChangedAfterPreJudge()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        E2ERunEvidenceFixture.Run(fixture, "PreJudge").ExitCode.Should().Be(0);
+        fixture.Mutate(manifest => manifest["release"]!["tag"] = "v1.0.0-tampered");
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "Final");
+
+        result.ExitCode.Should().NotBe(0);
+        using var decision = JsonDocument.Parse(File.ReadAllText(fixture.DecisionPath));
+        DecisionReasons(decision.RootElement).Should()
+            .Contain(reason => reason.Contains("receipt", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Final_ShouldRequirePostJudgeArtifacts()
     {
         using var fixture = new E2ERunEvidenceFixture();
@@ -132,7 +160,7 @@ public sealed class E2ERunEvidenceFinalTests
 
     private static JsonElement RunFailedFinal(E2ERunEvidenceFixture fixture)
     {
-        var result = E2ERunEvidenceFixture.Run(fixture, "Final");
+        var result = E2ERunEvidenceFixture.RunFinal(fixture);
         result.ExitCode.Should().NotBe(0);
         File.Exists(fixture.DecisionPath).Should().BeTrue(result.Stderr);
         return JsonDocument.Parse(File.ReadAllText(fixture.DecisionPath)).RootElement.Clone();

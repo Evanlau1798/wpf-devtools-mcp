@@ -102,6 +102,21 @@ internal sealed partial class E2ERunEvidenceFixture : IDisposable
             ]);
     }
 
+    public static (int ExitCode, string Stdout, string Stderr) RunFinal(E2ERunEvidenceFixture fixture)
+    {
+        var finalManifest = fixture.Manifest;
+        var preJudgeManifest = finalManifest.DeepClone().AsObject();
+        var attempts = preJudgeManifest["attempts"]!.AsArray();
+        while (attempts.Count > 1)
+        {
+            attempts.RemoveAt(attempts.Count - 1);
+        }
+        fixture.Save(preJudgeManifest);
+        var preJudge = Run(fixture, "PreJudge");
+        fixture.Save(finalManifest);
+        return preJudge.ExitCode == 0 ? Run(fixture, "Final") : preJudge;
+    }
+
     public static (int ExitCode, string Stdout, string Stderr) RunPwshScript(
         string script,
         IReadOnlyList<string> arguments)

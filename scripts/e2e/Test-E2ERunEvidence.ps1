@@ -16,6 +16,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'E2ERunEvidence.Common.ps1')
 . (Join-Path $PSScriptRoot 'E2ERunEvidence.Interactive.ps1')
 . (Join-Path $PSScriptRoot 'E2ERunEvidence.Final.ps1')
+. (Join-Path $PSScriptRoot 'E2ERunEvidence.Receipt.ps1')
 if (-not (Test-Path -LiteralPath $EvidenceRoot -PathType Container)) {
     throw 'EvidenceRoot must identify an existing directory.'
 }
@@ -39,7 +40,8 @@ finally {
 }
 
 if ($Phase -ceq 'PreJudge') {
-    Assert-PreJudgeEvidence -Root $root -EvidenceRoot $evidenceFullPath | Out-Null
+    $artifacts = Assert-PreJudgeEvidence -Root $root -EvidenceRoot $evidenceFullPath
+    New-PreJudgeReceipt -Root $root -Artifacts $artifacts -EvidenceRoot $evidenceFullPath
     $result = [ordered]@{ phase = 'PreJudge'; passed = $true; reasons = @() }
     $json = [System.Text.Json.JsonSerializer]::Serialize(
         $result,
@@ -84,6 +86,7 @@ catch {
 $operational = $null -ne $artifacts
 if ($operational) {
     foreach ($gate in @(
+            { Assert-PreJudgeReceipt $root $artifacts $evidenceFullPath },
             { Assert-PreJudgeEvidence $root $evidenceFullPath -RequireJudgeArtifacts | Out-Null },
             { Assert-RunnerEvents $root $artifacts },
             { Assert-InputMappings $root $artifacts },

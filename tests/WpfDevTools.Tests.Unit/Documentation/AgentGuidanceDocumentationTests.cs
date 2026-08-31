@@ -153,25 +153,23 @@ public sealed class AgentGuidanceDocumentationTests
     }
 
     [Fact]
-    public void PrivateAgentsGuide_ShouldRemainLocalOnly()
+    public void AgentsGuide_ShouldRemainTrackedRepositoryContract()
     {
         var content = File.ReadAllText(GetRepoFilePath(".gitignore"));
 
-        content.Should().Contain("AGENTS.md is a private local workflow file and must remain untracked",
-            "AGENTS.md is personal agent workflow guidance, not a public repository contract");
-        content.Should().Contain("AGENTS.md",
-            "private local agent guidance must remain ignored when present on a maintainer machine");
-        content.Should().NotContain("AGENTS.md remains a tracked repository contract",
-            "AGENTS.md must not be described as a tracked public contract");
+        content.Should().Contain("AGENTS.md remains a tracked repository contract",
+            "repository-wide E2E and safety gates must be available in every checkout");
+        content.Should().Contain("!AGENTS.md",
+            "the tracked contract must override the historical local-only ignore rule");
     }
 
     [Fact]
-    public void SandboxCiCopy_ShouldExcludePrivateAgentsGuide()
+    public void SandboxCiCopy_ShouldIncludeTrackedAgentsGuide()
     {
         var content = File.ReadAllText(GetRepoFilePath("scripts/ci/Start-SandboxCi.ps1"));
 
-        content.Should().Contain("'AGENTS.md'",
-            "sandbox CI mirrors a public checkout and must not copy maintainer-private local agent guidance");
+        content.Should().NotContain("'AGENTS.md'",
+            "sandbox CI must receive the tracked repository safety contract");
     }
 
     private static string ExtractSection(string content, string heading)

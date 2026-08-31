@@ -6,24 +6,20 @@ using System.Text.Json.Nodes;
 
 namespace WpfDevTools.Tests.Unit.Release;
 
-internal sealed class E2ERunEvidenceFixture : IDisposable
+internal sealed partial class E2ERunEvidenceFixture : IDisposable
 {
     public E2ERunEvidenceFixture()
     {
         Root = ReleaseScriptTestHarness.CreateTempDirectory();
         ManifestPath = Path.Combine(Root, "e2e-run-evidence.json");
         DecisionPath = Path.Combine(Root, "final-decision.json");
-        WriteArtifact("runnerEvents", "runner/events.jsonl", "{\"type\":\"run.completed\"}\n");
+        WriteArtifact("runnerEvents", "runner/events.jsonl", "{\"type\":\"run.completed\",\"completed\":true,\"exitCode\":0}\n");
         WritePngArtifact("referenceImage", "visual/reference.png", 1920, 1215);
         WritePngArtifact("candidateImage", "visual/candidate.png", 1920, 1215);
         WritePngArtifact("attemptReference", "attempts/1/inputs/reference.png", 1920, 1215);
         WritePngArtifact("attemptCandidate", "attempts/1/inputs/candidate.png", 1920, 1215);
         WriteArtifact("visualContract", "visual/contract.json", "{\"contract\":\"v1\"}");
-        WriteArtifact("interactionBefore", "interaction/before.json", "{}");
-        WriteArtifact("interactionAction", "interaction/action.json", "{}");
-        WriteArtifact("interactionAfter", "interaction/after.json", "{}");
-        WriteArtifact("stateDiff", "state/diff.json", "{}");
-        WriteArtifact("stateRestore", "state/restore.json", "{}");
+        WriteRuntimeArtifacts();
         WriteArtifact("cleanup", "cleanup/result.json", "{\"passed\":true}");
         WriteArtifact("judgeResult", "attempts/1/judge-result.json", CreateJudgeResult(9.8));
         WriteArtifact("inputMapping", "attempts/1/visual-judge-inputs.json", CreateInputMapping());
@@ -163,16 +159,7 @@ internal sealed class E2ERunEvidenceFixture : IDisposable
             },
             ["visualContractHash"] = VisualContractHash,
             ["visualContractArtifactId"] = "visualContract",
-            ["positiveMcpCalls"] = new JsonArray(
-                "connect", "get_active_process", "get_ui_summary", "get_element_snapshot",
-                "get_state_diff", "restore_state_snapshot")
-                .Select(tool => new JsonObject
-                {
-                    ["tool"] = tool!.GetValue<string>(),
-                    ["isError"] = false,
-                    ["structuredContentSuccess"] = true,
-                    ["semanticPostcondition"] = true
-                }).Aggregate(new JsonArray(), (items, item) => { items.Add(item); return items; }),
+            ["positiveMcpCalls"] = CreatePositiveMcpCalls(),
             ["previewReadiness"] = new JsonObject
             {
                 ["valid"] = true,
@@ -221,19 +208,18 @@ internal sealed class E2ERunEvidenceFixture : IDisposable
             CreateCheckpointControl("PrimaryAction", "Button"));
         return new JsonObject
         {
+            ["runtimeInventoryArtifactId"] = "runtimeInventory",
             ["checkpoints"] = new JsonArray(new JsonObject { ["name"] = "browse", ["controls"] = controls }),
             ["inventory"] = new JsonArray(
                 CreateInventoryItem("ResultsList", "ListView", new JsonObject
                 {
                     ["kind"] = "selector",
-                    ["itemsSourceBound"] = true,
-                    ["selectionBound"] = true
+                    ["artifactId"] = "resultsListBindings"
                 }),
                 CreateInventoryItem("PrimaryAction", "Button", new JsonObject
                 {
                     ["kind"] = "command",
-                    ["commandBound"] = true,
-                    ["commandParameterBound"] = true
+                    ["artifactId"] = "primaryActionBindings"
                 }))
         };
     }
@@ -262,8 +248,7 @@ internal sealed class E2ERunEvidenceFixture : IDisposable
                 ["transport"] = "mcp-native",
                 ["beforeArtifactId"] = "interactionBefore",
                 ["actionArtifactId"] = "interactionAction",
-                ["afterArtifactId"] = "interactionAfter",
-                ["semanticPostcondition"] = true
+                ["afterArtifactId"] = "interactionAfter"
             }
         };
 

@@ -156,6 +156,38 @@ function Get-ArtifactPath {
     return [string] $Artifacts[$Id]
 }
 
+function Read-JsonArtifact {
+    param([hashtable] $Artifacts, [string] $Id, [string] $EvidenceKind)
+
+    $path = Get-ArtifactPath -Artifacts $Artifacts -Id $Id
+    try {
+        $document = [System.Text.Json.JsonDocument]::Parse([System.IO.File]::ReadAllText($path))
+        try {
+            if ($document.RootElement.ValueKind -ne [System.Text.Json.JsonValueKind]::Object) {
+                throw 'root must be a JSON object'
+            }
+            return $document.RootElement.Clone()
+        }
+        finally {
+            $document.Dispose()
+        }
+    }
+    catch {
+        throw "$EvidenceKind artifact '$Id' is invalid: $($_.Exception.Message)"
+    }
+}
+
+function Assert-SuccessfulToolResult {
+    param([System.Text.Json.JsonElement] $Envelope, [string] $EvidenceKind)
+
+    $result = Get-JsonProperty $Envelope 'result'
+    if ((Get-JsonBoolean $result 'isError') -or
+        -not (Get-JsonBoolean (Get-JsonProperty $result 'structuredContent') 'success')) {
+        throw "$EvidenceKind did not contain a successful MCP tool result."
+    }
+    return $result
+}
+
 function Assert-ArtifactReference {
     param([System.Text.Json.JsonElement] $Element, [string] $Name, [hashtable] $Artifacts)
 
@@ -231,7 +263,7 @@ function Assert-Viewport {
 }
 
 function Assert-PositiveMcpCalls {
-    param([System.Text.Json.JsonElement] $Root)
+    param([System.Text.Json.JsonElement] $Root, [hashtable] $Artifacts)
 
     $required = [System.Collections.Generic.HashSet[string]]::new(
         [string[]] @('connect', 'get_active_process', 'get_ui_summary', 'get_element_snapshot',
@@ -239,9 +271,10 @@ function Assert-PositiveMcpCalls {
     foreach ($call in (Get-JsonArray $Root 'positiveMcpCalls').EnumerateArray()) {
         $tool = Get-JsonString $call 'tool'
         $required.Remove($tool) | Out-Null
-        if ((Get-JsonBoolean $call 'isError') -or
-            -not (Get-JsonBoolean $call 'structuredContentSuccess') -or
-            -not (Get-JsonBoolean $call 'semanticPostcondition')) {
+        $evidence = Read-JsonArtifact $Artifacts (Get-JsonString $call 'artifactId') "positive MCP call '$tool'"
+        Assert-SuccessfulToolResult $evidence "positive MCP call '$tool'" | Out-Null
+        $postcondition = Get-JsonProperty $evidence 'semanticPostcondition'
+        if (-not (Get-JsonBoolean $postcondition 'passed')) {
             throw "positive MCP call '$tool' did not prove a successful semantic postcondition."
         }
     }
@@ -323,6 +356,17 @@ function Assert-CoreJourney {
     Assert-TrueField $state 'restoreSucceeded' 'State safety'
     Assert-ArtifactReference $state 'diffArtifactId' $Artifacts
     Assert-ArtifactReference $state 'restoreArtifactId' $Artifacts
+    $diff = Read-JsonArtifact $Artifacts (Get-JsonString $state 'diffArtifactId') 'state diff'
+    $diffResult = Assert-SuccessfulToolResult $diff 'state diff'
+    if ((Get-JsonInteger (Get-JsonProperty $diffResult 'structuredContent') 'changeCount') -le 0) {
+        throw 'State diff must prove at least one runtime change.'
+    }
+    $restore = Read-JsonArtifact $Artifacts (Get-JsonString $state 'restoreArtifactId') 'state restore'
+    $restoreContent = Get-JsonProperty (Assert-SuccessfulToolResult $restore 'state restore') 'structuredContent'
+    foreach ($name in @('restoredSelection', 'restoredState', 'restoredFocus')) {
+        Assert-TrueField $restoreContent $name 'State restore proof'
+    }
+    Assert-TrueField (Get-JsonProperty $restore 'readback') 'matchesBaseline' 'State restore readback'
 }
 
 function Assert-PreJudgeEvidence {
@@ -338,7 +382,7 @@ function Assert-PreJudgeEvidence {
     $artifacts = Assert-EvidenceArtifacts -Root $Root -EvidenceRoot $EvidenceRoot
     Assert-ReleaseIdentity $Root
     Assert-Viewport $Root $artifacts
-    Assert-PositiveMcpCalls $Root
+    Assert-PositiveMcpCalls $Root $artifacts
     Assert-PreviewReadiness $Root
     Assert-InteractiveEvidence $Root $artifacts
     Assert-CoreJourney $Root $artifacts

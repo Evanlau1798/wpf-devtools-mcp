@@ -34,8 +34,13 @@ public sealed class E2ERunEvidencePreJudgeTests
     public void PreJudge_ShouldRejectMissingBindingProof()
     {
         using var fixture = new E2ERunEvidenceFixture();
-        fixture.Mutate(manifest =>
-            manifest["interactive"]!["inventory"]![0]!["binding"]!["selectionBound"] = false);
+        fixture.SetArtifactText(
+            "resultsListBindings",
+            """
+            {"controlId":"ResultsList","controlKind":"ListView","bindings":[
+              {"property":"ItemsSource","status":"Active"}
+            ]}
+            """);
 
         var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
 
@@ -59,7 +64,11 @@ public sealed class E2ERunEvidencePreJudgeTests
     public void PreJudge_ShouldRejectPositiveMcpError()
     {
         using var fixture = new E2ERunEvidenceFixture();
-        fixture.Mutate(manifest => manifest["positiveMcpCalls"]![0]!["isError"] = true);
+        fixture.SetArtifactText(
+            "mcp-connect",
+            """
+            {"jsonrpc":"2.0","id":"connect","result":{"isError":true,"structuredContent":{"success":false}},"semanticPostcondition":{"passed":false}}
+            """);
 
         var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
 
@@ -89,5 +98,94 @@ public sealed class E2ERunEvidencePreJudgeTests
 
         result.ExitCode.Should().NotBe(0);
         result.Stderr.Should().Contain("SHA-256");
+    }
+
+    [Fact]
+    public void PreJudge_ShouldRejectPlaceholderRuntimeArtifacts()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+
+        fixture.SetArtifactText("interactionBefore", "{}");
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().Contain("controls");
+    }
+
+    [Fact]
+    public void PreJudge_ShouldRejectControlOmittedFromCheckpointAndInventory()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.Mutate(manifest =>
+        {
+            manifest["interactive"]!["checkpoints"]![0]!["controls"]!.AsArray().RemoveAt(1);
+            manifest["interactive"]!["inventory"]!.AsArray().RemoveAt(1);
+        });
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().Contain("runtime inventory");
+    }
+
+    [Fact]
+    public void PreJudge_ShouldRejectCheckpointInventoryKindMismatch()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.Mutate(manifest =>
+            manifest["interactive"]!["inventory"]![0]!["controlKind"] = "ComboBox");
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().Contain("controlKind");
+    }
+
+    [Fact]
+    public void PreJudge_ShouldRejectFailedRuntimeAction()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.SetArtifactText(
+            "interactionAction",
+            """
+            {"actions":[
+              {"id":"ResultsList","transport":"mcp-native","tool":"select_item","result":{"isError":true,"structuredContent":{"success":false}}},
+              {"id":"PrimaryAction","transport":"mcp-native","tool":"invoke","result":{"isError":false,"structuredContent":{"success":true}}}
+            ]}
+            """);
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().Contain("successful MCP tool result");
+    }
+
+    [Fact]
+    public void PreJudge_ShouldRejectPlaceholderStateDiff()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.SetArtifactText("stateDiff", "{}");
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().Contain("result");
+    }
+
+    [Fact]
+    public void PreJudge_ShouldRejectRestoreWithoutMatchingReadback()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.SetArtifactText(
+            "stateRestore",
+            """
+            {"result":{"isError":false,"structuredContent":{"success":true,"restoredSelection":true,"restoredState":true,"restoredFocus":true}},"readback":{"matchesBaseline":false}}
+            """);
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().Contain("readback");
     }
 }

@@ -158,7 +158,7 @@ public static class ServerInstructions
         Resolve missing access through get_access_status and request_session_access before the relevant step; an accepted grant applies immediately within the same MCP session.
 
         Workflow 1 - Debug Binding Error:
-        connect() -> get_binding_errors -> follow navigation.recommended -> get_element_snapshot(elementId) -> get_bindings(elementId) -> get_datacontext_chain(elementId)
+        connect() -> get_binding_errors -> follow non-empty tool-specific nextSteps first; otherwise use navigation.recommended -> get_element_snapshot(elementId) -> get_bindings(elementId) -> get_datacontext_chain(elementId)
 
         Workflow 2 - Test Button Click:
         connect() -> capture_state_snapshot(processId, elementId, propertyNames/viewModelPropertyNames, includeFocus=true) -> get_form_summary or get_ui_summary -> get_interaction_readiness(elementId, 'Click') -> click_element(elementId) -> get_state_diff(snapshotId) -> restore_state_snapshot(snapshotId)

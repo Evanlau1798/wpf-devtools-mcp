@@ -46,7 +46,7 @@ Use the smallest workflow that answers the question. Prefer scene-level aggregat
 | Validate a click or keyboard action | `get_interaction_readiness` | `click_element`, `drain_events`, `get_state_diff` | Use only after a concrete elementId is known. |
 | Make rollback-safe changes | `capture_state_snapshot` | `batch_mutate`, `get_state_diff`, `restore_state_snapshot` | Requires the relevant destructive and read gates. |
 | Install, compose, render, preview, repair, and apply Composer UIs | `list_ui_block_packs` | `import_ui_block_pack`, `get_ui_block_catalog`, `create_ui_blueprint_draft`, `get_ui_blueprint_draft`, `patch_ui_blueprint_draft`, `compose_ui_blueprint`, `expand_ui_recipe`, `validate_ui_blueprint`, `render_ui_blueprint`, `preview_ui_blueprint`, `repair_ui_blueprint`, `apply_ui_blueprint`, `apply_ui_project_integration` | Dry-runs reviewed project-local pack imports, then builds bounded drafts, checkpoints only when needed, discovers, composes, validates, renders, previews, repairs, and guarded-applies pack-defined UIs and their reviewed project integration. |
-| Follow a full recipe | See [Common Workflows](../../guides/common-workflows.md) | Follow `navigation.recommended` first | Workflow pages are baselines; tool responses remain authoritative. |
+| Follow a full recipe | See [Common Workflows](../../guides/common-workflows.md) | Follow non-empty tool-specific `nextSteps` first; otherwise use `navigation.recommended` | Workflow pages are baselines; tool responses remain authoritative. |
 
 ## Categories at a glance
 

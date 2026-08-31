@@ -46,7 +46,7 @@
 | 驗證 click 或 keyboard action | `get_interaction_readiness` | `click_element`、`drain_events`、`get_state_diff` | 只有在已知具體 `elementId` 後才使用。 |
 | 做 rollback-safe changes | `capture_state_snapshot` | `batch_mutate`、`get_state_diff`、`restore_state_snapshot` | 需要對應 destructive 與 read gates。 |
 | 安裝、組合、render、preview、repair 並 apply Composer UI | `list_ui_block_packs` | `import_ui_block_pack`、`get_ui_block_catalog`、`create_ui_blueprint_draft`、`get_ui_blueprint_draft`、`patch_ui_blueprint_draft`、`compose_ui_blueprint`、`expand_ui_recipe`、`validate_ui_blueprint`、`render_ui_blueprint`、`preview_ui_blueprint`、`repair_ui_blueprint`、`apply_ui_blueprint`、`apply_ui_project_integration` | 先 dry-run 經審查的 project-local pack import，再建立 bounded drafts、只在需要時輸出 checkpoint、探索、組合、驗證、render、preview、repair 並 guarded-apply pack-defined UI 與 reviewed project integration。 |
-| 跟完整 recipe | 看 [常見工作流程](../../guides/common-workflows.md) | 先跟 `navigation.recommended` | Workflow pages 是 baseline；tool response 仍是權威。 |
+| 跟完整 recipe | 看 [常見工作流程](../../guides/common-workflows.md) | 先採用非空的 tool-specific `nextSteps`；否則使用 `navigation.recommended` | Workflow pages 是 baseline；tool response 仍是權威。 |
 
 ## 類別速覽
 

@@ -124,7 +124,8 @@ public class ServerInstructionsTests
         ServerInstructions.Value.Should().Contain("get_element_snapshot");
         ServerInstructions.Value.Should().Contain("get_form_summary");
         ServerInstructions.Value.Should().Contain("get_state_diff");
-        ServerInstructions.Value.Should().Contain("follow navigation.recommended");
+        ServerInstructions.Value.Should().Contain(
+            "follow non-empty tool-specific nextSteps first; otherwise use navigation.recommended");
     }
 
     [Fact]

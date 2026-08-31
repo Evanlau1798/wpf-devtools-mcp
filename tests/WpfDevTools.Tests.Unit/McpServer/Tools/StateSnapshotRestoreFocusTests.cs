@@ -85,4 +85,39 @@ public sealed partial class StateSnapshotRestoreVerificationTests
         connected.RequestMethods.Should().Equal(expectedMutation, "get_focus_state");
         connected.SessionManager.TryGetStateSnapshot(processId, snapshotId, out _).Should().BeTrue();
     }
+
+    [Theory]
+    [InlineData("Logical", "Keyboard")]
+    [InlineData("Keyboard", "Logical")]
+    public async Task RestoreStateSnapshot_WhenFocusKindDiffers_ShouldFailClosedAndRetainSnapshot(
+        string capturedFocusKind,
+        string actualFocusKind)
+    {
+        var processId = NextSyntheticProcessId();
+        using var connected = await CreateConnectedSessionAsync(
+            processId,
+            request => request.Method switch
+            {
+                "focus_element" => new { success = true },
+                "get_focus_state" => new
+                {
+                    success = true,
+                    focusKind = actualFocusKind,
+                    focusedElementId = "NameTextBox"
+                },
+                _ => new { success = false, error = $"Unexpected method '{request.Method}'." }
+            });
+
+        const string snapshotId = "snapshot_focus_kind_mismatch";
+        connected.SessionManager.SaveStateSnapshot(processId, CreateSnapshot(
+            snapshotId,
+            focus: new StoredFocusSnapshot(capturedFocusKind, "NameTextBox")));
+
+        var result = JsonSerializer.SerializeToElement(await new RestoreStateSnapshotTool(connected.SessionManager)
+            .ExecuteAsync(ToJsonElement(new { processId, snapshotId }), CancellationToken.None));
+
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("restoredFocus").GetBoolean().Should().BeFalse();
+        connected.SessionManager.TryGetStateSnapshot(processId, snapshotId, out _).Should().BeTrue();
+    }
 }

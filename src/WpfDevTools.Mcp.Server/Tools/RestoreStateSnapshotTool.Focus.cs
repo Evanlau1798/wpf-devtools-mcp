@@ -54,7 +54,8 @@ public sealed partial class RestoreStateSnapshotTool
         var actualFocusKind = GetOptionalString(readBack, "focusKind");
         var verified = snapshot.FocusedElementId == null
             ? actualElementId == null && string.Equals(actualFocusKind, "None", StringComparison.Ordinal)
-            : string.Equals(actualElementId, snapshot.FocusedElementId, StringComparison.Ordinal);
+            : string.Equals(actualElementId, snapshot.FocusedElementId, StringComparison.Ordinal) &&
+              string.Equals(actualFocusKind, snapshot.FocusKind, StringComparison.Ordinal);
         if (!verified)
         {
             warnings.Add("Focus restore verification failed because the final focus state did not match the captured baseline.");

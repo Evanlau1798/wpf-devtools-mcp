@@ -154,9 +154,7 @@ internal static class PreviewLayoutRiskAnalyzer
             .ThenBy(warning => warning.JsonPath, StringComparer.Ordinal)
             .ToArray();
         var warnings = orderedWarnings
-            .Take(1)
-            .Concat(orderedWarnings.Skip(1).Where(warning => warning.RequiresAttention))
-            .Concat(orderedWarnings.Skip(1).Where(warning => !warning.RequiresAttention))
+            .OrderByDescending(warning => warning.RequiresAttention)
             .Take(MaxWarnings)
             .OrderBy(GetGeometricClippingPriority)
             .ThenBy(warning => warning.VisibleRatio ?? double.MaxValue)
@@ -389,6 +387,13 @@ internal static class PreviewLayoutRiskAnalyzer
         var canBringTargetIntoView = nearestScrollContainer is { } scroll
                                      && scroll.TryGetProperty("canBringTargetIntoView", out var canBring)
                                      && canBring.ValueKind == JsonValueKind.True;
+        var maximumOverflow = new[]
+        {
+            ReadDouble(overflow, "left") ?? 0,
+            ReadDouble(overflow, "top") ?? 0,
+            ReadDouble(overflow, "right") ?? 0,
+            ReadDouble(overflow, "bottom") ?? 0
+        }.Max();
         return new PreviewLayoutWarning(
             isStructuralOverflow ? "RuntimeStructuralOverflowRisk" : "RuntimeClippingDetected",
             correlation.JsonPath,
@@ -408,7 +413,10 @@ internal static class PreviewLayoutRiskAnalyzer
             VisibleRatio = visibleRatio,
             VisibilityClassification = visibilityClassification,
             RequiresAttention = visibilityClassification == "sliver"
-                                || (visibilityClassification == "hidden" && !canBringTargetIntoView),
+                                || (visibilityClassification == "hidden" && !canBringTargetIntoView)
+                                || (geometricClippingSeverity == "partial"
+                                    && maximumOverflow > 2
+                                    && !canBringTargetIntoView),
             NearestScrollContainer = nearestScrollContainer
         };
     }

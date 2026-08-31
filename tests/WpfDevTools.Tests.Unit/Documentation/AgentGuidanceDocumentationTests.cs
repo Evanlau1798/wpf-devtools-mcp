@@ -172,6 +172,16 @@ public sealed class AgentGuidanceDocumentationTests
             "sandbox CI must receive the tracked repository safety contract");
     }
 
+    [Fact]
+    public void AgentsGuide_ShouldUseOneCurrentPublicToolCount()
+    {
+        var content = File.ReadAllText(GetRepoFilePath("AGENTS.md"));
+
+        content.Should().Contain("server exposes 77 MCP tools");
+        content.Should().Contain("`tools/list` count of 77");
+        content.Should().NotContain("`tools/list` count of 64");
+    }
+
     private static string ExtractSection(string content, string heading)
     {
         var startIndex = content.IndexOf(heading, StringComparison.Ordinal);

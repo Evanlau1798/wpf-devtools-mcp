@@ -87,7 +87,7 @@ For a minimal valid rollback guard, use `capture_state_snapshot` with at least o
 - The testing agent must actually call the installed MCP server over STDIO and inspect JSON-RPC results. Do not infer success from source reflection, build output, or docs alone.
 - Keep E2E evidence under `tmp/`, including installer output, MCP transcripts, server stderr, cleanup state, and final reports.
 - E2E reports should distinguish P0/P1 product failures from P2/P3 ergonomics, documentation, or harness issues.
-- At minimum, public-path E2E should verify installer download, prerelease resolution, `initialize`, `tools/list` count of 64, `connect`, `get_active_process`, `get_ui_summary`, a focused read, snapshot/diff/restore, uninstall, and process cleanup.
+- At minimum, public-path E2E should verify installer download, prerelease resolution, `initialize`, `tools/list` count of 77, `connect`, `get_active_process`, `get_ui_summary`, a focused read, snapshot/diff/restore, uninstall, and process cleanup.
 - Prefer the golden TestApp for repeatable regression coverage. Temporary edge-case apps under `tmp/` are useful for exploratory Agent feedback, but important scenarios should be promoted into deterministic project tests when practical.
 - If a subagent performs E2E or review, capture its report path and close the subagent after it returns to avoid exhausting agent slots.
 

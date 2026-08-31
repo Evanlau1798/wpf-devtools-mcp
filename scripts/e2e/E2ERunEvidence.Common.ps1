@@ -210,23 +210,49 @@ function Assert-ReleaseIdentity {
 function Get-PngSize {
     param([string] $Path)
 
-    $bytes = [System.IO.File]::ReadAllBytes($Path)
-    if ($bytes.Length -lt 24 -or
-        -not [System.Linq.Enumerable]::SequenceEqual(
-            [byte[]] $bytes[0..7],
-            [byte[]] @(137, 80, 78, 71, 13, 10, 26, 10)) -or
-        [System.Text.Encoding]::ASCII.GetString($bytes, 12, 4) -cne 'IHDR') {
-        throw "Image artifact '$Path' is not a PNG with an IHDR header."
+    try {
+        Add-Type -AssemblyName PresentationCore
+        $stream = [System.IO.File]::OpenRead($Path)
+        try {
+            $decoder = [System.Windows.Media.Imaging.PngBitmapDecoder]::new(
+                $stream,
+                [System.Windows.Media.Imaging.BitmapCreateOptions]::PreservePixelFormat,
+                [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad)
+            if ($decoder.Frames.Count -ne 1) {
+                throw 'PNG must contain exactly one decodable frame.'
+            }
+            return @($decoder.Frames[0].PixelWidth, $decoder.Frames[0].PixelHeight)
+        }
+        finally {
+            $stream.Dispose()
+        }
+    }
+    catch {
+        throw "Image artifact '$Path' is not a decodable PNG: $($_.Exception.Message)"
+    }
+}
+
+function Assert-CandidateViewportSize {
+    param([int[]] $Candidate, [int[]] $Reference, [System.Text.Json.JsonElement] $Viewport)
+
+    $referenceRatio = [double] $Reference[0] / $Reference[1]
+    $candidateRatio = [double] $Candidate[0] / $Candidate[1]
+    if ([Math]::Abs($candidateRatio - $referenceRatio) / $referenceRatio -gt 0.01) {
+        throw 'Candidate screenshot aspect-ratio error exceeds 1%.'
     }
 
-    $width = ([int] $bytes[16] -shl 24) -bor ([int] $bytes[17] -shl 16) -bor
-        ([int] $bytes[18] -shl 8) -bor [int] $bytes[19]
-    $height = ([int] $bytes[20] -shl 24) -bor ([int] $bytes[21] -shl 16) -bor
-        ([int] $bytes[22] -shl 8) -bor [int] $bytes[23]
-    if ($width -le 0 -or $height -le 0) {
-        throw "Image artifact '$Path' has invalid dimensions."
+    $workWidth = Get-JsonInteger $Viewport 'workAreaWidth'
+    $workHeight = Get-JsonInteger $Viewport 'workAreaHeight'
+    $expectedWidth = $workWidth
+    $expectedHeight = [Math]::Round($workWidth / $referenceRatio)
+    if ($expectedHeight -gt $workHeight) {
+        $expectedHeight = $workHeight
+        $expectedWidth = [Math]::Round($workHeight * $referenceRatio)
     }
-    return @($width, $height)
+    if ([Math]::Abs($Candidate[0] - $expectedWidth) -gt 1 -or
+        [Math]::Abs($Candidate[1] - $expectedHeight) -gt 1) {
+        throw 'Candidate screenshot must use the largest reference-ratio size that fits the work area.'
+    }
 }
 
 function Assert-Viewport {
@@ -242,24 +268,7 @@ function Assert-Viewport {
         throw 'Canonical reference must be the 1920x1215 app-only crop including the app titlebar.'
     }
 
-    $referenceRatio = [double] $reference[0] / $reference[1]
-    $candidateRatio = [double] $candidate[0] / $candidate[1]
-    if ([Math]::Abs($candidateRatio - $referenceRatio) / $referenceRatio -gt 0.01) {
-        throw 'Candidate screenshot aspect-ratio error exceeds 1%.'
-    }
-
-    $workWidth = Get-JsonInteger $viewport 'workAreaWidth'
-    $workHeight = Get-JsonInteger $viewport 'workAreaHeight'
-    $expectedWidth = $workWidth
-    $expectedHeight = [Math]::Round($workWidth / $referenceRatio)
-    if ($expectedHeight -gt $workHeight) {
-        $expectedHeight = $workHeight
-        $expectedWidth = [Math]::Round($workHeight * $referenceRatio)
-    }
-    if ([Math]::Abs($candidate[0] - $expectedWidth) -gt 1 -or
-        [Math]::Abs($candidate[1] - $expectedHeight) -gt 1) {
-        throw 'Candidate screenshot must use the largest reference-ratio size that fits the work area.'
-    }
+    Assert-CandidateViewportSize $candidate $reference $viewport
 }
 
 function Assert-PositiveMcpCalls {
@@ -311,6 +320,11 @@ function Assert-Attempts {
     }
 
     $attempts = @((Get-JsonArray $Root 'attempts').EnumerateArray())
+    $viewport = Get-JsonProperty $Root 'viewport'
+    $sourceReferencePath = Get-ArtifactPath $Artifacts (Get-JsonString $viewport 'referenceArtifactId')
+    $sourceCandidatePath = Get-ArtifactPath $Artifacts (Get-JsonString $viewport 'candidateArtifactId')
+    $sourceReferenceHash = Get-Sha256 $sourceReferencePath
+    $sourceCandidateHash = Get-Sha256 $sourceCandidatePath
     if ($attempts.Count -lt 1 -or $attempts.Count -gt 2) {
         throw 'Evidence must contain one or two judge attempts.'
     }
@@ -332,6 +346,19 @@ function Assert-Attempts {
         }
         foreach ($name in $artifactFields) {
             Assert-ArtifactReference $attempt $name $Artifacts
+        }
+        $referencePath = Get-ArtifactPath $Artifacts (Get-JsonString $attempt 'referenceArtifactId')
+        $candidatePath = Get-ArtifactPath $Artifacts (Get-JsonString $attempt 'candidateArtifactId')
+        $referenceSize = Get-PngSize $referencePath
+        $candidateSize = Get-PngSize $candidatePath
+        if ($referenceSize[0] -ne 1920 -or $referenceSize[1] -ne 1215 -or
+            -not (Get-Sha256 $referencePath).Equals($sourceReferenceHash, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Attempt $number reference image must be a decodable frozen copy of the canonical source."
+        }
+        Assert-CandidateViewportSize $candidateSize $referenceSize $viewport
+        if ($number -eq 1 -and
+            -not (Get-Sha256 $candidatePath).Equals($sourceCandidateHash, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Attempt 1 candidate image must be a frozen copy of the prepared candidate source.'
         }
     }
 }

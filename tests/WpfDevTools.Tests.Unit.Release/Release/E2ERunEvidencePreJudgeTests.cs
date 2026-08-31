@@ -1,3 +1,4 @@
+using System.Text;
 using FluentAssertions;
 
 namespace WpfDevTools.Tests.Unit.Release;
@@ -112,6 +113,44 @@ public sealed class E2ERunEvidencePreJudgeTests
     }
 
     [Fact]
+    public void PreJudge_ShouldRejectHeaderOnlyPng()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.SetArtifactBytes("referenceImage", CreateHeaderOnlyPng(1920, 1215));
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().Contain("PNG");
+    }
+
+    [Fact]
+    public void PreJudge_ShouldRejectAttemptImageWithDecoyViewport()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.SetArtifactBytes("attemptReference", CreateHeaderOnlyPng(100, 100));
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().ContainEquivalentOf("attempt");
+    }
+
+    [Fact]
+    public void PreJudge_ShouldRejectFrozenImageUnboundFromPreparedSource()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        var bytes = File.ReadAllBytes(fixture.GetArtifactPath("attemptReference"));
+        fixture.SetArtifactBytes("attemptReference", [.. bytes, 0]);
+        fixture.RefreshInputMapping();
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().NotBe(0);
+        result.Stderr.Should().ContainEquivalentOf("canonical source");
+    }
+
+    [Fact]
     public void PreJudge_ShouldRejectPlaceholderRuntimeArtifacts()
     {
         using var fixture = new E2ERunEvidenceFixture();
@@ -198,5 +237,23 @@ public sealed class E2ERunEvidencePreJudgeTests
 
         result.ExitCode.Should().NotBe(0);
         result.Stderr.Should().Contain("readback");
+    }
+
+    private static byte[] CreateHeaderOnlyPng(int width, int height)
+    {
+        var bytes = new byte[24];
+        new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }.CopyTo(bytes, 0);
+        Encoding.ASCII.GetBytes("IHDR").CopyTo(bytes, 12);
+        WriteBigEndian(bytes, 16, width);
+        WriteBigEndian(bytes, 20, height);
+        return bytes;
+    }
+
+    private static void WriteBigEndian(byte[] target, int offset, int value)
+    {
+        target[offset] = (byte)(value >> 24);
+        target[offset + 1] = (byte)(value >> 16);
+        target[offset + 2] = (byte)(value >> 8);
+        target[offset + 3] = (byte)value;
     }
 }

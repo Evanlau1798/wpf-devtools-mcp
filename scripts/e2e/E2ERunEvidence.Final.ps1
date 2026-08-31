@@ -133,16 +133,28 @@ function Assert-InputMappings {
                 $artifactPath = Get-ArtifactPath $Artifacts $artifactId
                 $relativePath = Get-ArtifactRelativePath $Root $artifactId
                 $image = [System.Text.Json.JsonElement] $byRole[$role]
+                $sourceId = Get-JsonString $image 'sourceArtifactId'
+                $sourcePath = Get-ArtifactPath $Artifacts $sourceId
+                $viewport = Get-JsonProperty $Root 'viewport'
+                $expectedSourceId = if ($role -ceq 'reference') {
+                    Get-JsonString $viewport 'referenceArtifactId'
+                }
+                elseif ($number -eq 1) {
+                    Get-JsonString $viewport 'candidateArtifactId'
+                }
+                else { $sourceId }
                 $lengthValue = Get-JsonProperty $image 'byteLength'
                 $byteLength = 0L
                 if ($lengthValue.ValueKind -ne [System.Text.Json.JsonValueKind]::Number -or
                     -not $lengthValue.TryGetInt64([ref] $byteLength) -or
                     $byteLength -ne [System.IO.FileInfo]::new($artifactPath).Length -or
                     (Get-JsonString $image 'frozenPath') -cne "inputs/$role.png" -or
+                    $sourceId -cne $expectedSourceId -or
+                    -not (Get-Sha256 $sourcePath).Equals((Get-Sha256 $artifactPath), [StringComparison]::OrdinalIgnoreCase) -or
                     -not (Get-JsonString $image 'sha256').Equals(
                         (Get-Sha256 $artifactPath),
                         [StringComparison]::OrdinalIgnoreCase)) {
-                    throw "Attempt $number '$role' image mapping does not match its frozen artifact."
+                    throw "Attempt $number '$role' image mapping does not match its source or frozen artifact."
                 }
                 if (-not $relativePath.Replace('\', '/').StartsWith(
                         "attempts/$number/inputs/",

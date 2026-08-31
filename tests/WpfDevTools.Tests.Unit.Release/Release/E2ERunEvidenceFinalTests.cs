@@ -118,12 +118,14 @@ public sealed class E2ERunEvidenceFinalTests
     public void Final_ShouldRejectImageMappingHashMismatch()
     {
         using var fixture = new E2ERunEvidenceFixture();
+        var referenceLength = new FileInfo(fixture.GetArtifactPath("attemptReference")).Length;
+        var candidateLength = new FileInfo(fixture.GetArtifactPath("attemptCandidate")).Length;
         fixture.SetArtifactText(
             "inputMapping",
-            """
+            $$"""
             {"schemaVersion":"wpfdevtools.e2e-visual-judge-inputs.v1","mode":"reference","images":[
-              {"role":"reference","frozenPath":"inputs/reference.png","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","byteLength":24},
-              {"role":"candidate","frozenPath":"inputs/candidate.png","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","byteLength":24}
+              {"role":"reference","sourceArtifactId":"referenceImage","frozenPath":"inputs/reference.png","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","byteLength":{{referenceLength}}},
+              {"role":"candidate","sourceArtifactId":"candidateImage","frozenPath":"inputs/candidate.png","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","byteLength":{{candidateLength}}}
             ]}
             """);
 

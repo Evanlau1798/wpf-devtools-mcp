@@ -56,16 +56,25 @@ internal sealed partial class E2ERunEvidenceFixture : IDisposable
 
     public void SetArtifactText(string id, string content, bool includeBom = false)
     {
+        SetArtifactBytes(id, new UTF8Encoding(includeBom).GetBytes(content));
+    }
+
+    public void SetArtifactBytes(string id, byte[] content)
+    {
         var path = GetArtifactPath(id);
-        File.WriteAllText(path, content, new UTF8Encoding(includeBom));
+        File.WriteAllBytes(path, content);
+        var hash = Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
         Mutate(manifest =>
         {
             var artifact = manifest["artifacts"]!.AsArray()
                 .Select(node => node!.AsObject())
                 .Single(item => item["id"]!.GetValue<string>() == id);
-            artifact["sha256"] = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
+            artifact["sha256"] = hash;
         });
+        Artifacts.Single(item => item["id"]!.GetValue<string>() == id)["sha256"] = hash;
     }
+
+    public void RefreshInputMapping() => SetArtifactText("inputMapping", CreateInputMapping());
 
     public void SetJudgeScore(double score) => SetArtifactText("judgeResult", CreateJudgeResult(score));
 
@@ -304,16 +313,18 @@ internal sealed partial class E2ERunEvidenceFixture : IDisposable
                 new
                 {
                     role = "reference",
+                    sourceArtifactId = "referenceImage",
                     frozenPath = "inputs/reference.png",
                     sha256 = ArtifactHash("attemptReference"),
-                    byteLength = 24
+                    byteLength = ArtifactLength("attemptReference")
                 },
                 new
                 {
                     role = "candidate",
+                    sourceArtifactId = "candidateImage",
                     frozenPath = "inputs/candidate.png",
                     sha256 = ArtifactHash("attemptCandidate"),
-                    byteLength = 24
+                    byteLength = ArtifactLength("attemptCandidate")
                 }
             }
         });
@@ -328,11 +339,7 @@ internal sealed partial class E2ERunEvidenceFixture : IDisposable
 
     private void WritePngArtifact(string id, string relativePath, int width, int height)
     {
-        var bytes = new byte[24];
-        new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }.CopyTo(bytes, 0);
-        Encoding.ASCII.GetBytes("IHDR").CopyTo(bytes, 12);
-        WriteBigEndian(bytes, 16, width);
-        WriteBigEndian(bytes, 20, height);
+        var bytes = CreatePng(width, height);
         var path = Path.Combine(Root, relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, bytes);
@@ -346,6 +353,13 @@ internal sealed partial class E2ERunEvidenceFixture : IDisposable
             ["path"] = relativePath.Replace('\\', '/'),
             ["sha256"] = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant()
         });
+
+    private long ArtifactLength(string id)
+    {
+        var relativePath = Artifacts.Single(item => item["id"]!.GetValue<string>() == id)["path"]!
+            .GetValue<string>();
+        return new FileInfo(Path.Combine(Root, relativePath)).Length;
+    }
 
     private static void WriteBigEndian(byte[] target, int offset, int value)
     {

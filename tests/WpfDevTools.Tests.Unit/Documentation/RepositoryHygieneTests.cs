@@ -46,7 +46,7 @@ public class RepositoryHygieneTests
             .ToArray();
 
         trackedIgnoredMarkdown.Should().BeEmpty(
-            "local documentation markdown that is ignored by .gitignore, including AGENTS.md, must not stay tracked");
+            "local documentation markdown ignored by .gitignore must not stay tracked");
     }
 
     [Fact]
@@ -54,6 +54,7 @@ public class RepositoryHygieneTests
     {
         var approvedRootMarkdown = new HashSet<string>(StringComparer.Ordinal)
         {
+            "AGENTS.md",
             "AGENT_INSTALL.md",
             "CODE_SIGNING.md",
             "CONTRIBUTING.md",
@@ -83,14 +84,14 @@ public class RepositoryHygieneTests
     }
 
     [Fact]
-    public void GitIgnore_ShouldExplainPrivateAgentsGuide()
+    public void GitIgnore_ShouldPreserveTrackedAgentsGuide()
     {
         var content = File.ReadAllText(GetRepoFilePath(".gitignore"));
 
-        content.Should().Contain("AGENTS.md is a private local workflow file and must remain untracked",
-            ".gitignore should explicitly document why AGENTS.md is local-only");
-        content.Should().NotContain("AGENTS.md remains a tracked repository contract",
-            "AGENTS.md is not a public repository contract");
+        content.Should().Contain("AGENTS.md remains a tracked repository contract",
+            ".gitignore should explicitly preserve the repository safety contract");
+        content.Should().Contain("!AGENTS.md",
+            "the later negation must override the historical local-only ignore rule");
     }
 
     [Theory]

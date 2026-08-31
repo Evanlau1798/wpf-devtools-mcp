@@ -63,6 +63,9 @@ E2E-Test/
 CLAUDE.md
 # AGENTS.md is a private local workflow file and must remain untracked.
 AGENTS.md
+
+# AGENTS.md remains a tracked repository contract for E2E and agent safety gates.
+!AGENTS.md
 CHANGELOG.md
 
 # DocFX outputs

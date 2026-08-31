@@ -264,7 +264,11 @@ function Assert-PreviewReadiness {
 }
 
 function Assert-Attempts {
-    param([System.Text.Json.JsonElement] $Root, [hashtable] $Artifacts)
+    param(
+        [System.Text.Json.JsonElement] $Root,
+        [hashtable] $Artifacts,
+        [switch] $RequireJudgeArtifacts
+    )
 
     $contractHash = Get-JsonString $Root 'visualContractHash'
     Assert-ArtifactReference $Root 'visualContractArtifactId' $Artifacts
@@ -289,7 +293,11 @@ function Assert-Attempts {
         if ((Get-JsonString $attempt 'visualContractHash') -cne $contractHash) {
             throw 'Visual-contract hash changed across judge attempts.'
         }
-        foreach ($name in @('referenceArtifactId', 'candidateArtifactId', 'judgeResultArtifactId', 'imageMappingArtifactId')) {
+        $artifactFields = @('referenceArtifactId', 'candidateArtifactId')
+        if ($RequireJudgeArtifacts) {
+            $artifactFields += @('judgeResultArtifactId', 'imageMappingArtifactId')
+        }
+        foreach ($name in $artifactFields) {
             Assert-ArtifactReference $attempt $name $Artifacts
         }
     }
@@ -318,7 +326,11 @@ function Assert-CoreJourney {
 }
 
 function Assert-PreJudgeEvidence {
-    param([System.Text.Json.JsonElement] $Root, [string] $EvidenceRoot)
+    param(
+        [System.Text.Json.JsonElement] $Root,
+        [string] $EvidenceRoot,
+        [switch] $RequireJudgeArtifacts
+    )
 
     if ((Get-JsonString $Root 'schemaVersion') -cne 'wpfdevtools.e2e-run-evidence.v1') {
         throw "Unsupported E2E evidence schemaVersion."
@@ -330,6 +342,6 @@ function Assert-PreJudgeEvidence {
     Assert-PreviewReadiness $Root
     Assert-InteractiveEvidence $Root $artifacts
     Assert-CoreJourney $Root $artifacts
-    Assert-Attempts $Root $artifacts
+    Assert-Attempts $Root $artifacts -RequireJudgeArtifacts:$RequireJudgeArtifacts
     return $artifacts
 }

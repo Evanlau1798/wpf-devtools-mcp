@@ -119,6 +119,17 @@ public sealed class E2ERunEvidenceFinalTests
         DecisionReasons(decision).Should().Contain(reason => reason.Contains("mapping", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void Final_ShouldRequirePostJudgeArtifacts()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.Mutate(manifest => manifest["attempts"]![0]!.AsObject().Remove("imageMappingArtifactId"));
+
+        var decision = RunFailedFinal(fixture);
+
+        DecisionReasons(decision).Should().Contain(reason => reason.Contains("imageMappingArtifactId", StringComparison.Ordinal));
+    }
+
     private static JsonElement RunFailedFinal(E2ERunEvidenceFixture fixture)
     {
         var result = E2ERunEvidenceFixture.Run(fixture, "Final");

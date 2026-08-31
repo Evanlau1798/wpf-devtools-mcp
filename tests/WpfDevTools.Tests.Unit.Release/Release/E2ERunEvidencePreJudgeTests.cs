@@ -15,6 +15,22 @@ public sealed class E2ERunEvidencePreJudgeTests
     }
 
     [Fact]
+    public void PreJudge_ShouldNotRequirePostJudgeArtifacts()
+    {
+        using var fixture = new E2ERunEvidenceFixture();
+        fixture.Mutate(manifest =>
+        {
+            var attempt = manifest["attempts"]![0]!.AsObject();
+            attempt.Remove("judgeResultArtifactId");
+            attempt.Remove("imageMappingArtifactId");
+        });
+
+        var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
+
+        result.ExitCode.Should().Be(0, result.Stderr);
+    }
+
+    [Fact]
     public void PreJudge_ShouldRejectMissingBindingProof()
     {
         using var fixture = new E2ERunEvidenceFixture();

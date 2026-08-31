@@ -84,7 +84,7 @@ catch {
 $operational = $null -ne $artifacts
 if ($operational) {
     foreach ($gate in @(
-            { Assert-PreJudgeEvidence $root $evidenceFullPath | Out-Null },
+            { Assert-PreJudgeEvidence $root $evidenceFullPath -RequireJudgeArtifacts | Out-Null },
             { Assert-RunnerEvents $root $artifacts },
             { Assert-InputMappings $root $artifacts },
             { Assert-ReportAndCleanup $root $artifacts })) {

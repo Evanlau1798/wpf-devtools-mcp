@@ -4,8 +4,22 @@ internal static class BlueprintInputResolver
 {
     public static BlueprintDraftStore Store { get; } = new();
 
-    public static BlueprintInputResolution Resolve(string blueprintJsonOrDraftRef)
+    public static BlueprintInputResolution Resolve(string? blueprintJsonOrDraftRef)
     {
+        if (string.IsNullOrWhiteSpace(blueprintJsonOrDraftRef))
+        {
+            return new BlueprintInputResolution(
+                false,
+                false,
+                string.Empty,
+                string.Empty,
+                new BlueprintDraftIssue(
+                    "MissingBlueprintInput",
+                    "Blueprint JSON or a draftRef is required.",
+                    "Pass blueprintJson containing a UI blueprint or an opaque draftRef returned by create_ui_blueprint_draft.",
+                    "$.blueprintJson"));
+        }
+
         if (!blueprintJsonOrDraftRef.StartsWith(BlueprintDraftStore.ReferencePrefix, StringComparison.Ordinal))
         {
             return new BlueprintInputResolution(

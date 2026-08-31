@@ -175,7 +175,8 @@ public sealed class McpToolSearchMetadataE2eTests
                 root.GetProperty("responseContractVersion").GetString().Should().Be(ResponseContractVersion.Current);
                 root.GetProperty("toolPayload").GetProperty("canonicalField").GetString().Should().Be("structuredContent");
                 root.GetProperty("navigation").GetProperty("field").GetString().Should().Be("navigation");
-                root.GetProperty("nextSteps").GetProperty("derivedFrom").GetString().Should().Be("navigation.recommended");
+                root.GetProperty("nextSteps").GetProperty("derivedFrom").GetString().Should().Be(
+                    "tool-specific entries followed by unique navigation.recommended entries");
                 root.GetProperty("compatibility").GetProperty("toolListOutputSchema").GetString().Should().Be("advertised");
             }),
             ("tool manifest content", async () =>

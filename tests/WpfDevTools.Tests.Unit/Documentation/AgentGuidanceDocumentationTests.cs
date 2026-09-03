@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Text.RegularExpressions;
 
 namespace WpfDevTools.Tests.Unit.Documentation;
 
@@ -176,9 +177,15 @@ public sealed class AgentGuidanceDocumentationTests
     public void AgentsGuide_ShouldUseOneCurrentPublicToolCount()
     {
         var content = File.ReadAllText(GetRepoFilePath("AGENTS.md"));
+        var toolCount = Directory.EnumerateFiles(
+                GetRepoFilePath("src/WpfDevTools.Mcp.Server/McpTools"),
+                "*.cs")
+            .Sum(path => Regex.Matches(
+                File.ReadAllText(path),
+                @"\[McpServerTool\(Name\s*=").Count);
 
-        content.Should().Contain("server exposes 77 MCP tools");
-        content.Should().Contain("`tools/list` count of 77");
+        content.Should().Contain($"server exposes {toolCount} MCP tools");
+        content.Should().Contain($"`tools/list` count of {toolCount}");
         content.Should().NotContain("`tools/list` count of 64");
     }
 

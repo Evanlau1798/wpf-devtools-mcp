@@ -76,7 +76,8 @@ public sealed class ComposerPreviewLayoutOverflowAttentionTests
 
     private static PreviewLayoutRiskSummary AnalyzeSingle(
         double overflow,
-        bool canBringTargetIntoView)
+        bool canBringTargetIntoView,
+        double visibleRatio = 0.5)
     {
         var diagnostics = new[]
         {
@@ -98,7 +99,7 @@ public sealed class ComposerPreviewLayoutOverflowAttentionTests
                         clippingSource = "explicit-clip",
                         visibleContentImpact = "not-determined",
                         geometricClippingSeverity = "partial",
-                        visibleRatio = 0.5,
+                        visibleRatio,
                         nearestScrollContainer = new { canBringTargetIntoView },
                         overflowAmount = new { left = 0, top = 0, right = overflow, bottom = 0 }
                     }
@@ -115,4 +116,15 @@ public sealed class ComposerPreviewLayoutOverflowAttentionTests
 
     private static PreviewRuntimeDiagnostic Diagnostic(string tool, object payload)
         => new(tool, Success: true, JsonSerializer.SerializeToElement(payload));
+
+    [Theory]
+    [InlineData(true, 0)]
+    [InlineData(false, 1)]
+    public void Analyze_Sliver_ShouldUseProvedScrollReachability(bool reachable, int attention)
+    {
+        var summary = AnalyzeSingle(92, reachable, visibleRatio: 0.08);
+
+        summary.AttentionRequiredCount.Should().Be(attention);
+        summary.Warnings.Should().ContainSingle().Which.VisibilityClassification.Should().Be("sliver");
+    }
 }

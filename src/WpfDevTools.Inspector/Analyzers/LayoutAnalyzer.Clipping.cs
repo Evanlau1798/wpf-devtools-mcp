@@ -337,7 +337,14 @@ public sealed partial class LayoutAnalyzer
 
             try
             {
-                var childBounds = child.TransformToAncestor(visual).TransformBounds(GetContentBounds(child));
+                var visibleChildBounds = GetContentBounds(child);
+                // A native scroll viewport hides reachable content by design; its extent is not parent pixel loss.
+                if (child is ScrollContentPresenter && GetEffectiveClippingGeometry(child) is { } childClip)
+                {
+                    visibleChildBounds.Intersect(childClip.Bounds);
+                }
+
+                var childBounds = child.TransformToAncestor(visual).TransformBounds(visibleChildBounds);
                 if (childBounds.IsEmpty || childBounds.Width <= 0d || childBounds.Height <= 0d)
                 {
                     continue;

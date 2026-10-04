@@ -32,9 +32,13 @@ public sealed class SessionAccessElicitationE2eTests
         attemptedGrant.GetProperty("errorCode").GetString().Should().Be("InteractiveConsentUnavailable");
 
         var status = await client.CallToolAsync("get_access_status");
-        status.GetProperty("capabilities").EnumerateArray()
-            .Single(item => item.GetProperty("capability").GetString() == "composer-preview")
-            .GetProperty("status").GetString().Should().Be("consent-required");
+        status.GetProperty("interactiveConsentAvailable").GetBoolean().Should().BeFalse();
+        status.GetProperty("requestableCapabilities").GetArrayLength().Should().Be(0);
+        status.GetProperty("suggestedRequests").GetArrayLength().Should().Be(0);
+        var previewStatus = status.GetProperty("capabilities").EnumerateArray()
+            .Single(item => item.GetProperty("capability").GetString() == "composer-preview");
+        previewStatus.GetProperty("status").GetString().Should().Be("unsupported");
+        previewStatus.GetProperty("errorCode").GetString().Should().Be("InteractiveConsentUnavailable");
     }
 
     [Fact]

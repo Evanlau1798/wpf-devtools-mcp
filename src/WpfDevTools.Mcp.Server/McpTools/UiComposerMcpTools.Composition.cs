@@ -120,6 +120,7 @@ public static partial class UiComposerMcpTools
         if (result.Composed && input.IsDraft)
         {
             var derived = BlueprintInputResolver.Store.Create(result.BlueprintJson!);
+            var lifetime = GetDraftLifetime(derived.ExpiresAt);
             return derived.Success
                 ? new
                 {
@@ -130,6 +131,8 @@ public static partial class UiComposerMcpTools
                     derived.DraftRef,
                     derived.CharacterCount,
                     derived.ExpiresAt,
+                    lifetime.ServerTimeUtc,
+                    lifetime.ExpiresInSeconds,
                     insertedPath = result.InsertedPath,
                     insertedNodeSummary = result.InsertedNodeSummary,
                     targetSlotSummary = result.TargetSlotSummary,
@@ -143,6 +146,7 @@ public static partial class UiComposerMcpTools
         if (!result.Composed && input.IsDraft && result.CandidateBlueprintJson is not null)
         {
             var candidate = BlueprintInputResolver.Store.Create(result.CandidateBlueprintJson);
+            var lifetime = GetDraftLifetime(candidate.ExpiresAt);
             return candidate.Success
                 ? new
                 {
@@ -151,6 +155,9 @@ public static partial class UiComposerMcpTools
                     draftDerived = false,
                     sourceDraftRef = input.DraftRef,
                     candidateDraftRef = candidate.DraftRef,
+                    candidate.ExpiresAt,
+                    lifetime.ServerTimeUtc,
+                    lifetime.ExpiresInSeconds,
                     candidateDraftCreated = true,
                     candidateWritten = false,
                     targetSlotSummary = result.TargetSlotSummary,
@@ -282,6 +289,7 @@ public static partial class UiComposerMcpTools
         if (input.IsDraft)
         {
             var derived = BlueprintInputResolver.Store.Create(currentBlueprintJson);
+            var lifetime = GetDraftLifetime(derived.ExpiresAt);
             return derived.Success
                 ? new
                 {
@@ -292,6 +300,8 @@ public static partial class UiComposerMcpTools
                     derived.DraftRef,
                     derived.CharacterCount,
                     derived.ExpiresAt,
+                    lifetime.ServerTimeUtc,
+                    lifetime.ExpiresInSeconds,
                     operationCount = summaries.Count,
                     operations = summaries,
                     validation

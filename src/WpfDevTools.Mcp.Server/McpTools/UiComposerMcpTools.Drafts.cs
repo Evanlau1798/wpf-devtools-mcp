@@ -78,6 +78,7 @@ public static partial class UiComposerMcpTools
     private static object GetDraftCheckpoint(string draftRef)
     {
         var draft = BlueprintInputResolver.Store.Resolve(draftRef);
+        var lifetime = GetDraftLifetime(draft.ExpiresAt);
         return draft.Success
             ? new
             {
@@ -86,6 +87,8 @@ public static partial class UiComposerMcpTools
                 draft.BlueprintJson,
                 draft.CharacterCount,
                 draft.ExpiresAt,
+                lifetime.ServerTimeUtc,
+                lifetime.ExpiresInSeconds,
                 recreateWith = "create_ui_blueprint_draft"
             }
             : BlueprintDraftError(draft.Error!, "$.draftRef");
@@ -193,7 +196,9 @@ public static partial class UiComposerMcpTools
     private static object DraftMutationPayload(
         BlueprintDraftMutationResult result,
         string? sourceDraftRef)
-        => result.Success
+    {
+        var lifetime = GetDraftLifetime(result.ExpiresAt);
+        return result.Success
             ? new
             {
                 success = true,
@@ -203,6 +208,8 @@ public static partial class UiComposerMcpTools
                 sourceDraftRef,
                 result.CharacterCount,
                 result.ExpiresAt,
+                lifetime.ServerTimeUtc,
+                lifetime.ExpiresInSeconds,
                 changeSummary = result.ChangeSummary,
                 aliasInventory = CreateAliasInventory(result.DraftRef),
                 immutable = true,
@@ -216,6 +223,13 @@ public static partial class UiComposerMcpTools
                 }
             }
             : BlueprintDraftError(result.Error!);
+    }
+
+    private static (DateTimeOffset ServerTimeUtc, int ExpiresInSeconds) GetDraftLifetime(DateTimeOffset expiresAt)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return (now, (int)Math.Ceiling(Math.Max(0, (expiresAt - now).TotalSeconds)));
+    }
 
     private static object CreateAliasInventory(string draftRef)
     {

@@ -54,7 +54,8 @@ public sealed class AccessMcpToolsStatusTests
 
     private static JsonDocument BuildStatus(
         IReadOnlyDictionary<string, string?> environment,
-        int? processId = null)
+        int? processId = null,
+        bool supportsElicitation = true)
     {
         using var store = new SessionAccessGrantStore();
         var resolver = new SessionAccessScopeResolver(
@@ -69,11 +70,37 @@ public sealed class AccessMcpToolsStatusTests
             service,
             processId,
             null,
-            null);
-        return JsonDocument.Parse(JsonSerializer.Serialize(payload));
+            null,
+            supportsElicitation);
+        return JsonDocument.Parse(JsonSerializer.Serialize(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
     }
 
     private static JsonElement GetCapability(JsonDocument document, string capability)
         => document.RootElement.GetProperty("capabilities").EnumerateArray()
             .Single(item => item.GetProperty("capability").GetString() == capability);
+
+    [Fact]
+    public void BuildStatus_UnsupportedClient_ShouldDiscloseUnavailableConsentWithoutRequests()
+    {
+        using var document = BuildStatus(new Dictionary<string, string?>(), processId: 42,
+            supportsElicitation: false);
+
+        document.RootElement.GetProperty("interactiveConsentAvailable").GetBoolean().Should().BeFalse();
+        GetCapability(document, SessionAccessCapabilities.Screenshot)
+            .GetProperty("errorCode").GetString().Should().Be("InteractiveConsentUnavailable");
+        document.RootElement.GetProperty("suggestedRequests").EnumerateArray().Should().BeEmpty();
+        document.RootElement.GetProperty("requestableCapabilities").EnumerateArray().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BuildStatus_UnsupportedClient_ShouldKeepPreauthorizedCapabilityUsable()
+    {
+        using var document = BuildStatus(new Dictionary<string, string?>
+        {
+            [McpServerConfiguration.AllowScreenshotsEnvVar] = "true"
+        }, processId: 42, supportsElicitation: false);
+
+        GetCapability(document, SessionAccessCapabilities.Screenshot)
+            .GetProperty("status").GetString().Should().Be("preauthorized");
+    }
 }

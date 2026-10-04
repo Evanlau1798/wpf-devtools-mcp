@@ -50,13 +50,35 @@ internal static class ExistingXamlContractAnalyzer
                             $"Event contract {attribute.Name.LocalName}=\"{attribute.Value}\" on '{name}' would be removed."));
                     }
                 }
+
+                foreach (var attribute in BindingContracts(element))
+                {
+                    if (replacement.Attribute(attribute.Name)?.Value != attribute.Value)
+                    {
+                        Add(changes, new(
+                            "ExistingBindingChanged", name, element.Name.LocalName,
+                            replacement.Name.LocalName, null, null,
+                            $"Binding contract for '{attribute.Name.LocalName}' on '{name}' would be removed or changed. Review the existing contract before apply."));
+                    }
+                }
             }
 
             var truncated = changes.Count > MaximumChanges;
             return new ExistingXamlContractAnalysis(
                 changes.Take(MaximumChanges).ToArray(),
                 truncated,
-                AnalysisAvailable: true);
+                AnalysisAvailable: true)
+            {
+                Contracts = existing.OrderBy(item => item.Key, StringComparer.Ordinal)
+                    .Take(MaximumChanges)
+                    .Select(item => new ExistingNamedElementContract(
+                        item.Key,
+                        item.Value.Name.ToString(),
+                        EventContracts(item.Value, handlers).ToDictionary(attribute => attribute.Name.ToString(), attribute => attribute.Value),
+                        BindingContracts(item.Value).ToDictionary(attribute => attribute.Name.ToString(), attribute => attribute.Value)))
+                    .ToArray(),
+                ContractsTruncated = existing.Count > MaximumChanges
+            };
         }
         catch (Exception ex) when (ex is System.Xml.XmlException or InvalidOperationException)
         {
@@ -94,6 +116,11 @@ internal static class ExistingXamlContractAnalyzer
             attribute.Name.LocalName != "Name"
             && handlers.Contains(attribute.Value));
 
+    private static IEnumerable<XAttribute> BindingContracts(XElement element)
+        => element.Attributes().Where(attribute =>
+            Regex.IsMatch(attribute.Value, @"^\s*\{(?:Binding|MultiBinding|PriorityBinding)(?:\s|\})",
+                RegexOptions.CultureInvariant));
+
     private static void Add(
         ICollection<ExistingXamlContractChange> changes,
         ExistingXamlContractChange change)
@@ -110,8 +137,16 @@ internal sealed record ExistingXamlContractAnalysis(
     bool Truncated,
     bool AnalysisAvailable)
 {
+    public IReadOnlyList<ExistingNamedElementContract> Contracts { get; init; } = [];
+    public bool ContractsTruncated { get; init; }
     internal static readonly ExistingXamlContractAnalysis NotApplicable = new([], false, true);
 }
+
+internal sealed record ExistingNamedElementContract(
+    string ElementName,
+    string ElementType,
+    IReadOnlyDictionary<string, string> Events,
+    IReadOnlyDictionary<string, string> Bindings);
 
 internal sealed record ExistingXamlContractChange(
     string Code,

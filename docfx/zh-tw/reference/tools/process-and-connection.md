@@ -15,6 +15,7 @@
 ## 什麼時候用哪一個
 
 - 使用 `get_access_status(processId?, projectRoot?, packRef?)` 查詢目前與缺少的 capability；此工具不會授權。
+- 先檢查 `interactiveConsentAvailable`。不支援的 client 在缺少權限時會回報 `status="unsupported"` 與 `InteractiveConsentUnavailable`，不會提供無法完成的申請；既有 operator 預先授權仍可使用。
 - Agent 說明用途後，使用精確 scope 呼叫 `request_session_access`。接受後會在同一 MCP connection 立即生效；拒絕或取消仍 fail closed。Raw injection 只接受綁定 process identity 的單次 grant。
 - 不支援 MCP elicitation 的 client 會收到 `InteractiveConsentUnavailable`，可改用已審查的 operator environment 設定。明確停用不可被覆蓋，已設定的 target/project allowlist 仍是最大範圍。
 - target 已 allowlist 後，一般情況先用 `connect()`。它會自動發現單一可見的 WPF 目標並直接建立連線。

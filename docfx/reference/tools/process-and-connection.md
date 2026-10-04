@@ -15,6 +15,7 @@ Use `get_access_status` before a restricted workflow. If access is missing, expl
 ## When to use which
 
 - Call `get_access_status(processId?, projectRoot?, packRef?)` to inspect current and missing capabilities without granting anything.
+- Check `interactiveConsentAvailable` first. Unsupported clients receive `status="unsupported"` and `InteractiveConsentUnavailable` for missing access, without unusable suggested requests. Existing operator preauthorization remains usable.
 - After explaining the purpose, call `request_session_access` with the exact suggested scope. Accepted grants take effect immediately in the same MCP connection; decline or cancellation remains fail-closed. Raw injection accepts only a one-time process-identity-bound grant.
 - Clients without MCP elicitation receive `InteractiveConsentUnavailable` and can use reviewed operator environment settings. Explicit disables cannot be overridden, and configured target/project allowlists remain maximum scopes.
 - Use `connect()` first for the common case after the target is allowlisted. It auto-discovers a single visible WPF target and connects in one step.

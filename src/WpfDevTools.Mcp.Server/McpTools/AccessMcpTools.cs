@@ -26,7 +26,8 @@ public static class AccessMcpTools
                 service,
                 processId,
                 projectRoot,
-                packRef)),
+                packRef,
+                server.ClientCapabilities?.Elicitation is not null)),
             null,
             cancellationToken,
             toolName: "get_access_status");
@@ -75,7 +76,8 @@ public static class AccessMcpTools
         SessionAccessRequestService service,
         int? processId,
         string? projectRoot,
-        string? packRef)
+        string? packRef,
+        bool supportsElicitation = true)
     {
         var capabilities = SessionAccessCapabilities.All
             .Order(StringComparer.Ordinal)
@@ -95,12 +97,15 @@ public static class AccessMcpTools
                     && status.ErrorCode is "ProcessScopeRequired" or "PackScopeRequired" or "InvalidProjectRoot"
                         ? "scope-required"
                         : status.Status;
+                var consentUnavailable = reportedStatus == "consent-required" && !supportsElicitation;
                 return new
                 {
                     capability,
-                    status = reportedStatus,
-                    status.ErrorCode,
-                    status.Error
+                    status = consentUnavailable ? "unsupported" : reportedStatus,
+                    errorCode = consentUnavailable ? "InteractiveConsentUnavailable" : status.ErrorCode,
+                    error = consentUnavailable
+                        ? "The connected client does not support MCP elicitation. Use an explicit operator policy or a compatible client."
+                        : status.Error
                 };
             })
             .ToArray();
@@ -113,7 +118,7 @@ public static class AccessMcpTools
             .Select(item => item.capability)
             .ToArray();
         var unavailable = capabilities
-            .Where(item => item.status is "hard-denied" or "invalid-policy" or "scope-required")
+            .Where(item => item.status is "hard-denied" or "invalid-policy" or "scope-required" or "unsupported")
             .Select(item => item.capability)
             .ToArray();
         var sessionCapabilities = requestable
@@ -135,6 +140,7 @@ public static class AccessMcpTools
         return new
         {
             success = true,
+            interactiveConsentAvailable = supportsElicitation,
             capabilities,
             missingCapabilities = missing,
             requestableCapabilities = requestable,

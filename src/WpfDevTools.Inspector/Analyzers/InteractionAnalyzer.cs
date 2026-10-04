@@ -104,7 +104,20 @@ public sealed partial class InteractionAnalyzer : DispatcherAnalyzerBase
                         return readinessError;
                     }
 
-                    Selector.SetIsSelected(itemContainer, true);
+                    if (ItemsControl.ItemsControlFromItemContainer(itemContainer) is Selector owner)
+                    {
+                        if (owner is DataGrid grid)
+                        {
+                            grid.SelectedItems.Clear();
+                        }
+
+                        owner.SetCurrentValue(Selector.SelectedItemProperty,
+                            owner.ItemContainerGenerator.ItemFromContainer(itemContainer));
+                    }
+                    else
+                    {
+                        Selector.SetIsSelected(itemContainer, true);
+                    }
                     itemContainer.Focus();
 
                     return new

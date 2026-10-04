@@ -8,6 +8,33 @@ public sealed class ExistingXamlContractAnalyzerTests
     private const string Namespace = "xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"";
 
     [Fact]
+    public void Analyze_ShouldExposeExistingContractsAndReportChangedBinding()
+    {
+        var existing = $"<TextBox {Namespace} x:Name=\"Query\" Text=\"{{Binding SearchTerm, Mode=TwoWay}}\"/>";
+        var proposed = $"<TextBox {Namespace} x:Name=\"Query\" Text=\"{{Binding OtherTerm}}\"/>";
+
+        var result = ExistingXamlContractAnalyzer.Analyze(existing, proposed, null);
+
+        result.Contracts.Should().ContainSingle().Which.ElementName.Should().Be("Query");
+        result.Contracts[0].Bindings["Text"].Should().Be("{Binding SearchTerm, Mode=TwoWay}");
+        result.Changes.Should().ContainSingle(change => change.Code == "ExistingBindingChanged");
+    }
+
+    [Theory]
+    [InlineData("{Binding Items}")]
+    [InlineData("{MultiBinding Converter={StaticResource Join}}")]
+    [InlineData("{PriorityBinding}")]
+    public void Analyze_RemovedBinding_ShouldRequireContractReview(string binding)
+    {
+        var existing = $"<TextBox {Namespace} x:Name=\"Query\" Text=\"{binding}\"/>";
+        var proposed = $"<TextBox {Namespace} x:Name=\"Query\"/>";
+
+        var result = ExistingXamlContractAnalyzer.Analyze(existing, proposed, null);
+
+        result.Changes.Should().ContainSingle(change => change.Code == "ExistingBindingChanged");
+    }
+
+    [Fact]
     public void Analyze_ShouldReportRemovedAndRetypedNamedElements()
     {
         var existing = $"<Grid {Namespace}><Button x:Name=\"Save\"/><TextBlock x:Name=\"Title\"/></Grid>";

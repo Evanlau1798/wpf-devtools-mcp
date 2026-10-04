@@ -412,7 +412,7 @@ internal static class PreviewLayoutRiskAnalyzer
             GeometricClippingSeverity = geometricClippingSeverity,
             VisibleRatio = visibleRatio,
             VisibilityClassification = visibilityClassification,
-            RequiresAttention = visibilityClassification == "sliver"
+            RequiresAttention = (visibilityClassification == "sliver" && !canBringTargetIntoView)
                                 || (visibilityClassification == "hidden" && !canBringTargetIntoView)
                                 || (geometricClippingSeverity == "partial"
                                     && maximumOverflow > 2

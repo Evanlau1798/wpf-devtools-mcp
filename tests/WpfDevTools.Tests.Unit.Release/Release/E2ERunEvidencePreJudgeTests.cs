@@ -269,11 +269,8 @@ public sealed class E2ERunEvidencePreJudgeTests
     public void PreJudge_ShouldRejectRestoreWithoutMatchingReadback()
     {
         using var fixture = new E2ERunEvidenceFixture();
-        fixture.SetArtifactText(
-            "stateRestore",
-            """
-            {"result":{"isError":false,"structuredContent":{"success":true,"restoredSelection":true,"restoredState":true,"restoredFocus":true}},"readback":{"matchesBaseline":false}}
-            """);
+        E2ERunEvidenceStateSafetyTests.MutateArtifact(fixture, "stateRestore",
+            root => root["readback"]!["matchesBaseline"] = false);
 
         var result = E2ERunEvidenceFixture.Run(fixture, "PreJudge");
 

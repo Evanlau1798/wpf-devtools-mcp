@@ -29,6 +29,7 @@ internal sealed partial class E2ERunEvidenceFixture : IDisposable
             "![reference](attempts/1/inputs/reference.png)\n" +
             "![candidate](attempts/1/inputs/candidate.png)\n");
         Save(CreateManifest());
+        InitializeStateProvenance();
     }
 
     public string Root { get; }

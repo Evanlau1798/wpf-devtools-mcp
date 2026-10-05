@@ -14,6 +14,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'E2ERunEvidence.Common.ps1')
+. (Join-Path $PSScriptRoot 'E2ERunEvidence.State.ps1')
+. (Join-Path $PSScriptRoot 'E2ERunEvidence.Provenance.ps1')
 . (Join-Path $PSScriptRoot 'E2ERunEvidence.Interactive.ps1')
 . (Join-Path $PSScriptRoot 'E2ERunEvidence.Final.ps1')
 . (Join-Path $PSScriptRoot 'E2ERunEvidence.Receipt.ps1')

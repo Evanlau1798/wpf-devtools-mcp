@@ -29,6 +29,9 @@ function Get-PreJudgeDigest {
     $state = Get-JsonProperty $Root 'stateSafety'
     $artifactIds.Add((Get-JsonString $state 'diffArtifactId')) | Out-Null
     $artifactIds.Add((Get-JsonString $state 'restoreArtifactId')) | Out-Null
+    foreach ($id in (Get-StateProvenanceArtifactIds $Root $Artifacts)) {
+        $artifactIds.Add($id) | Out-Null
+    }
     foreach ($id in (Get-JsonArray (Get-JsonProperty $Root 'coreJourney') 'artifactIds').EnumerateArray()) {
         $artifactIds.Add($id.GetString()) | Out-Null
     }

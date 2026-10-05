@@ -415,16 +415,8 @@ function Assert-CoreJourney {
     Assert-ArtifactReference $state 'diffArtifactId' $Artifacts
     Assert-ArtifactReference $state 'restoreArtifactId' $Artifacts
     $diff = Read-JsonArtifact $Artifacts (Get-JsonString $state 'diffArtifactId') 'state diff'
-    $diffResult = Assert-SuccessfulToolResult $diff 'state diff'
-    if ((Get-JsonInteger (Get-JsonProperty $diffResult 'structuredContent') 'changeCount') -le 0) {
-        throw 'State diff must prove at least one runtime change.'
-    }
     $restore = Read-JsonArtifact $Artifacts (Get-JsonString $state 'restoreArtifactId') 'state restore'
-    $restoreContent = Get-JsonProperty (Assert-SuccessfulToolResult $restore 'state restore') 'structuredContent'
-    foreach ($name in @('restoredSelection', 'restoredState', 'restoredFocus')) {
-        Assert-TrueField $restoreContent $name 'State restore proof'
-    }
-    Assert-TrueField (Get-JsonProperty $restore 'readback') 'matchesBaseline' 'State restore readback'
+    Assert-StateSafetyResults $diff $restore $Artifacts
 }
 
 function Assert-PreJudgeEvidence {
